@@ -80,25 +80,44 @@ const PlanSelection = () => {
     }
 
     // Call edge function to create MP preference
-    const { data: mpData, error: mpError } = await supabase.functions.invoke(
-      "create-mp-preference",
-      {
-        body: {
-          plan_id: plan.id,
-          alumno_id: alumnoId,
-          suscripcion_id: sub.id,
-        },
-      }
-    );
+    try {
+      const { data, error: mpError } = await supabase.functions.invoke(
+        "create-mp-preference",
+        {
+          body: {
+            plan_id: plan.id,
+            alumno_id: alumnoId,
+            suscripcion_id: sub.id,
+          },
+        }
+      );
 
-    if (mpError || !mpData?.init_point) {
-      setError(mpData?.error || "Error al conectar con Mercado Pago. Intentá nuevamente.");
+      if (mpError) {
+        console.error("MP invoke error:", mpError);
+        setError("Error al conectar con Mercado Pago. Intentá nuevamente.");
+        setProcessing(false);
+        return;
+      }
+
+      // data may already be parsed or may need parsing
+      const mpData = typeof data === "string" ? JSON.parse(data) : data;
+      console.log("MP response:", mpData);
+
+      if (!mpData?.init_point) {
+        setError(mpData?.error || "Error al crear la preferencia de pago.");
+        setProcessing(false);
+        return;
+      }
+
+      // Redirect to Mercado Pago checkout
+      window.location.href = mpData.init_point;
+      return;
+    } catch (invokeErr) {
+      console.error("MP unexpected error:", invokeErr);
+      setError("Error inesperado al conectar con Mercado Pago.");
       setProcessing(false);
       return;
     }
-
-    // Redirect to Mercado Pago checkout
-    window.location.href = mpData.init_point;
   };
 
   if (loading) {
