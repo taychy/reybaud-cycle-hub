@@ -13,6 +13,7 @@ import ManageStudents from "./pages/admin/ManageStudents";
 import ImportStudents from "./pages/admin/ImportStudents";
 import ImportPlan from "./pages/admin/ImportPlan";
 import Trainings from "./pages/admin/Trainings";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/registro" element={<Register />} />
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/alumno" element={<StudentDashboard />} />
+          <Route path="/instalar" element={<Install />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/alumnos" replace />} />
