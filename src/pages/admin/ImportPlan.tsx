@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,6 +21,16 @@ interface ParsedTraining {
 const VALID_GRUPOS = ["G1", "G2", "G3", "G4"];
 const VALID_TIPOS = ["ruta", "rodillo", "gimnasio", "tecnica"];
 
+function cellValue(row: ExcelJS.Row, col: number): string {
+  const cell = row.getCell(col);
+  if (cell.value == null) return "";
+  if (cell.value instanceof Date) {
+    const d = cell.value;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  return String(cell.value).trim();
+}
+
 const ImportPlan = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [parsed, setParsed] = useState<ParsedTraining[]>([]);
@@ -29,80 +39,84 @@ const ImportPlan = () => {
   const [imported, setImported] = useState(false);
   const [detectedMonth, setDetectedMonth] = useState<string>("");
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target?.result;
-      const workbook = XLSX.read(data, { type: "binary" });
+    const buffer = await file.arrayBuffer();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
 
-      // Try "Plan" sheet first, then first sheet
-      const sheetName = workbook.SheetNames.includes("Plan") ? "Plan" : workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+    // Try "Plan" sheet first, then first sheet
+    const sheet = workbook.getWorksheet("Plan") || workbook.worksheets[0];
+    if (!sheet) return;
 
-      const trainings: ParsedTraining[] = [];
-      const errs: string[] = [];
+    // Read header row to map column names
+    const headerRow = sheet.getRow(1);
+    const colMap: Record<string, number> = {};
+    headerRow.eachCell((cell, colNumber) => {
+      const name = String(cell.value ?? "").toLowerCase().trim();
+      colMap[name] = colNumber;
+    });
 
-      rows.forEach((row, i) => {
-        let fecha = "";
-        const rawFecha = row["fecha"] || row["Fecha"] || row["date"];
-
-        if (rawFecha) {
-          if (typeof rawFecha === "number") {
-            // Excel serial date
-            const d = XLSX.SSF.parse_date_code(rawFecha);
-            fecha = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
-          } else {
-            fecha = String(rawFecha).trim();
-          }
-        }
-
-        const grupo = String(row["grupo"] || row["Grupo"] || row["group"] || "").toUpperCase().trim();
-        const titulo = String(row["titulo"] || row["Titulo"] || row["title"] || "").trim();
-        const descripcion = String(row["descripcion"] || row["Descripcion"] || row["description"] || "").trim();
-        const tipo = String(row["tipo"] || row["Tipo"] || row["type"] || "").toLowerCase().trim();
-        const link = String(row["link_archivo"] || row["Link"] || row["link"] || "").trim();
-
-        if (!fecha) {
-          errs.push(`Fila ${i + 2}: Sin fecha`);
-          return;
-        }
-
-        if (!VALID_GRUPOS.includes(grupo)) {
-          errs.push(`Fila ${i + 2}: Grupo inválido "${grupo}"`);
-          return;
-        }
-
-        if (!titulo) {
-          errs.push(`Fila ${i + 2}: Sin título`);
-          return;
-        }
-
-        trainings.push({
-          fecha,
-          grupo,
-          titulo,
-          descripcion,
-          tipo: VALID_TIPOS.includes(tipo) ? tipo : "",
-          link_archivo: link === "undefined" ? "" : link,
-          valid: true,
-        });
-      });
-
-      // Detect month from first training
-      if (trainings.length > 0) {
-        setDetectedMonth(trainings[0].fecha.substring(0, 7));
+    const getCol = (...names: string[]) => {
+      for (const n of names) {
+        if (colMap[n] != null) return colMap[n];
       }
-
-      setParsed(trainings);
-      setErrors(errs);
-      setImported(false);
+      return 0;
     };
 
-    reader.readAsBinaryString(file);
+    const fechaCol = getCol("fecha", "date");
+    const grupoCol = getCol("grupo", "group");
+    const tituloCol = getCol("titulo", "title");
+    const descCol = getCol("descripcion", "description");
+    const tipoCol = getCol("tipo", "type");
+    const linkCol = getCol("link_archivo", "link");
+
+    const trainings: ParsedTraining[] = [];
+    const errs: string[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // skip header
+
+      const fecha = fechaCol ? cellValue(row, fechaCol) : "";
+      const grupo = grupoCol ? cellValue(row, grupoCol).toUpperCase() : "";
+      const titulo = tituloCol ? cellValue(row, tituloCol) : "";
+      const descripcion = descCol ? cellValue(row, descCol) : "";
+      const tipo = tipoCol ? cellValue(row, tipoCol).toLowerCase() : "";
+      const link = linkCol ? cellValue(row, linkCol) : "";
+
+      if (!fecha) {
+        errs.push(`Fila ${rowNumber}: Sin fecha`);
+        return;
+      }
+      if (!VALID_GRUPOS.includes(grupo)) {
+        errs.push(`Fila ${rowNumber}: Grupo inválido "${grupo}"`);
+        return;
+      }
+      if (!titulo) {
+        errs.push(`Fila ${rowNumber}: Sin título`);
+        return;
+      }
+
+      trainings.push({
+        fecha,
+        grupo,
+        titulo,
+        descripcion,
+        tipo: VALID_TIPOS.includes(tipo) ? tipo : "",
+        link_archivo: link === "undefined" ? "" : link,
+        valid: true,
+      });
+    });
+
+    if (trainings.length > 0) {
+      setDetectedMonth(trainings[0].fecha.substring(0, 7));
+    }
+
+    setParsed(trainings);
+    setErrors(errs);
+    setImported(false);
   };
 
   const handleImport = async () => {
