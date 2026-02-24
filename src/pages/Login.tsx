@@ -98,6 +98,16 @@ const Login = () => {
           </div>
         </form>
 
+        {/* Register link */}
+        <div className="text-center">
+          <button
+            onClick={() => navigate("/registro")}
+            className="text-sm text-primary hover:text-gold-light transition-colors font-medium"
+          >
+            ¿No tenés cuenta? Registrate
+          </button>
+        </div>
+
         {/* Admin link */}
         <div className="text-center">
           <button
