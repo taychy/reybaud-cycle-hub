@@ -231,9 +231,9 @@ export function parseTrainingExcel(
     // Find week header - look for "SEMANA" in first few rows
     let mondayDate: Date | null = null;
 
-    for (let r = 1; r <= 3; r++) {
+    for (let r = 1; r <= 10; r++) {
       const row = sheet.getRow(r);
-      for (let c = 1; c <= 10; c++) {
+      for (let c = 1; c <= 15; c++) {
         const text = cellText(row, c);
         if (text.toUpperCase().includes("SEMANA") && text.includes("(")) {
           mondayDate = parseMondayDate(text);
@@ -253,7 +253,7 @@ export function parseTrainingExcel(
     let headerRowNum = 0;
     let colMap: Record<string, number> = {};
 
-    for (let r = 1; r <= 5; r++) {
+    for (let r = 1; r <= 10; r++) {
       const row = sheet.getRow(r);
       for (let c = 1; c <= 10; c++) {
         const text = cellText(row, c).toUpperCase();
@@ -283,6 +283,7 @@ export function parseTrainingExcel(
     // Parse day rows
     const days: DayData[] = [];
     let currentDay: DayData | null = null;
+    let lastDayName: string | null = null;
 
     sheet.eachRow((row, rowNum) => {
       if (rowNum <= headerRowNum) return;
@@ -311,10 +312,12 @@ export function parseTrainingExcel(
 
       const dayName = diaText ? getDayName(diaText) : null;
 
-      if (dayName) {
-        // New day
+      // Only create a new day if the day name CHANGED (handles merged cells
+      // where exceljs repeats the value across all rows in the merge)
+      if (dayName && dayName !== lastDayName) {
         currentDay = { dayName, blocks: [], totalMinutos: minutos };
         days.push(currentDay);
+        lastDayName = dayName;
       }
 
       if (currentDay && trabajo) {
@@ -406,5 +409,14 @@ export function parseTrainingExcel(
     }
   }
 
-  return { trainings, errors, month };
+  // Deduplicate by fecha+grupo (keep first occurrence which has combined blocks)
+  const seen = new Set<string>();
+  const deduped = trainings.filter((t) => {
+    const key = `${t.fecha}_${t.grupo}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return { trainings: deduped, errors, month };
 }
