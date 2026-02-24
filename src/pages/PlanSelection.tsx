@@ -81,29 +81,25 @@ const PlanSelection = () => {
 
     // Call edge function to create MP preference
     try {
-      const { data, error: mpError } = await supabase.functions.invoke(
-        "create-mp-preference",
-        {
-          body: {
-            plan_id: plan.id,
-            alumno_id: alumnoId,
-            suscripcion_id: sub.id,
-          },
-        }
-      );
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
+      
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          plan_id: plan.id,
+          alumno_id: alumnoId,
+          suscripcion_id: sub.id,
+        }),
+      });
 
-      if (mpError) {
-        console.error("MP invoke error:", mpError);
-        setError("Error al conectar con Mercado Pago. Intentá nuevamente.");
-        setProcessing(false);
-        return;
-      }
-
-      // data may already be parsed or may need parsing
-      const mpData = typeof data === "string" ? JSON.parse(data) : data;
+      const mpData = await response.json();
       console.log("MP response:", mpData);
 
-      if (!mpData?.init_point) {
+      if (!response.ok || !mpData?.init_point) {
         setError(mpData?.error || "Error al crear la preferencia de pago.");
         setProcessing(false);
         return;
