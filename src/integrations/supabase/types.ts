@@ -163,6 +163,93 @@ export type Database = {
         }
         Relationships: []
       }
+      planes: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string | null
+          frecuencia: string
+          id: string
+          nombre: string
+          precio: number
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          frecuencia: string
+          id?: string
+          nombre: string
+          precio: number
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          frecuencia?: string
+          id?: string
+          nombre?: string
+          precio?: number
+        }
+        Relationships: []
+      }
+      suscripciones: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          estado: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          id: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
+          mp_status: string | null
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          mp_status?: string | null
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          mp_status?: string | null
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
