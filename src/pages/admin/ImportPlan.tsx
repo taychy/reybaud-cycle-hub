@@ -6,30 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Upload, AlertTriangle, CheckCircle2, FileSpreadsheet, Eye } from "lucide-react";
 import { toast } from "sonner";
-
-interface ParsedTraining {
-  fecha: string;
-  grupo: string;
-  titulo: string;
-  descripcion: string;
-  tipo: string;
-  link_archivo: string;
-  valid: boolean;
-  error?: string;
-}
-
-const VALID_GRUPOS = ["G1", "G2", "G3", "G4"];
-const VALID_TIPOS = ["ruta", "rodillo", "gimnasio", "tecnica"];
-
-function cellValue(row: ExcelJS.Row, col: number): string {
-  const cell = row.getCell(col);
-  if (cell.value == null) return "";
-  if (cell.value instanceof Date) {
-    const d = cell.value;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
-  return String(cell.value).trim();
-}
+import { parseTrainingExcel, type ParsedTraining } from "@/lib/parseTrainingExcel";
 
 const ImportPlan = () => {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -37,7 +14,7 @@ const ImportPlan = () => {
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
-  const [detectedMonth, setDetectedMonth] = useState<string>("");
+  const [detectedMonth, setDetectedMonth] = useState("");
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,75 +24,11 @@ const ImportPlan = () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer);
 
-    // Try "Plan" sheet first, then first sheet
-    const sheet = workbook.getWorksheet("Plan") || workbook.worksheets[0];
-    if (!sheet) return;
-
-    // Read header row to map column names
-    const headerRow = sheet.getRow(1);
-    const colMap: Record<string, number> = {};
-    headerRow.eachCell((cell, colNumber) => {
-      const name = String(cell.value ?? "").toLowerCase().trim();
-      colMap[name] = colNumber;
-    });
-
-    const getCol = (...names: string[]) => {
-      for (const n of names) {
-        if (colMap[n] != null) return colMap[n];
-      }
-      return 0;
-    };
-
-    const fechaCol = getCol("fecha", "date");
-    const grupoCol = getCol("grupo", "group");
-    const tituloCol = getCol("titulo", "title");
-    const descCol = getCol("descripcion", "description");
-    const tipoCol = getCol("tipo", "type");
-    const linkCol = getCol("link_archivo", "link");
-
-    const trainings: ParsedTraining[] = [];
-    const errs: string[] = [];
-
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // skip header
-
-      const fecha = fechaCol ? cellValue(row, fechaCol) : "";
-      const grupo = grupoCol ? cellValue(row, grupoCol).toUpperCase() : "";
-      const titulo = tituloCol ? cellValue(row, tituloCol) : "";
-      const descripcion = descCol ? cellValue(row, descCol) : "";
-      const tipo = tipoCol ? cellValue(row, tipoCol).toLowerCase() : "";
-      const link = linkCol ? cellValue(row, linkCol) : "";
-
-      if (!fecha) {
-        errs.push(`Fila ${rowNumber}: Sin fecha`);
-        return;
-      }
-      if (!VALID_GRUPOS.includes(grupo)) {
-        errs.push(`Fila ${rowNumber}: Grupo inválido "${grupo}"`);
-        return;
-      }
-      if (!titulo) {
-        errs.push(`Fila ${rowNumber}: Sin título`);
-        return;
-      }
-
-      trainings.push({
-        fecha,
-        grupo,
-        titulo,
-        descripcion,
-        tipo: VALID_TIPOS.includes(tipo) ? tipo : "",
-        link_archivo: link === "undefined" ? "" : link,
-        valid: true,
-      });
-    });
-
-    if (trainings.length > 0) {
-      setDetectedMonth(trainings[0].fecha.substring(0, 7));
-    }
+    const { trainings, errors: parseErrors, month } = parseTrainingExcel(workbook);
 
     setParsed(trainings);
-    setErrors(errs);
+    setErrors(parseErrors);
+    setDetectedMonth(month);
     setImported(false);
   };
 
@@ -125,7 +38,6 @@ const ImportPlan = () => {
 
     const { data: { session } } = await supabase.auth.getSession();
 
-    // Create plan mensual
     const { data: plan, error: planError } = await supabase
       .from("plan_mensual")
       .insert({
@@ -146,7 +58,6 @@ const ImportPlan = () => {
     let errCount = 0;
 
     for (const t of parsed) {
-      // Check for duplicates
       const { data: existing } = await supabase
         .from("entrenamientos")
         .select("id")
@@ -155,7 +66,6 @@ const ImportPlan = () => {
         .maybeSingle();
 
       if (existing) {
-        // Replace existing
         const { error } = await supabase
           .from("entrenamientos")
           .update({
@@ -166,9 +76,7 @@ const ImportPlan = () => {
             origen_importacion_id: plan.id,
           })
           .eq("id", existing.id);
-
-        if (error) errCount++;
-        else ok++;
+        if (error) errCount++; else ok++;
       } else {
         const { error } = await supabase.from("entrenamientos").insert({
           fecha: t.fecha,
@@ -180,9 +88,7 @@ const ImportPlan = () => {
           origen_importacion_id: plan.id,
           visible: false,
         });
-
-        if (error) errCount++;
-        else ok++;
+        if (error) errCount++; else ok++;
       }
     }
 
@@ -193,8 +99,6 @@ const ImportPlan = () => {
 
   const publishPlan = async () => {
     if (!detectedMonth) return;
-
-    // Set all trainings for this month as visible
     const startDate = `${detectedMonth}-01`;
     const endDate = `${detectedMonth}-31`;
 
@@ -204,7 +108,6 @@ const ImportPlan = () => {
       .gte("fecha", startDate)
       .lte("fecha", endDate);
 
-    // Update plan status
     await supabase
       .from("plan_mensual")
       .update({ estado: "publicado" as const })
@@ -213,6 +116,9 @@ const ImportPlan = () => {
     toast.success(`Plan de ${detectedMonth} publicado`);
   };
 
+  // Deduplicate for preview: show unique fecha rows, grouped
+  const uniqueDates = [...new Set(parsed.map((t) => t.fecha))];
+
   return (
     <div className="space-y-6">
       <div>
@@ -220,7 +126,7 @@ const ImportPlan = () => {
           Importar Plan Mensual
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Subí un archivo Excel con el plan de entrenamientos
+          Subí el archivo Excel con el plan semanal de entrenamientos
         </p>
       </div>
 
@@ -231,7 +137,7 @@ const ImportPlan = () => {
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
         <FileSpreadsheet className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
         <p className="text-sm text-foreground font-medium">Click para seleccionar archivo Excel</p>
-        <p className="text-xs text-muted-foreground mt-1">Columnas: fecha, grupo, titulo, descripcion, tipo, link_archivo</p>
+        <p className="text-xs text-muted-foreground mt-1">Formato semanal: hojas con Día, Minutos, Trabajo, Dinámica, etc.</p>
       </div>
 
       {parsed.length > 0 && !imported && (
@@ -240,7 +146,7 @@ const ImportPlan = () => {
             <div className="glass-card rounded-lg p-4 space-y-2">
               <div className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm font-medium">{errors.length} filas con errores</span>
+                <span className="text-sm font-medium">{errors.length} advertencias</span>
               </div>
               <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
                 {errors.map((e, i) => <p key={i}>{e}</p>)}
@@ -253,7 +159,7 @@ const ImportPlan = () => {
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  {parsed.length} entrenamientos · Mes: {detectedMonth}
+                  {parsed.length} entrenamientos · {uniqueDates.length} días · Mes: {detectedMonth}
                 </span>
               </div>
               <Button variant="gold" size="sm" onClick={handleImport} disabled={importing}>
