@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bike, ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronRight, ArrowLeft } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -70,9 +71,7 @@ const Register = () => {
       <div className="w-full max-w-md space-y-8 animate-fade-in">
         {/* Logo */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full gold-gradient mb-2">
-            <Bike className="w-8 h-8 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
           <h1 className="text-3xl font-heading font-bold uppercase tracking-wider text-foreground">
             Registrate
           </h1>
