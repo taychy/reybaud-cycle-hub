@@ -100,46 +100,17 @@ const ImportPlan = () => {
   const publishPlan = async () => {
     if (!detectedMonth) return;
 
-    // Get all plan_mensual ids for this month
-    const { data: plans } = await supabase
-      .from("plan_mensual")
-      .select("id")
-      .eq("mes", detectedMonth);
+    const { data, error } = await supabase.rpc("publish_month", {
+      p_mes: detectedMonth,
+    });
 
-    const planIds = (plans || []).map((p) => p.id);
-
-    if (planIds.length === 0) {
-      toast.error("No se encontró un plan para este mes");
+    if (error) {
+      console.error("Error publishing:", error);
+      toast.error("Error al publicar: " + error.message);
       return;
     }
 
-    // Update visibility for all trainings linked to these plans
-    const { error: visError, count } = await supabase
-      .from("entrenamientos")
-      .update({ visible: true })
-      .in("origen_importacion_id", planIds);
-
-    if (visError) {
-      console.error("Error publishing:", visError);
-      toast.error("Error al publicar entrenamientos: " + visError.message);
-      return;
-    }
-
-    // Also update by date range as fallback
-    const startDate = `${detectedMonth}-01`;
-    const endDate = `${detectedMonth}-31`;
-    await supabase
-      .from("entrenamientos")
-      .update({ visible: true })
-      .gte("fecha", startDate)
-      .lte("fecha", endDate);
-
-    await supabase
-      .from("plan_mensual")
-      .update({ estado: "publicado" as const })
-      .eq("mes", detectedMonth);
-
-    toast.success(`Plan de ${detectedMonth} publicado correctamente`);
+    toast.success(`Plan de ${detectedMonth} publicado — ${data} entrenamientos visibles`);
   };
 
   // Deduplicate for preview: show unique fecha rows, grouped

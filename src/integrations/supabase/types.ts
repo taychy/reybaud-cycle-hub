@@ -280,6 +280,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      publish_month: { Args: { p_mes: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "alumno"
