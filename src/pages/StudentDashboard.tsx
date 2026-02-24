@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink } from "lucide-react";
+import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -94,6 +94,17 @@ const StudentDashboard = () => {
       {/* Content */}
       <main className="container max-w-2xl mx-auto px-4 py-8">
         <div className="space-y-6 animate-fade-in">
+      {/* Install banner */}
+          {!window.matchMedia("(display-mode: standalone)").matches && (
+            <a
+              href="/instalar"
+              className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Download className="w-5 h-5 shrink-0" />
+              <span className="font-medium">Instalá la app en tu teléfono para acceder más rápido</span>
+            </a>
+          )}
+
           {/* Date */}
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="w-4 h-4" />
