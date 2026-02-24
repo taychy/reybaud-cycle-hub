@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Bike, LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink } from "lucide-react";
+import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink } from "lucide-react";
+import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -72,8 +73,8 @@ const StudentDashboard = () => {
       <header className="border-b border-border">
         <div className="container max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center">
-              <Bike className="w-4 h-4 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center">
+              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-sm font-heading font-semibold uppercase tracking-wider text-foreground">
