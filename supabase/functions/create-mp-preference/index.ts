@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
       },
       auto_return: "approved",
       external_reference: suscripcion_id,
+      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
 
