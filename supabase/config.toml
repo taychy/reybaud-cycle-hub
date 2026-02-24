@@ -1,1 +1,4 @@
 project_id = "tgqfakfloonbunwkdoug"
+
+[functions.create-mp-preference]
+verify_jwt = false
