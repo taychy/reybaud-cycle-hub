@@ -79,10 +79,26 @@ const PlanSelection = () => {
       return;
     }
 
-    // TODO: Once MP Access Token is configured, call edge function to create preference
-    // For now, show a placeholder message
-    setError("Mercado Pago aún no está configurado. Contactá administración para activar tu plan.");
-    setProcessing(false);
+    // Call edge function to create MP preference
+    const { data: mpData, error: mpError } = await supabase.functions.invoke(
+      "create-mp-preference",
+      {
+        body: {
+          plan_id: plan.id,
+          alumno_id: alumnoId,
+          suscripcion_id: sub.id,
+        },
+      }
+    );
+
+    if (mpError || !mpData?.init_point) {
+      setError(mpData?.error || "Error al conectar con Mercado Pago. Intentá nuevamente.");
+      setProcessing(false);
+      return;
+    }
+
+    // Redirect to Mercado Pago checkout
+    window.location.href = mpData.init_point;
   };
 
   if (loading) {
