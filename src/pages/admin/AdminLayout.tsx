@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Bike, Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X } from "lucide-react";
+import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/admin/alumnos", label: "Alumnos", icon: Users },
@@ -60,8 +61,8 @@ const AdminLayout = () => {
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar">
         <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center">
-              <Bike className="w-4 h-4 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-full overflow-hidden">
+              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-sm font-heading font-bold uppercase tracking-wider text-sidebar-foreground">
@@ -106,8 +107,8 @@ const AdminLayout = () => {
       <div className="flex-1 flex flex-col">
         <header className="md:hidden border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center">
-              <Bike className="w-4 h-4 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-full overflow-hidden">
+              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
             </div>
             <span className="font-heading font-bold uppercase text-sm tracking-wider">Reybaud Admin</span>
           </div>
