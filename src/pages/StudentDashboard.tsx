@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download } from "lucide-react";
+import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -28,6 +28,9 @@ const StudentDashboard = () => {
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showInstallBanner, setShowInstallBanner] = useState(
+    () => localStorage.getItem("hide_install_banner") !== "1"
+  );
 
   useEffect(() => {
     const stored = sessionStorage.getItem("alumno");
@@ -95,14 +98,23 @@ const StudentDashboard = () => {
       <main className="container max-w-2xl mx-auto px-4 py-8">
         <div className="space-y-6 animate-fade-in">
       {/* Install banner */}
-          {!window.matchMedia("(display-mode: standalone)").matches && (
-            <a
-              href="/instalar"
-              className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary hover:bg-primary/10 transition-colors"
-            >
+          {showInstallBanner && !window.matchMedia("(display-mode: standalone)").matches && (
+            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
               <Download className="w-5 h-5 shrink-0" />
-              <span className="font-medium">Instalá la app en tu teléfono para acceder más rápido</span>
-            </a>
+              <a href="/instalar" className="font-medium flex-1 hover:underline">
+                Instalá la app en tu teléfono para acceder más rápido
+              </a>
+              <button
+                onClick={() => {
+                  setShowInstallBanner(false);
+                  localStorage.setItem("hide_install_banner", "1");
+                }}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           )}
 
           {/* Date */}
