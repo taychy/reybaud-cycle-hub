@@ -20,6 +20,7 @@ export type Database = {
           email: string
           estado: string
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
+          grupo_preferido: string | null
           id: string
           nombre: string
           notas: string | null
@@ -31,6 +32,7 @@ export type Database = {
           email: string
           estado?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
+          grupo_preferido?: string | null
           id?: string
           nombre: string
           notas?: string | null
@@ -42,6 +44,7 @@ export type Database = {
           email?: string
           estado?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
+          grupo_preferido?: string | null
           id?: string
           nombre?: string
           notas?: string | null
