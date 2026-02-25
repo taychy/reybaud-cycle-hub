@@ -96,17 +96,25 @@ const StudentDashboard = () => {
       .eq("fecha", today)
       .eq("grupo", alumnoData.grupo)
       .eq("visible", true)
-      .maybeSingle()
-      .then(({ data }) => {
-        setEntrenamiento(data);
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .then(({ data, error }) => {
+        if (error) {
+          setEntrenamiento(null);
+          setLoading(false);
+          return;
+        }
+
+        const entrenamientoDelDia = data?.[0] ?? null;
+        setEntrenamiento(entrenamientoDelDia);
         setLoading(false);
-        // Check if already marked as done
-        if (data) {
+
+        if (entrenamientoDelDia) {
           supabase
             .from("entrenamientos_realizados")
             .select("id")
             .eq("alumno_id", alumnoData.id)
-            .eq("entrenamiento_id", data.id)
+            .eq("entrenamiento_id", entrenamientoDelDia.id)
             .maybeSingle()
             .then(({ data: done }) => {
               if (done) setRealizado(true);
