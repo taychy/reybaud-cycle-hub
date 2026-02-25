@@ -19,10 +19,10 @@ const servicios = [
     precio: "$60.060",
     frecuencia: "/mes",
     features: [
-      "Plan de entrenamiento a medida",
-      "Seguimiento semanal",
-      "Ajustes según progreso",
-      "Soporte por WhatsApp",
+      "Asesoramiento personalizado",
+      "Seguimiento semanal del team",
+      "Ajustes según tu progreso",
+      "Soporte directo por WhatsApp",
     ],
   },
   {
@@ -33,7 +33,7 @@ const servicios = [
     frecuencia: "/mes",
     destacado: true,
     features: [
-      "Planificación PDF personalizada",
+      "Asesoría 100% personalizada",
       "Dirección de Claudio Reybaud",
       "Análisis de rendimiento",
       "Comunicación directa",
