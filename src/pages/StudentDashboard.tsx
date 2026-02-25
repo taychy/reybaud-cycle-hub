@@ -23,6 +23,40 @@ const tipoLabels: Record<string, string> = {
   tecnica: "Técnica",
 };
 
+const parseTrainingSections = (text: string) => {
+  const result: { entradaEnCalor?: string; trabajoPrincipal?: string; vueltaALaCalma?: string; descripcionExtra?: string } = {};
+  
+  const patterns = [
+    { key: "entradaEnCalor" as const, regex: /(?:entrada\s*en\s*calor|calentamiento|warm\s*up)[:\-\s]*/i },
+    { key: "trabajoPrincipal" as const, regex: /(?:trabajo\s*principal|parte\s*principal|main\s*set)[:\-\s]*/i },
+    { key: "vueltaALaCalma" as const, regex: /(?:vuelta\s*a\s*la\s*calma|enfriamiento|cool\s*down)[:\-\s]*/i },
+  ];
+
+  const positions: { key: keyof typeof result; start: number; headerEnd: number }[] = [];
+
+  for (const p of patterns) {
+    const match = p.regex.exec(text);
+    if (match) {
+      positions.push({ key: p.key, start: match.index, headerEnd: match.index + match[0].length });
+    }
+  }
+
+  if (positions.length === 0) return result;
+
+  positions.sort((a, b) => a.start - b.start);
+
+  for (let i = 0; i < positions.length; i++) {
+    const end = i < positions.length - 1 ? positions[i + 1].start : text.length;
+    result[positions[i].key] = text.slice(positions[i].headerEnd, end).trim();
+  }
+
+  // Any text before the first section marker
+  const beforeFirst = text.slice(0, positions[0].start).trim();
+  if (beforeFirst) result.descripcionExtra = beforeFirst;
+
+  return result;
+};
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [alumno, setAlumno] = useState<Alumno | null>(null);
@@ -131,35 +165,98 @@ const StudentDashboard = () => {
           </div>
 
           {entrenamiento ? (
-            <div className="glass-card rounded-lg p-6 space-y-4 card-glow">
-              {/* Type badge */}
-              {entrenamiento.tipo && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium uppercase tracking-wider">
-                  {tipoIcons[entrenamiento.tipo]}
-                  {tipoLabels[entrenamiento.tipo]}
-                </div>
-              )}
+            <div className="glass-card rounded-lg overflow-hidden card-glow">
+              {/* Header */}
+              <div className="p-5 pb-4 space-y-2">
+                {entrenamiento.tipo && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium uppercase tracking-wider">
+                    {tipoIcons[entrenamiento.tipo]}
+                    {tipoLabels[entrenamiento.tipo]}
+                  </div>
+                )}
+                <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+                  {entrenamiento.titulo}
+                </h2>
+              </div>
 
-              <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
-                {entrenamiento.titulo}
-              </h2>
+              {/* Sections */}
+              {(() => {
+                const sections = parseTrainingSections(entrenamiento.descripcion || "");
+                return (
+                  <div className="divide-y divide-border">
+                    {sections.entradaEnCalor && (
+                      <div className="px-5 py-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-accent">
+                            Entrada en calor
+                          </h3>
+                        </div>
+                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">
+                          {sections.entradaEnCalor}
+                        </p>
+                      </div>
+                    )}
 
-              {entrenamiento.descripcion && (
-                <p className="text-secondary-foreground leading-relaxed whitespace-pre-wrap">
-                  {entrenamiento.descripcion}
-                </p>
-              )}
+                    {sections.trabajoPrincipal && (
+                      <div className="px-5 py-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-primary">
+                            Trabajo principal
+                          </h3>
+                        </div>
+                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">
+                          {sections.trabajoPrincipal}
+                        </p>
+                      </div>
+                    )}
+
+                    {sections.vueltaALaCalma && (
+                      <div className="px-5 py-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+                            Vuelta a la calma
+                          </h3>
+                        </div>
+                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">
+                          {sections.vueltaALaCalma}
+                        </p>
+                      </div>
+                    )}
+
+                    {sections.descripcionExtra && (
+                      <div className="px-5 py-4">
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                          {sections.descripcionExtra}
+                        </p>
+                      </div>
+                    )}
+
+                    {!sections.entradaEnCalor && !sections.trabajoPrincipal && !sections.vueltaALaCalma && entrenamiento.descripcion && (
+                      <div className="px-5 py-4">
+                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap">
+                          {entrenamiento.descripcion}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {entrenamiento.link_archivo && (
-                <a
-                  href={entrenamiento.link_archivo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-primary hover:text-gold-light transition-colors text-sm font-medium"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Ver archivo adjunto
-                </a>
+                <div className="px-5 py-4 border-t border-border">
+                  <a
+                    href={entrenamiento.link_archivo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary hover:text-gold-light transition-colors text-sm font-medium"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ver archivo adjunto
+                  </a>
+                </div>
               )}
             </div>
           ) : (
