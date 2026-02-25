@@ -33,23 +33,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fixed recipient + admin users
+    // Testing mode: only send to verified Resend account
+    // TODO: Once domain is verified in Resend, restore dynamic admin recipients
     const adminEmails: string[] = ["scarlettbonatto@gmail.com"];
-
-    // Also add dynamic admin role users
-    const { data: adminRoles } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
-
-    if (adminRoles) {
-      for (const role of adminRoles) {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(role.user_id);
-        if (userData?.user?.email && !adminEmails.includes(userData.user.email)) {
-          adminEmails.push(userData.user.email);
-        }
-      }
-    }
 
     // Send email via Resend
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
