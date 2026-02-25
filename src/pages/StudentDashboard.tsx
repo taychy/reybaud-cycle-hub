@@ -11,6 +11,12 @@ import type { Tables } from "@/integrations/supabase/types";
 type Alumno = Tables<"alumnos">;
 type Entrenamiento = Tables<"entrenamientos">;
 
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Buen día";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
+};
 
 
 const StudentDashboard = () => {
@@ -125,6 +131,11 @@ const StudentDashboard = () => {
   }
 
   const firstName = alumno?.nombre?.split(" ")[0] || "";
+  const todayFormatted = new Date().toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -160,6 +171,16 @@ const StudentDashboard = () => {
               </button>
             </div>
           )}
+
+          {/* Greeting */}
+          <div className="text-center space-y-1 pt-2">
+            <h1 className="text-xl font-heading font-semibold text-foreground">
+              {getGreeting()}, <span className="gold-text-gradient">{firstName}</span>
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Pelotón {alumno?.grupo} · <span className="capitalize">{todayFormatted}</span>
+            </p>
+          </div>
 
           {/* Training detail view */}
           {entrenamiento ? (
