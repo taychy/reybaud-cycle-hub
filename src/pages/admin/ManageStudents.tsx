@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserCheck, UserX, Edit2, Check, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
@@ -18,6 +20,9 @@ const ManageStudents = () => {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
+  const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
+  const [manualFechaFin, setManualFechaFin] = useState("");
+  const [savingManual, setSavingManual] = useState(false);
 
   const fetchAlumnos = async () => {
     const { data } = await supabase.from("alumnos").select("*").order("nombre");
@@ -38,6 +43,55 @@ const ManageStudents = () => {
     await supabase.from("alumnos").update({ grupo: editGrupo as any }).eq("id", id);
     setEditingId(null);
     toast.success("Grupo actualizado");
+    fetchAlumnos();
+  };
+
+  const handleManualSub = async () => {
+    if (!manualSubAlumno || !manualFechaFin) return;
+    setSavingManual(true);
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    // Fetch any plan to link (first active plan)
+    const { data: planes } = await supabase.from("planes").select("id").eq("activo", true).limit(1);
+    const planId = planes?.[0]?.id;
+
+    if (!planId) {
+      toast.error("No hay planes activos para asociar la suscripción.");
+      setSavingManual(false);
+      return;
+    }
+
+    // Upsert: deactivate old subs, create new one
+    await supabase
+      .from("suscripciones")
+      .update({ estado: "vencida" })
+      .eq("alumno_id", manualSubAlumno.id)
+      .eq("estado", "activa");
+
+    const { error } = await supabase.from("suscripciones").insert({
+      alumno_id: manualSubAlumno.id,
+      plan_id: planId,
+      estado: "activa",
+      fecha_inicio: todayStr,
+      fecha_fin: manualFechaFin,
+      mp_status: "manual",
+    });
+
+    if (error) {
+      toast.error("Error al crear la suscripción.");
+      setSavingManual(false);
+      return;
+    }
+
+    // Activate student
+    await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
+
+    toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
+    setManualSubAlumno(null);
+    setManualFechaFin("");
+    setSavingManual(false);
     fetchAlumnos();
   };
 
@@ -153,7 +207,22 @@ const ManageStudents = () => {
                       {alumno.estado}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setManualSubAlumno(alumno);
+                        // Default to end of current month
+                        const now = new Date();
+                        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                        setManualFechaFin(lastDay.toISOString().split("T")[0]);
+                      }}
+                      className="text-xs"
+                      title="Habilitar suscripción manual"
+                    >
+                      <CalendarCheck className="w-3 h-3 mr-1" /> Habilitar
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -174,6 +243,41 @@ const ManageStudents = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Manual subscription dialog */}
+      <Dialog open={!!manualSubAlumno} onOpenChange={(open) => { if (!open) setManualSubAlumno(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              Habilitar suscripción manual
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Alumno: <span className="text-foreground font-medium">{manualSubAlumno?.nombre}</span>
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="fecha-fin">Fecha de vencimiento</Label>
+              <Input
+                id="fecha-fin"
+                type="date"
+                value={manualFechaFin}
+                onChange={(e) => setManualFechaFin(e.target.value)}
+                className="bg-secondary border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                Útil para pagos en efectivo o meses por adelantado
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualSubAlumno(null)}>Cancelar</Button>
+            <Button variant="gold" disabled={!manualFechaFin || savingManual} onClick={handleManualSub}>
+              {savingManual ? "Guardando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
