@@ -60,8 +60,11 @@ export type Database = {
           fecha: string
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
           id: string
+          intensidad: number
           link_archivo: string | null
           origen_importacion_id: string | null
+          resistencia: number
+          tecnica: number
           tipo: Database["public"]["Enums"]["tipo_entrenamiento"] | null
           titulo: string
           updated_at: string
@@ -73,8 +76,11 @@ export type Database = {
           fecha: string
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
           id?: string
+          intensidad?: number
           link_archivo?: string | null
           origen_importacion_id?: string | null
+          resistencia?: number
+          tecnica?: number
           tipo?: Database["public"]["Enums"]["tipo_entrenamiento"] | null
           titulo: string
           updated_at?: string
@@ -86,8 +92,11 @@ export type Database = {
           fecha?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           id?: string
+          intensidad?: number
           link_archivo?: string | null
           origen_importacion_id?: string | null
+          resistencia?: number
+          tecnica?: number
           tipo?: Database["public"]["Enums"]["tipo_entrenamiento"] | null
           titulo?: string
           updated_at?: string
