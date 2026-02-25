@@ -10,7 +10,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
 type Alumno = Tables<"alumnos">;
-const GRUPOS = ["G1", "G2", "G3", "G4", "Sin grupo"] as const;
+const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
 const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
