@@ -30,14 +30,26 @@ const AdminLogin = () => {
           _role: "admin",
         });
 
-        if (!isAdmin) {
-          await supabase.auth.signOut();
-          setError("No tenés permisos de administrador.");
-          setLoading(false);
+        if (isAdmin) {
+          navigate("/admin");
           return;
         }
 
-        navigate("/admin");
+        // Check coach role
+        const { data: isCoach } = await supabase.rpc("has_role", {
+          _user_id: session.session.user.id,
+          _role: "coach" as any,
+        });
+
+        if (isCoach) {
+          navigate("/coach");
+          return;
+        }
+
+        await supabase.auth.signOut();
+        setError("No tenés permisos de administrador o coach.");
+        setLoading(false);
+        return;
       }
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión.");
@@ -100,6 +112,13 @@ const AdminLogin = () => {
           >
             <ArrowLeft className="w-3 h-3" />
             Volver al login de alumnos
+          </button>
+          <br />
+          <button
+            onClick={() => navigate("/coach/registro")}
+            className="text-sm text-primary hover:text-primary/80 transition-colors font-medium mt-2"
+          >
+            ¿Sos coach? Registrate acá
           </button>
         </div>
       </div>
