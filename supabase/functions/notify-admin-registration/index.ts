@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     }
 
     // Fixed recipient + admin users
-    const adminEmails: string[] = ["natalia@ciclismoreybaud.com"];
+    const adminEmails: string[] = ["scarlettbonatto@gmail.com"];
 
     // Also add dynamic admin role users
     const { data: adminRoles } = await supabaseAdmin
