@@ -8,18 +8,10 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// Store the prompt globally so it survives re-renders and navigation
-let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
-
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    globalDeferredPrompt = e as BeforeInstallPromptEvent;
-  });
-}
-
 const Install = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
+    (window as any).__pwaInstallPrompt ?? null
+  );
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -34,23 +26,23 @@ const Install = () => {
 
     const handler = (e: Event) => {
       e.preventDefault();
-      globalDeferredPrompt = e as BeforeInstallPromptEvent;
+      (window as any).__pwaInstallPrompt = e;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("appinstalled", () => setIsInstalled(true));
 
-    // Pick up any prompt that fired before this component mounted
-    if (globalDeferredPrompt) {
-      setDeferredPrompt(globalDeferredPrompt);
+    // Pick up prompt that fired before this component mounted
+    if ((window as any).__pwaInstallPrompt) {
+      setDeferredPrompt((window as any).__pwaInstallPrompt);
     }
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstall = async () => {
-    const prompt = deferredPrompt || globalDeferredPrompt;
+    const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
     if (!prompt) return;
     setInstalling(true);
     try {
@@ -60,13 +52,13 @@ const Install = () => {
     } catch (err) {
       console.error("Install prompt error:", err);
     } finally {
-      globalDeferredPrompt = null;
+      (window as any).__pwaInstallPrompt = null;
       setDeferredPrompt(null);
       setInstalling(false);
     }
   };
 
-  const hasPrompt = !!(deferredPrompt || globalDeferredPrompt);
+  const hasPrompt = !!(deferredPrompt || (window as any).__pwaInstallPrompt);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
