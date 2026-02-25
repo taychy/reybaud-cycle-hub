@@ -401,6 +401,10 @@ export type Database = {
         Returns: boolean
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
+      register_coach: {
+        Args: { _email: string; _nombre: string; _user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "alumno" | "coach"

@@ -43,27 +43,15 @@ const CoachRegister = () => {
       return;
     }
 
-    // Create coach profile
-    const { error: profileError } = await supabase.from("coaches").insert({
-      user_id: authData.user.id,
-      nombre: form.nombre.trim(),
-      email,
+    // Create coach profile and assign role via secure function
+    const { error: registerError } = await supabase.rpc("register_coach", {
+      _user_id: authData.user.id,
+      _nombre: form.nombre.trim(),
+      _email: email,
     } as any);
 
-    if (profileError) {
+    if (registerError) {
       setError("Error al crear el perfil de coach. Contactá al administrador.");
-      setLoading(false);
-      return;
-    }
-
-    // Assign coach role
-    const { error: roleError } = await supabase.from("user_roles").insert({
-      user_id: authData.user.id,
-      role: "coach",
-    } as any);
-
-    if (roleError) {
-      setError("Cuenta creada pero hubo un error asignando el rol. Contactá al administrador.");
       setLoading(false);
       return;
     }
