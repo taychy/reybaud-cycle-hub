@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, CreditCard } from "lucide-react";
+import { Check, ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
+import PaymentMethodSelector from "@/components/PaymentMethodSelector";
+import CashPaymentConfirm from "@/components/CashPaymentConfirm";
+import CardPaymentForm from "@/components/CardPaymentForm";
 
 interface Plan {
   id: string;
@@ -19,6 +22,8 @@ const frecuenciaLabels: Record<string, string> = {
   "1x_semana": "1 vez por semana",
 };
 
+type PaymentStep = "select-plan" | "select-method" | "cash" | "card";
+
 const PlanSelection = () => {
   const navigate = useNavigate();
   const [planes, setPlanes] = useState<Plan[]>([]);
@@ -26,6 +31,7 @@ const PlanSelection = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<PaymentStep>("select-plan");
   const alumnoId = sessionStorage.getItem("registro_alumno_id");
   const isRenewal = sessionStorage.getItem("alumno_renewal") === "1";
 
@@ -46,6 +52,8 @@ const PlanSelection = () => {
       });
   }, [alumnoId, navigate]);
 
+  const selectedPlan = planes.find((p) => p.id === selected);
+
   const formatPrice = (precio: number) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
@@ -55,7 +63,7 @@ const PlanSelection = () => {
     }).format(precio);
   };
 
-  const handleCheckout = async () => {
+  const handleMercadoPago = async () => {
     if (!selected || !alumnoId) return;
     setProcessing(true);
     setError(null);
@@ -63,7 +71,6 @@ const PlanSelection = () => {
     const plan = planes.find((p) => p.id === selected);
     if (!plan) return;
 
-    // Create subscription record
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
@@ -80,15 +87,14 @@ const PlanSelection = () => {
       return;
     }
 
-    // Call edge function to create MP preference
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
-      
+
       const response = await fetch(functionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
           plan_id: plan.id,
@@ -98,7 +104,6 @@ const PlanSelection = () => {
       });
 
       const mpData = await response.json();
-      console.log("MP response:", mpData);
 
       if (!response.ok || !mpData?.init_point) {
         setError(mpData?.error || "Error al crear la preferencia de pago.");
@@ -106,14 +111,21 @@ const PlanSelection = () => {
         return;
       }
 
-      // Redirect to Mercado Pago checkout
       window.location.href = mpData.init_point;
-      return;
-    } catch (invokeErr) {
-      console.error("MP unexpected error:", invokeErr);
+    } catch {
       setError("Error inesperado al conectar con Mercado Pago.");
       setProcessing(false);
-      return;
+    }
+  };
+
+  const handlePaymentMethod = (method: "mercadopago" | "card" | "cash") => {
+    setError(null);
+    if (method === "mercadopago") {
+      handleMercadoPago();
+    } else if (method === "cash") {
+      setStep("cash");
+    } else if (method === "card") {
+      setStep("card");
     }
   };
 
@@ -121,6 +133,45 @@ const PlanSelection = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Cargando planes...</div>
+      </div>
+    );
+  }
+
+  // Cash payment step
+  if (step === "cash" && selectedPlan && alumnoId) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+          <div className="text-center">
+            <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto mb-4" />
+          </div>
+          <CashPaymentConfirm
+            planId={selectedPlan.id}
+            planName={selectedPlan.nombre}
+            alumnoId={alumnoId}
+            onBack={() => setStep("select-method")}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Card payment step
+  if (step === "card" && selectedPlan && alumnoId) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+          <div className="text-center">
+            <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto mb-4" />
+          </div>
+          <CardPaymentForm
+            planId={selectedPlan.id}
+            planName={selectedPlan.nombre}
+            planPrice={selectedPlan.precio}
+            alumnoId={alumnoId}
+            onBack={() => setStep("select-method")}
+          />
+        </div>
       </div>
     );
   }
@@ -150,7 +201,10 @@ const PlanSelection = () => {
             return (
               <button
                 key={plan.id}
-                onClick={() => setSelected(plan.id)}
+                onClick={() => {
+                  setSelected(plan.id);
+                  if (step !== "select-plan" && step !== "select-method") setStep("select-method");
+                }}
                 className={`relative text-left rounded-lg p-6 transition-all duration-200 ${
                   isSelected
                     ? "ring-2 ring-primary card-glow"
@@ -209,18 +263,24 @@ const PlanSelection = () => {
           </div>
         )}
 
-        {/* CTA */}
+        {/* Payment method selection or continue button */}
         <div className="flex flex-col items-center gap-4">
-          <Button
-            variant="gold"
-            size="lg"
-            className="w-full max-w-md"
-            disabled={!selected || processing}
-            onClick={handleCheckout}
-          >
-            {processing ? "Procesando..." : "Pagar con Mercado Pago"}
-            <CreditCard className="w-4 h-4" />
-          </Button>
+          {step === "select-method" && selected ? (
+            <PaymentMethodSelector
+              onSelect={handlePaymentMethod}
+              processing={processing}
+            />
+          ) : (
+            <Button
+              variant="gold"
+              size="lg"
+              className="w-full max-w-md"
+              disabled={!selected}
+              onClick={() => setStep("select-method")}
+            >
+              Continuar
+            </Button>
+          )}
 
           <button
             onClick={() => navigate("/")}
