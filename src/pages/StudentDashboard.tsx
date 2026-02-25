@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X, ChevronDown, ChevronUp, CheckCircle2, Home, BarChart3, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -353,10 +353,57 @@ const StudentDashboard = () => {
               </p>
             </div>
           )}
+
+          {/* Training metrics */}
+          {entrenamiento && (entrenamiento as any).resistencia + (entrenamiento as any).tecnica + (entrenamiento as any).intensidad > 0 && (
+            <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
+              <MetricBar label="Resistencia" value={(entrenamiento as any).resistencia ?? 0} />
+              <MetricBar label="Técnica" value={(entrenamiento as any).tecnica ?? 0} />
+              <MetricBar label="Intensidad" value={(entrenamiento as any).intensidad ?? 0} />
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Bottom navigation */}
+      <nav className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md">
+        <div className="max-w-md mx-auto flex items-center justify-around py-2">
+          <NavItem icon={<Home className="w-5 h-5" />} label="Hoy" active />
+          <NavItem icon={<Calendar className="w-5 h-5" />} label="Calendario" />
+          <NavItem icon={<BarChart3 className="w-5 h-5" />} label="Progreso" />
+          <NavItem icon={<User className="w-5 h-5" />} label="Perfil" />
+        </div>
+      </nav>
     </div>
   );
 };
+
+const MetricBar = ({ label, value }: { label: string; value: number }) => {
+  const max = 5;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs font-heading font-semibold text-muted-foreground w-24 shrink-0">{label}</span>
+      <div className="flex gap-1 flex-1">
+        {Array.from({ length: max }).map((_, i) => (
+          <div
+            key={i}
+            className={`h-4 flex-1 rounded-sm transition-colors ${
+              i < value
+                ? "bg-gradient-to-b from-primary to-primary/70"
+                : "bg-muted/60"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const NavItem = ({ icon, label, active }: { icon: React.ReactNode; label: string; active?: boolean }) => (
+  <button className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
+    {icon}
+    <span className="text-[10px] font-heading font-medium">{label}</span>
+  </button>
+);
 
 export default StudentDashboard;
