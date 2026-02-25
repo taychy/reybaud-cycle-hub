@@ -47,12 +47,21 @@ const ManageStudents = () => {
       a.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const pendingCount = alumnos.filter((a) => (a as any).grupo_preferido && a.grupo === "Sin grupo").length;
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-          Gestionar Alumnos
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Gestionar Alumnos
+          </h2>
+          {pendingCount > 0 && (
+            <Badge variant="destructive" className="text-xs animate-pulse">
+              {pendingCount} pendiente{pendingCount > 1 ? "s" : ""} de validación
+            </Badge>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground mt-1">
           {alumnos.length} alumnos registrados
         </p>
@@ -93,9 +102,20 @@ const ManageStudents = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((alumno) => (
-                <TableRow key={alumno.id} className="border-border">
-                  <TableCell className="font-medium text-foreground">{alumno.nombre}</TableCell>
+              filtered.map((alumno) => {
+                const grupoPreferido = (alumno as any).grupo_preferido;
+                const needsValidation = grupoPreferido && alumno.grupo === "Sin grupo";
+
+                return (
+                <TableRow key={alumno.id} className={`border-border ${needsValidation ? "bg-primary/5" : ""}`}>
+                  <TableCell className="font-medium text-foreground">
+                    {alumno.nombre}
+                    {needsValidation && (
+                      <span className="ml-2 text-xs text-primary font-normal">
+                        Eligió: {grupoPreferido}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{alumno.email}</TableCell>
                   <TableCell>
                     {editingId === alumno.id ? (
@@ -148,7 +168,8 @@ const ManageStudents = () => {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
