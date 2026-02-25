@@ -28,7 +28,12 @@ const PaymentResult = () => {
   const isPending = status === "pending" || status === "pendiente" || status === "in_process";
   const isFailure = !isApproved && !isPending;
 
-  const [step, setStep] = useState<"result" | "grupo" | "install">(isApproved ? "grupo" : "result");
+  const isRenewal = sessionStorage.getItem("alumno_renewal") === "1";
+
+  // For renewals, skip grupo selection — go straight to result/install
+  const [step, setStep] = useState<"result" | "grupo" | "install">(
+    isApproved ? (isRenewal ? "install" : "grupo") : "result"
+  );
   const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -88,6 +93,40 @@ const PaymentResult = () => {
 
   // Install step — after choosing grupo
   if (step === "install") {
+    // Clean up session flags
+    const cleanupAndNavigate = (path: string) => {
+      sessionStorage.removeItem("registro_alumno_id");
+      sessionStorage.removeItem("alumno_renewal");
+      navigate(path);
+    };
+
+    // For renewals, show a simpler success screen
+    if (isRenewal) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center px-4">
+          <div className="max-w-md w-full space-y-6 animate-fade-in text-center">
+            <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto" />
+            <CheckCircle className="w-14 h-14 text-primary mx-auto" />
+            <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+              ¡Suscripción renovada!
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Tu pago fue confirmado. Ya podés acceder a tus entrenamientos.
+            </p>
+            <Button
+              variant="gold"
+              size="lg"
+              className="w-full"
+              onClick={() => cleanupAndNavigate("/")}
+            >
+              Ir al inicio de sesión
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="max-w-md w-full space-y-6 animate-fade-in text-center">
@@ -135,14 +174,14 @@ const PaymentResult = () => {
             variant="gold-outline"
             size="lg"
             className="w-full"
-            onClick={() => navigate("/")}
+            onClick={() => cleanupAndNavigate("/")}
           >
             Ir al inicio de sesión
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => cleanupAndNavigate("/")}
             className="block mx-auto text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             Omitir por ahora
