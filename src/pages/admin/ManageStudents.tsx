@@ -137,6 +137,7 @@ const ManageStudents = () => {
             <TableRow className="border-border hover:bg-transparent">
               <TableHead className="text-muted-foreground">Nombre</TableHead>
               <TableHead className="text-muted-foreground">Email</TableHead>
+              <TableHead className="text-muted-foreground">DNI/CUIT</TableHead>
               <TableHead className="text-muted-foreground">Grupo</TableHead>
               <TableHead className="text-muted-foreground">Estado</TableHead>
               <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
@@ -145,13 +146,13 @@ const ManageStudents = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   Cargando...
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   No se encontraron alumnos
                 </TableCell>
               </TableRow>
@@ -171,6 +172,7 @@ const ManageStudents = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{alumno.email}</TableCell>
+                  <TableCell className="text-muted-foreground font-mono text-xs">{alumno.documento || "—"}</TableCell>
                   <TableCell>
                     {editingId === alumno.id ? (
                       <div className="flex items-center gap-1">
