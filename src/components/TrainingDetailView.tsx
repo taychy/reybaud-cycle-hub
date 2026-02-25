@@ -128,14 +128,14 @@ export default function TrainingDetailView({
       </div>
 
       {/* Day selector */}
-      <div className="flex justify-between px-1">
+      <div className="flex justify-between px-1 border-b border-border pb-1">
         {DAY_NAMES.map((name, i) => (
           <button
             key={name}
             onClick={() => onDayChange(i)}
-            className={`text-xs font-heading font-semibold px-2 py-1.5 rounded transition-colors ${
+            className={`text-xs font-heading font-semibold px-2.5 py-1.5 transition-colors relative ${
               i === selectedDayIndex
-                ? "text-primary border-b-2 border-primary"
+                ? "text-primary after:absolute after:bottom-[-5px] after:left-1/2 after:-translate-x-1/2 after:w-full after:h-[2px] after:bg-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -165,41 +165,41 @@ export default function TrainingDetailView({
 
 function TrainingBlockCard({ block }: { block: TrainingBlock }) {
   return (
-    <div className="rounded-lg border border-border bg-card/80 backdrop-blur-sm overflow-hidden shadow-lg shadow-black/20">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-secondary/60 border-b border-border">
+    <div className="training-block-card rounded-lg overflow-hidden shadow-xl shadow-black/30">
+      {/* Card header - darker with golden accent */}
+      <div className="flex items-center justify-between px-4 py-3 training-block-header border-b border-primary/20">
         <div className="flex items-center gap-2.5">
           {block.badge && (
-            <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary-foreground bg-muted px-2 py-0.5 rounded border border-border">
+            <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary bg-background/60 px-2 py-0.5 rounded border border-primary/30">
               {block.badge}
             </span>
           )}
-          <span className="text-sm font-heading font-bold text-foreground">
+          <span className="text-sm font-heading font-bold text-foreground tracking-wide">
             {block.title}
           </span>
         </div>
         {block.rpm && (
-          <span className="text-xs font-heading text-muted-foreground">
+          <span className="text-xs font-heading text-primary/80 font-semibold">
             {block.rpm}
           </span>
         )}
       </div>
 
-      {/* Bullets */}
+      {/* Bullets - textured background */}
       {block.bullets.length > 0 && (
-        <div className="px-4 py-3 space-y-1">
+        <div className="px-4 py-3 space-y-1.5 training-block-body">
           {block.bullets.map((bullet, i) => (
-            <p key={i} className="text-sm text-secondary-foreground leading-relaxed">
+            <p key={i} className="text-[13px] text-secondary-foreground leading-relaxed">
               {bullet.startsWith("•") || bullet.startsWith("-") ? bullet : `• ${bullet}`}
             </p>
           ))}
         </div>
       )}
 
-      {/* Footer */}
+      {/* Footer - cadencia with subtle separator */}
       {block.footer && (
-        <div className="px-4 py-2.5 border-t border-border bg-secondary/40">
-          <p className="text-xs text-muted-foreground">
+        <div className="px-4 py-2.5 border-t border-primary/10 training-block-footer">
+          <p className="text-xs text-primary/70 font-heading tracking-wide">
             {block.footer}
           </p>
         </div>
