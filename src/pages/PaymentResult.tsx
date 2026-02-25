@@ -147,36 +147,26 @@ const PaymentResult = () => {
             Para la mejor experiencia, instalá Ciclismo Reybaud en tu celular y accedé directo desde la pantalla de inicio.
           </p>
 
-          {isIOS ? (
-            <div className="glass-card rounded-xl p-5 space-y-3 text-left">
-              <p className="text-foreground font-medium text-sm">En Safari:</p>
-              <ol className="space-y-2 text-muted-foreground text-sm">
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                  <span>Tocá <Share className="inline w-3.5 h-3.5 text-accent" /> Compartir</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                  <span><strong>"Agregar a pantalla de inicio"</strong></span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                  <span>Confirmá con <strong>"Agregar"</strong></span>
-                </li>
-              </ol>
-            </div>
-          ) : deferredPrompt ? (
-            <Button onClick={handleInstallPrompt} variant="gold" size="lg" className="w-full gap-2">
-              <Download className="w-5 h-5" />
-              Instalar App
-            </Button>
-          ) : (
-            <div className="glass-card rounded-xl p-5 text-left">
-              <p className="text-muted-foreground text-sm">
-                Abrí el menú del navegador (⋮) y seleccioná <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.
-              </p>
-            </div>
-          )}
+          <Button
+            variant="gold"
+            size="lg"
+            className="w-full gap-2"
+            onClick={async () => {
+              if (deferredPrompt) {
+                await deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                setDeferredPrompt(null);
+              } else if (isIOS) {
+                // On iOS we can't trigger install, show a brief toast-like hint
+                alert('En Safari, tocá el ícono de Compartir y luego "Agregar a pantalla de inicio".');
+              } else {
+                alert('Abrí el menú del navegador (⋮) y seleccioná "Instalar app" o "Agregar a pantalla de inicio".');
+              }
+            }}
+          >
+            <Download className="w-5 h-5" />
+            Instalar App
+          </Button>
 
           <Button
             variant="gold-outline"
@@ -187,13 +177,6 @@ const PaymentResult = () => {
             Ir al inicio de sesión
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
-
-          <button
-            onClick={() => cleanupAndNavigate("/")}
-            className="block mx-auto text-xs text-muted-foreground hover:text-primary transition-colors"
-          >
-            Omitir por ahora
-          </button>
         </div>
       </div>
     );
