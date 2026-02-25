@@ -8,10 +8,21 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// Store the prompt globally so it survives re-renders and navigation
+let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+  });
+}
+
 const Install = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -23,22 +34,39 @@ const Install = () => {
 
     const handler = (e: Event) => {
       e.preventDefault();
+      globalDeferredPrompt = e as BeforeInstallPromptEvent;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("appinstalled", () => setIsInstalled(true));
 
+    // Pick up any prompt that fired before this component mounted
+    if (globalDeferredPrompt) {
+      setDeferredPrompt(globalDeferredPrompt);
+    }
+
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") setIsInstalled(true);
-    setDeferredPrompt(null);
+    const prompt = deferredPrompt || globalDeferredPrompt;
+    if (!prompt) return;
+    setInstalling(true);
+    try {
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      if (outcome === "accepted") setIsInstalled(true);
+    } catch (err) {
+      console.error("Install prompt error:", err);
+    } finally {
+      globalDeferredPrompt = null;
+      setDeferredPrompt(null);
+      setInstalling(false);
+    }
   };
+
+  const hasPrompt = !!(deferredPrompt || globalDeferredPrompt);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
@@ -85,10 +113,10 @@ const Install = () => {
           <p className="text-muted-foreground">
             Instalá la app en tu teléfono para acceder rápido a tus entrenamientos.
           </p>
-          {deferredPrompt ? (
-            <Button onClick={handleInstall} size="lg" className="w-full gap-2">
+          {hasPrompt ? (
+            <Button onClick={handleInstall} variant="gold" size="lg" className="w-full gap-2" disabled={installing}>
               <Download className="w-5 h-5" />
-              Instalar App
+              {installing ? "Instalando..." : "Instalar App"}
             </Button>
           ) : (
             <div className="bg-card border border-border rounded-xl p-6 space-y-3 text-left">
