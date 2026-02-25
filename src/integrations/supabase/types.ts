@@ -196,6 +196,42 @@ export type Database = {
         }
         Relationships: []
       }
+      postulaciones_asesoria: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          email: string
+          estado: string
+          fecha_nacimiento: string | null
+          id: string
+          nombre_completo: string
+          tipo_asesoria: string
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          email: string
+          estado?: string
+          fecha_nacimiento?: string | null
+          id?: string
+          nombre_completo: string
+          tipo_asesoria: string
+          whatsapp: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          email?: string
+          estado?: string
+          fecha_nacimiento?: string | null
+          id?: string
+          nombre_completo?: string
+          tipo_asesoria?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       suscripciones: {
         Row: {
           alumno_id: string

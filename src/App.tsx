@@ -15,6 +15,7 @@ import ImportStudents from "./pages/admin/ImportStudents";
 import ImportPlan from "./pages/admin/ImportPlan";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
+import Asesoria from "./pages/Asesoria";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
+          <Route path="/asesoria" element={<Asesoria />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
