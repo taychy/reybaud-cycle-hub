@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X, ChevronDown, ChevronUp } from "lucide-react";
+import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -69,6 +70,9 @@ const StudentDashboard = () => {
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetail, setShowDetail] = useState(false);
+  const [realizado, setRealizado] = useState(false);
+  const [markingDone, setMarkingDone] = useState(false);
+  const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
   );
@@ -95,6 +99,18 @@ const StudentDashboard = () => {
       .then(({ data }) => {
         setEntrenamiento(data);
         setLoading(false);
+        // Check if already marked as done
+        if (data) {
+          supabase
+            .from("entrenamientos_realizados")
+            .select("id")
+            .eq("alumno_id", alumnoData.id)
+            .eq("entrenamiento_id", data.id)
+            .maybeSingle()
+            .then(({ data: done }) => {
+              if (done) setRealizado(true);
+            });
+        }
       });
   }, [navigate]);
 
@@ -274,6 +290,34 @@ const StudentDashboard = () => {
                           {showDetail ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </Button>
                       )}
+                      <Button
+                        variant={realizado ? "secondary" : "gold"}
+                        className="w-full"
+                        disabled={realizado || markingDone}
+                        onClick={async () => {
+                          if (!alumno || !entrenamiento) return;
+                          setMarkingDone(true);
+                          const { error } = await supabase.from("entrenamientos_realizados").insert({
+                            alumno_id: alumno.id,
+                            entrenamiento_id: entrenamiento.id,
+                          });
+                          setMarkingDone(false);
+                          if (error) {
+                            toast({ title: "Error", description: "No se pudo registrar. Intentá de nuevo.", variant: "destructive" });
+                            return;
+                          }
+                          setRealizado(true);
+                          toast({ title: "¡Bien hecho! 💪", description: "Entrenamiento marcado como realizado." });
+                        }}
+                      >
+                        {realizado ? (
+                          <><CheckCircle2 className="w-4 h-4" /> Realizado</>
+                        ) : markingDone ? (
+                          "Guardando..."
+                        ) : (
+                          "Marcar como Realizado"
+                        )}
+                      </Button>
                       {entrenamiento.link_archivo && (
                         <a
                           href={entrenamiento.link_archivo}
