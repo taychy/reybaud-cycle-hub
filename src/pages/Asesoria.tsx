@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Star, User, Send } from "lucide-react";
+import { ArrowLeft, Star, User, Send, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
@@ -278,6 +278,16 @@ const Asesoria = () => {
           </form>
         </DialogContent>
       </Dialog>
+      {/* WhatsApp floating button */}
+      <a
+        href="https://wa.me/5491140312299?text=Hola%2C%20quiero%20consultar%20sobre%20los%20servicios"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white rounded-full px-5 py-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+      >
+        <MessageCircle className="w-5 h-5" />
+        <span className="text-sm font-medium">Consultanos</span>
+      </a>
     </div>
   );
 };
