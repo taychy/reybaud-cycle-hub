@@ -1,0 +1,1 @@
+ALTER TYPE public.grupo_ciclismo ADD VALUE IF NOT EXISTS 'Principiante';

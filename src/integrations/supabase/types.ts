@@ -288,7 +288,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "alumno"
       estado_plan: "borrador" | "publicado"
-      grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo"
+      grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
     }
     CompositeTypes: {
@@ -419,7 +419,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "alumno"],
       estado_plan: ["borrador", "publicado"],
-      grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo"],
+      grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
     },
   },
