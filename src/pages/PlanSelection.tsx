@@ -27,6 +27,7 @@ const PlanSelection = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const alumnoId = sessionStorage.getItem("registro_alumno_id");
+  const isRenewal = sessionStorage.getItem("alumno_renewal") === "1";
 
   useEffect(() => {
     if (!alumnoId) {
@@ -131,10 +132,12 @@ const PlanSelection = () => {
         <div className="text-center space-y-3">
           <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
           <h1 className="text-3xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Elegí tu plan
+            {isRenewal ? "Renová tu plan" : "Elegí tu plan"}
           </h1>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            Seleccioná el plan que mejor se adapte a tus objetivos
+            {isRenewal
+              ? "Tu suscripción venció. Elegí un plan para seguir accediendo a tus entrenamientos."
+              : "Seleccioná el plan que mejor se adapte a tus objetivos"}
           </p>
         </div>
 

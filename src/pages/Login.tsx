@@ -20,15 +20,16 @@ const Login = () => {
   // For now, we store in sessionStorage and redirect
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // We need to check the student and redirect
-    const { useStudentAuth: _ } = await import("@/hooks/useStudentAuth");
-    // Actually, let's just do inline logic
+    setLoginError(null);
+
     const { supabase } = await import("@/integrations/supabase/client");
     
+    const trimmedEmail = email.toLowerCase().trim();
+
     const { data, error: fetchError } = await supabase
       .from("alumnos")
       .select("*")
-      .eq("email", email.toLowerCase().trim())
+      .eq("email", trimmedEmail)
       .maybeSingle();
 
     if (fetchError || !data) {
@@ -36,8 +37,10 @@ const Login = () => {
       return;
     }
 
-    if (data.estado === "inactivo") {
-      setLoginError("Tu membresía no se encuentra activa. Contactá administración.");
+    if (data.estado === "inactivo" && data.grupo === "Sin grupo") {
+      // User registered but never completed payment — send to plans
+      sessionStorage.setItem("registro_alumno_id", data.id);
+      navigate("/planes");
       return;
     }
 
@@ -59,7 +62,10 @@ const Login = () => {
       .limit(1);
 
     if (!activeSub || activeSub.length === 0) {
-      setLoginError("Tu suscripción venció. Renovála para seguir accediendo a tus entrenamientos.");
+      // Subscription expired — redirect to plans for renewal (no re-registration)
+      sessionStorage.setItem("registro_alumno_id", data.id);
+      sessionStorage.setItem("alumno_renewal", "1");
+      navigate("/planes");
       return;
     }
 
@@ -104,15 +110,6 @@ const Login = () => {
             {loginError && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
                 {loginError}
-                {loginError.includes("venció") && (
-                  <button
-                    type="button"
-                    onClick={() => navigate("/planes")}
-                    className="block mt-2 text-primary hover:underline font-medium"
-                  >
-                    Renovar suscripción →
-                  </button>
-                )}
               </div>
             )}
 
