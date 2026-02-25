@@ -80,9 +80,9 @@ Deno.serve(async (req) => {
         email: alumno.email,
       },
       back_urls: {
-        success: `${origin}/alumno?pago=ok`,
-        failure: `${origin}/planes?pago=error`,
-        pending: `${origin}/planes?pago=pendiente`,
+        success: `${origin}/pago-resultado?status=approved`,
+        failure: `${origin}/pago-resultado?status=failure`,
+        pending: `${origin}/pago-resultado?status=pending`,
       },
       auto_return: "approved",
       external_reference: suscripcion_id,
