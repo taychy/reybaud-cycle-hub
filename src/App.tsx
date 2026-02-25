@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PlanSelection from "./pages/PlanSelection";
+import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDashboard from "./pages/StudentDashboard";
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/" element={<Login />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/planes" element={<PlanSelection />} />
+          <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/admin/login" element={<AdminLogin />} />
