@@ -19,6 +19,7 @@ import Asesoria from "./pages/Asesoria";
 import CoachRegister from "./pages/CoachRegister";
 import CoachDashboard from "./pages/coach/CoachDashboard";
 import ManageCoaches from "./pages/admin/ManageCoaches";
+import ManageAdmins from "./pages/admin/ManageAdmins";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="importar-plan" element={<ImportPlan />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
+            <Route path="admins" element={<ManageAdmins />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
