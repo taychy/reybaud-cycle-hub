@@ -89,7 +89,14 @@ const PaymentResult = () => {
     sessionStorage.removeItem("registro_alumno_id");
     sessionStorage.removeItem("alumno_renewal");
     setSaving(false);
-    setStep("install");
+
+    // Skip install screen if already running as installed PWA
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    if (isStandalone) {
+      navigate("/");
+    } else {
+      setStep("install");
+    }
   };
 
   // Install step — after choosing grupo
