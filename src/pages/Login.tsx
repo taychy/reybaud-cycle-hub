@@ -148,7 +148,16 @@ const Login = () => {
           <Button
             variant="gold-outline"
             size="sm"
-            onClick={() => navigate("/instalar")}
+            onClick={async () => {
+              const prompt = (window as any).__pwaInstallPrompt;
+              if (prompt) {
+                await prompt.prompt();
+                await prompt.userChoice;
+                (window as any).__pwaInstallPrompt = null;
+                return;
+              }
+              navigate("/instalar");
+            }}
           >
             Instalar
           </Button>
