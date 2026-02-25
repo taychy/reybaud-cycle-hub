@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X } from "lucide-react";
+import { LogOut, Calendar, MapPin, Dumbbell, Monitor, Wrench, ExternalLink, Download, X, ChevronDown, ChevronUp } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -10,10 +10,10 @@ type Alumno = Tables<"alumnos">;
 type Entrenamiento = Tables<"entrenamientos">;
 
 const tipoIcons: Record<string, React.ReactNode> = {
-  ruta: <MapPin className="w-5 h-5" />,
-  rodillo: <Monitor className="w-5 h-5" />,
-  gimnasio: <Dumbbell className="w-5 h-5" />,
-  tecnica: <Wrench className="w-5 h-5" />,
+  ruta: <MapPin className="w-4 h-4" />,
+  rodillo: <Monitor className="w-4 h-4" />,
+  gimnasio: <Dumbbell className="w-4 h-4" />,
+  tecnica: <Wrench className="w-4 h-4" />,
 };
 
 const tipoLabels: Record<string, string> = {
@@ -50,11 +50,17 @@ const parseTrainingSections = (text: string) => {
     result[positions[i].key] = text.slice(positions[i].headerEnd, end).trim();
   }
 
-  // Any text before the first section marker
   const beforeFirst = text.slice(0, positions[0].start).trim();
   if (beforeFirst) result.descripcionExtra = beforeFirst;
 
   return result;
+};
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Buen día";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
 };
 
 const StudentDashboard = () => {
@@ -62,6 +68,7 @@ const StudentDashboard = () => {
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDetail, setShowDetail] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
   );
@@ -104,39 +111,31 @@ const StudentDashboard = () => {
     );
   }
 
+  const firstName = alumno?.nombre?.split(" ")[0] || "";
+  const todayFormatted = new Date().toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="container max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center">
-              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-sm font-heading font-semibold uppercase tracking-wider text-foreground">
-                Ciclismo Reybaud
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {alumno?.nombre} · {alumno?.grupo}
-              </p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="w-4 h-4" />
-          </Button>
-        </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-5 pt-5 pb-2">
+        <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
+        <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">
+          <LogOut className="w-4 h-4" />
+        </Button>
       </header>
 
-      {/* Content */}
-      <main className="container max-w-2xl mx-auto px-4 py-8">
-        <div className="space-y-6 animate-fade-in">
-      {/* Install banner */}
+      <main className="flex-1 flex flex-col items-center px-4 pb-8">
+        <div className="w-full max-w-md space-y-6 animate-fade-in">
+          {/* Install banner */}
           {showInstallBanner && !window.matchMedia("(display-mode: standalone)").matches && (
             <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
               <Download className="w-5 h-5 shrink-0" />
               <a href="/instalar" className="font-medium flex-1 hover:underline">
-                Instalá la app en tu teléfono para acceder más rápido
+                Instalá la app en tu teléfono
               </a>
               <button
                 onClick={() => {
@@ -151,120 +150,152 @@ const StudentDashboard = () => {
             </div>
           )}
 
-          {/* Date */}
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm">
-              {new Date().toLocaleDateString("es-AR", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </span>
+          {/* Greeting */}
+          <div className="text-center space-y-1 pt-2">
+            <h1 className="text-xl font-heading font-semibold text-foreground">
+              {getGreeting()}, <span className="gold-text-gradient">{firstName}</span>
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Pelotón {alumno?.grupo} · <span className="capitalize">{todayFormatted}</span>
+            </p>
           </div>
 
+          {/* Training card */}
           {entrenamiento ? (
-            <div className="glass-card rounded-lg overflow-hidden card-glow">
-              {/* Header */}
-              <div className="p-5 pb-4 space-y-2">
+            <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm overflow-hidden shadow-lg shadow-black/20">
+              {/* Card header */}
+              <div className="px-6 pt-6 pb-4 text-center space-y-3 border-b border-border">
+                <h2 className="text-lg font-heading font-bold text-foreground uppercase tracking-wider">
+                  Entrenamiento de Hoy
+                </h2>
                 {entrenamiento.tipo && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium uppercase tracking-wider">
+                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
                     {tipoIcons[entrenamiento.tipo]}
                     {tipoLabels[entrenamiento.tipo]}
-                  </div>
+                    {entrenamiento.titulo && <span> — {entrenamiento.titulo}</span>}
+                  </p>
                 )}
-                <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
-                  {entrenamiento.titulo}
-                </h2>
               </div>
 
               {/* Sections */}
               {(() => {
                 const sections = parseTrainingSections(entrenamiento.descripcion || "");
+                const hasSections = !!(sections.entradaEnCalor || sections.trabajoPrincipal || sections.vueltaALaCalma);
+
                 return (
-                  <div className="divide-y divide-border">
-                    {sections.entradaEnCalor && (
-                      <div className="px-5 py-4 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-                          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-accent">
-                            Entrada en calor
-                          </h3>
-                        </div>
-                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">
-                          {sections.entradaEnCalor}
-                        </p>
+                  <>
+                    {/* Summary view */}
+                    {hasSections && !showDetail && (
+                      <div className="px-6 py-5 space-y-3">
+                        {sections.entradaEnCalor && (
+                          <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 rounded-full bg-accent mt-1.5 shrink-0" />
+                            <div>
+                              <span className="text-xs font-heading font-semibold uppercase tracking-wider text-accent">Entrada en calor</span>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{sections.entradaEnCalor}</p>
+                            </div>
+                          </div>
+                        )}
+                        {sections.trabajoPrincipal && (
+                          <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                            <div>
+                              <span className="text-xs font-heading font-semibold uppercase tracking-wider text-primary">Trabajo principal</span>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{sections.trabajoPrincipal}</p>
+                            </div>
+                          </div>
+                        )}
+                        {sections.vueltaALaCalma && (
+                          <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
+                            <div>
+                              <span className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">Vuelta a la calma</span>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{sections.vueltaALaCalma}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {sections.trabajoPrincipal && (
-                      <div className="px-5 py-4 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-primary">
-                            Trabajo principal
-                          </h3>
-                        </div>
-                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">
-                          {sections.trabajoPrincipal}
-                        </p>
+                    {/* Detail view */}
+                    {hasSections && showDetail && (
+                      <div className="divide-y divide-border">
+                        {sections.entradaEnCalor && (
+                          <div className="px-6 py-4 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-accent" />
+                              <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-accent">Entrada en calor</h3>
+                            </div>
+                            <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">{sections.entradaEnCalor}</p>
+                          </div>
+                        )}
+                        {sections.trabajoPrincipal && (
+                          <div className="px-6 py-4 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-primary" />
+                              <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-primary">Trabajo principal</h3>
+                            </div>
+                            <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">{sections.trabajoPrincipal}</p>
+                          </div>
+                        )}
+                        {sections.vueltaALaCalma && (
+                          <div className="px-6 py-4 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                              <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">Vuelta a la calma</h3>
+                            </div>
+                            <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">{sections.vueltaALaCalma}</p>
+                          </div>
+                        )}
+                        {sections.descripcionExtra && (
+                          <div className="px-6 py-4">
+                            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{sections.descripcionExtra}</p>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {sections.vueltaALaCalma && (
-                      <div className="px-5 py-4 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                          <h3 className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-                            Vuelta a la calma
-                          </h3>
-                        </div>
-                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap pl-4">
-                          {sections.vueltaALaCalma}
-                        </p>
+                    {/* Fallback if no sections parsed */}
+                    {!hasSections && entrenamiento.descripcion && (
+                      <div className="px-6 py-5">
+                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap">{entrenamiento.descripcion}</p>
                       </div>
                     )}
 
-                    {sections.descripcionExtra && (
-                      <div className="px-5 py-4">
-                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                          {sections.descripcionExtra}
-                        </p>
-                      </div>
-                    )}
-
-                    {!sections.entradaEnCalor && !sections.trabajoPrincipal && !sections.vueltaALaCalma && entrenamiento.descripcion && (
-                      <div className="px-5 py-4">
-                        <p className="text-sm text-secondary-foreground leading-relaxed whitespace-pre-wrap">
-                          {entrenamiento.descripcion}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                    {/* Actions */}
+                    <div className="px-6 py-4 border-t border-border space-y-2">
+                      {hasSections && (
+                        <Button
+                          variant="gold-outline"
+                          className="w-full"
+                          onClick={() => setShowDetail(!showDetail)}
+                        >
+                          {showDetail ? "Ver resumen" : "Ver Detalle Completo"}
+                          {showDetail ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </Button>
+                      )}
+                      {entrenamiento.link_archivo && (
+                        <a
+                          href={entrenamiento.link_archivo}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full rounded-md border border-border px-4 py-2.5 text-sm font-heading uppercase tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Ver archivo adjunto
+                        </a>
+                      )}
+                    </div>
+                  </>
                 );
               })()}
-
-              {entrenamiento.link_archivo && (
-                <div className="px-5 py-4 border-t border-border">
-                  <a
-                    href={entrenamiento.link_archivo}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-primary hover:text-gold-light transition-colors text-sm font-medium"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Ver archivo adjunto
-                  </a>
-                </div>
-              )}
             </div>
           ) : (
-            <div className="glass-card rounded-lg p-8 text-center space-y-3">
+            <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-8 text-center space-y-3 shadow-lg shadow-black/20">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted">
                 <Calendar className="w-6 h-6 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Hoy no hay entrenamiento cargado para tu grupo.
               </p>
             </div>
