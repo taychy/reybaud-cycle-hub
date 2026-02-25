@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
+import WeatherBar from "@/components/WeatherBar";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -181,6 +182,9 @@ const StudentDashboard = () => {
               Pelotón {alumno?.grupo} · <span className="capitalize">{todayFormatted}</span>
             </p>
           </div>
+
+          {/* Weather */}
+          <WeatherBar />
 
           {/* Training detail view */}
           {entrenamiento ? (
