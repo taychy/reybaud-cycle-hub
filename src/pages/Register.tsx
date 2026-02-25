@@ -8,7 +8,7 @@ import logo from "@/assets/logo.png";
 
 const Register = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nombre: "", email: "", telefono: "" });
+  const [form, setForm] = useState({ nombre: "", email: "", telefono: "", documento: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,9 +50,10 @@ const Register = () => {
         nombre: form.nombre.trim(),
         email,
         telefono: form.telefono.trim() || null,
+        documento: form.documento.trim() || null,
         estado: "inactivo",
         grupo: "Sin grupo",
-      })
+      } as any)
       .select("id")
       .single();
 
@@ -125,6 +126,21 @@ const Register = () => {
                 type="tel"
                 placeholder="+54 11 1234-5678"
                 value={form.telefono}
+                onChange={handleChange}
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="documento" className="text-sm font-medium text-foreground">
+                DNI / CUIT / CUIL <span className="text-muted-foreground">(para facturación)</span>
+              </label>
+              <Input
+                id="documento"
+                name="documento"
+                type="text"
+                placeholder="Ej: 30123456 o 20-30123456-9"
+                value={form.documento}
                 onChange={handleChange}
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />

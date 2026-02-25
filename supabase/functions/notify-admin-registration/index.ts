@@ -33,33 +33,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Find admin user IDs
+    // Fixed recipient + admin users
+    const adminEmails: string[] = ["natalia@ciclismoreybaud.com"];
+
+    // Also add dynamic admin role users
     const { data: adminRoles } = await supabaseAdmin
       .from("user_roles")
       .select("user_id")
       .eq("role", "admin");
 
-    if (!adminRoles || adminRoles.length === 0) {
-      return new Response(JSON.stringify({ ok: true, message: "No admins found" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get admin emails from auth.users
-    const adminEmails: string[] = [];
-    for (const role of adminRoles) {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(role.user_id);
-      if (userData?.user?.email) {
-        adminEmails.push(userData.user.email);
+    if (adminRoles) {
+      for (const role of adminRoles) {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(role.user_id);
+        if (userData?.user?.email && !adminEmails.includes(userData.user.email)) {
+          adminEmails.push(userData.user.email);
+        }
       }
-    }
-
-    if (adminEmails.length === 0) {
-      return new Response(JSON.stringify({ ok: true, message: "No admin emails" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     // Send email via Resend
