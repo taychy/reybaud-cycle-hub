@@ -115,17 +115,14 @@ export default function TrainingDetailView({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-heading font-bold uppercase tracking-widest text-foreground">
-          {dayLabel}
-        </h2>
-        {totalMinutes > 0 && (
+      {/* Duration + Day selector */}
+      {totalMinutes > 0 && (
+        <div className="text-center">
           <p className="text-sm text-muted-foreground font-heading">
             — {totalMinutes} min —
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Day selector */}
       <div className="flex justify-between px-1 border-b border-border pb-1">
