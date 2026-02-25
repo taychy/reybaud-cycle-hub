@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ const ManageStudents = () => {
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
   const [manualFechaFin, setManualFechaFin] = useState("");
   const [savingManual, setSavingManual] = useState(false);
+  const [deleteAlumno, setDeleteAlumno] = useState<Alumno | null>(null);
 
   const fetchAlumnos = async () => {
     const { data } = await supabase.from("alumnos").select("*").order("nombre");
@@ -92,6 +94,21 @@ const ManageStudents = () => {
     setManualSubAlumno(null);
     setManualFechaFin("");
     setSavingManual(false);
+    fetchAlumnos();
+  };
+
+  const handleDeleteAlumno = async () => {
+    if (!deleteAlumno) return;
+    // Delete related records first, then the student
+    await supabase.from("entrenamientos_realizados").delete().eq("alumno_id", deleteAlumno.id);
+    await supabase.from("suscripciones").delete().eq("alumno_id", deleteAlumno.id);
+    const { error } = await supabase.from("alumnos").delete().eq("id", deleteAlumno.id);
+    if (error) {
+      toast.error("Error al eliminar el alumno.");
+    } else {
+      toast.success(`${deleteAlumno.nombre} fue eliminado. Deberá registrarse nuevamente para volver a ingresar.`);
+    }
+    setDeleteAlumno(null);
     fetchAlumnos();
   };
 
@@ -237,6 +254,14 @@ const ManageStudents = () => {
                         <><UserCheck className="w-3 h-3 mr-1" /> Activar</>
                       )}
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteAlumno(alumno)}
+                      className="text-xs text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" /> Eliminar
+                    </Button>
                   </TableCell>
                 </TableRow>
                 );
@@ -280,6 +305,24 @@ const ManageStudents = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteAlumno} onOpenChange={(open) => { if (!open) setDeleteAlumno(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar a {deleteAlumno?.nombre}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán todos sus datos, suscripciones y registros de entrenamientos. Para volver a usar la app, deberá registrarse nuevamente. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAlumno} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
