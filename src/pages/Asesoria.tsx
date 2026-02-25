@@ -15,8 +15,8 @@ const servicios = [
   {
     id: "personalizada_expertos" as TipoAsesoria,
     titulo: "Planificación Personalizada",
-    subtitulo: "Con expertos del equipo",
-    precio: "$54.600",
+    subtitulo: "Con profesores expertos (PDF)",
+    precio: "$60.060",
     frecuencia: "/mes",
     features: [
       "Plan de entrenamiento a medida",
@@ -28,7 +28,7 @@ const servicios = [
   {
     id: "personalizada_claudio" as TipoAsesoria,
     titulo: "Planificación Personalizada",
-    subtitulo: "Con Claudio Reybaud",
+    subtitulo: "Con Claudio Reybaud (PDF)",
     precio: "USD 75",
     frecuencia: "/mes",
     destacado: true,
@@ -42,10 +42,10 @@ const servicios = [
 ];
 
 const planesGrupales = [
-  { nombre: "Pase Libre", descripcion: "Grupales libre + Plan", precio: "$61.800" },
-  { nombre: "Grupales 2x Semana", descripcion: "Grupales 2 x semana + Plan", precio: "$52.900" },
-  { nombre: "Grupales 1x Semana", descripcion: "Grupales 1 x semana + Plan", precio: "$47.795" },
-  { nombre: "Clase Personalizada", descripcion: "Sesión individual", precio: "$29.300" },
+  { nombre: "Pase Libre", descripcion: "Grupales libre + Plan", precio: "$67.980" },
+  { nombre: "Grupales 2x Semana", descripcion: "Grupales 2 x semana + Plan", precio: "$58.190" },
+  { nombre: "Grupales 1x Semana", descripcion: "Grupales 1 x semana + Plan", precio: "$52.574,50" },
+  { nombre: "Clase Personalizada", descripcion: "Sesión individual", precio: "$32.230" },
 ];
 
 const Asesoria = () => {
@@ -119,7 +119,7 @@ const Asesoria = () => {
         {/* Planes grupales */}
         <section className="space-y-4">
           <h2 className="text-xl font-heading font-semibold uppercase tracking-wider text-foreground text-center">
-            Mensualidades Grupales
+            Mensualidades Febrero/26
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {planesGrupales.map((plan) => (
