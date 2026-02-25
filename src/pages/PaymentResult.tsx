@@ -30,9 +30,11 @@ const PaymentResult = () => {
 
   const isRenewal = sessionStorage.getItem("alumno_renewal") === "1";
 
+  const showGrupoStep = isApproved || isPending;
+
   // For renewals, skip grupo selection — go straight to result/install
   const [step, setStep] = useState<"result" | "grupo" | "install">(
-    isApproved ? (isRenewal ? "install" : "grupo") : "result"
+    showGrupoStep ? (isRenewal ? "install" : "grupo") : "result"
   );
   const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -194,7 +196,7 @@ const PaymentResult = () => {
     );
   }
 
-  if (step === "grupo" && isApproved) {
+  if (step === "grupo" && showGrupoStep) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="max-w-md w-full space-y-6 animate-fade-in">
