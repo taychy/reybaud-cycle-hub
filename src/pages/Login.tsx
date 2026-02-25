@@ -46,6 +46,23 @@ const Login = () => {
       return;
     }
 
+    // Check active subscription (fecha_fin >= today)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    const { data: activeSub } = await supabase
+      .from("suscripciones")
+      .select("id")
+      .eq("alumno_id", data.id)
+      .eq("estado", "activa")
+      .gte("fecha_fin", todayStr)
+      .limit(1);
+
+    if (!activeSub || activeSub.length === 0) {
+      setLoginError("Tu suscripción venció. Renovála para seguir accediendo a tus entrenamientos.");
+      return;
+    }
+
     sessionStorage.setItem("alumno", JSON.stringify(data));
     navigate("/alumno");
   };
@@ -87,6 +104,15 @@ const Login = () => {
             {loginError && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
                 {loginError}
+                {loginError.includes("venció") && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/planes")}
+                    className="block mt-2 text-primary hover:underline font-medium"
+                  >
+                    Renovar suscripción →
+                  </button>
+                )}
               </div>
             )}
 

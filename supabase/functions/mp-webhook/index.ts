@@ -90,9 +90,10 @@ Deno.serve(async (req) => {
 
     // Update subscription
     const today = new Date().toISOString().split("T")[0];
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const fechaFin = nextMonth.toISOString().split("T")[0];
+    // fecha_fin = last day of the current month at 23:59
+    const now = new Date();
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fechaFin = lastDayOfMonth.toISOString().split("T")[0];
 
     const updateData: Record<string, unknown> = {
       estado,
