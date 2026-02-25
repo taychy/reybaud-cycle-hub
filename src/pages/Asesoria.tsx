@@ -14,8 +14,8 @@ type TipoAsesoria = "personalizada_expertos" | "personalizada_claudio";
 const servicios = [
   {
     id: "personalizada_expertos" as TipoAsesoria,
-    titulo: "Planificación Personalizada",
-    subtitulo: "Con profesores expertos (PDF)",
+    titulo: "Asesoría Personalizada",
+    subtitulo: "Con entrenadores del team",
     precio: "$60.060",
     frecuencia: "/mes",
     features: [
@@ -27,8 +27,8 @@ const servicios = [
   },
   {
     id: "personalizada_claudio" as TipoAsesoria,
-    titulo: "Planificación Personalizada",
-    subtitulo: "Con Claudio Reybaud (PDF)",
+    titulo: "Asesoría Personalizada",
+    subtitulo: "Con Claudio Reybaud",
     precio: "USD 75",
     frecuencia: "/mes",
     destacado: true,
@@ -118,9 +118,7 @@ const Asesoria = () => {
 
         {/* Planes grupales */}
         <section className="space-y-4">
-          <h2 className="text-xl font-heading font-semibold uppercase tracking-wider text-foreground text-center">
-            Mensualidades Febrero/26
-          </h2>
+        
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {planesGrupales.map((plan) => (
               <div key={plan.nombre} className="glass-card rounded-lg p-5 space-y-3 text-center">
@@ -137,9 +135,7 @@ const Asesoria = () => {
 
         {/* Asesorías personalizadas */}
         <section className="space-y-4">
-          <h2 className="text-xl font-heading font-semibold uppercase tracking-wider text-foreground text-center">
-            Planificación Personalizada
-          </h2>
+        
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {servicios.map((servicio) => (
               <div
