@@ -118,7 +118,7 @@ const AdminLogin = () => {
             onClick={() => navigate("/coach/registro")}
             className="text-sm text-primary hover:text-primary/80 transition-colors font-medium mt-2"
           >
-            ¿Sos coach? Registrate acá
+            ¿Sos profesor? Registrate acá
           </button>
         </div>
       </div>
