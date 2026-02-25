@@ -60,29 +60,32 @@ const PaymentResult = () => {
   };
 
   const handleSaveGrupo = async () => {
-    if (!selectedGrupo || !alumnoId) return;
+    if (!selectedGrupo) return;
     setSaving(true);
 
     try {
-      // Save grupo_preferido
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-admin-registration`;
-      
-      await supabase
-        .from("alumnos")
-        .update({ grupo_preferido: selectedGrupo } as any)
-        .eq("id", alumnoId);
+      if (alumnoId) {
+        // Save grupo_preferido
+        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-admin-registration`;
+        
+        await supabase
+          .from("alumnos")
+          .update({ grupo_preferido: selectedGrupo } as any)
+          .eq("id", alumnoId);
 
-      // Notify admins
-      await fetch(functionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ alumno_id: alumnoId, grupo_preferido: selectedGrupo }),
-      }).catch(() => {}); // Non-blocking
+        // Notify admins
+        await fetch(functionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ alumno_id: alumnoId, grupo_preferido: selectedGrupo }),
+        }).catch(() => {}); // Non-blocking
+      }
 
       sessionStorage.removeItem("registro_alumno_id");
+      sessionStorage.removeItem("alumno_renewal");
       setStep("install");
     } catch {
       setStep("install");
