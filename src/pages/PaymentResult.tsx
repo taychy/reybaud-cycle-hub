@@ -61,39 +61,35 @@ const PaymentResult = () => {
     setDeferredPrompt(null);
   };
 
-  const handleSaveGrupo = async () => {
+  const handleSaveGrupo = () => {
     if (!selectedGrupo) return;
     setSaving(true);
 
-    try {
-      if (alumnoId) {
-        // Save grupo_preferido
-        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-admin-registration`;
-        
-        await supabase
+    // Fire-and-forget: save grupo and notify admin in background
+    if (alumnoId) {
+      Promise.resolve(
+        supabase
           .from("alumnos")
           .update({ grupo_preferido: selectedGrupo } as any)
-          .eq("id", alumnoId);
-
-        // Notify admins
-        await fetch(functionUrl, {
+          .eq("id", alumnoId)
+      ).then(() => {
+        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-admin-registration`;
+        fetch(functionUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({ alumno_id: alumnoId, grupo_preferido: selectedGrupo }),
-        }).catch(() => {}); // Non-blocking
-      }
-
-      sessionStorage.removeItem("registro_alumno_id");
-      sessionStorage.removeItem("alumno_renewal");
-      setStep("install");
-    } catch {
-      setStep("install");
-    } finally {
-      setSaving(false);
+        }).catch(() => {});
+      }).catch(() => {});
     }
+
+    // Always advance immediately
+    sessionStorage.removeItem("registro_alumno_id");
+    sessionStorage.removeItem("alumno_renewal");
+    setSaving(false);
+    setStep("install");
   };
 
   // Install step — after choosing grupo
