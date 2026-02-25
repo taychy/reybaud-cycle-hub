@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { CheckCircle, XCircle, Clock, ArrowRight, Bike } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ArrowRight, Bike, Download, Share, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 const grupoOptions = [
   { value: "G1", label: "G1", desc: "Nivel avanzado" },
@@ -23,11 +28,31 @@ const PaymentResult = () => {
   const isPending = status === "pending" || status === "pendiente" || status === "in_process";
   const isFailure = !isApproved && !isPending;
 
-  const [step, setStep] = useState<"result" | "grupo">(isApproved ? "grupo" : "result");
+  const [step, setStep] = useState<"result" | "grupo" | "install">(isApproved ? "grupo" : "result");
   const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
 
   const alumnoId = sessionStorage.getItem("registro_alumno_id");
+
+  useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallPrompt = async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
 
   const handleSaveGrupo = async () => {
     if (!selectedGrupo || !alumnoId) return;
@@ -53,13 +78,79 @@ const PaymentResult = () => {
       }).catch(() => {}); // Non-blocking
 
       sessionStorage.removeItem("registro_alumno_id");
-      setStep("result");
+      setStep("install");
     } catch {
-      setStep("result");
+      setStep("install");
     } finally {
       setSaving(false);
     }
   };
+
+  // Install step — after choosing grupo
+  if (step === "install") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md w-full space-y-6 animate-fade-in text-center">
+          <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto" />
+          <Smartphone className="w-14 h-14 text-primary mx-auto" />
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Instalá la app
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Para la mejor experiencia, instalá Ciclismo Reybaud en tu celular y accedé directo desde la pantalla de inicio.
+          </p>
+
+          {isIOS ? (
+            <div className="glass-card rounded-xl p-5 space-y-3 text-left">
+              <p className="text-foreground font-medium text-sm">En Safari:</p>
+              <ol className="space-y-2 text-muted-foreground text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                  <span>Tocá <Share className="inline w-3.5 h-3.5 text-accent" /> Compartir</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                  <span><strong>"Agregar a pantalla de inicio"</strong></span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                  <span>Confirmá con <strong>"Agregar"</strong></span>
+                </li>
+              </ol>
+            </div>
+          ) : deferredPrompt ? (
+            <Button onClick={handleInstallPrompt} variant="gold" size="lg" className="w-full gap-2">
+              <Download className="w-5 h-5" />
+              Instalar App
+            </Button>
+          ) : (
+            <div className="glass-card rounded-xl p-5 text-left">
+              <p className="text-muted-foreground text-sm">
+                Abrí el menú del navegador (⋮) y seleccioná <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.
+              </p>
+            </div>
+          )}
+
+          <Button
+            variant="gold-outline"
+            size="lg"
+            className="w-full"
+            onClick={() => navigate("/")}
+          >
+            Ir al inicio de sesión
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+
+          <button
+            onClick={() => navigate("/")}
+            className="block mx-auto text-xs text-muted-foreground hover:text-primary transition-colors"
+          >
+            Omitir por ahora
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "grupo" && isApproved) {
     return (
@@ -67,7 +158,7 @@ const PaymentResult = () => {
         <div className="max-w-md w-full space-y-6 animate-fade-in">
           <div className="text-center space-y-3">
             <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto" />
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+            <CheckCircle className="w-12 h-12 text-primary mx-auto" />
             <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
               ¡Pago confirmado!
             </h1>
@@ -108,7 +199,7 @@ const PaymentResult = () => {
           </Button>
 
           <button
-            onClick={() => { setStep("result"); sessionStorage.removeItem("registro_alumno_id"); }}
+            onClick={() => { setStep("install"); sessionStorage.removeItem("registro_alumno_id"); }}
             className="block mx-auto text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             Omitir por ahora
