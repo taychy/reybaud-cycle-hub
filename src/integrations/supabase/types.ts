@@ -103,6 +103,42 @@ export type Database = {
           },
         ]
       }
+      entrenamientos_realizados: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          entrenamiento_id: string
+          id: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          entrenamiento_id: string
+          id?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          entrenamiento_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entrenamientos_realizados_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entrenamientos_realizados_entrenamiento_id_fkey"
+            columns: ["entrenamiento_id"]
+            isOneToOne: false
+            referencedRelation: "entrenamientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       importaciones_usuarios: {
         Row: {
           archivo_original_url: string | null
