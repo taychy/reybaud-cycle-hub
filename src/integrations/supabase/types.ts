@@ -17,6 +17,7 @@ export type Database = {
       alumnos: {
         Row: {
           created_at: string
+          documento: string | null
           email: string
           estado: string
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          documento?: string | null
           email: string
           estado?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          documento?: string | null
           email?: string
           estado?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
