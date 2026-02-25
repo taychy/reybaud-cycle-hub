@@ -16,6 +16,9 @@ import ImportPlan from "./pages/admin/ImportPlan";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
 import Asesoria from "./pages/Asesoria";
+import CoachRegister from "./pages/CoachRegister";
+import CoachDashboard from "./pages/coach/CoachDashboard";
+import ManageCoaches from "./pages/admin/ManageCoaches";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +37,8 @@ const App = () => (
           <Route path="/alumno" element={<StudentDashboard />} />
           <Route path="/asesoria" element={<Asesoria />} />
           <Route path="/instalar" element={<Install />} />
+          <Route path="/coach/registro" element={<CoachRegister />} />
+          <Route path="/coach" element={<CoachDashboard />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/alumnos" replace />} />
@@ -41,6 +46,7 @@ const App = () => (
             <Route path="importar-alumnos" element={<ImportStudents />} />
             <Route path="importar-plan" element={<ImportPlan />} />
             <Route path="entrenamientos" element={<Trainings />} />
+            <Route path="coaches" element={<ManageCoaches />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

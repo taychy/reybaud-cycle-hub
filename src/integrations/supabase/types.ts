@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      coaches: {
+        Row: {
+          created_at: string
+          email: string
+          estado: string
+          grupos: Database["public"]["Enums"]["grupo_ciclismo"][]
+          id: string
+          nombre: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          estado?: string
+          grupos?: Database["public"]["Enums"]["grupo_ciclismo"][]
+          id?: string
+          nombre: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          estado?: string
+          grupos?: Database["public"]["Enums"]["grupo_ciclismo"][]
+          id?: string
+          nombre?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entrenamientos: {
         Row: {
           created_at: string
@@ -370,7 +403,7 @@ export type Database = {
       publish_month: { Args: { p_mes: string }; Returns: number }
     }
     Enums: {
-      app_role: "admin" | "alumno"
+      app_role: "admin" | "alumno" | "coach"
       estado_plan: "borrador" | "publicado"
       grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
@@ -501,7 +534,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "alumno"],
+      app_role: ["admin", "alumno", "coach"],
       estado_plan: ["borrador", "publicado"],
       grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
