@@ -125,33 +125,65 @@ const AdminLayout = () => {
           </Button>
         </header>
 
-        {/* Mobile nav */}
+      {/* Mobile drawer overlay */}
         {mobileOpen && (
-          <div className="md:hidden border-b border-border bg-card p-3 space-y-1">
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/60 animate-fade-in"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
+
+        {/* Mobile drawer */}
+        <aside
+          className={`md:hidden fixed top-0 left-0 z-50 h-full w-[80%] max-w-xs bg-sidebar border-r border-border flex flex-col transition-transform duration-300 ease-out ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full overflow-hidden">
+                <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
+              </div>
+              <div>
+                <h1 className="text-sm font-heading font-bold uppercase tracking-wider text-sidebar-foreground">
+                  Reybaud
+                </h1>
+                <p className="text-xs text-muted-foreground">Admin Panel</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                    isActive ? "bg-accent text-primary" : "text-foreground hover:bg-muted"
+                  `flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors ${
+                    isActive ? "bg-sidebar-accent text-sidebar-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                   }`
                 }
               >
-                <item.icon className="w-4 h-4" />
+                <item.icon className="w-5 h-5" />
                 {item.label}
               </NavLink>
             ))}
+          </nav>
+
+          <div className="p-3 border-t border-sidebar-border">
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground w-full"
+              onClick={() => { setMobileOpen(false); handleLogout(); }}
+              className="flex items-center gap-3 px-3 py-3 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-5 h-5" />
               Cerrar sesión
             </button>
           </div>
-        )}
+        </aside>
 
         {/* Page content */}
         <main className="flex-1 p-6 md:p-8 overflow-auto">
