@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Ciclismo Reybaud <no-reply@notify.reybaud-app.com>",
+          from: "Ciclismo Reybaud <no-reply@ciclismoreybaud.com>",
           to: [normalizedEmail],
           subject: SUBJECT_MAP[type] || SUBJECT_MAP.alumno,
           html: emailHtml,
