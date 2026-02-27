@@ -98,15 +98,11 @@ Deno.serve(async (req) => {
     // Generate a new invite link (always creates a new token)
     const nombre = profileData.nombre || `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
 
-    // Use "magiclink" type since "invite" fails for existing users with email_exists error
+    // Use "recovery" type - works for existing users and redirects to /activar-cuenta for password setup
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
+      type: "recovery",
       email: normalizedEmail,
       options: {
-        data: {
-          nombre,
-          user_type,
-        },
         redirectTo,
       },
     });
