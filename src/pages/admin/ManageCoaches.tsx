@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserCog, Edit2 } from "lucide-react";
+import { UserCog, Edit2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
@@ -30,6 +31,11 @@ const ManageCoaches = () => {
   const [selectedEstado, setSelectedEstado] = useState("pendiente");
   const [saving, setSaving] = useState(false);
 
+  // Create dialog
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ nombre: "", email: "" });
+  const [creating, setCreating] = useState(false);
+
   const fetchCoaches = async () => {
     const { data } = await supabase.from("coaches").select("*").order("created_at", { ascending: false });
     setCoaches((data as any) || []);
@@ -37,6 +43,33 @@ const ManageCoaches = () => {
   };
 
   useEffect(() => { fetchCoaches(); }, []);
+
+  const handleCreateCoach = async () => {
+    if (!createForm.nombre.trim() || !createForm.email.trim()) {
+      toast.error("Nombre y email son obligatorios");
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          type: "coach",
+          nombre: createForm.nombre.trim(),
+          email: createForm.email.trim(),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(data?.message || "Coach creado e invitación enviada");
+      setShowCreate(false);
+      setCreateForm({ nombre: "", email: "" });
+      fetchCoaches();
+    } catch (err: any) {
+      toast.error(err.message || "Error al crear coach");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const openEdit = (coach: Coach) => {
     setEditCoach(coach);
@@ -65,16 +98,21 @@ const ManageCoaches = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <UserCog className="w-6 h-6 text-primary" />
-          <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Gestionar Coaches
-          </h2>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <UserCog className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+              Gestionar Coaches
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            {coaches.length} coach{coaches.length !== 1 ? "es" : ""} registrado{coaches.length !== 1 ? "s" : ""}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {coaches.length} coach{coaches.length !== 1 ? "es" : ""} registrado{coaches.length !== 1 ? "s" : ""}
-        </p>
+        <Button variant="gold" onClick={() => setShowCreate(true)}>
+          <Plus className="w-4 h-4 mr-1" /> Agregar Coach
+        </Button>
       </div>
 
       <div className="glass-card rounded-lg overflow-hidden">
@@ -169,6 +207,43 @@ const ManageCoaches = () => {
             <Button variant="outline" onClick={() => setEditCoach(null)}>Cancelar</Button>
             <Button variant="gold" disabled={saving} onClick={handleSave}>
               {saving ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create coach dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">Agregar Coach</DialogTitle>
+            <DialogDescription>Se enviará una invitación por email para que active su cuenta.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nombre completo *</Label>
+              <Input
+                value={createForm.nombre}
+                onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
+                className="bg-secondary border-border"
+                placeholder="Nombre del coach"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                className="bg-secondary border-border"
+                placeholder="coach@ejemplo.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+            <Button variant="gold" disabled={creating} onClick={handleCreateCoach}>
+              {creating ? "Enviando..." : "Enviar invitación"}
             </Button>
           </DialogFooter>
         </DialogContent>
