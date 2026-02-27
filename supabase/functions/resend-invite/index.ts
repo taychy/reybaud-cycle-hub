@@ -98,8 +98,9 @@ Deno.serve(async (req) => {
     // Generate a new invite link (always creates a new token)
     const nombre = profileData.nombre || `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
 
+    // Use "magiclink" type since "invite" fails for existing users with email_exists error
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "invite",
+      type: "magiclink",
       email: normalizedEmail,
       options: {
         data: {
@@ -115,13 +116,15 @@ Deno.serve(async (req) => {
       throw new Error("Error al generar link de invitación: " + linkError.message);
     }
 
-    // The confirmation URL from generateLink
-    const confirmationUrl = linkData.properties?.action_link;
-    if (!confirmationUrl) {
+    // The action_link from generateLink contains the token
+    const actionLink = linkData.properties?.action_link;
+    if (!actionLink) {
       throw new Error("No se pudo generar el link de activación");
     }
 
-    console.log("Generated invite link for", normalizedEmail, "→", confirmationUrl);
+    // Replace the default redirect with our activar-cuenta page
+    // The action_link goes to Supabase's verify endpoint which then redirects
+    const confirmationUrl = actionLink;
 
     // Send email via Resend
     const ROLE_CONFIG: Record<string, { subject: string; heading: string; description: string; panel: string }> = {
