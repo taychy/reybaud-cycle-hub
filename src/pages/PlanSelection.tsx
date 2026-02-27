@@ -32,8 +32,8 @@ const PlanSelection = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<PaymentStep>("select-plan");
-  const alumnoId = sessionStorage.getItem("registro_alumno_id");
-  const isRenewal = sessionStorage.getItem("alumno_renewal") === "1";
+  const alumnoId = localStorage.getItem("registro_alumno_id");
+  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
 
   useEffect(() => {
     if (!alumnoId) {

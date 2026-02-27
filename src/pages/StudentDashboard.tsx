@@ -41,7 +41,7 @@ const StudentDashboard = () => {
   const [selectedDay, setSelectedDay] = useState(todayDayIndex);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("alumno");
+    const stored = localStorage.getItem("alumno");
     if (!stored) {
       navigate("/");
       return;
@@ -119,7 +119,7 @@ const StudentDashboard = () => {
   }, [selectedDay, weekTrainings, alumno]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem("alumno");
+    localStorage.removeItem("alumno");
     navigate("/");
   };
 

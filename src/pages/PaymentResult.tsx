@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { CheckCircle, XCircle, Clock, ArrowRight, Bike, Download, Share, Smartphone } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ArrowRight, Bike, Download, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
@@ -28,11 +28,10 @@ const PaymentResult = () => {
   const isPending = status === "pending" || status === "pendiente" || status === "in_process";
   const isFailure = !isApproved && !isPending;
 
-  const isRenewal = sessionStorage.getItem("alumno_renewal") === "1";
+  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
 
   const showGrupoStep = isApproved || isPending;
 
-  // For renewals, skip grupo selection — go straight to result/install
   const [step, setStep] = useState<"result" | "grupo" | "install">(
     showGrupoStep ? (isRenewal ? "install" : "grupo") : "result"
   );
@@ -41,7 +40,7 @@ const PaymentResult = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
 
-  const alumnoId = sessionStorage.getItem("registro_alumno_id");
+  const alumnoId = localStorage.getItem("registro_alumno_id");
 
   useEffect(() => {
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
@@ -65,7 +64,6 @@ const PaymentResult = () => {
     if (!selectedGrupo) return;
     setSaving(true);
 
-    // Fire-and-forget: save grupo and notify admin in background
     if (alumnoId) {
       Promise.resolve(
         supabase
@@ -85,12 +83,10 @@ const PaymentResult = () => {
       }).catch(() => {});
     }
 
-    // Always advance immediately
-    sessionStorage.removeItem("registro_alumno_id");
-    sessionStorage.removeItem("alumno_renewal");
+    localStorage.removeItem("registro_alumno_id");
+    localStorage.removeItem("alumno_renewal");
     setSaving(false);
 
-    // Skip install screen if already running as installed PWA
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
     if (isStandalone) {
       navigate("/");
@@ -99,16 +95,14 @@ const PaymentResult = () => {
     }
   };
 
-  // Install step — after choosing grupo
+  // Install step
   if (step === "install") {
-    // Clean up session flags
     const cleanupAndNavigate = (path: string) => {
-      sessionStorage.removeItem("registro_alumno_id");
-      sessionStorage.removeItem("alumno_renewal");
+      localStorage.removeItem("registro_alumno_id");
+      localStorage.removeItem("alumno_renewal");
       navigate(path);
     };
 
-    // For renewals, show a simpler success screen
     if (isRenewal) {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -157,7 +151,6 @@ const PaymentResult = () => {
                 await deferredPrompt.userChoice;
                 setDeferredPrompt(null);
               } else if (isIOS) {
-                // On iOS we can't trigger install, show a brief toast-like hint
                 alert('En Safari, tocá el ícono de Compartir y luego "Agregar a pantalla de inicio".');
               } else {
                 alert('Abrí el menú del navegador (⋮) y seleccioná "Instalar app" o "Agregar a pantalla de inicio".');
@@ -229,7 +222,7 @@ const PaymentResult = () => {
           </Button>
 
           <button
-            onClick={() => { setStep("install"); sessionStorage.removeItem("registro_alumno_id"); }}
+            onClick={() => { setStep("install"); localStorage.removeItem("registro_alumno_id"); }}
             className="block mx-auto text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             Omitir por ahora
