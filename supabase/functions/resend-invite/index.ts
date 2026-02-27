@@ -249,6 +249,7 @@ Deno.serve(async (req) => {
         from: "Ciclismo Reybaud <no-reply@ciclismoreybaud.com>",
         to: [normalizedEmail],
         subject: emailSubject,
+        html: emailHtml,
       }),
     });
 
