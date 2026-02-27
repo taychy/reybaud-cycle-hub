@@ -36,7 +36,7 @@ const Register = () => {
         setError("Ya existe una cuenta con ese email. Podés iniciar sesión.");
       } else {
         // Existing inactive user — send to plan selection
-        sessionStorage.setItem("registro_alumno_id", existing.id);
+        localStorage.setItem("registro_alumno_id", existing.id);
         navigate("/planes");
       }
       setLoading(false);
@@ -63,7 +63,7 @@ const Register = () => {
       return;
     }
 
-    sessionStorage.setItem("registro_alumno_id", data.id);
+    localStorage.setItem("registro_alumno_id", data.id);
     navigate("/planes");
   };
 
