@@ -20,6 +20,7 @@ const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos">("todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
@@ -73,6 +74,11 @@ const ManageStudents = () => {
   };
 
   const handleResendInvite = async (alumno: Alumno) => {
+    // If already active (password set), ask for confirmation
+    if ((alumno as any).password_set) {
+      const confirmed = window.confirm(`${alumno.nombre} ya activó su cuenta. ¿Reenviar invitación de todos modos?`);
+      if (!confirmed) return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("invite-user", {
         body: {
@@ -165,13 +171,16 @@ const ManageStudents = () => {
     fetchAlumnos();
   };
 
-  const filtered = alumnos.filter(
-    (a) =>
-      a.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = alumnos.filter((a) => {
+    const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      a.email.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (statusFilter === "pendientes") return !(a as any).password_set && (a as any).invited_at;
+    if (statusFilter === "activos") return (a as any).password_set;
+    return true;
+  });
 
-  const pendingCount = alumnos.filter((a) => (a as any).grupo_preferido && a.grupo === "Sin grupo").length;
+  const pendingCount = alumnos.filter((a) => !(a as any).password_set && (a as any).invited_at).length;
 
   const openManualSub = (alumno: Alumno) => {
     setManualSubAlumno(alumno);
@@ -203,14 +212,29 @@ const ManageStudents = () => {
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nombre o email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 bg-secondary border-border"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre o email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-secondary border-border"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          {(["todos", "pendientes", "activos"] as const).map((f) => (
+            <Button
+              key={f}
+              variant={statusFilter === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter(f)}
+              className="text-xs capitalize"
+            >
+              {f === "pendientes" ? `Pendientes (${pendingCount})` : f}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Mobile card list */}

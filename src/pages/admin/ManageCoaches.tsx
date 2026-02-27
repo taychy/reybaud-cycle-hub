@@ -27,6 +27,7 @@ interface Coach {
 const ManageCoaches = () => {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos">("todos");
   const [editCoach, setEditCoach] = useState<Coach | null>(null);
   const [selectedGrupos, setSelectedGrupos] = useState<string[]>([]);
   const [selectedEstado, setSelectedEstado] = useState("pendiente");
@@ -71,6 +72,10 @@ const ManageCoaches = () => {
   };
 
   const handleResendInvite = async (coach: Coach) => {
+    if ((coach as any).password_set) {
+      const confirmed = window.confirm(`${coach.nombre} ya activó su cuenta. ¿Reenviar invitación de todos modos?`);
+      if (!confirmed) return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("invite-user", {
         body: { type: "coach", nombre: coach.nombre, email: coach.email },
@@ -108,6 +113,13 @@ const ManageCoaches = () => {
     fetchCoaches();
   };
 
+  const pendingCount = coaches.filter((c) => !(c as any).password_set && (c as any).invited_at).length;
+  const filteredCoaches = coaches.filter((c) => {
+    if (statusFilter === "pendientes") return !(c as any).password_set && (c as any).invited_at;
+    if (statusFilter === "activos") return (c as any).password_set;
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -127,15 +139,30 @@ const ManageCoaches = () => {
         </Button>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center gap-1">
+        {(["todos", "pendientes", "activos"] as const).map((f) => (
+          <Button
+            key={f}
+            variant={statusFilter === f ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter(f)}
+            className="text-xs capitalize"
+          >
+            {f === "pendientes" ? `Pendientes (${pendingCount})` : f}
+          </Button>
+        ))}
+      </div>
+
       {/* Mobile card list */}
       {isMobile ? (
         <div className="space-y-3">
           {loading ? (
             <p className="text-center text-muted-foreground py-8">Cargando...</p>
-          ) : coaches.length === 0 ? (
+          ) : filteredCoaches.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No hay coaches registrados</p>
           ) : (
-            coaches.map((coach) => (
+            filteredCoaches.map((coach) => (
               <div
                 key={coach.id}
                 className="glass-card rounded-lg p-4 space-y-2"
@@ -153,14 +180,14 @@ const ManageCoaches = () => {
                   ) : (
                     <span className="text-muted-foreground text-xs">Sin grupo</span>
                   )}
-                    <Badge variant={coach.estado === "activo" ? "default" : "outline"} className="text-xs">
-                      {coach.estado}
+                  <Badge variant={coach.estado === "activo" ? "default" : "outline"} className="text-xs">
+                    {coach.estado}
+                  </Badge>
+                  {!(coach as any).password_set && (coach as any).invited_at && (
+                    <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
+                      Clave pendiente
                     </Badge>
-                    {!(coach as any).password_set && (coach as any).invited_at && (
-                      <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
-                        Clave pendiente
-                      </Badge>
-                    )}
+                  )}
                 </div>
               </div>
             ))
@@ -184,12 +211,12 @@ const ManageCoaches = () => {
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
                 </TableRow>
-              ) : coaches.length === 0 ? (
+              ) : filteredCoaches.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No hay coaches registrados</TableCell>
                 </TableRow>
               ) : (
-                coaches.map((coach) => (
+                filteredCoaches.map((coach) => (
                   <TableRow key={coach.id} className="border-border">
                     <TableCell className="font-medium text-foreground">{coach.nombre}</TableCell>
                     <TableCell className="text-muted-foreground">{coach.email}</TableCell>
@@ -265,6 +292,14 @@ const ManageCoaches = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                {!(detailCoach as any).password_set && (detailCoach as any).invited_at && (
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                    handleResendInvite(detailCoach);
+                    setDetailCoach(null);
+                  }}>
+                    <MailPlus className="w-3 h-3 mr-2" /> Reenviar invitación
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
                   openEdit(detailCoach);
                   setDetailCoach(null);
