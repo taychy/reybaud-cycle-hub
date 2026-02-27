@@ -38,10 +38,19 @@ Deno.serve(async (req) => {
       throw new Error("Solo un Super Admin puede crear administradores");
     }
 
-    const { first_name, last_name, email, role } = await req.json();
+    const body = await req.json();
+    const first_name = body.first_name?.trim();
+    const last_name = body.last_name?.trim();
+    const email = body.email?.trim().toLowerCase().replace(/\s+/g, '');
+    const role = body.role;
 
     if (!first_name || !last_name || !email || !role) {
       throw new Error("Faltan campos requeridos");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error("El formato del email es inválido");
     }
 
     if (!["super_admin", "admin", "support"].includes(role)) {
