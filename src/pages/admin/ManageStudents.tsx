@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -69,6 +69,25 @@ const ManageStudents = () => {
       toast.error(err.message || "Error al crear alumno");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleResendInvite = async (alumno: Alumno) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          type: "alumno",
+          nombre: alumno.nombre,
+          email: alumno.email,
+          telefono: alumno.telefono || null,
+          documento: alumno.documento || null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Invitación reenviada a ${alumno.email}`);
+    } catch (err: any) {
+      toast.error(err.message || "Error al reenviar invitación");
     }
   };
 
@@ -227,8 +246,10 @@ const ManageStudents = () => {
                     <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
                       {alumno.estado}
                     </Badge>
-                    {needsValidation && (
-                      <span className="text-xs text-primary">Eligió: {grupoPreferido}</span>
+                    {!(alumno as any).password_set && (alumno as any).invited_at && (
+                      <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
+                        Contraseña pendiente
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -308,8 +329,18 @@ const ManageStudents = () => {
                         <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
                           {alumno.estado}
                         </Badge>
+                        {!(alumno as any).password_set && (alumno as any).invited_at && (
+                          <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500 ml-1">
+                            Clave pendiente
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-right space-x-1">
+                        {!(alumno as any).password_set && (alumno as any).invited_at && (
+                          <Button variant="ghost" size="sm" onClick={() => handleResendInvite(alumno)} className="text-xs" title="Reenviar invitación">
+                            <MailPlus className="w-3 h-3 mr-1" /> Reenviar
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => openManualSub(alumno)} className="text-xs" title="Habilitar suscripción manual">
                           <CalendarCheck className="w-3 h-3 mr-1" /> Habilitar
                         </Button>

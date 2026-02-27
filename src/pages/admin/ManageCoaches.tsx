@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserCog, Edit2, Plus, Eye } from "lucide-react";
+import { UserCog, Edit2, Plus, Eye, MailPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -67,6 +67,19 @@ const ManageCoaches = () => {
       toast.error(err.message || "Error al crear coach");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleResendInvite = async (coach: Coach) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: { type: "coach", nombre: coach.nombre, email: coach.email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Invitación reenviada a ${coach.email}`);
+    } catch (err: any) {
+      toast.error(err.message || "Error al reenviar invitación");
     }
   };
 
@@ -140,9 +153,14 @@ const ManageCoaches = () => {
                   ) : (
                     <span className="text-muted-foreground text-xs">Sin grupo</span>
                   )}
-                  <Badge variant={coach.estado === "activo" ? "default" : "outline"} className="text-xs">
-                    {coach.estado}
-                  </Badge>
+                    <Badge variant={coach.estado === "activo" ? "default" : "outline"} className="text-xs">
+                      {coach.estado}
+                    </Badge>
+                    {!(coach as any).password_set && (coach as any).invited_at && (
+                      <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
+                        Clave pendiente
+                      </Badge>
+                    )}
                 </div>
               </div>
             ))
@@ -187,11 +205,23 @@ const ManageCoaches = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={coach.estado === "activo" ? "default" : "outline"} className="text-xs">
-                        {coach.estado}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant={coach.estado === "activo" ? "default" : "outline"} className="text-xs">
+                          {coach.estado}
+                        </Badge>
+                        {!(coach as any).password_set && (coach as any).invited_at && (
+                          <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
+                            Clave pendiente
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-1">
+                      {!(coach as any).password_set && (coach as any).invited_at && (
+                        <Button variant="ghost" size="sm" onClick={() => handleResendInvite(coach)} className="text-xs">
+                          <MailPlus className="w-3 h-3 mr-1" /> Reenviar
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => openEdit(coach)} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-1" /> Editar
                       </Button>
