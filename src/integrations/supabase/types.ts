@@ -20,6 +20,8 @@ export type Database = {
           email: string
           first_name: string
           id: string
+          invite_send_count: number
+          last_invite_sent_at: string | null
           last_login_at: string | null
           last_name: string
           password_set: boolean
@@ -33,6 +35,8 @@ export type Database = {
           email: string
           first_name: string
           id?: string
+          invite_send_count?: number
+          last_invite_sent_at?: string | null
           last_login_at?: string | null
           last_name: string
           password_set?: boolean
@@ -46,6 +50,8 @@ export type Database = {
           email?: string
           first_name?: string
           id?: string
+          invite_send_count?: number
+          last_invite_sent_at?: string | null
           last_login_at?: string | null
           last_name?: string
           password_set?: boolean
@@ -65,7 +71,9 @@ export type Database = {
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido: string | null
           id: string
+          invite_send_count: number
           invited_at: string | null
+          last_invite_sent_at: string | null
           nombre: string
           notas: string | null
           password_set: boolean
@@ -81,7 +89,9 @@ export type Database = {
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
+          invite_send_count?: number
           invited_at?: string | null
+          last_invite_sent_at?: string | null
           nombre: string
           notas?: string | null
           password_set?: boolean
@@ -97,7 +107,9 @@ export type Database = {
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
+          invite_send_count?: number
           invited_at?: string | null
+          last_invite_sent_at?: string | null
           nombre?: string
           notas?: string | null
           password_set?: boolean
@@ -114,7 +126,9 @@ export type Database = {
           estado: string
           grupos: Database["public"]["Enums"]["grupo_ciclismo"][]
           id: string
+          invite_send_count: number
           invited_at: string | null
+          last_invite_sent_at: string | null
           nombre: string
           password_set: boolean
           updated_at: string
@@ -126,7 +140,9 @@ export type Database = {
           estado?: string
           grupos?: Database["public"]["Enums"]["grupo_ciclismo"][]
           id?: string
+          invite_send_count?: number
           invited_at?: string | null
+          last_invite_sent_at?: string | null
           nombre: string
           password_set?: boolean
           updated_at?: string
@@ -138,7 +154,9 @@ export type Database = {
           estado?: string
           grupos?: Database["public"]["Enums"]["grupo_ciclismo"][]
           id?: string
+          invite_send_count?: number
           invited_at?: string | null
+          last_invite_sent_at?: string | null
           nombre?: string
           password_set?: boolean
           updated_at?: string
