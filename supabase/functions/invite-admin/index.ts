@@ -57,9 +57,11 @@ Deno.serve(async (req) => {
       throw new Error("Rol inválido");
     }
 
-    // Determine redirect URL from request origin
-    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
-    const redirectTo = origin ? `${origin}/activar-cuenta` : undefined;
+    // Always use public app URL to avoid auth-bridge redirects
+    const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
+    const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
+    const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
+    const redirectTo = `${baseAppUrl}/activar-cuenta`;
 
     // Check if user already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
