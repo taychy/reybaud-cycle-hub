@@ -243,8 +243,8 @@ const ManageStudents = () => {
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Nombre</TableHead>
-                <TableHead className="text-muted-foreground">Email</TableHead>
-                <TableHead className="text-muted-foreground">DNI/CUIT</TableHead>
+                <TableHead className="text-muted-foreground hidden lg:table-cell">Email</TableHead>
+                <TableHead className="text-muted-foreground hidden lg:table-cell">DNI/CUIT</TableHead>
                 <TableHead className="text-muted-foreground">Grupo</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
@@ -271,8 +271,8 @@ const ManageStudents = () => {
                           <span className="ml-2 text-xs text-primary font-normal">Eligió: {grupoPreferido}</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{alumno.email}</TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs">{alumno.documento || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground hidden lg:table-cell">{alumno.email}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs hidden lg:table-cell">{alumno.documento || "—"}</TableCell>
                       <TableCell>
                         {editingId === alumno.id ? (
                           <div className="flex items-center gap-1">
