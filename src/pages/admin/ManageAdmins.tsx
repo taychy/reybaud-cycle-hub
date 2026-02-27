@@ -19,6 +19,7 @@ interface AdminProfile {
   email: string;
   role: "super_admin" | "admin" | "support";
   status: string;
+  password_set: boolean;
   last_login_at: string | null;
   created_at: string;
 }
@@ -201,6 +202,11 @@ const ManageAdmins = () => {
                   <Badge variant={admin.status === "active" ? "default" : "outline"} className="text-xs">
                     {admin.status === "active" ? "Activo" : "Suspendido"}
                   </Badge>
+                  {!admin.password_set && (
+                    <Badge variant="outline" className="text-xs text-yellow-500 border-yellow-500/30">
+                      Contraseña pendiente
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))
@@ -242,9 +248,16 @@ const ManageAdmins = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={admin.status === "active" ? "default" : "outline"} className="text-xs">
-                        {admin.status === "active" ? "Activo" : "Suspendido"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={admin.status === "active" ? "default" : "outline"} className="text-xs">
+                          {admin.status === "active" ? "Activo" : "Suspendido"}
+                        </Badge>
+                        {!admin.password_set && (
+                          <Badge variant="outline" className="text-xs text-yellow-500 border-yellow-500/30">
+                            Contraseña pendiente
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDate(admin.last_login_at)}
@@ -297,6 +310,12 @@ const ManageAdmins = () => {
                   <span className="text-muted-foreground">Estado</span>
                   <Badge variant={detailAdmin.status === "active" ? "default" : "outline"} className="text-xs">
                     {detailAdmin.status === "active" ? "Activo" : "Suspendido"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Contraseña</span>
+                  <Badge variant="outline" className={`text-xs ${detailAdmin.password_set ? "" : "text-yellow-500 border-yellow-500/30"}`}>
+                    {detailAdmin.password_set ? "Creada" : "Pendiente"}
                   </Badge>
                 </div>
                 <div className="flex justify-between">

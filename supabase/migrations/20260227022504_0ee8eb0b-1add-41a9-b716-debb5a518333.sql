@@ -1,0 +1,1 @@
+ALTER TABLE public.admin_profiles ADD COLUMN password_set boolean NOT NULL DEFAULT false;
