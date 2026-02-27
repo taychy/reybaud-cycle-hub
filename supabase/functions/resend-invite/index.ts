@@ -47,9 +47,13 @@ Deno.serve(async (req) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Determine redirect URL
+    // Determine redirect URL (always prefer public app URL to avoid auth-bridge/preview login)
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
-    const redirectTo = origin ? `${origin}/activar-cuenta` : undefined;
+    const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
+    const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
+    const isPreviewOrPrivateUrl = /-preview--|\.lovableproject\.com/.test(origin);
+    const baseAppUrl = configuredAppUrl || (origin && !isPreviewOrPrivateUrl ? origin : defaultPublicAppUrl);
+    const redirectTo = `${baseAppUrl}/activar-cuenta`;
 
     // Look up user profile based on type
     let profileTable: string;
