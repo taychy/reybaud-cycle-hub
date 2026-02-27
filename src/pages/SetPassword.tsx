@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KeyRound, CheckCircle, Check, X } from "lucide-react";
+import { KeyRound, CheckCircle, Check, X, Eye, EyeOff, AlertTriangle, MailCheck } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { toast } from "sonner";
 
 const PASSWORD_RULES = [
   { id: "length", label: "Mínimo 8 caracteres", test: (p: string) => p.length >= 8 },
@@ -12,14 +13,24 @@ const PASSWORD_RULES = [
   { id: "number", label: "Al menos un número", test: (p: string) => /\d/.test(p) },
 ];
 
+type PageState = "loading" | "form" | "success" | "error";
+
 const SetPassword = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [pageState, setPageState] = useState<PageState>("loading");
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
 
   const ruleResults = useMemo(
     () => PASSWORD_RULES.map((r) => ({ ...r, passed: r.test(password) })),
@@ -29,17 +40,109 @@ const SetPassword = () => {
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    // Check for error in URL hash (Supabase puts errors there for expired/invalid tokens)
+    const hash = window.location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.replace("#", ""));
+      const errorParam = params.get("error");
+      const errorDesc = params.get("error_description");
+      if (errorParam) {
+        setTokenError(errorDesc || "El enlace es inválido o ha expirado.");
+        setPageState("error");
+        return;
+      }
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setChecking(false);
+        if (session?.user) {
+          // Try to get the user's name from profile tables
+          const uid = session.user.id;
+          setUserEmail(session.user.email || "");
+
+          const { data: adminProfile } = await supabase
+            .from("admin_profiles")
+            .select("first_name, last_name")
+            .eq("user_id", uid)
+            .maybeSingle();
+
+          if (adminProfile) {
+            setUserName(`${adminProfile.first_name} ${adminProfile.last_name}`.trim());
+            setPageState("form");
+            return;
+          }
+
+          const { data: alumnoProfile } = await supabase
+            .from("alumnos")
+            .select("nombre")
+            .eq("user_id", uid)
+            .maybeSingle();
+
+          if (alumnoProfile) {
+            setUserName((alumnoProfile as any).nombre || "");
+            setPageState("form");
+            return;
+          }
+
+          const { data: coachProfile } = await supabase
+            .from("coaches")
+            .select("nombre")
+            .eq("user_id", uid)
+            .maybeSingle();
+
+          if (coachProfile) {
+            setUserName((coachProfile as any).nombre || "");
+            setPageState("form");
+            return;
+          }
+
+          // No profile found but session exists — allow password set anyway
+          setPageState("form");
+        }
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Also check if there's already a session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        setChecking(false);
+        const uid = session.user.id;
+        setUserEmail(session.user.email || "");
+
+        const { data: adminProfile } = await supabase
+          .from("admin_profiles")
+          .select("first_name, last_name")
+          .eq("user_id", uid)
+          .maybeSingle();
+
+        if (adminProfile) {
+          setUserName(`${adminProfile.first_name} ${adminProfile.last_name}`.trim());
+        } else {
+          const { data: alumnoProfile } = await supabase
+            .from("alumnos")
+            .select("nombre")
+            .eq("user_id", uid)
+            .maybeSingle();
+          if (alumnoProfile) {
+            setUserName((alumnoProfile as any).nombre || "");
+          } else {
+            const { data: coachProfile } = await supabase
+              .from("coaches")
+              .select("nombre")
+              .eq("user_id", uid)
+              .maybeSingle();
+            if (coachProfile) {
+              setUserName((coachProfile as any).nombre || "");
+            }
+          }
+        }
+
+        setPageState("form");
       } else {
-        setTimeout(() => setChecking(false), 2000);
+        // Wait a bit for the auth state change to fire, then show error
+        setTimeout(() => {
+          setPageState((prev) => prev === "loading" ? "error" : prev);
+          setTokenError("No se pudo verificar el enlace. Puede haber expirado o ya fue utilizado.");
+        }, 3000);
       }
     });
 
@@ -70,29 +173,26 @@ const SetPassword = () => {
       return;
     }
 
-    setSuccess(true);
-    setLoading(false);
-
     // Mark password as set in relevant profile tables
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     if (currentSession) {
       const uid = currentSession.user.id;
-      // Admin profiles
       await supabase
         .from("admin_profiles")
         .update({ password_set: true } as any)
         .eq("user_id", uid);
-      // Alumno profiles
       await supabase
         .from("alumnos")
         .update({ password_set: true } as any)
         .eq("user_id", uid);
-      // Coach profiles
       await supabase
         .from("coaches")
         .update({ password_set: true } as any)
         .eq("user_id", uid);
     }
+
+    setPageState("success");
+    setLoading(false);
 
     // Redirect after a moment
     setTimeout(async () => {
@@ -107,15 +207,6 @@ const SetPassword = () => {
           return;
         }
 
-        const { data: isAlumno } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "alumno" as any,
-        });
-        if (isAlumno) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-
         const { data: isCoach } = await supabase.rpc("has_role", {
           _user_id: session.user.id,
           _role: "coach" as any,
@@ -124,12 +215,46 @@ const SetPassword = () => {
           navigate("/coach", { replace: true });
           return;
         }
+
+        const { data: isAlumno } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "alumno" as any,
+        });
+        if (isAlumno) {
+          navigate("/alumno", { replace: true });
+          return;
+        }
       }
       navigate("/", { replace: true });
     }, 2000);
   };
 
-  if (checking) {
+  const handleResendInvite = async () => {
+    if (!userEmail) {
+      toast.error("No se pudo identificar el email. Contactá al administrador.");
+      return;
+    }
+
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-invite", {
+        body: { email: userEmail, user_type: "admin" },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setResendDone(true);
+      toast.success("¡Nuevo enlace enviado! Revisá tu email.");
+    } catch (err: any) {
+      toast.error(err.message || "Error al reenviar la invitación");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  // --- LOADING STATE ---
+  if (pageState === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -140,7 +265,48 @@ const SetPassword = () => {
     );
   }
 
-  if (success) {
+  // --- ERROR STATE ---
+  if (pageState === "error") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md text-center space-y-6 animate-fade-in">
+          <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto" />
+          <AlertTriangle className="w-14 h-14 text-destructive mx-auto" />
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Este enlace ya no es válido
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {tokenError || "El enlace puede haber expirado o ya fue utilizado."}
+          </p>
+
+          {resendDone ? (
+            <div className="flex flex-col items-center gap-3 pt-2">
+              <MailCheck className="w-10 h-10 text-primary" />
+              <p className="text-sm text-muted-foreground">
+                Te enviamos un nuevo enlace. Revisá tu bandeja de entrada.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Contactá a tu administrador para que te reenvíe la invitación desde el panel.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/admin/login")}
+                className="w-full"
+              >
+                Ir al inicio de sesión
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // --- SUCCESS STATE ---
+  if (pageState === "success") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md text-center space-y-6 animate-fade-in">
@@ -157,6 +323,7 @@ const SetPassword = () => {
     );
   }
 
+  // --- FORM STATE ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
@@ -164,28 +331,42 @@ const SetPassword = () => {
           <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto mb-2" />
           <KeyRound className="w-10 h-10 text-primary mx-auto" />
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Creá tu contraseña
+            Activá tu cuenta
           </h1>
           <p className="text-muted-foreground text-sm">
-            Establecé una contraseña segura para acceder a tu cuenta
+            {userName
+              ? `Hola ${userName}, creá tu contraseña para comenzar.`
+              : "Creá tu contraseña para acceder a tu cuenta."
+            }
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="glass-card rounded-lg p-6 space-y-4">
+            {/* Password field */}
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium text-foreground">
                 Nueva contraseña
               </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                required
-                placeholder="Ingresá tu contraseña"
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
+                  required
+                  placeholder="Ingresá tu contraseña"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {/* Password rules checklist */}
@@ -206,19 +387,30 @@ const SetPassword = () => {
               </div>
             )}
 
+            {/* Confirm password field */}
             <div className="space-y-2">
               <label htmlFor="confirm-password" className="text-sm font-medium text-foreground">
                 Confirmar contraseña
               </label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
-                required
-                placeholder="Repetí la contraseña"
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-              />
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showConfirm ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
+                  required
+                  placeholder="Repetí la contraseña"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               {confirmPassword.length > 0 && (
                 <div className="flex items-center gap-2 text-xs">
                   {passwordsMatch ? (
