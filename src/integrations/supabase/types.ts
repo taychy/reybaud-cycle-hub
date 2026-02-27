@@ -114,7 +114,9 @@ export type Database = {
           estado: string
           grupos: Database["public"]["Enums"]["grupo_ciclismo"][]
           id: string
+          invited_at: string | null
           nombre: string
+          password_set: boolean
           updated_at: string
           user_id: string
         }
@@ -124,7 +126,9 @@ export type Database = {
           estado?: string
           grupos?: Database["public"]["Enums"]["grupo_ciclismo"][]
           id?: string
+          invited_at?: string | null
           nombre: string
+          password_set?: boolean
           updated_at?: string
           user_id: string
         }
@@ -134,7 +138,9 @@ export type Database = {
           estado?: string
           grupos?: Database["public"]["Enums"]["grupo_ciclismo"][]
           id?: string
+          invited_at?: string | null
           nombre?: string
+          password_set?: boolean
           updated_at?: string
           user_id?: string
         }

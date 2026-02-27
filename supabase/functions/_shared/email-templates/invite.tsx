@@ -22,20 +22,23 @@ interface InviteEmailProps {
   userType?: string
 }
 
-const ROLE_CONFIG: Record<string, { heading: string; description: string; panel: string }> = {
+const ROLE_CONFIG: Record<string, { heading: string; preview: string; description: string; panel: string }> = {
   admin: {
     heading: '¡Bienvenido al equipo!',
+    preview: 'Fuiste invitado como Administrador – Reybaud',
     description: 'Fuiste invitado a formar parte del equipo de administración de',
     panel: 'panel de administración',
   },
   alumno: {
     heading: '¡Bienvenido a Ciclismo Reybaud!',
-    description: 'Fuiste invitado a entrenar con',
+    preview: 'Activá tu cuenta – Ciclismo Reybaud',
+    description: 'Tu cuenta en Ciclismo Reybaud ya está lista. Solo falta que crees tu contraseña para empezar a acceder a tus entrenamientos en',
     panel: 'panel de entrenamientos',
   },
   coach: {
     heading: '¡Bienvenido al equipo de coaches!',
-    description: 'Fuiste invitado como coach en',
+    preview: 'Activá tu cuenta de Coach – Ciclismo Reybaud',
+    description: 'Tu cuenta como coach en Ciclismo Reybaud ya está habilitada. Creá tu contraseña para acceder a',
     panel: 'panel de coach',
   },
 }
@@ -51,7 +54,7 @@ export const InviteEmail = ({
   return (
     <Html lang="es" dir="ltr">
       <Head />
-      <Preview>{config.description} Ciclismo Reybaud</Preview>
+      <Preview>{config.preview}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Img src={LOGO_URL} alt="Ciclismo Reybaud" width="60" height="60" style={logo} />
@@ -61,8 +64,8 @@ export const InviteEmail = ({
             <Link href={siteUrl} style={link}><strong>Ciclismo Reybaud</strong></Link>.
           </Text>
           <Text style={text}>
-            Para comenzar, hacé clic en el botón de abajo y creá tu contraseña de acceso.
-            Este enlace es válido por 24 horas.
+            Hacé clic en el botón de abajo para crear tu contraseña.
+            Este enlace es válido por <strong>24 horas</strong>.
           </Text>
           <Button style={button} href={confirmationUrl}>
             Crear mi contraseña

@@ -128,18 +128,20 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingCoach) {
-        // Update user_id if needed
+        // Update user_id and invitation tracking
         await adminClient
           .from("coaches")
-          .update({ user_id: userId })
+          .update({ user_id: userId, password_set: false, invited_at: new Date().toISOString() })
           .eq("id", existingCoach.id);
       } else {
         await adminClient.from("coaches").insert({
           nombre,
           email: normalizedEmail,
           user_id: userId,
-          estado: "pendiente",
+          estado: "activo",
           grupos: grupos || [],
+          password_set: false,
+          invited_at: new Date().toISOString(),
         });
       }
 

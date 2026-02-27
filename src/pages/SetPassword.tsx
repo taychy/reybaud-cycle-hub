@@ -76,16 +76,22 @@ const SetPassword = () => {
     // Mark password as set in relevant profile tables
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     if (currentSession) {
+      const uid = currentSession.user.id;
       // Admin profiles
       await supabase
         .from("admin_profiles")
         .update({ password_set: true } as any)
-        .eq("user_id", currentSession.user.id);
+        .eq("user_id", uid);
       // Alumno profiles
       await supabase
         .from("alumnos")
         .update({ password_set: true } as any)
-        .eq("user_id", currentSession.user.id);
+        .eq("user_id", uid);
+      // Coach profiles
+      await supabase
+        .from("coaches")
+        .update({ password_set: true } as any)
+        .eq("user_id", uid);
     }
 
     // Redirect after a moment

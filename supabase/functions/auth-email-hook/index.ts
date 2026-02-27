@@ -15,9 +15,15 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+const EMAIL_SUBJECTS_BY_ROLE: Record<string, Record<string, string>> = {
+  admin: { invite: 'Fuiste invitado como Administrador – Reybaud' },
+  alumno: { invite: 'Activá tu cuenta – Ciclismo Reybaud' },
+  coach: { invite: 'Activá tu cuenta de Coach – Ciclismo Reybaud' },
+}
+
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'Confirmá tu email - Ciclismo Reybaud',
-  invite: 'Fuiste invitado a Ciclismo Reybaud',
+  invite: 'Activá tu cuenta – Ciclismo Reybaud',
   magiclink: 'Tu link de acceso - Ciclismo Reybaud',
   recovery: 'Restablecé tu contraseña - Ciclismo Reybaud',
   email_change: 'Confirmá tu cambio de email - Ciclismo Reybaud',
@@ -229,11 +235,10 @@ async function handleWebhook(req: Request): Promise<Response> {
     userType,
   }
 
-  // Dynamic subject for invitations
-  if (emailType === 'invite') {
-    const roleName = userType === 'alumno' ? 'Alumno' : userType === 'coach' ? 'Coach' : 'Administrador'
-    EMAIL_SUBJECTS.invite = `Fuiste invitado como ${roleName} – Reybaud`
-  }
+  // Dynamic subject for invitations based on role
+  const subject = emailType === 'invite'
+    ? (EMAIL_SUBJECTS_BY_ROLE[userType]?.invite || EMAIL_SUBJECTS.invite)
+    : (EMAIL_SUBJECTS[emailType] || 'Notification')
 
   // Render React Email to HTML and plain text
   const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
@@ -261,7 +266,7 @@ async function handleWebhook(req: Request): Promise<Response> {
         to: payload.data.email,
         from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
-        subject: EMAIL_SUBJECTS[emailType] || 'Notification',
+        subject,
         html,
         text,
         purpose: 'transactional',
