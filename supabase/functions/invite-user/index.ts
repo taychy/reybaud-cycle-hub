@@ -89,7 +89,13 @@ Deno.serve(async (req) => {
         // Link user_id if not linked yet, mark invited
         await adminClient
           .from("alumnos")
-          .update({ user_id: userId, password_set: false, invited_at: new Date().toISOString() })
+          .update({ 
+            user_id: userId, 
+            password_set: false, 
+            invited_at: new Date().toISOString(),
+            last_invite_sent_at: new Date().toISOString(),
+            invite_send_count: (existingAlumno as any).invite_send_count ? (existingAlumno as any).invite_send_count + 1 : 1,
+          })
           .eq("id", existingAlumno.id);
       } else {
         await adminClient.from("alumnos").insert({
@@ -102,6 +108,8 @@ Deno.serve(async (req) => {
           user_id: userId,
           password_set: false,
           invited_at: new Date().toISOString(),
+          last_invite_sent_at: new Date().toISOString(),
+          invite_send_count: 1,
         });
       }
 
@@ -131,7 +139,13 @@ Deno.serve(async (req) => {
         // Update user_id and invitation tracking
         await adminClient
           .from("coaches")
-          .update({ user_id: userId, password_set: false, invited_at: new Date().toISOString() })
+          .update({ 
+            user_id: userId, 
+            password_set: false, 
+            invited_at: new Date().toISOString(),
+            last_invite_sent_at: new Date().toISOString(),
+            invite_send_count: (existingCoach as any).invite_send_count ? (existingCoach as any).invite_send_count + 1 : 1,
+          })
           .eq("id", existingCoach.id);
       } else {
         await adminClient.from("coaches").insert({
@@ -142,6 +156,8 @@ Deno.serve(async (req) => {
           grupos: grupos || [],
           password_set: false,
           invited_at: new Date().toISOString(),
+          last_invite_sent_at: new Date().toISOString(),
+          invite_send_count: 1,
         });
       }
 

@@ -73,27 +73,28 @@ const ManageStudents = () => {
     }
   };
 
+  const [resending, setResending] = useState<string | null>(null);
+
   const handleResendInvite = async (alumno: Alumno) => {
-    // If already active (password set), ask for confirmation
-    if ((alumno as any).password_set) {
-      const confirmed = window.confirm(`${alumno.nombre} ya activó su cuenta. ¿Reenviar invitación de todos modos?`);
-      if (!confirmed) return;
+    // Spam prevention: check last_invite_sent_at client-side
+    const lastSent = (alumno as any).last_invite_sent_at;
+    if (lastSent && Date.now() - new Date(lastSent).getTime() < 60_000) {
+      toast.error("Esperá 1 minuto antes de reenviar la invitación");
+      return;
     }
+    setResending(alumno.id);
     try {
-      const { data, error } = await supabase.functions.invoke("invite-user", {
-        body: {
-          type: "alumno",
-          nombre: alumno.nombre,
-          email: alumno.email,
-          telefono: alumno.telefono || null,
-          documento: alumno.documento || null,
-        },
+      const { data, error } = await supabase.functions.invoke("resend-invite", {
+        body: { user_type: "alumno", email: alumno.email },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Invitación reenviada a ${alumno.email}`);
+      fetchAlumnos();
     } catch (err: any) {
       toast.error(err.message || "Error al reenviar invitación");
+    } finally {
+      setResending(null);
     }
   };
 
@@ -361,9 +362,14 @@ const ManageStudents = () => {
                       </TableCell>
                       <TableCell className="text-right space-x-1">
                         {!(alumno as any).password_set && (alumno as any).invited_at && (
-                          <Button variant="ghost" size="sm" onClick={() => handleResendInvite(alumno)} className="text-xs" title="Reenviar invitación">
-                            <MailPlus className="w-3 h-3 mr-1" /> Reenviar
+                          <Button variant="ghost" size="sm" disabled={resending === alumno.id} onClick={() => handleResendInvite(alumno)} className="text-xs" title="Reenviar invitación">
+                            <MailPlus className="w-3 h-3 mr-1" /> {resending === alumno.id ? "Enviando…" : "Reenviar"}
                           </Button>
+                        )}
+                        {(alumno as any).last_invite_sent_at && !(alumno as any).password_set && (
+                          <span className="text-[10px] text-muted-foreground" title="Último envío">
+                            Enviado: {new Date((alumno as any).last_invite_sent_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
                         )}
                         <Button variant="ghost" size="sm" onClick={() => openManualSub(alumno)} className="text-xs" title="Habilitar suscripción manual">
                           <CalendarCheck className="w-3 h-3 mr-1" /> Habilitar

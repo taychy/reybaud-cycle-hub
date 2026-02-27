@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Edit2, Plus, Trash2, UserX, UserCheck, Eye } from "lucide-react";
+import { ShieldCheck, Edit2, Plus, Trash2, UserX, UserCheck, Eye, MailPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -45,8 +45,32 @@ const ManageAdmins = () => {
   const [editStatus, setEditStatus] = useState("active");
   const [saving, setSaving] = useState(false);
 
+  const [resending, setResending] = useState<string | null>(null);
+
   const isMobile = useIsMobile();
   const isSuperAdmin = currentUserProfile?.role === "super_admin";
+
+  const handleResendInvite = async (admin: AdminProfile) => {
+    const lastSent = (admin as any).last_invite_sent_at;
+    if (lastSent && Date.now() - new Date(lastSent).getTime() < 60_000) {
+      toast.error("Esperá 1 minuto antes de reenviar la invitación");
+      return;
+    }
+    setResending(admin.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-invite", {
+        body: { user_type: "admin", email: admin.email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Invitación reenviada a ${admin.email}`);
+      fetchAdmins();
+    } catch (err: any) {
+      toast.error(err.message || "Error al reenviar invitación");
+    } finally {
+      setResending(null);
+    }
+  };
 
   const fetchAdmins = async () => {
     const { data, error } = await supabase
@@ -264,6 +288,16 @@ const ManageAdmins = () => {
                     </TableCell>
                     {isSuperAdmin && (
                       <TableCell className="text-right space-x-1">
+                        {!admin.password_set && admin.status === "active" && (
+                          <Button variant="ghost" size="sm" disabled={resending === admin.id} onClick={() => handleResendInvite(admin)} className="text-xs">
+                            <MailPlus className="w-3 h-3 mr-1" /> {resending === admin.id ? "Enviando…" : "Reenviar"}
+                          </Button>
+                        )}
+                        {(admin as any).last_invite_sent_at && !admin.password_set && (
+                          <span className="text-[10px] text-muted-foreground" title="Último envío">
+                            Enviado: {new Date((admin as any).last_invite_sent_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => openEdit(admin)} className="text-xs">
                           <Edit2 className="w-3 h-3 mr-1" /> Editar
                         </Button>
@@ -325,6 +359,19 @@ const ManageAdmins = () => {
               </div>
               {isSuperAdmin && (
                 <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                  {!detailAdmin.password_set && detailAdmin.status === "active" && (
+                    <Button variant="outline" size="sm" className="w-full justify-start" disabled={resending === detailAdmin.id} onClick={() => {
+                      handleResendInvite(detailAdmin);
+                      setDetailAdmin(null);
+                    }}>
+                      <MailPlus className="w-3 h-3 mr-2" /> {resending === detailAdmin.id ? "Enviando…" : "Reenviar invitación"}
+                    </Button>
+                  )}
+                  {(detailAdmin as any).last_invite_sent_at && !detailAdmin.password_set && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Último envío: {new Date((detailAdmin as any).last_invite_sent_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
                   <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
                     openEdit(detailAdmin);
                     setDetailAdmin(null);

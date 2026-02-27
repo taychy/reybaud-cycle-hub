@@ -71,20 +71,27 @@ const ManageCoaches = () => {
     }
   };
 
+  const [resending, setResending] = useState<string | null>(null);
+
   const handleResendInvite = async (coach: Coach) => {
-    if ((coach as any).password_set) {
-      const confirmed = window.confirm(`${coach.nombre} ya activó su cuenta. ¿Reenviar invitación de todos modos?`);
-      if (!confirmed) return;
+    const lastSent = (coach as any).last_invite_sent_at;
+    if (lastSent && Date.now() - new Date(lastSent).getTime() < 60_000) {
+      toast.error("Esperá 1 minuto antes de reenviar la invitación");
+      return;
     }
+    setResending(coach.id);
     try {
-      const { data, error } = await supabase.functions.invoke("invite-user", {
-        body: { type: "coach", nombre: coach.nombre, email: coach.email },
+      const { data, error } = await supabase.functions.invoke("resend-invite", {
+        body: { user_type: "coach", email: coach.email },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Invitación reenviada a ${coach.email}`);
+      fetchCoaches();
     } catch (err: any) {
       toast.error(err.message || "Error al reenviar invitación");
+    } finally {
+      setResending(null);
     }
   };
 
@@ -245,9 +252,14 @@ const ManageCoaches = () => {
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       {!(coach as any).password_set && (coach as any).invited_at && (
-                        <Button variant="ghost" size="sm" onClick={() => handleResendInvite(coach)} className="text-xs">
-                          <MailPlus className="w-3 h-3 mr-1" /> Reenviar
+                        <Button variant="ghost" size="sm" disabled={resending === coach.id} onClick={() => handleResendInvite(coach)} className="text-xs">
+                          <MailPlus className="w-3 h-3 mr-1" /> {resending === coach.id ? "Enviando…" : "Reenviar"}
                         </Button>
+                      )}
+                      {(coach as any).last_invite_sent_at && !(coach as any).password_set && (
+                        <span className="text-[10px] text-muted-foreground" title="Último envío">
+                          Enviado: {new Date((coach as any).last_invite_sent_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </span>
                       )}
                       <Button variant="ghost" size="sm" onClick={() => openEdit(coach)} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-1" /> Editar
@@ -293,12 +305,17 @@ const ManageCoaches = () => {
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 {!(detailCoach as any).password_set && (detailCoach as any).invited_at && (
-                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                  <Button variant="outline" size="sm" className="w-full justify-start" disabled={resending === detailCoach.id} onClick={() => {
                     handleResendInvite(detailCoach);
                     setDetailCoach(null);
                   }}>
-                    <MailPlus className="w-3 h-3 mr-2" /> Reenviar invitación
+                    <MailPlus className="w-3 h-3 mr-2" /> {resending === detailCoach.id ? "Enviando…" : "Reenviar invitación"}
                   </Button>
+                )}
+                {(detailCoach as any).last_invite_sent_at && !(detailCoach as any).password_set && (
+                  <span className="text-[10px] text-muted-foreground">
+                    Último envío: {new Date((detailCoach as any).last_invite_sent_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </span>
                 )}
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
                   openEdit(detailCoach);
