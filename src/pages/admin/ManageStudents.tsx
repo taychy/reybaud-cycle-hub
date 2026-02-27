@@ -176,7 +176,7 @@ const ManageStudents = () => {
       a.email.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     if (statusFilter === "pendientes") return !(a as any).password_set && (a as any).invited_at;
-    if (statusFilter === "activos") return (a as any).password_set;
+    if (statusFilter === "activos") return (a as any).password_set || !(a as any).invited_at;
     return true;
   });
 
