@@ -17,7 +17,7 @@ const corsHeaders = {
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'Confirmá tu email - Ciclismo Reybaud',
-  invite: 'Te invitaron a Ciclismo Reybaud',
+  invite: 'Fuiste invitado como Administrador – Reybaud',
   magiclink: 'Tu link de acceso - Ciclismo Reybaud',
   recovery: 'Restablecé tu contraseña - Ciclismo Reybaud',
   email_change: 'Confirmá tu cambio de email - Ciclismo Reybaud',
