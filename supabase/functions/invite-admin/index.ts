@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Determine redirect URL from request origin
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
-    const redirectTo = origin ? `${origin}/crear-clave` : undefined;
+    const redirectTo = origin ? `${origin}/activar-cuenta` : undefined;
 
     // Check if user already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();

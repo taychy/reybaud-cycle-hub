@@ -38,6 +38,7 @@ const App = () => (
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
           <Route path="/crear-clave" element={<SetPassword />} />
+          <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
