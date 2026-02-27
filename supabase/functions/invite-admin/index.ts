@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Determine redirect URL from request origin
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
-    const redirectTo = origin ? `${origin}/set-password` : undefined;
+    const redirectTo = origin ? `${origin}/crear-clave` : undefined;
 
     // Create auth user with invite (sends email automatically)
     const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(email, {
