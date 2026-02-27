@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Edit2, Plus, Trash2, UserX, UserCheck } from "lucide-react";
+import { ShieldCheck, Edit2, Plus, Trash2, UserX, UserCheck, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AdminProfile {
   id: string;
@@ -32,18 +33,18 @@ const ManageAdmins = () => {
   const [admins, setAdmins] = useState<AdminProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState<AdminProfile | null>(null);
+  const [detailAdmin, setDetailAdmin] = useState<AdminProfile | null>(null);
 
-  // Create dialog
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ first_name: "", last_name: "", email: "", role: "admin" as string });
   const [creating, setCreating] = useState(false);
 
-  // Edit dialog
   const [editAdmin, setEditAdmin] = useState<AdminProfile | null>(null);
   const [editRole, setEditRole] = useState("admin");
   const [editStatus, setEditStatus] = useState("active");
   const [saving, setSaving] = useState(false);
 
+  const isMobile = useIsMobile();
   const isSuperAdmin = currentUserProfile?.role === "super_admin";
 
   const fetchAdmins = async () => {
@@ -158,7 +159,7 @@ const ManageAdmins = () => {
         <div>
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-6 h-6 text-primary" />
-            <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            <h2 className="text-xl md:text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
               Gestionar Admins
             </h2>
           </div>
@@ -167,79 +168,172 @@ const ManageAdmins = () => {
           </p>
         </div>
         {isSuperAdmin && (
-          <Button variant="gold" onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Agregar Admin
+          <Button variant="gold" size={isMobile ? "sm" : "default"} onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4 mr-1" /> {isMobile ? "Nuevo" : "Agregar Admin"}
           </Button>
         )}
       </div>
 
-      <div className="glass-card rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Nombre</TableHead>
-              <TableHead className="text-muted-foreground">Email</TableHead>
-              <TableHead className="text-muted-foreground">Rol</TableHead>
-              <TableHead className="text-muted-foreground">Estado</TableHead>
-              <TableHead className="text-muted-foreground">Último acceso</TableHead>
-              {isSuperAdmin && <TableHead className="text-muted-foreground text-right">Acciones</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
-              </TableRow>
-            ) : admins.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay admins registrados</TableCell>
-              </TableRow>
-            ) : (
-              admins.map((admin) => (
-                <TableRow key={admin.id} className="border-border">
-                  <TableCell className="font-medium text-foreground">
+      {/* Mobile card list */}
+      {isMobile ? (
+        <div className="space-y-3">
+          {loading ? (
+            <p className="text-center text-muted-foreground py-8">Cargando...</p>
+          ) : admins.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay admins registrados</p>
+          ) : (
+            admins.map((admin) => (
+              <div
+                key={admin.id}
+                className="glass-card rounded-lg p-4 space-y-2"
+                onClick={() => setDetailAdmin(admin)}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground text-sm truncate mr-2">
                     {admin.first_name} {admin.last_name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{admin.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-xs">
-                      {ROLE_LABELS[admin.role] || admin.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={admin.status === "active" ? "default" : "outline"}
-                      className="text-xs"
-                    >
-                      {admin.status === "active" ? "Activo" : "Suspendido"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {formatDate(admin.last_login_at)}
-                  </TableCell>
-                  {isSuperAdmin && (
-                    <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(admin)} className="text-xs">
-                        <Edit2 className="w-3 h-3 mr-1" /> Editar
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => toggleStatus(admin)} className="text-xs">
-                        {admin.status === "active" ? (
-                          <><UserX className="w-3 h-3 mr-1" /> Suspender</>
-                        ) : (
-                          <><UserCheck className="w-3 h-3 mr-1" /> Activar</>
-                        )}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(admin)} className="text-xs text-destructive hover:text-destructive">
-                        <Trash2 className="w-3 h-3 mr-1" /> Eliminar
-                      </Button>
-                    </TableCell>
-                  )}
+                  </span>
+                  <Eye className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="text-xs">
+                    {ROLE_LABELS[admin.role] || admin.role}
+                  </Badge>
+                  <Badge variant={admin.status === "active" ? "default" : "outline"} className="text-xs">
+                    {admin.status === "active" ? "Activo" : "Suspendido"}
+                  </Badge>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* Desktop table */
+        <div className="glass-card rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Nombre</TableHead>
+                <TableHead className="text-muted-foreground">Email</TableHead>
+                <TableHead className="text-muted-foreground">Rol</TableHead>
+                <TableHead className="text-muted-foreground">Estado</TableHead>
+                <TableHead className="text-muted-foreground">Último acceso</TableHead>
+                {isSuperAdmin && <TableHead className="text-muted-foreground text-right">Acciones</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : admins.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay admins registrados</TableCell>
+                </TableRow>
+              ) : (
+                admins.map((admin) => (
+                  <TableRow key={admin.id} className="border-border">
+                    <TableCell className="font-medium text-foreground">
+                      {admin.first_name} {admin.last_name}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{admin.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {ROLE_LABELS[admin.role] || admin.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={admin.status === "active" ? "default" : "outline"} className="text-xs">
+                        {admin.status === "active" ? "Activo" : "Suspendido"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {formatDate(admin.last_login_at)}
+                    </TableCell>
+                    {isSuperAdmin && (
+                      <TableCell className="text-right space-x-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(admin)} className="text-xs">
+                          <Edit2 className="w-3 h-3 mr-1" /> Editar
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => toggleStatus(admin)} className="text-xs">
+                          {admin.status === "active" ? (
+                            <><UserX className="w-3 h-3 mr-1" /> Suspender</>
+                          ) : (
+                            <><UserCheck className="w-3 h-3 mr-1" /> Activar</>
+                          )}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(admin)} className="text-xs text-destructive hover:text-destructive">
+                          <Trash2 className="w-3 h-3 mr-1" /> Eliminar
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Detail dialog (mobile) */}
+      <Dialog open={!!detailAdmin} onOpenChange={(open) => { if (!open) setDetailAdmin(null); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider text-base">
+              {detailAdmin?.first_name} {detailAdmin?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {detailAdmin && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="text-foreground text-right break-all ml-4">{detailAdmin.email}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Rol</span>
+                  <Badge variant="secondary" className="text-xs">{ROLE_LABELS[detailAdmin.role] || detailAdmin.role}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Estado</span>
+                  <Badge variant={detailAdmin.status === "active" ? "default" : "outline"} className="text-xs">
+                    {detailAdmin.status === "active" ? "Activo" : "Suspendido"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Último acceso</span>
+                  <span className="text-foreground text-sm">{formatDate(detailAdmin.last_login_at)}</span>
+                </div>
+              </div>
+              {isSuperAdmin && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                    openEdit(detailAdmin);
+                    setDetailAdmin(null);
+                  }}>
+                    <Edit2 className="w-3 h-3 mr-2" /> Editar
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                    toggleStatus(detailAdmin);
+                    setDetailAdmin(null);
+                  }}>
+                    {detailAdmin.status === "active" ? (
+                      <><UserX className="w-3 h-3 mr-2" /> Suspender</>
+                    ) : (
+                      <><UserCheck className="w-3 h-3 mr-2" /> Activar</>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
+                    handleDelete(detailAdmin);
+                    setDetailAdmin(null);
+                  }}>
+                    <Trash2 className="w-3 h-3 mr-2" /> Eliminar
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create admin dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
@@ -250,31 +344,15 @@ const ManageAdmins = () => {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Nombre</Label>
-              <Input
-                value={createForm.first_name}
-                onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })}
-                className="bg-secondary border-border"
-                placeholder="Nombre"
-              />
+              <Input value={createForm.first_name} onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })} className="bg-secondary border-border" placeholder="Nombre" />
             </div>
             <div className="space-y-2">
               <Label>Apellido</Label>
-              <Input
-                value={createForm.last_name}
-                onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })}
-                className="bg-secondary border-border"
-                placeholder="Apellido"
-              />
+              <Input value={createForm.last_name} onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })} className="bg-secondary border-border" placeholder="Apellido" />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input
-                type="email"
-                value={createForm.email}
-                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                className="bg-secondary border-border"
-                placeholder="admin@ejemplo.com"
-              />
+              <Input type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} className="bg-secondary border-border" placeholder="admin@ejemplo.com" />
             </div>
             <div className="space-y-2">
               <Label>Rol</Label>
