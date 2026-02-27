@@ -116,7 +116,7 @@ const ManageCoaches = () => {
   const pendingCount = coaches.filter((c) => !(c as any).password_set && (c as any).invited_at).length;
   const filteredCoaches = coaches.filter((c) => {
     if (statusFilter === "pendientes") return !(c as any).password_set && (c as any).invited_at;
-    if (statusFilter === "activos") return (c as any).password_set;
+    if (statusFilter === "activos") return (c as any).password_set || !(c as any).invited_at;
     return true;
   });
 
