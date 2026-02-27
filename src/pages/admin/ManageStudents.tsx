@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2 } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
@@ -26,6 +26,11 @@ const ManageStudents = () => {
   const [savingManual, setSavingManual] = useState(false);
   const [deleteAlumno, setDeleteAlumno] = useState<Alumno | null>(null);
 
+  // Create dialog
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ nombre: "", email: "", telefono: "", documento: "" });
+  const [creating, setCreating] = useState(false);
+
   const fetchAlumnos = async () => {
     const { data } = await supabase.from("alumnos").select("*").order("nombre");
     setAlumnos(data || []);
@@ -33,6 +38,35 @@ const ManageStudents = () => {
   };
 
   useEffect(() => { fetchAlumnos(); }, []);
+
+  const handleCreateAlumno = async () => {
+    if (!createForm.nombre.trim() || !createForm.email.trim()) {
+      toast.error("Nombre y email son obligatorios");
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          type: "alumno",
+          nombre: createForm.nombre.trim(),
+          email: createForm.email.trim(),
+          telefono: createForm.telefono.trim() || null,
+          documento: createForm.documento.trim() || null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(data?.message || "Alumno creado e invitación enviada");
+      setShowCreate(false);
+      setCreateForm({ nombre: "", email: "", telefono: "", documento: "" });
+      fetchAlumnos();
+    } catch (err: any) {
+      toast.error(err.message || "Error al crear alumno");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const toggleEstado = async (alumno: Alumno) => {
     const newEstado = alumno.estado === "activo" ? "inactivo" : "activo";
@@ -122,20 +156,25 @@ const ManageStudents = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Gestionar Alumnos
-          </h2>
-          {pendingCount > 0 && (
-            <Badge variant="destructive" className="text-xs animate-pulse">
-              {pendingCount} pendiente{pendingCount > 1 ? "s" : ""} de validación
-            </Badge>
-          )}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+              Gestionar Alumnos
+            </h2>
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="text-xs animate-pulse">
+                {pendingCount} pendiente{pendingCount > 1 ? "s" : ""} de validación
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            {alumnos.length} alumnos registrados
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {alumnos.length} alumnos registrados
-        </p>
+        <Button variant="gold" onClick={() => setShowCreate(true)}>
+          <Plus className="w-4 h-4 mr-1" /> Agregar Alumno
+        </Button>
       </div>
 
       <div className="relative max-w-sm">
@@ -323,6 +362,61 @@ const ManageStudents = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create alumno dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">Agregar Alumno</DialogTitle>
+            <DialogDescription>Se enviará una invitación por email para que active su cuenta.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nombre completo *</Label>
+              <Input
+                value={createForm.nombre}
+                onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
+                className="bg-secondary border-border"
+                placeholder="Juan Pérez"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                className="bg-secondary border-border"
+                placeholder="alumno@ejemplo.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Teléfono</Label>
+              <Input
+                value={createForm.telefono}
+                onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })}
+                className="bg-secondary border-border"
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>DNI/CUIT</Label>
+              <Input
+                value={createForm.documento}
+                onChange={(e) => setCreateForm({ ...createForm, documento: e.target.value })}
+                className="bg-secondary border-border"
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+            <Button variant="gold" disabled={creating} onClick={handleCreateAlumno}>
+              {creating ? "Enviando..." : "Enviar invitación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
