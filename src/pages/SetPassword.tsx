@@ -1,10 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KeyRound, CheckCircle } from "lucide-react";
+import { KeyRound, CheckCircle, Check, X } from "lucide-react";
 import logo from "@/assets/logo.png";
+
+const PASSWORD_RULES = [
+  { id: "length", label: "Mínimo 8 caracteres", test: (p: string) => p.length >= 8 },
+  { id: "uppercase", label: "Al menos una mayúscula", test: (p: string) => /[A-Z]/.test(p) },
+  { id: "number", label: "Al menos un número", test: (p: string) => /\d/.test(p) },
+];
 
 const SetPassword = () => {
   const navigate = useNavigate();
@@ -15,21 +21,24 @@ const SetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [checking, setChecking] = useState(true);
 
+  const ruleResults = useMemo(
+    () => PASSWORD_RULES.map((r) => ({ ...r, passed: r.test(password) })),
+    [password]
+  );
+  const allRulesPassed = ruleResults.every((r) => r.passed);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+
   useEffect(() => {
-    // The invite/recovery link sets the session automatically via the URL hash
-    // We just need to wait for the auth state to settle
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setChecking(false);
       }
     });
 
-    // Also check if there's already a session (link already processed)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setChecking(false);
       } else {
-        // Give a moment for the hash to be processed
         setTimeout(() => setChecking(false), 2000);
       }
     });
@@ -41,12 +50,12 @@ const SetPassword = () => {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    if (!allRulesPassed) {
+      setError("La contraseña no cumple todos los requisitos.");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (!passwordsMatch) {
       setError("Las contraseñas no coinciden.");
       return;
     }
@@ -75,7 +84,6 @@ const SetPassword = () => {
 
     // Redirect after a moment
     setTimeout(async () => {
-      // Check user role to redirect appropriately
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: isAdmin } = await supabase.rpc("has_role", {
@@ -121,7 +129,7 @@ const SetPassword = () => {
             ¡Contraseña creada!
           </h1>
           <p className="text-muted-foreground text-sm">
-            Redirigiendo al panel...
+            Tu cuenta está activa. Redirigiendo al panel...
           </p>
         </div>
       </div>
@@ -138,7 +146,7 @@ const SetPassword = () => {
             Creá tu contraseña
           </h1>
           <p className="text-muted-foreground text-sm">
-            Establecé una contraseña para acceder a tu cuenta
+            Establecé una contraseña segura para acceder a tu cuenta
           </p>
         </div>
 
@@ -154,11 +162,28 @@ const SetPassword = () => {
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 required
-                minLength={6}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Ingresá tu contraseña"
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
+
+            {/* Password rules checklist */}
+            {password.length > 0 && (
+              <div className="space-y-1.5">
+                {ruleResults.map((rule) => (
+                  <div key={rule.id} className="flex items-center gap-2 text-xs">
+                    {rule.passed ? (
+                      <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                    ) : (
+                      <X className="w-3.5 h-3.5 text-destructive shrink-0" />
+                    )}
+                    <span className={rule.passed ? "text-muted-foreground" : "text-destructive"}>
+                      {rule.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="confirm-password" className="text-sm font-medium text-foreground">
@@ -170,10 +195,24 @@ const SetPassword = () => {
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
                 required
-                minLength={6}
                 placeholder="Repetí la contraseña"
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
+              {confirmPassword.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  {passwordsMatch ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="text-muted-foreground">Las contraseñas coinciden</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-3.5 h-3.5 text-destructive shrink-0" />
+                      <span className="text-destructive">Las contraseñas no coinciden</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && (
@@ -182,8 +221,14 @@ const SetPassword = () => {
               </div>
             )}
 
-            <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Guardando..." : "Establecer contraseña"}
+            <Button
+              type="submit"
+              variant="gold"
+              className="w-full"
+              size="lg"
+              disabled={loading || !allRulesPassed || !passwordsMatch}
+            >
+              {loading ? "Guardando..." : "Crear contraseña"}
             </Button>
           </div>
         </form>
