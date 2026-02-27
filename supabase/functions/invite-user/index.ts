@@ -86,10 +86,10 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingAlumno) {
-        // Link user_id if not linked yet
+        // Link user_id if not linked yet, mark invited
         await adminClient
           .from("alumnos")
-          .update({ user_id: userId })
+          .update({ user_id: userId, password_set: false, invited_at: new Date().toISOString() })
           .eq("id", existingAlumno.id);
       } else {
         await adminClient.from("alumnos").insert({
@@ -97,9 +97,11 @@ Deno.serve(async (req) => {
           email: normalizedEmail,
           telefono: telefono || null,
           documento: documento || null,
-          estado: "inactivo",
-          grupo: "Sin grupo",
+          estado: "activo",
+          grupo: grupos?.[0] || "Sin grupo",
           user_id: userId,
+          password_set: false,
+          invited_at: new Date().toISOString(),
         });
       }
 

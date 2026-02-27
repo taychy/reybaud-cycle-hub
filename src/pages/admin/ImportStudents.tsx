@@ -21,12 +21,10 @@ interface ParsedStudent {
 }
 
 function detectName(row: Record<string, string>): string {
-  // Try common column names
   if (row["Name"]) return row["Name"];
   const givenName = row["Given Name"] || row["First Name"] || "";
   const familyName = row["Family Name"] || row["Last Name"] || "";
   if (givenName || familyName) return `${givenName} ${familyName}`.trim();
-  // Try any column with "name" in it
   for (const key of Object.keys(row)) {
     if (key.toLowerCase().includes("name") && row[key]) return row[key];
   }
@@ -34,7 +32,6 @@ function detectName(row: Record<string, string>): string {
 }
 
 function detectEmail(row: Record<string, string>): string {
-  // Find first non-empty email column
   for (const key of Object.keys(row)) {
     if (key.toLowerCase().includes("mail") && row[key]?.includes("@")) {
       return row[key].trim().toLowerCase();
@@ -68,9 +65,9 @@ const ImportStudents = () => {
   const [parsed, setParsed] = useState<ParsedStudent[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [defaultGrupo, setDefaultGrupo] = useState<string>("Sin grupo");
-  const [activateOnImport, setActivateOnImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,14 +96,7 @@ const ImportStudents = () => {
             return;
           }
 
-          students.push({
-            nombre,
-            email,
-            telefono,
-            notas: "",
-            grupo,
-            valid: true,
-          });
+          students.push({ nombre, email, telefono, notas: "", grupo, valid: true });
         });
 
         setParsed(students);
@@ -129,45 +119,28 @@ const ImportStudents = () => {
     let ok = 0;
     let errCount = 0;
     const importErrors: string[] = [];
+    setProgress({ current: 0, total: parsed.length });
 
     for (const student of parsed) {
-      const { data: existing } = await supabase
-        .from("alumnos")
-        .select("id")
-        .eq("email", student.email)
-        .maybeSingle();
+      setProgress((prev) => ({ ...prev, current: prev.current + 1 }));
 
-      if (existing) {
-        // Update existing - keep grupo unless explicitly changed
-        const { error } = await supabase
-          .from("alumnos")
-          .update({
+      try {
+        const { data, error } = await supabase.functions.invoke("invite-user", {
+          body: {
+            type: "alumno",
             nombre: student.nombre,
+            email: student.email,
             telefono: student.telefono || null,
-          })
-          .eq("id", existing.id);
-
-        if (error) {
-          errCount++;
-          importErrors.push(`${student.email}: ${error.message}`);
-        } else {
-          ok++;
-        }
-      } else {
-        const { error } = await supabase.from("alumnos").insert({
-          nombre: student.nombre,
-          email: student.email,
-          telefono: student.telefono || null,
-          grupo: student.grupo as any,
-          estado: activateOnImport ? "activo" : "inactivo",
+            grupos: [student.grupo],
+          },
         });
 
-        if (error) {
-          errCount++;
-          importErrors.push(`${student.email}: ${error.message}`);
-        } else {
-          ok++;
-        }
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        ok++;
+      } catch (err: any) {
+        errCount++;
+        importErrors.push(`${student.email}: ${err.message || "Error desconocido"}`);
       }
     }
 
@@ -192,7 +165,7 @@ const ImportStudents = () => {
           Importar Alumnos
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Subí un CSV exportado desde Google Contacts
+          Subí un CSV exportado desde Google Contacts. Cada alumno recibirá un email de invitación.
         </p>
       </div>
 
@@ -227,16 +200,6 @@ const ImportStudents = () => {
                 Aplicar a todos
               </Button>
             </div>
-
-            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-              <input
-                type="checkbox"
-                checked={activateOnImport}
-                onChange={(e) => setActivateOnImport(e.target.checked)}
-                className="rounded border-border accent-primary"
-              />
-              Activar al importar
-            </label>
           </div>
 
           {/* Errors */}
@@ -259,10 +222,13 @@ const ImportStudents = () => {
             <div className="p-3 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">{parsed.length} contactos a importar</span>
+                <span className="text-sm font-medium text-foreground">
+                  {parsed.length} contactos a importar
+                  {importing && ` (${progress.current}/${progress.total})`}
+                </span>
               </div>
               <Button variant="gold" size="sm" onClick={handleImport} disabled={importing}>
-                {importing ? "Importando..." : "Confirmar importación"}
+                {importing ? `Importando ${progress.current}/${progress.total}...` : "Confirmar importación"}
               </Button>
             </div>
             <div className="max-h-96 overflow-y-auto">
@@ -306,6 +272,7 @@ const ImportStudents = () => {
         <div className="glass-card rounded-lg p-6 text-center space-y-2">
           <CheckCircle2 className="w-8 h-8 text-primary mx-auto" />
           <p className="text-foreground font-medium">Importación completada</p>
+          <p className="text-sm text-muted-foreground">Cada alumno recibirá un email para crear su contraseña.</p>
           <Button variant="secondary" size="sm" onClick={() => { setParsed([]); setErrors([]); setImported(false); }}>
             Importar otro archivo
           </Button>
