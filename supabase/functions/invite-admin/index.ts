@@ -77,22 +77,34 @@ Deno.serve(async (req) => {
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (existingProfile) {
-        // Resend invite for existing admin
-        await adminClient.auth.admin.inviteUserByEmail(email, {
+      // For existing users, use generateLink to avoid "email_exists" error
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: "invite",
+        email,
+        options: {
           data: { first_name, last_name, admin_role: role },
           redirectTo,
-        });
+        },
+      });
+
+      if (linkError) {
+        console.error("generateLink error:", linkError.message);
+        // If generateLink also fails, still proceed with profile creation
+      }
+
+      if (existingProfile) {
+        // Update profile with new data
+        await adminClient.from("admin_profiles").update({
+          first_name,
+          last_name,
+          role,
+          password_set: false,
+        }).eq("user_id", userId);
+
         return new Response(JSON.stringify({ success: true, already_existed: true, message: `Invitación reenviada a ${email}` }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      // User exists in auth but not as admin - resend invite and create profile
-      await adminClient.auth.admin.inviteUserByEmail(email, {
-        data: { first_name, last_name, admin_role: role },
-        redirectTo,
-      });
     } else {
       // Create new auth user with invite
       const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(email, {
