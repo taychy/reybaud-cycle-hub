@@ -127,52 +127,39 @@ Deno.serve(async (req) => {
     const confirmationUrl = actionLink;
 
     // Send email via Resend
-    const ROLE_CONFIG: Record<string, { subject: string; heading: string; description: string; panel: string }> = {
-      admin: {
-        subject: "Activá tu cuenta de administrador – Ciclismo Reybaud",
-        heading: "¡Bienvenido al equipo!",
-        description: "Fuiste invitado a formar parte del equipo de administración de Ciclismo Reybaud.",
-        panel: "panel de administración",
-      },
-      alumno: {
-        subject: "Activá tu cuenta – Ciclismo Reybaud",
-        heading: "¡Bienvenido a Ciclismo Reybaud!",
-        description: "Tu cuenta en Ciclismo Reybaud ya está lista. Solo falta que crees tu contraseña para empezar a acceder a tus entrenamientos.",
-        panel: "panel de entrenamientos",
-      },
-      coach: {
-        subject: "Activá tu cuenta de Coach – Ciclismo Reybaud",
-        heading: "¡Bienvenido al equipo de coaches!",
-        description: "Tu cuenta como coach en Ciclismo Reybaud ya está habilitada. Creá tu contraseña para acceder al sistema.",
-        panel: "panel de coach",
-      },
-    };
-
-    const config = ROLE_CONFIG[user_type] || ROLE_CONFIG.alumno;
     const logoUrl = `${supabaseUrl}/storage/v1/object/public/email-assets/logo.png`;
 
-    const emailHtml = `
-<!DOCTYPE html>
+    const buildEmailHtml = (userType: string, link: string, name: string) => {
+      if (userType === "coach") {
+        return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8" /></head>
 <body style="background-color:#ffffff;font-family:'Inter',Arial,sans-serif;">
   <div style="padding:30px 25px;max-width:480px;margin:0 auto;">
     <img src="${logoUrl}" alt="Ciclismo Reybaud" width="60" height="60" style="margin:0 auto 20px;display:block;" />
     <h1 style="font-size:22px;font-weight:bold;font-family:'Oswald',Arial,sans-serif;color:#1A1A1A;margin:0 0 20px;text-align:center;text-transform:uppercase;letter-spacing:1px;">
-      ${config.heading}
+      ¡BIENVENIDO AL EQUIPO DE COACHES!
     </h1>
     <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
-      ${config.description}
+      Fuiste invitado a formar parte del equipo de Coaches de Ciclismo Reybaud.
     </p>
+    <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 8px;">
+      A partir de ahora vas a poder:
+    </p>
+    <ul style="font-size:14px;color:#555555;line-height:1.8;margin:0 0 16px;padding-left:20px;">
+      <li>Gestionar tus clases</li>
+      <li>Ver tus grupos asignados</li>
+      <li>Acceder a la información de tus alumnos</li>
+    </ul>
     <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
-      Hacé clic en el botón de abajo para crear tu contraseña.
+      Hacé clic en el botón de abajo para crear tu contraseña.<br/>
       Este enlace es válido por <strong>24 horas</strong>.
     </p>
-    <a href="${confirmationUrl}" style="background-color:#E8832A;color:#ffffff;font-size:14px;font-weight:bold;border-radius:8px;padding:14px 28px;text-decoration:none;display:block;text-align:center;margin:8px 0 24px;">
+    <a href="${link}" style="background-color:#E8832A;color:#ffffff;font-size:14px;font-weight:bold;border-radius:8px;padding:14px 28px;text-decoration:none;display:block;text-align:center;margin:8px 0 24px;">
       Crear mi contraseña
     </a>
     <p style="font-size:13px;color:#777777;line-height:1.5;margin:0 0 20px;border-top:1px solid #eeeeee;padding-top:16px;">
-      Una vez que crees tu contraseña, vas a poder acceder al ${config.panel} con tu email y la clave que elijas.
+      Una vez que crees tu contraseña, vas a poder acceder al panel de coach con tu email y la clave que elijas.
     </p>
     <p style="font-size:12px;color:#999999;margin:0;text-align:center;">
       Si no esperabas esta invitación, podés ignorar este email de forma segura.
@@ -180,7 +167,78 @@ Deno.serve(async (req) => {
   </div>
 </body>
 </html>`;
+      }
 
+      if (userType === "alumno") {
+        return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /></head>
+<body style="background-color:#ffffff;font-family:'Inter',Arial,sans-serif;">
+  <div style="padding:30px 25px;max-width:480px;margin:0 auto;">
+    <img src="${logoUrl}" alt="Ciclismo Reybaud" width="60" height="60" style="margin:0 auto 20px;display:block;" />
+    <h1 style="font-size:22px;font-weight:bold;font-family:'Oswald',Arial,sans-serif;color:#1A1A1A;margin:0 0 20px;text-align:center;text-transform:uppercase;letter-spacing:1px;">
+      ¡BIENVENIDO A CICLISMO REYBAUD!
+    </h1>
+    <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
+      Ya podés activar tu cuenta para acceder a tu plan de entrenamiento y toda la información del equipo.
+    </p>
+    <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
+      Hacé clic en el botón de abajo para crear tu contraseña.<br/>
+      Este enlace es válido por <strong>24 horas</strong>.
+    </p>
+    <a href="${link}" style="background-color:#E8832A;color:#ffffff;font-size:14px;font-weight:bold;border-radius:8px;padding:14px 28px;text-decoration:none;display:block;text-align:center;margin:8px 0 24px;">
+      Crear mi contraseña
+    </a>
+    <p style="font-size:13px;color:#777777;line-height:1.5;margin:0 0 20px;border-top:1px solid #eeeeee;padding-top:16px;">
+      Una vez que crees tu contraseña, vas a poder acceder al panel de entrenamientos con tu email y la clave que elijas.
+    </p>
+    <p style="font-size:12px;color:#999999;margin:0;text-align:center;">
+      Si no esperabas esta invitación, podés ignorar este email de forma segura.
+    </p>
+  </div>
+</body>
+</html>`;
+      }
+
+      // admin (default)
+      return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /></head>
+<body style="background-color:#ffffff;font-family:'Inter',Arial,sans-serif;">
+  <div style="padding:30px 25px;max-width:480px;margin:0 auto;">
+    <img src="${logoUrl}" alt="Ciclismo Reybaud" width="60" height="60" style="margin:0 auto 20px;display:block;" />
+    <h1 style="font-size:22px;font-weight:bold;font-family:'Oswald',Arial,sans-serif;color:#1A1A1A;margin:0 0 20px;text-align:center;text-transform:uppercase;letter-spacing:1px;">
+      ¡BIENVENIDO AL EQUIPO!
+    </h1>
+    <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
+      Fuiste invitado a formar parte del equipo de administración de Ciclismo Reybaud.
+    </p>
+    <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
+      Hacé clic en el botón de abajo para crear tu contraseña.<br/>
+      Este enlace es válido por <strong>24 horas</strong>.
+    </p>
+    <a href="${link}" style="background-color:#E8832A;color:#ffffff;font-size:14px;font-weight:bold;border-radius:8px;padding:14px 28px;text-decoration:none;display:block;text-align:center;margin:8px 0 24px;">
+      Crear mi contraseña
+    </a>
+    <p style="font-size:13px;color:#777777;line-height:1.5;margin:0 0 20px;border-top:1px solid #eeeeee;padding-top:16px;">
+      Una vez que crees tu contraseña, vas a poder acceder al panel de administración con tu email y la clave que elijas.
+    </p>
+    <p style="font-size:12px;color:#999999;margin:0;text-align:center;">
+      Si no esperabas esta invitación, podés ignorar este email de forma segura.
+    </p>
+  </div>
+</body>
+</html>`;
+    };
+
+    const SUBJECT_MAP: Record<string, string> = {
+      admin: "Activá tu cuenta de administrador – Ciclismo Reybaud",
+      coach: "Activá tu cuenta de Coach – Ciclismo Reybaud",
+      alumno: "Activá tu cuenta – Ciclismo Reybaud",
+    };
+
+    const emailHtml = buildEmailHtml(user_type, confirmationUrl, nombre);
+    const emailSubject = SUBJECT_MAP[user_type] || SUBJECT_MAP.alumno;
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -190,8 +248,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "Ciclismo Reybaud <no-reply@ciclismoreybaud.com>",
         to: [normalizedEmail],
-        subject: config.subject,
-        html: emailHtml,
+        subject: emailSubject,
       }),
     });
 
