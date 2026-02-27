@@ -61,34 +61,66 @@ Deno.serve(async (req) => {
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
     const redirectTo = origin ? `${origin}/crear-clave` : undefined;
 
-    // Create auth user with invite (sends email automatically)
-    const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { first_name, last_name, admin_role: role },
-      redirectTo,
-    });
+    // Check if user already exists
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
 
-    if (createError) throw createError;
+    let userId: string;
 
-    // Create admin profile
-    const { error: profileError } = await adminClient.from("admin_profiles").insert({
-      user_id: newUser.user.id,
+    if (existingUser) {
+      userId = existingUser.id;
+
+      // Check if admin profile already exists
+      const { data: existingProfile } = await adminClient
+        .from("admin_profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existingProfile) {
+        // Resend invite for existing admin
+        await adminClient.auth.admin.inviteUserByEmail(email, {
+          data: { first_name, last_name, admin_role: role },
+          redirectTo,
+        });
+        return new Response(JSON.stringify({ success: true, already_existed: true, message: `Invitación reenviada a ${email}` }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // User exists in auth but not as admin - resend invite and create profile
+      await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: { first_name, last_name, admin_role: role },
+        redirectTo,
+      });
+    } else {
+      // Create new auth user with invite
+      const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: { first_name, last_name, admin_role: role },
+        redirectTo,
+      });
+      if (createError) throw createError;
+      userId = newUser.user.id;
+    }
+
+    // Create admin profile (upsert to handle edge cases)
+    const { error: profileError } = await adminClient.from("admin_profiles").upsert({
+      user_id: userId,
       first_name,
       last_name,
       email,
       role,
       status: "active",
       password_set: false,
-    });
+    }, { onConflict: "user_id" });
 
     if (profileError) throw profileError;
 
-    // Assign admin role in user_roles
-    const { error: roleError } = await adminClient.from("user_roles").insert({
-      user_id: newUser.user.id,
+    // Assign admin role in user_roles (ignore if exists)
+    await adminClient.from("user_roles").upsert({
+      user_id: userId,
       role: "admin",
-    });
-
-    if (roleError) throw roleError;
+    }, { onConflict: "user_id,role" } as any);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
