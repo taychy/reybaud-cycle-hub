@@ -57,9 +57,14 @@ Deno.serve(async (req) => {
       throw new Error("Rol inválido");
     }
 
+    // Determine redirect URL from request origin
+    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
+    const redirectTo = origin ? `${origin}/set-password` : undefined;
+
     // Create auth user with invite (sends email automatically)
     const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { first_name, last_name, admin_role: role },
+      redirectTo,
     });
 
     if (createError) throw createError;

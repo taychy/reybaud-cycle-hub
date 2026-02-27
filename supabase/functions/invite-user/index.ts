@@ -58,6 +58,10 @@ Deno.serve(async (req) => {
     if (existingUser) {
       userId = existingUser.id;
     } else {
+      // Determine redirect URL from request origin
+      const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
+      const redirectTo = origin ? `${origin}/set-password` : undefined;
+
       // Create user via invitation (sends email with activation link)
       const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(
         normalizedEmail,
@@ -66,6 +70,7 @@ Deno.serve(async (req) => {
             nombre,
             user_type: type,
           },
+          redirectTo,
         }
       );
       if (createError) throw createError;
