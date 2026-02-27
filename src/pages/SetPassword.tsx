@@ -73,11 +73,17 @@ const SetPassword = () => {
     setSuccess(true);
     setLoading(false);
 
-    // Mark password as set in admin_profiles (if applicable)
+    // Mark password as set in relevant profile tables
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     if (currentSession) {
+      // Admin profiles
       await supabase
         .from("admin_profiles")
+        .update({ password_set: true } as any)
+        .eq("user_id", currentSession.user.id);
+      // Alumno profiles
+      await supabase
+        .from("alumnos")
         .update({ password_set: true } as any)
         .eq("user_id", currentSession.user.id);
     }
@@ -92,6 +98,15 @@ const SetPassword = () => {
         });
         if (isAdmin) {
           navigate("/admin", { replace: true });
+          return;
+        }
+
+        const { data: isAlumno } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "alumno" as any,
+        });
+        if (isAlumno) {
+          navigate("/dashboard", { replace: true });
           return;
         }
 

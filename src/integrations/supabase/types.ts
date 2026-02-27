@@ -65,8 +65,10 @@ export type Database = {
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido: string | null
           id: string
+          invited_at: string | null
           nombre: string
           notas: string | null
+          password_set: boolean
           telefono: string | null
           updated_at: string
           user_id: string | null
@@ -79,8 +81,10 @@ export type Database = {
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
+          invited_at?: string | null
           nombre: string
           notas?: string | null
+          password_set?: boolean
           telefono?: string | null
           updated_at?: string
           user_id?: string | null
@@ -93,8 +97,10 @@ export type Database = {
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
+          invited_at?: string | null
           nombre?: string
           notas?: string | null
+          password_set?: boolean
           telefono?: string | null
           updated_at?: string
           user_id?: string | null

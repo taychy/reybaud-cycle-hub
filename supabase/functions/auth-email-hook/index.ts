@@ -17,7 +17,7 @@ const corsHeaders = {
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'Confirmá tu email - Ciclismo Reybaud',
-  invite: 'Fuiste invitado como Administrador – Reybaud',
+  invite: 'Fuiste invitado a Ciclismo Reybaud',
   magiclink: 'Tu link de acceso - Ciclismo Reybaud',
   recovery: 'Restablecé tu contraseña - Ciclismo Reybaud',
   email_change: 'Confirmá tu cambio de email - Ciclismo Reybaud',
@@ -217,6 +217,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
+  const userType = payload.data.user_metadata?.user_type || 'admin'
   const templateProps = {
     siteName: SITE_NAME,
     siteUrl: `https://${ROOT_DOMAIN}`,
@@ -225,6 +226,13 @@ async function handleWebhook(req: Request): Promise<Response> {
     token: payload.data.token,
     email: payload.data.email,
     newEmail: payload.data.new_email,
+    userType,
+  }
+
+  // Dynamic subject for invitations
+  if (emailType === 'invite') {
+    const roleName = userType === 'alumno' ? 'Alumno' : userType === 'coach' ? 'Coach' : 'Administrador'
+    EMAIL_SUBJECTS.invite = `Fuiste invitado como ${roleName} – Reybaud`
   }
 
   // Render React Email to HTML and plain text

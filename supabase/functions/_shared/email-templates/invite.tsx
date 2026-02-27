@@ -19,42 +19,66 @@ interface InviteEmailProps {
   siteName: string
   siteUrl: string
   confirmationUrl: string
+  userType?: string
+}
+
+const ROLE_CONFIG: Record<string, { heading: string; description: string; panel: string }> = {
+  admin: {
+    heading: '¡Bienvenido al equipo!',
+    description: 'Fuiste invitado a formar parte del equipo de administración de',
+    panel: 'panel de administración',
+  },
+  alumno: {
+    heading: '¡Bienvenido a Ciclismo Reybaud!',
+    description: 'Fuiste invitado a entrenar con',
+    panel: 'panel de entrenamientos',
+  },
+  coach: {
+    heading: '¡Bienvenido al equipo de coaches!',
+    description: 'Fuiste invitado como coach en',
+    panel: 'panel de coach',
+  },
 }
 
 export const InviteEmail = ({
   siteName,
   siteUrl,
   confirmationUrl,
-}: InviteEmailProps) => (
-  <Html lang="es" dir="ltr">
-    <Head />
-    <Preview>Fuiste invitado como Administrador – Reybaud</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Img src={LOGO_URL} alt="Ciclismo Reybaud" width="60" height="60" style={logo} />
-        <Heading style={h1}>¡Bienvenido al equipo!</Heading>
-        <Text style={text}>
-          Fuiste invitado a formar parte del equipo de administración de{' '}
-          <Link href={siteUrl} style={link}><strong>Ciclismo Reybaud</strong></Link>.
-        </Text>
-        <Text style={text}>
-          Para comenzar, hacé clic en el botón de abajo y creá tu contraseña de acceso.
-          Este enlace es válido por 24 horas.
-        </Text>
-        <Button style={button} href={confirmationUrl}>
-          Crear mi contraseña
-        </Button>
-        <Text style={footerNote}>
-          Una vez que crees tu contraseña, vas a poder acceder al panel de administración
-          con tu email y la clave que elijas.
-        </Text>
-        <Text style={footer}>
-          Si no esperabas esta invitación, podés ignorar este email de forma segura.
-        </Text>
-      </Container>
-    </Body>
-  </Html>
-)
+  userType = 'admin',
+}: InviteEmailProps) => {
+  const config = ROLE_CONFIG[userType] || ROLE_CONFIG.admin
+
+  return (
+    <Html lang="es" dir="ltr">
+      <Head />
+      <Preview>{config.description} Ciclismo Reybaud</Preview>
+      <Body style={main}>
+        <Container style={container}>
+          <Img src={LOGO_URL} alt="Ciclismo Reybaud" width="60" height="60" style={logo} />
+          <Heading style={h1}>{config.heading}</Heading>
+          <Text style={text}>
+            {config.description}{' '}
+            <Link href={siteUrl} style={link}><strong>Ciclismo Reybaud</strong></Link>.
+          </Text>
+          <Text style={text}>
+            Para comenzar, hacé clic en el botón de abajo y creá tu contraseña de acceso.
+            Este enlace es válido por 24 horas.
+          </Text>
+          <Button style={button} href={confirmationUrl}>
+            Crear mi contraseña
+          </Button>
+          <Text style={footerNote}>
+            Una vez que crees tu contraseña, vas a poder acceder al {config.panel}{' '}
+            con tu email y la clave que elijas.
+          </Text>
+          <Text style={footer}>
+            Si no esperabas esta invitación, podés ignorar este email de forma segura.
+          </Text>
+        </Container>
+      </Body>
+    </Html>
+  )
+}
 
 export default InviteEmail
 
