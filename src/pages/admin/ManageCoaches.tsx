@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserCog, Edit2, Plus, Eye, MailPlus } from "lucide-react";
+import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -72,6 +72,8 @@ const ManageCoaches = () => {
   };
 
   const [resending, setResending] = useState<string | null>(null);
+  const [deleteCoach, setDeleteCoach] = useState<Coach | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handleResendInvite = async (coach: Coach) => {
     const lastSent = (coach as any).last_invite_sent_at;
@@ -92,6 +94,23 @@ const ManageCoaches = () => {
       toast.error(err.message || "Error al reenviar invitación");
     } finally {
       setResending(null);
+    }
+  };
+
+  const handleDeleteCoach = async () => {
+    if (!deleteCoach) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("coaches").delete().eq("id", deleteCoach.id);
+      if (error) throw error;
+      toast.success(`Coach ${deleteCoach.nombre} eliminado`);
+      setDeleteCoach(null);
+      setDetailCoach(null);
+      fetchCoaches();
+    } catch (err: any) {
+      toast.error(err.message || "Error al eliminar coach");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -264,6 +283,9 @@ const ManageCoaches = () => {
                       <Button variant="ghost" size="sm" onClick={() => openEdit(coach)} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-1" /> Editar
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteCoach(coach)} className="text-xs text-destructive hover:text-destructive">
+                        <Trash2 className="w-3 h-3 mr-1" /> Eliminar
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -322,6 +344,12 @@ const ManageCoaches = () => {
                   setDetailCoach(null);
                 }}>
                   <Edit2 className="w-3 h-3 mr-2" /> Editar coach
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
+                  setDeleteCoach(detailCoach);
+                  setDetailCoach(null);
+                }}>
+                  <Trash2 className="w-3 h-3 mr-2" /> Eliminar
                 </Button>
               </div>
             </div>
@@ -391,6 +419,26 @@ const ManageCoaches = () => {
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
             <Button variant="gold" disabled={creating} onClick={handleCreateCoach}>
               {creating ? "Enviando..." : "Enviar invitación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteCoach} onOpenChange={(open) => { if (!open) setDeleteCoach(null); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              Eliminar coach
+            </DialogTitle>
+            <DialogDescription>
+              ¿Seguro que querés eliminar a <strong>{deleteCoach?.nombre}</strong>? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCoach(null)}>Cancelar</Button>
+            <Button variant="destructive" disabled={deleting} onClick={handleDeleteCoach}>
+              {deleting ? "Eliminando..." : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>
