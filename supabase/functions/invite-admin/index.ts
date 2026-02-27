@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
       email,
       role,
       status: "active",
+      password_set: false,
     });
 
     if (profileError) throw profileError;

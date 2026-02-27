@@ -64,6 +64,15 @@ const SetPassword = () => {
     setSuccess(true);
     setLoading(false);
 
+    // Mark password as set in admin_profiles (if applicable)
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (currentSession) {
+      await supabase
+        .from("admin_profiles")
+        .update({ password_set: true } as any)
+        .eq("user_id", currentSession.user.id);
+    }
+
     // Redirect after a moment
     setTimeout(async () => {
       // Check user role to redirect appropriately

@@ -22,6 +22,7 @@ export type Database = {
           id: string
           last_login_at: string | null
           last_name: string
+          password_set: boolean
           role: Database["public"]["Enums"]["admin_role"]
           status: string
           updated_at: string
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           last_login_at?: string | null
           last_name: string
+          password_set?: boolean
           role?: Database["public"]["Enums"]["admin_role"]
           status?: string
           updated_at?: string
@@ -46,6 +48,7 @@ export type Database = {
           id?: string
           last_login_at?: string | null
           last_name?: string
+          password_set?: boolean
           role?: Database["public"]["Enums"]["admin_role"]
           status?: string
           updated_at?: string
