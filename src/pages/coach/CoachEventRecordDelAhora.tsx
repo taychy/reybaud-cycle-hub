@@ -55,6 +55,7 @@ const CoachEventRecordDelAhora = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
+  const eventUrl = `${window.location.origin}/eventos/record-del-ahora`;
 
   useEffect(() => {
     const checkCoach = async () => {
@@ -238,6 +239,22 @@ const CoachEventRecordDelAhora = () => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-5">
+        {/* QR & Link */}
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          <p className="text-sm font-medium text-foreground">📱 QR del evento</p>
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(eventUrl)}&bgcolor=1a1a2e&color=E8832A&format=png`}
+              alt="QR del evento"
+              className="w-40 h-40 rounded-lg border border-border"
+            />
+            <code className="text-xs text-primary break-all bg-secondary/30 p-2 rounded w-full text-center">{eventUrl}</code>
+            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(eventUrl); toast({ title: "Link copiado" }); }}>
+              <Search className="w-3.5 h-3.5 mr-1" /> Copiar link
+            </Button>
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-2">
           <Button
