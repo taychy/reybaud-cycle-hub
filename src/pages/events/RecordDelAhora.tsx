@@ -12,6 +12,9 @@ const RecordDelAhora = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -25,9 +28,32 @@ const RecordDelAhora = () => {
     if (form.first_name.trim().length < 2) e.first_name = "Mínimo 2 caracteres";
     if (form.last_name.trim().length < 2) e.last_name = "Mínimo 2 caracteres";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Email inválido";
-    if (form.team_name.trim().length === 0) e.team_name = "Campo obligatorio";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    const email = loginEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setLoginError("Email inválido");
+      return;
+    }
+    setLoading(true);
+    const { data: existing } = await supabase
+      .from("event_participants")
+      .select("public_access_token")
+      .eq("event_slug", "record-del-ahora")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existing) {
+      navigate(`/eventos/record-del-ahora/mi-resultados?token=${existing.public_access_token}`);
+    } else {
+      setLoginError("No se encontró un registro con ese email. Registrate primero.");
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,7 +85,7 @@ const RecordDelAhora = () => {
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           email: normalizedEmail,
-          team_name: form.team_name.trim(),
+          team_name: form.team_name.trim() || "Sin equipo",
         })
         .select("public_access_token")
         .single();
@@ -98,7 +124,7 @@ const RecordDelAhora = () => {
         </p>
         <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <CalendarDays className="w-4 h-4 text-primary" /> 29/02/2026
+            <CalendarDays className="w-4 h-4 text-primary" /> 01/03/2026
           </span>
           <span className="flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-primary" /> 08:00
@@ -109,72 +135,126 @@ const RecordDelAhora = () => {
         </div>
       </div>
 
-      {/* Check-in form */}
-      <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-5">
-        <div className="flex items-center gap-2 mb-2">
-          <Users className="w-5 h-5 text-primary" />
-          <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-foreground">
-            Registro de presencia
-          </h2>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="first_name">Nombre</Label>
-            <Input
-              id="first_name"
-              value={form.first_name}
-              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-              placeholder="Tu nombre"
-            />
-            {errors.first_name && <p className="text-xs text-destructive">{errors.first_name}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="last_name">Apellido</Label>
-            <Input
-              id="last_name"
-              value={form.last_name}
-              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-              placeholder="Tu apellido"
-            />
-            {errors.last_name && <p className="text-xs text-destructive">{errors.last_name}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="tu@email.com"
-            />
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="team_name">Equipo</Label>
-            <Input
-              id="team_name"
-              value={form.team_name}
-              onChange={(e) => setForm({ ...form, team_name: e.target.value })}
-              placeholder="Nombre del equipo"
-            />
-            {errors.team_name && <p className="text-xs text-destructive">{errors.team_name}</p>}
-          </div>
-
+      {/* Choose mode */}
+      {mode === "choose" && (
+        <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-4">
           <Button
-            type="submit"
             variant="gold"
             size="lg"
             className="w-full text-base"
-            disabled={loading}
+            onClick={() => setMode("register")}
           >
-            {loading ? "Registrando..." : "👉 Estoy presente"}
+            👋 Primera vez — Registrarme
           </Button>
-        </form>
-      </div>
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full text-base"
+            onClick={() => setMode("login")}
+          >
+            🔑 Ya me registré — Ingresar con email
+          </Button>
+        </div>
+      )}
+
+      {/* Login by email */}
+      {mode === "login" && (
+        <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-5">
+          <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-foreground">
+            Ingresar con email
+          </h2>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="login_email">Email</Label>
+              <Input
+                id="login_email"
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="tu@email.com"
+              />
+              {loginError && <p className="text-xs text-destructive">{loginError}</p>}
+            </div>
+            <Button type="submit" variant="gold" size="lg" className="w-full text-base" disabled={loading}>
+              {loading ? "Buscando..." : "Ingresar"}
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setMode("choose")}>
+              ← Volver
+            </Button>
+          </form>
+        </div>
+      )}
+
+      {/* Registration form */}
+      {mode === "register" && (
+        <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-5 h-5 text-primary" />
+            <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-foreground">
+              Registro de presencia
+            </h2>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="first_name">Nombre</Label>
+              <Input
+                id="first_name"
+                value={form.first_name}
+                onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                placeholder="Tu nombre"
+              />
+              {errors.first_name && <p className="text-xs text-destructive">{errors.first_name}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="last_name">Apellido</Label>
+              <Input
+                id="last_name"
+                value={form.last_name}
+                onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                placeholder="Tu apellido"
+              />
+              {errors.last_name && <p className="text-xs text-destructive">{errors.last_name}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="tu@email.com"
+              />
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="team_name">Equipo <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+              <Input
+                id="team_name"
+                value={form.team_name}
+                onChange={(e) => setForm({ ...form, team_name: e.target.value })}
+                placeholder="Nombre del equipo"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="gold"
+              size="lg"
+              className="w-full text-base"
+              disabled={loading}
+            >
+              {loading ? "Registrando..." : "👉 Estoy presente"}
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setMode("choose")}>
+              ← Volver
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

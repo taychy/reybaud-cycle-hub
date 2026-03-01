@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
-import { Trophy, User, Medal, MessageSquare, Clock, CalendarDays, MapPin, Upload } from "lucide-react";
+import { Trophy, User, Medal, MessageSquare, Clock, CalendarDays, MapPin, Upload, Ruler } from "lucide-react";
 
 interface Participant {
   id: string;
@@ -26,13 +26,10 @@ interface Participant {
   rejection_reason: string | null;
 }
 
-interface RankingEntry {
-  first_name: string;
-  last_name: string;
+interface TeamRanking {
   team_name: string;
-  time_result: string | null;
-  time_value: number | null;
-  position: number | null;
+  total_distance: number;
+  members: { first_name: string; last_name: string; distance: number }[];
 }
 
 const EventResults = () => {
@@ -40,13 +37,14 @@ const EventResults = () => {
   const token = searchParams.get("token");
   const { toast } = useToast();
   const [participant, setParticipant] = useState<Participant | null>(null);
-  const [ranking, setRanking] = useState<RankingEntry[]>([]);
+  const [teamRanking, setTeamRanking] = useState<TeamRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Time submission form
-  const [showTimeForm, setShowTimeForm] = useState(false);
-  const [timeForm, setTimeForm] = useState({ hours: "", minutes: "", seconds: "", comment: "" });
+  // Distance submission form
+  const [showDistanceForm, setShowDistanceForm] = useState(false);
+  const [distanceKm, setDistanceKm] = useState("");
+  const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
@@ -77,17 +75,28 @@ const EventResults = () => {
 
     setParticipant(p as unknown as Participant);
 
-    // Fetch ranking (approved only, sorted by time_value ASC)
+    // Fetch all approved participants for team ranking
     const { data: rankData } = await supabase
       .from("event_participants")
-      .select("first_name, last_name, team_name, time_result, time_value, position")
+      .select("first_name, last_name, team_name, time_value")
       .eq("event_slug", "record-del-ahora")
       .eq("status", "approved" as any)
-      .not("time_value", "is", null)
-      .order("time_value", { ascending: true })
-      .limit(20);
+      .not("time_value", "is", null);
 
-    setRanking((rankData as unknown as RankingEntry[]) || []);
+    // Build team ranking
+    const teamMap = new Map<string, TeamRanking>();
+    ((rankData as any[]) || []).forEach((r) => {
+      const team = r.team_name || "Sin equipo";
+      if (!teamMap.has(team)) {
+        teamMap.set(team, { team_name: team, total_distance: 0, members: [] });
+      }
+      const t = teamMap.get(team)!;
+      const dist = Number(r.time_value) || 0;
+      t.total_distance += dist;
+      t.members.push({ first_name: r.first_name, last_name: r.last_name, distance: dist });
+    });
+    const sorted = Array.from(teamMap.values()).sort((a, b) => b.total_distance - a.total_distance);
+    setTeamRanking(sorted);
     setLoading(false);
   };
 
@@ -95,36 +104,23 @@ const EventResults = () => {
     load();
   }, [token]);
 
-  const parseTimeToSeconds = (h: string, m: string, s: string): number | null => {
-    const hours = parseInt(h) || 0;
-    const minutes = parseInt(m) || 0;
-    const seconds = parseInt(s) || 0;
-    if (hours === 0 && minutes === 0 && seconds === 0) return null;
-    return hours * 3600 + minutes * 60 + seconds;
-  };
-
-  const formatTimeDisplay = (h: string, m: string, s: string): string => {
-    const pad = (v: string) => v.padStart(2, "0");
-    return `${pad(h || "0")}:${pad(m || "0")}:${pad(s || "0")}`;
-  };
-
-  const handleSubmitTime = async () => {
-    const totalSeconds = parseTimeToSeconds(timeForm.hours, timeForm.minutes, timeForm.seconds);
-    if (totalSeconds === null || totalSeconds <= 0) {
-      toast({ title: "Error", description: "Ingresá un tiempo válido.", variant: "destructive" });
+  const handleSubmitDistance = async () => {
+    const km = parseFloat(distanceKm);
+    if (!km || km <= 0) {
+      toast({ title: "Error", description: "Ingresá una distancia válida.", variant: "destructive" });
       return;
     }
     if (!participant) return;
 
     setSubmitting(true);
-    const timeDisplay = formatTimeDisplay(timeForm.hours, timeForm.minutes, timeForm.seconds);
+    const distanceDisplay = `${km.toFixed(2)} km`;
 
     const { error: updateErr } = await supabase
       .from("event_participants")
       .update({
-        time_value: totalSeconds,
-        time_result: timeDisplay,
-        participant_comment: timeForm.comment.trim() || null,
+        time_value: km,
+        time_result: distanceDisplay,
+        participant_comment: comment.trim() || null,
         status: "result_submitted",
         results_updated_at: new Date().toISOString(),
       } as any)
@@ -133,8 +129,8 @@ const EventResults = () => {
     if (updateErr) {
       toast({ title: "Error", description: "No se pudo guardar. Intentá de nuevo.", variant: "destructive" });
     } else {
-      toast({ title: "¡Tiempo cargado!", description: "Tu resultado fue enviado para revisión." });
-      setShowTimeForm(false);
+      toast({ title: "¡Distancia cargada!", description: "Tu resultado fue enviado para revisión." });
+      setShowDistanceForm(false);
       await load();
     }
     setSubmitting(false);
@@ -157,7 +153,7 @@ const EventResults = () => {
     );
   }
 
-  const canSubmitTime =
+  const canSubmitDistance =
     participant?.status === "checked_in" || participant?.status === "rejected";
 
   return (
@@ -169,7 +165,7 @@ const EventResults = () => {
           Record de la Hora
         </h1>
         <div className="flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5 text-primary" />29/02/2026</span>
+          <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5 text-primary" />01/03/2026</span>
           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-primary" />08:00</span>
           <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-primary" />KDT, Palermo</span>
         </div>
@@ -183,16 +179,16 @@ const EventResults = () => {
         </div>
         <div className="space-y-1 text-sm">
           <p><span className="text-muted-foreground">Nombre:</span> {participant?.first_name} {participant?.last_name}</p>
-          <p><span className="text-muted-foreground">Equipo:</span> {participant?.team_name}</p>
+          <p><span className="text-muted-foreground">Equipo:</span> {participant?.team_name || "Sin equipo"}</p>
         </div>
       </div>
 
-      {/* Card: Submit Time */}
-      {canSubmitTime && (
+      {/* Card: Submit Distance */}
+      {canSubmitDistance && (
         <div className="w-full max-w-md glass-card rounded-xl p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Upload className="w-5 h-5 text-primary" />
-            <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Cargar mi tiempo</h2>
+            <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Cargar mi distancia</h2>
           </div>
 
           {participant?.status === "rejected" && participant?.rejection_reason && (
@@ -201,48 +197,30 @@ const EventResults = () => {
             </div>
           )}
 
-          {!showTimeForm ? (
-            <Button variant="gold" className="w-full h-12" onClick={() => setShowTimeForm(true)}>
-              <Clock className="w-4 h-4 mr-2" />
-              Cargar mi tiempo
+          {!showDistanceForm ? (
+            <Button variant="gold" className="w-full h-12" onClick={() => setShowDistanceForm(true)}>
+              <Ruler className="w-4 h-4 mr-2" />
+              Cargar mi distancia
             </Button>
           ) : (
             <div className="space-y-4">
               <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">Tiempo (hh:mm:ss)</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="23"
-                    placeholder="HH"
-                    value={timeForm.hours}
-                    onChange={(e) => setTimeForm({ ...timeForm, hours: e.target.value })}
-                  />
-                  <Input
-                    type="number"
-                    min="0"
-                    max="59"
-                    placeholder="MM"
-                    value={timeForm.minutes}
-                    onChange={(e) => setTimeForm({ ...timeForm, minutes: e.target.value })}
-                  />
-                  <Input
-                    type="number"
-                    min="0"
-                    max="59"
-                    placeholder="SS"
-                    value={timeForm.seconds}
-                    onChange={(e) => setTimeForm({ ...timeForm, seconds: e.target.value })}
-                  />
-                </div>
+                <Label className="text-xs text-muted-foreground mb-2 block">Distancia (km)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Ej: 32.50"
+                  value={distanceKm}
+                  onChange={(e) => setDistanceKm(e.target.value)}
+                />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">Comentario (opcional)</Label>
                 <Textarea
                   placeholder="Alguna observación sobre tu resultado..."
-                  value={timeForm.comment}
-                  onChange={(e) => setTimeForm({ ...timeForm, comment: e.target.value })}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
                   rows={2}
                 />
               </div>
@@ -250,12 +228,12 @@ const EventResults = () => {
                 <Button
                   variant="gold"
                   className="flex-1"
-                  onClick={handleSubmitTime}
+                  onClick={handleSubmitDistance}
                   disabled={submitting}
                 >
                   {submitting ? "Enviando..." : "Enviar resultado"}
                 </Button>
-                <Button variant="outline" onClick={() => setShowTimeForm(false)}>
+                <Button variant="outline" onClick={() => setShowDistanceForm(false)}>
                   Cancelar
                 </Button>
               </div>
@@ -268,11 +246,11 @@ const EventResults = () => {
       {participant?.status === "result_submitted" && (
         <div className="w-full max-w-md glass-card rounded-xl p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" />
+            <Ruler className="w-5 h-5 text-primary" />
             <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Tu tiempo <span className="font-semibold text-foreground">{participant.time_result}</span> fue enviado y está pendiente de revisión por el coach.
+            Tu distancia <span className="font-semibold text-foreground">{participant.time_result}</span> fue enviada y está pendiente de revisión por el coach.
           </p>
         </div>
       )}
@@ -286,7 +264,7 @@ const EventResults = () => {
           </div>
           <div className="space-y-2 text-sm">
             {participant.time_result && (
-              <p><span className="text-muted-foreground">Tiempo:</span> <span className="font-semibold text-primary text-lg">{participant.time_result}</span></p>
+              <p><span className="text-muted-foreground">Distancia:</span> <span className="font-semibold text-primary text-lg">{participant.time_result}</span></p>
             )}
             {participant.position !== null && (
               <p><span className="text-muted-foreground">Posición:</span> <span className="font-semibold">#{participant.position}</span></p>
@@ -309,38 +287,44 @@ const EventResults = () => {
         </div>
       )}
 
-      {/* Card: Ranking */}
+      {/* Card: Team Ranking */}
       <div className="w-full max-w-md glass-card rounded-xl p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-primary" />
-          <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Ranking general</h2>
+          <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Ranking por equipo</h2>
         </div>
 
-        {ranking.length === 0 ? (
+        {teamRanking.length === 0 ? (
           <p className="text-sm text-muted-foreground">El ranking aún no está disponible.</p>
         ) : (
-          <div className="space-y-2">
-            {ranking.map((r, i) => (
+          <div className="space-y-3">
+            {teamRanking.map((team, i) => (
               <div
-                key={i}
-                className={`flex items-center justify-between p-3 rounded-lg text-sm ${
-                  r.first_name === participant?.first_name && r.last_name === participant?.last_name
+                key={team.team_name}
+                className={`p-3 rounded-lg text-sm ${
+                  team.team_name === (participant?.team_name || "Sin equipo")
                     ? "bg-primary/10 border border-primary/30"
                     : "bg-secondary/30"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-heading font-bold text-primary w-6 text-center">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <p className="font-medium">{r.first_name} {r.last_name}</p>
-                    <p className="text-xs text-muted-foreground">{r.team_name}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-heading font-bold text-primary w-6 text-center">
+                      {i + 1}
+                    </span>
+                    <span className="font-semibold">{team.team_name}</span>
                   </div>
+                  <span className="font-mono font-semibold text-primary">
+                    {team.total_distance.toFixed(2)} km
+                  </span>
                 </div>
-                <span className="font-mono font-semibold">
-                  {r.time_result ?? "-"}
-                </span>
+                <div className="pl-9 space-y-0.5">
+                  {team.members.map((m, j) => (
+                    <p key={j} className="text-xs text-muted-foreground">
+                      {m.first_name} {m.last_name} — {m.distance.toFixed(2)} km
+                    </p>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
