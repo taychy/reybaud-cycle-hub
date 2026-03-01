@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
-import { Trophy, User, Medal, MessageSquare, Clock, CalendarDays, MapPin, Upload, Ruler } from "lucide-react";
+import { Trophy, User, Medal, MessageSquare, Clock, CalendarDays, MapPin, Upload, Ruler, X, Download } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 
 interface Participant {
   id: string;
@@ -33,9 +35,13 @@ interface TeamRanking {
 }
 
 const EventResults = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const [hideBanner, setHideBanner] = useState(() => localStorage.getItem("hide_install_banner") === "true");
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [teamRanking, setTeamRanking] = useState<TeamRanking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,7 +177,29 @@ const EventResults = () => {
         </div>
       </div>
 
-      {/* Card: My Data */}
+      {/* Install app banner - mobile only, not installed, not dismissed */}
+      {isMobile && !isStandalone && !hideBanner && (
+        <div className="w-full max-w-md bg-secondary/50 border border-border rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            📲 <span className="font-semibold text-foreground">Instalá la app en tu teléfono</span> para una mejor experiencia
+          </p>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate("/instalar")}>
+              Instalar
+            </Button>
+            <button
+              onClick={() => {
+                localStorage.setItem("hide_install_banner", "true");
+                setHideBanner(true);
+              }}
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md glass-card rounded-xl p-5 space-y-3">
         <div className="flex items-center gap-2">
           <User className="w-5 h-5 text-primary" />

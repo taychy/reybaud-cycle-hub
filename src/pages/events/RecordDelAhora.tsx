@@ -143,15 +143,6 @@ const RecordDelAhora = () => {
         </p>
       </div>
 
-      {/* Download app banner */}
-      <div className="w-full max-w-md bg-secondary/50 border border-border rounded-lg px-4 py-3 flex items-center justify-between gap-3 mb-2">
-        <p className="text-xs text-muted-foreground">
-          📲 <span className="font-semibold text-foreground">Descargá nuestra app</span> para una mejor experiencia
-        </p>
-        <Button variant="outline" size="sm" className="shrink-0 text-xs" onClick={() => navigate("/instalar")}>
-          Instalar
-        </Button>
-      </div>
 
       {/* Choose mode */}
       {mode === "choose" && (
