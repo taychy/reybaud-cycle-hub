@@ -46,7 +46,7 @@ serve(async (req) => {
         <div style="max-width:480px;margin:0 auto;padding:32px 20px;">
           <div style="text-align:center;margin-bottom:24px;">
             <h1 style="font-size:22px;color:#121212;margin:0;font-weight:700;text-transform:uppercase;letter-spacing:2px;">
-              Record del Ahora
+               Record de la Hora
             </h1>
             <p style="font-size:13px;color:#888;margin:8px 0 0;">
               Competencia interna – 29/02/2026 – KDT, Palermo
@@ -83,7 +83,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from: "Ciclismo Reybaud <no-reply@ciclismoreybaud.com>",
         to: [email],
-        subject: "Tu acceso a resultados – Record del Ahora",
+        subject: "Tu acceso a resultados – Record de la Hora",
         html: emailHtml,
       }),
     });

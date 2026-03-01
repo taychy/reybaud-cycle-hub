@@ -91,7 +91,7 @@ const RecordDelAhora = () => {
       <div className="flex flex-col items-center gap-4 mb-8">
         <img src={logo} alt="Reybaud" className="w-16 h-16 rounded-full" />
         <h1 className="text-3xl md:text-4xl font-heading font-bold uppercase tracking-wider text-foreground text-center">
-          Record del Ahora
+          Record de la Hora
         </h1>
         <p className="text-muted-foreground text-center text-sm md:text-base">
           Competencia interna

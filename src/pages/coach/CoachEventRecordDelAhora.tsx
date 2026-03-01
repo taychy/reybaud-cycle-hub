@@ -226,7 +226,7 @@ const CoachEventRecordDelAhora = () => {
           <img src={logo} alt="Reybaud" className="w-8 h-8 rounded-full" />
           <div className="flex-1">
             <h1 className="font-heading font-bold text-foreground text-sm uppercase tracking-wider">
-              Record del Ahora
+              Record de la Hora
             </h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <CalendarDays className="w-3 h-3" /> 29/02/2026
