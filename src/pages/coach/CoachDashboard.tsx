@@ -175,7 +175,7 @@ const CoachDashboard = () => {
           <Button
             variant="gold"
             className="w-full h-14 justify-start gap-3 text-base"
-            onClick={() => navigate("/coach/eventos/record-del-ahora")}
+            onClick={() => navigate("/coach/eventos/record-de-la-hora")}
           >
             <Trophy className="w-5 h-5" />
             Record de la Hora

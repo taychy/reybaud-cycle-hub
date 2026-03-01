@@ -47,9 +47,9 @@ const App = () => (
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
-          <Route path="/coach/eventos/record-del-ahora" element={<CoachEventRecordDelAhora />} />
-          <Route path="/eventos/record-del-ahora" element={<RecordDelAhora />} />
-          <Route path="/eventos/record-del-ahora/mi-resultados" element={<EventResults />} />
+          <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
+          <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
+          <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/alumnos" replace />} />
@@ -59,7 +59,7 @@ const App = () => (
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="admins" element={<ManageAdmins />} />
-            <Route path="eventos/record-del-ahora" element={<EventManagement />} />
+            <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

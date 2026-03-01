@@ -44,12 +44,12 @@ const RecordDelAhora = () => {
     const { data: existing } = await supabase
       .from("event_participants")
       .select("public_access_token")
-      .eq("event_slug", "record-del-ahora")
+      .eq("event_slug", "record-de-la-hora")
       .eq("email", email)
       .maybeSingle();
 
     if (existing) {
-      navigate(`/eventos/record-del-ahora/mi-resultados?token=${existing.public_access_token}`);
+      navigate(`/eventos/record-de-la-hora/mi-resultados?token=${existing.public_access_token}`);
     } else {
       setLoginError("No se encontró un registro con ese email. Registrate primero.");
       setLoading(false);
@@ -68,12 +68,12 @@ const RecordDelAhora = () => {
       const { data: existing } = await supabase
         .from("event_participants")
         .select("public_access_token")
-        .eq("event_slug", "record-del-ahora")
+        .eq("event_slug", "record-de-la-hora")
         .eq("email", normalizedEmail)
         .maybeSingle();
 
       if (existing) {
-        navigate(`/eventos/record-del-ahora/mi-resultados?token=${existing.public_access_token}`);
+        navigate(`/eventos/record-de-la-hora/mi-resultados?token=${existing.public_access_token}`);
         return;
       }
 
@@ -81,7 +81,7 @@ const RecordDelAhora = () => {
       const { data: inserted, error: insertError } = await supabase
         .from("event_participants")
         .insert({
-          event_slug: "record-del-ahora",
+          event_slug: "record-de-la-hora",
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           email: normalizedEmail,
@@ -102,7 +102,7 @@ const RecordDelAhora = () => {
       });
 
       toast({ title: "¡Check-in exitoso!", description: "Te registraste correctamente." });
-      navigate(`/eventos/record-del-ahora/mi-resultados?token=${inserted.public_access_token}`);
+      navigate(`/eventos/record-de-la-hora/mi-resultados?token=${inserted.public_access_token}`);
     } catch (err: any) {
       console.error(err);
       toast({ title: "Error", description: "No se pudo registrar. Intentá de nuevo.", variant: "destructive" });

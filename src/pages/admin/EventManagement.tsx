@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X } from "lucide-react";
+import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X, Download } from "lucide-react";
 
 interface Participant {
   id: string;
@@ -37,13 +37,13 @@ const EventManagement = () => {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
 
-  const eventUrl = "https://reybaud-app.com/eventos/record-del-ahora";
+  const eventUrl = "https://reybaud-app.com/eventos/record-de-la-hora";
 
   const fetchParticipants = async () => {
     const { data, error } = await supabase
       .from("event_participants")
       .select("*")
-      .eq("event_slug", "record-del-ahora")
+      .eq("event_slug", "record-de-la-hora")
       .order("checked_in_at", { ascending: true });
 
     if (!error && data) setParticipants(data as Participant[]);
@@ -116,6 +116,53 @@ const EventManagement = () => {
     toast({ title: "Link copiado", description: eventUrl });
   };
 
+  const downloadQrPdf = () => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(eventUrl)}&format=png`;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const w = 595, h = 842; // A4 approx in px at 72dpi
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = "#121212";
+      ctx.font = "bold 28px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("RECORD DE LA HORA", w / 2, 100);
+
+      ctx.fillStyle = "#666666";
+      ctx.font = "16px Arial";
+      ctx.fillText("01/03/2026 – 08:00 – KDT, Palermo", w / 2, 135);
+
+      const qrSize = 300;
+      ctx.drawImage(img, (w - qrSize) / 2, 180, qrSize, qrSize);
+
+      ctx.fillStyle = "#E8832A";
+      ctx.font = "bold 14px Arial";
+      ctx.fillText("Escaneá el QR para registrarte", w / 2, 510);
+
+      ctx.fillStyle = "#333333";
+      ctx.font = "12px Arial";
+      ctx.fillText(eventUrl, w / 2, 540);
+
+      ctx.fillStyle = "#999999";
+      ctx.font = "11px Arial";
+      ctx.fillText("Ciclismo Reybaud", w / 2, 580);
+
+      const link = document.createElement("a");
+      link.download = "QR-Record-de-la-Hora.pdf";
+      // Use image/png as a simple printable download
+      link.download = "QR-Record-de-la-Hora.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    };
+    img.src = qrUrl;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -154,6 +201,9 @@ const EventManagement = () => {
             <code className="text-xs text-primary break-all block bg-secondary/30 p-2 rounded">{eventUrl}</code>
             <Button variant="outline" size="sm" onClick={copyLink} className="w-full sm:w-auto">
               <Copy className="w-4 h-4 mr-1" /> Copiar link
+            </Button>
+            <Button variant="outline" size="sm" onClick={downloadQrPdf} className="w-full sm:w-auto">
+              <Download className="w-4 h-4 mr-1" /> Descargar QR para imprimir
             </Button>
           </div>
         </div>

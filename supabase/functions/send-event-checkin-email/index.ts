@@ -33,7 +33,7 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
     // Derive the app domain from the Supabase URL or use a hardcoded one
     const appDomain = "https://reybaud-app.com";
-    const resultsUrl = `${appDomain}/eventos/record-del-ahora/mi-resultados?token=${token}`;
+    const resultsUrl = `${appDomain}/eventos/record-de-la-hora/mi-resultados?token=${token}`;
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -48,8 +48,8 @@ serve(async (req) => {
             <h1 style="font-size:22px;color:#121212;margin:0;font-weight:700;text-transform:uppercase;letter-spacing:2px;">
                Record de la Hora
             </h1>
-            <p style="font-size:13px;color:#888;margin:8px 0 0;">
-              Competencia interna – 29/02/2026 – KDT, Palermo
+             <p style="font-size:13px;color:#888;margin:8px 0 0;">
+              Competencia interna – 01/03/2026 – KDT, Palermo
             </p>
           </div>
 
