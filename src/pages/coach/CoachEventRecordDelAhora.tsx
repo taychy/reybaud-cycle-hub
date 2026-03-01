@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import {
-  ArrowLeft, Users, Trophy, Mail, Search, Check, X, Clock,
-  ChevronDown, ChevronUp, Send, CalendarDays, MapPin,
+  ArrowLeft, Users, Trophy, Mail, Search, Check, X, Ruler,
+  ChevronDown, ChevronUp, Send, CalendarDays, MapPin, Clock, Pencil,
 } from "lucide-react";
 
 interface Participant {
@@ -35,6 +35,12 @@ interface Participant {
   request_email_count: number;
 }
 
+interface TeamRanking {
+  team_name: string;
+  total_distance: number;
+  members: { first_name: string; last_name: string; distance: number }[];
+}
+
 type Tab = "participantes" | "ranking";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -55,6 +61,8 @@ const CoachEventRecordDelAhora = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editTeamValue, setEditTeamValue] = useState("");
   const eventUrl = "https://reybaud-app.com/eventos/record-del-ahora";
 
   useEffect(() => {
@@ -87,14 +95,14 @@ const CoachEventRecordDelAhora = () => {
       p.first_name.toLowerCase().includes(q) ||
       p.last_name.toLowerCase().includes(q) ||
       p.email.toLowerCase().includes(q) ||
-      p.team_name.toLowerCase().includes(q)
+      (p.team_name || "").toLowerCase().includes(q)
     );
   });
 
   const canSendEmail = (p: Participant) => {
     if (!p.last_request_email_sent_at) return true;
     const diff = Date.now() - new Date(p.last_request_email_sent_at).getTime();
-    return diff > 60000; // 60 seconds
+    return diff > 60000;
   };
 
   const sendResultRequestEmail = async (p: Participant) => {
@@ -105,14 +113,9 @@ const CoachEventRecordDelAhora = () => {
     setActionLoading(p.id);
     try {
       const { error: fnError } = await supabase.functions.invoke("send-result-request-email", {
-        body: {
-          email: p.email,
-          first_name: p.first_name,
-          token: p.public_access_token,
-        },
+        body: { email: p.email, first_name: p.first_name, token: p.public_access_token },
       });
       if (fnError) throw fnError;
-
       await supabase
         .from("event_participants")
         .update({
@@ -120,7 +123,6 @@ const CoachEventRecordDelAhora = () => {
           request_email_count: (p.request_email_count || 0) + 1,
         } as any)
         .eq("id", p.id);
-
       toast({ title: "Mail enviado", description: `Se envió a ${p.email}` });
       await fetchParticipants();
     } catch (err) {
@@ -131,9 +133,7 @@ const CoachEventRecordDelAhora = () => {
   };
 
   const sendToAll = async () => {
-    const pending = participants.filter(
-      (p) => p.status === "checked_in" && canSendEmail(p)
-    );
+    const pending = participants.filter((p) => p.status === "checked_in" && canSendEmail(p));
     if (pending.length === 0) {
       toast({ title: "Sin pendientes", description: "No hay participantes sin resultado que puedan recibir mail." });
       return;
@@ -153,7 +153,7 @@ const CoachEventRecordDelAhora = () => {
           } as any)
           .eq("id", p.id);
         sent++;
-      } catch {}
+      } catch { }
     }
     toast({ title: "Listo", description: `Se enviaron ${sent} mails.` });
     await fetchParticipants();
@@ -202,11 +202,34 @@ const CoachEventRecordDelAhora = () => {
     setActionLoading(null);
   };
 
-  // Ranking: only approved, sorted by time_value ASC
-  const ranking = participants
-    .filter((p) => p.status === "approved" && p.time_value !== null)
-    .sort((a, b) => (a.time_value ?? 0) - (b.time_value ?? 0))
-    .map((p, i) => ({ ...p, rank: i + 1 }));
+  const saveTeamName = async (p: Participant) => {
+    setActionLoading(p.id);
+    await supabase
+      .from("event_participants")
+      .update({ team_name: editTeamValue.trim() || "Sin equipo" } as any)
+      .eq("id", p.id);
+    toast({ title: "Equipo actualizado" });
+    setEditingTeamId(null);
+    await fetchParticipants();
+    setActionLoading(null);
+  };
+
+  // Team ranking: group by team, sum distance (time_value = km), sort DESC
+  const buildTeamRanking = (): TeamRanking[] => {
+    const approved = participants.filter((p) => p.status === "approved" && p.time_value !== null);
+    const teamMap = new Map<string, TeamRanking>();
+    approved.forEach((p) => {
+      const team = p.team_name || "Sin equipo";
+      if (!teamMap.has(team)) teamMap.set(team, { team_name: team, total_distance: 0, members: [] });
+      const t = teamMap.get(team)!;
+      const dist = Number(p.time_value) || 0;
+      t.total_distance += dist;
+      t.members.push({ first_name: p.first_name, last_name: p.last_name, distance: dist });
+    });
+    return Array.from(teamMap.values()).sort((a, b) => b.total_distance - a.total_distance);
+  };
+
+  const teamRanking = buildTeamRanking();
 
   if (loading) {
     return (
@@ -230,7 +253,7 @@ const CoachEventRecordDelAhora = () => {
               Record de la Hora
             </h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CalendarDays className="w-3 h-3" /> 29/02/2026
+              <CalendarDays className="w-3 h-3" /> 01/03/2026
               <Clock className="w-3 h-3 ml-1" /> 08:00
               <MapPin className="w-3 h-3 ml-1" /> KDT
             </div>
@@ -257,157 +280,100 @@ const CoachEventRecordDelAhora = () => {
 
         {/* Tabs */}
         <div className="flex gap-2">
-          <Button
-            variant={tab === "participantes" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("participantes")}
-            className="flex-1"
-          >
+          <Button variant={tab === "participantes" ? "default" : "outline"} size="sm" onClick={() => setTab("participantes")} className="flex-1">
             <Users className="w-4 h-4 mr-1.5" /> Participantes ({participants.length})
           </Button>
-          <Button
-            variant={tab === "ranking" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("ranking")}
-            className="flex-1"
-          >
-            <Trophy className="w-4 h-4 mr-1.5" /> Ranking ({ranking.length})
+          <Button variant={tab === "ranking" ? "default" : "outline"} size="sm" onClick={() => setTab("ranking")} className="flex-1">
+            <Trophy className="w-4 h-4 mr-1.5" /> Ranking ({teamRanking.length})
           </Button>
         </div>
 
         {tab === "participantes" && (
           <>
-            {/* Send to all button */}
-            <Button
-              variant="gold"
-              className="w-full h-12"
-              onClick={sendToAll}
-              disabled={sendingAll}
-            >
+            <Button variant="gold" className="w-full h-12" onClick={sendToAll} disabled={sendingAll}>
               <Mail className="w-4 h-4 mr-2" />
               {sendingAll ? "Enviando..." : "Pedir resultados por mail"}
             </Button>
 
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
+              <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
 
-            {/* Participant list */}
             <div className="space-y-3">
               {filtered.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  No hay participantes.
-                </div>
+                <div className="text-center py-8 text-muted-foreground text-sm">No hay participantes.</div>
               ) : (
                 filtered.map((p) => {
                   const st = statusConfig[p.status] || statusConfig.checked_in;
                   const isExpanded = expandedId === p.id;
 
                   return (
-                    <div
-                      key={p.id}
-                      className="bg-card border border-border rounded-xl p-4 space-y-3"
-                    >
-                      {/* Row header */}
+                    <div key={p.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
-                          <p className="font-semibold text-foreground">
-                            {p.first_name} {p.last_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{p.team_name}</p>
+                          <p className="font-semibold text-foreground">{p.first_name} {p.last_name}</p>
+                          {editingTeamId === p.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                value={editTeamValue}
+                                onChange={(e) => setEditTeamValue(e.target.value)}
+                                className="h-7 text-xs w-36"
+                                placeholder="Equipo"
+                              />
+                              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => saveTeamName(p)} disabled={actionLoading === p.id}>
+                                <Check className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingTeamId(null)}>
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              {p.team_name || "Sin equipo"}
+                              <button onClick={() => { setEditingTeamId(p.id); setEditTeamValue(p.team_name || ""); }} className="text-primary hover:text-primary/80">
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                            </p>
+                          )}
                         </div>
-                        <Badge className={`${st.color} text-xs`}>
-                          {st.label}
-                        </Badge>
+                        <Badge className={`${st.color} text-xs`}>{st.label}</Badge>
                       </div>
 
-                      {/* Action buttons row */}
                       <div className="flex gap-2 flex-wrap">
                         {p.status === "checked_in" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => sendResultRequestEmail(p)}
-                            disabled={actionLoading === p.id || !canSendEmail(p)}
-                          >
+                          <Button variant="outline" size="sm" onClick={() => sendResultRequestEmail(p)} disabled={actionLoading === p.id || !canSendEmail(p)}>
                             <Send className="w-3.5 h-3.5 mr-1" />
                             {actionLoading === p.id ? "Enviando..." : "Pedir resultado"}
                           </Button>
                         )}
-
                         {(p.status === "result_submitted" || p.status === "approved" || p.status === "rejected") && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setExpandedId(isExpanded ? null : p.id);
-                              setRejectionReason("");
-                            }}
-                          >
-                            {isExpanded ? (
-                              <><ChevronUp className="w-3.5 h-3.5 mr-1" /> Cerrar</>
-                            ) : (
-                              <><ChevronDown className="w-3.5 h-3.5 mr-1" /> Ver detalle</>
-                            )}
+                          <Button variant="outline" size="sm" onClick={() => { setExpandedId(isExpanded ? null : p.id); setRejectionReason(""); }}>
+                            {isExpanded ? <><ChevronUp className="w-3.5 h-3.5 mr-1" /> Cerrar</> : <><ChevronDown className="w-3.5 h-3.5 mr-1" /> Ver detalle</>}
                           </Button>
                         )}
                       </div>
 
-                      {/* Expanded detail */}
                       {isExpanded && (
                         <div className="border-t border-border pt-3 space-y-3">
                           <div className="space-y-1.5 text-sm">
-                            {p.time_result && (
-                              <p><span className="text-muted-foreground">Tiempo:</span> {p.time_result}</p>
-                            )}
-                            {p.time_value !== null && (
-                              <p><span className="text-muted-foreground">Valor (seg):</span> {p.time_value}</p>
-                            )}
-                            {p.participant_comment && (
-                              <p><span className="text-muted-foreground">Comentario:</span> {p.participant_comment}</p>
-                            )}
-                            {p.rejection_reason && (
-                              <p className="text-destructive text-xs">Motivo rechazo: {p.rejection_reason}</p>
-                            )}
+                            {p.time_result && <p><span className="text-muted-foreground">Distancia:</span> {p.time_result}</p>}
+                            {p.time_value !== null && <p><span className="text-muted-foreground">Valor (km):</span> {p.time_value}</p>}
+                            {p.participant_comment && <p><span className="text-muted-foreground">Comentario:</span> {p.participant_comment}</p>}
+                            {p.rejection_reason && <p className="text-destructive text-xs">Motivo rechazo: {p.rejection_reason}</p>}
                           </div>
 
                           {p.status === "result_submitted" && (
                             <div className="space-y-3">
                               <div className="flex gap-2">
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => approveResult(p)}
-                                  disabled={actionLoading === p.id}
-                                  className="flex-1"
-                                >
-                                  <Check className="w-4 h-4 mr-1" />
-                                  {actionLoading === p.id ? "..." : "Aprobar"}
+                                <Button variant="default" size="sm" onClick={() => approveResult(p)} disabled={actionLoading === p.id} className="flex-1">
+                                  <Check className="w-4 h-4 mr-1" /> {actionLoading === p.id ? "..." : "Aprobar"}
                                 </Button>
                               </div>
                               <div className="space-y-2">
-                                <Textarea
-                                  placeholder="Motivo de rechazo (obligatorio)..."
-                                  value={rejectionReason}
-                                  onChange={(e) => setRejectionReason(e.target.value)}
-                                  rows={2}
-                                />
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => rejectResult(p)}
-                                  disabled={actionLoading === p.id}
-                                  className="w-full"
-                                >
-                                  <X className="w-4 h-4 mr-1" />
-                                  Rechazar
+                                <Textarea placeholder="Motivo de rechazo (obligatorio)..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} />
+                                <Button variant="destructive" size="sm" onClick={() => rejectResult(p)} disabled={actionLoading === p.id} className="w-full">
+                                  <X className="w-4 h-4 mr-1" /> Rechazar
                                 </Button>
                               </div>
                             </div>
@@ -424,30 +390,25 @@ const CoachEventRecordDelAhora = () => {
 
         {tab === "ranking" && (
           <div className="space-y-3">
-            {ranking.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                No hay resultados aprobados todavía.
-              </div>
+            {teamRanking.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No hay resultados aprobados todavía.</div>
             ) : (
-              ranking.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between bg-card border border-border rounded-xl p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-heading font-bold text-primary text-lg w-8 text-center">
-                      {p.rank}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">
-                        {p.first_name} {p.last_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{p.team_name}</p>
+              teamRanking.map((team, i) => (
+                <div key={team.team_name} className="bg-card border border-border rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-heading font-bold text-primary text-lg w-8 text-center">{i + 1}</span>
+                      <span className="font-semibold text-foreground">{team.team_name}</span>
                     </div>
+                    <span className="font-mono font-semibold text-primary">{team.total_distance.toFixed(2)} km</span>
                   </div>
-                  <span className="font-mono font-semibold text-foreground">
-                    {p.time_result || `${p.time_value}s`}
-                  </span>
+                  <div className="pl-11 space-y-0.5">
+                    {team.members.map((m, j) => (
+                      <p key={j} className="text-xs text-muted-foreground">
+                        {m.first_name} {m.last_name} — {m.distance.toFixed(2)} km
+                      </p>
+                    ))}
+                  </div>
                 </div>
               ))
             )}

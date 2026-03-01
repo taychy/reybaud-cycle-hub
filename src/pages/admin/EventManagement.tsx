@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Save, Copy, ExternalLink, Users, Trophy } from "lucide-react";
+import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X } from "lucide-react";
 
 interface Participant {
   id: string;
@@ -15,6 +15,7 @@ interface Participant {
   checked_in_at: string;
   score: number | null;
   time_result: string | null;
+  time_value: number | null;
   position: number | null;
   staff_feedback: string | null;
   public_access_token: string;
@@ -33,6 +34,8 @@ const EventManagement = () => {
     staff_feedback: string;
   }>({ score: "", time_result: "", position: "", staff_feedback: "" });
   const [saving, setSaving] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editTeamValue, setEditTeamValue] = useState("");
 
   const eventUrl = "https://reybaud-app.com/eventos/record-del-ahora";
 
@@ -57,7 +60,7 @@ const EventManagement = () => {
       p.first_name.toLowerCase().includes(q) ||
       p.last_name.toLowerCase().includes(q) ||
       p.email.toLowerCase().includes(q) ||
-      p.team_name.toLowerCase().includes(q)
+      (p.team_name || "").toLowerCase().includes(q)
     );
   });
 
@@ -96,6 +99,18 @@ const EventManagement = () => {
     setSaving(false);
   };
 
+  const saveTeamName = async (p: Participant) => {
+    const { error } = await supabase
+      .from("event_participants")
+      .update({ team_name: editTeamValue.trim() || "Sin equipo" } as any)
+      .eq("id", p.id);
+    if (!error) {
+      toast({ title: "Equipo actualizado" });
+      setEditingTeamId(null);
+      fetchParticipants();
+    }
+  };
+
   const copyLink = () => {
     navigator.clipboard.writeText(eventUrl);
     toast({ title: "Link copiado", description: eventUrl });
@@ -110,7 +125,7 @@ const EventManagement = () => {
             Record de la Hora
           </h1>
           <p className="text-sm text-muted-foreground">
-            29/02/2026 – 08:00 – KDT, Palermo • {participants.length} participantes
+            01/03/2026 – 08:00 – KDT, Palermo • {participants.length} participantes
           </p>
         </div>
         <div className="flex gap-2">
@@ -173,7 +188,29 @@ const EventManagement = () => {
                     {p.first_name} {p.last_name}
                   </p>
                   <p className="text-xs text-muted-foreground">{p.email}</p>
-                  <p className="text-xs text-muted-foreground">Equipo: {p.team_name}</p>
+                  {editingTeamId === p.id ? (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Input
+                        value={editTeamValue}
+                        onChange={(e) => setEditTeamValue(e.target.value)}
+                        className="h-7 text-xs w-36"
+                        placeholder="Equipo"
+                      />
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => saveTeamName(p)}>
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingTeamId(null)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      Equipo: {p.team_name || "Sin equipo"}
+                      <button onClick={() => { setEditingTeamId(p.id); setEditTeamValue(p.team_name || ""); }} className="text-primary hover:text-primary/80">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Check-in: {new Date(p.checked_in_at).toLocaleString("es-AR")}
                   </p>
@@ -206,11 +243,11 @@ const EventManagement = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Tiempo</label>
+                      <label className="text-xs text-muted-foreground">Distancia</label>
                       <Input
                         value={editForm.time_result}
                         onChange={(e) => setEditForm({ ...editForm, time_result: e.target.value })}
-                        placeholder="Ej: 01:23:45"
+                        placeholder="Ej: 32.50 km"
                       />
                     </div>
                     <div className="space-y-1">
