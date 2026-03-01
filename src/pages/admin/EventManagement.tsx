@@ -4,7 +4,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X, Download } from "lucide-react";
+import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X, Download, Trash2, Ruler } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Participant {
   id: string;
@@ -54,15 +65,27 @@ const EventManagement = () => {
     fetchParticipants();
   }, []);
 
-  const filtered = participants.filter((p) => {
-    const q = search.toLowerCase();
-    return (
-      p.first_name.toLowerCase().includes(q) ||
-      p.last_name.toLowerCase().includes(q) ||
-      p.email.toLowerCase().includes(q) ||
-      (p.team_name || "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = participants
+    .filter((p) => {
+      const q = search.toLowerCase();
+      return (
+        p.first_name.toLowerCase().includes(q) ||
+        p.last_name.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q) ||
+        (p.team_name || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => (b.time_value ?? 0) - (a.time_value ?? 0));
+
+  const deleteParticipant = async (id: string) => {
+    const { error } = await supabase.from("event_participants").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
+    } else {
+      toast({ title: "Eliminado", description: "Participante eliminado." });
+      fetchParticipants();
+    }
+  };
 
   const startEdit = (p: Participant) => {
     setEditingId(p.id);
@@ -266,10 +289,10 @@ const EventManagement = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {p.score !== null && (
+                  {p.time_value !== null && (
                     <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">
-                      <Trophy className="w-3 h-3 inline mr-0.5" />
-                      {p.score}
+                      <Ruler className="w-3 h-3 inline mr-0.5" />
+                      {p.time_value} km
                     </span>
                   )}
                   {editingId !== p.id && (
@@ -277,6 +300,27 @@ const EventManagement = () => {
                       Editar
                     </Button>
                   )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Se eliminará a {p.first_name} {p.last_name} del evento. Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteParticipant(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
 
