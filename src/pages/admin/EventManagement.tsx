@@ -125,10 +125,23 @@ const EventManagement = () => {
         </div>
       </div>
 
-      {/* QR hint */}
-      <div className="glass-card rounded-lg p-4 text-sm text-muted-foreground">
-        <p>📱 Generá un QR con este link para que los participantes escaneen al llegar:</p>
-        <code className="text-xs text-primary break-all">{eventUrl}</code>
+      {/* QR Code & Link */}
+      <div className="glass-card rounded-lg p-5 space-y-4">
+        <p className="text-sm font-medium text-foreground">📱 QR y link del evento</p>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(eventUrl)}&bgcolor=1a1a2e&color=E8832A&format=png`}
+            alt="QR del evento"
+            className="w-48 h-48 rounded-lg border border-border"
+          />
+          <div className="flex-1 space-y-3 text-center sm:text-left">
+            <p className="text-xs text-muted-foreground">Escaneá o compartí este link:</p>
+            <code className="text-xs text-primary break-all block bg-secondary/30 p-2 rounded">{eventUrl}</code>
+            <Button variant="outline" size="sm" onClick={copyLink} className="w-full sm:w-auto">
+              <Copy className="w-4 h-4 mr-1" /> Copiar link
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Search */}
