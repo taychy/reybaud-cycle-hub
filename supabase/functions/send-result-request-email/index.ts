@@ -30,7 +30,7 @@ serve(async (req) => {
       );
     }
 
-    const appDomain = "https://reybaud-cycle-hub.lovable.app";
+    const appDomain = "https://reybaud-app.com";
     const resultsUrl = `${appDomain}/eventos/record-del-ahora/mi-resultados?token=${token}`;
 
     const emailHtml = `

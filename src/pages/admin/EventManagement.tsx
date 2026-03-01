@@ -34,7 +34,7 @@ const EventManagement = () => {
   }>({ score: "", time_result: "", position: "", staff_feedback: "" });
   const [saving, setSaving] = useState(false);
 
-  const eventUrl = `${window.location.origin}/eventos/record-del-ahora`;
+  const eventUrl = "https://reybaud-app.com/eventos/record-del-ahora";
 
   const fetchParticipants = async () => {
     const { data, error } = await supabase
