@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Users, Calendar, ClipboardList } from "lucide-react";
+import { LogOut, Users, Calendar, ClipboardList, Trophy } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -170,6 +170,15 @@ const CoachDashboard = () => {
           >
             <ClipboardList className="w-5 h-5 text-primary" />
             Ver plan del grupo
+          </Button>
+
+          <Button
+            variant="gold"
+            className="w-full h-14 justify-start gap-3 text-base"
+            onClick={() => navigate("/coach/eventos/record-del-ahora")}
+          >
+            <Trophy className="w-5 h-5" />
+            Record del Ahora
           </Button>
         </div>
       </main>
