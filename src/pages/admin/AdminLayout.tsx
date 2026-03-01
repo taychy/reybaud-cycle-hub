@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck } from "lucide-react";
+import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: "/admin/importar-plan", label: "Importar Plan", icon: FileSpreadsheet },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
+  { to: "/admin/eventos/record-del-ahora", label: "Evento", icon: Trophy },
 ];
 
 const AdminLayout = () => {

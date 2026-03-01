@@ -22,6 +22,9 @@ import CoachDashboard from "./pages/coach/CoachDashboard";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
 import NotFound from "./pages/NotFound";
+import RecordDelAhora from "./pages/events/RecordDelAhora";
+import EventResults from "./pages/events/EventResults";
+import EventManagement from "./pages/admin/EventManagement";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +46,8 @@ const App = () => (
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
+          <Route path="/eventos/record-del-ahora" element={<RecordDelAhora />} />
+          <Route path="/eventos/record-del-ahora/mi-resultados" element={<EventResults />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/alumnos" replace />} />
@@ -52,6 +57,7 @@ const App = () => (
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="admins" element={<ManageAdmins />} />
+            <Route path="eventos/record-del-ahora" element={<EventManagement />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
