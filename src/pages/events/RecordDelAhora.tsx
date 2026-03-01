@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
-import { MapPin, Clock, CalendarDays, Users } from "lucide-react";
+import { MapPin, Clock, CalendarDays, Users, AlertTriangle } from "lucide-react";
 
 const RecordDelAhora = () => {
   const navigate = useNavigate();
@@ -133,6 +133,14 @@ const RecordDelAhora = () => {
             <MapPin className="w-4 h-4 text-primary" /> KDT, Palermo
           </span>
         </div>
+      </div>
+
+      {/* Beta banner */}
+      <div className="w-full max-w-md bg-primary/10 border border-primary/30 rounded-lg px-4 py-3 flex items-start gap-3 mb-2">
+        <AlertTriangle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-primary">BETA</span> — Esta función está en fase de prueba. Puede presentar fallas o comportamientos inesperados.
+        </p>
       </div>
 
       {/* Choose mode */}

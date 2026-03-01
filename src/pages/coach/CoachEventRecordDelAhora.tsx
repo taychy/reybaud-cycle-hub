@@ -9,8 +9,19 @@ import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import {
   ArrowLeft, Users, Trophy, Mail, Search, Check, X, Ruler,
-  ChevronDown, ChevronUp, Send, CalendarDays, MapPin, Clock, Pencil, Download,
+  ChevronDown, ChevronUp, Send, CalendarDays, MapPin, Clock, Pencil, Download, Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Participant {
   id: string;
@@ -89,15 +100,29 @@ const CoachEventRecordDelAhora = () => {
     if (!error && data) setParticipants(data as unknown as Participant[]);
   };
 
-  const filtered = participants.filter((p) => {
-    const q = search.toLowerCase();
-    return (
-      p.first_name.toLowerCase().includes(q) ||
-      p.last_name.toLowerCase().includes(q) ||
-      p.email.toLowerCase().includes(q) ||
-      (p.team_name || "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = participants
+    .filter((p) => {
+      const q = search.toLowerCase();
+      return (
+        p.first_name.toLowerCase().includes(q) ||
+        p.last_name.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q) ||
+        (p.team_name || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => (b.time_value ?? 0) - (a.time_value ?? 0));
+
+  const deleteParticipant = async (id: string) => {
+    setActionLoading(id);
+    const { error } = await supabase.from("event_participants").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
+    } else {
+      toast({ title: "Eliminado", description: "Participante eliminado." });
+      await fetchParticipants();
+    }
+    setActionLoading(null);
+  };
 
   const canSendEmail = (p: Participant) => {
     if (!p.last_request_email_sent_at) return true;
@@ -368,10 +393,17 @@ const CoachEventRecordDelAhora = () => {
                             </p>
                           )}
                         </div>
+                      <div className="flex items-center gap-2">
+                        {p.time_value !== null && (
+                          <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">
+                            <Ruler className="w-3 h-3 inline mr-0.5" /> {p.time_value} km
+                          </span>
+                        )}
                         <Badge className={`${st.color} text-xs`}>{st.label}</Badge>
                       </div>
+                    </div>
 
-                      <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-2 flex-wrap">
                         {p.status === "checked_in" && (
                           <Button variant="outline" size="sm" onClick={() => sendResultRequestEmail(p)} disabled={actionLoading === p.id || !canSendEmail(p)}>
                             <Send className="w-3.5 h-3.5 mr-1" />
@@ -383,6 +415,27 @@ const CoachEventRecordDelAhora = () => {
                             {isExpanded ? <><ChevronUp className="w-3.5 h-3.5 mr-1" /> Cerrar</> : <><ChevronDown className="w-3.5 h-3.5 mr-1" /> Ver detalle</>}
                           </Button>
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Se eliminará a {p.first_name} {p.last_name} del evento. Esta acción no se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteParticipant(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
 
                       {isExpanded && (
