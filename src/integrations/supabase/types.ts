@@ -259,6 +259,63 @@ export type Database = {
           },
         ]
       }
+      event_participants: {
+        Row: {
+          checked_in_at: string
+          created_at: string
+          email: string
+          event_slug: string
+          first_name: string
+          id: string
+          last_name: string
+          position: number | null
+          public_access_token: string
+          results_updated_at: string | null
+          score: number | null
+          staff_feedback: string | null
+          team_name: string
+          time_result: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          checked_in_at?: string
+          created_at?: string
+          email: string
+          event_slug?: string
+          first_name: string
+          id?: string
+          last_name: string
+          position?: number | null
+          public_access_token?: string
+          results_updated_at?: string | null
+          score?: number | null
+          staff_feedback?: string | null
+          team_name: string
+          time_result?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checked_in_at?: string
+          created_at?: string
+          email?: string
+          event_slug?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          position?: number | null
+          public_access_token?: string
+          results_updated_at?: string | null
+          score?: number | null
+          staff_feedback?: string | null
+          team_name?: string
+          time_result?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       importaciones_usuarios: {
         Row: {
           archivo_original_url: string | null
