@@ -12,7 +12,7 @@ const navItems = [
   { to: "/admin/importar-plan", label: "Importar Plan", icon: FileSpreadsheet },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
-  { to: "/admin/eventos/record-del-ahora", label: "Evento", icon: Trophy },
+  { to: "/admin/eventos/record-de-la-hora", label: "Evento", icon: Trophy },
 ];
 
 const AdminLayout = () => {

@@ -58,7 +58,7 @@ const EventResults = () => {
       .from("event_participants")
       .select("*")
       .eq("public_access_token", token)
-      .eq("event_slug", "record-del-ahora")
+      .eq("event_slug", "record-de-la-hora")
       .maybeSingle();
 
     if (pErr || !p) {
@@ -79,7 +79,7 @@ const EventResults = () => {
     const { data: rankData } = await supabase
       .from("event_participants")
       .select("first_name, last_name, team_name, time_value")
-      .eq("event_slug", "record-del-ahora")
+      .eq("event_slug", "record-de-la-hora")
       .eq("status", "approved" as any)
       .not("time_value", "is", null);
 

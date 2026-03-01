@@ -31,7 +31,7 @@ serve(async (req) => {
     }
 
     const appDomain = "https://reybaud-app.com";
-    const resultsUrl = `${appDomain}/eventos/record-del-ahora/mi-resultados?token=${token}`;
+    const resultsUrl = `${appDomain}/eventos/record-de-la-hora/mi-resultados?token=${token}`;
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -47,7 +47,7 @@ serve(async (req) => {
                Record de la Hora
             </h1>
             <p style="font-size:13px;color:#888;margin:8px 0 0;">
-              Competencia interna – 29/02/2026 – KDT, Palermo
+              Competencia interna – 01/03/2026 – KDT, Palermo
             </p>
           </div>
 

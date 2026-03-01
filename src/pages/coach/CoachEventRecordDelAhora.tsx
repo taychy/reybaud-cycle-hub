@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import {
   ArrowLeft, Users, Trophy, Mail, Search, Check, X, Ruler,
-  ChevronDown, ChevronUp, Send, CalendarDays, MapPin, Clock, Pencil,
+  ChevronDown, ChevronUp, Send, CalendarDays, MapPin, Clock, Pencil, Download,
 } from "lucide-react";
 
 interface Participant {
@@ -63,7 +63,7 @@ const CoachEventRecordDelAhora = () => {
   const [sendingAll, setSendingAll] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
-  const eventUrl = "https://reybaud-app.com/eventos/record-del-ahora";
+  const eventUrl = "https://reybaud-app.com/eventos/record-de-la-hora";
 
   useEffect(() => {
     const checkCoach = async () => {
@@ -84,7 +84,7 @@ const CoachEventRecordDelAhora = () => {
     const { data, error } = await supabase
       .from("event_participants")
       .select("*")
-      .eq("event_slug", "record-del-ahora")
+      .eq("event_slug", "record-de-la-hora")
       .order("checked_in_at", { ascending: true });
     if (!error && data) setParticipants(data as unknown as Participant[]);
   };
@@ -274,6 +274,37 @@ const CoachEventRecordDelAhora = () => {
             <code className="text-xs text-primary break-all bg-secondary/30 p-2 rounded w-full text-center">{eventUrl}</code>
             <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(eventUrl); toast({ title: "Link copiado" }); }}>
               <Search className="w-3.5 h-3.5 mr-1" /> Copiar link
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(eventUrl)}&format=png`;
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => {
+                const w = 595, h = 842;
+                const canvas = document.createElement("canvas");
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext("2d")!;
+                ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = "#121212"; ctx.font = "bold 28px Arial"; ctx.textAlign = "center";
+                ctx.fillText("RECORD DE LA HORA", w / 2, 100);
+                ctx.fillStyle = "#666666"; ctx.font = "16px Arial";
+                ctx.fillText("01/03/2026 – 08:00 – KDT, Palermo", w / 2, 135);
+                const qrSize = 300;
+                ctx.drawImage(img, (w - qrSize) / 2, 180, qrSize, qrSize);
+                ctx.fillStyle = "#E8832A"; ctx.font = "bold 14px Arial";
+                ctx.fillText("Escaneá el QR para registrarte", w / 2, 510);
+                ctx.fillStyle = "#333333"; ctx.font = "12px Arial";
+                ctx.fillText(eventUrl, w / 2, 540);
+                ctx.fillStyle = "#999999"; ctx.font = "11px Arial";
+                ctx.fillText("Ciclismo Reybaud", w / 2, 580);
+                const link = document.createElement("a");
+                link.download = "QR-Record-de-la-Hora.png";
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+              };
+              img.src = qrUrl;
+            }}>
+              <Download className="w-3.5 h-3.5 mr-1" /> Descargar QR
             </Button>
           </div>
         </div>
