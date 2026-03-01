@@ -107,7 +107,7 @@ const EventManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">
-            Record del Ahora
+            Record de la Hora
           </h1>
           <p className="text-sm text-muted-foreground">
             29/02/2026 – 08:00 – KDT, Palermo • {participants.length} participantes

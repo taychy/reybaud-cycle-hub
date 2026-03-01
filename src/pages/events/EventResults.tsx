@@ -166,7 +166,7 @@ const EventResults = () => {
       <div className="flex flex-col items-center gap-3">
         <img src={logo} alt="Reybaud" className="w-12 h-12 rounded-full" />
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-          Record del Ahora
+          Record de la Hora
         </h1>
         <div className="flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5 text-primary" />29/02/2026</span>

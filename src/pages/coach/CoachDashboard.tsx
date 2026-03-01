@@ -178,7 +178,7 @@ const CoachDashboard = () => {
             onClick={() => navigate("/coach/eventos/record-del-ahora")}
           >
             <Trophy className="w-5 h-5" />
-            Record del Ahora
+            Record de la Hora
           </Button>
         </div>
       </main>
