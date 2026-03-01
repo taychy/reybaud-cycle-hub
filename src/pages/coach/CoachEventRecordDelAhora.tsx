@@ -55,7 +55,7 @@ const CoachEventRecordDelAhora = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
-  const eventUrl = `${window.location.origin}/eventos/record-del-ahora`;
+  const eventUrl = "https://reybaud-app.com/eventos/record-del-ahora";
 
   useEffect(() => {
     const checkCoach = async () => {
