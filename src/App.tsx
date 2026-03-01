@@ -19,6 +19,7 @@ import Install from "./pages/Install";
 import Asesoria from "./pages/Asesoria";
 import CoachRegister from "./pages/CoachRegister";
 import CoachDashboard from "./pages/coach/CoachDashboard";
+import CoachEventRecordDelAhora from "./pages/coach/CoachEventRecordDelAhora";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
+          <Route path="/coach/eventos/record-del-ahora" element={<CoachEventRecordDelAhora />} />
           <Route path="/eventos/record-del-ahora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-del-ahora/mi-resultados" element={<EventResults />} />
           <Route path="/admin/login" element={<AdminLogin />} />

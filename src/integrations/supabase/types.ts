@@ -261,56 +261,83 @@ export type Database = {
       }
       event_participants: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           checked_in_at: string
           created_at: string
           email: string
           event_slug: string
+          evidence_url: string | null
           first_name: string
           id: string
           last_name: string
+          last_request_email_sent_at: string | null
+          participant_comment: string | null
           position: number | null
           public_access_token: string
+          rejection_reason: string | null
+          request_email_count: number
           results_updated_at: string | null
           score: number | null
           staff_feedback: string | null
+          status: string
           team_name: string
           time_result: string | null
+          time_value: number | null
           token_expires_at: string | null
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           checked_in_at?: string
           created_at?: string
           email: string
           event_slug?: string
+          evidence_url?: string | null
           first_name: string
           id?: string
           last_name: string
+          last_request_email_sent_at?: string | null
+          participant_comment?: string | null
           position?: number | null
           public_access_token?: string
+          rejection_reason?: string | null
+          request_email_count?: number
           results_updated_at?: string | null
           score?: number | null
           staff_feedback?: string | null
+          status?: string
           team_name: string
           time_result?: string | null
+          time_value?: number | null
           token_expires_at?: string | null
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           checked_in_at?: string
           created_at?: string
           email?: string
           event_slug?: string
+          evidence_url?: string | null
           first_name?: string
           id?: string
           last_name?: string
+          last_request_email_sent_at?: string | null
+          participant_comment?: string | null
           position?: number | null
           public_access_token?: string
+          rejection_reason?: string | null
+          request_email_count?: number
           results_updated_at?: string | null
           score?: number | null
           staff_feedback?: string | null
+          status?: string
           team_name?: string
           time_result?: string | null
+          time_value?: number | null
           token_expires_at?: string | null
           updated_at?: string
         }
