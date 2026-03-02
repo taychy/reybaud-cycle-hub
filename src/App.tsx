@@ -28,6 +28,8 @@ import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
+import CompleteRegistration from "./pages/CompleteRegistration";
+import PendingApproval from "./pages/PendingApproval";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/registro" element={<Register />} />
+          <Route path="/completar-registro" element={<CompleteRegistration />} />
+          <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />

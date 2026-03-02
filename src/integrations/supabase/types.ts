@@ -64,7 +64,13 @@ export type Database = {
       }
       alumnos: {
         Row: {
+          ciudad: string | null
+          como_se_entero: string | null
+          condicion_medica: string | null
+          contacto_emergencia_nombre: string | null
+          contacto_emergencia_telefono: string | null
           created_at: string
+          direccion: string | null
           documento: string | null
           email: string
           estado: string
@@ -77,12 +83,21 @@ export type Database = {
           nombre: string
           notas: string | null
           password_set: boolean
+          profile_complete: boolean
+          provincia: string | null
+          registration_status: string
           telefono: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          ciudad?: string | null
+          como_se_entero?: string | null
+          condicion_medica?: string | null
+          contacto_emergencia_nombre?: string | null
+          contacto_emergencia_telefono?: string | null
           created_at?: string
+          direccion?: string | null
           documento?: string | null
           email: string
           estado?: string
@@ -95,12 +110,21 @@ export type Database = {
           nombre: string
           notas?: string | null
           password_set?: boolean
+          profile_complete?: boolean
+          provincia?: string | null
+          registration_status?: string
           telefono?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          ciudad?: string | null
+          como_se_entero?: string | null
+          condicion_medica?: string | null
+          contacto_emergencia_nombre?: string | null
+          contacto_emergencia_telefono?: string | null
           created_at?: string
+          direccion?: string | null
           documento?: string | null
           email?: string
           estado?: string
@@ -113,6 +137,9 @@ export type Database = {
           nombre?: string
           notas?: string | null
           password_set?: boolean
+          profile_complete?: boolean
+          provincia?: string | null
+          registration_status?: string
           telefono?: string | null
           updated_at?: string
           user_id?: string | null
