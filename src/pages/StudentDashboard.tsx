@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User, Trophy } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import { useToast } from "@/hooks/use-toast";
@@ -280,7 +280,7 @@ const StudentDashboard = () => {
       <nav className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md">
         <div className="max-w-md mx-auto flex items-center justify-around py-2">
           <NavItem icon={<Home className="w-5 h-5" />} label="Hoy" active />
-          <NavItem icon={<Calendar className="w-5 h-5" />} label="Calendario" />
+          <NavItem icon={<Trophy className="w-5 h-5" />} label="Eventos" onClick={() => navigate("/eventos")} />
           <NavItem icon={<BarChart3 className="w-5 h-5" />} label="Progreso" />
           <NavItem icon={<User className="w-5 h-5" />} label="Perfil" />
         </div>
@@ -310,8 +310,8 @@ const MetricBar = ({ label, value }: { label: string; value: number }) => {
   );
 };
 
-const NavItem = ({ icon, label, active }: { icon: React.ReactNode; label: string; active?: boolean }) => (
-  <button className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
+const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
     {icon}
     <span className="text-[10px] font-heading font-medium">{label}</span>
   </button>

@@ -26,6 +26,8 @@ import NotFound from "./pages/NotFound";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
+import Eventos from "./pages/Eventos";
+import EventDetail from "./pages/EventDetail";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +50,8 @@ const App = () => (
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
           <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
+          <Route path="/eventos" element={<Eventos />} />
+          <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/admin/login" element={<AdminLogin />} />

@@ -343,6 +343,48 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          end_time: string | null
+          id: string
+          is_active: boolean
+          start_time: string | null
+          title: string
+          type: Database["public"]["Enums"]["event_type"]
+          updated_at: string
+          visible_to_students: boolean
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          is_active?: boolean
+          start_time?: string | null
+          title: string
+          type?: Database["public"]["Enums"]["event_type"]
+          updated_at?: string
+          visible_to_students?: boolean
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          is_active?: boolean
+          start_time?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["event_type"]
+          updated_at?: string
+          visible_to_students?: boolean
+        }
+        Relationships: []
+      }
       importaciones_usuarios: {
         Row: {
           archivo_original_url: string | null
@@ -569,6 +611,7 @@ export type Database = {
       admin_role: "super_admin" | "admin" | "support"
       app_role: "admin" | "alumno" | "coach"
       estado_plan: "borrador" | "publicado"
+      event_type: "record_hora" | "camp" | "carrera" | "otro"
       grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
     }
@@ -701,6 +744,7 @@ export const Constants = {
       admin_role: ["super_admin", "admin", "support"],
       app_role: ["admin", "alumno", "coach"],
       estado_plan: ["borrador", "publicado"],
+      event_type: ["record_hora", "camp", "carrera", "otro"],
       grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
     },
