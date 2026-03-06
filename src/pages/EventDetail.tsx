@@ -53,8 +53,18 @@ const EventDetail = () => {
   const [editForm, setEditForm] = useState({ title: "", description: "", date: "", start_time: "" });
   const [saving, setSaving] = useState(false);
 
+  // Student result state
+  const [alumno, setAlumno] = useState<Alumno | null>(null);
+  const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; notes: string | null } | null>(null);
+  const [showResultForm, setShowResultForm] = useState(false);
+  const [resultDistance, setResultDistance] = useState("");
+  const [resultNotes, setResultNotes] = useState("");
+  const [submittingResult, setSubmittingResult] = useState(false);
+
   useEffect(() => {
     if (!id) return;
+
+    // Load event
     supabase
       .from("events")
       .select("*")
@@ -82,7 +92,61 @@ const EventDetail = () => {
         });
       }
     });
+
+    // Check if student is logged in and load existing result
+    const stored = localStorage.getItem("alumno");
+    if (stored) {
+      const alumnoData = JSON.parse(stored) as Alumno;
+      setAlumno(alumnoData);
+      loadResult(id, alumnoData.id);
+    }
   }, [id]);
+
+  const loadResult = async (eventId: string, alumnoId: string) => {
+    const { data } = await supabase
+      .from("event_results")
+      .select("id, distance_km, notes")
+      .eq("event_id", eventId)
+      .eq("alumno_id", alumnoId)
+      .maybeSingle();
+    if (data) {
+      setExistingResult(data as any);
+      setResultDistance(data.distance_km?.toString() || "");
+      setResultNotes((data as any).notes || "");
+    }
+  };
+
+  const handleSubmitResult = async () => {
+    if (!id || !alumno) return;
+    setSubmittingResult(true);
+
+    const payload = {
+      distance_km: resultDistance ? parseFloat(resultDistance) : null,
+      notes: resultNotes.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let error;
+    if (existingResult) {
+      ({ error } = await supabase
+        .from("event_results")
+        .update(payload as any)
+        .eq("id", existingResult.id));
+    } else {
+      ({ error } = await supabase
+        .from("event_results")
+        .insert({ ...payload, event_id: id, alumno_id: alumno.id } as any));
+    }
+
+    setSubmittingResult(false);
+    if (error) {
+      toast({ title: "Error", description: "No se pudo guardar el resultado.", variant: "destructive" });
+    } else {
+      toast({ title: "Resultado cargado correctamente." });
+      setShowResultForm(false);
+      await loadResult(id, alumno.id);
+    }
+  };
 
   const handleSave = async () => {
     if (!id) return;
@@ -231,6 +295,93 @@ const EventDetail = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Student result section - below event card */}
+          {alumno && !editing && (
+            <>
+              {existingResult && !showResultForm ? (
+                <div className="glass-card rounded-xl p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Ruler className="w-5 h-5 text-primary" />
+                    <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
+                  </div>
+                  {existingResult.distance_km !== null && (
+                    <p className="text-lg font-semibold text-primary">
+                      {existingResult.distance_km.toFixed(1)} km
+                    </p>
+                  )}
+                  {existingResult.notes && (
+                    <p className="text-sm text-muted-foreground">{existingResult.notes}</p>
+                  )}
+                  <Button
+                    variant="gold-outline"
+                    className="w-full"
+                    onClick={() => setShowResultForm(true)}
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Editar resultado
+                  </Button>
+                </div>
+              ) : showResultForm ? (
+                <div className="glass-card rounded-xl p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Send className="w-5 h-5 text-primary" />
+                    <h2 className="font-heading text-base font-semibold uppercase tracking-wide">
+                      {existingResult ? "Editar resultado" : "Cargar resultado"}
+                    </h2>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Distancia (km) — opcional</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="Ej: 32.5"
+                      value={resultDistance}
+                      onChange={(e) => setResultDistance(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Observaciones — opcional</Label>
+                    <Textarea
+                      placeholder="Alguna observación sobre tu resultado..."
+                      value={resultNotes}
+                      onChange={(e) => setResultNotes(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="gold"
+                      className="flex-1"
+                      onClick={handleSubmitResult}
+                      disabled={submittingResult}
+                    >
+                      {submittingResult ? "Enviando..." : "Enviar resultado"}
+                    </Button>
+                    <Button variant="outline" onClick={() => {
+                      setShowResultForm(false);
+                      if (existingResult) {
+                        setResultDistance(existingResult.distance_km?.toString() || "");
+                        setResultNotes(existingResult.notes || "");
+                      }
+                    }}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="gold"
+                  className="w-full h-12"
+                  onClick={() => setShowResultForm(true)}
+                >
+                  <Ruler className="w-4 h-4 mr-2" />
+                  Cargar mi resultado
+                </Button>
+              )}
+            </>
           )}
         </div>
       </main>
