@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CalendarDays, Clock, Pencil, Trash2, Ruler, Send } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Pencil, Trash2, Ruler, Send, Gauge } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import logo from "@/assets/logo.png";
+import EventRankings from "@/components/EventRankings";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -55,9 +56,10 @@ const EventDetail = () => {
 
   // Student result state
   const [alumno, setAlumno] = useState<Alumno | null>(null);
-  const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; notes: string | null } | null>(null);
+  const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; avg_speed_kmh: number | null; notes: string | null } | null>(null);
   const [showResultForm, setShowResultForm] = useState(false);
   const [resultDistance, setResultDistance] = useState("");
+  const [resultSpeed, setResultSpeed] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
 
@@ -105,13 +107,14 @@ const EventDetail = () => {
   const loadResult = async (eventId: string, alumnoId: string) => {
     const { data } = await supabase
       .from("event_results")
-      .select("id, distance_km, notes")
+      .select("id, distance_km, avg_speed_kmh, notes")
       .eq("event_id", eventId)
       .eq("alumno_id", alumnoId)
       .maybeSingle();
     if (data) {
       setExistingResult(data as any);
       setResultDistance(data.distance_km?.toString() || "");
+      setResultSpeed((data as any).avg_speed_kmh?.toString() || "");
       setResultNotes((data as any).notes || "");
     }
   };
@@ -122,6 +125,7 @@ const EventDetail = () => {
 
     const payload = {
       distance_km: resultDistance ? parseFloat(resultDistance) : null,
+      avg_speed_kmh: resultSpeed ? parseFloat(resultSpeed) : null,
       notes: resultNotes.trim() || null,
       updated_at: new Date().toISOString(),
     };
@@ -306,13 +310,15 @@ const EventDetail = () => {
                     <Ruler className="w-5 h-5 text-primary" />
                     <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
                   </div>
-                  {existingResult.distance_km !== null && (
+                  {existingResult.avg_speed_kmh !== null && (
                     <p className="text-lg font-semibold text-primary">
-                      {existingResult.distance_km.toFixed(1)} km
+                      {existingResult.avg_speed_kmh.toFixed(1)} km/h
                     </p>
                   )}
-                  {existingResult.notes && (
-                    <p className="text-sm text-muted-foreground">{existingResult.notes}</p>
+                  {existingResult.distance_km !== null && (
+                    <p className="text-sm text-muted-foreground">
+                      Distancia: {existingResult.distance_km.toFixed(1)} km
+                    </p>
                   )}
                   <Button
                     variant="gold-outline"
@@ -330,6 +336,17 @@ const EventDetail = () => {
                     <h2 className="font-heading text-base font-semibold uppercase tracking-wide">
                       {existingResult ? "Editar resultado" : "Cargar resultado"}
                     </h2>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Velocidad promedio (km/h) — opcional</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="Ej: 38.5"
+                      value={resultSpeed}
+                      onChange={(e) => setResultSpeed(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground mb-2 block">Distancia (km) — opcional</Label>
@@ -364,6 +381,7 @@ const EventDetail = () => {
                       setShowResultForm(false);
                       if (existingResult) {
                         setResultDistance(existingResult.distance_km?.toString() || "");
+                        setResultSpeed(existingResult.avg_speed_kmh?.toString() || "");
                         setResultNotes(existingResult.notes || "");
                       }
                     }}>
@@ -382,6 +400,10 @@ const EventDetail = () => {
                 </Button>
               )}
             </>
+          )}
+          {/* Rankings section */}
+          {!editing && id && (
+            <EventRankings eventId={id} />
           )}
         </div>
       </main>
