@@ -107,13 +107,14 @@ const EventDetail = () => {
   const loadResult = async (eventId: string, alumnoId: string) => {
     const { data } = await supabase
       .from("event_results")
-      .select("id, distance_km, notes")
+      .select("id, distance_km, avg_speed_kmh, notes")
       .eq("event_id", eventId)
       .eq("alumno_id", alumnoId)
       .maybeSingle();
     if (data) {
       setExistingResult(data as any);
       setResultDistance(data.distance_km?.toString() || "");
+      setResultSpeed((data as any).avg_speed_kmh?.toString() || "");
       setResultNotes((data as any).notes || "");
     }
   };
