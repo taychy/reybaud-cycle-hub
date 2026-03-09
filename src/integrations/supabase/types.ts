@@ -373,6 +373,7 @@ export type Database = {
       event_results: {
         Row: {
           alumno_id: string
+          avg_speed_kmh: number | null
           created_at: string
           distance_km: number | null
           event_id: string
@@ -382,6 +383,7 @@ export type Database = {
         }
         Insert: {
           alumno_id: string
+          avg_speed_kmh?: number | null
           created_at?: string
           distance_km?: number | null
           event_id: string
@@ -391,6 +393,7 @@ export type Database = {
         }
         Update: {
           alumno_id?: string
+          avg_speed_kmh?: number | null
           created_at?: string
           distance_km?: number | null
           event_id?: string

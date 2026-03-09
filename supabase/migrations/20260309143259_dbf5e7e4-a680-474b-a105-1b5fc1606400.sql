@@ -1,0 +1,1 @@
+ALTER TABLE public.event_results ADD COLUMN IF NOT EXISTS avg_speed_kmh numeric NULL;
