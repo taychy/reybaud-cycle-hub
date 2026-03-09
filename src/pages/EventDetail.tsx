@@ -56,9 +56,10 @@ const EventDetail = () => {
 
   // Student result state
   const [alumno, setAlumno] = useState<Alumno | null>(null);
-  const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; notes: string | null } | null>(null);
+  const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; avg_speed_kmh: number | null; notes: string | null } | null>(null);
   const [showResultForm, setShowResultForm] = useState(false);
   const [resultDistance, setResultDistance] = useState("");
+  const [resultSpeed, setResultSpeed] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
 
