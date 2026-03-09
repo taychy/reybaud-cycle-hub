@@ -124,6 +124,18 @@ const EventDetail = () => {
     }
   };
 
+  const loadParticipantResult = async (email: string) => {
+    const { data } = await supabase
+      .from("event_participants")
+      .select("id, time_value, participant_comment")
+      .eq("event_slug", "record-de-la-hora")
+      .eq("email", email)
+      .maybeSingle();
+    if (data) {
+      setParticipantResult(data as any);
+    }
+  };
+
   const handleSubmitResult = async () => {
     if (!id || !alumno) return;
     setSubmittingResult(true);
