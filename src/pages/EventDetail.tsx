@@ -321,7 +321,28 @@ const EventDetail = () => {
           {/* Student result section - below event card */}
           {alumno && !editing && (
             <>
-              {existingResult && !showResultForm ? (
+              {/* For record_hora: show participant result from event_participants */}
+              {event.type === "record_hora" && participantResult ? (
+                <div className="glass-card rounded-xl p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-5 h-5 text-primary" />
+                    <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
+                  </div>
+                  {participantResult.time_value !== null && (
+                    <p className="text-lg font-semibold text-primary">
+                      {participantResult.time_value.toFixed(1)} km
+                    </p>
+                  )}
+                  {participantResult.participant_comment && (
+                    <p className="text-sm text-muted-foreground">
+                      {participantResult.participant_comment}
+                    </p>
+                  )}
+                </div>
+              ) : event.type === "record_hora" && !participantResult ? (
+                /* record_hora but no participant entry yet - show nothing or a message */
+                null
+              ) : existingResult && !showResultForm ? (
                 <div className="glass-card rounded-xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Ruler className="w-5 h-5 text-primary" />
