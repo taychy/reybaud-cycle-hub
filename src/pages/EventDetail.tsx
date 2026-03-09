@@ -104,6 +104,8 @@ const EventDetail = () => {
       const alumnoData = JSON.parse(stored) as Alumno;
       setAlumno(alumnoData);
       loadResult(id, alumnoData.id);
+      // Also check event_participants by email for record_hora
+      loadParticipantResult(alumnoData.email);
     }
   }, [id]);
 
