@@ -125,6 +125,7 @@ const EventDetail = () => {
 
     const payload = {
       distance_km: resultDistance ? parseFloat(resultDistance) : null,
+      avg_speed_kmh: resultSpeed ? parseFloat(resultSpeed) : null,
       notes: resultNotes.trim() || null,
       updated_at: new Date().toISOString(),
     };
