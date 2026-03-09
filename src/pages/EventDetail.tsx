@@ -63,6 +63,9 @@ const EventDetail = () => {
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
 
+  // For record_hora: check event_participants by email
+  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null } | null>(null);
+
   useEffect(() => {
     if (!id) return;
 
