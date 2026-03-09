@@ -381,6 +381,7 @@ const EventDetail = () => {
                       setShowResultForm(false);
                       if (existingResult) {
                         setResultDistance(existingResult.distance_km?.toString() || "");
+                        setResultSpeed(existingResult.avg_speed_kmh?.toString() || "");
                         setResultNotes(existingResult.notes || "");
                       }
                     }}>
