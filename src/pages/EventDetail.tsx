@@ -310,13 +310,15 @@ const EventDetail = () => {
                     <Ruler className="w-5 h-5 text-primary" />
                     <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
                   </div>
-                  {existingResult.distance_km !== null && (
+                  {existingResult.avg_speed_kmh !== null && (
                     <p className="text-lg font-semibold text-primary">
-                      {existingResult.distance_km.toFixed(1)} km
+                      {existingResult.avg_speed_kmh.toFixed(1)} km/h
                     </p>
                   )}
-                  {existingResult.notes && (
-                    <p className="text-sm text-muted-foreground">{existingResult.notes}</p>
+                  {existingResult.distance_km !== null && (
+                    <p className="text-sm text-muted-foreground">
+                      Distancia: {existingResult.distance_km.toFixed(1)} km
+                    </p>
                   )}
                   <Button
                     variant="gold-outline"
