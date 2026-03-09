@@ -338,6 +338,17 @@ const EventDetail = () => {
                     </h2>
                   </div>
                   <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Velocidad promedio (km/h) — opcional</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="Ej: 38.5"
+                      value={resultSpeed}
+                      onChange={(e) => setResultSpeed(e.target.value)}
+                    />
+                  </div>
+                  <div>
                     <Label className="text-xs text-muted-foreground mb-2 block">Distancia (km) — opcional</Label>
                     <Input
                       type="number"
