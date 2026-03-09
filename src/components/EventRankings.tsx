@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Users } from "lucide-react";
 
 interface RankingEntry {
-  alumno_id: string;
+  id: string;
   avg_speed_kmh: number;
   nombre: string;
   grupo: string;
@@ -16,14 +16,48 @@ interface TeamRanking {
   count: number;
 }
 
-export default function EventRankings({ eventId }: { eventId: string }) {
+interface Props {
+  eventId: string;
+  eventType?: string;
+}
+
+export default function EventRankings({ eventId, eventType }: Props) {
   const [entries, setEntries] = useState<RankingEntry[]>([]);
   const [teams, setTeams] = useState<TeamRanking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadRankings();
-  }, [eventId]);
+    if (eventType === "record_hora") {
+      loadParticipantRankings();
+    } else {
+      loadRankings();
+    }
+  }, [eventId, eventType]);
+
+  const loadParticipantRankings = async () => {
+    const { data } = await supabase
+      .from("event_participants")
+      .select("id, first_name, last_name, team_name, time_value")
+      .eq("event_slug", "record-de-la-hora")
+      .not("time_value", "is", null)
+      .order("time_value", { ascending: false });
+
+    if (!data || data.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const mapped: RankingEntry[] = data.map((r: any) => ({
+      id: r.id,
+      avg_speed_kmh: r.time_value,
+      nombre: `${r.first_name} ${r.last_name}`,
+      grupo: r.team_name || "Sin equipo",
+    }));
+
+    setEntries(mapped);
+    computeTeams(mapped);
+    setLoading(false);
+  };
 
   const loadRankings = async () => {
     const { data } = await supabase
@@ -39,15 +73,18 @@ export default function EventRankings({ eventId }: { eventId: string }) {
     }
 
     const mapped: RankingEntry[] = data.map((r: any) => ({
-      alumno_id: r.alumno_id,
+      id: r.alumno_id,
       avg_speed_kmh: r.avg_speed_kmh,
       nombre: r.alumnos?.nombre || "Desconocido",
       grupo: r.alumnos?.grupo || "Sin equipo",
     }));
 
     setEntries(mapped);
+    computeTeams(mapped);
+    setLoading(false);
+  };
 
-    // Team ranking
+  const computeTeams = (mapped: RankingEntry[]) => {
     const groupMap: Record<string, { total: number; count: number }> = {};
     mapped.forEach((e) => {
       if (!groupMap[e.grupo]) groupMap[e.grupo] = { total: 0, count: 0 };
@@ -64,7 +101,6 @@ export default function EventRankings({ eventId }: { eventId: string }) {
       .sort((a, b) => b.avgSpeed - a.avgSpeed);
 
     setTeams(teamArr);
-    setLoading(false);
   };
 
   if (loading) {
@@ -83,6 +119,8 @@ export default function EventRankings({ eventId }: { eventId: string }) {
     );
   }
 
+  const unit = eventType === "record_hora" ? "km" : "km/h";
+
   return (
     <div className="glass-card rounded-xl p-5 space-y-4">
       <div className="flex items-center gap-2">
@@ -99,7 +137,7 @@ export default function EventRankings({ eventId }: { eventId: string }) {
         <TabsContent value="cyclists" className="space-y-2 mt-3">
           {entries.map((e, i) => (
             <div
-              key={e.alumno_id}
+              key={e.id}
               className="flex items-center gap-3 rounded-lg bg-muted/30 px-3 py-2.5"
             >
               <span className={`text-sm font-bold min-w-[24px] text-center ${i < 3 ? "text-primary" : "text-muted-foreground"}`}>
@@ -110,7 +148,7 @@ export default function EventRankings({ eventId }: { eventId: string }) {
                 <p className="text-xs text-muted-foreground">{e.grupo}</p>
               </div>
               <span className="text-sm font-semibold text-primary whitespace-nowrap">
-                {e.avg_speed_kmh.toFixed(1)} km/h
+                {e.avg_speed_kmh.toFixed(1)} {unit}
               </span>
             </div>
           ))}
@@ -133,7 +171,7 @@ export default function EventRankings({ eventId }: { eventId: string }) {
                 </p>
               </div>
               <span className="text-sm font-semibold text-primary whitespace-nowrap">
-                {t.avgSpeed.toFixed(1)} km/h
+                {t.avgSpeed.toFixed(1)} {unit}
               </span>
             </div>
           ))}

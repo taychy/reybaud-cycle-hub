@@ -63,6 +63,9 @@ const EventDetail = () => {
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
 
+  // For record_hora: check event_participants by email
+  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null } | null>(null);
+
   useEffect(() => {
     if (!id) return;
 
@@ -101,6 +104,8 @@ const EventDetail = () => {
       const alumnoData = JSON.parse(stored) as Alumno;
       setAlumno(alumnoData);
       loadResult(id, alumnoData.id);
+      // Also check event_participants by email for record_hora
+      loadParticipantResult(alumnoData.email);
     }
   }, [id]);
 
@@ -116,6 +121,18 @@ const EventDetail = () => {
       setResultDistance(data.distance_km?.toString() || "");
       setResultSpeed((data as any).avg_speed_kmh?.toString() || "");
       setResultNotes((data as any).notes || "");
+    }
+  };
+
+  const loadParticipantResult = async (email: string) => {
+    const { data } = await supabase
+      .from("event_participants")
+      .select("id, time_value, participant_comment")
+      .eq("event_slug", "record-de-la-hora")
+      .eq("email", email)
+      .maybeSingle();
+    if (data) {
+      setParticipantResult(data as any);
     }
   };
 
@@ -304,7 +321,28 @@ const EventDetail = () => {
           {/* Student result section - below event card */}
           {alumno && !editing && (
             <>
-              {existingResult && !showResultForm ? (
+              {/* For record_hora: show participant result from event_participants */}
+              {event.type === "record_hora" && participantResult ? (
+                <div className="glass-card rounded-xl p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-5 h-5 text-primary" />
+                    <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
+                  </div>
+                  {participantResult.time_value !== null && (
+                    <p className="text-lg font-semibold text-primary">
+                      {participantResult.time_value.toFixed(1)} km
+                    </p>
+                  )}
+                  {participantResult.participant_comment && (
+                    <p className="text-sm text-muted-foreground">
+                      {participantResult.participant_comment}
+                    </p>
+                  )}
+                </div>
+              ) : event.type === "record_hora" && !participantResult ? (
+                /* record_hora but no participant entry yet - show nothing or a message */
+                null
+              ) : existingResult && !showResultForm ? (
                 <div className="glass-card rounded-xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Ruler className="w-5 h-5 text-primary" />
@@ -403,7 +441,7 @@ const EventDetail = () => {
           )}
           {/* Rankings section */}
           {!editing && id && (
-            <EventRankings eventId={id} />
+            <EventRankings eventId={id} eventType={event.type} />
           )}
         </div>
       </main>
