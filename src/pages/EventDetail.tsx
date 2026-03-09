@@ -401,6 +401,10 @@ const EventDetail = () => {
               )}
             </>
           )}
+          {/* Rankings section */}
+          {!editing && id && (
+            <EventRankings eventId={id} />
+          )}
         </div>
       </main>
     </div>
