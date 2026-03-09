@@ -441,7 +441,7 @@ const EventDetail = () => {
           )}
           {/* Rankings section */}
           {!editing && id && (
-            <EventRankings eventId={id} />
+            <EventRankings eventId={id} eventType={event.type} />
           )}
         </div>
       </main>
