@@ -419,9 +419,25 @@ const ManageStudents = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Grupo</span>
-                  <Badge variant={detailAlumno.grupo === "Sin grupo" ? "destructive" : "secondary"} className="font-mono text-xs">
-                    {detailAlumno.grupo}
-                  </Badge>
+                  <Select
+                    value={editGrupo || detailAlumno.grupo}
+                    onValueChange={async (val) => {
+                      setEditGrupo(val);
+                      await supabase.from("alumnos").update({ grupo: val as any }).eq("id", detailAlumno.id);
+                      toast.success("Grupo actualizado");
+                      setDetailAlumno({ ...detailAlumno, grupo: val as any });
+                      fetchAlumnos();
+                    }}
+                  >
+                    <SelectTrigger className="w-36 h-8 bg-secondary border-border text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {GRUPOS.map((g) => (
+                        <SelectItem key={g} value={g}>{g}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Estado</span>
@@ -431,13 +447,6 @@ const ManageStudents = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
-                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
-                  setEditingId(detailAlumno.id);
-                  setEditGrupo(detailAlumno.grupo);
-                  setDetailAlumno(null);
-                }}>
-                  <Edit2 className="w-3 h-3 mr-2" /> Cambiar grupo
-                </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
                   openManualSub(detailAlumno);
                   setDetailAlumno(null);
