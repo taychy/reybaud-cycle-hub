@@ -8,9 +8,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
 const PASSWORD_RULES = [
-  { id: "length", label: "Mínimo 8 caracteres", test: (p: string) => p.length >= 8 },
-  { id: "uppercase", label: "Al menos una mayúscula", test: (p: string) => /[A-Z]/.test(p) },
-  { id: "number", label: "Al menos un número", test: (p: string) => /\d/.test(p) },
+  { id: "length", label: "Entre 4 y 20 caracteres", test: (p: string) => p.length >= 4 && p.length <= 20 },
 ];
 
 type PageState = "loading" | "form" | "success" | "error";
