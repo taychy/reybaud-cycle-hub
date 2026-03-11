@@ -42,7 +42,32 @@ const AdminLogin = () => {
     });
   }, [navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const trimmedEmail = email.toLowerCase().trim();
+    if (!trimmedEmail) {
+      setError("Ingresá tu email.");
+      setLoading(false);
+      return;
+    }
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo: `${window.location.origin}/activar-cuenta`,
+    });
+
+    if (resetError) {
+      setError(resetError.message || "Error al enviar el email.");
+      setLoading(false);
+      return;
+    }
+
+    setResetSent(true);
+    setLoading(false);
+    toast.success("Email enviado. Revisá tu bandeja de entrada.");
+  };
     e.preventDefault();
     setError(null);
     setLoading(true);
