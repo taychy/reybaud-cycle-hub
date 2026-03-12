@@ -122,9 +122,10 @@ const Install = () => {
         </div>
       )}
 
-      <a href="/" className="mt-8 text-sm text-accent hover:underline">
+      <Button variant="outline" onClick={() => navigate("/")} className="mt-8">
+        <ArrowLeft className="w-4 h-4 mr-2" />
         Volver al inicio
-      </a>
+      </Button>
     </div>
   );
 };
