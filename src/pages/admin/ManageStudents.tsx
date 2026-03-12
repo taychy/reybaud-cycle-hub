@@ -103,6 +103,13 @@ const ManageStudents = () => {
     await supabase.from("alumnos").update({ estado: newEstado }).eq("id", alumno.id);
     toast.success(`${alumno.nombre} ahora está ${newEstado}`);
     fetchAlumnos();
+
+    // Send email notification when enabling
+    if (newEstado === "activo") {
+      supabase.functions.invoke("notify-student-update", {
+        body: { alumno_id: alumno.id, type: "habilitado" },
+      }).catch(() => {});
+    }
   };
 
   const saveGrupo = async (id: string) => {
@@ -110,6 +117,13 @@ const ManageStudents = () => {
     setEditingId(null);
     toast.success("Grupo actualizado");
     fetchAlumnos();
+
+    // Send email notification for group assignment
+    if (editGrupo && editGrupo !== "Sin grupo") {
+      supabase.functions.invoke("notify-student-update", {
+        body: { alumno_id: id, type: "grupo_asignado", grupo: editGrupo },
+      }).catch(() => {});
+    }
   };
 
   const handleManualSub = async () => {
@@ -428,6 +442,13 @@ const ManageStudents = () => {
                       toast.success("Grupo actualizado");
                       setDetailAlumno({ ...detailAlumno, grupo: val as any });
                       fetchAlumnos();
+
+                      // Send email notification for group assignment
+                      if (val !== "Sin grupo") {
+                        supabase.functions.invoke("notify-student-update", {
+                          body: { alumno_id: detailAlumno.id, type: "grupo_asignado", grupo: val },
+                        }).catch(() => {});
+                      }
                     }}
                   >
                     <SelectTrigger className="w-36 h-8 bg-secondary border-border text-xs">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Download, Share, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Download, Share, CheckCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
@@ -9,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const Install = () => {
+  const navigate = useNavigate();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
     (window as any).__pwaInstallPrompt ?? null
   );
@@ -120,9 +122,10 @@ const Install = () => {
         </div>
       )}
 
-      <a href="/" className="mt-8 text-sm text-accent hover:underline">
+      <Button variant="outline" onClick={() => navigate("/")} className="mt-8">
+        <ArrowLeft className="w-4 h-4 mr-2" />
         Volver al inicio
-      </a>
+      </Button>
     </div>
   );
 };

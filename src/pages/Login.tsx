@@ -17,17 +17,12 @@ const Login = () => {
   useEffect(() => {
     const checkExistingSession = async () => {
       // 1. Check Supabase Auth session (admin/coach)
+      // NOTE: Do NOT auto-redirect admins from here.
+      // A user can have both admin and alumno roles.
+      // They choose their role by which login they use.
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: isAdmin } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "admin",
-        });
-        if (isAdmin) {
-          navigate("/admin", { replace: true });
-          return;
-        }
-
+        // Only auto-redirect coaches (they don't use email-only login)
         const { data: isCoach } = await supabase.rpc("has_role", {
           _user_id: session.user.id,
           _role: "coach" as any,
