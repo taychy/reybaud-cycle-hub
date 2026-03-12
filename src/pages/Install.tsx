@@ -10,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const Install = () => {
+  const navigate = useNavigate();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
     (window as any).__pwaInstallPrompt ?? null
   );
