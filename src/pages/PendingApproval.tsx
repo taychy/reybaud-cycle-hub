@@ -1,7 +1,11 @@
-import { Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Clock, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
 const PendingApproval = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md text-center space-y-6 animate-fade-in">
@@ -20,6 +24,10 @@ const PendingApproval = () => {
             Si tenés dudas, escribinos por WhatsApp o Instagram.
           </p>
         </div>
+        <Button variant="outline" onClick={() => navigate("/")} className="w-full">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver al inicio
+        </Button>
       </div>
     </div>
   );

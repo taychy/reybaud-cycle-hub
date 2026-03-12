@@ -442,6 +442,13 @@ const ManageStudents = () => {
                       toast.success("Grupo actualizado");
                       setDetailAlumno({ ...detailAlumno, grupo: val as any });
                       fetchAlumnos();
+
+                      // Send email notification for group assignment
+                      if (val !== "Sin grupo") {
+                        supabase.functions.invoke("notify-student-update", {
+                          body: { alumno_id: detailAlumno.id, type: "grupo_asignado", grupo: val },
+                        }).catch(() => {});
+                      }
                     }}
                   >
                     <SelectTrigger className="w-36 h-8 bg-secondary border-border text-xs">

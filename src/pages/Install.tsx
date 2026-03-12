@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Download, Share, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Download, Share, CheckCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
