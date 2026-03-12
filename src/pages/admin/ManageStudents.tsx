@@ -322,16 +322,17 @@ const ManageStudents = () => {
                       <TableCell>
                         {editingId === alumno.id ? (
                           <div className="flex items-center gap-1">
-                            <Select value={editGrupo} onValueChange={setEditGrupo}>
-                              <SelectTrigger className="w-28 h-8 bg-secondary border-border text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {GRUPOS.map((g) => (
-                                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <select
+                              value={editGrupo}
+                              onChange={(e) => setEditGrupo(e.target.value)}
+                              className="h-8 w-28 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                              {GRUPOS.map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveGrupo(alumno.id)}>
                               <Check className="w-3 h-3 text-primary" />
                             </Button>
