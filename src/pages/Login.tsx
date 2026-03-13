@@ -3,107 +3,120 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, Shield, Download } from "lucide-react";
+import { ChevronRight, Shield, Download, Mail, ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
+
+type LoginStep = "email" | "check-inbox" | "loading";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [step, setStep] = useState<LoginStep>("loading");
   const navigate = useNavigate();
 
-  // Auto-redirect: check existing sessions on mount
+  // On mount: check existing session and auto-redirect
   useEffect(() => {
-    const checkExistingSession = async () => {
-      // 1. Check Supabase Auth session (admin/coach)
-      // NOTE: Do NOT auto-redirect admins from here.
-      // A user can have both admin and alumno roles.
-      // They choose their role by which login they use.
+    const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Only auto-redirect coaches (they don't use email-only login)
-        const { data: isCoach } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "coach" as any,
-        });
-        if (isCoach) {
-          navigate("/coach", { replace: true });
-          return;
-        }
+      if (!session) {
+        // Check legacy localStorage and clean up
+        localStorage.removeItem("alumno");
+        setStep("email");
+        return;
       }
 
-      // 2. Check stored alumno session (localStorage)
-      const storedAlumno = localStorage.getItem("alumno");
-      if (storedAlumno) {
-        try {
-          const alumno = JSON.parse(storedAlumno);
-          
-          // Re-validate: fetch fresh data
-          const { data: freshAlumno } = await supabase
-            .from("alumnos")
-            .select("*")
-            .eq("id", alumno.id)
-            .maybeSingle();
-
-          if (!freshAlumno) {
-            localStorage.removeItem("alumno");
-            setCheckingSession(false);
-            return;
-          }
-
-          if (freshAlumno.estado === "inactivo" || freshAlumno.grupo === "Sin grupo") {
-            localStorage.removeItem("alumno");
-            setCheckingSession(false);
-            return;
-          }
-
-          // Check active subscription
-          const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-          const { data: activeSub } = await supabase
-            .from("suscripciones")
-            .select("id")
-            .eq("alumno_id", freshAlumno.id)
-            .eq("estado", "activa")
-            .gte("fecha_fin", todayStr)
-            .limit(1);
-
-          if (!activeSub || activeSub.length === 0) {
-            // Subscription expired → plans
-            localStorage.removeItem("alumno");
-            localStorage.setItem("registro_alumno_id", freshAlumno.id);
-            localStorage.setItem("alumno_renewal", "1");
-            navigate("/planes", { replace: true });
-            return;
-          }
-
-          // Valid session → update stored data and go to dashboard
-          localStorage.setItem("alumno", JSON.stringify(freshAlumno));
-          navigate("/alumno", { replace: true });
-          return;
-        } catch {
-          localStorage.removeItem("alumno");
-        }
+      // Coach auto-redirect
+      const { data: isCoach } = await supabase.rpc("has_role", {
+        _user_id: session.user.id,
+        _role: "coach" as any,
+      });
+      if (isCoach) {
+        navigate("/coach", { replace: true });
+        return;
       }
 
-      setCheckingSession(false);
+      // Check if this user is an alumno
+      const userEmail = session.user.email?.toLowerCase().trim();
+      if (!userEmail) {
+        setStep("email");
+        return;
+      }
+
+      const { data: alumno } = await supabase
+        .from("alumnos")
+        .select("id, estado, grupo")
+        .eq("email", userEmail)
+        .maybeSingle();
+
+      if (!alumno) {
+        setStep("email");
+        return;
+      }
+
+      // Link user_id if needed
+      await supabase
+        .from("alumnos")
+        .update({ user_id: session.user.id })
+        .eq("id", alumno.id)
+        .is("user_id", null);
+
+      if (alumno.estado === "inactivo" && alumno.grupo === "Sin grupo") {
+        localStorage.setItem("registro_alumno_id", alumno.id);
+        navigate("/planes", { replace: true });
+        return;
+      }
+
+      if (alumno.grupo === "Sin grupo") {
+        setStep("email");
+        setLoginError("Tu usuario aún no tiene grupo asignado. Contactá administración.");
+        return;
+      }
+
+      // Check subscription
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const { data: activeSub } = await supabase
+        .from("suscripciones")
+        .select("id")
+        .eq("alumno_id", alumno.id)
+        .eq("estado", "activa")
+        .gte("fecha_fin", todayStr)
+        .limit(1);
+
+      if (!activeSub || activeSub.length === 0) {
+        localStorage.setItem("registro_alumno_id", alumno.id);
+        localStorage.setItem("alumno_renewal", "1");
+        navigate("/planes", { replace: true });
+        return;
+      }
+
+      navigate("/alumno", { replace: true });
     };
 
-    checkExistingSession();
+    // Listen for auth state changes (magic link callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        checkSession();
+      }
+    });
+
+    checkSession();
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
     setLoading(true);
 
     const trimmedEmail = email.toLowerCase().trim();
 
+    // First verify alumno exists
     const { data, error: fetchError } = await supabase
       .from("alumnos")
-      .select("*")
+      .select("id, estado, grupo")
       .eq("email", trimmedEmail)
       .maybeSingle();
 
@@ -126,33 +139,26 @@ const Login = () => {
       return;
     }
 
-    // Check active subscription
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // Send magic link
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
 
-    const { data: activeSub } = await supabase
-      .from("suscripciones")
-      .select("id")
-      .eq("alumno_id", data.id)
-      .eq("estado", "activa")
-      .gte("fecha_fin", todayStr)
-      .limit(1);
-
-    if (!activeSub || activeSub.length === 0) {
-      localStorage.setItem("registro_alumno_id", data.id);
-      localStorage.setItem("alumno_renewal", "1");
-      navigate("/planes");
+    if (otpError) {
+      setLoginError("Error al enviar el link. Intentá de nuevo.");
       setLoading(false);
       return;
     }
 
-    localStorage.setItem("alumno", JSON.stringify(data));
-    navigate("/alumno");
     setLoading(false);
+    setStep("check-inbox");
   };
 
-  // Show loading while checking session
-  if (checkingSession) {
+  // Loading state
+  if (step === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -163,6 +169,63 @@ const Login = () => {
     );
   }
 
+  // Check inbox screen
+  if (step === "check-inbox") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md space-y-8 animate-fade-in text-center">
+          <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto" />
+
+          <div className="glass-card rounded-lg p-8 space-y-5">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mx-auto">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-heading font-bold uppercase tracking-wider text-foreground">
+              Revisá tu email
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Te enviamos un link de acceso a <span className="font-medium text-foreground">{email}</span>.
+              Hacé clic en el link para ingresar.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Si no lo encontrás, revisá la carpeta de spam.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              variant="gold-outline"
+              className="w-full"
+              onClick={() => {
+                setStep("email");
+                setEmail("");
+              }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Usar otro email
+            </Button>
+
+            <button
+              onClick={async () => {
+                setLoading(true);
+                await supabase.auth.signInWithOtp({
+                  email: email.toLowerCase().trim(),
+                  options: { emailRedirectTo: window.location.origin },
+                });
+                setLoading(false);
+              }}
+              disabled={loading}
+              className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              {loading ? "Reenviando..." : "Reenviar link"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Email input screen
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
@@ -173,12 +236,12 @@ const Login = () => {
             Ciclismo Reybaud
           </h1>
           <p className="text-muted-foreground text-sm">
-            Ingresá con tu email para ver tu entrenamiento
+            Ingresá tu email y te enviaremos un link de acceso
           </p>
         </div>
 
         {/* Login form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSendMagicLink} className="space-y-4">
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-foreground">
@@ -202,7 +265,7 @@ const Login = () => {
             )}
 
             <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Ingresando..." : "Ingresar"}
+              {loading ? "Enviando..." : "Enviar link de acceso"}
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
