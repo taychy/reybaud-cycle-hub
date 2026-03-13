@@ -106,8 +106,11 @@ const ManageStudents = () => {
 
     // Send email notification when enabling
     if (newEstado === "activo") {
+      // Get current subscription end date
+      const { data: subs } = await supabase.from("suscripciones").select("fecha_fin").eq("alumno_id", alumno.id).eq("estado", "activa").order("fecha_fin", { ascending: false }).limit(1);
+      const fechaFin = subs?.[0]?.fecha_fin || null;
       supabase.functions.invoke("notify-student-update", {
-        body: { alumno_id: alumno.id, type: "habilitado" },
+        body: { alumno_id: alumno.id, type: "habilitado", fecha_vencimiento: fechaFin },
       }).catch(() => {});
     }
   };
