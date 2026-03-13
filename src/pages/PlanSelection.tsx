@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 import PaymentMethodSelector from "@/components/PaymentMethodSelector";
 import CashPaymentConfirm from "@/components/CashPaymentConfirm";
 import CardPaymentForm from "@/components/CardPaymentForm";
+import ExternalPaymentConfirm from "@/components/ExternalPaymentConfirm";
 
 interface Plan {
   id: string;
@@ -22,7 +23,7 @@ const frecuenciaLabels: Record<string, string> = {
   "1x_semana": "1 vez por semana",
 };
 
-type PaymentStep = "select-plan" | "select-method" | "cash" | "card";
+type PaymentStep = "select-plan" | "select-method" | "cash" | "card" | "external_platform";
 
 const PlanSelection = () => {
   const navigate = useNavigate();
@@ -118,7 +119,7 @@ const PlanSelection = () => {
     }
   };
 
-  const handlePaymentMethod = (method: "mercadopago" | "card" | "cash") => {
+  const handlePaymentMethod = (method: "mercadopago" | "card" | "cash" | "external_platform") => {
     setError(null);
     if (method === "mercadopago") {
       handleMercadoPago();
@@ -126,6 +127,8 @@ const PlanSelection = () => {
       setStep("cash");
     } else if (method === "card") {
       setStep("card");
+    } else if (method === "external_platform") {
+      setStep("external_platform");
     }
   };
 
@@ -168,6 +171,25 @@ const PlanSelection = () => {
             planId={selectedPlan.id}
             planName={selectedPlan.nombre}
             planPrice={selectedPlan.precio}
+            alumnoId={alumnoId}
+            onBack={() => setStep("select-method")}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // External platform payment step
+  if (step === "external_platform" && selectedPlan && alumnoId) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+          <div className="text-center">
+            <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto mb-4" />
+          </div>
+          <ExternalPaymentConfirm
+            planId={selectedPlan.id}
+            planName={selectedPlan.nombre}
             alumnoId={alumnoId}
             onBack={() => setStep("select-method")}
           />
@@ -278,7 +300,7 @@ const PlanSelection = () => {
               disabled={!selected}
               onClick={() => setStep("select-method")}
             >
-              Continuar
+              Pagar
             </Button>
           )}
 
