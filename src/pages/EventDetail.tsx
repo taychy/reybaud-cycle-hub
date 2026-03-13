@@ -98,15 +98,23 @@ const EventDetail = () => {
       }
     });
 
-    // Check if student is logged in and load existing result
-    const stored = localStorage.getItem("alumno");
-    if (stored) {
-      const alumnoData = JSON.parse(stored) as Alumno;
-      setAlumno(alumnoData);
-      loadResult(id, alumnoData.id);
-      // Also check event_participants by email for record_hora
-      loadParticipantResult(alumnoData.email);
-    }
+    // Check if student is logged in via Supabase Auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) {
+        supabase
+          .from("alumnos")
+          .select("*")
+          .eq("email", session.user.email.toLowerCase().trim())
+          .maybeSingle()
+          .then(({ data: alumnoData }) => {
+            if (alumnoData) {
+              setAlumno(alumnoData);
+              loadResult(id, alumnoData.id);
+              loadParticipantResult(alumnoData.email);
+            }
+          });
+      }
+    });
   }, [id]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
