@@ -93,6 +93,54 @@ Deno.serve(async (req) => {
           </p>
         </div>
       `;
+    } else if (type === "pago_confirmado") {
+      const fechaText = fecha_vencimiento
+        ? new Date(fecha_vencimiento + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })
+        : null;
+      subject = `✅ ¡Tu pago fue confirmado!`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d4820a; margin-bottom: 16px;">✅ Pago confirmado</h2>
+          <p style="color: #333; margin-bottom: 16px;">
+            Hola <strong>${firstName}</strong>, tu pago fue confirmado por administración.
+          </p>
+          ${fechaText ? `<p style="color: #333; margin-bottom: 16px;">
+            Tu plan está activo hasta el <strong>${fechaText}</strong>.
+          </p>` : ""}
+          <p style="color: #333; margin-bottom: 16px;">
+            Ya podés acceder a la app y ver tus entrenamientos normalmente.
+          </p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Abrir la app
+            </a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
+            Ciclismo Reybaud — Escuela de ciclismo
+          </p>
+        </div>
+      `;
+    } else if (type === "pago_rechazado") {
+      subject = `❌ Pago no confirmado`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #cc3333; margin-bottom: 16px;">❌ Pago no confirmado</h2>
+          <p style="color: #333; margin-bottom: 16px;">
+            Hola <strong>${firstName}</strong>, hubo un problema con el pago que informaste en Ciclismo Reybaud.
+          </p>
+          <p style="color: #333; margin-bottom: 16px;">
+            Por favor, revisalo o contactá a administración para más información.
+          </p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Ir a la app
+            </a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
+            Ciclismo Reybaud — Escuela de ciclismo
+          </p>
+        </div>
+      `;
     } else {
       return new Response(JSON.stringify({ error: "Tipo no válido" }), {
         status: 400,
