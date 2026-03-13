@@ -8,7 +8,7 @@ import logo from "@/assets/logo.png";
 
 const Register = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nombre: "", email: "", telefono: "", documento: "" });
+  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
