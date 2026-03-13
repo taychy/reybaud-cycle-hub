@@ -67,6 +67,9 @@ Deno.serve(async (req) => {
         </div>
       `;
     } else if (type === "habilitado") {
+      const fechaText = fecha_vencimiento
+        ? new Date(fecha_vencimiento + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })
+        : null;
       subject = `✅ ¡Tu cuenta fue habilitada!`;
       emailHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
@@ -74,6 +77,9 @@ Deno.serve(async (req) => {
           <p style="color: #333; margin-bottom: 16px;">
             Hola <strong>${firstName}</strong>, tu cuenta en Ciclismo Reybaud fue habilitada exitosamente.
           </p>
+          ${fechaText ? `<p style="color: #333; margin-bottom: 16px;">
+            Tu plan está activo hasta el <strong>${fechaText}</strong>.
+          </p>` : ""}
           <p style="color: #333; margin-bottom: 16px;">
             Ya podés acceder a la app e ingresar con tu email para ver tus entrenamientos.
           </p>
