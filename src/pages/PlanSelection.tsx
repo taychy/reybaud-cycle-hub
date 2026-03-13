@@ -119,7 +119,7 @@ const PlanSelection = () => {
     }
   };
 
-  const handlePaymentMethod = (method: "mercadopago" | "card" | "cash") => {
+  const handlePaymentMethod = (method: "mercadopago" | "card" | "cash" | "external_platform") => {
     setError(null);
     if (method === "mercadopago") {
       handleMercadoPago();
@@ -127,6 +127,8 @@ const PlanSelection = () => {
       setStep("cash");
     } else if (method === "card") {
       setStep("card");
+    } else if (method === "external_platform") {
+      setStep("external_platform");
     }
   };
 
