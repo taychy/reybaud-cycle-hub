@@ -37,6 +37,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
