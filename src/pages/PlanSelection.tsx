@@ -179,6 +179,25 @@ const PlanSelection = () => {
     );
   }
 
+  // External platform payment step
+  if (step === "external_platform" && selectedPlan && alumnoId) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+          <div className="text-center">
+            <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto mb-4" />
+          </div>
+          <ExternalPaymentConfirm
+            planId={selectedPlan.id}
+            planName={selectedPlan.nombre}
+            alumnoId={alumnoId}
+            onBack={() => setStep("select-method")}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
