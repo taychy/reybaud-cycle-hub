@@ -129,8 +129,9 @@ const StudentDashboard = () => {
     }
   }, [selectedDay, weekTrainings, alumno]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem("alumno");
+    await supabase.auth.signOut();
     navigate("/");
   };
 
