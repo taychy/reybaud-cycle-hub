@@ -159,10 +159,68 @@ const PlanSelection = () => {
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "—";
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
+  const handleNotifyAdmin = async () => {
+    if (!alumnoId) return;
+    setNotifyProcessing(true);
+
+    try {
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cash-payment`;
+      await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          alumno_id: alumnoId,
+          plan_id: previousSub ? undefined : undefined,
+          tipo: "pago_externo",
+        }),
+      });
+    } catch {
+      // fire and forget
+    }
+
+    setNotifyProcessing(false);
+    setNotifyDone(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Cargando planes...</div>
+      </div>
+    );
+  }
+
+  // Notify admin done screen
+  if (notifyDone) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-8 flex items-center justify-center">
+        <div className="max-w-md text-center space-y-6 animate-fade-in">
+          <CheckCircle className="w-14 h-14 text-primary mx-auto" />
+          <h2 className="text-xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Pago informado
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Le avisamos a administración que ya realizaste el pago.
+            Tu acceso se habilitará cuando lo confirmen.
+          </p>
+          <Button
+            variant="gold"
+            size="lg"
+            className="w-full"
+            onClick={() => navigate("/")}
+          >
+            Volver al inicio
+          </Button>
+        </div>
       </div>
     );
   }
