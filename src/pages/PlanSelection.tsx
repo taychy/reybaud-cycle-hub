@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft } from "lucide-react";
+import { Check, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle } from "lucide-react";
 import logo from "@/assets/logo.png";
 import PaymentMethodSelector from "@/components/PaymentMethodSelector";
 import CashPaymentConfirm from "@/components/CashPaymentConfirm";
@@ -17,13 +17,18 @@ interface Plan {
   frecuencia: string;
 }
 
+interface PreviousSubInfo {
+  planName: string;
+  fechaFin: string;
+}
+
 const frecuenciaLabels: Record<string, string> = {
   mensual_libre: "Acceso ilimitado",
   "2x_semana": "2 veces por semana",
   "1x_semana": "1 vez por semana",
 };
 
-type PaymentStep = "select-plan" | "select-method" | "cash" | "card" | "external_platform";
+type PaymentStep = "select-plan" | "select-method" | "cash" | "card" | "external_platform" | "notify-admin";
 
 const PlanSelection = () => {
   const navigate = useNavigate();
@@ -33,6 +38,9 @@ const PlanSelection = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<PaymentStep>("select-plan");
+  const [previousSub, setPreviousSub] = useState<PreviousSubInfo | null>(null);
+  const [notifyDone, setNotifyDone] = useState(false);
+  const [notifyProcessing, setNotifyProcessing] = useState(false);
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
 
@@ -51,7 +59,26 @@ const PlanSelection = () => {
         setPlanes((data as Plan[]) || []);
         setLoading(false);
       });
-  }, [alumnoId, navigate]);
+
+    // If renewal, fetch previous subscription info
+    if (isRenewal && alumnoId) {
+      supabase
+        .from("suscripciones")
+        .select("fecha_fin, plan_id, planes(nombre)")
+        .eq("alumno_id", alumnoId)
+        .order("fecha_fin", { ascending: false })
+        .limit(1)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const sub = data[0] as any;
+            setPreviousSub({
+              planName: sub.planes?.nombre || "Plan anterior",
+              fechaFin: sub.fecha_fin || "",
+            });
+          }
+        });
+    }
+  }, [alumnoId, navigate, isRenewal]);
 
   const selectedPlan = planes.find((p) => p.id === selected);
 
