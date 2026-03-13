@@ -8,7 +8,7 @@ import logo from "@/assets/logo.png";
 
 const Register = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nombre: "", email: "", telefono: "", documento: "" });
+  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -43,11 +43,13 @@ const Register = () => {
       return;
     }
 
+    const fullName = `${form.nombre.trim()} ${form.apellido.trim()}`;
+
     // Create new student (inactive, sin grupo)
     const { data, error: insertError } = await supabase
       .from("alumnos")
       .insert({
-        nombre: form.nombre.trim(),
+        nombre: fullName,
         email,
         telefono: form.telefono.trim() || null,
         documento: form.documento.trim() || null,
@@ -86,7 +88,7 @@ const Register = () => {
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="nombre" className="text-sm font-medium text-foreground">
-                Nombre completo
+                Nombre *
               </label>
               <Input
                 id="nombre"
@@ -94,6 +96,22 @@ const Register = () => {
                 type="text"
                 placeholder="Tu nombre"
                 value={form.nombre}
+                onChange={handleChange}
+                required
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="apellido" className="text-sm font-medium text-foreground">
+                Apellido *
+              </label>
+              <Input
+                id="apellido"
+                name="apellido"
+                type="text"
+                placeholder="Tu apellido"
+                value={form.apellido}
                 onChange={handleChange}
                 required
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"

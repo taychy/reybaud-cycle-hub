@@ -20,7 +20,7 @@ const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos">("todos");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos" | "inactivos">("todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
@@ -106,8 +106,11 @@ const ManageStudents = () => {
 
     // Send email notification when enabling
     if (newEstado === "activo") {
+      // Get current subscription end date
+      const { data: subs } = await supabase.from("suscripciones").select("fecha_fin").eq("alumno_id", alumno.id).eq("estado", "activa").order("fecha_fin", { ascending: false }).limit(1);
+      const fechaFin = subs?.[0]?.fecha_fin || null;
       supabase.functions.invoke("notify-student-update", {
-        body: { alumno_id: alumno.id, type: "habilitado" },
+        body: { alumno_id: alumno.id, type: "habilitado", fecha_vencimiento: fechaFin },
       }).catch(() => {});
     }
   };
@@ -167,6 +170,11 @@ const ManageStudents = () => {
 
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
 
+    // Send email with expiration date
+    supabase.functions.invoke("notify-student-update", {
+      body: { alumno_id: manualSubAlumno.id, type: "habilitado", fecha_vencimiento: manualFechaFin },
+    }).catch(() => {});
+
     toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
     setManualSubAlumno(null);
     setManualFechaFin("");
@@ -188,16 +196,34 @@ const ManageStudents = () => {
     fetchAlumnos();
   };
 
+  // Suscripciones pendientes de verificación
+  const [suscripciones, setSuscripciones] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from("suscripciones").select("alumno_id, estado").then(({ data }) => {
+      setSuscripciones(data || []);
+    });
+  }, [alumnos]);
+
+  const isPending = (a: Alumno) => {
+    const hasPendingPayment = suscripciones.some(s => s.alumno_id === a.id && s.estado === "pendiente_verificacion");
+    const needsPassword = !(a as any).password_set && (a as any).invited_at;
+    const noGroup = a.grupo === "Sin grupo" && a.estado === "activo";
+    return hasPendingPayment || needsPassword || noGroup;
+  };
+
+  const pendingCount = alumnos.filter(isPending).length;
+  const activeCount = alumnos.filter(a => a.estado === "activo").length;
+  const inactiveCount = alumnos.filter(a => a.estado === "inactivo").length;
+
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
       a.email.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
-    if (statusFilter === "pendientes") return !(a as any).password_set && (a as any).invited_at;
-    if (statusFilter === "activos") return (a as any).password_set || !(a as any).invited_at;
+    if (statusFilter === "pendientes") return isPending(a);
+    if (statusFilter === "activos") return a.estado === "activo";
+    if (statusFilter === "inactivos") return a.estado === "inactivo";
     return true;
   });
-
-  const pendingCount = alumnos.filter((a) => !(a as any).password_set && (a as any).invited_at).length;
 
   const openManualSub = (alumno: Alumno) => {
     setManualSubAlumno(alumno);
@@ -239,16 +265,21 @@ const ManageStudents = () => {
             className="pl-9 bg-secondary border-border"
           />
         </div>
-        <div className="flex items-center gap-1">
-          {(["todos", "pendientes", "activos"] as const).map((f) => (
+        <div className="flex items-center gap-1 flex-wrap">
+          {([
+            { key: "todos", label: `Todos (${alumnos.length})` },
+            { key: "pendientes", label: `Pendientes (${pendingCount})` },
+            { key: "activos", label: `Activos (${activeCount})` },
+            { key: "inactivos", label: `Inactivos (${inactiveCount})` },
+          ] as const).map((f) => (
             <Button
-              key={f}
-              variant={statusFilter === f ? "default" : "outline"}
+              key={f.key}
+              variant={statusFilter === f.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter(f)}
-              className="text-xs capitalize"
+              onClick={() => setStatusFilter(f.key as any)}
+              className="text-xs"
             >
-              {f === "pendientes" ? `Pendientes (${pendingCount})` : f}
+              {f.label}
             </Button>
           ))}
         </div>
