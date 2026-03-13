@@ -5,12 +5,21 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User, Trophy } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
+import PaymentStatusCard from "@/components/PaymentStatusCard";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
 type Entrenamiento = Tables<"entrenamientos">;
+
+interface PendingPaymentInfo {
+  estado: string;
+  planName: string;
+  precio: number;
+  fechaPago: string;
+  medioPago: string;
+}
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -28,6 +37,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
@@ -61,6 +71,26 @@ const StudentDashboard = () => {
       }
 
       setAlumno(alumnoData);
+
+      // Check for pending/recent payment
+      const { data: recentSubs } = await supabase
+        .from("suscripciones")
+        .select("estado, created_at, plan_id, planes(nombre, precio)")
+        .eq("alumno_id", alumnoData.id)
+        .in("estado", ["pendiente_verificacion", "rechazada"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (recentSubs && recentSubs.length > 0) {
+        const sub = recentSubs[0] as any;
+        setPendingPayment({
+          estado: sub.estado,
+          planName: sub.planes?.nombre || "Plan",
+          precio: sub.planes?.precio || 0,
+          fechaPago: sub.created_at,
+          medioPago: "pendiente_verificacion",
+        });
+      }
 
       // Get Monday of current week
       const now = new Date();
@@ -198,6 +228,17 @@ const StudentDashboard = () => {
 
           {/* Weather */}
           <WeatherBar />
+
+          {/* Payment status */}
+          {pendingPayment && (
+            <PaymentStatusCard
+              estado={pendingPayment.estado}
+              planName={pendingPayment.planName}
+              precio={pendingPayment.precio}
+              fechaPago={pendingPayment.fechaPago}
+              medioPago={pendingPayment.medioPago}
+            />
+          )}
 
           {/* Training detail view */}
           {entrenamiento ? (
