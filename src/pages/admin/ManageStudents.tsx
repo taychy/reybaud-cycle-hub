@@ -257,16 +257,21 @@ const ManageStudents = () => {
             className="pl-9 bg-secondary border-border"
           />
         </div>
-        <div className="flex items-center gap-1">
-          {(["todos", "pendientes", "activos"] as const).map((f) => (
+        <div className="flex items-center gap-1 flex-wrap">
+          {([
+            { key: "todos", label: `Todos (${alumnos.length})` },
+            { key: "pendientes", label: `Pendientes (${pendingCount})` },
+            { key: "activos", label: `Activos (${activeCount})` },
+            { key: "inactivos", label: `Inactivos (${inactiveCount})` },
+          ] as const).map((f) => (
             <Button
-              key={f}
-              variant={statusFilter === f ? "default" : "outline"}
+              key={f.key}
+              variant={statusFilter === f.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter(f)}
-              className="text-xs capitalize"
+              onClick={() => setStatusFilter(f.key as any)}
+              className="text-xs"
             >
-              {f === "pendientes" ? `Pendientes (${pendingCount})` : f}
+              {f.label}
             </Button>
           ))}
         </div>
