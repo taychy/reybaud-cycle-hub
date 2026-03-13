@@ -115,6 +115,8 @@ const ManageStudents = () => {
   const saveGrupo = async (id: string) => {
     await supabase.from("alumnos").update({ grupo: editGrupo as any }).eq("id", id);
     setEditingId(null);
+    // Update local state immediately so the UI reflects the change
+    setAlumnos(prev => prev.map(a => a.id === id ? { ...a, grupo: editGrupo as any } : a));
     toast.success("Grupo actualizado");
     fetchAlumnos();
 

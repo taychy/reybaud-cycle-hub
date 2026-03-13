@@ -11,3 +11,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.invite-admin]
     verify_jwt = false
+  [functions.notify-student-update]
+    verify_jwt = false
