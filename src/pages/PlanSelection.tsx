@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 import PaymentMethodSelector from "@/components/PaymentMethodSelector";
 import CashPaymentConfirm from "@/components/CashPaymentConfirm";
 import CardPaymentForm from "@/components/CardPaymentForm";
+import ExternalPaymentConfirm from "@/components/ExternalPaymentConfirm";
 
 interface Plan {
   id: string;
