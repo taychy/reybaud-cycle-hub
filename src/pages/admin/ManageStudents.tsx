@@ -170,6 +170,11 @@ const ManageStudents = () => {
 
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
 
+    // Send email with expiration date
+    supabase.functions.invoke("notify-student-update", {
+      body: { alumno_id: manualSubAlumno.id, type: "habilitado", fecha_vencimiento: manualFechaFin },
+    }).catch(() => {});
+
     toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
     setManualSubAlumno(null);
     setManualFechaFin("");

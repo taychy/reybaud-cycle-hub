@@ -88,7 +88,7 @@ const Register = () => {
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="nombre" className="text-sm font-medium text-foreground">
-                Nombre completo
+                Nombre *
               </label>
               <Input
                 id="nombre"
@@ -96,6 +96,22 @@ const Register = () => {
                 type="text"
                 placeholder="Tu nombre"
                 value={form.nombre}
+                onChange={handleChange}
+                required
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="apellido" className="text-sm font-medium text-foreground">
+                Apellido *
+              </label>
+              <Input
+                id="apellido"
+                name="apellido"
+                type="text"
+                placeholder="Tu apellido"
+                value={form.apellido}
                 onChange={handleChange}
                 required
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
