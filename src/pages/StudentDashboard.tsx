@@ -229,6 +229,17 @@ const StudentDashboard = () => {
           {/* Weather */}
           <WeatherBar />
 
+          {/* Payment status */}
+          {pendingPayment && (
+            <PaymentStatusCard
+              estado={pendingPayment.estado}
+              planName={pendingPayment.planName}
+              precio={pendingPayment.precio}
+              fechaPago={pendingPayment.fechaPago}
+              medioPago={pendingPayment.medioPago}
+            />
+          )}
+
           {/* Training detail view */}
           {entrenamiento ? (
             <>
