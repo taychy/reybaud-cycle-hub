@@ -23,7 +23,7 @@ const frecuenciaLabels: Record<string, string> = {
   "1x_semana": "1 vez por semana",
 };
 
-type PaymentStep = "select-plan" | "select-method" | "cash" | "card";
+type PaymentStep = "select-plan" | "select-method" | "cash" | "card" | "external_platform";
 
 const PlanSelection = () => {
   const navigate = useNavigate();
