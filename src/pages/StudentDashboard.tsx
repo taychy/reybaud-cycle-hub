@@ -59,56 +59,57 @@ const StudentDashboard = () => {
         navigate("/");
         return;
       }
-    setAlumno(alumnoData);
 
-    // Get Monday of current week
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    
-    const weekDates: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      weekDates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-    }
+      setAlumno(alumnoData);
 
-    supabase
-      .from("entrenamientos")
-      .select("*")
-      .in("fecha", weekDates)
-      .eq("grupo", alumnoData.grupo)
-      .eq("visible", true)
-      .order("fecha", { ascending: true })
-      .then(({ data, error }) => {
-        if (error) {
-          setLoading(false);
-          return;
-        }
+      // Get Monday of current week
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
 
-        const mapped: (Entrenamiento | null)[] = weekDates.map(
-          (date) => data?.find((e) => e.fecha === date) ?? null
-        );
-        setWeekTrainings(mapped);
-        
-        const todayIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        const todayTraining = mapped[todayIdx] ?? null;
-        setEntrenamiento(todayTraining);
+      const weekDates: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        weekDates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      }
+
+      const { data: trainings, error } = await supabase
+        .from("entrenamientos")
+        .select("*")
+        .in("fecha", weekDates)
+        .eq("grupo", alumnoData.grupo)
+        .eq("visible", true)
+        .order("fecha", { ascending: true });
+
+      if (error) {
         setLoading(false);
+        return;
+      }
 
-        if (todayTraining) {
-          supabase
-            .from("entrenamientos_realizados")
-            .select("id")
-            .eq("alumno_id", alumnoData.id)
-            .eq("entrenamiento_id", todayTraining.id)
-            .maybeSingle()
-            .then(({ data: done }) => {
-              if (done) setRealizado(true);
-            });
-        }
-      });
+      const mapped: (Entrenamiento | null)[] = weekDates.map(
+        (date) => trainings?.find((e) => e.fecha === date) ?? null
+      );
+      setWeekTrainings(mapped);
+
+      const todayIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const todayTraining = mapped[todayIdx] ?? null;
+      setEntrenamiento(todayTraining);
+      setLoading(false);
+
+      if (todayTraining) {
+        const { data: done } = await supabase
+          .from("entrenamientos_realizados")
+          .select("id")
+          .eq("alumno_id", alumnoData.id)
+          .eq("entrenamiento_id", todayTraining.id)
+          .maybeSingle();
+        if (done) setRealizado(true);
+      }
+    };
+
+    loadAlumno();
   }, [navigate]);
 
   // When user selects a different day
