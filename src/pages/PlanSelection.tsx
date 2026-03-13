@@ -300,7 +300,7 @@ const PlanSelection = () => {
               disabled={!selected}
               onClick={() => setStep("select-method")}
             >
-              Continuar
+              Pagar
             </Button>
           )}
 
