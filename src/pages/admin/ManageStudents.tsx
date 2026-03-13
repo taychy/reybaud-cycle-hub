@@ -188,16 +188,34 @@ const ManageStudents = () => {
     fetchAlumnos();
   };
 
+  // Suscripciones pendientes de verificación
+  const [suscripciones, setSuscripciones] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from("suscripciones").select("alumno_id, estado").then(({ data }) => {
+      setSuscripciones(data || []);
+    });
+  }, [alumnos]);
+
+  const isPending = (a: Alumno) => {
+    const hasPendingPayment = suscripciones.some(s => s.alumno_id === a.id && s.estado === "pendiente_verificacion");
+    const needsPassword = !(a as any).password_set && (a as any).invited_at;
+    const noGroup = a.grupo === "Sin grupo" && a.estado === "activo";
+    return hasPendingPayment || needsPassword || noGroup;
+  };
+
+  const pendingCount = alumnos.filter(isPending).length;
+  const activeCount = alumnos.filter(a => a.estado === "activo").length;
+  const inactiveCount = alumnos.filter(a => a.estado === "inactivo").length;
+
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
       a.email.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
-    if (statusFilter === "pendientes") return !(a as any).password_set && (a as any).invited_at;
-    if (statusFilter === "activos") return (a as any).password_set || !(a as any).invited_at;
+    if (statusFilter === "pendientes") return isPending(a);
+    if (statusFilter === "activos") return a.estado === "activo";
+    if (statusFilter === "inactivos") return a.estado === "inactivo";
     return true;
   });
-
-  const pendingCount = alumnos.filter((a) => !(a as any).password_set && (a as any).invited_at).length;
 
   const openManualSub = (alumno: Alumno) => {
     setManualSubAlumno(alumno);
