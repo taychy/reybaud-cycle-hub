@@ -5,12 +5,21 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User, Trophy } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
+import PaymentStatusCard from "@/components/PaymentStatusCard";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
 type Entrenamiento = Tables<"entrenamientos">;
+
+interface PendingPaymentInfo {
+  estado: string;
+  planName: string;
+  precio: number;
+  fechaPago: string;
+  medioPago: string;
+}
 
 const getGreeting = () => {
   const h = new Date().getHours();
