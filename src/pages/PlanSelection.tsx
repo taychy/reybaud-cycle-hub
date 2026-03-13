@@ -204,14 +204,24 @@ const PlanSelection = () => {
     return (
       <div className="min-h-screen bg-background px-4 py-8 flex items-center justify-center">
         <div className="max-w-md text-center space-y-6 animate-fade-in">
-          <CheckCircle className="w-14 h-14 text-primary mx-auto" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mx-auto">
+            <CheckCircle className="w-10 h-10 text-primary" />
+          </div>
           <h2 className="text-xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Pago informado
+            Pago informado correctamente
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Le avisamos a administración que ya realizaste el pago.
-            Tu acceso se habilitará cuando lo confirmen.
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Recibimos tu aviso de pago. Administración lo va a revisar y te avisaremos cuando esté confirmado.
           </p>
+          <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2 text-sm text-left">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-base">⏳</span>
+              <span className="font-medium text-foreground">Pendiente de validación</span>
+            </div>
+            <p className="text-xs text-muted-foreground pl-7">
+              Tu pago está siendo revisado por administración. Te notificaremos por email cuando se confirme.
+            </p>
+          </div>
           <Button
             variant="gold"
             size="lg"
