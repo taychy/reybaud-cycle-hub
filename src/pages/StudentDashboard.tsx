@@ -40,14 +40,25 @@ const StudentDashboard = () => {
   })();
   const [selectedDay, setSelectedDay] = useState(todayDayIndex);
 
+  // Load alumno from Supabase Auth session
   useEffect(() => {
-    const stored = localStorage.getItem("alumno");
-    if (!stored) {
-      navigate("/");
-      return;
-    }
+    const loadAlumno = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.email) {
+        navigate("/");
+        return;
+      }
 
-    const alumnoData = JSON.parse(stored) as Alumno;
+      const { data: alumnoData } = await supabase
+        .from("alumnos")
+        .select("*")
+        .eq("email", session.user.email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (!alumnoData) {
+        navigate("/");
+        return;
+      }
     setAlumno(alumnoData);
 
     // Get Monday of current week
