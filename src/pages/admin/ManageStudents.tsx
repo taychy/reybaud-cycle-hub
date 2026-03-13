@@ -147,32 +147,52 @@ const ManageStudents = () => {
       return;
     }
 
+    // Check if there's a pending verification subscription
+    const { data: pendingSubs } = await supabase
+      .from("suscripciones")
+      .select("id")
+      .eq("alumno_id", manualSubAlumno.id)
+      .eq("estado", "pendiente_verificacion");
+
+    const hasPendingPayment = pendingSubs && pendingSubs.length > 0;
+
+    // Mark existing active subs as expired
     await supabase
       .from("suscripciones")
       .update({ estado: "vencida" })
       .eq("alumno_id", manualSubAlumno.id)
       .eq("estado", "activa");
 
-    const { error } = await supabase.from("suscripciones").insert({
-      alumno_id: manualSubAlumno.id,
-      plan_id: planId,
-      estado: "activa",
-      fecha_inicio: todayStr,
-      fecha_fin: manualFechaFin,
-      mp_status: "manual",
-    });
+    // Mark pending verification subs as confirmed (activa)
+    if (hasPendingPayment) {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin })
+        .eq("alumno_id", manualSubAlumno.id)
+        .eq("estado", "pendiente_verificacion");
+    } else {
+      const { error } = await supabase.from("suscripciones").insert({
+        alumno_id: manualSubAlumno.id,
+        plan_id: planId,
+        estado: "activa",
+        fecha_inicio: todayStr,
+        fecha_fin: manualFechaFin,
+        mp_status: "manual",
+      });
 
-    if (error) {
-      toast.error("Error al crear la suscripción.");
-      setSavingManual(false);
-      return;
+      if (error) {
+        toast.error("Error al crear la suscripción.");
+        setSavingManual(false);
+        return;
+      }
     }
 
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
 
-    // Send email with expiration date
+    // Send appropriate email
+    const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
     supabase.functions.invoke("notify-student-update", {
-      body: { alumno_id: manualSubAlumno.id, type: "habilitado", fecha_vencimiento: manualFechaFin },
+      body: { alumno_id: manualSubAlumno.id, type: emailType, fecha_vencimiento: manualFechaFin },
     }).catch(() => {});
 
     toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
