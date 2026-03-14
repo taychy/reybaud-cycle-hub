@@ -77,6 +77,7 @@ const formatWhatsAppUrl = (telefono: string | null) => {
 };
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<MetricCard[]>([]);
