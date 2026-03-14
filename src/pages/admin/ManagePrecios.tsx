@@ -242,7 +242,7 @@ const ManagePrecios = () => {
           <div className="space-y-4">
             <div className="rounded-lg bg-secondary/30 p-3 text-sm">
               <span className="text-muted-foreground">Precio actual: </span>
-              <span className="font-mono font-bold">{selectedPlan && formatPrice(selectedPlan.precio)}</span>
+              <span className="font-mono font-bold">{selectedPlan && formatPrice(selectedPlan.precio, selectedPlan.moneda)}</span></span>
             </div>
             <div>
               <label className="text-sm font-medium">Nuevo precio *</label>
