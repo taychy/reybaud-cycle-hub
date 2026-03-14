@@ -77,6 +77,9 @@ const App = () => (
             <Route path="importar-plan" element={<ImportPlan />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
+            <Route path="planes" element={<ManagePlanes />} />
+            <Route path="precios" element={<ManagePrecios />} />
+            <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
           </Route>
