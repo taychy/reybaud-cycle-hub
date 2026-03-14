@@ -4,7 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, CreditCard, AlertTriangle, Clock, DollarSign, TrendingUp, Eye, Send, CalendarClock, CheckCircle, FileText, MessageCircle } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Users, CreditCard, AlertTriangle, Clock, DollarSign, TrendingUp,
+  Eye, Send, CalendarClock, CheckCircle, FileText, MessageCircle,
+  Banknote, CreditCard as CardIcon, HelpCircle,
+} from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
 
@@ -18,6 +26,7 @@ interface MetricCard {
 interface UpcomingExpiration {
   alumno_id: string;
   alumno_nombre: string;
+  alumno_telefono: string | null;
   plan_nombre: string;
   fecha_fin: string;
   monto: number;
@@ -28,10 +37,12 @@ interface UpcomingExpiration {
 interface PendingPayment {
   alumno_id: string;
   alumno_nombre: string;
+  alumno_telefono: string | null;
   plan_nombre: string;
   monto: number;
   fecha_inicio: string;
   estado: string;
+  estado_detalle: string;
   mp_status: string | null;
   suscripcion_id: string;
 }
@@ -43,6 +54,26 @@ interface Alert {
   count: number;
 }
 
+// Payment status helpers
+const getPaymentBadge = (estado: string, mpStatus: string | null) => {
+  if (mpStatus === "informado") {
+    return { label: "Informado", variant: "outline" as const, icon: FileText, className: "border-blue-500 text-blue-500" };
+  }
+  if (mpStatus === "efectivo_informado") {
+    return { label: "Efectivo", variant: "outline" as const, icon: Banknote, className: "border-green-500 text-green-500" };
+  }
+  if (mpStatus === "externo_informado") {
+    return { label: "Pago externo", variant: "outline" as const, icon: CardIcon, className: "border-purple-500 text-purple-500" };
+  }
+  return { label: "Pendiente", variant: "secondary" as const, icon: HelpCircle, className: "" };
+};
+
+const formatWhatsAppUrl = (telefono: string | null) => {
+  if (!telefono) return null;
+  const clean = telefono.replace(/\D/g, "");
+  return `https://wa.me/${clean}`;
+};
+
 const AdminDashboard = () => {
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
@@ -50,6 +81,13 @@ const AdminDashboard = () => {
   const [expirations, setExpirations] = useState<UpcomingExpiration[]>([]);
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  // Confirmation dialog state
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
 
   useEffect(() => {
     loadDashboard();
@@ -63,27 +101,18 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      // Parallel queries
-      const [
-        alumnosRes,
-        subsActivasRes,
-        allSubsRes,
-        planesRes,
-      ] = await Promise.all([
-        supabase.from("alumnos").select("id, estado").eq("estado", "activo"),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre), planes(nombre, precio)").eq("estado", "activa"),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre), planes(nombre, precio)"),
-        supabase.from("planes").select("id, nombre, precio"),
+      const [alumnosRes, subsActivasRes, allSubsRes] = await Promise.all([
+        supabase.from("alumnos").select("id, estado, telefono").eq("estado", "activo"),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").eq("estado", "activa"),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
       ]);
 
       const alumnos = alumnosRes.data || [];
       const subsActivas = subsActivasRes.data || [];
       const allSubs = allSubsRes.data || [];
 
-      // Compute metrics
       const alumnosActivos = alumnos.length;
       const suscripcionesActivas = subsActivas.length;
-
       const pendientes = allSubs.filter(s => s.estado === "pendiente");
       const pagosPendientes = pendientes.length;
 
@@ -93,18 +122,11 @@ const AdminDashboard = () => {
       });
       const pagosVencidos = vencidas.filter(s => s.estado === "pendiente" || s.estado === "vencida").length;
 
-      // Cobrado este mes: activas with fecha_inicio >= startOfMonth
       const cobradoEsteMes = allSubs
         .filter(s => s.estado === "activa" && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
-        .reduce((sum, s) => {
-          const plan = s.planes as any;
-          return sum + (plan?.precio || 0);
-        }, 0);
+        .reduce((sum, s) => sum + ((s.planes as any)?.precio || 0), 0);
 
-      const montoPendiente = pendientes.reduce((sum, s) => {
-        const plan = s.planes as any;
-        return sum + (plan?.precio || 0);
-      }, 0);
+      const montoPendiente = pendientes.reduce((sum, s) => sum + ((s.planes as any)?.precio || 0), 0);
 
       setMetrics([
         { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary" },
@@ -115,7 +137,7 @@ const AdminDashboard = () => {
         { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500" },
       ]);
 
-      // Upcoming expirations (next 30 days, active subs)
+      // Upcoming expirations
       const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split("T")[0];
       const upcoming = subsActivas
         .filter(s => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= in30Days)
@@ -128,6 +150,7 @@ const AdminDashboard = () => {
           return {
             alumno_id: s.alumno_id,
             alumno_nombre: alumno?.nombre || "—",
+            alumno_telefono: alumno?.telefono || null,
             plan_nombre: plan?.nombre || "—",
             fecha_fin: s.fecha_fin!,
             monto: plan?.precio || 0,
@@ -137,20 +160,23 @@ const AdminDashboard = () => {
         });
       setExpirations(upcoming);
 
-      // Pending payments
+      // Pending payments with detailed status
       const recentPending = pendientes
         .sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
         .slice(0, 10)
         .map(s => {
           const alumno = s.alumnos as any;
           const plan = s.planes as any;
+          const badge = getPaymentBadge(s.estado, s.mp_status);
           return {
             alumno_id: s.alumno_id,
             alumno_nombre: alumno?.nombre || "—",
+            alumno_telefono: alumno?.telefono || null,
             plan_nombre: plan?.nombre || "—",
             monto: plan?.precio || 0,
             fecha_inicio: s.created_at,
-            estado: s.mp_status === "informado" ? "Informado" : "Pendiente",
+            estado: badge.label,
+            estado_detalle: s.mp_status || "sin_pago",
             mp_status: s.mp_status,
             suscripcion_id: s.id,
           };
@@ -166,13 +192,12 @@ const AdminDashboard = () => {
       if (porVencer > 0) {
         alertsList.push({ type: "warning", icon: Clock, message: `${porVencer} suscripción(es) vence(n) en los próximos 7 días`, count: porVencer });
       }
-      // Alumnos activos sin suscripción activa
       const alumnoIdsConSub = new Set(subsActivas.map(s => s.alumno_id));
       const sinPlan = alumnos.filter(a => !alumnoIdsConSub.has(a.id)).length;
       if (sinPlan > 0) {
         alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan });
       }
-      const informados = allSubs.filter(s => s.mp_status === "informado" && s.estado === "pendiente").length;
+      const informados = allSubs.filter(s => (s.mp_status === "informado" || s.mp_status === "efectivo_informado" || s.mp_status === "externo_informado") && s.estado === "pendiente").length;
       if (informados > 0) {
         alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados });
       }
@@ -184,17 +209,46 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleMarkPaid = async (suscripcionId: string) => {
-    const { error } = await supabase
-      .from("suscripciones")
-      .update({ estado: "activa", mp_status: "conciliado" } as any)
-      .eq("id", suscripcionId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Pago marcado como cobrado" });
-      loadDashboard();
+  const requestMarkPaid = (suscripcionId: string, alumnoNombre: string) => {
+    setConfirmAction({
+      title: "Confirmar cobro",
+      description: `¿Estás seguro de marcar como cobrado el pago de ${alumnoNombre}? Esta acción activará su suscripción.`,
+      onConfirm: async () => {
+        const { error } = await supabase
+          .from("suscripciones")
+          .update({ estado: "activa", mp_status: "conciliado" } as any)
+          .eq("id", suscripcionId);
+        if (error) {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        } else {
+          // Log action
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            await supabase.from("audit_log").insert({
+              user_id: session.user.id,
+              user_email: session.user.email,
+              user_role: "admin",
+              action: "marcar_pagado",
+              entity_type: "suscripcion",
+              entity_id: suscripcionId,
+              details: { alumno: alumnoNombre },
+            } as any);
+          }
+          toast({ title: "Pago marcado como cobrado" });
+          loadDashboard();
+        }
+        setConfirmAction(null);
+      },
+    });
+  };
+
+  const openWhatsApp = (telefono: string | null, nombre: string) => {
+    const url = formatWhatsAppUrl(telefono);
+    if (!url) {
+      toast({ title: "Sin teléfono", description: `${nombre} no tiene número de teléfono registrado.`, variant: "destructive" });
+      return;
     }
+    window.open(url, "_blank");
   };
 
   const alertColorMap: Record<string, string> = {
@@ -202,7 +256,6 @@ const AdminDashboard = () => {
     warning: "border-yellow-500/50 bg-yellow-500/10",
     info: "border-accent/50 bg-accent/10",
   };
-
   const alertIconColorMap: Record<string, string> = {
     danger: "text-destructive",
     warning: "text-yellow-500",
@@ -216,6 +269,17 @@ const AdminDashboard = () => {
       </div>
     );
   }
+
+  const PaymentBadgeComponent = ({ mpStatus }: { mpStatus: string | null }) => {
+    const badge = getPaymentBadge("pendiente", mpStatus);
+    const Icon = badge.icon;
+    return (
+      <Badge variant={badge.variant} className={`text-xs gap-1 ${badge.className}`}>
+        <Icon className="w-3 h-3" />
+        {badge.label}
+      </Badge>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -236,10 +300,10 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      {/* Three blocks */}
+      {/* Two blocks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* A. Próximos vencimientos */}
-        <Card className="border-border lg:col-span-1">
+        <Card className="border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-heading uppercase tracking-wider flex items-center gap-2">
               <CalendarClock className="w-4 h-4 text-primary" />
@@ -255,12 +319,15 @@ const AdminDashboard = () => {
                   <div key={e.suscripcion_id} className="rounded-md border border-border p-3 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{e.alumno_nombre}</span>
-                      <Badge variant={e.estado === "Por vencer" ? "destructive" : "secondary"} className="text-xs">
-                        {e.estado}
-                      </Badge>
+                      <Badge variant={e.estado === "Por vencer" ? "destructive" : "secondary"} className="text-xs">{e.estado}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{e.plan_nombre} · ${e.monto.toLocaleString("es-AR")}</p>
                     <p className="text-xs text-muted-foreground">Vence: {new Date(e.fecha_fin).toLocaleDateString("es-AR")}</p>
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => openWhatsApp(e.alumno_telefono, e.alumno_nombre)}>
+                        <MessageCircle className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -289,7 +356,9 @@ const AdminDashboard = () => {
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" title="Ver detalle"><Eye className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" title="Reenviar pago"><Send className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" title="Contactar por WhatsApp" onClick={() => openWhatsApp(e.alumno_telefono, e.alumno_nombre)}>
+                            <MessageCircle className="w-4 h-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -300,8 +369,8 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* B. Pagos pendientes recientes */}
-        <Card className="border-border lg:col-span-1">
+        {/* B. Pagos pendientes */}
+        <Card className="border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-heading uppercase tracking-wider flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-yellow-500" />
@@ -317,14 +386,15 @@ const AdminDashboard = () => {
                   <div key={p.suscripcion_id} className="rounded-md border border-border p-3 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{p.alumno_nombre}</span>
-                      <Badge variant={p.estado === "Informado" ? "outline" : "secondary"} className="text-xs">
-                        {p.estado}
-                      </Badge>
+                      <PaymentBadgeComponent mpStatus={p.mp_status} />
                     </div>
                     <p className="text-xs text-muted-foreground">{p.plan_nombre} · ${p.monto.toLocaleString("es-AR")}</p>
                     <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleMarkPaid(p.suscripcion_id)}>
+                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => requestMarkPaid(p.suscripcion_id, p.alumno_nombre)}>
                         <CheckCircle className="w-3 h-3 mr-1" /> Cobrado
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => openWhatsApp(p.alumno_telefono, p.alumno_nombre)}>
+                        <MessageCircle className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
@@ -350,14 +420,14 @@ const AdminDashboard = () => {
                       <TableCell>${p.monto.toLocaleString("es-AR")}</TableCell>
                       <TableCell>{new Date(p.fecha_inicio).toLocaleDateString("es-AR")}</TableCell>
                       <TableCell>
-                        <Badge variant={p.estado === "Informado" ? "outline" : "secondary"}>{p.estado}</Badge>
+                        <PaymentBadgeComponent mpStatus={p.mp_status} />
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" title="Marcar como pagado" onClick={() => handleMarkPaid(p.suscripcion_id)}>
+                          <Button variant="ghost" size="icon" title="Marcar como pagado" onClick={() => requestMarkPaid(p.suscripcion_id, p.alumno_nombre)}>
                             <CheckCircle className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Contactar alumno">
+                          <Button variant="ghost" size="icon" title="Contactar por WhatsApp" onClick={() => openWhatsApp(p.alumno_telefono, p.alumno_nombre)}>
                             <MessageCircle className="w-4 h-4" />
                           </Button>
                         </div>
@@ -394,6 +464,20 @@ const AdminDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmAction?.onConfirm()}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
