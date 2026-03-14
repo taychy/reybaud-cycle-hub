@@ -214,7 +214,7 @@ const ManagePrecios = () => {
                 </div>
                 {latest && (
                   <div className="text-xs text-muted-foreground flex items-center gap-2">
-                    <span>Anterior: {formatPrice(latest.precio_anterior, plan.moneda)}</span></span>
+                    <span>Anterior: {formatPrice(latest.precio_anterior, plan.moneda)}</span>
                     <span>·</span>
                     <span>{formatDate(latest.fecha_cambio)}</span>
                   </div>
