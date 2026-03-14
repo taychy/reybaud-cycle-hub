@@ -335,7 +335,7 @@ const StudentDashboard = () => {
         <div className="max-w-md mx-auto flex items-center justify-around py-2">
           <NavItem icon={<Home className="w-5 h-5" />} label="Hoy" active />
           <NavItem icon={<Trophy className="w-5 h-5" />} label="Eventos" onClick={() => navigate("/eventos")} />
-          <NavItem icon={<BarChart3 className="w-5 h-5" />} label="Progreso" />
+          <NavItem icon={<CreditCard className="w-5 h-5" />} label="Pagos" onClick={() => navigate("/alumno/pagos")} />
           <NavItem icon={<User className="w-5 h-5" />} label="Perfil" />
         </div>
       </nav>
