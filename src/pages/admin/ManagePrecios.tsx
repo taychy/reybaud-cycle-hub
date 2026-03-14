@@ -160,7 +160,7 @@ const ManagePrecios = () => {
                         <span className="flex items-center gap-1">
                           {formatPrice(latest.precio_anterior)}
                           {latest.precio_nuevo > latest.precio_anterior
-                            ? <TrendingUp className="w-3 h-3 text-green-500" />
+                            ? <TrendingUp className="w-3 h-3 text-primary" />
                             : <TrendingDown className="w-3 h-3 text-destructive" />
                           }
                         </span>
