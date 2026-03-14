@@ -159,7 +159,7 @@ const ManagePrecios = () => {
                     <TableCell className="font-mono text-muted-foreground">
                       {latest ? (
                         <span className="flex items-center gap-1">
-                          {formatPrice(latest.precio_anterior)}
+                          {formatPrice(latest.precio_anterior, plan.moneda)}
                           {latest.precio_nuevo > latest.precio_anterior
                             ? <TrendingUp className="w-3 h-3 text-primary" />
                             : <TrendingDown className="w-3 h-3 text-destructive" />
