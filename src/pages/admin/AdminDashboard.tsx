@@ -53,6 +53,7 @@ interface Alert {
   icon: React.ElementType;
   message: string;
   count: number;
+  link: string;
 }
 
 // Payment status helpers
