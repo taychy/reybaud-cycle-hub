@@ -53,7 +53,7 @@ const ManagePrecios = () => {
 
   const fetchAll = async () => {
     const [planesRes, histRes] = await Promise.all([
-      supabase.from("planes").select("id, nombre, precio, activo").order("precio", { ascending: false }),
+      supabase.from("planes").select("id, nombre, precio, activo, moneda").order("precio", { ascending: false }),
       supabase.from("precio_historial").select("*").order("fecha_cambio", { ascending: false }).limit(100),
     ]);
     setPlanes((planesRes.data as any[]) || []);
