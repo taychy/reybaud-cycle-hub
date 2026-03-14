@@ -303,6 +303,23 @@ const AdminDashboard = () => {
         ))}
       </div>
 
+      {/* Alertas operativas - clickable */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((a, i) => (
+            <div
+              key={i}
+              onClick={() => navigate(a.link)}
+              className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
+            >
+              <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
+              <span className="text-sm flex-1">{a.message}</span>
+              <span className="text-xs text-muted-foreground">Ver →</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Two blocks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* A. Próximos vencimientos */}
