@@ -173,6 +173,24 @@ const CoachDashboard = () => {
           </Button>
 
           <Button
+            variant="outline"
+            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
+            onClick={() => navigate("/coach/asistencia")}
+          >
+            <CheckSquare className="w-5 h-5 text-primary" />
+            Registrar asistencia
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
+            onClick={() => navigate("/coach/feedback")}
+          >
+            <MessageSquare className="w-5 h-5 text-primary" />
+            Dar feedback a alumno
+          </Button>
+
+          <Button
             variant="gold"
             className="w-full h-14 justify-start gap-3 text-base"
             onClick={() => navigate("/coach/eventos/record-de-la-hora")}
