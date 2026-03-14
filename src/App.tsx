@@ -52,6 +52,7 @@ const App = () => (
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
           <Route path="/alumno/pagos" element={<StudentPayments />} />
+          <Route path="/alumno/progreso" element={<StudentProgress />} />
           <Route path="/crear-clave" element={<SetPassword />} />
           <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />
