@@ -21,6 +21,9 @@ import Asesoria from "./pages/Asesoria";
 import CoachRegister from "./pages/CoachRegister";
 import CoachDashboard from "./pages/coach/CoachDashboard";
 import CoachEventRecordDelAhora from "./pages/coach/CoachEventRecordDelAhora";
+import CoachAttendance from "./pages/coach/CoachAttendance";
+import CoachFeedback from "./pages/coach/CoachFeedback";
+import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
 import NotFound from "./pages/NotFound";
@@ -49,6 +52,7 @@ const App = () => (
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
           <Route path="/alumno/pagos" element={<StudentPayments />} />
+          <Route path="/alumno/progreso" element={<StudentProgress />} />
           <Route path="/crear-clave" element={<SetPassword />} />
           <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />
@@ -56,6 +60,8 @@ const App = () => (
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
           <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
+          <Route path="/coach/asistencia" element={<CoachAttendance />} />
+          <Route path="/coach/feedback" element={<CoachFeedback />} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />

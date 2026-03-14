@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, Wallet } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
@@ -38,7 +38,7 @@ const StudentDashboard = () => {
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "pagos" | "perfil">("hoy");
+  const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "progreso" | "perfil">("hoy");
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
@@ -187,8 +187,8 @@ const StudentDashboard = () => {
       case "eventos":
         navigate("/eventos");
         return null;
-      case "pagos":
-        navigate("/alumno/pagos");
+      case "progreso":
+        navigate("/alumno/progreso");
         return null;
       case "perfil":
         return (
@@ -418,10 +418,10 @@ const StudentDashboard = () => {
             onClick={() => setActiveTab("eventos")} 
           />
           <NavItem 
-            icon={<CreditCard className="w-5 h-5" />} 
-            label="Pagos" 
-            active={activeTab === "pagos"} 
-            onClick={() => setActiveTab("pagos")} 
+            icon={<TrendingUp className="w-5 h-5" />} 
+            label="Progreso" 
+            active={activeTab === "progreso"} 
+            onClick={() => setActiveTab("progreso")} 
           />
           <NavItem 
             icon={<User className="w-5 h-5" />} 
