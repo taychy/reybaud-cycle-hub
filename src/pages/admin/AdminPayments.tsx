@@ -166,7 +166,7 @@ const AdminPayments = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     const { data: adminProfile } = await supabase.from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
-    await supabase.from("audit_log").insert({
+    await supabase.from("audit_log").insert([{
       user_id: session.user.id,
       user_email: adminProfile?.email || session.user.email || "",
       user_role: adminProfile?.role || "admin",
@@ -174,7 +174,7 @@ const AdminPayments = () => {
       entity_type: "suscripcion",
       entity_id: entityId,
       details,
-    });
+    }]);
   };
 
   const handleMarcarPagado = async (sub: Suscripcion) => {
