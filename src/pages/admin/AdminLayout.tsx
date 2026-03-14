@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText } from "lucide-react";
+import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/planes", label: "Planes", icon: Package },
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
+  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/importar-alumnos", label: "Importar Alumnos", icon: Upload },
   { to: "/admin/importar-plan", label: "Importar Plan", icon: FileSpreadsheet },
