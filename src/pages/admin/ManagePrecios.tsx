@@ -16,6 +16,7 @@ interface Plan {
   nombre: string;
   precio: number;
   activo: boolean;
+  moneda: string;
 }
 
 interface PrecioHistorial {
@@ -52,7 +53,7 @@ const ManagePrecios = () => {
 
   const fetchAll = async () => {
     const [planesRes, histRes] = await Promise.all([
-      supabase.from("planes").select("id, nombre, precio, activo").order("precio", { ascending: false }),
+      supabase.from("planes").select("id, nombre, precio, activo, moneda").order("precio", { ascending: false }),
       supabase.from("precio_historial").select("*").order("fecha_cambio", { ascending: false }).limit(100),
     ]);
     setPlanes((planesRes.data as any[]) || []);
@@ -106,8 +107,8 @@ const ManagePrecios = () => {
     fetchAll();
   };
 
-  const formatPrice = (p: number) =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(p);
+  const formatPrice = (p: number, moneda: string = "ARS") =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(p);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
@@ -152,13 +153,14 @@ const ManagePrecios = () => {
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-primary" />
                         <span className="font-medium">{plan.nombre}</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{plan.moneda}</Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono font-bold">{formatPrice(plan.precio)}</TableCell>
+                    <TableCell className="font-mono font-bold">{formatPrice(plan.precio, plan.moneda)}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">
                       {latest ? (
                         <span className="flex items-center gap-1">
-                          {formatPrice(latest.precio_anterior)}
+                          {formatPrice(latest.precio_anterior, plan.moneda)}
                           {latest.precio_nuevo > latest.precio_anterior
                             ? <TrendingUp className="w-3 h-3 text-primary" />
                             : <TrendingDown className="w-3 h-3 text-destructive" />
@@ -205,7 +207,7 @@ const ManagePrecios = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-medium">{plan.nombre}</h3>
-                    <p className="text-xl font-mono font-bold text-primary">{formatPrice(plan.precio)}</p>
+                    <p className="text-xl font-mono font-bold text-primary">{formatPrice(plan.precio, plan.moneda)}</p>
                   </div>
                   <Badge variant={plan.activo ? "default" : "secondary"}>
                     {plan.activo ? "Activo" : "Inactivo"}
@@ -213,7 +215,7 @@ const ManagePrecios = () => {
                 </div>
                 {latest && (
                   <div className="text-xs text-muted-foreground flex items-center gap-2">
-                    <span>Anterior: {formatPrice(latest.precio_anterior)}</span>
+                    <span>Anterior: {formatPrice(latest.precio_anterior, plan.moneda)}</span>
                     <span>·</span>
                     <span>{formatDate(latest.fecha_cambio)}</span>
                   </div>
@@ -241,7 +243,7 @@ const ManagePrecios = () => {
           <div className="space-y-4">
             <div className="rounded-lg bg-secondary/30 p-3 text-sm">
               <span className="text-muted-foreground">Precio actual: </span>
-              <span className="font-mono font-bold">{selectedPlan && formatPrice(selectedPlan.precio)}</span>
+              <span className="font-mono font-bold">{selectedPlan && formatPrice(selectedPlan.precio, selectedPlan.moneda)}</span>
             </div>
             <div>
               <label className="text-sm font-medium">Nuevo precio *</label>
@@ -288,9 +290,9 @@ const ManagePrecios = () => {
                 <div key={h.id} className="rounded-lg border border-border p-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm line-through text-muted-foreground">{formatPrice(h.precio_anterior)}</span>
+                      <span className="font-mono text-sm line-through text-muted-foreground">{formatPrice(h.precio_anterior, planes.find(p => p.id === h.plan_id)?.moneda)}</span>
                       <span className="text-muted-foreground">→</span>
-                      <span className="font-mono text-sm font-bold">{formatPrice(h.precio_nuevo)}</span>
+                      <span className="font-mono text-sm font-bold">{formatPrice(h.precio_nuevo, planes.find(p => p.id === h.plan_id)?.moneda)}</span>
                     </div>
                     <span className="text-xs text-muted-foreground">{formatDate(h.fecha_cambio)}</span>
                   </div>
