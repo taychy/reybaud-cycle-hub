@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ interface Alert {
   icon: React.ElementType;
   message: string;
   count: number;
+  link: string;
 }
 
 // Payment status helpers
@@ -75,6 +77,7 @@ const formatWhatsAppUrl = (telefono: string | null) => {
 };
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<MetricCard[]>([]);
@@ -186,20 +189,20 @@ const AdminDashboard = () => {
       // Alerts
       const alertsList: Alert[] = [];
       if (pagosVencidos > 0) {
-        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${pagosVencidos} pago(s) vencido(s) sin cobrar`, count: pagosVencidos });
+        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${pagosVencidos} pago(s) vencido(s) sin cobrar`, count: pagosVencidos, link: "/admin/pagos?estado=vencido" });
       }
       const porVencer = subsActivas.filter(s => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= in7Days).length;
       if (porVencer > 0) {
-        alertsList.push({ type: "warning", icon: Clock, message: `${porVencer} suscripción(es) vence(n) en los próximos 7 días`, count: porVencer });
+        alertsList.push({ type: "warning", icon: Clock, message: `${porVencer} suscripción(es) vence(n) en los próximos 7 días`, count: porVencer, link: "/admin/pagos?estado=pendiente" });
       }
       const alumnoIdsConSub = new Set(subsActivas.map(s => s.alumno_id));
       const sinPlan = alumnos.filter(a => !alumnoIdsConSub.has(a.id)).length;
       if (sinPlan > 0) {
-        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan });
+        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos" });
       }
       const informados = allSubs.filter(s => (s.mp_status === "informado" || s.mp_status === "efectivo_informado" || s.mp_status === "externo_informado") && s.estado === "pendiente").length;
       if (informados > 0) {
-        alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados });
+        alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
       }
       setAlerts(alertsList);
     } catch (err) {
@@ -299,6 +302,23 @@ const AdminDashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Alertas operativas - clickable */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((a, i) => (
+            <div
+              key={i}
+              onClick={() => navigate(a.link)}
+              className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
+            >
+              <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
+              <span className="text-sm flex-1">{a.message}</span>
+              <span className="text-xs text-muted-foreground">Ver →</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Two blocks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -441,29 +461,6 @@ const AdminDashboard = () => {
         </Card>
       </div>
 
-      {/* C. Alertas operativas */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading uppercase tracking-wider flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-            Alertas operativas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay alertas activas. ¡Todo en orden!</p>
-          ) : (
-            <div className="space-y-2">
-              {alerts.map((a, i) => (
-                <div key={i} className={`flex items-center gap-3 rounded-md border p-3 ${alertColorMap[a.type]}`}>
-                  <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
-                  <span className="text-sm">{a.message}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>

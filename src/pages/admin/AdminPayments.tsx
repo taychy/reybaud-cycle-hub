@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,13 +105,14 @@ const formatDate = (d: string | null) => {
 };
 
 const AdminPayments = () => {
+  const [searchParams] = useSearchParams();
   const [suscripciones, setSuscripciones] = useState<Suscripcion[]>([]);
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
   const [planes, setPlanes] = useState<{ id: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [filterEstado, setFilterEstado] = useState("todos");
+  // Filters - initialize from URL params
+  const [filterEstado, setFilterEstado] = useState(searchParams.get("estado") || "todos");
   const [filterPlan, setFilterPlan] = useState("todos");
   const [filterSede, setFilterSede] = useState("todos");
   const [filterMetodo, setFilterMetodo] = useState("todos");
