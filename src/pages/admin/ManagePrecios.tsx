@@ -106,8 +106,8 @@ const ManagePrecios = () => {
     fetchAll();
   };
 
-  const formatPrice = (p: number) =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(p);
+  const formatPrice = (p: number, moneda: string = "ARS") =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(p);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
