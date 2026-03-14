@@ -48,6 +48,7 @@ const App = () => (
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
+          <Route path="/alumno/pagos" element={<StudentPayments />} />
           <Route path="/crear-clave" element={<SetPassword />} />
           <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />
