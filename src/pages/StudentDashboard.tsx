@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User, Trophy, CreditCard } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, Wallet } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
