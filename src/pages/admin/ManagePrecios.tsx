@@ -153,6 +153,7 @@ const ManagePrecios = () => {
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-primary" />
                         <span className="font-medium">{plan.nombre}</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{plan.moneda}</Badge>
                       </div>
                     </TableCell>
                     <TableCell className="font-mono font-bold">{formatPrice(plan.precio, plan.moneda)}</TableCell>
