@@ -162,7 +162,7 @@ const AdminPayments = () => {
     });
   }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta]);
 
-  const logAudit = async (action: string, entityId: string, details: Record<string, unknown>) => {
+  const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     const { data: adminProfile } = await supabase.from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
