@@ -444,29 +444,6 @@ const AdminDashboard = () => {
         </Card>
       </div>
 
-      {/* C. Alertas operativas */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading uppercase tracking-wider flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-            Alertas operativas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay alertas activas. ¡Todo en orden!</p>
-          ) : (
-            <div className="space-y-2">
-              {alerts.map((a, i) => (
-                <div key={i} className={`flex items-center gap-3 rounded-md border p-3 ${alertColorMap[a.type]}`}>
-                  <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
-                  <span className="text-sm">{a.message}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
