@@ -105,13 +105,14 @@ const formatDate = (d: string | null) => {
 };
 
 const AdminPayments = () => {
+  const [searchParams] = useSearchParams();
   const [suscripciones, setSuscripciones] = useState<Suscripcion[]>([]);
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
   const [planes, setPlanes] = useState<{ id: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [filterEstado, setFilterEstado] = useState("todos");
+  // Filters - initialize from URL params
+  const [filterEstado, setFilterEstado] = useState(searchParams.get("estado") || "todos");
   const [filterPlan, setFilterPlan] = useState("todos");
   const [filterSede, setFilterSede] = useState("todos");
   const [filterMetodo, setFilterMetodo] = useState("todos");
