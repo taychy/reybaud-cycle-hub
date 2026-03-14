@@ -206,7 +206,7 @@ const ManagePrecios = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-medium">{plan.nombre}</h3>
-                    <p className="text-xl font-mono font-bold text-primary">{formatPrice(plan.precio)}</p>
+                    <p className="text-xl font-mono font-bold text-primary">{formatPrice(plan.precio, plan.moneda)}</p></p>
                   </div>
                   <Badge variant={plan.activo ? "default" : "secondary"}>
                     {plan.activo ? "Activo" : "Inactivo"}
