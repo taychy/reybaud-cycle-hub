@@ -695,6 +695,9 @@ export type Database = {
       suscripciones: {
         Row: {
           alumno_id: string
+          auto_renovacion: boolean
+          cancelada_at: string | null
+          cancelada_motivo: string | null
           created_at: string
           estado: string
           fecha_fin: string | null
@@ -708,6 +711,9 @@ export type Database = {
         }
         Insert: {
           alumno_id: string
+          auto_renovacion?: boolean
+          cancelada_at?: string | null
+          cancelada_motivo?: string | null
           created_at?: string
           estado?: string
           fecha_fin?: string | null
@@ -721,6 +727,9 @@ export type Database = {
         }
         Update: {
           alumno_id?: string
+          auto_renovacion?: boolean
+          cancelada_at?: string | null
+          cancelada_motivo?: string | null
           created_at?: string
           estado?: string
           fecha_fin?: string | null
