@@ -100,7 +100,7 @@ const StudentProgress = () => {
       const { count: programados } = await supabase
         .from("entrenamientos")
         .select("id", { count: "exact", head: true })
-        .eq("grupo", grupo)
+        .eq("grupo", grupo as any)
         .eq("visible", true)
         .gte("fecha", fromDate)
         .lte("fecha", toDate);

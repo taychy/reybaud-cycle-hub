@@ -418,10 +418,10 @@ const StudentDashboard = () => {
             onClick={() => setActiveTab("eventos")} 
           />
           <NavItem 
-            icon={<CreditCard className="w-5 h-5" />} 
-            label="Pagos" 
-            active={activeTab === "pagos"} 
-            onClick={() => setActiveTab("pagos")} 
+            icon={<TrendingUp className="w-5 h-5" />} 
+            label="Progreso" 
+            active={activeTab === "progreso"} 
+            onClick={() => setActiveTab("progreso")} 
           />
           <NavItem 
             icon={<User className="w-5 h-5" />} 
