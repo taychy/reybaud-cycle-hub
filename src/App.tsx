@@ -9,6 +9,7 @@ import PlanSelection from "./pages/PlanSelection";
 import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentPayments from "./pages/StudentPayments";
 import SetPassword from "./pages/SetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
