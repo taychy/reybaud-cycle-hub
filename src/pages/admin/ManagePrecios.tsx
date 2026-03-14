@@ -155,7 +155,7 @@ const ManagePrecios = () => {
                         <span className="font-medium">{plan.nombre}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono font-bold">{formatPrice(plan.precio)}</TableCell>
+                    <TableCell className="font-mono font-bold">{formatPrice(plan.precio, plan.moneda)}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">
                       {latest ? (
                         <span className="flex items-center gap-1">
