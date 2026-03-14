@@ -289,9 +289,9 @@ const ManagePrecios = () => {
                 <div key={h.id} className="rounded-lg border border-border p-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm line-through text-muted-foreground">{formatPrice(h.precio_anterior)}</span>
+                      <span className="font-mono text-sm line-through text-muted-foreground">{formatPrice(h.precio_anterior, planes.find(p => p.id === h.plan_id)?.moneda)}</span>
                       <span className="text-muted-foreground">→</span>
-                      <span className="font-mono text-sm font-bold">{formatPrice(h.precio_nuevo)}</span>
+                      <span className="font-mono text-sm font-bold">{formatPrice(h.precio_nuevo, planes.find(p => p.id === h.plan_id)?.moneda)}</span>
                     </div>
                     <span className="text-xs text-muted-foreground">{formatDate(h.fecha_cambio)}</span>
                   </div>
