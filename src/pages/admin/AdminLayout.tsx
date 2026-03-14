@@ -11,6 +11,7 @@ const navItems = [
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/planes", label: "Planes", icon: Package },
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
+  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/importar-alumnos", label: "Importar Alumnos", icon: Upload },
   { to: "/admin/importar-plan", label: "Importar Plan", icon: FileSpreadsheet },
