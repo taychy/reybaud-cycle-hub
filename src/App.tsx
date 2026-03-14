@@ -9,6 +9,7 @@ import PlanSelection from "./pages/PlanSelection";
 import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentPayments from "./pages/StudentPayments";
 import SetPassword from "./pages/SetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<StudentDashboard />} />
+          <Route path="/alumno/pagos" element={<StudentPayments />} />
           <Route path="/crear-clave" element={<SetPassword />} />
           <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />

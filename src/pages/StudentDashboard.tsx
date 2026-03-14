@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User, Trophy } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, BarChart3, User, Trophy, CreditCard } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
@@ -335,7 +335,7 @@ const StudentDashboard = () => {
         <div className="max-w-md mx-auto flex items-center justify-around py-2">
           <NavItem icon={<Home className="w-5 h-5" />} label="Hoy" active />
           <NavItem icon={<Trophy className="w-5 h-5" />} label="Eventos" onClick={() => navigate("/eventos")} />
-          <NavItem icon={<BarChart3 className="w-5 h-5" />} label="Progreso" />
+          <NavItem icon={<CreditCard className="w-5 h-5" />} label="Pagos" onClick={() => navigate("/alumno/pagos")} />
           <NavItem icon={<User className="w-5 h-5" />} label="Perfil" />
         </div>
       </nav>
