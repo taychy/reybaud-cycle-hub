@@ -26,6 +26,9 @@ import CoachFeedback from "./pages/coach/CoachFeedback";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
+import ManagePlanes from "./pages/admin/ManagePlanes";
+import ManagePrecios from "./pages/admin/ManagePrecios";
+import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
@@ -74,6 +77,9 @@ const App = () => (
             <Route path="importar-plan" element={<ImportPlan />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
+            <Route path="planes" element={<ManagePlanes />} />
+            <Route path="precios" element={<ManagePrecios />} />
+            <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
           </Route>
