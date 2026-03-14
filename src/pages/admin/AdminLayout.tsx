@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
 const navItems = [
+  { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
   { to: "/admin/alumnos", label: "Alumnos", icon: Users },
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/planes", label: "Planes", icon: Package },

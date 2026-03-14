@@ -72,7 +72,8 @@ const App = () => (
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/alumnos" replace />} />
+            <Route index element={<Navigate to="/admin/resumen" replace />} />
+            <Route path="resumen" element={<AdminDashboard />} />
             <Route path="alumnos" element={<ManageStudents />} />
             <Route path="importar-alumnos" element={<ImportStudents />} />
             <Route path="importar-plan" element={<ImportPlan />} />
