@@ -86,6 +86,7 @@ export type Database = {
           profile_complete: boolean
           provincia: string | null
           registration_status: string
+          sede_id: string | null
           telefono: string | null
           updated_at: string
           user_id: string | null
@@ -113,6 +114,7 @@ export type Database = {
           profile_complete?: boolean
           provincia?: string | null
           registration_status?: string
+          sede_id?: string | null
           telefono?: string | null
           updated_at?: string
           user_id?: string | null
@@ -140,11 +142,20 @@ export type Database = {
           profile_complete?: boolean
           provincia?: string | null
           registration_status?: string
+          sede_id?: string | null
           telefono?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "alumnos_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       asistencias: {
         Row: {
@@ -628,33 +639,93 @@ export type Database = {
       }
       planes: {
         Row: {
+          acceso_beneficios: boolean
+          acceso_entrenamientos: boolean
+          acceso_eventos: boolean
           activo: boolean
+          clases_por_semana: number | null
           created_at: string
           descripcion: string | null
+          descripcion_corta: string | null
           frecuencia: string
           id: string
+          moneda: string
           nombre: string
           precio: number
+          renovacion_auto_permitida: boolean
+          updated_at: string
+          visibilidad: string
         }
         Insert: {
+          acceso_beneficios?: boolean
+          acceso_entrenamientos?: boolean
+          acceso_eventos?: boolean
           activo?: boolean
+          clases_por_semana?: number | null
           created_at?: string
           descripcion?: string | null
+          descripcion_corta?: string | null
           frecuencia: string
           id?: string
+          moneda?: string
           nombre: string
           precio: number
+          renovacion_auto_permitida?: boolean
+          updated_at?: string
+          visibilidad?: string
         }
         Update: {
+          acceso_beneficios?: boolean
+          acceso_entrenamientos?: boolean
+          acceso_eventos?: boolean
           activo?: boolean
+          clases_por_semana?: number | null
           created_at?: string
           descripcion?: string | null
+          descripcion_corta?: string | null
           frecuencia?: string
           id?: string
+          moneda?: string
           nombre?: string
           precio?: number
+          renovacion_auto_permitida?: boolean
+          updated_at?: string
+          visibilidad?: string
         }
         Relationships: []
+      }
+      planes_sedes: {
+        Row: {
+          id: string
+          plan_id: string
+          sede_id: string
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          sede_id: string
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          sede_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planes_sedes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planes_sedes_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       postulaciones_asesoria: {
         Row: {
@@ -689,6 +760,86 @@ export type Database = {
           nombre_completo?: string
           tipo_asesoria?: string
           whatsapp?: string
+        }
+        Relationships: []
+      }
+      precio_historial: {
+        Row: {
+          aplicar_a: string
+          created_at: string
+          fecha_cambio: string
+          fecha_vigencia: string | null
+          id: string
+          modificado_por: string | null
+          notas: string | null
+          plan_id: string
+          precio_anterior: number
+          precio_nuevo: number
+        }
+        Insert: {
+          aplicar_a?: string
+          created_at?: string
+          fecha_cambio?: string
+          fecha_vigencia?: string | null
+          id?: string
+          modificado_por?: string | null
+          notas?: string | null
+          plan_id: string
+          precio_anterior: number
+          precio_nuevo: number
+        }
+        Update: {
+          aplicar_a?: string
+          created_at?: string
+          fecha_cambio?: string
+          fecha_vigencia?: string | null
+          id?: string
+          modificado_por?: string | null
+          notas?: string | null
+          plan_id?: string
+          precio_anterior?: number
+          precio_nuevo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "precio_historial_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sedes: {
+        Row: {
+          activa: boolean
+          ciudad: string | null
+          created_at: string
+          direccion: string | null
+          id: string
+          nombre: string
+          provincia: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          ciudad?: string | null
+          created_at?: string
+          direccion?: string | null
+          id?: string
+          nombre: string
+          provincia?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          ciudad?: string | null
+          created_at?: string
+          direccion?: string | null
+          id?: string
+          nombre?: string
+          provincia?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
