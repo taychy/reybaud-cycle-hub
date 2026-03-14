@@ -16,6 +16,7 @@ interface Plan {
   nombre: string;
   precio: number;
   activo: boolean;
+  moneda: string;
 }
 
 interface PrecioHistorial {
