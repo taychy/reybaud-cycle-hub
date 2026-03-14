@@ -187,8 +187,8 @@ const StudentDashboard = () => {
       case "eventos":
         navigate("/eventos");
         return null;
-      case "pagos":
-        navigate("/alumno/pagos");
+      case "progreso":
+        navigate("/alumno/progreso");
         return null;
       case "perfil":
         return (
