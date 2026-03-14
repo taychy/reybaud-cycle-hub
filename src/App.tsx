@@ -26,6 +26,7 @@ import CoachFeedback from "./pages/coach/CoachFeedback";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManagePlanes from "./pages/admin/ManagePlanes";
 import ManagePrecios from "./pages/admin/ManagePrecios";
 import ManageSedes from "./pages/admin/ManageSedes";
