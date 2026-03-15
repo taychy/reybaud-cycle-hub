@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Search, Plus, Minus, RefreshCw } from "lucide-react";
+import { Package, Search, Plus, Minus, RefreshCw, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import StockImportDialog from "@/components/deposito/StockImportDialog";
 
 interface Product {
   id: string;
@@ -36,6 +37,7 @@ const DepositoStock = () => {
   // Barcode scanner state
   const [scannerActive, setScannerActive] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -124,9 +126,14 @@ const DepositoStock = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gestión de Stock</h1>
-        <Button variant="outline" size="sm" onClick={fetchProducts}>
-          <RefreshCw className="w-4 h-4 mr-1" /> Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-1" /> Importar
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchProducts}>
+            <RefreshCw className="w-4 h-4 mr-1" /> Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -333,6 +340,12 @@ const DepositoStock = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StockImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImportComplete={fetchProducts}
+      />
     </div>
   );
 };
