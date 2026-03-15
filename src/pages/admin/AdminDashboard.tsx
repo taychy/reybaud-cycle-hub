@@ -72,7 +72,15 @@ const getPaymentBadge = (estado: string, mpStatus: string | null) => {
 
 const formatWhatsAppUrl = (telefono: string | null, nombre?: string) => {
   if (!telefono) return null;
-  const clean = telefono.replace(/\D/g, "");
+  let clean = telefono.replace(/\D/g, "");
+  // Asegurar formato internacional para Argentina
+  if (clean.startsWith("15")) clean = "549" + clean.slice(2);
+  else if (clean.startsWith("11") || clean.startsWith("0")) {
+    if (clean.startsWith("0")) clean = clean.slice(1);
+    clean = "549" + clean;
+  } else if (!clean.startsWith("54")) {
+    clean = "549" + clean;
+  }
   const msg = nombre
     ? encodeURIComponent(`Hola ${nombre}, te contactamos desde Reybaud Ciclismo.`)
     : encodeURIComponent("Hola");

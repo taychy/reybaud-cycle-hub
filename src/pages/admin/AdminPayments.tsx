@@ -270,7 +270,15 @@ const AdminPayments = () => {
       return;
     }
     const msg = recordatorioMsg || `Hola ${sub.alumnos?.nombre}, te recordamos que tu pago de ${sub.planes?.nombre} está pendiente. ¡Gracias!`;
-    const clean = tel.replace(/\D/g, "");
+    let clean = tel.replace(/\D/g, "");
+    // Asegurar formato internacional para Argentina
+    if (clean.startsWith("15")) clean = "549" + clean.slice(2);
+    else if (clean.startsWith("11") || clean.startsWith("0")) {
+      if (clean.startsWith("0")) clean = clean.slice(1);
+      clean = "549" + clean;
+    } else if (!clean.startsWith("54")) {
+      clean = "549" + clean;
+    }
     window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, "_blank");
     logAudit("enviar_recordatorio", sub.id, { alumno: sub.alumnos?.nombre });
     setRecordatorioDialog(null);
