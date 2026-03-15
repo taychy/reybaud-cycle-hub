@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
@@ -38,7 +38,7 @@ const StudentDashboard = () => {
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "progreso" | "perfil">("hoy");
+  const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">("hoy");
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
@@ -190,7 +190,18 @@ const StudentDashboard = () => {
       case "progreso":
         navigate("/alumno/progreso");
         return null;
-      case "perfil":
+      case "tienda":
+        return (
+          <div className="w-full h-[calc(100vh-140px)] animate-fade-in -mx-4">
+            <iframe
+              src="https://ciclismoreybaud.mitiendanube.com/"
+              className="w-full h-full border-0"
+              title="Tienda Ciclismo Reybaud"
+              allow="payment"
+            />
+          </div>
+        );
+      case "mas":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">
             {/* Profile header */}
@@ -390,7 +401,7 @@ const StudentDashboard = () => {
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-heading">{firstName}</span>
-          {activeTab !== "perfil" && (
+          {activeTab !== "mas" && (
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">
               <LogOut className="w-4 h-4" />
             </Button>
@@ -404,10 +415,10 @@ const StudentDashboard = () => {
 
       {/* Bottom navigation */}
       <nav className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md">
-        <div className="max-w-md mx-auto flex items-center justify-around py-2">
+        <div className="max-w-md mx-auto flex items-center justify-around py-2 relative">
           <NavItem 
             icon={<Home className="w-5 h-5" />} 
-            label="Hoy" 
+            label="Inicio" 
             active={activeTab === "hoy"} 
             onClick={() => setActiveTab("hoy")} 
           />
@@ -417,6 +428,20 @@ const StudentDashboard = () => {
             active={activeTab === "eventos"} 
             onClick={() => setActiveTab("eventos")} 
           />
+          {/* Carrito - highlighted center button */}
+          <button
+            onClick={() => setActiveTab("tienda")}
+            className="flex flex-col items-center gap-0.5 -mt-5"
+          >
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${
+              activeTab === "tienda" 
+                ? "bg-primary text-primary-foreground shadow-primary/40" 
+                : "bg-primary/90 text-primary-foreground shadow-primary/30 hover:bg-primary"
+            }`}>
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <span className={`text-[10px] font-heading font-medium ${activeTab === "tienda" ? "text-primary" : "text-muted-foreground"}`}>Tienda</span>
+          </button>
           <NavItem 
             icon={<TrendingUp className="w-5 h-5" />} 
             label="Progreso" 
@@ -424,10 +449,10 @@ const StudentDashboard = () => {
             onClick={() => setActiveTab("progreso")} 
           />
           <NavItem 
-            icon={<User className="w-5 h-5" />} 
-            label="Perfil" 
-            active={activeTab === "perfil"} 
-            onClick={() => setActiveTab("perfil")} 
+            icon={<MoreHorizontal className="w-5 h-5" />} 
+            label="Más" 
+            active={activeTab === "mas"} 
+            onClick={() => setActiveTab("mas")} 
           />
         </div>
       </nav>
