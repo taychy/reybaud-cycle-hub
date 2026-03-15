@@ -194,35 +194,34 @@ const AdminLayout = () => {
           {storeNavItems.map((item) => (
             <NavItem key={item.to} item={item} />
           ))}
-        </nav>
 
-        {/* Footer */}
-        <div className={`border-t border-sidebar-border ${collapsed ? "p-1.5" : "p-3"} space-y-1`}>
-          {/* Logout */}
-          {collapsed ? (
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center justify-center p-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
+          {/* Logout inside nav */}
+          <div className="pt-4">
+            {collapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center justify-center p-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  Cerrar sesión
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+              >
+                <LogOut className="w-4 h-4" />
                 Cerrar sesión
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
-            >
-              <LogOut className="w-4 h-4" />
-              Cerrar sesión
-            </button>
-          )}
-        </div>
+              </button>
+            )}
+          </div>
+        </nav>
       </aside>
 
       {/* Mobile header */}
