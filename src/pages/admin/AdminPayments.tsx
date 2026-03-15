@@ -431,12 +431,10 @@ const AdminPayments = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Alumno</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead>F. Emisión</TableHead>
-                  <TableHead>F. Vencimiento</TableHead>
-                  <TableHead>F. Pago</TableHead>
+                  <TableHead>Vencimiento</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Método</TableHead>
                   <TableHead>Acciones</TableHead>
@@ -444,49 +442,95 @@ const AdminPayments = () => {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No se encontraron pagos con los filtros seleccionados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No se encontraron pagos con los filtros seleccionados</TableCell></TableRow>
                 ) : (
                   filtered.map((sub) => {
                     const status = getPaymentStatus(sub);
+                    const isExpanded = expandedRow === sub.id;
                     return (
-                      <TableRow key={sub.id}>
-                        <TableCell className="font-medium text-sm">{sub.alumnos?.nombre || "—"}</TableCell>
-                        <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
-                        <TableCell className="text-right text-sm font-medium">{sub.planes ? formatPrice(sub.planes.precio, sub.planes.moneda) : "—"}</TableCell>
-                        <TableCell className="text-sm">{formatDate(sub.created_at)}</TableCell>
-                        <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
-                        <TableCell className="text-sm">{sub.estado === "activa" || sub.estado === "conciliado" ? formatDate(sub.fecha_inicio) : "—"}</TableCell>
-                        <TableCell>{getStatusBadge(status)}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">{getMetodoPago(sub)}</Badge></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {(status === "pendiente" || status === "vencido") && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Marcar como pagado" onClick={() => setConfirmAction({ type: "pagar", sub })}>
-                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <Fragment key={sub.id}>
+                        <TableRow 
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => setExpandedRow(isExpanded ? null : sub.id)}
+                        >
+                          <TableCell className="px-2">
+                            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">{sub.alumnos?.nombre || "—"}</TableCell>
+                          <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
+                          <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
+                          <TableCell>{getStatusBadge(status)}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{getMetodoPago(sub)}</Badge></TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {(status === "pendiente" || status === "vencido") && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Marcar como pagado" onClick={() => setConfirmAction({ type: "pagar", sub })}>
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                </Button>
+                              )}
+                              {status === "informado" && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Conciliar pago" onClick={() => setConfirmAction({ type: "conciliar", sub })}>
+                                  <CheckCheck className="w-3.5 h-3.5 text-teal-600" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar vencimiento" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
+                                <Edit className="w-3.5 h-3.5" />
                               </Button>
-                            )}
-                            {status === "informado" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Conciliar pago" onClick={() => setConfirmAction({ type: "conciliar", sub })}>
-                                <CheckCheck className="w-3.5 h-3.5 text-teal-600" />
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Registrar pago manual" onClick={() => setManualPayDialog(sub)}>
+                                <CreditCard className="w-3.5 h-3.5 text-blue-600" />
                               </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar vencimiento" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
-                              <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Registrar pago manual" onClick={() => setManualPayDialog(sub)}>
-                              <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Enviar recordatorio" onClick={() => setRecordatorioDialog(sub)}>
-                              <MessageSquare className="w-3.5 h-3.5 text-green-600" />
-                            </Button>
-                            {status !== "cancelado" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Suspender acceso" onClick={() => setConfirmAction({ type: "suspender", sub })}>
-                                <BanIcon className="w-3.5 h-3.5 text-red-500" />
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Enviar recordatorio" onClick={() => setRecordatorioDialog(sub)}>
+                                <MessageSquare className="w-3.5 h-3.5 text-green-600" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                              {status !== "cancelado" && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Suspender acceso" onClick={() => setConfirmAction({ type: "suspender", sub })}>
+                                  <BanIcon className="w-3.5 h-3.5 text-red-500" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell colSpan={7} className="p-0">
+                              <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-b border-border/50">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Monto</p>
+                                  <p className="font-semibold">{sub.planes ? formatPrice(sub.planes.precio, sub.planes.moneda) : "—"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">F. Emisión</p>
+                                  <p className="font-medium">{formatDate(sub.created_at)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">F. Inicio</p>
+                                  <p className="font-medium">{formatDate(sub.fecha_inicio)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">F. Pago</p>
+                                  <p className="font-medium">{sub.estado === "activa" || sub.estado === "conciliado" ? formatDate(sub.fecha_inicio) : "—"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+                                  <p className="font-medium truncate">{sub.alumnos?.email || "—"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Teléfono</p>
+                                  <p className="font-medium">{sub.alumnos?.telefono || "—"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Auto-renovación</p>
+                                  <p className="font-medium">{sub.auto_renovacion ? "Sí" : "No"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Frecuencia</p>
+                                  <p className="font-medium">{sub.planes?.frecuencia || "—"}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
                     );
                   })
                 )}
