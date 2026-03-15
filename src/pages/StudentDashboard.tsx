@@ -190,7 +190,18 @@ const StudentDashboard = () => {
       case "progreso":
         navigate("/alumno/progreso");
         return null;
-      case "perfil":
+      case "tienda":
+        return (
+          <div className="w-full h-[calc(100vh-140px)] animate-fade-in -mx-4">
+            <iframe
+              src="https://ciclismoreybaud.mitiendanube.com/"
+              className="w-full h-full border-0"
+              title="Tienda Ciclismo Reybaud"
+              allow="payment"
+            />
+          </div>
+        );
+      case "mas":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">
             {/* Profile header */}
