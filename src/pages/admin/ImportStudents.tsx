@@ -282,4 +282,5 @@ export const ImportStudentsContent = () => {
   );
 };
 
+const ImportStudents = () => <ImportStudentsContent />;
 export default ImportStudents;

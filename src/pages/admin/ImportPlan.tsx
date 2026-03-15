@@ -209,4 +209,5 @@ export const ImportPlanContent = () => {
   );
 };
 
+const ImportPlan = () => <ImportPlanContent />;
 export default ImportPlan;
