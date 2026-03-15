@@ -85,8 +85,7 @@ const App = () => (
             <Route index element={<Navigate to="/admin/resumen" replace />} />
             <Route path="resumen" element={<AdminDashboard />} />
             <Route path="alumnos" element={<ManageStudents />} />
-            <Route path="importar-alumnos" element={<ImportStudents />} />
-            <Route path="importar-plan" element={<ImportPlan />} />
+            <Route path="entrenamientos" element={<Trainings />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="planes" element={<ManagePlanes />} />
