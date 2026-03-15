@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -150,19 +150,28 @@ const AdminLayout = () => {
           collapsed ? "w-[60px]" : "w-64"
         }`}
       >
-        {/* Header */}
-        <div className={`border-b border-sidebar-border ${collapsed ? "p-3" : "p-6"}`}>
+        {/* Header with hamburger toggle */}
+        <div className={`border-b border-sidebar-border ${collapsed ? "p-3" : "px-4 py-3"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
-            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
-            </div>
+            <button
+              onClick={toggleCollapsed}
+              className="p-1.5 rounded-md text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors shrink-0"
+              title={collapsed ? "Expandir menú" : "Colapsar menú"}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             {!collapsed && (
-              <div>
-                <h1 className="text-sm font-heading font-bold uppercase tracking-wider text-sidebar-foreground">
-                  Reybaud
-                </h1>
-                <p className="text-xs text-muted-foreground">Admin Panel</p>
-              </div>
+              <>
+                <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+                  <img src={logo} alt="Ciclismo Reybaud" className="w-7 h-7" />
+                </div>
+                <div>
+                  <h1 className="text-sm font-heading font-bold uppercase tracking-wider text-sidebar-foreground">
+                    Reybaud
+                  </h1>
+                  <p className="text-xs text-muted-foreground">Admin Panel</p>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -189,24 +198,6 @@ const AdminLayout = () => {
 
         {/* Footer */}
         <div className={`border-t border-sidebar-border ${collapsed ? "p-1.5" : "p-3"} space-y-1`}>
-          {/* Collapse toggle */}
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={toggleCollapsed}
-                className={`flex items-center ${collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"} rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full`}
-              >
-                {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-                {!collapsed && "Colapsar menú"}
-              </button>
-            </TooltipTrigger>
-            {collapsed && (
-              <TooltipContent side="right" className="text-xs">
-                Expandir menú
-              </TooltipContent>
-            )}
-          </Tooltip>
-
           {/* Logout */}
           {collapsed ? (
             <Tooltip delayDuration={0}>
