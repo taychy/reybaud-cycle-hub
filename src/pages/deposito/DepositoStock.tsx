@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Search, Plus, Minus, RefreshCw, BarcodeScannerIcon } from "lucide-react";
+import { Package, Search, Plus, Minus, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Product {
