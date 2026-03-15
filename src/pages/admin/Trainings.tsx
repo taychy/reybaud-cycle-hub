@@ -140,14 +140,33 @@ const Trainings = () => {
             Entrenamientos
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {entrenamientos.length} entrenamientos en {filterMonth}
+            Gestión de entrenamientos e importación de planes
           </p>
         </div>
-        <Button variant="gold" size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" />
-          Nuevo
-        </Button>
       </div>
+
+      <Tabs defaultValue="lista" className="w-full">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="lista" className="gap-1.5">
+            <Dumbbell className="w-4 h-4" />
+            Lista
+          </TabsTrigger>
+          <TabsTrigger value="importar" className="gap-1.5">
+            <FileSpreadsheet className="w-4 h-4" />
+            Importar Plan
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lista" className="space-y-5 mt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {entrenamientos.length} entrenamientos en {filterMonth}
+            </p>
+            <Button variant="gold" size="sm" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-1" />
+              Nuevo
+            </Button>
+          </div>
 
       <div className="flex flex-wrap gap-3">
         <input
