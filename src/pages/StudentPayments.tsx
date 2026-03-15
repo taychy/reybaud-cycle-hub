@@ -18,6 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import BottomNav from "@/components/BottomNav";
+import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
 
