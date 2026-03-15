@@ -51,7 +51,7 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
   );
 };
 
-const Eventos = () => {
+export const EventosContent = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +74,54 @@ const Eventos = () => {
   const past = events.filter((e) => e.date < today).reverse();
 
   return (
+    <div className="w-full max-w-md mx-auto space-y-5 animate-fade-in">
+      <div className="text-center space-y-1 pt-2">
+        <h1 className="text-xl font-heading font-semibold text-foreground">Eventos</h1>
+        <p className="text-xs text-muted-foreground">Próximos y pasados</p>
+      </div>
+
+      {loading ? (
+        <div className="text-center text-muted-foreground animate-pulse py-8">Cargando...</div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            <h2 className="text-xs font-heading uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <CalendarDays className="w-3.5 h-3.5" /> Próximos
+            </h2>
+            {upcoming.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No hay más eventos próximos.</p>
+            ) : (
+              upcoming.map((e) => (
+                <EventCard key={e.id} event={e} onClick={() => navigate(`/eventos/${e.id}`)} />
+              ))
+            )}
+          </div>
+
+          {past.length > 0 && (
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowPast(!showPast)}
+                className="text-xs font-heading uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors"
+              >
+                <Tag className="w-3.5 h-3.5" /> Pasados ({past.length})
+                {showPast ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              {showPast &&
+                past.map((e) => (
+                  <EventCard key={e.id} event={e} onClick={() => navigate(`/eventos/${e.id}`)} />
+                ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+const Eventos = () => {
+  const navigate = useNavigate();
+
+  return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="flex items-center gap-3 px-5 pt-5 pb-2">
         <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
@@ -81,51 +129,8 @@ const Eventos = () => {
         </button>
         <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
       </header>
-
       <main className="flex-1 px-4 pb-24">
-        <div className="w-full max-w-md mx-auto space-y-5 animate-fade-in">
-          <div className="text-center space-y-1 pt-2">
-            <h1 className="text-xl font-heading font-semibold text-foreground">Eventos</h1>
-            <p className="text-xs text-muted-foreground">Próximos y pasados</p>
-          </div>
-
-          {loading ? (
-            <div className="text-center text-muted-foreground animate-pulse py-8">Cargando...</div>
-          ) : (
-            <>
-              {/* Upcoming */}
-              <div className="space-y-3">
-                <h2 className="text-xs font-heading uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <CalendarDays className="w-3.5 h-3.5" /> Próximos
-                </h2>
-                {upcoming.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No hay más eventos próximos.</p>
-                ) : (
-                  upcoming.map((e) => (
-                    <EventCard key={e.id} event={e} onClick={() => navigate(`/eventos/${e.id}`)} />
-                  ))
-                )}
-              </div>
-
-              {/* Past */}
-              {past.length > 0 && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setShowPast(!showPast)}
-                    className="text-xs font-heading uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors"
-                  >
-                    <Tag className="w-3.5 h-3.5" /> Pasados ({past.length})
-                    {showPast ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                  {showPast &&
-                    past.map((e) => (
-                      <EventCard key={e.id} event={e} onClick={() => navigate(`/eventos/${e.id}`)} />
-                    ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <EventosContent />
       </main>
     </div>
   );
