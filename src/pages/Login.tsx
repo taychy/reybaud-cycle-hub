@@ -26,16 +26,7 @@ const Login = () => {
         return;
       }
 
-      // Coach auto-redirect
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
-        _role: "coach" as any,
-      });
-      if (isCoach) {
-        navigate("/coach", { replace: true });
-        return;
-      }
-
+      // Student login always resolves to student dashboard — don't redirect by role
       // Check if this user is an alumno
       const userEmail = session.user.email?.toLowerCase().trim();
       if (!userEmail) {
