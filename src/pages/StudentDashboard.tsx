@@ -35,6 +35,8 @@ const getGreeting = () => {
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialTab = (location.state as any)?.tab || "hoy";
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [weekTrainings, setWeekTrainings] = useState<(Entrenamiento | null)[]>([null, null, null, null, null, null, null]);
