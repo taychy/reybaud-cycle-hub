@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
+import BottomNav from "@/components/BottomNav";
 import { EventosContent } from "@/pages/Eventos";
 import { StudentProgressContent } from "@/pages/StudentProgress";
 import TrainingDetailView from "@/components/TrainingDetailView";
@@ -34,6 +35,8 @@ const getGreeting = () => {
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialTab = (location.state as any)?.tab || "hoy";
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [weekTrainings, setWeekTrainings] = useState<(Entrenamiento | null)[]>([null, null, null, null, null, null, null]);
@@ -41,7 +44,7 @@ const StudentDashboard = () => {
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">("hoy");
+  const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">(initialTab);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
@@ -406,48 +409,7 @@ const StudentDashboard = () => {
       </main>
 
       {/* Bottom navigation */}
-      <nav className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md">
-        <div className="max-w-md mx-auto flex items-center justify-around py-2 relative">
-          <NavItem 
-            icon={<Home className="w-5 h-5" />} 
-            label="Inicio" 
-            active={activeTab === "hoy"} 
-            onClick={() => setActiveTab("hoy")} 
-          />
-          <NavItem 
-            icon={<Trophy className="w-5 h-5" />} 
-            label="Eventos" 
-            active={activeTab === "eventos"} 
-            onClick={() => setActiveTab("eventos")} 
-          />
-          {/* Carrito - highlighted center button */}
-          <button
-            onClick={() => setActiveTab("tienda")}
-            className="flex flex-col items-center gap-0.5 -mt-5"
-          >
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${
-              activeTab === "tienda" 
-                ? "bg-primary text-primary-foreground shadow-primary/40" 
-                : "bg-primary/90 text-primary-foreground shadow-primary/30 hover:bg-primary"
-            }`}>
-              <ShoppingCart className="w-5 h-5" />
-            </div>
-            <span className={`text-[10px] font-heading font-medium ${activeTab === "tienda" ? "text-primary" : "text-muted-foreground"}`}>Tienda</span>
-          </button>
-          <NavItem 
-            icon={<TrendingUp className="w-5 h-5" />} 
-            label="Progreso" 
-            active={activeTab === "progreso"} 
-            onClick={() => setActiveTab("progreso")} 
-          />
-          <NavItem 
-            icon={<MoreHorizontal className="w-5 h-5" />} 
-            label="Más" 
-            active={activeTab === "mas"} 
-            onClick={() => setActiveTab("mas")} 
-          />
-        </div>
-      </nav>
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };
@@ -472,12 +434,5 @@ const MetricBar = ({ label, value }: { label: string; value: number }) => {
     </div>
   );
 };
-
-const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
-    {icon}
-    <span className="text-[10px] font-heading font-medium">{label}</span>
-  </button>
-);
 
 export default StudentDashboard;
