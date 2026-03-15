@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 
 const navItems = [
@@ -34,6 +35,15 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem("admin_sidebar_collapsed") === "true";
+  });
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("admin_sidebar_collapsed", String(next));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -55,7 +65,6 @@ const AdminLayout = () => {
         return;
       }
 
-      // Update last_login_at only once per session
       const alreadyUpdated = sessionStorage.getItem("admin_login_updated");
       if (!alreadyUpdated) {
         await supabase
@@ -85,78 +94,148 @@ const AdminLayout = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar - desktop */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar">
-        <div className="p-6 border-b border-sidebar-border">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden">
-              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-sm font-heading font-bold uppercase tracking-wider text-sidebar-foreground">
-                Reybaud
-              </h1>
-              <p className="text-xs text-muted-foreground">Admin Panel</p>
-            </div>
-          </div>
-        </div>
+  const NavItem = ({ item, mobile = false }: { item: typeof navItems[0]; mobile?: boolean }) => {
+    const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
+    const py = mobile ? "py-3" : "py-2.5";
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
+    if (collapsed && !mobile) {
+      return (
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
             <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                }`
-              }
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </NavLink>
-          ))}
-
-          {/* Store section divider */}
-          <div className="pt-4 pb-1">
-            <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
-          </div>
-          {storeNavItems.map((item) => (
-            <NavLink
-              key={item.to}
               to={item.to}
               end={item.to === "/admin/tienda"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                `flex items-center justify-center p-2.5 rounded-md transition-colors ${
                   isActive
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                 }`
               }
             >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+              <item.icon className={iconSize} />
             </NavLink>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <NavLink
+        to={item.to}
+        end={item.to === "/admin/tienda"}
+        onClick={mobile ? () => setMobileOpen(false) : undefined}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-3 ${py} rounded-md text-sm font-medium transition-colors ${
+            isActive
+              ? "bg-sidebar-accent text-sidebar-primary"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+          }`
+        }
+      >
+        <item.icon className={iconSize} />
+        {item.label}
+      </NavLink>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar - desktop */}
+      <aside
+        className={`hidden md:flex flex-col border-r border-border bg-sidebar transition-all duration-300 ${
+          collapsed ? "w-[60px]" : "w-64"
+        }`}
+      >
+        {/* Header */}
+        <div className={`border-b border-sidebar-border ${collapsed ? "p-3" : "p-6"}`}>
+          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
+            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+              <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
+            </div>
+            {!collapsed && (
+              <div>
+                <h1 className="text-sm font-heading font-bold uppercase tracking-wider text-sidebar-foreground">
+                  Reybaud
+                </h1>
+                <p className="text-xs text-muted-foreground">Admin Panel</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className={`flex-1 ${collapsed ? "p-1.5" : "p-3"} space-y-1 overflow-y-auto`}>
+          {navItems.map((item) => (
+            <NavItem key={item.to} item={item} />
+          ))}
+
+          {/* Store section */}
+          <div className="pt-4 pb-1">
+            {!collapsed && (
+              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
+                Tienda
+              </span>
+            )}
+            {collapsed && <div className="border-t border-sidebar-border mx-1" />}
+          </div>
+          {storeNavItems.map((item) => (
+            <NavItem key={item.to} item={item} />
           ))}
         </nav>
 
-        <div className="p-3 border-t border-sidebar-border">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
-          >
-            <LogOut className="w-4 h-4" />
-            Cerrar sesión
-          </button>
+        {/* Footer */}
+        <div className={`border-t border-sidebar-border ${collapsed ? "p-1.5" : "p-3"} space-y-1`}>
+          {/* Collapse toggle */}
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleCollapsed}
+                className={`flex items-center ${collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"} rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full`}
+              >
+                {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+                {!collapsed && "Colapsar menú"}
+              </button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" className="text-xs">
+                Expandir menú
+              </TooltipContent>
+            )}
+          </Tooltip>
+
+          {/* Logout */}
+          {collapsed ? (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center justify-center p-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">
+                Cerrar sesión
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+            >
+              <LogOut className="w-4 h-4" />
+              Cerrar sesión
+            </button>
+          )}
         </div>
       </aside>
 
       {/* Mobile header */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full overflow-hidden">
@@ -169,7 +248,7 @@ const AdminLayout = () => {
           </Button>
         </header>
 
-      {/* Mobile drawer overlay */}
+        {/* Mobile drawer overlay */}
         {mobileOpen && (
           <div
             className="md:hidden fixed inset-0 z-40 bg-black/60 animate-fade-in"
@@ -202,39 +281,13 @@ const AdminLayout = () => {
 
           <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors ${
-                    isActive ? "bg-sidebar-accent text-sidebar-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  }`
-                }
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </NavLink>
+              <NavItem key={item.to} item={item} mobile />
             ))}
-
             <div className="pt-4 pb-1">
               <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
             </div>
             {storeNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/admin/tienda"}
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors ${
-                    isActive ? "bg-sidebar-accent text-sidebar-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  }`
-                }
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </NavLink>
+              <NavItem key={item.to} item={item} mobile />
             ))}
           </nav>
 
