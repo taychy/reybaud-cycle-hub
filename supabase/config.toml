@@ -5,11 +5,31 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.create-mp-preference]
     verify_jwt = false
+  [functions.dev-login]
+    verify_jwt = false
+  [functions.get-mp-public-key]
+    verify_jwt = false
+  [functions.invite-admin]
+    verify_jwt = false
   [functions.invite-user]
     verify_jwt = false
   [functions.mp-webhook]
     verify_jwt = false
-  [functions.invite-admin]
+  [functions.notify-admin-registration]
+    verify_jwt = false
+  [functions.notify-cash-payment]
     verify_jwt = false
   [functions.notify-student-update]
+    verify_jwt = false
+  [functions.process-auto-renewals]
+    verify_jwt = false
+  [functions.process-card-payment]
+    verify_jwt = false
+  [functions.resend-invite]
+    verify_jwt = false
+  [functions.seed-test-user]
+    verify_jwt = false
+  [functions.send-event-checkin-email]
+    verify_jwt = false
+  [functions.send-result-request-email]
     verify_jwt = false
