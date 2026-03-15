@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, EyeOff, Dumbbell, Plus, Pencil, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Eye, EyeOff, Dumbbell, Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { ImportPlanContent } from "./ImportPlan";
 
 type Entrenamiento = Tables<"entrenamientos">;
 const GRUPOS_FILTER = ["Todos", "G1", "G2", "G3", "G4", "Principiante"] as const;
@@ -138,14 +140,33 @@ const Trainings = () => {
             Entrenamientos
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {entrenamientos.length} entrenamientos en {filterMonth}
+            Gestión de entrenamientos e importación de planes
           </p>
         </div>
-        <Button variant="gold" size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" />
-          Nuevo
-        </Button>
       </div>
+
+      <Tabs defaultValue="lista" className="w-full">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="lista" className="gap-1.5">
+            <Dumbbell className="w-4 h-4" />
+            Lista
+          </TabsTrigger>
+          <TabsTrigger value="importar" className="gap-1.5">
+            <FileSpreadsheet className="w-4 h-4" />
+            Importar Plan
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lista" className="space-y-5 mt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {entrenamientos.length} entrenamientos en {filterMonth}
+            </p>
+            <Button variant="gold" size="sm" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-1" />
+              Nuevo
+            </Button>
+          </div>
 
       <div className="flex flex-wrap gap-3">
         <input
@@ -328,6 +349,12 @@ const Trainings = () => {
           </div>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="importar" className="mt-4">
+          <ImportPlanContent />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

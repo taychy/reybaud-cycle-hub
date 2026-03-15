@@ -13,8 +13,6 @@ import StudentPayments from "./pages/StudentPayments";
 import SetPassword from "./pages/SetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
-import ImportStudents from "./pages/admin/ImportStudents";
-import ImportPlan from "./pages/admin/ImportPlan";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
 import Asesoria from "./pages/Asesoria";
@@ -85,8 +83,7 @@ const App = () => (
             <Route index element={<Navigate to="/admin/resumen" replace />} />
             <Route path="resumen" element={<AdminDashboard />} />
             <Route path="alumnos" element={<ManageStudents />} />
-            <Route path="importar-alumnos" element={<ImportStudents />} />
-            <Route path="importar-plan" element={<ImportPlan />} />
+            <Route path="entrenamientos" element={<Trainings />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="planes" element={<ManagePlanes />} />

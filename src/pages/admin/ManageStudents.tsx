@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ImportStudentsContent } from "./ImportStudents";
 
 type Alumno = Tables<"alumnos">;
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
@@ -258,7 +260,7 @@ const ManageStudents = () => {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl md:text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-              Gestionar Alumnos
+              Alumnos
             </h2>
             {pendingCount > 0 && (
               <Badge variant="destructive" className="text-xs animate-pulse">
@@ -270,10 +272,26 @@ const ManageStudents = () => {
             {alumnos.length} alumnos registrados
           </p>
         </div>
-        <Button variant="gold" size={isMobile ? "sm" : "default"} onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {isMobile ? "Nuevo" : "Agregar Alumno"}
-        </Button>
       </div>
+
+      <Tabs defaultValue="lista" className="w-full">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="lista" className="gap-1.5">
+            <Users className="w-4 h-4" />
+            Lista
+          </TabsTrigger>
+          <TabsTrigger value="importar" className="gap-1.5">
+            <Upload className="w-4 h-4" />
+            Importar
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lista" className="space-y-5 mt-4">
+          <div className="flex items-center justify-end">
+            <Button variant="gold" size={isMobile ? "sm" : "default"} onClick={() => setShowCreate(true)}>
+              <Plus className="w-4 h-4 mr-1" /> {isMobile ? "Nuevo" : "Agregar Alumno"}
+            </Button>
+          </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative max-w-sm flex-1 min-w-[200px]">
@@ -636,6 +654,12 @@ const ManageStudents = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="importar" className="mt-4">
+          <ImportStudentsContent />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -8,7 +8,7 @@ import { Upload, AlertTriangle, CheckCircle2, FileSpreadsheet, Eye } from "lucid
 import { toast } from "sonner";
 import { parseTrainingExcel, type ParsedTraining } from "@/lib/parseTrainingExcel";
 
-const ImportPlan = () => {
+export const ImportPlanContent = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [parsed, setParsed] = useState<ParsedTraining[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -209,4 +209,5 @@ const ImportPlan = () => {
   );
 };
 
+const ImportPlan = () => <ImportPlanContent />;
 export default ImportPlan;

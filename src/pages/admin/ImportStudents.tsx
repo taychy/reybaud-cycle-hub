@@ -60,7 +60,7 @@ function detectGroup(row: Record<string, string>): string {
   return "";
 }
 
-const ImportStudents = () => {
+export const ImportStudentsContent = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [parsed, setParsed] = useState<ParsedStudent[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -282,4 +282,5 @@ const ImportStudents = () => {
   );
 };
 
+const ImportStudents = () => <ImportStudentsContent />;
 export default ImportStudents;
