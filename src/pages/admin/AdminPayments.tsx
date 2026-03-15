@@ -121,6 +121,9 @@ const AdminPayments = () => {
   const [filterFechaDesde, setFilterFechaDesde] = useState("");
   const [filterFechaHasta, setFilterFechaHasta] = useState("");
 
+  // Expandable rows
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
   // Dialogs
   const [confirmAction, setConfirmAction] = useState<{ type: string; sub: Suscripcion } | null>(null);
   const [editFechaDialog, setEditFechaDialog] = useState<Suscripcion | null>(null);
