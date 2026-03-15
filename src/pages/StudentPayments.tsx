@@ -473,6 +473,7 @@ const StudentPayments = () => {
           </div>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };
