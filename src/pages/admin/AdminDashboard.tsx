@@ -70,10 +70,13 @@ const getPaymentBadge = (estado: string, mpStatus: string | null) => {
   return { label: "Pendiente", variant: "secondary" as const, icon: HelpCircle, className: "" };
 };
 
-const formatWhatsAppUrl = (telefono: string | null) => {
+const formatWhatsAppUrl = (telefono: string | null, nombre?: string) => {
   if (!telefono) return null;
   const clean = telefono.replace(/\D/g, "");
-  return `https://wa.me/${clean}`;
+  const msg = nombre
+    ? encodeURIComponent(`Hola ${nombre}, te contactamos desde Reybaud Ciclismo.`)
+    : encodeURIComponent("Hola");
+  return `https://wa.me/${clean}?text=${msg}`;
 };
 
 const AdminDashboard = () => {
@@ -246,7 +249,7 @@ const AdminDashboard = () => {
   };
 
   const openWhatsApp = (telefono: string | null, nombre: string) => {
-    const url = formatWhatsAppUrl(telefono);
+    const url = formatWhatsAppUrl(telefono, nombre);
     if (!url) {
       toast({ title: "Sin teléfono", description: `${nombre} no tiene número de teléfono registrado.`, variant: "destructive" });
       return;
