@@ -122,24 +122,26 @@ const Login = () => {
       return;
     }
 
-    // Sign in with email only (no password) — dev mode
-    // Try sign in with a default password, if fails try to sign up
+    // Dev mode: ensure user has known password via edge function, then sign in
+    const { error: devError } = await supabase.functions.invoke("dev-login", {
+      body: { email: trimmedEmail },
+    });
+
+    if (devError) {
+      setLoginError("No se pudo ingresar. Intentá de nuevo.");
+      setLoading(false);
+      return;
+    }
+
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
       password: "dev-access-2024",
     });
 
     if (signInError) {
-      // Try creating the account with this password
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password: "dev-access-2024",
-      });
-      if (signUpError) {
-        setLoginError("No se pudo ingresar. Intentá de nuevo.");
-        setLoading(false);
-        return;
-      }
+      setLoginError("No se pudo ingresar. Intentá de nuevo.");
+      setLoading(false);
+      return;
     }
 
     setLoading(false);
