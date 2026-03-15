@@ -195,7 +195,7 @@ const StudentDashboard = () => {
       case "progreso":
         return <StudentProgressContent />;
       case "tienda":
-        return <TiendaSection />;
+        return null;
       case "mas":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">

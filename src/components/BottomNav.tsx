@@ -42,19 +42,6 @@ const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
           active={activeTab === "eventos"}
           onClick={() => handleTab("eventos")}
         />
-        <button
-          onClick={() => handleTab("tienda")}
-          className="flex flex-col items-center gap-0.5 -mt-5"
-        >
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${
-            activeTab === "tienda"
-              ? "bg-primary text-primary-foreground shadow-primary/40"
-              : "bg-primary/90 text-primary-foreground shadow-primary/30 hover:bg-primary"
-          }`}>
-            <ShoppingCart className="w-5 h-5" />
-          </div>
-          <span className={`text-[10px] font-heading font-medium ${activeTab === "tienda" ? "text-primary" : "text-muted-foreground"}`}>Tienda</span>
-        </button>
         <NavItem
           icon={<TrendingUp className="w-5 h-5" />}
           label="Progreso"
