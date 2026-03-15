@@ -37,6 +37,7 @@ const DepositoStock = () => {
   // Barcode scanner state
   const [scannerActive, setScannerActive] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
