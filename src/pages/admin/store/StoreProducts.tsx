@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ImageUpload from "@/components/ImageUpload";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Product {
@@ -299,8 +300,11 @@ const StoreProducts = () => {
               </div>
             </div>
             <div>
-              <label className="text-xs font-heading uppercase text-muted-foreground">URL de imagen</label>
-              <Input value={editProduct?.image_url || ""} onChange={(e) => setEditProduct((p) => ({ ...p, image_url: e.target.value }))} placeholder="https://..." />
+              <label className="text-xs font-heading uppercase text-muted-foreground">Imagen</label>
+              <ImageUpload
+                value={editProduct?.image_url || null}
+                onChange={(url) => setEditProduct((p) => ({ ...p, image_url: url }))}
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

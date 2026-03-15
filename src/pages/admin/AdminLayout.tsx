@@ -36,6 +36,7 @@ const AdminLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const checkAdmin = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -54,17 +55,22 @@ const AdminLayout = () => {
         return;
       }
 
-      // Update last_login_at for admin profile
-      await supabase
-        .from("admin_profiles")
-        .update({ last_login_at: new Date().toISOString() } as any)
-        .eq("user_id", session.user.id);
+      // Update last_login_at only once per session
+      const alreadyUpdated = sessionStorage.getItem("admin_login_updated");
+      if (!alreadyUpdated) {
+        await supabase
+          .from("admin_profiles")
+          .update({ last_login_at: new Date().toISOString() } as any)
+          .eq("user_id", session.user.id);
+        sessionStorage.setItem("admin_login_updated", "true");
+      }
 
-      setLoading(false);
+      if (isMounted) setLoading(false);
     };
 
     checkAdmin();
-  }, [navigate]);
+    return () => { isMounted = false; };
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
