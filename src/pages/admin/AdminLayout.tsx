@@ -13,8 +13,6 @@ const navItems = [
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
   { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-  { to: "/admin/importar-alumnos", label: "Importar Alumnos", icon: Upload },
-  { to: "/admin/importar-plan", label: "Importar Plan", icon: FileSpreadsheet },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/eventos/record-de-la-hora", label: "Evento", icon: Trophy },
