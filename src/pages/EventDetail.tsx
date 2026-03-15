@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import logo from "@/assets/logo.png";
 import EventRankings from "@/components/EventRankings";
+import BottomNav from "@/components/BottomNav";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
