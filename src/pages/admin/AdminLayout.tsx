@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt } from "lucide-react";
+import { Users, Upload, FileSpreadsheet, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
@@ -19,6 +19,17 @@ const navItems = [
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/eventos/record-de-la-hora", label: "Evento", icon: Trophy },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
+];
+
+const storeNavItems = [
+  { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
+  { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
+  { to: "/admin/tienda/pedidos", label: "Pedidos", icon: Boxes },
+  { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
+  { to: "/admin/tienda/banners", label: "Banners", icon: Image },
+  { to: "/admin/tienda/stock", label: "Stock", icon: Package },
+  { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 const AdminLayout = () => {
@@ -88,11 +99,33 @@ const AdminLayout = () => {
           </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                }`
+              }
+            >
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </NavLink>
+          ))}
+
+          {/* Store section divider */}
+          <div className="pt-4 pb-1">
+            <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
+          </div>
+          {storeNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/admin/tienda"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
@@ -168,6 +201,26 @@ const AdminLayout = () => {
               <NavLink
                 key={item.to}
                 to={item.to}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors ${
+                    isActive ? "bg-sidebar-accent text-sidebar-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5" />
+                {item.label}
+              </NavLink>
+            ))}
+
+            <div className="pt-4 pb-1">
+              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
+            </div>
+            {storeNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/admin/tienda"}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors ${

@@ -40,6 +40,14 @@ import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
+import StoreDashboard from "./pages/admin/store/StoreDashboard";
+import StoreProducts from "./pages/admin/store/StoreProducts";
+import StoreCategories from "./pages/admin/store/StoreCategories";
+import StoreOrders from "./pages/admin/store/StoreOrders";
+import StorePromotions from "./pages/admin/store/StorePromotions";
+import StoreBanners from "./pages/admin/store/StoreBanners";
+import StoreStock from "./pages/admin/store/StoreStock";
+import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +96,14 @@ const App = () => (
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
             <Route path="historial" element={<AuditLog />} />
+            <Route path="tienda" element={<StoreDashboard />} />
+            <Route path="tienda/productos" element={<StoreProducts />} />
+            <Route path="tienda/categorias" element={<StoreCategories />} />
+            <Route path="tienda/pedidos" element={<StoreOrders />} />
+            <Route path="tienda/promociones" element={<StorePromotions />} />
+            <Route path="tienda/banners" element={<StoreBanners />} />
+            <Route path="tienda/stock" element={<StoreStock />} />
+            <Route path="tienda/analytics" element={<StoreAnalytics />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
