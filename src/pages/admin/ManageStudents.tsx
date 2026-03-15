@@ -260,7 +260,7 @@ const ManageStudents = () => {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl md:text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-              Gestionar Alumnos
+              Alumnos
             </h2>
             {pendingCount > 0 && (
               <Badge variant="destructive" className="text-xs animate-pulse">
@@ -272,10 +272,26 @@ const ManageStudents = () => {
             {alumnos.length} alumnos registrados
           </p>
         </div>
-        <Button variant="gold" size={isMobile ? "sm" : "default"} onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {isMobile ? "Nuevo" : "Agregar Alumno"}
-        </Button>
       </div>
+
+      <Tabs defaultValue="lista" className="w-full">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="lista" className="gap-1.5">
+            <Users className="w-4 h-4" />
+            Lista
+          </TabsTrigger>
+          <TabsTrigger value="importar" className="gap-1.5">
+            <Upload className="w-4 h-4" />
+            Importar
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lista" className="space-y-5 mt-4">
+          <div className="flex items-center justify-end">
+            <Button variant="gold" size={isMobile ? "sm" : "default"} onClick={() => setShowCreate(true)}>
+              <Plus className="w-4 h-4 mr-1" /> {isMobile ? "Nuevo" : "Agregar Alumno"}
+            </Button>
+          </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative max-w-sm flex-1 min-w-[200px]">
