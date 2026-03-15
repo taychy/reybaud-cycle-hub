@@ -283,6 +283,48 @@ export type Database = {
         }
         Relationships: []
       }
+      deposito_profiles: {
+        Row: {
+          created_at: string
+          email: string
+          estado: string
+          id: string
+          invite_send_count: number
+          invited_at: string | null
+          last_invite_sent_at: string | null
+          nombre: string
+          password_set: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          estado?: string
+          id?: string
+          invite_send_count?: number
+          invited_at?: string | null
+          last_invite_sent_at?: string | null
+          nombre: string
+          password_set?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          estado?: string
+          id?: string
+          invite_send_count?: number
+          invited_at?: string | null
+          last_invite_sent_at?: string | null
+          nombre?: string
+          password_set?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entrenamientos: {
         Row: {
           created_at: string
@@ -879,6 +921,50 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          cantidad: number
+          created_at: string
+          id: string
+          motivo: string | null
+          product_id: string
+          registrado_por: string | null
+          stock_anterior: number
+          stock_nuevo: number
+          tipo: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          product_id: string
+          registrado_por?: string | null
+          stock_anterior: number
+          stock_nuevo: number
+          tipo?: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          product_id?: string
+          registrado_por?: string | null
+          stock_anterior?: number
+          stock_nuevo?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_banners: {
         Row: {
           active: boolean
@@ -1248,7 +1334,7 @@ export type Database = {
     }
     Enums: {
       admin_role: "super_admin" | "admin" | "support"
-      app_role: "admin" | "alumno" | "coach"
+      app_role: "admin" | "alumno" | "coach" | "deposito"
       estado_plan: "borrador" | "publicado"
       event_type: "record_hora" | "camp" | "carrera" | "otro"
       grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
@@ -1381,7 +1467,7 @@ export const Constants = {
   public: {
     Enums: {
       admin_role: ["super_admin", "admin", "support"],
-      app_role: ["admin", "alumno", "coach"],
+      app_role: ["admin", "alumno", "coach", "deposito"],
       estado_plan: ["borrador", "publicado"],
       event_type: ["record_hora", "camp", "carrera", "otro"],
       grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],

@@ -1,0 +1,340 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Package, Search, Plus, Minus, RefreshCw } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+interface Product {
+  id: string;
+  name: string;
+  stock: number;
+  min_stock: number;
+  status: string;
+  category_id: string | null;
+  image_url: string | null;
+}
+
+const DepositoStock = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [movDialog, setMovDialog] = useState<Product | null>(null);
+  const [movTipo, setMovTipo] = useState<"ingreso" | "egreso">("ingreso");
+  const [movCantidad, setMovCantidad] = useState("");
+  const [movMotivo, setMovMotivo] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Barcode scanner state
+  const [scannerActive, setScannerActive] = useState(false);
+  const [barcodeInput, setBarcodeInput] = useState("");
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("store_products")
+      .select("id, name, stock, min_stock, status, category_id, image_url")
+      .eq("status", "active")
+      .order("name");
+    if (!error) setProducts(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchProducts(); }, []);
+
+  const filtered = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleMovimiento = async () => {
+    if (!movDialog || !movCantidad || parseInt(movCantidad) <= 0) {
+      toast({ title: "Ingresá una cantidad válida", variant: "destructive" });
+      return;
+    }
+
+    const cantidad = parseInt(movCantidad);
+    const stockAnterior = movDialog.stock;
+    const stockNuevo = movTipo === "ingreso" ? stockAnterior + cantidad : stockAnterior - cantidad;
+
+    if (stockNuevo < 0) {
+      toast({ title: "Stock insuficiente", description: "No podés egresar más de lo que hay en stock.", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Update product stock
+      const { error: updateError } = await supabase
+        .from("store_products")
+        .update({ stock: stockNuevo } as any)
+        .eq("id", movDialog.id);
+
+      if (updateError) throw updateError;
+
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // Record movement
+      const { error: movError } = await supabase
+        .from("stock_movements" as any)
+        .insert({
+          product_id: movDialog.id,
+          tipo: movTipo,
+          cantidad,
+          stock_anterior: stockAnterior,
+          stock_nuevo: stockNuevo,
+          motivo: movMotivo || null,
+          registrado_por: session?.user?.id || null,
+        } as any);
+
+      if (movError) throw movError;
+
+      toast({
+        title: movTipo === "ingreso" ? "Ingreso registrado" : "Egreso registrado",
+        description: `${movDialog.name}: ${stockAnterior} → ${stockNuevo}`,
+      });
+
+      setMovDialog(null);
+      setMovCantidad("");
+      setMovMotivo("");
+      fetchProducts();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBarcodeSearch = () => {
+    if (!barcodeInput.trim()) return;
+    setSearch(barcodeInput.trim());
+    setBarcodeInput("");
+    setScannerActive(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gestión de Stock</h1>
+        <Button variant="outline" size="sm" onClick={fetchProducts}>
+          <RefreshCw className="w-4 h-4 mr-1" /> Actualizar
+        </Button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total productos</p>
+            <p className="text-xl font-bold font-heading">{products.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Stock bajo</p>
+            <p className="text-xl font-bold font-heading text-destructive">
+              {products.filter((p) => p.stock <= p.min_stock).length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Sin stock</p>
+            <p className="text-xl font-bold font-heading text-destructive">
+              {products.filter((p) => p.stock === 0).length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Stock total</p>
+            <p className="text-xl font-bold font-heading">
+              {products.reduce((sum, p) => sum + p.stock, 0)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search + Scanner */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar producto..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button
+          variant={scannerActive ? "default" : "outline"}
+          onClick={() => setScannerActive(!scannerActive)}
+        >
+          <Package className="w-4 h-4 mr-1" /> Scanner
+        </Button>
+      </div>
+
+      {scannerActive && (
+        <Card className="border-primary/50">
+          <CardContent className="p-4 flex gap-2">
+            <Input
+              placeholder="Escaneá o ingresá código de barras..."
+              value={barcodeInput}
+              onChange={(e) => setBarcodeInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleBarcodeSearch()}
+              autoFocus
+              className="flex-1"
+            />
+            <Button onClick={handleBarcodeSearch}>Buscar</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Products Table */}
+      <Card className="border-border">
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground">Cargando productos...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="text-center">Stock actual</TableHead>
+                  <TableHead className="text-center">Mínimo</TableHead>
+                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>
+                        {p.stock}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">{p.min_stock}</TableCell>
+                    <TableCell className="text-center">
+                      {p.stock === 0 ? (
+                        <Badge variant="destructive">Sin stock</Badge>
+                      ) : p.stock <= p.min_stock ? (
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-500">Bajo</Badge>
+                      ) : (
+                        <Badge variant="secondary">OK</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex gap-1 justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-500 border-green-500/50 hover:bg-green-500/10"
+                          onClick={() => { setMovDialog(p); setMovTipo("ingreso"); }}
+                        >
+                          <Plus className="w-3 h-3 mr-1" /> Ingreso
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                          onClick={() => { setMovDialog(p); setMovTipo("egreso"); }}
+                        >
+                          <Minus className="w-3 h-3 mr-1" /> Egreso
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      No se encontraron productos
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Movement Dialog */}
+      <Dialog open={!!movDialog} onOpenChange={(open) => { if (!open) setMovDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {movTipo === "ingreso" ? "Registrar ingreso" : "Registrar egreso"}
+            </DialogTitle>
+            <DialogDescription>
+              {movDialog?.name} — Stock actual: {movDialog?.stock}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                variant={movTipo === "ingreso" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setMovTipo("ingreso")}
+                className="flex-1"
+              >
+                <Plus className="w-3 h-3 mr-1" /> Ingreso
+              </Button>
+              <Button
+                variant={movTipo === "egreso" ? "destructive" : "outline"}
+                size="sm"
+                onClick={() => setMovTipo("egreso")}
+                className="flex-1"
+              >
+                <Minus className="w-3 h-3 mr-1" /> Egreso
+              </Button>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Cantidad</label>
+              <Input
+                type="number"
+                min="1"
+                value={movCantidad}
+                onChange={(e) => setMovCantidad(e.target.value)}
+                placeholder="Ej: 10"
+              />
+              {movDialog && movCantidad && parseInt(movCantidad) > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Stock resultante: {movTipo === "ingreso"
+                    ? movDialog.stock + parseInt(movCantidad)
+                    : movDialog.stock - parseInt(movCantidad)}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium">Motivo (opcional)</label>
+              <Textarea
+                value={movMotivo}
+                onChange={(e) => setMovMotivo(e.target.value)}
+                placeholder="Ej: Reposición mensual, Venta en local..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMovDialog(null)}>Cancelar</Button>
+            <Button onClick={handleMovimiento} disabled={saving}>
+              {saving ? "Guardando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default DepositoStock;
