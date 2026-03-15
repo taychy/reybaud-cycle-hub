@@ -1248,7 +1248,7 @@ export type Database = {
     }
     Enums: {
       admin_role: "super_admin" | "admin" | "support"
-      app_role: "admin" | "alumno" | "coach"
+      app_role: "admin" | "alumno" | "coach" | "deposito"
       estado_plan: "borrador" | "publicado"
       event_type: "record_hora" | "camp" | "carrera" | "otro"
       grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
@@ -1381,7 +1381,7 @@ export const Constants = {
   public: {
     Enums: {
       admin_role: ["super_admin", "admin", "support"],
-      app_role: ["admin", "alumno", "coach"],
+      app_role: ["admin", "alumno", "coach", "deposito"],
       estado_plan: ["borrador", "publicado"],
       event_type: ["record_hora", "camp", "carrera", "otro"],
       grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],
