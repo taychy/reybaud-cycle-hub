@@ -249,7 +249,7 @@ const AdminDashboard = () => {
   };
 
   const openWhatsApp = (telefono: string | null, nombre: string) => {
-    const url = formatWhatsAppUrl(telefono);
+    const url = formatWhatsAppUrl(telefono, nombre);
     if (!url) {
       toast({ title: "Sin teléfono", description: `${nombre} no tiene número de teléfono registrado.`, variant: "destructive" });
       return;

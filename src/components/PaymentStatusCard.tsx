@@ -102,7 +102,7 @@ const PaymentStatusCard = ({ estado, planName, precio, fechaPago, medioPago }: P
 
       {estado === "rechazada" && (
         <a
-          href="https://wa.me/5491100000000"
+          href="https://wa.me/5491140312299?text=Hola%2C%20tengo%20un%20problema%20con%20mi%20pago"
           target="_blank"
           rel="noopener noreferrer"
         >
