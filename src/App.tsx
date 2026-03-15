@@ -13,7 +13,6 @@ import StudentPayments from "./pages/StudentPayments";
 import SetPassword from "./pages/SetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
-import ImportStudents from "./pages/admin/ImportStudents";
 import ImportPlan from "./pages/admin/ImportPlan";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
