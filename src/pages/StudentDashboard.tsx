@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
 import { EventosContent } from "@/pages/Eventos";
+import { StudentProgressContent } from "@/pages/StudentProgress";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
@@ -189,8 +190,7 @@ const StudentDashboard = () => {
       case "eventos":
         return <EventosContent />;
       case "progreso":
-        navigate("/alumno/progreso");
-        return null;
+        return <StudentProgressContent />;
       case "tienda":
         return <TiendaSection />;
       case "mas":
