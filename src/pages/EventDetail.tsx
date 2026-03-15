@@ -453,6 +453,7 @@ const EventDetail = () => {
           )}
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };
