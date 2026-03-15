@@ -340,6 +340,12 @@ const DepositoStock = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StockImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImportComplete={fetchProducts}
+      />
     </div>
   );
 };
