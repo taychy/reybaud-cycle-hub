@@ -198,24 +198,6 @@ const AdminLayout = () => {
 
         {/* Footer */}
         <div className={`border-t border-sidebar-border ${collapsed ? "p-1.5" : "p-3"} space-y-1`}>
-          {/* Collapse toggle */}
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={toggleCollapsed}
-                className={`flex items-center ${collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"} rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full`}
-              >
-                {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-                {!collapsed && "Colapsar menú"}
-              </button>
-            </TooltipTrigger>
-            {collapsed && (
-              <TooltipContent side="right" className="text-xs">
-                Expandir menú
-              </TooltipContent>
-            )}
-          </Tooltip>
-
           {/* Logout */}
           {collapsed ? (
             <Tooltip delayDuration={0}>
