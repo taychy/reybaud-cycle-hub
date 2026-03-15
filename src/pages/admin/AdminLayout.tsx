@@ -17,6 +17,7 @@ const navItems = [
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/eventos/record-de-la-hora", label: "Evento", icon: Trophy },
+  { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 

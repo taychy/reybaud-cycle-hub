@@ -97,6 +97,7 @@ const App = () => (
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
+            <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="tienda" element={<StoreDashboard />} />
             <Route path="tienda/productos" element={<StoreProducts />} />
