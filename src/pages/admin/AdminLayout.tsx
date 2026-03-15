@@ -21,6 +21,17 @@ const navItems = [
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 
+const storeNavItems = [
+  { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
+  { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
+  { to: "/admin/tienda/pedidos", label: "Pedidos", icon: Boxes },
+  { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
+  { to: "/admin/tienda/banners", label: "Banners", icon: Image },
+  { to: "/admin/tienda/stock", label: "Stock", icon: Package },
+  { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+];
+
 const AdminLayout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
