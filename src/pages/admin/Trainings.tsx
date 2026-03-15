@@ -349,6 +349,12 @@ const Trainings = () => {
           </div>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="importar" className="mt-4">
+          <ImportPlanContent />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
