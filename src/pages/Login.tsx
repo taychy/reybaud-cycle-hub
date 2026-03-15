@@ -8,7 +8,6 @@ import logo from "@/assets/logo.png";
 
 const Login = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -123,16 +122,24 @@ const Login = () => {
       return;
     }
 
-    // Sign in with email/password
+    // Sign in with email only (no password) — dev mode
+    // Try sign in with a default password, if fails try to sign up
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
-      password,
+      password: "dev-access-2024",
     });
 
     if (signInError) {
-      setLoginError("Email o contraseña incorrectos.");
-      setLoading(false);
-      return;
+      // Try creating the account with this password
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password: "dev-access-2024",
+      });
+      if (signUpError) {
+        setLoginError("No se pudo ingresar. Intentá de nuevo.");
+        setLoading(false);
+        return;
+      }
     }
 
     setLoading(false);
@@ -159,7 +166,7 @@ const Login = () => {
             Ciclismo Reybaud
           </h1>
           <p className="text-muted-foreground text-sm">
-            Ingresá con tu email y contraseña
+            Ingresá con tu email
           </p>
         </div>
 
@@ -176,21 +183,6 @@ const Login = () => {
                 placeholder="tu@email.com"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
-                required
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
-                Contraseña
-              </label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Tu contraseña"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
                 required
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
