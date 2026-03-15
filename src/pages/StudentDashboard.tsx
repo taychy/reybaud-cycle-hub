@@ -192,13 +192,28 @@ const StudentDashboard = () => {
         return null;
       case "tienda":
         return (
-          <div className="w-full h-[calc(100vh-140px)] animate-fade-in -mx-4">
-            <iframe
-              src="https://ciclismoreybaud.mitiendanube.com/"
-              className="w-full h-full border-0"
-              title="Tienda Ciclismo Reybaud"
-              allow="payment"
-            />
+          <div className="w-full max-w-md animate-fade-in pt-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+                <ShoppingCart className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-xl font-heading font-semibold text-foreground">Nuestra Tienda</h2>
+              <p className="text-sm text-muted-foreground">
+                Encontrá indumentaria, accesorios y más para tu entrenamiento.
+              </p>
+            </div>
+            <a
+              href="https://ciclismoreybaud.mitiendanube.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-3 w-full rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 px-6 py-4 transition-colors"
+            >
+              <ShoppingCart className="w-5 h-5 text-primary" />
+              <span className="font-heading font-semibold text-primary uppercase tracking-wider text-sm">
+                Ir a la tienda
+              </span>
+              <ExternalLink className="w-4 h-4 text-primary" />
+            </a>
           </div>
         );
       case "mas":
