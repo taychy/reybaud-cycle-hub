@@ -212,6 +212,26 @@ const AdminLayout = () => {
                 {item.label}
               </NavLink>
             ))}
+
+            <div className="pt-4 pb-1">
+              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
+            </div>
+            {storeNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/admin/tienda"}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors ${
+                    isActive ? "bg-sidebar-accent text-sidebar-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5" />
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
 
           <div className="p-3 border-t border-sidebar-border">

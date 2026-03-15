@@ -96,6 +96,14 @@ const App = () => (
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
             <Route path="historial" element={<AuditLog />} />
+            <Route path="tienda" element={<StoreDashboard />} />
+            <Route path="tienda/productos" element={<StoreProducts />} />
+            <Route path="tienda/categorias" element={<StoreCategories />} />
+            <Route path="tienda/pedidos" element={<StoreOrders />} />
+            <Route path="tienda/promociones" element={<StorePromotions />} />
+            <Route path="tienda/banners" element={<StoreBanners />} />
+            <Route path="tienda/stock" element={<StoreStock />} />
+            <Route path="tienda/analytics" element={<StoreAnalytics />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
