@@ -46,6 +46,7 @@ import StorePromotions from "./pages/admin/store/StorePromotions";
 import StoreBanners from "./pages/admin/store/StoreBanners";
 import StoreStock from "./pages/admin/store/StoreStock";
 import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
+import ManageDeposito from "./pages/admin/ManageDeposito";
 import DepositoLogin from "./pages/deposito/DepositoLogin";
 import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
@@ -96,6 +97,7 @@ const App = () => (
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
+            <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="tienda" element={<StoreDashboard />} />
             <Route path="tienda/productos" element={<StoreProducts />} />

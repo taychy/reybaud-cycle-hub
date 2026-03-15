@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -17,6 +17,7 @@ const navItems = [
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/eventos/record-de-la-hora", label: "Evento", icon: Trophy },
+  { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 
