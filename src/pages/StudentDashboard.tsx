@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
+import TiendaSection from "@/components/TiendaSection";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
@@ -191,31 +192,7 @@ const StudentDashboard = () => {
         navigate("/alumno/progreso");
         return null;
       case "tienda":
-        return (
-          <div className="w-full max-w-md animate-fade-in pt-8 space-y-6">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-                <ShoppingCart className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-heading font-semibold text-foreground">Nuestra Tienda</h2>
-              <p className="text-sm text-muted-foreground">
-                Encontrá indumentaria, accesorios y más para tu entrenamiento.
-              </p>
-            </div>
-            <a
-              href="https://ciclismoreybaud.mitiendanube.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-3 w-full rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 px-6 py-4 transition-colors"
-            >
-              <ShoppingCart className="w-5 h-5 text-primary" />
-              <span className="font-heading font-semibold text-primary uppercase tracking-wider text-sm">
-                Ir a la tienda
-              </span>
-              <ExternalLink className="w-4 h-4 text-primary" />
-            </a>
-          </div>
-        );
+        return <TiendaSection />;
       case "mas":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">
