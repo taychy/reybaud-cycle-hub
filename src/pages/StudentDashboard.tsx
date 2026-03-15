@@ -187,8 +187,7 @@ const StudentDashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case "eventos":
-        navigate("/eventos");
-        return null;
+        return <EventosContent />;
       case "progreso":
         navigate("/alumno/progreso");
         return null;
