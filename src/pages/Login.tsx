@@ -167,7 +167,7 @@ const Login = () => {
             Ciclismo Reybaud
           </h1>
           <p className="text-muted-foreground text-sm">
-            Ingresá con tu email y contraseña
+            Ingresá con tu email
           </p>
         </div>
 
