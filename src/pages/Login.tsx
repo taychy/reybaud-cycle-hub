@@ -3,16 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, Shield, Download, Mail, ArrowLeft } from "lucide-react";
+import { ChevronRight, Shield, Download } from "lucide-react";
 import logo from "@/assets/logo.png";
-
-type LoginStep = "email" | "check-inbox" | "loading";
 
 const Login = () => {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<LoginStep>("loading");
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
 
   // On mount: check existing session and auto-redirect
@@ -20,17 +19,14 @@ const Login = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // Check legacy localStorage and clean up
         localStorage.removeItem("alumno");
-        setStep("email");
+        setCheckingSession(false);
         return;
       }
 
-      // Student login always resolves to student dashboard — don't redirect by role
-      // Check if this user is an alumno
       const userEmail = session.user.email?.toLowerCase().trim();
       if (!userEmail) {
-        setStep("email");
+        setCheckingSession(false);
         return;
       }
 
@@ -41,11 +37,10 @@ const Login = () => {
         .maybeSingle();
 
       if (!alumno) {
-        setStep("email");
+        setCheckingSession(false);
         return;
       }
 
-      // Link user_id if needed
       await supabase
         .from("alumnos")
         .update({ user_id: session.user.id })
@@ -59,12 +54,11 @@ const Login = () => {
       }
 
       if (alumno.grupo === "Sin grupo") {
-        setStep("email");
+        setCheckingSession(false);
         setLoginError("Tu usuario aún no tiene grupo asignado. Contactá administración.");
         return;
       }
 
-      // Check subscription
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const { data: activeSub } = await supabase
@@ -85,7 +79,6 @@ const Login = () => {
       navigate("/alumno", { replace: true });
     };
 
-    // Listen for auth state changes (magic link callback)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         checkSession();
@@ -97,14 +90,14 @@ const Login = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleSendMagicLink = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
     setLoading(true);
 
     const trimmedEmail = email.toLowerCase().trim();
 
-    // First verify alumno exists
+    // Verify alumno exists
     const { data, error: fetchError } = await supabase
       .from("alumnos")
       .select("id, estado, grupo")
@@ -130,26 +123,22 @@ const Login = () => {
       return;
     }
 
-    // Send magic link
-    const { error: otpError } = await supabase.auth.signInWithOtp({
+    // Sign in with email/password
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      password,
     });
 
-    if (otpError) {
-      setLoginError("Error al enviar el link. Intentá de nuevo.");
+    if (signInError) {
+      setLoginError("Email o contraseña incorrectos.");
       setLoading(false);
       return;
     }
 
     setLoading(false);
-    setStep("check-inbox");
   };
 
-  // Loading state
-  if (step === "loading") {
+  if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -160,63 +149,6 @@ const Login = () => {
     );
   }
 
-  // Check inbox screen
-  if (step === "check-inbox") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <div className="w-full max-w-md space-y-8 animate-fade-in text-center">
-          <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto" />
-
-          <div className="glass-card rounded-lg p-8 space-y-5">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mx-auto">
-              <Mail className="w-8 h-8 text-primary" />
-            </div>
-            <h2 className="text-xl font-heading font-bold uppercase tracking-wider text-foreground">
-              Revisá tu email
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Te enviamos un link de acceso a <span className="font-medium text-foreground">{email}</span>.
-              Hacé clic en el link para ingresar.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Si no lo encontrás, revisá la carpeta de spam.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <Button
-              variant="gold-outline"
-              className="w-full"
-              onClick={() => {
-                setStep("email");
-                setEmail("");
-              }}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Usar otro email
-            </Button>
-
-            <button
-              onClick={async () => {
-                setLoading(true);
-                await supabase.auth.signInWithOtp({
-                  email: email.toLowerCase().trim(),
-                  options: { emailRedirectTo: window.location.origin },
-                });
-                setLoading(false);
-              }}
-              disabled={loading}
-              className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
-            >
-              {loading ? "Reenviando..." : "Reenviar link"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Email input screen
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
@@ -227,12 +159,12 @@ const Login = () => {
             Ciclismo Reybaud
           </h1>
           <p className="text-muted-foreground text-sm">
-            Ingresá tu email y te enviaremos un link de acceso
+            Ingresá con tu email y contraseña
           </p>
         </div>
 
         {/* Login form */}
-        <form onSubmit={handleSendMagicLink} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-foreground">
@@ -249,6 +181,21 @@ const Login = () => {
               />
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-foreground">
+                Contraseña
+              </label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Tu contraseña"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
+                required
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+
             {loginError && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
                 {loginError}
@@ -256,7 +203,7 @@ const Login = () => {
             )}
 
             <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Enviando..." : "Enviar link de acceso"}
+              {loading ? "Ingresando..." : "Ingresar"}
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
