@@ -126,9 +126,14 @@ const DepositoStock = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gestión de Stock</h1>
-        <Button variant="outline" size="sm" onClick={fetchProducts}>
-          <RefreshCw className="w-4 h-4 mr-1" /> Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-1" /> Importar
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchProducts}>
+            <RefreshCw className="w-4 h-4 mr-1" /> Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
