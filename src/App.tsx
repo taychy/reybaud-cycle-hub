@@ -40,6 +40,14 @@ import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
+import StoreDashboard from "./pages/admin/store/StoreDashboard";
+import StoreProducts from "./pages/admin/store/StoreProducts";
+import StoreCategories from "./pages/admin/store/StoreCategories";
+import StoreOrders from "./pages/admin/store/StoreOrders";
+import StorePromotions from "./pages/admin/store/StorePromotions";
+import StoreBanners from "./pages/admin/store/StoreBanners";
+import StoreStock from "./pages/admin/store/StoreStock";
+import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
 
 const queryClient = new QueryClient();
 
