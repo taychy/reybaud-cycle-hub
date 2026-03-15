@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
-import type { Tables } from "@/integrations/supabase/types";
+import BottomNav from "@/components/BottomNav";
 
 type Alumno = Tables<"alumnos">;
 
