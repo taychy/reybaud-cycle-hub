@@ -879,6 +879,271 @@ export type Database = {
         }
         Relationships: []
       }
+      store_banners: {
+        Row: {
+          active: boolean
+          button_text: string | null
+          created_at: string
+          end_date: string | null
+          id: string
+          image_url: string | null
+          link_url: string | null
+          sort_order: number
+          start_date: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          button_text?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          sort_order?: number
+          start_date?: string | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          button_text?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          sort_order?: number
+          start_date?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          icon?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_orders: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          id: string
+          notes: string | null
+          order_number: number
+          shipping_tracking: string | null
+          status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          id?: string
+          notes?: string | null
+          order_number?: number
+          shipping_tracking?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          id?: string
+          notes?: string | null
+          order_number?: number
+          shipping_tracking?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_orders_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_products: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string | null
+          discount: number | null
+          featured: boolean
+          featured_order: number | null
+          id: string
+          image_url: string | null
+          min_stock: number
+          name: string
+          old_price: number | null
+          price: number
+          status: string
+          stock: number
+          tag: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          discount?: number | null
+          featured?: boolean
+          featured_order?: number | null
+          id?: string
+          image_url?: string | null
+          min_stock?: number
+          name: string
+          old_price?: number | null
+          price: number
+          status?: string
+          stock?: number
+          tag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          discount?: number | null
+          featured?: boolean
+          featured_order?: number | null
+          id?: string
+          image_url?: string | null
+          min_stock?: number
+          name?: string
+          old_price?: number | null
+          price?: number
+          status?: string
+          stock?: number
+          tag?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "store_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_quick_access: {
+        Row: {
+          active: boolean
+          created_at: string
+          filter_tag: string | null
+          icon: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          filter_tag?: string | null
+          icon?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          filter_tag?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       suscripciones: {
         Row: {
           alumno_id: string
