@@ -401,7 +401,7 @@ const StudentDashboard = () => {
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-heading">{firstName}</span>
-          {activeTab !== "perfil" && (
+          {activeTab !== "mas" && (
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">
               <LogOut className="w-4 h-4" />
             </Button>
