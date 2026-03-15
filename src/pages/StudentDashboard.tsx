@@ -435,11 +435,4 @@ const MetricBar = ({ label, value }: { label: string; value: number }) => {
   );
 };
 
-const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
-    {icon}
-    <span className="text-[10px] font-heading font-medium">{label}</span>
-  </button>
-);
-
 export default StudentDashboard;
