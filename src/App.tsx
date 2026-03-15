@@ -106,6 +106,13 @@ const App = () => (
             <Route path="tienda/stock" element={<StoreStock />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
           </Route>
+          <Route path="/deposito/login" element={<DepositoLogin />} />
+          <Route path="/deposito" element={<DepositoLayout />}>
+            <Route index element={<Navigate to="/deposito/stock" replace />} />
+            <Route path="stock" element={<DepositoStock />} />
+            <Route path="movimientos" element={<DepositoMovimientos />} />
+            <Route path="alertas" element={<DepositoAlertas />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
