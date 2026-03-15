@@ -189,21 +189,6 @@ const Login = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
-                Contraseña
-              </label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Tu contraseña"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
-                required
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-
             {loginError && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
                 {loginError}
