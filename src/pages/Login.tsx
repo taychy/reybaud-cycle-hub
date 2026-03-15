@@ -123,16 +123,24 @@ const Login = () => {
       return;
     }
 
-    // Sign in with email/password
+    // Sign in with email only (no password) — dev mode
+    // Try sign in with a default password, if fails try to sign up
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
-      password,
+      password: "dev-access-2024",
     });
 
     if (signInError) {
-      setLoginError("Email o contraseña incorrectos.");
-      setLoading(false);
-      return;
+      // Try creating the account with this password
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password: "dev-access-2024",
+      });
+      if (signUpError) {
+        setLoginError("No se pudo ingresar. Intentá de nuevo.");
+        setLoading(false);
+        return;
+      }
     }
 
     setLoading(false);
