@@ -654,6 +654,12 @@ const ManageStudents = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="importar" className="mt-4">
+          <ImportStudentsContent />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
