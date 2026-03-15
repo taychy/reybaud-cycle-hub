@@ -14,7 +14,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import {
   Search, Filter, CheckCircle, Eye, Edit, Send, CreditCard, BanIcon,
-  FileText, MessageSquare, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck
+  FileText, MessageSquare, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
+  ChevronDown, ChevronUp
 } from "lucide-react";
 
 type Suscripcion = {
