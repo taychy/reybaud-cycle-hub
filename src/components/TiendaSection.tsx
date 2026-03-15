@@ -1,68 +1,24 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, ShoppingCart, Bell, ChevronRight, Tag, Flame, Star, Sparkles, Clock, Percent, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 
-// Product images
+// Fallback images
 import jerseyImg from "@/assets/store/jersey.jpg";
-import nutritionImg from "@/assets/store/nutrition.jpg";
-import bibImg from "@/assets/store/bib.jpg";
-import comboImg from "@/assets/store/combo.jpg";
-import glovesImg from "@/assets/store/gloves.jpg";
-import helmetImg from "@/assets/store/helmet.jpg";
-import sunglassesImg from "@/assets/store/sunglasses.jpg";
 import bannerImg from "@/assets/store/banner-promo.jpg";
 
 const STORE_URL = "https://ciclismoreybaud.mitiendanube.com/";
 
-type Category = "Todos" | "Indumentaria" | "Camps" | "Nutrición" | "Repuestos" | "Outlet" | "Usados";
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  oldPrice?: number;
-  discount?: number;
-  image: string;
-  category: Category;
-  tag?: "OFERTA" | "NUEVO" | "OUTLET" | "ÚLTIMA UNIDAD";
-}
-
-const CATEGORIES: { name: Category; icon: string }[] = [
-  { name: "Todos", icon: "🏷️" },
-  { name: "Indumentaria", icon: "👕" },
-  { name: "Camps", icon: "⛺" },
-  { name: "Nutrición", icon: "🥤" },
-  { name: "Repuestos", icon: "🔧" },
-  { name: "Outlet", icon: "🏷️" },
-  { name: "Usados", icon: "♻️" },
-];
-
-const QUICK_ACCESS = [
-  { label: "Ofertas", icon: Percent, color: "text-primary" },
-  { label: "Combos", icon: Flame, color: "text-accent" },
-  { label: "Top ventas", icon: Star, color: "text-gold" },
-  { label: "Nuevos", icon: Sparkles, color: "text-cyan" },
-  { label: "Últimas", icon: Clock, color: "text-destructive" },
-];
-
-const PRODUCTS: Product[] = [
-  { id: "1", name: "Jersey Pro Team 2025", price: 45000, oldPrice: 55000, discount: 18, image: jerseyImg, category: "Indumentaria", tag: "NUEVO" },
-  { id: "2", name: "Calza Bib Race", price: 38000, oldPrice: 48000, discount: 21, image: bibImg, category: "Indumentaria", tag: "OFERTA" },
-  { id: "3", name: "Pack Energía x6", price: 12500, oldPrice: 15000, discount: 17, image: nutritionImg, category: "Nutrición", tag: "OFERTA" },
-  { id: "4", name: "Combo Hidratación", price: 8900, image: comboImg, category: "Nutrición", tag: "NUEVO" },
-  { id: "5", name: "Guantes Aero Pro", price: 18500, oldPrice: 22000, discount: 16, image: glovesImg, category: "Indumentaria" },
-  { id: "6", name: "Casco Aero Elite", price: 95000, oldPrice: 120000, discount: 21, image: helmetImg, category: "Repuestos", tag: "OFERTA" },
-  { id: "7", name: "Lentes Sport UV400", price: 32000, image: sunglassesImg, category: "Repuestos", tag: "NUEVO" },
-  { id: "8", name: "Jersey Classic (prev.)", price: 22000, oldPrice: 45000, discount: 51, image: jerseyImg, category: "Outlet", tag: "OUTLET" },
-  { id: "9", name: "Guantes usados talle M", price: 8000, oldPrice: 18500, discount: 57, image: glovesImg, category: "Usados", tag: "ÚLTIMA UNIDAD" },
-  { id: "10", name: "Casco usado talle L", price: 45000, oldPrice: 95000, discount: 53, image: helmetImg, category: "Usados" },
-];
+type StoreProduct = Tables<"store_products">;
+type StoreCategory = Tables<"store_categories">;
+type StoreBanner = Tables<"store_banners">;
 
 const formatPrice = (n: number) =>
   "$" + n.toLocaleString("es-AR");
 
 const tagColor = (tag: string) => {
-  switch (tag) {
+  switch (tag?.toUpperCase()) {
     case "OFERTA": return "bg-primary text-primary-foreground";
     case "NUEVO": return "bg-accent text-accent-foreground";
     case "OUTLET": return "bg-gold-dark text-primary-foreground";
@@ -71,7 +27,7 @@ const tagColor = (tag: string) => {
   }
 };
 
-const ProductCard = ({ product }: { product: Product }) => (
+const ProductCard = ({ product }: { product: StoreProduct }) => (
   <a
     href={STORE_URL}
     target="_blank"
@@ -79,13 +35,18 @@ const ProductCard = ({ product }: { product: Product }) => (
     className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
   >
     <div className="relative aspect-square bg-secondary overflow-hidden">
-      <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+      <img
+        src={product.image_url || jerseyImg}
+        alt={product.name}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        loading="lazy"
+      />
       {product.tag && (
         <span className={`absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(product.tag)}`}>
           {product.tag}
         </span>
       )}
-      {product.discount && (
+      {product.discount && product.discount > 0 && (
         <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
           -{product.discount}%
         </span>
@@ -94,8 +55,8 @@ const ProductCard = ({ product }: { product: Product }) => (
     <div className="p-3 flex-1 flex flex-col gap-1">
       <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{product.name}</p>
       <div className="mt-auto">
-        {product.oldPrice && (
-          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(product.oldPrice)}</p>
+        {product.old_price && (
+          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(product.old_price)}</p>
         )}
         <p className="text-sm font-heading font-bold text-foreground">{formatPrice(product.price)}</p>
       </div>
@@ -103,24 +64,60 @@ const ProductCard = ({ product }: { product: Product }) => (
   </a>
 );
 
+const QUICK_ACCESS = [
+  { label: "Ofertas", icon: Percent, color: "text-primary", filterTag: "OFERTA" },
+  { label: "Combos", icon: Flame, color: "text-accent", filterTag: null },
+  { label: "Top ventas", icon: Star, color: "text-gold", filterTag: null },
+  { label: "Nuevos", icon: Sparkles, color: "text-cyan", filterTag: "NUEVO" },
+  { label: "Últimas", icon: Clock, color: "text-destructive", filterTag: "ÚLTIMA UNIDAD" },
+];
+
 const TiendaSection = () => {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<Category>("Todos");
-  const [cartCount] = useState(0);
+  const [activeCategory, setActiveCategory] = useState<string>("Todos");
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
+  const [banners, setBanners] = useState<StoreBanner[]>([]);
+  const [loading, setLoading] = useState(true);
   const catRef = useRef<HTMLDivElement>(null);
 
-  const filtered = PRODUCTS.filter((p) => {
-    const matchCat = activeCategory === "Todos" || p.category === activeCategory;
+  useEffect(() => {
+    const load = async () => {
+      const [productsRes, categoriesRes, bannersRes] = await Promise.all([
+        supabase.from("store_products").select("*").eq("status", "active").order("featured_order", { ascending: true, nullsFirst: false }),
+        supabase.from("store_categories").select("*").eq("active", true).order("sort_order"),
+        supabase.from("store_banners").select("*").eq("active", true).order("sort_order").limit(1),
+      ]);
+      setProducts(productsRes.data || []);
+      setCategories(categoriesRes.data || []);
+      setBanners(bannersRes.data || []);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const filtered = products.filter((p) => {
+    const matchCat = activeCategory === "Todos" || categories.find(c => c.id === p.category_id)?.name === activeCategory;
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
 
-  const featured = PRODUCTS.filter((p) => p.tag === "OFERTA" || p.tag === "NUEVO").slice(0, 4);
-  const byCategory = (cat: Category) => PRODUCTS.filter((p) => p.category === cat).slice(0, 4);
+  const featured = products.filter((p) => p.featured).slice(0, 4);
+  const banner = banners[0];
+
+  const allCategories = [{ name: "Todos", icon: "🏷️" }, ...categories.map(c => ({ name: c.name, icon: c.icon }))];
+
+  if (loading) {
+    return (
+      <div className="w-full max-w-md animate-fade-in flex items-center justify-center py-12">
+        <div className="animate-pulse text-muted-foreground text-sm">Cargando tienda...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md animate-fade-in space-y-4 -mt-2">
-      {/* 1️⃣ Search bar */}
+      {/* Search bar */}
       <div className="flex items-center gap-2">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -132,22 +129,14 @@ const TiendaSection = () => {
             className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 font-body"
           />
         </div>
-        <button className="relative p-2.5 rounded-xl bg-secondary border border-border hover:border-primary/40 transition-colors">
-          <ShoppingCart className="w-5 h-5 text-foreground" />
-          {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
-              {cartCount}
-            </span>
-          )}
-        </button>
         <button className="p-2.5 rounded-xl bg-secondary border border-border hover:border-primary/40 transition-colors">
-          <Bell className="w-5 h-5 text-foreground" />
+          <ShoppingCart className="w-5 h-5 text-foreground" />
         </button>
       </div>
 
-      {/* 2️⃣ Categories */}
+      {/* Categories */}
       <div ref={catRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-        {CATEGORIES.map((cat) => (
+        {allCategories.map((cat) => (
           <button
             key={cat.name}
             onClick={() => setActiveCategory(cat.name)}
@@ -163,19 +152,25 @@ const TiendaSection = () => {
         ))}
       </div>
 
-      {/* 3️⃣ Banner principal */}
-      <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="block relative rounded-xl overflow-hidden group">
-        <img src={bannerImg} alt="Promociones" className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent flex flex-col justify-center px-5">
-          <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary">Nuevas Colecciones</span>
-          <h2 className="text-lg font-heading font-bold text-foreground leading-tight mt-1">Jersey Pro Team<br />2025</h2>
-          <span className="mt-2 inline-flex items-center gap-1 text-xs font-heading font-semibold text-primary">
-            Ver más <ChevronRight className="w-3 h-3" />
-          </span>
-        </div>
-      </a>
+      {/* Banner */}
+      {banner && (
+        <a href={banner.link_url || STORE_URL} target="_blank" rel="noopener noreferrer" className="block relative rounded-xl overflow-hidden group">
+          <img src={banner.image_url || bannerImg} alt={banner.title} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent flex flex-col justify-center px-5">
+            {banner.subtitle && (
+              <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary">{banner.subtitle}</span>
+            )}
+            <h2 className="text-lg font-heading font-bold text-foreground leading-tight mt-1">{banner.title}</h2>
+            {banner.button_text && (
+              <span className="mt-2 inline-flex items-center gap-1 text-xs font-heading font-semibold text-primary">
+                {banner.button_text} <ChevronRight className="w-3 h-3" />
+              </span>
+            )}
+          </div>
+        </a>
+      )}
 
-      {/* 4️⃣ Promo strip */}
+      {/* Promo strip */}
       <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5">
         <Tag className="w-4 h-4 text-primary shrink-0" />
         <p className="text-xs font-heading font-semibold text-primary flex-1">
@@ -184,16 +179,17 @@ const TiendaSection = () => {
         <ChevronRight className="w-4 h-4 text-primary shrink-0" />
       </div>
 
-      {/* 5️⃣ Quick access */}
+      {/* Quick access */}
       <div className="flex justify-between gap-1">
         {QUICK_ACCESS.map((qa) => (
           <button
             key={qa.label}
             className="flex flex-col items-center gap-1.5 flex-1 py-2 group"
             onClick={() => {
-              if (qa.label === "Ofertas") setActiveCategory("Outlet");
-              else if (qa.label === "Nuevos") setActiveCategory("Todos");
-              else setActiveCategory("Todos");
+              if (qa.filterTag) {
+                setSearch(qa.filterTag);
+              }
+              setActiveCategory("Todos");
             }}
           >
             <div className="w-11 h-11 rounded-full bg-secondary border border-border flex items-center justify-center group-hover:border-primary/40 transition-colors">
@@ -204,8 +200,8 @@ const TiendaSection = () => {
         ))}
       </div>
 
-      {/* 6️⃣ Featured products */}
-      {activeCategory === "Todos" && !search && (
+      {/* Featured products */}
+      {activeCategory === "Todos" && !search && featured.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-foreground">Destacados</h3>
@@ -221,11 +217,11 @@ const TiendaSection = () => {
         </section>
       )}
 
-      {/* 7️⃣ Filtered product grid */}
+      {/* Filtered product grid */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-foreground">
-            {activeCategory === "Todos" && !search ? "Todos los productos" : search ? `Resultados` : activeCategory}
+            {activeCategory === "Todos" && !search ? "Todos los productos" : search ? "Resultados" : activeCategory}
           </h3>
           <Badge variant="secondary" className="text-[10px] font-heading">{filtered.length} productos</Badge>
         </div>
@@ -242,36 +238,7 @@ const TiendaSection = () => {
         )}
       </section>
 
-      {/* 8️⃣ Category sections */}
-      {activeCategory === "Todos" && !search && (
-        <>
-          {(["Indumentaria", "Nutrición", "Outlet", "Usados"] as Category[]).map((cat) => {
-            const items = byCategory(cat);
-            if (items.length === 0) return null;
-            return (
-              <section key={cat} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-foreground">
-                    {cat === "Indumentaria" ? "Indumentaria destacada" : cat === "Nutrición" ? "Nutrición recomendada" : cat === "Usados" ? "Usados disponibles" : cat}
-                  </h3>
-                  <button onClick={() => setActiveCategory(cat)} className="text-[10px] font-heading font-semibold text-primary flex items-center gap-0.5">
-                    Ver más <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-                  {items.map((p) => (
-                    <div key={p.id} className="w-[140px] shrink-0">
-                      <ProductCard product={p} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </>
-      )}
-
-      {/* 9️⃣ CTA to external store */}
+      {/* CTA to external store */}
       <a
         href={STORE_URL}
         target="_blank"
@@ -285,7 +252,6 @@ const TiendaSection = () => {
         <ExternalLink className="w-4 h-4 text-primary" />
       </a>
 
-      {/* Bottom spacing for nav */}
       <div className="h-4" />
     </div>
   );
