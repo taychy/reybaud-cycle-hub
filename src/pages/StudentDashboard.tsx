@@ -190,8 +190,7 @@ const StudentDashboard = () => {
       case "eventos":
         return <EventosContent />;
       case "progreso":
-        navigate("/alumno/progreso");
-        return null;
+        return <StudentProgressContent />;
       case "tienda":
         return <TiendaSection />;
       case "mas":
