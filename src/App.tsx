@@ -46,6 +46,7 @@ import StorePromotions from "./pages/admin/store/StorePromotions";
 import StoreBanners from "./pages/admin/store/StoreBanners";
 import StoreStock from "./pages/admin/store/StoreStock";
 import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
+import ManageDeposito from "./pages/admin/ManageDeposito";
 import DepositoLogin from "./pages/deposito/DepositoLogin";
 import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
