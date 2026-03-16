@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Loader2 } from "lucide-react";
+import { Package, Loader2, Eye, EyeOff } from "lucide-react";
 import { useDepositoAuth } from "@/hooks/useDepositoAuth";
 import { toast } from "@/hooks/use-toast";
 
