@@ -1,52 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Star, User, Send, MessageCircle } from "lucide-react";
+import { ArrowLeft, Star, User, Send, MessageCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 
 type TipoAsesoria = "personalizada_expertos" | "personalizada_claudio";
 
-const servicios = [
-  {
-    id: "personalizada_expertos" as TipoAsesoria,
-    titulo: "Asesoría Personalizada",
-    subtitulo: "Con entrenadores del team",
-    precio: "$60.060",
-    frecuencia: "/mes",
-    features: [
-      "Asesoramiento personalizado",
-      "Seguimiento semanal del team",
-      "Ajustes según tu progreso",
-      "Soporte directo por WhatsApp",
-    ],
-  },
-  {
-    id: "personalizada_claudio" as TipoAsesoria,
-    titulo: "Asesoría Personalizada",
-    subtitulo: "Con Claudio Reybaud",
-    precio: "USD 75",
-    frecuencia: "/mes",
-    destacado: true,
-    features: [
-      "Asesoría 100% personalizada",
-      "Dirección de Claudio Reybaud",
-      "Análisis de rendimiento",
-      "Comunicación directa",
-    ],
-  },
-];
+interface Plan {
+  id: string;
+  nombre: string;
+  descripcion_corta: string | null;
+  descripcion: string | null;
+  precio: number;
+  moneda: string;
+  frecuencia: string;
+}
 
-const planesGrupales = [
-  { nombre: "Pase Libre", descripcion: "Grupales libre + Plan", precio: "$67.980" },
-  { nombre: "Grupales 2x Semana", descripcion: "Grupales 2 x semana + Plan", precio: "$58.190" },
-  { nombre: "Grupales 1x Semana", descripcion: "Grupales 1 x semana + Plan", precio: "$52.574,50" },
-  { nombre: "Clase Personalizada", descripcion: "Sesión individual", precio: "$32.230" },
-];
+const formatPrice = (precio: number, moneda: string) => {
+  if (moneda === "USD") return `USD $${precio}`;
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(precio);
+};
+
+const asesoriaFeatures: Record<string, string[]> = {
+  "Asesoría Personalizada Team": [
+    "Asesoramiento personalizado",
+    "Seguimiento semanal del team",
+    "Ajustes según tu progreso",
+    "Soporte directo por WhatsApp",
+  ],
+  "Asesoría Personalizada Claudio": [
+    "Asesoría 100% personalizada",
+    "Dirección de Claudio Reybaud",
+    "Análisis de rendimiento",
+    "Comunicación directa",
+  ],
+};
 
 const Asesoria = () => {
   const navigate = useNavigate();
@@ -54,6 +52,9 @@ const Asesoria = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tipoSeleccionado, setTipoSeleccionado] = useState<TipoAsesoria | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [planesGrupales, setPlanesGrupales] = useState<Plan[]>([]);
+  const [planesAsesoria, setPlanesAsesoria] = useState<Plan[]>([]);
 
   const [form, setForm] = useState({
     nombre_completo: "",
@@ -62,6 +63,28 @@ const Asesoria = () => {
     fecha_nacimiento: "",
     descripcion: "",
   });
+
+  useEffect(() => {
+    supabase
+      .from("planes")
+      .select("id, nombre, descripcion_corta, descripcion, precio, moneda, frecuencia")
+      .eq("activo", true)
+      .eq("visibilidad", "visible")
+      .order("precio", { ascending: false })
+      .then(({ data }) => {
+        const all = (data as Plan[]) || [];
+        // Separate asesoría plans from group plans
+        const asesoria = all.filter((p) =>
+          p.nombre.toLowerCase().includes("asesoría") || p.nombre.toLowerCase().includes("asesoria")
+        );
+        const grupales = all.filter(
+          (p) => !p.nombre.toLowerCase().includes("asesoría") && !p.nombre.toLowerCase().includes("asesoria")
+        );
+        setPlanesAsesoria(asesoria);
+        setPlanesGrupales(grupales);
+        setLoading(false);
+      });
+  }, []);
 
   const handlePostularme = (tipo: TipoAsesoria) => {
     setTipoSeleccionado(tipo);
@@ -98,9 +121,22 @@ const Asesoria = () => {
     setForm({ nombre_completo: "", email: "", whatsapp: "", fecha_nacimiento: "", descripcion: "" });
   };
 
-  const tituloServicio = tipoSeleccionado
-    ? servicios.find((s) => s.id === tipoSeleccionado)?.titulo + " — " + servicios.find((s) => s.id === tipoSeleccionado)?.subtitulo
+  const selectedAsesoria = planesAsesoria.find((p) =>
+    tipoSeleccionado === "personalizada_claudio"
+      ? p.nombre.toLowerCase().includes("claudio")
+      : p.nombre.toLowerCase().includes("team")
+  );
+  const tituloServicio = selectedAsesoria
+    ? `${selectedAsesoria.nombre} — ${selectedAsesoria.descripcion_corta || ""}`
     : "";
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -117,78 +153,92 @@ const Asesoria = () => {
         </div>
 
         {/* Planes grupales */}
-        <section className="space-y-4">
-        
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {planesGrupales.map((plan) => (
-              <div key={plan.nombre} className="glass-card rounded-lg p-5 space-y-3 text-center">
-                <h3 className="font-heading font-semibold uppercase tracking-wider text-sm text-foreground">
-                  {plan.nombre}
-                </h3>
-                <p className="text-xs text-muted-foreground">{plan.descripcion}</p>
-                <p className="text-2xl font-heading font-bold gold-text-gradient">{plan.precio}</p>
-                <span className="text-xs text-muted-foreground">/mes</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        {planesGrupales.length > 0 && (
+          <section className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {planesGrupales.map((plan) => (
+                <div key={plan.id} className="glass-card rounded-lg p-5 space-y-3 text-center">
+                  <h3 className="font-heading font-semibold uppercase tracking-wider text-sm text-foreground">
+                    {plan.nombre}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">{plan.descripcion_corta || plan.descripcion}</p>
+                  <p className="text-2xl font-heading font-bold gold-text-gradient">
+                    {formatPrice(plan.precio, plan.moneda)}
+                  </p>
+                  <span className="text-xs text-muted-foreground">/mes</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Asesorías personalizadas */}
-        <section className="space-y-4">
-        
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {servicios.map((servicio) => (
-              <div
-                key={servicio.id}
-                className={`relative glass-card rounded-lg p-6 space-y-5 flex flex-col ${
-                  servicio.destacado ? "ring-2 ring-primary card-glow" : ""
-                }`}
-              >
-                {servicio.destacado && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full gold-gradient text-xs font-heading font-semibold uppercase tracking-wider text-primary-foreground flex items-center gap-1">
-                    <Star className="w-3 h-3" />
-                    Premium
+        {planesAsesoria.length > 0 && (
+          <section className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {planesAsesoria.map((plan) => {
+                const isClaudio = plan.nombre.toLowerCase().includes("claudio");
+                const tipo: TipoAsesoria = isClaudio ? "personalizada_claudio" : "personalizada_expertos";
+                const features = asesoriaFeatures[plan.nombre] || [
+                  "Asesoramiento personalizado",
+                  "Seguimiento continuo",
+                  "Soporte directo",
+                ];
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative glass-card rounded-lg p-6 space-y-5 flex flex-col ${
+                      isClaudio ? "ring-2 ring-primary card-glow" : ""
+                    }`}
+                  >
+                    {isClaudio && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full gold-gradient text-xs font-heading font-semibold uppercase tracking-wider text-primary-foreground flex items-center gap-1">
+                        <Star className="w-3 h-3" />
+                        Premium
+                      </div>
+                    )}
+
+                    <div className="space-y-1 text-center">
+                      <h3 className="font-heading font-semibold uppercase tracking-wider text-foreground">
+                        {plan.nombre.replace(" Team", "").replace(" Claudio", "")}
+                      </h3>
+                      <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+                        <User className="w-3.5 h-3.5" />
+                        {plan.descripcion_corta}
+                      </p>
+                    </div>
+
+                    <div className="text-center">
+                      <span className="text-3xl font-heading font-bold gold-text-gradient">
+                        {formatPrice(plan.precio, plan.moneda)}
+                      </span>
+                      <span className="text-muted-foreground text-sm"> /mes</span>
+                    </div>
+
+                    <ul className="space-y-2 flex-1">
+                      {features.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-sm text-secondary-foreground">
+                          <span className="text-primary mt-0.5">✓</span>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      variant={isClaudio ? "gold" : "gold-outline"}
+                      className="w-full"
+                      onClick={() => handlePostularme(tipo)}
+                    >
+                      Postularme
+                      <Send className="w-4 h-4" />
+                    </Button>
                   </div>
-                )}
-
-                <div className="space-y-1 text-center">
-                  <h3 className="font-heading font-semibold uppercase tracking-wider text-foreground">
-                    {servicio.titulo}
-                  </h3>
-                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
-                    <User className="w-3.5 h-3.5" />
-                    {servicio.subtitulo}
-                  </p>
-                </div>
-
-                <div className="text-center">
-                  <span className="text-3xl font-heading font-bold gold-text-gradient">
-                    {servicio.precio}
-                  </span>
-                  <span className="text-muted-foreground text-sm">{servicio.frecuencia}</span>
-                </div>
-
-                <ul className="space-y-2 flex-1">
-                  {servicio.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-secondary-foreground">
-                      <span className="text-primary mt-0.5">✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  variant={servicio.destacado ? "gold" : "gold-outline"}
-                  className="w-full"
-                  onClick={() => handlePostularme(servicio.id)}
-                >
-                  Postularme
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </section>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Back link */}
         <div className="text-center">
