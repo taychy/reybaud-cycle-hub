@@ -15,6 +15,7 @@ const AdminLogin = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   // Auto-redirect if already authenticated
