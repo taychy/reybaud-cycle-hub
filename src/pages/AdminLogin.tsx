@@ -224,6 +224,8 @@ const AdminLogin = () => {
               <Input
                 id="admin-email"
                 type="email"
+                name="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -245,6 +247,8 @@ const AdminLogin = () => {
                 <Input
                   id="admin-password"
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

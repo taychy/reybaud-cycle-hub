@@ -42,6 +42,8 @@ const DepositoLogin = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               type="email"
+              name="email"
+              autoComplete="username"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -50,6 +52,8 @@ const DepositoLogin = () => {
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
