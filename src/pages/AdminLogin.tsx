@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, ArrowLeft, Mail, MailCheck } from "lucide-react";
+import { ChevronRight, ArrowLeft, Mail, MailCheck, Eye, EyeOff } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
