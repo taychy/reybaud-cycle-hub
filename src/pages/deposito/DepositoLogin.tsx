@@ -42,6 +42,8 @@ const DepositoLogin = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               type="email"
+              name="email"
+              autoComplete="username"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
