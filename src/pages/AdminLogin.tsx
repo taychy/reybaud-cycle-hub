@@ -224,6 +224,8 @@ const AdminLogin = () => {
               <Input
                 id="admin-email"
                 type="email"
+                name="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
