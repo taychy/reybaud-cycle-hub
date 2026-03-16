@@ -52,6 +52,8 @@ const DepositoLogin = () => {
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

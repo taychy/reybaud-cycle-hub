@@ -247,6 +247,8 @@ const AdminLogin = () => {
                 <Input
                   id="admin-password"
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
