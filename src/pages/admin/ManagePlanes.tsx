@@ -292,7 +292,7 @@ const ManagePlanes = () => {
                       <span className="font-medium">{plan.nombre}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono">{formatPrice(plan.precio)}</TableCell>
+                  <TableCell className="font-mono">{formatPrice(plan.precio, plan.moneda)}</TableCell>
                   <TableCell className="text-sm">{frecuenciaOptions.find((f) => f.value === plan.frecuencia)?.label || plan.frecuencia}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {(planesSedes[plan.id] || []).map((sid) => sedes.find((s) => s.id === sid)?.nombre).filter(Boolean).join(", ") || "Todas"}
