@@ -231,8 +231,8 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
-  const formatPrice = (precio: number) =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(precio);
+  const formatPrice = (precio: number, moneda: string = "ARS") =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(precio);
 
   const getVisibilidadBadge = (v: string) => {
     switch (v) {
