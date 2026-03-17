@@ -42,6 +42,7 @@ const typeLabels: Record<string, string> = {
   camp: "Camp",
   carrera: "Carrera",
   otro: "Evento",
+  viaje: "Viaje",
 };
 
 const EventDetail = () => {

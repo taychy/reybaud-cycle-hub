@@ -555,11 +555,20 @@ export type Database = {
       events: {
         Row: {
           created_at: string
+          currency: string
           date: string
           description: string | null
+          duration_days: number | null
+          duration_nights: number | null
           end_time: string | null
           id: string
+          image_url: string | null
           is_active: boolean
+          level: string | null
+          location: string | null
+          max_capacity: number | null
+          price: number | null
+          spots_taken: number
           start_time: string | null
           title: string
           type: Database["public"]["Enums"]["event_type"]
@@ -568,11 +577,20 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          currency?: string
           date: string
           description?: string | null
+          duration_days?: number | null
+          duration_nights?: number | null
           end_time?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          level?: string | null
+          location?: string | null
+          max_capacity?: number | null
+          price?: number | null
+          spots_taken?: number
           start_time?: string | null
           title: string
           type?: Database["public"]["Enums"]["event_type"]
@@ -581,11 +599,20 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          currency?: string
           date?: string
           description?: string | null
+          duration_days?: number | null
+          duration_nights?: number | null
           end_time?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          level?: string | null
+          location?: string | null
+          max_capacity?: number | null
+          price?: number | null
+          spots_taken?: number
           start_time?: string | null
           title?: string
           type?: Database["public"]["Enums"]["event_type"]
@@ -1336,7 +1363,7 @@ export type Database = {
       admin_role: "super_admin" | "admin" | "support"
       app_role: "admin" | "alumno" | "coach" | "deposito"
       estado_plan: "borrador" | "publicado"
-      event_type: "record_hora" | "camp" | "carrera" | "otro"
+      event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
       grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
     }
@@ -1469,7 +1496,7 @@ export const Constants = {
       admin_role: ["super_admin", "admin", "support"],
       app_role: ["admin", "alumno", "coach", "deposito"],
       estado_plan: ["borrador", "publicado"],
-      event_type: ["record_hora", "camp", "carrera", "otro"],
+      event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],
       grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
     },
