@@ -341,7 +341,7 @@ const ManagePlanes = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-medium">{plan.nombre}</h3>
-                  <p className="text-lg font-mono font-bold text-primary">{formatPrice(plan.precio)}</p>
+                  <p className="text-lg font-mono font-bold text-primary">{formatPrice(plan.precio, plan.moneda)}</p>
                   <p className="text-xs text-muted-foreground">
                     {frecuenciaOptions.find((f) => f.value === plan.frecuencia)?.label || plan.frecuencia}
                   </p>
