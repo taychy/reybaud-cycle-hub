@@ -231,8 +231,8 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
-  const formatPrice = (precio: number) =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(precio);
+  const formatPrice = (precio: number, moneda: string = "ARS") =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(precio);
 
   const getVisibilidadBadge = (v: string) => {
     switch (v) {
@@ -292,7 +292,7 @@ const ManagePlanes = () => {
                       <span className="font-medium">{plan.nombre}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono">{formatPrice(plan.precio)}</TableCell>
+                  <TableCell className="font-mono">{formatPrice(plan.precio, plan.moneda)}</TableCell>
                   <TableCell className="text-sm">{frecuenciaOptions.find((f) => f.value === plan.frecuencia)?.label || plan.frecuencia}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {(planesSedes[plan.id] || []).map((sid) => sedes.find((s) => s.id === sid)?.nombre).filter(Boolean).join(", ") || "Todas"}
@@ -341,7 +341,7 @@ const ManagePlanes = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-medium">{plan.nombre}</h3>
-                  <p className="text-lg font-mono font-bold text-primary">{formatPrice(plan.precio)}</p>
+                  <p className="text-lg font-mono font-bold text-primary">{formatPrice(plan.precio, plan.moneda)}</p>
                   <p className="text-xs text-muted-foreground">
                     {frecuenciaOptions.find((f) => f.value === plan.frecuencia)?.label || plan.frecuencia}
                   </p>

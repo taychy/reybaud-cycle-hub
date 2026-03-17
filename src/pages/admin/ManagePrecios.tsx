@@ -86,25 +86,39 @@ const ManagePrecios = () => {
       return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
 
-    // Insert history
-    await supabase.from("precio_historial").insert({
-      plan_id: selectedPlan.id,
-      precio_anterior: selectedPlan.precio,
-      precio_nuevo: newPrice,
-      fecha_vigencia: form.fecha_vigencia || null,
-      aplicar_a: form.aplicar_a,
-      modificado_por: session?.user?.id || null,
-      notas: form.notas.trim() || null,
-    } as any);
+      // Insert history
+      const { error: histError } = await supabase.from("precio_historial").insert({
+        plan_id: selectedPlan.id,
+        precio_anterior: selectedPlan.precio,
+        precio_nuevo: newPrice,
+        fecha_vigencia: form.fecha_vigencia || null,
+        aplicar_a: form.aplicar_a,
+        modificado_por: session?.user?.id || null,
+        notas: form.notas.trim() || null,
+      } as any);
 
-    // Update plan price
-    await supabase.from("planes").update({ precio: newPrice } as any).eq("id", selectedPlan.id);
+      if (histError) {
+        toast({ title: "Error al guardar historial", description: histError.message, variant: "destructive" });
+        return;
+      }
 
-    toast({ title: "Precio actualizado" });
-    setDialogOpen(false);
-    fetchAll();
+      // Update plan price
+      const { error: updateError } = await supabase.from("planes").update({ precio: newPrice } as any).eq("id", selectedPlan.id);
+
+      if (updateError) {
+        toast({ title: "Error al actualizar precio", description: updateError.message, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Precio actualizado" });
+      setDialogOpen(false);
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "Error inesperado", description: err.message || "Intentá de nuevo", variant: "destructive" });
+    }
   };
 
   const formatPrice = (p: number, moneda: string = "ARS") =>
