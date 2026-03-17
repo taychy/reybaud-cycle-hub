@@ -84,7 +84,7 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
               Reservar
             </Badge>
           ) : (
-            <Badge className="bg-emerald-500 text-white text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
+            <Badge className="bg-accent text-accent-foreground text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
               Gratuito
             </Badge>
           )}
