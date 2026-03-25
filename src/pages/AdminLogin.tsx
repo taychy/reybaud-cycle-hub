@@ -3,23 +3,41 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, ArrowLeft, Mail, MailCheck, Eye, EyeOff } from "lucide-react";
+import { ChevronRight, ArrowLeft, MailCheck } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [forgotMode, setForgotMode] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const navigate = useNavigate();
 
   // Auto-redirect if already authenticated
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        const { data: isAdmin } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "admin",
+        });
+        if (isAdmin) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+        const { data: isCoach } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "coach" as any,
+        });
+        if (isCoach) {
+          navigate("/coach", { replace: true });
+          return;
+        }
+      }
+    });
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         const { data: isAdmin } = await supabase.rpc("has_role", {
@@ -41,9 +59,11 @@ const AdminLogin = () => {
       }
       setCheckingSession(false);
     });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -55,62 +75,43 @@ const AdminLogin = () => {
       return;
     }
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-      redirectTo: `${window.location.origin}/activar-cuenta`,
-    });
+    // Verify the email belongs to an admin or coach before sending magic link
+    const { data: adminProfile } = await supabase
+      .from("admin_profiles")
+      .select("id")
+      .eq("email", trimmedEmail)
+      .eq("status", "active")
+      .maybeSingle();
 
-    if (resetError) {
-      setError(resetError.message || "Error al enviar el email.");
+    const { data: coachProfile } = await supabase
+      .from("coaches")
+      .select("id")
+      .eq("email", trimmedEmail)
+      .eq("estado", "activo")
+      .maybeSingle();
+
+    if (!adminProfile && !coachProfile) {
+      setError("No se encontró una cuenta de administrador o coach con ese email.");
       setLoading(false);
       return;
     }
 
-    setResetSent(true);
-    setLoading(false);
-    toast.success("Email enviado. Revisá tu bandeja de entrada.");
-  };
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}/admin/login`,
+      },
+    });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) throw authError;
-
-      const { data: session } = await supabase.auth.getSession();
-      if (session.session) {
-        const { data: isAdmin } = await supabase.rpc("has_role", {
-          _user_id: session.session.user.id,
-          _role: "admin",
-        });
-
-        if (isAdmin) {
-          navigate("/admin");
-          return;
-        }
-
-        const { data: isCoach } = await supabase.rpc("has_role", {
-          _user_id: session.session.user.id,
-          _role: "coach" as any,
-        });
-
-        if (isCoach) {
-          navigate("/coach");
-          return;
-        }
-
-        await supabase.auth.signOut();
-        setError("No tenés permisos de administrador o coach.");
-        setLoading(false);
-        return;
-      }
-    } catch (err: any) {
-      setError(err.message || "Error al iniciar sesión.");
-    } finally {
+    if (otpError) {
+      setError(otpError.message || "Error al enviar el enlace.");
       setLoading(false);
+      return;
     }
+
+    setMagicLinkSent(true);
+    setLoading(false);
+    toast.success("Magic Link enviado. Revisá tu bandeja de entrada.");
   };
 
   if (checkingSession) {
@@ -124,82 +125,36 @@ const AdminLogin = () => {
     );
   }
 
-  // Forgot password: reset sent confirmation
-  if (forgotMode && resetSent) {
+  // Magic link sent confirmation
+  if (magicLinkSent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
         <div className="w-full max-w-md space-y-8 animate-fade-in text-center">
           <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
           <MailCheck className="w-14 h-14 text-primary mx-auto" />
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Email enviado
+            Revisá tu email
           </h1>
           <p className="text-muted-foreground text-sm">
-            Si existe una cuenta con ese email, vas a recibir un enlace para restablecer tu contraseña. Revisá tu bandeja de entrada.
+            Te enviamos un enlace de acceso a <strong className="text-foreground">{email}</strong>. Hacé clic en el enlace para ingresar.
           </p>
-          <Button
-            variant="outline"
-            onClick={() => { setForgotMode(false); setResetSent(false); setError(null); }}
-            className="w-full"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver al login
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Forgot password form
-  if (forgotMode) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <div className="w-full max-w-md space-y-8 animate-fade-in">
-          <div className="text-center space-y-3">
-            <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
-            <Mail className="w-10 h-10 text-primary mx-auto" />
-            <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-              Recuperar contraseña
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Ingresá tu email y te enviaremos un enlace para restablecer tu contraseña.
-            </p>
-          </div>
-
-          <form onSubmit={handleForgotPassword} className="space-y-4">
-            <div className="glass-card rounded-lg p-6 space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="forgot-email" className="text-sm font-medium text-foreground">Email</label>
-                <Input
-                  id="forgot-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="tu@email.com"
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-
-              {error && (
-                <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">{error}</div>
-              )}
-
-              <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-                {loading ? "Enviando..." : "Enviar enlace"}
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </form>
-
-          <div className="text-center">
-            <button
-              onClick={() => { setForgotMode(false); setError(null); }}
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              onClick={() => { setMagicLinkSent(false); setError(null); }}
+              className="w-full"
             >
-              <ArrowLeft className="w-3 h-3" />
-              Volver al login
-            </button>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Cambiar email
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => handleSendMagicLink({ preventDefault: () => {} } as React.FormEvent)}
+              className="w-full text-xs"
+              disabled={loading}
+            >
+              {loading ? "Reenviando..." : "Reenviar enlace"}
+            </Button>
           </div>
         </div>
       </div>
@@ -217,7 +172,7 @@ const AdminLogin = () => {
           <p className="text-muted-foreground text-sm">Ciclismo Reybaud</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSendMagicLink} className="space-y-4">
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="admin-email" className="text-sm font-medium text-foreground">Email</label>
@@ -229,40 +184,9 @@ const AdminLogin = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                placeholder="tu@email.com"
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label htmlFor="admin-password" className="text-sm font-medium text-foreground">Contraseña</label>
-                <button
-                  type="button"
-                  onClick={() => { setForgotMode(true); setError(null); }}
-                  className="text-xs text-primary hover:text-primary/80 transition-colors"
-                >
-                  ¿Olvidaste tu clave?
-                </button>
-              </div>
-              <div className="relative">
-                <Input
-                  id="admin-password"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
             </div>
 
             {error && (
@@ -270,7 +194,7 @@ const AdminLogin = () => {
             )}
 
             <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Ingresando..." : "Ingresar"}
+              {loading ? "Enviando..." : "Enviar Magic Link"}
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
