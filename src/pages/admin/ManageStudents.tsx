@@ -764,6 +764,54 @@ const ManageStudents = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change plan dialog */}
+      <Dialog open={!!changePlanAlumno} onOpenChange={(open) => { if (!open) { setChangePlanAlumno(null); setNewPlanId(""); } }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">Cambiar plan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Alumno: <span className="text-foreground font-medium">{changePlanAlumno?.nombre}</span>
+            </p>
+            {(() => {
+              const sub = changePlanAlumno ? getActiveSub(changePlanAlumno.id) : null;
+              return sub?.planes ? (
+                <p className="text-sm text-muted-foreground">
+                  Plan actual: <span className="text-foreground font-medium">{sub.planes.nombre}</span> — {sub.planes.moneda} {sub.planes.precio}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sin plan activo actualmente</p>
+              );
+            })()}
+            <div className="space-y-2">
+              <Label>Nuevo plan</Label>
+              <Select value={newPlanId} onValueChange={setNewPlanId}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Seleccionar plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planes.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nombre} — {p.moneda} {p.precio}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El alumno recibirá un email informándole del cambio de plan.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setChangePlanAlumno(null); setNewPlanId(""); }}>Cancelar</Button>
+            <Button variant="gold" disabled={!newPlanId || savingPlan} onClick={handleChangePlan}>
+              {savingPlan ? "Guardando..." : "Confirmar cambio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
         </TabsContent>
 
         <TabsContent value="importar" className="mt-4">
