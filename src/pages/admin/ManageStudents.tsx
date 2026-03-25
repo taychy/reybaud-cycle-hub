@@ -230,13 +230,75 @@ const ManageStudents = () => {
     fetchAlumnos();
   };
 
-  // Suscripciones pendientes de verificación
-  const [suscripciones, setSuscripciones] = useState<any[]>([]);
+  // Suscripciones con plan
+  const [suscripciones, setSuscripciones] = useState<SuscripcionConPlan[]>([]);
+  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [changePlanAlumno, setChangePlanAlumno] = useState<Alumno | null>(null);
+  const [newPlanId, setNewPlanId] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+
   useEffect(() => {
-    supabase.from("suscripciones").select("alumno_id, estado").then(({ data }) => {
-      setSuscripciones(data || []);
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+      setSuscripciones((data as any) || []);
+    });
+    supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
+      setPlanes(data || []);
     });
   }, [alumnos]);
+
+  const getActiveSub = (alumnoId: string) => {
+    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion"));
+  };
+
+  const handleChangePlan = async () => {
+    if (!changePlanAlumno || !newPlanId) return;
+    setSavingPlan(true);
+    try {
+      const activeSub = getActiveSub(changePlanAlumno.id);
+      const selectedPlan = planes.find(p => p.id === newPlanId);
+      
+      if (activeSub) {
+        // Update existing subscription's plan
+        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId } as any).eq("id", activeSub.id);
+        if (error) throw error;
+      } else {
+        // Create new subscription with this plan
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const endStr = lastDay.toISOString().split("T")[0];
+        const { error } = await supabase.from("suscripciones").insert({
+          alumno_id: changePlanAlumno.id,
+          plan_id: newPlanId,
+          estado: "activa",
+          fecha_inicio: todayStr,
+          fecha_fin: endStr,
+          mp_status: "manual",
+        });
+        if (error) throw error;
+      }
+
+      // Send email notification
+      supabase.functions.invoke("notify-student-update", {
+        body: {
+          alumno_id: changePlanAlumno.id,
+          type: "plan_cambiado",
+          plan_nombre: selectedPlan?.nombre || "Nuevo plan",
+          plan_precio: selectedPlan?.precio,
+          plan_moneda: selectedPlan?.moneda,
+        },
+      }).catch(() => {});
+
+      toast.success(`Plan actualizado para ${changePlanAlumno.nombre}`);
+      setChangePlanAlumno(null);
+      setNewPlanId("");
+      fetchAlumnos(); // triggers suscripciones refetch
+    } catch (err: any) {
+      toast.error(err.message || "Error al cambiar el plan");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   const isPending = (a: Alumno) => {
     const hasPendingPayment = suscripciones.some(s => s.alumno_id === a.id && s.estado === "pendiente_verificacion");
