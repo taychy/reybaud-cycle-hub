@@ -624,6 +624,17 @@ const ManageStudents = () => {
                   </Select>
                 </div>
                 <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Plan</span>
+                  {(() => {
+                    const sub = getActiveSub(detailAlumno.id);
+                    return sub?.planes?.nombre ? (
+                      <Badge variant="outline" className="text-xs">{sub.planes.nombre}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Sin plan</span>
+                    );
+                  })()}
+                </div>
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Estado</span>
                   <Badge variant={detailAlumno.estado === "activo" ? "default" : "outline"} className="text-xs">
                     {detailAlumno.estado}
@@ -631,6 +642,14 @@ const ManageStudents = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                  setChangePlanAlumno(detailAlumno);
+                  const sub = getActiveSub(detailAlumno.id);
+                  setNewPlanId(sub?.plan_id || "");
+                  setDetailAlumno(null);
+                }}>
+                  <CreditCard className="w-3 h-3 mr-2" /> Cambiar plan
+                </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
                   openManualSub(detailAlumno);
                   setDetailAlumno(null);
