@@ -451,6 +451,7 @@ const ManageStudents = () => {
                 <TableHead className="text-muted-foreground hidden lg:table-cell">Email</TableHead>
                 <TableHead className="text-muted-foreground hidden lg:table-cell">DNI/CUIT</TableHead>
                 <TableHead className="text-muted-foreground">Grupo</TableHead>
+                <TableHead className="text-muted-foreground">Plan</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
               </TableRow>
