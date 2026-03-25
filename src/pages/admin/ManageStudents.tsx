@@ -9,13 +9,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 
 type Alumno = Tables<"alumnos">;
+type Plan = Tables<"planes">;
+
+interface SuscripcionConPlan {
+  id: string;
+  alumno_id: string;
+  plan_id: string;
+  estado: string;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+  planes: { id: string; nombre: string; precio: number; moneda: string } | null;
+}
+
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
 const ManageStudents = () => {
