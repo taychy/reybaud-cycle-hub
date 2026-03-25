@@ -75,22 +75,12 @@ const AdminLogin = () => {
       return;
     }
 
-    // Verify the email belongs to an admin or coach before sending magic link
-    const { data: adminProfile } = await supabase
-      .from("admin_profiles")
-      .select("id")
-      .eq("email", trimmedEmail)
-      .eq("status", "active")
-      .maybeSingle();
+    // Verify the email belongs to an admin or coach using security definer function
+    const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email", {
+      _email: trimmedEmail,
+    });
 
-    const { data: coachProfile } = await supabase
-      .from("coaches")
-      .select("id")
-      .eq("email", trimmedEmail)
-      .eq("estado", "activo")
-      .maybeSingle();
-
-    if (!adminProfile && !coachProfile) {
+    if (!isValidEmail) {
       setError("No se encontró una cuenta de administrador o coach con ese email.");
       setLoading(false);
       return;
