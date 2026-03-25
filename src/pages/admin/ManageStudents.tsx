@@ -512,6 +512,22 @@ const ManageStudents = () => {
                         )}
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          const sub = getActiveSub(alumno.id);
+                          const planName = sub?.planes?.nombre;
+                          return planName ? (
+                            <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(sub?.plan_id || ""); }}>
+                              {planName}
+                              <Edit2 className="w-2.5 h-2.5 ml-1" />
+                            </Badge>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(""); }}>
+                              <CreditCard className="w-3 h-3 mr-1" /> Asignar
+                            </Button>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
                           {alumno.estado}
                         </Badge>
