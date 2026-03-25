@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { alumno_id, type, grupo, fecha_vencimiento } = await req.json();
+    const { alumno_id, type, grupo, fecha_vencimiento, plan_nombre, plan_precio, plan_moneda } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -130,6 +130,31 @@ Deno.serve(async (req) => {
           </p>
           <p style="color: #333; margin-bottom: 16px;">
             Por favor, revisalo o contactá a administración para más información.
+          </p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Ir a la app
+            </a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
+            Ciclismo Reybaud — Escuela de ciclismo
+          </p>
+        </div>
+      `;
+    } else if (type === "plan_cambiado") {
+      const precioText = plan_precio ? ` (${plan_moneda || "ARS"} ${plan_precio})` : "";
+      subject = `📋 Tu plan fue actualizado`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d4820a; margin-bottom: 16px;">📋 Plan actualizado</h2>
+          <p style="color: #333; margin-bottom: 16px;">
+            Hola <strong>${firstName}</strong>, te informamos que tu plan en Ciclismo Reybaud fue actualizado.
+          </p>
+          <p style="color: #333; margin-bottom: 16px;">
+            Tu nuevo plan es: <strong>${plan_nombre || "Plan actualizado"}${precioText}</strong>
+          </p>
+          <p style="color: #333; margin-bottom: 16px;">
+            Si tenés alguna duda, no dudes en contactarnos.
           </p>
           <div style="text-align: center; margin-top: 24px;">
             <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">

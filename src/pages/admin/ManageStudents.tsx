@@ -9,13 +9,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 
 type Alumno = Tables<"alumnos">;
+type Plan = Tables<"planes">;
+
+interface SuscripcionConPlan {
+  id: string;
+  alumno_id: string;
+  plan_id: string;
+  estado: string;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+  planes: { id: string; nombre: string; precio: number; moneda: string } | null;
+}
+
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
 const ManageStudents = () => {
@@ -218,13 +230,75 @@ const ManageStudents = () => {
     fetchAlumnos();
   };
 
-  // Suscripciones pendientes de verificación
-  const [suscripciones, setSuscripciones] = useState<any[]>([]);
+  // Suscripciones con plan
+  const [suscripciones, setSuscripciones] = useState<SuscripcionConPlan[]>([]);
+  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [changePlanAlumno, setChangePlanAlumno] = useState<Alumno | null>(null);
+  const [newPlanId, setNewPlanId] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+
   useEffect(() => {
-    supabase.from("suscripciones").select("alumno_id, estado").then(({ data }) => {
-      setSuscripciones(data || []);
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+      setSuscripciones((data as any) || []);
+    });
+    supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
+      setPlanes(data || []);
     });
   }, [alumnos]);
+
+  const getActiveSub = (alumnoId: string) => {
+    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion"));
+  };
+
+  const handleChangePlan = async () => {
+    if (!changePlanAlumno || !newPlanId) return;
+    setSavingPlan(true);
+    try {
+      const activeSub = getActiveSub(changePlanAlumno.id);
+      const selectedPlan = planes.find(p => p.id === newPlanId);
+      
+      if (activeSub) {
+        // Update existing subscription's plan
+        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId } as any).eq("id", activeSub.id);
+        if (error) throw error;
+      } else {
+        // Create new subscription with this plan
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const endStr = lastDay.toISOString().split("T")[0];
+        const { error } = await supabase.from("suscripciones").insert({
+          alumno_id: changePlanAlumno.id,
+          plan_id: newPlanId,
+          estado: "activa",
+          fecha_inicio: todayStr,
+          fecha_fin: endStr,
+          mp_status: "manual",
+        });
+        if (error) throw error;
+      }
+
+      // Send email notification
+      supabase.functions.invoke("notify-student-update", {
+        body: {
+          alumno_id: changePlanAlumno.id,
+          type: "plan_cambiado",
+          plan_nombre: selectedPlan?.nombre || "Nuevo plan",
+          plan_precio: selectedPlan?.precio,
+          plan_moneda: selectedPlan?.moneda,
+        },
+      }).catch(() => {});
+
+      toast.success(`Plan actualizado para ${changePlanAlumno.nombre}`);
+      setChangePlanAlumno(null);
+      setNewPlanId("");
+      fetchAlumnos(); // triggers suscripciones refetch
+    } catch (err: any) {
+      toast.error(err.message || "Error al cambiar el plan");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   const isPending = (a: Alumno) => {
     const hasPendingPayment = suscripciones.some(s => s.alumno_id === a.id && s.estado === "pendiente_verificacion");
@@ -377,6 +451,7 @@ const ManageStudents = () => {
                 <TableHead className="text-muted-foreground hidden lg:table-cell">Email</TableHead>
                 <TableHead className="text-muted-foreground hidden lg:table-cell">DNI/CUIT</TableHead>
                 <TableHead className="text-muted-foreground">Grupo</TableHead>
+                <TableHead className="text-muted-foreground">Plan</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
               </TableRow>
@@ -384,11 +459,11 @@ const ManageStudents = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell>
                 </TableRow>
               ) : (
                 filtered.map((alumno) => {
@@ -435,6 +510,22 @@ const ManageStudents = () => {
                             <Edit2 className="w-2.5 h-2.5 ml-1" />
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const sub = getActiveSub(alumno.id);
+                          const planName = sub?.planes?.nombre;
+                          return planName ? (
+                            <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(sub?.plan_id || ""); }}>
+                              {planName}
+                              <Edit2 className="w-2.5 h-2.5 ml-1" />
+                            </Badge>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(""); }}>
+                              <CreditCard className="w-3 h-3 mr-1" /> Asignar
+                            </Button>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
@@ -533,6 +624,17 @@ const ManageStudents = () => {
                   </Select>
                 </div>
                 <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Plan</span>
+                  {(() => {
+                    const sub = getActiveSub(detailAlumno.id);
+                    return sub?.planes?.nombre ? (
+                      <Badge variant="outline" className="text-xs">{sub.planes.nombre}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Sin plan</span>
+                    );
+                  })()}
+                </div>
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Estado</span>
                   <Badge variant={detailAlumno.estado === "activo" ? "default" : "outline"} className="text-xs">
                     {detailAlumno.estado}
@@ -540,6 +642,14 @@ const ManageStudents = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                  setChangePlanAlumno(detailAlumno);
+                  const sub = getActiveSub(detailAlumno.id);
+                  setNewPlanId(sub?.plan_id || "");
+                  setDetailAlumno(null);
+                }}>
+                  <CreditCard className="w-3 h-3 mr-2" /> Cambiar plan
+                </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
                   openManualSub(detailAlumno);
                   setDetailAlumno(null);
@@ -650,6 +760,54 @@ const ManageStudents = () => {
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
             <Button variant="gold" disabled={creating} onClick={handleCreateAlumno}>
               {creating ? "Enviando..." : "Enviar invitación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change plan dialog */}
+      <Dialog open={!!changePlanAlumno} onOpenChange={(open) => { if (!open) { setChangePlanAlumno(null); setNewPlanId(""); } }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">Cambiar plan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Alumno: <span className="text-foreground font-medium">{changePlanAlumno?.nombre}</span>
+            </p>
+            {(() => {
+              const sub = changePlanAlumno ? getActiveSub(changePlanAlumno.id) : null;
+              return sub?.planes ? (
+                <p className="text-sm text-muted-foreground">
+                  Plan actual: <span className="text-foreground font-medium">{sub.planes.nombre}</span> — {sub.planes.moneda} {sub.planes.precio}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sin plan activo actualmente</p>
+              );
+            })()}
+            <div className="space-y-2">
+              <Label>Nuevo plan</Label>
+              <Select value={newPlanId} onValueChange={setNewPlanId}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Seleccionar plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planes.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nombre} — {p.moneda} {p.precio}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El alumno recibirá un email informándole del cambio de plan.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setChangePlanAlumno(null); setNewPlanId(""); }}>Cancelar</Button>
+            <Button variant="gold" disabled={!newPlanId || savingPlan} onClick={handleChangePlan}>
+              {savingPlan ? "Guardando..." : "Confirmar cambio"}
             </Button>
           </DialogFooter>
         </DialogContent>
