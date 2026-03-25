@@ -76,7 +76,7 @@ const AdminLogin = () => {
     }
 
     // Verify the email belongs to an admin or coach using security definer function
-    const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email", {
+    const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
       _email: trimmedEmail,
     });
 
