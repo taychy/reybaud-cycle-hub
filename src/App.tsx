@@ -52,6 +52,7 @@ import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 const queryClient = new QueryClient();
 
 const App = () => (
