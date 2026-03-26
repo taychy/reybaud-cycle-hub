@@ -70,21 +70,24 @@ const isInconsistent = (userEstado: string, subEstado: string | undefined): bool
   return INVALID_COMBOS.some(([u, s]) => u === userEstado && s === subEstado);
 };
 
-// Helper to split nombre into first/last
-const splitNombre = (alumno: Alumno) => {
-  const apellido = (alumno as any).apellido;
-  if (apellido) return { firstName: alumno.nombre, lastName: apellido };
-  const parts = alumno.nombre.trim().split(/\s+/);
-  if (parts.length <= 1) return { firstName: parts[0] || "", lastName: "" };
-  const firstName = parts.slice(0, -1).join(" ");
-  const lastName = parts[parts.length - 1];
-  return { firstName, lastName };
+// Direct field access — data is now properly split in DB
+const getApellido = (alumno: Alumno): string => (alumno as any).apellido || "";
+const getFullName = (alumno: Alumno) => {
+  const apellido = getApellido(alumno);
+  return apellido ? `${alumno.nombre} ${apellido}` : alumno.nombre;
 };
 
-const getFullName = (alumno: Alumno) => {
-  const { firstName, lastName } = splitNombre(alumno);
-  return lastName ? `${firstName} ${lastName}` : firstName;
+// Profile completeness detection
+const getProfileMissing = (alumno: Alumno, subEstado: string): string[] => {
+  const missing: string[] = [];
+  if (!getApellido(alumno)) missing.push("Apellido");
+  if (!alumno.telefono) missing.push("Teléfono");
+  if (!alumno.documento) missing.push("DNI/CUIT");
+  if (alumno.grupo === "Sin grupo" && alumno.estado === "activo") missing.push("Grupo");
+  if (subEstado === "sin_suscripcion" && alumno.estado === "activo") missing.push("Plan/Suscripción");
+  return missing;
 };
+const isProfileIncomplete = (alumno: Alumno, subEstado: string) => getProfileMissing(alumno, subEstado).length > 0;
 
 const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
