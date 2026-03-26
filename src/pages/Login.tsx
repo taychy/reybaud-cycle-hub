@@ -48,18 +48,53 @@ const Login = () => {
         .eq("id", alumno.id)
         .is("user_id", null);
 
+      // Bloqueado: no puede ingresar
+      if (alumno.estado === "bloqueado") {
+        setCheckingSession(false);
+        setLoginError("Tu acceso está deshabilitado. Si creés que esto es un error, contactate con administración.");
+        return;
+      }
+
+      // Inactivo sin grupo: nuevo registro, va a elegir plan
       if (alumno.estado === "inactivo" && alumno.grupo === "Sin grupo") {
         localStorage.setItem("registro_alumno_id", alumno.id);
         navigate("/planes", { replace: true });
         return;
       }
 
-      if (alumno.grupo === "Sin grupo") {
+      // Inactivo con grupo: fue dado de baja
+      if (alumno.estado === "inactivo") {
+        setCheckingSession(false);
+        setLoginError("Tu cuenta se encuentra inactiva. Contactate con administración para reactivarla.");
+        return;
+      }
+
+      // Pendiente: onboarding
+      if (alumno.estado === "pendiente") {
+        if (alumno.grupo === "Sin grupo") {
+          setCheckingSession(false);
+          setLoginError("Tu registro está pendiente de aprobación. Te avisaremos cuando esté listo.");
+          return;
+        }
+        localStorage.setItem("registro_alumno_id", alumno.id);
+        navigate("/planes", { replace: true });
+        return;
+      }
+
+      // Sin grupo asignado (activo o vacaciones)
+      if (alumno.grupo === "Sin grupo" && alumno.estado !== "vacaciones") {
         setCheckingSession(false);
         setLoginError("Tu usuario aún no tiene grupo asignado. Contactá administración.");
         return;
       }
 
+      // Vacaciones: acceso limitado
+      if (alumno.estado === "vacaciones") {
+        navigate("/alumno", { replace: true });
+        return;
+      }
+
+      // Activo: verificar suscripción
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const { data: activeSub } = await supabase
