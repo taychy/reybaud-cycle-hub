@@ -714,16 +714,19 @@ const ManageStudents = () => {
                 }}>
                   <CalendarCheck className="w-3 h-3 mr-2" /> Habilitar suscripción
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
-                  toggleEstado(detailAlumno);
-                  setDetailAlumno(null);
-                }}>
-                  {detailAlumno.estado === "activo" ? (
-                    <><UserX className="w-3 h-3 mr-2" /> Desactivar</>
-                  ) : (
-                    <><UserCheck className="w-3 h-3 mr-2" /> Activar</>
-                  )}
-                </Button>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Cambiar estado</Label>
+                  <Select onValueChange={(val) => { changeEstado(detailAlumno, val); setDetailAlumno(null); }}>
+                    <SelectTrigger className="bg-secondary border-border text-xs">
+                      <SelectValue placeholder={`Estado actual: ${detailAlumno.estado}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["activo", "inactivo", "bloqueado", "vacaciones", "pendiente"].filter(e => e !== detailAlumno.estado).map(e => (
+                        <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
                   setDeleteAlumno(detailAlumno);
                   setDetailAlumno(null);
