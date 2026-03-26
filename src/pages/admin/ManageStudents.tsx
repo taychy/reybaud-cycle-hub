@@ -70,21 +70,24 @@ const isInconsistent = (userEstado: string, subEstado: string | undefined): bool
   return INVALID_COMBOS.some(([u, s]) => u === userEstado && s === subEstado);
 };
 
-// Helper to split nombre into first/last
-const splitNombre = (alumno: Alumno) => {
-  const apellido = (alumno as any).apellido;
-  if (apellido) return { firstName: alumno.nombre, lastName: apellido };
-  const parts = alumno.nombre.trim().split(/\s+/);
-  if (parts.length <= 1) return { firstName: parts[0] || "", lastName: "" };
-  const firstName = parts.slice(0, -1).join(" ");
-  const lastName = parts[parts.length - 1];
-  return { firstName, lastName };
+// Direct field access — data is now properly split in DB
+const getApellido = (alumno: Alumno): string => (alumno as any).apellido || "";
+const getFullName = (alumno: Alumno) => {
+  const apellido = getApellido(alumno);
+  return apellido ? `${alumno.nombre} ${apellido}` : alumno.nombre;
 };
 
-const getFullName = (alumno: Alumno) => {
-  const { firstName, lastName } = splitNombre(alumno);
-  return lastName ? `${firstName} ${lastName}` : firstName;
+// Profile completeness detection
+const getProfileMissing = (alumno: Alumno, subEstado: string): string[] => {
+  const missing: string[] = [];
+  if (!getApellido(alumno)) missing.push("Apellido");
+  if (!alumno.telefono) missing.push("Teléfono");
+  if (!alumno.documento) missing.push("DNI/CUIT");
+  if (alumno.grupo === "Sin grupo" && alumno.estado === "activo") missing.push("Grupo");
+  if (subEstado === "sin_suscripcion" && alumno.estado === "activo") missing.push("Plan/Suscripción");
+  return missing;
 };
+const isProfileIncomplete = (alumno: Alumno, subEstado: string) => getProfileMissing(alumno, subEstado).length > 0;
 
 const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
@@ -215,12 +218,13 @@ const ManageStudents = () => {
   }).length;
   const sinGrupoCount = alumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
+  const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
 
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
       a.email.toLowerCase().includes(search.toLowerCase()) ||
-      ((a as any).apellido || "").toLowerCase().includes(search.toLowerCase());
+      getApellido(a).toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     switch (statusFilter) {
       case "pendientes": return a.estado === "pendiente";
@@ -231,6 +235,7 @@ const ManageStudents = () => {
       case "vencidos": return getSubEstadoLabel(a.id) === "vencida" && a.estado === "activo";
       case "sin_grupo": return a.grupo === "Sin grupo" && a.estado === "activo";
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
+      case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
       default: return true;
     }
   });
@@ -316,10 +321,9 @@ const ManageStudents = () => {
   const openDrawer = (alumno: Alumno) => {
     setDrawerAlumno(alumno);
     setEditingDetail(false);
-    const { firstName, lastName } = splitNombre(alumno);
     setDetailForm({
-      nombre: firstName,
-      apellido: lastName,
+      nombre: alumno.nombre,
+      apellido: getApellido(alumno),
       email: alumno.email,
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
@@ -588,6 +592,7 @@ const ManageStudents = () => {
     { key: "vencidos", label: "Vencidos", count: vencidosCount },
     { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
+    ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -648,9 +653,10 @@ const ManageStudents = () => {
                 <p className="text-center text-muted-foreground py-8">No se encontraron alumnos</p>
               ) : (
                 filtered.map((alumno) => {
-                  const { firstName, lastName } = splitNombre(alumno);
+                  const apellido = getApellido(alumno);
                   const subEstado = getSubEstadoLabel(alumno.id);
                   const inconsistency = getAlumnoInconsistency(alumno);
+                  const missing = getProfileMissing(alumno, subEstado);
                   return (
                     <div
                       key={alumno.id}
@@ -659,8 +665,8 @@ const ManageStudents = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0">
-                          <span className="font-medium text-foreground text-sm block truncate">{firstName}</span>
-                          {lastName && <span className="text-xs text-muted-foreground truncate block">{lastName}</span>}
+                          <span className="font-medium text-foreground text-sm block truncate">{alumno.nombre}</span>
+                          {apellido && <span className="text-xs text-muted-foreground truncate block">{apellido}</span>}
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -685,6 +691,7 @@ const ManageStudents = () => {
                         <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-[10px] ${getEstadoBadge(alumno.estado).className}`}>{alumno.estado}</Badge>
                         <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "sin sub" : subEstado}</Badge>
                         {inconsistency && <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />!</Badge>}
+                        {missing.length > 0 && !inconsistency && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5">Incompleto</Badge>}
                       </div>
                     </div>
                   );
@@ -712,13 +719,21 @@ const ManageStudents = () => {
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell></TableRow>
                   ) : (
                     filtered.map((alumno) => {
-                      const { firstName, lastName } = splitNombre(alumno);
+                      const apellido = getApellido(alumno);
                       const subEstado = getSubEstadoLabel(alumno.id);
                       const inconsistency = getAlumnoInconsistency(alumno);
+                      const missing = getProfileMissing(alumno, subEstado);
                       return (
                         <TableRow key={alumno.id} className={`border-border cursor-pointer hover:bg-muted/30 ${inconsistency ? "bg-destructive/5" : ""}`} onClick={() => openDrawer(alumno)}>
-                          <TableCell className="font-medium text-foreground">{firstName}</TableCell>
-                          <TableCell className="text-muted-foreground">{lastName || "—"}</TableCell>
+                          <TableCell className="font-medium text-foreground">
+                            <div className="flex items-center gap-1.5">
+                              {alumno.nombre}
+                              {missing.length > 0 && !inconsistency && (
+                                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title={`Faltan: ${missing.join(", ")}`} />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{apellido || <span className="text-amber-400/70 italic">sin apellido</span>}</TableCell>
                           <TableCell>
                             <Badge variant={alumno.grupo === "Sin grupo" ? "destructive" : "secondary"} className="font-mono text-xs">{alumno.grupo}</Badge>
                           </TableCell>
@@ -780,6 +795,7 @@ const ManageStudents = () => {
                 const sub = getActiveSub(drawerAlumno.id) || getAnySub(drawerAlumno.id);
                 const subEstado = getSubEstadoLabel(drawerAlumno.id);
                 const inconsistency = getAlumnoInconsistency(drawerAlumno);
+                const missing = getProfileMissing(drawerAlumno, subEstado);
                 return (
                   <div className="space-y-6 py-4">
                     {/* Inconsistency alert */}
@@ -787,6 +803,14 @@ const ManageStudents = () => {
                       <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
                         <span className="text-xs text-destructive">Combinación inconsistente: {inconsistency}</span>
+                      </div>
+                    )}
+
+                    {/* Incomplete profile alert */}
+                    {missing.length > 0 && (
+                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-1">
+                        <span className="text-xs font-medium text-amber-400">Perfil incompleto</span>
+                        <p className="text-xs text-amber-400/80">Faltan: {missing.join(", ")}</p>
                       </div>
                     )}
 
@@ -833,8 +857,8 @@ const ManageStudents = () => {
                         </div>
                       ) : (
                         <div className="space-y-2 text-sm">
-                          <DetailRow label="Nombre" value={splitNombre(drawerAlumno).firstName} />
-                          <DetailRow label="Apellido" value={splitNombre(drawerAlumno).lastName || "—"} />
+                          <DetailRow label="Nombre" value={drawerAlumno.nombre} />
+                          <DetailRow label="Apellido" value={getApellido(drawerAlumno) || "—"} />
                           <DetailRow label="Email" value={drawerAlumno.email} mono />
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
