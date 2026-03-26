@@ -1,47 +1,28 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2, XCircle, Clock, MessageSquare } from "lucide-react";
 import logo from "@/assets/logo.png";
-
-interface AsistenciaRecord {
-  id: string;
-  estado: string;
-  entrenamiento: {
-    fecha: string;
-    titulo: string;
-  } | null;
-}
+import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
+import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
 
 interface FeedbackRecord {
   id: string;
   fecha: string;
   comentario: string;
   tipo: string;
-  coach: {
-    nombre: string;
-  } | null;
+  coach: { nombre: string } | null;
 }
 
-const estadoIcon = (estado: string) => {
-  switch (estado) {
-    case "asistio": return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
-    case "ausente": return <XCircle className="w-4 h-4 text-destructive" />;
-    case "justificado": return <Clock className="w-4 h-4 text-yellow-500" />;
-    default: return null;
-  }
-};
-
-const estadoLabel = (estado: string) => {
-  switch (estado) {
-    case "asistio": return "Asistió";
-    case "ausente": return "Ausente";
-    case "justificado": return "Justificado";
-    default: return estado;
-  }
-};
+interface SessionRecord {
+  id: string;
+  estado: string;
+  fecha: string;
+  titulo: string;
+  tipo: string | null;
+  source: "registro" | "asistencia";
+}
 
 const tipoLabel = (tipo: string) => {
   switch (tipo) {
@@ -56,87 +37,106 @@ const tipoLabel = (tipo: string) => {
 export const StudentProgressContent = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [asistencias, setAsistencias] = useState<AsistenciaRecord[]>([]);
+  const [alumnoId, setAlumnoId] = useState<string | null>(null);
+  const [grupo, setGrupo] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
-  const [totalProgramados, setTotalProgramados] = useState(0);
-  const [totalAsistencias, setTotalAsistencias] = useState(0);
+
+  const progress = useMonthlyProgress(alumnoId, grupo);
 
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { navigate("/"); return; }
 
-      const { data: alumno } = await supabase
+      let alumno = (await supabase
         .from("alumnos")
         .select("id, grupo")
         .eq("user_id", session.user.id)
-        .maybeSingle();
+        .maybeSingle()).data;
 
       if (!alumno) {
-        const { data: alumnoByEmail } = await supabase
+        alumno = (await supabase
           .from("alumnos")
           .select("id, grupo")
           .eq("email", session.user.email?.toLowerCase().trim() || "")
-          .maybeSingle();
-        if (!alumnoByEmail) { navigate("/"); return; }
-        await loadData(alumnoByEmail.id, alumnoByEmail.grupo);
-      } else {
-        await loadData(alumno.id, alumno.grupo);
+          .maybeSingle()).data;
       }
+
+      if (!alumno) { navigate("/"); return; }
+
+      setAlumnoId(alumno.id);
+      setGrupo(alumno.grupo);
+      await loadDetails(alumno.id, alumno.grupo);
       setLoading(false);
     };
 
-    const loadData = async (alumnoId: string, grupo: string) => {
+    const loadDetails = async (aId: string, grp: string) => {
       const now = new Date();
-      const thirtyDaysAgo = new Date(now);
-      thirtyDaysAgo.setDate(now.getDate() - 30);
-      const fromDate = thirtyDaysAgo.toISOString().split("T")[0];
-      const toDate = now.toISOString().split("T")[0];
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const fromDate = firstDay.toISOString().split("T")[0];
+      const toDate = lastDay.toISOString().split("T")[0];
 
-      const { count: programados } = await supabase
+      // Session history: merge registro_sesiones + asistencias
+      const { data: entrenamientos } = await supabase
         .from("entrenamientos")
-        .select("id", { count: "exact", head: true })
-        .eq("grupo", grupo as any)
+        .select("id, fecha, titulo, tipo")
+        .eq("grupo", grp as any)
         .eq("visible", true)
         .gte("fecha", fromDate)
-        .lte("fecha", toDate);
+        .lte("fecha", toDate)
+        .order("fecha", { ascending: false });
 
-      setTotalProgramados(programados || 0);
+      const entIds = (entrenamientos || []).map(e => e.id);
 
-      const { data: asistData } = await supabase
+      const { data: registros } = await supabase
+        .from("registro_sesiones")
+        .select("id, entrenamiento_id, estado")
+        .eq("alumno_id", aId)
+        .in("entrenamiento_id", entIds.length > 0 ? entIds : ["__none__"]);
+
+      const { data: asistencias } = await supabase
         .from("asistencias")
-        .select("id, estado, entrenamiento_id")
-        .eq("alumno_id", alumnoId)
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .select("id, entrenamiento_id, estado")
+        .eq("alumno_id", aId)
+        .in("entrenamiento_id", entIds.length > 0 ? entIds : ["__none__"]);
 
-      if (asistData && asistData.length > 0) {
-        const entrenamientoIds = [...new Set(asistData.map(a => a.entrenamiento_id))];
-        const { data: entrenamientos } = await supabase
-          .from("entrenamientos")
-          .select("id, fecha, titulo")
-          .in("id", entrenamientoIds);
+      const regMap = new Map((registros || []).map(r => [r.entrenamiento_id, r]));
+      const asistMap = new Map((asistencias || []).map(a => [a.entrenamiento_id, a]));
 
-        const mapped: AsistenciaRecord[] = asistData.map(a => ({
-          id: a.id,
-          estado: a.estado,
-          entrenamiento: entrenamientos?.find(e => e.id === a.entrenamiento_id)
-            ? { fecha: entrenamientos.find(e => e.id === a.entrenamiento_id)!.fecha, titulo: entrenamientos.find(e => e.id === a.entrenamiento_id)!.titulo }
-            : null,
-        }));
-        setAsistencias(mapped);
+      const merged: SessionRecord[] = [];
+      for (const ent of (entrenamientos || [])) {
+        const reg = regMap.get(ent.id);
+        const asist = asistMap.get(ent.id);
 
-        const asistenciasDelMes = mapped.filter(a => {
-          if (!a.entrenamiento) return false;
-          return a.entrenamiento.fecha >= fromDate && a.entrenamiento.fecha <= toDate && a.estado === "asistio";
-        });
-        setTotalAsistencias(asistenciasDelMes.length);
+        if (reg) {
+          merged.push({
+            id: reg.id,
+            estado: reg.estado,
+            fecha: ent.fecha,
+            titulo: ent.titulo,
+            tipo: ent.tipo,
+            source: "registro",
+          });
+        } else if (asist && asist.estado === "asistio") {
+          merged.push({
+            id: asist.id,
+            estado: "realizada",
+            fecha: ent.fecha,
+            titulo: ent.titulo,
+            tipo: ent.tipo,
+            source: "asistencia",
+          });
+        }
       }
+      setSessions(merged);
 
+      // Feedback
       const { data: feedbackData } = await supabase
         .from("feedback_coach")
         .select("id, fecha, comentario, tipo, coach_id")
-        .eq("alumno_id", alumnoId)
+        .eq("alumno_id", aId)
         .order("fecha", { ascending: false })
         .limit(20);
 
@@ -147,7 +147,7 @@ export const StudentProgressContent = () => {
           .select("id, nombre")
           .in("id", coachIds);
 
-        const mappedFeedback: FeedbackRecord[] = feedbackData.map(f => ({
+        setFeedback(feedbackData.map(f => ({
           id: f.id,
           fecha: f.fecha,
           comentario: f.comentario,
@@ -155,17 +155,14 @@ export const StudentProgressContent = () => {
           coach: coaches?.find(c => c.id === f.coach_id)
             ? { nombre: coaches.find(c => c.id === f.coach_id)!.nombre }
             : null,
-        }));
-        setFeedback(mappedFeedback);
+        })));
       }
     };
 
     load();
   }, [navigate]);
 
-  const porcentaje = totalProgramados > 0 ? Math.round((totalAsistencias / totalProgramados) * 100) : 0;
-
-  if (loading) {
+  if (loading || progress.loading) {
     return <div className="animate-pulse text-muted-foreground text-center py-8">Cargando...</div>;
   }
 
@@ -173,49 +170,37 @@ export const StudentProgressContent = () => {
     <div className="w-full max-w-md mx-auto space-y-6 animate-fade-in pt-2">
       <div className="text-center space-y-1">
         <h1 className="text-xl font-heading font-semibold text-foreground">Mi Progreso</h1>
-        <p className="text-xs text-muted-foreground">Asistencia y feedback</p>
+        <p className="text-xs text-muted-foreground">Rendimiento y sesiones del mes</p>
       </div>
 
-      {/* Attendance Summary */}
-      <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-        <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-          Asistencia último mes
-        </h2>
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{totalProgramados} entrenamientos programados</span>
-            <span className="text-foreground font-semibold">{totalAsistencias} asistencias</span>
-          </div>
-          <Progress value={porcentaje} className="h-3" />
-          <div className="flex items-center gap-2">
-            <span className={`text-lg font-heading font-bold ${porcentaje >= 75 ? "text-emerald-500" : porcentaje >= 50 ? "text-yellow-500" : "text-destructive"}`}>
-              {porcentaje}%
-            </span>
-            <span className="text-xs text-muted-foreground">de asistencia</span>
-          </div>
-        </div>
-      </div>
+      {/* Monthly Progress */}
+      <MonthlyProgressCard data={progress} />
 
-      {/* Attendance History */}
+      {/* Session History */}
       <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
         <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-          Historial de asistencia
+          Historial de sesiones
         </h2>
-        {asistencias.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No hay registros de asistencia aún.</p>
+        {sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Todavía no registraste sesiones</p>
         ) : (
           <div className="space-y-2">
-            {asistencias.slice(0, 15).map((a) => (
-              <div key={a.id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
-                {estadoIcon(a.estado)}
+            {sessions.slice(0, 15).map((s) => (
+              <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
+                {s.estado === "realizada"
+                  ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  : <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                }
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">{a.entrenamiento?.titulo || "Entrenamiento"}</p>
+                  <p className="text-sm text-foreground truncate">{s.titulo}</p>
                   <p className="text-xs text-muted-foreground">
-                    {a.entrenamiento?.fecha ? new Date(a.entrenamiento.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : ""}
+                    {new Date(s.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                    {s.tipo ? ` · ${s.tipo}` : ""}
+                    {s.source === "asistencia" ? " · Presencial" : " · Plan"}
                   </p>
                 </div>
-                <span className={`text-xs font-medium ${a.estado === "asistio" ? "text-emerald-500" : a.estado === "justificado" ? "text-yellow-500" : "text-destructive"}`}>
-                  {estadoLabel(a.estado)}
+                <span className={`text-xs font-medium ${s.estado === "realizada" ? "text-emerald-500" : "text-destructive"}`}>
+                  {s.estado === "realizada" ? "Realizada" : "No realizada"}
                 </span>
               </div>
             ))}
@@ -229,7 +214,7 @@ export const StudentProgressContent = () => {
           <MessageSquare className="w-4 h-4" /> Feedback del entrenador
         </h2>
         {feedback.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No hay feedback registrado aún.</p>
+          <p className="text-sm text-muted-foreground text-center py-4">Todavía no tenés feedback de tu entrenador</p>
         ) : (
           <div className="space-y-4">
             {feedback.map((f) => (
