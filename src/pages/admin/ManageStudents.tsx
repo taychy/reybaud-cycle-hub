@@ -695,7 +695,12 @@ const ManageStudents = () => {
                   {(() => {
                     const sub = getActiveSub(detailAlumno.id);
                     return sub?.planes?.nombre ? (
-                      <Badge variant="outline" className="text-xs">{sub.planes.nombre}</Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-xs">{sub.planes.nombre}</Badge>
+                        {sub.estado === "pausa" && (
+                          <Badge variant="secondary" className="text-xs border-amber-500/50 text-amber-500">Pausa</Badge>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-muted-foreground text-xs">Sin plan</span>
                     );
