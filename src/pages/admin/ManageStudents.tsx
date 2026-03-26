@@ -287,7 +287,7 @@ const ManageStudents = () => {
   }, [alumnos]);
 
   const getActiveSub = (alumnoId: string) => {
-    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion"));
+    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa"));
   };
 
   const handleChangePlan = async () => {
