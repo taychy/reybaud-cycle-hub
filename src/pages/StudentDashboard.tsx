@@ -8,6 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import { EventosContent } from "@/pages/Eventos";
 import { StudentProgressContent } from "@/pages/StudentProgress";
 import TrainingDetailView from "@/components/TrainingDetailView";
+import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import { useToast } from "@/hooks/use-toast";
