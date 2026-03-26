@@ -663,8 +663,8 @@ const ManageStudents = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0">
-                          <span className="font-medium text-foreground text-sm block truncate">{firstName}</span>
-                          {lastName && <span className="text-xs text-muted-foreground truncate block">{lastName}</span>}
+                          <span className="font-medium text-foreground text-sm block truncate">{alumno.nombre}</span>
+                          {apellido && <span className="text-xs text-muted-foreground truncate block">{apellido}</span>}
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
