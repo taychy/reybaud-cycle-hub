@@ -235,6 +235,15 @@ const AdminDashboard = () => {
       if (sinGrupo > 0) {
         alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos" });
       }
+      // Inconsistency detection
+      const INVALID_COMBOS: [string, string][] = [["vacaciones", "activa"], ["inactivo", "activa"], ["bloqueado", "activa"]];
+      const inconsistentCount = allAlumnos.filter(a => {
+        const sub = allSubs.find(s => s.alumno_id === a.id && (s.estado === "activa" || s.estado === "pausa"));
+        return sub ? INVALID_COMBOS.some(([u, s]) => u === a.estado && s === sub.estado) : false;
+      }).length;
+      if (inconsistentCount > 0) {
+        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos" });
+      }
       setAlerts(alertsList);
     } catch (err) {
       console.error("Error loading dashboard:", err);

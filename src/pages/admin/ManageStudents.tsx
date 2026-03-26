@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, Palmtree, Ban, Clock } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, Palmtree, Ban, Clock, AlertTriangle, FileText } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -30,11 +31,50 @@ interface SuscripcionConPlan {
 
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
+// Valid user state transitions
+const VALID_TRANSITIONS_ADMIN: Record<string, string[]> = {
+  pendiente: ["activo", "inactivo"],
+  activo: ["vacaciones", "inactivo"],
+  vacaciones: ["activo"],
+  inactivo: ["activo"],
+  bloqueado: [], // only super_admin can unblock
+};
+
+const VALID_TRANSITIONS_SUPER: Record<string, string[]> = {
+  pendiente: ["activo", "inactivo"],
+  activo: ["vacaciones", "inactivo", "bloqueado"],
+  vacaciones: ["activo"],
+  inactivo: ["activo"],
+  bloqueado: ["activo"],
+};
+
+// Valid subscription state transitions
+const VALID_SUB_TRANSITIONS: Record<string, string[]> = {
+  activa: ["vencida", "pausa"],
+  vencida: ["activa", "cancelada"],
+  pausa: ["activa"],
+  pendiente: ["activa", "cancelada"],
+  pendiente_verificacion: ["activa", "cancelada"],
+  cancelada: [],
+};
+
+// Invalid combinations: user_estado + sub_estado
+const INVALID_COMBOS: [string, string][] = [
+  ["vacaciones", "activa"],
+  ["inactivo", "activa"],
+  ["bloqueado", "activa"],
+];
+
+const isInconsistent = (userEstado: string, subEstado: string | undefined): boolean => {
+  if (!subEstado) return false;
+  return INVALID_COMBOS.some(([u, s]) => u === userEstado && s === subEstado);
+};
+
 const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos" | "inactivos" | "bloqueados" | "vacaciones">("todos");
+  const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
@@ -43,12 +83,45 @@ const ManageStudents = () => {
   const [deleteAlumno, setDeleteAlumno] = useState<Alumno | null>(null);
   const [detailAlumno, setDetailAlumno] = useState<Alumno | null>(null);
 
+  // State change dialog
+  const [stateChangeAlumno, setStateChangeAlumno] = useState<Alumno | null>(null);
+  const [stateChangeTarget, setStateChangeTarget] = useState<string>("");
+  const [stateChangeMotivo, setStateChangeMotivo] = useState("");
+  const [stateChangeNota, setStateChangeNota] = useState("");
+  const [savingState, setSavingState] = useState(false);
+
+  // Sub state change dialog
+  const [subChangeAlumno, setSubChangeAlumno] = useState<Alumno | null>(null);
+  const [subChangeTarget, setSubChangeTarget] = useState<string>("");
+  const [subChangeMotivo, setSubChangeMotivo] = useState("");
+  const [savingSub, setSavingSub] = useState(false);
+
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: "", email: "", telefono: "", documento: "" });
   const [creating, setCreating] = useState(false);
 
+  // Admin role
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    const checkRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+        const { data: profile } = await supabase
+          .from("admin_profiles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        setIsSuperAdmin(profile?.role === "super_admin");
+      }
+    };
+    checkRole();
+  }, []);
 
   const fetchAlumnos = async () => {
     const { data } = await supabase.from("alumnos").select("*").order("nombre");
@@ -90,7 +163,6 @@ const ManageStudents = () => {
   const [resending, setResending] = useState<string | null>(null);
 
   const handleResendInvite = async (alumno: Alumno) => {
-    // Spam prevention: check last_invite_sent_at client-side
     const lastSent = (alumno as any).last_invite_sent_at;
     if (lastSent && Date.now() - new Date(lastSent).getTime() < 60_000) {
       toast.error("Esperá 1 minuto antes de reenviar la invitación");
@@ -112,10 +184,35 @@ const ManageStudents = () => {
     }
   };
 
-  const changeEstado = async (alumno: Alumno, newEstado: string) => {
-    await supabase.from("alumnos").update({ estado: newEstado }).eq("id", alumno.id);
+  // Open state change dialog with valid transitions
+  const openStateChange = (alumno: Alumno, targetEstado: string) => {
+    setStateChangeAlumno(alumno);
+    setStateChangeTarget(targetEstado);
+    setStateChangeMotivo("");
+    setStateChangeNota("");
+  };
 
-    // If setting to vacaciones, pause active subscriptions
+  const getValidTransitions = (estado: string) => {
+    return isSuperAdmin
+      ? (VALID_TRANSITIONS_SUPER[estado] || [])
+      : (VALID_TRANSITIONS_ADMIN[estado] || []);
+  };
+
+  const executeStateChange = async () => {
+    if (!stateChangeAlumno || !stateChangeTarget) return;
+    setSavingState(true);
+
+    const alumno = stateChangeAlumno;
+    const newEstado = stateChangeTarget;
+
+    // Update user state
+    const updateData: any = { estado: newEstado };
+    if (stateChangeNota) {
+      updateData.notas = [alumno.notas, `[${new Date().toLocaleDateString("es-AR")}] ${stateChangeNota}`].filter(Boolean).join("\n");
+    }
+    await supabase.from("alumnos").update(updateData).eq("id", alumno.id);
+
+    // Auto-manage subscription states
     if (newEstado === "vacaciones") {
       await supabase
         .from("suscripciones")
@@ -123,8 +220,6 @@ const ManageStudents = () => {
         .eq("alumno_id", alumno.id)
         .eq("estado", "activa");
     }
-
-    // If reactivating from vacaciones, unpause subscriptions
     if (newEstado === "activo" && alumno.estado === "vacaciones") {
       await supabase
         .from("suscripciones")
@@ -132,12 +227,10 @@ const ManageStudents = () => {
         .eq("alumno_id", alumno.id)
         .eq("estado", "pausa");
     }
-
-    // If blocking, cancel active/paused subscriptions
     if (newEstado === "bloqueado") {
       await supabase
         .from("suscripciones")
-        .update({ estado: "cancelada", cancelada_motivo: "Usuario bloqueado" })
+        .update({ estado: "cancelada", cancelada_motivo: stateChangeMotivo || "Usuario bloqueado" } as any)
         .eq("alumno_id", alumno.id)
         .in("estado", ["activa", "pausa"]);
     }
@@ -151,11 +244,16 @@ const ManageStudents = () => {
       await supabase.from("audit_log").insert({
         user_id: session.user.id,
         user_email: session.user.email,
-        user_role: "admin",
+        user_role: isSuperAdmin ? "super_admin" : "admin",
         action: "cambio_estado",
         entity_type: "alumno",
         entity_id: alumno.id,
-        details: { estado_anterior: alumno.estado, estado_nuevo: newEstado },
+        details: {
+          estado_anterior: alumno.estado,
+          estado_nuevo: newEstado,
+          motivo: stateChangeMotivo || null,
+          nota: stateChangeNota || null,
+        },
       } as any);
     }
 
@@ -167,17 +265,76 @@ const ManageStudents = () => {
         body: { alumno_id: alumno.id, type: "habilitado", fecha_vencimiento: fechaFin },
       }).catch(() => {});
     }
+
+    setSavingState(false);
+    setStateChangeAlumno(null);
+  };
+
+  // Subscription state change
+  const openSubChange = (alumno: Alumno) => {
+    setSubChangeAlumno(alumno);
+    setSubChangeTarget("");
+    setSubChangeMotivo("");
+  };
+
+  const executeSubChange = async () => {
+    if (!subChangeAlumno || !subChangeTarget) return;
+    setSavingSub(true);
+
+    const sub = getActiveSub(subChangeAlumno.id);
+    if (!sub) {
+      toast.error("No se encontró suscripción para modificar");
+      setSavingSub(false);
+      return;
+    }
+
+    // Check for inconsistency
+    if (isInconsistent(subChangeAlumno.estado, subChangeTarget)) {
+      toast.error(`Combinación inválida: usuario "${subChangeAlumno.estado}" + suscripción "${subChangeTarget}". Corregí primero el estado del usuario.`);
+      setSavingSub(false);
+      return;
+    }
+
+    const updateData: any = { estado: subChangeTarget };
+    if (subChangeTarget === "cancelada" && subChangeMotivo) {
+      updateData.cancelada_motivo = subChangeMotivo;
+      updateData.cancelada_at = new Date().toISOString();
+    }
+
+    await supabase.from("suscripciones").update(updateData).eq("id", sub.id);
+
+    // Audit
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await supabase.from("audit_log").insert({
+        user_id: session.user.id,
+        user_email: session.user.email,
+        user_role: isSuperAdmin ? "super_admin" : "admin",
+        action: "cambio_estado_suscripcion",
+        entity_type: "suscripcion",
+        entity_id: sub.id,
+        details: {
+          alumno: subChangeAlumno.nombre,
+          estado_anterior: sub.estado,
+          estado_nuevo: subChangeTarget,
+          motivo: subChangeMotivo || null,
+        },
+      } as any);
+    }
+
+    toast.success(`Suscripción de ${subChangeAlumno.nombre} actualizada a "${subChangeTarget}"`);
+    setSavingSub(false);
+    setSubChangeAlumno(null);
+    fetchAlumnos();
   };
 
   const saveGrupo = async (id: string) => {
     await supabase.from("alumnos").update({ grupo: editGrupo as any }).eq("id", id);
     setEditingId(null);
-    // Update local state immediately so the UI reflects the change
     setAlumnos(prev => prev.map(a => a.id === id ? { ...a, grupo: editGrupo as any } : a));
     toast.success("Grupo actualizado");
     fetchAlumnos();
 
-    // Send email notification for group assignment
     if (editGrupo && editGrupo !== "Sin grupo") {
       supabase.functions.invoke("notify-student-update", {
         body: { alumno_id: id, type: "grupo_asignado", grupo: editGrupo },
@@ -192,8 +349,8 @@ const ManageStudents = () => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-    const { data: planes } = await supabase.from("planes").select("id").eq("activo", true).limit(1);
-    const planId = planes?.[0]?.id;
+    const { data: planesData } = await supabase.from("planes").select("id").eq("activo", true).limit(1);
+    const planId = planesData?.[0]?.id;
 
     if (!planId) {
       toast.error("No hay planes activos para asociar la suscripción.");
@@ -201,7 +358,6 @@ const ManageStudents = () => {
       return;
     }
 
-    // Check if there's a pending verification subscription
     const { data: pendingSubs } = await supabase
       .from("suscripciones")
       .select("id")
@@ -210,14 +366,12 @@ const ManageStudents = () => {
 
     const hasPendingPayment = pendingSubs && pendingSubs.length > 0;
 
-    // Mark existing active subs as expired
     await supabase
       .from("suscripciones")
       .update({ estado: "vencida" })
       .eq("alumno_id", manualSubAlumno.id)
       .eq("estado", "activa");
 
-    // Mark pending verification subs as confirmed (activa)
     if (hasPendingPayment) {
       await supabase
         .from("suscripciones")
@@ -243,7 +397,6 @@ const ManageStudents = () => {
 
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
 
-    // Send appropriate email
     const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
     supabase.functions.invoke("notify-student-update", {
       body: { alumno_id: manualSubAlumno.id, type: emailType, fecha_vencimiento: manualFechaFin },
@@ -264,13 +417,13 @@ const ManageStudents = () => {
     if (error) {
       toast.error("Error al eliminar el alumno.");
     } else {
-      toast.success(`${deleteAlumno.nombre} fue eliminado. Deberá registrarse nuevamente para volver a ingresar.`);
+      toast.success(`${deleteAlumno.nombre} fue eliminado.`);
     }
     setDeleteAlumno(null);
     fetchAlumnos();
   };
 
-  // Suscripciones con plan
+  // Subscriptions
   const [suscripciones, setSuscripciones] = useState<SuscripcionConPlan[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [changePlanAlumno, setChangePlanAlumno] = useState<Alumno | null>(null);
@@ -290,6 +443,12 @@ const ManageStudents = () => {
     return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa"));
   };
 
+  const getAnySub = (alumnoId: string) => {
+    // Get most recent subscription regardless of state
+    const subs = suscripciones.filter(s => s.alumno_id === alumnoId);
+    return subs.sort((a, b) => (b.fecha_fin || "").localeCompare(a.fecha_fin || ""))[0] || null;
+  };
+
   const handleChangePlan = async () => {
     if (!changePlanAlumno || !newPlanId) return;
     setSavingPlan(true);
@@ -298,11 +457,9 @@ const ManageStudents = () => {
       const selectedPlan = planes.find(p => p.id === newPlanId);
       
       if (activeSub) {
-        // Update existing subscription's plan
         const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId } as any).eq("id", activeSub.id);
         if (error) throw error;
       } else {
-        // Create new subscription with this plan
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -318,7 +475,6 @@ const ManageStudents = () => {
         if (error) throw error;
       }
 
-      // Send email notification
       supabase.functions.invoke("notify-student-update", {
         body: {
           alumno_id: changePlanAlumno.id,
@@ -332,7 +488,7 @@ const ManageStudents = () => {
       toast.success(`Plan actualizado para ${changePlanAlumno.nombre}`);
       setChangePlanAlumno(null);
       setNewPlanId("");
-      fetchAlumnos(); // triggers suscripciones refetch
+      fetchAlumnos();
     } catch (err: any) {
       toast.error(err.message || "Error al cambiar el plan");
     } finally {
@@ -347,11 +503,21 @@ const ManageStudents = () => {
     return hasPendingPayment || needsPassword || noGroup;
   };
 
+  // Detect inconsistencies
+  const getAlumnoInconsistency = (alumno: Alumno): string | null => {
+    const sub = getActiveSub(alumno.id);
+    if (sub && isInconsistent(alumno.estado, sub.estado)) {
+      return `${alumno.estado} + suscripción ${sub.estado}`;
+    }
+    return null;
+  };
+
   const pendingCount = alumnos.filter(isPending).length;
   const activeCount = alumnos.filter(a => a.estado === "activo").length;
   const inactiveCount = alumnos.filter(a => a.estado === "inactivo").length;
   const blockedCount = alumnos.filter(a => a.estado === "bloqueado").length;
   const vacacionesCount = alumnos.filter(a => a.estado === "vacaciones").length;
+  const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
@@ -360,6 +526,18 @@ const ManageStudents = () => {
       case "bloqueado": return { variant: "destructive" as const, className: "" };
       case "vacaciones": return { variant: "secondary" as const, className: "border-blue-500/50 text-blue-500" };
       case "pendiente": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-500" };
+      default: return { variant: "outline" as const, className: "" };
+    }
+  };
+
+  const getSubBadge = (estado: string) => {
+    switch (estado) {
+      case "activa": return { variant: "default" as const, className: "" };
+      case "pausa": return { variant: "secondary" as const, className: "border-amber-500/50 text-amber-500" };
+      case "vencida": return { variant: "destructive" as const, className: "" };
+      case "pendiente": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-500" };
+      case "pendiente_verificacion": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-500" };
+      case "cancelada": return { variant: "outline" as const, className: "" };
       default: return { variant: "outline" as const, className: "" };
     }
   };
@@ -373,6 +551,7 @@ const ManageStudents = () => {
     if (statusFilter === "inactivos") return a.estado === "inactivo";
     if (statusFilter === "bloqueados") return a.estado === "bloqueado";
     if (statusFilter === "vacaciones") return a.estado === "vacaciones";
+    if (statusFilter === "inconsistentes") return getAlumnoInconsistency(a) !== null;
     return true;
   });
 
@@ -381,6 +560,40 @@ const ManageStudents = () => {
     const now = new Date();
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     setManualFechaFin(lastDay.toISOString().split("T")[0]);
+  };
+
+  // Render sub cell content
+  const renderSubInfo = (alumno: Alumno) => {
+    const sub = getActiveSub(alumno.id);
+    const planName = sub?.planes?.nombre;
+    const inconsistency = getAlumnoInconsistency(alumno);
+    return (
+      <div className="flex items-center gap-1 flex-wrap">
+        {planName ? (
+          <>
+            <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(sub?.plan_id || ""); }}>
+              {planName}
+              <Edit2 className="w-2.5 h-2.5 ml-1" />
+            </Badge>
+            {sub && sub.estado !== "activa" && (
+              <Badge variant={getSubBadge(sub.estado).variant} className={`text-xs ${getSubBadge(sub.estado).className}`}>
+                {sub.estado}
+              </Badge>
+            )}
+          </>
+        ) : (
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(""); }}>
+            <CreditCard className="w-3 h-3 mr-1" /> Asignar
+          </Button>
+        )}
+        {inconsistency && (
+          <Badge variant="destructive" className="text-xs gap-1">
+            <AlertTriangle className="w-2.5 h-2.5" />
+            Inconsistente
+          </Badge>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -394,6 +607,12 @@ const ManageStudents = () => {
             {pendingCount > 0 && (
               <Badge variant="destructive" className="text-xs animate-pulse">
                 {pendingCount} pendiente{pendingCount > 1 ? "s" : ""}
+              </Badge>
+            )}
+            {inconsistentCount > 0 && (
+              <Badge variant="destructive" className="text-xs gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                {inconsistentCount} inconsistencia{inconsistentCount > 1 ? "s" : ""}
               </Badge>
             )}
           </div>
@@ -437,15 +656,16 @@ const ManageStudents = () => {
             { key: "todos", label: `Todos (${alumnos.length})` },
             { key: "pendientes", label: `Pend. (${pendingCount})` },
             { key: "activos", label: `Activos (${activeCount})` },
-            { key: "inactivos", label: `Inactivos (${inactiveCount})` },
+            { key: "inactivos", label: `Inact. (${inactiveCount})` },
             { key: "bloqueados", label: `Bloq. (${blockedCount})` },
             { key: "vacaciones", label: `Vac. (${vacacionesCount})` },
-          ] as const).map((f) => (
+            ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: `⚠ Incons. (${inconsistentCount})` }] : []),
+          ]).map((f) => (
             <Button
               key={f.key}
               variant={statusFilter === f.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter(f.key as any)}
+              onClick={() => setStatusFilter(f.key)}
               className="text-xs"
             >
               {f.label}
@@ -463,12 +683,11 @@ const ManageStudents = () => {
             <p className="text-center text-muted-foreground py-8">No se encontraron alumnos</p>
           ) : (
             filtered.map((alumno) => {
-              const grupoPreferido = (alumno as any).grupo_preferido;
-              const needsValidation = grupoPreferido && alumno.grupo === "Sin grupo";
+              const inconsistency = getAlumnoInconsistency(alumno);
               return (
                 <div
                   key={alumno.id}
-                  className={`glass-card rounded-lg p-4 space-y-2 ${needsValidation ? "border-primary/30 border" : ""}`}
+                  className={`glass-card rounded-lg p-4 space-y-2 ${inconsistency ? "border-destructive/50 border" : ""}`}
                   onClick={() => setDetailAlumno(alumno)}
                 >
                   <div className="flex items-center justify-between">
@@ -487,9 +706,9 @@ const ManageStudents = () => {
                     <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-xs ${getEstadoBadge(alumno.estado).className}`}>
                       {alumno.estado}
                     </Badge>
-                    {!(alumno as any).password_set && (alumno as any).invited_at && (
-                      <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
-                        Contraseña pendiente
+                    {inconsistency && (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5" /> Inconsistente
                       </Badge>
                     )}
                   </div>
@@ -506,9 +725,8 @@ const ManageStudents = () => {
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Nombre</TableHead>
                 <TableHead className="text-muted-foreground hidden lg:table-cell">Email</TableHead>
-                <TableHead className="text-muted-foreground hidden lg:table-cell">DNI/CUIT</TableHead>
                 <TableHead className="text-muted-foreground">Grupo</TableHead>
-                <TableHead className="text-muted-foreground">Plan</TableHead>
+                <TableHead className="text-muted-foreground">Plan / Suscripción</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
               </TableRow>
@@ -516,18 +734,19 @@ const ManageStudents = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Cargando...</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell>
                 </TableRow>
               ) : (
                 filtered.map((alumno) => {
                   const grupoPreferido = (alumno as any).grupo_preferido;
                   const needsValidation = grupoPreferido && alumno.grupo === "Sin grupo";
+                  const inconsistency = getAlumnoInconsistency(alumno);
                   return (
-                    <TableRow key={alumno.id} className={`border-border ${needsValidation ? "bg-primary/5" : ""}`}>
+                    <TableRow key={alumno.id} className={`border-border ${needsValidation ? "bg-primary/5" : ""} ${inconsistency ? "bg-destructive/5" : ""}`}>
                       <TableCell className="font-medium text-foreground">
                         {alumno.nombre}
                         {needsValidation && (
@@ -535,7 +754,6 @@ const ManageStudents = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground hidden lg:table-cell">{alumno.email}</TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs hidden lg:table-cell">{alumno.documento || "—"}</TableCell>
                       <TableCell>
                         {editingId === alumno.id ? (
                           <div className="flex items-center gap-1">
@@ -545,9 +763,7 @@ const ManageStudents = () => {
                               className="h-8 w-28 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                               {GRUPOS.map((g) => (
-                                <option key={g} value={g}>
-                                  {g}
-                                </option>
+                                <option key={g} value={g}>{g}</option>
                               ))}
                             </select>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveGrupo(alumno.id)}>
@@ -568,38 +784,11 @@ const ManageStudents = () => {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const sub = getActiveSub(alumno.id);
-                          const planName = sub?.planes?.nombre;
-                          return planName ? (
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(sub?.plan_id || ""); }}>
-                                {planName}
-                                <Edit2 className="w-2.5 h-2.5 ml-1" />
-                              </Badge>
-                              {sub?.estado === "pausa" && (
-                                <Badge variant="secondary" className="text-xs border-amber-500/50 text-amber-500">
-                                  Pausa
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(""); }}>
-                              <CreditCard className="w-3 h-3 mr-1" /> Asignar
-                            </Button>
-                          );
-                        })()}
-                      </TableCell>
+                      <TableCell>{renderSubInfo(alumno)}</TableCell>
                       <TableCell>
                         <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-xs ${getEstadoBadge(alumno.estado).className}`}>
                           {alumno.estado}
                         </Badge>
-                        {!(alumno as any).password_set && (alumno as any).invited_at && (
-                          <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500 ml-1">
-                            Clave pendiente
-                          </Badge>
-                        )}
                       </TableCell>
                       <TableCell className="text-right space-x-1">
                         {!(alumno as any).password_set && (alumno as any).invited_at && (
@@ -607,26 +796,33 @@ const ManageStudents = () => {
                             <MailPlus className="w-3 h-3 mr-1" /> {resending === alumno.id ? "Enviando…" : "Reenviar"}
                           </Button>
                         )}
-                        {(alumno as any).last_invite_sent_at && !(alumno as any).password_set && (
-                          <span className="text-[10px] text-muted-foreground" title="Último envío">
-                            Enviado: {new Date((alumno as any).last_invite_sent_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
                         <Button variant="ghost" size="sm" onClick={() => openManualSub(alumno)} className="text-xs" title="Habilitar suscripción manual">
                           <CalendarCheck className="w-3 h-3 mr-1" /> Habilitar
                         </Button>
-                        <Select onValueChange={(val) => changeEstado(alumno, val)}>
-                          <SelectTrigger className="h-7 w-28 text-xs bg-secondary border-border">
-                            <SelectValue placeholder="Estado →" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["activo", "inactivo", "bloqueado", "vacaciones", "pendiente"].filter(e => e !== alumno.estado).map(e => (
-                              <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {/* State transition dropdown */}
+                        {getValidTransitions(alumno.estado).length > 0 && (
+                          <Select onValueChange={(val) => openStateChange(alumno, val)}>
+                            <SelectTrigger className="h-7 w-32 text-xs bg-secondary border-border inline-flex">
+                              <SelectValue placeholder="Estado →" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getValidTransitions(alumno.estado).map(e => (
+                                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {/* Sub state change */}
+                        {getActiveSub(alumno.id) && (
+                          <Button variant="ghost" size="sm" onClick={() => openSubChange(alumno)} className="text-xs" title="Cambiar estado de suscripción">
+                            <FileText className="w-3 h-3 mr-1" /> Sub.
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => setDetailAlumno(alumno)} className="text-xs">
+                          <Eye className="w-3 h-3" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteAlumno(alumno)} className="text-xs text-destructive hover:text-destructive">
-                          <Trash2 className="w-3 h-3 mr-1" /> Eliminar
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -638,9 +834,9 @@ const ManageStudents = () => {
         </div>
       )}
 
-      {/* Detail dialog (mobile) */}
+      {/* Detail dialog */}
       <Dialog open={!!detailAlumno} onOpenChange={(open) => { if (!open) setDetailAlumno(null); }}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-md bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider text-base">
               {detailAlumno?.nombre}
@@ -648,6 +844,16 @@ const ManageStudents = () => {
           </DialogHeader>
           {detailAlumno && (
             <div className="space-y-4 py-2">
+              {/* Inconsistency alert */}
+              {getAlumnoInconsistency(detailAlumno) && (
+                <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  <span className="text-xs text-destructive">
+                    Combinación inconsistente: {getAlumnoInconsistency(detailAlumno)}
+                  </span>
+                </div>
+              )}
+
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Email</span>
@@ -671,8 +877,6 @@ const ManageStudents = () => {
                       toast.success("Grupo actualizado");
                       setDetailAlumno({ ...detailAlumno, grupo: val as any });
                       fetchAlumnos();
-
-                      // Send email notification for group assignment
                       if (val !== "Sin grupo") {
                         supabase.functions.invoke("notify-student-update", {
                           body: { alumno_id: detailAlumno.id, type: "grupo_asignado", grupo: val },
@@ -697,8 +901,10 @@ const ManageStudents = () => {
                     return sub?.planes?.nombre ? (
                       <div className="flex items-center gap-1">
                         <Badge variant="outline" className="text-xs">{sub.planes.nombre}</Badge>
-                        {sub.estado === "pausa" && (
-                          <Badge variant="secondary" className="text-xs border-amber-500/50 text-amber-500">Pausa</Badge>
+                        {sub.estado !== "activa" && (
+                          <Badge variant={getSubBadge(sub.estado).variant} className={`text-xs ${getSubBadge(sub.estado).className}`}>
+                            {sub.estado}
+                          </Badge>
                         )}
                       </div>
                     ) : (
@@ -712,6 +918,37 @@ const ManageStudents = () => {
                     {detailAlumno.estado}
                   </Badge>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Último acceso</span>
+                  <span className="text-foreground text-xs">
+                    {detailAlumno.updated_at
+                      ? new Date(detailAlumno.updated_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
+                      : "—"}
+                  </span>
+                </div>
+                {detailAlumno.notas && (
+                  <div className="pt-2 border-t border-border">
+                    <span className="text-muted-foreground text-xs block mb-1">Notas internas</span>
+                    <p className="text-xs text-foreground whitespace-pre-wrap bg-secondary/50 rounded-md p-2">{detailAlumno.notas}</p>
+                  </div>
+                )}
+                {(() => {
+                  const sub = getActiveSub(detailAlumno.id);
+                  if (!sub) return null;
+                  return (
+                    <div className="pt-2 border-t border-border space-y-1">
+                      <span className="text-muted-foreground text-xs block">Suscripción</span>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Inicio</span>
+                        <span>{sub.fecha_inicio ? new Date(sub.fecha_inicio).toLocaleDateString("es-AR") : "—"}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Fin</span>
+                        <span>{sub.fecha_fin ? new Date(sub.fecha_fin).toLocaleDateString("es-AR") : "—"}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
@@ -728,18 +965,34 @@ const ManageStudents = () => {
                 }}>
                   <CalendarCheck className="w-3 h-3 mr-2" /> Habilitar suscripción
                 </Button>
+                {getActiveSub(detailAlumno.id) && (
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                    openSubChange(detailAlumno);
+                    setDetailAlumno(null);
+                  }}>
+                    <FileText className="w-3 h-3 mr-2" /> Cambiar estado suscripción
+                  </Button>
+                )}
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Cambiar estado</Label>
-                  <Select onValueChange={(val) => { changeEstado(detailAlumno, val); setDetailAlumno(null); }}>
-                    <SelectTrigger className="bg-secondary border-border text-xs">
-                      <SelectValue placeholder={`Estado actual: ${detailAlumno.estado}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["activo", "inactivo", "bloqueado", "vacaciones", "pendiente"].filter(e => e !== detailAlumno.estado).map(e => (
-                        <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs text-muted-foreground">Cambiar estado usuario</Label>
+                  {getValidTransitions(detailAlumno.estado).length > 0 ? (
+                    <Select onValueChange={(val) => { openStateChange(detailAlumno, val); setDetailAlumno(null); }}>
+                      <SelectTrigger className="bg-secondary border-border text-xs">
+                        <SelectValue placeholder={`Estado actual: ${detailAlumno.estado}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getValidTransitions(detailAlumno.estado).map(e => (
+                          <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {detailAlumno.estado === "bloqueado" && !isSuperAdmin
+                        ? "Solo Super Admin puede desbloquear"
+                        : "Sin transiciones disponibles"}
+                    </p>
+                  )}
                 </div>
                 <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
                   setDeleteAlumno(detailAlumno);
@@ -750,6 +1003,156 @@ const ManageStudents = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* State change confirmation dialog */}
+      <Dialog open={!!stateChangeAlumno} onOpenChange={(open) => { if (!open) setStateChangeAlumno(null); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              Cambiar estado de usuario
+            </DialogTitle>
+          </DialogHeader>
+          {stateChangeAlumno && (
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Alumno: <span className="text-foreground font-medium">{stateChangeAlumno.nombre}</span>
+              </p>
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant={getEstadoBadge(stateChangeAlumno.estado).variant} className={`text-xs ${getEstadoBadge(stateChangeAlumno.estado).className}`}>
+                  {stateChangeAlumno.estado}
+                </Badge>
+                <span className="text-muted-foreground">→</span>
+                <Badge variant={getEstadoBadge(stateChangeTarget).variant} className={`text-xs ${getEstadoBadge(stateChangeTarget).className}`}>
+                  {stateChangeTarget}
+                </Badge>
+              </div>
+
+              {/* Auto-actions info */}
+              {stateChangeTarget === "vacaciones" && (
+                <p className="text-xs text-muted-foreground bg-secondary/50 rounded-md p-2">
+                  ⚡ Las suscripciones activas se pausarán automáticamente.
+                </p>
+              )}
+              {stateChangeTarget === "activo" && stateChangeAlumno.estado === "vacaciones" && (
+                <p className="text-xs text-muted-foreground bg-secondary/50 rounded-md p-2">
+                  ⚡ Las suscripciones en pausa se reactivarán automáticamente.
+                </p>
+              )}
+              {stateChangeTarget === "bloqueado" && (
+                <p className="text-xs text-destructive bg-destructive/10 rounded-md p-2">
+                  ⚠ Se cancelarán todas las suscripciones activas/pausadas de este usuario.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs">Motivo (opcional)</Label>
+                <Input
+                  value={stateChangeMotivo}
+                  onChange={(e) => setStateChangeMotivo(e.target.value)}
+                  placeholder="Ej: Solicitud del alumno, falta de pago..."
+                  className="bg-secondary border-border text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Nota interna (opcional)</Label>
+                <Textarea
+                  value={stateChangeNota}
+                  onChange={(e) => setStateChangeNota(e.target.value)}
+                  placeholder="Nota visible solo para administradores..."
+                  className="bg-secondary border-border text-sm min-h-[60px]"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStateChangeAlumno(null)}>Cancelar</Button>
+            <Button
+              variant={stateChangeTarget === "bloqueado" ? "destructive" : "gold"}
+              disabled={savingState}
+              onClick={executeStateChange}
+            >
+              {savingState ? "Guardando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subscription state change dialog */}
+      <Dialog open={!!subChangeAlumno} onOpenChange={(open) => { if (!open) setSubChangeAlumno(null); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              Cambiar estado de suscripción
+            </DialogTitle>
+          </DialogHeader>
+          {subChangeAlumno && (() => {
+            const sub = getActiveSub(subChangeAlumno.id);
+            const currentSubEstado = sub?.estado || "sin_suscripcion";
+            const validTransitions = VALID_SUB_TRANSITIONS[currentSubEstado] || [];
+            return (
+              <div className="space-y-4 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Alumno: <span className="text-foreground font-medium">{subChangeAlumno.nombre}</span>
+                </p>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Suscripción actual:</span>
+                  <Badge variant={getSubBadge(currentSubEstado).variant} className={`text-xs ${getSubBadge(currentSubEstado).className}`}>
+                    {currentSubEstado}
+                  </Badge>
+                </div>
+                {sub?.fecha_fin && (
+                  <p className="text-xs text-muted-foreground">
+                    Vence: {new Date(sub.fecha_fin).toLocaleDateString("es-AR")}
+                  </p>
+                )}
+                <div className="space-y-2">
+                  <Label className="text-xs">Nuevo estado</Label>
+                  <Select value={subChangeTarget} onValueChange={setSubChangeTarget}>
+                    <SelectTrigger className="bg-secondary border-border text-xs">
+                      <SelectValue placeholder="Seleccionar estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {validTransitions.map(e => {
+                        const wouldBeInvalid = isInconsistent(subChangeAlumno.estado, e);
+                        return (
+                          <SelectItem key={e} value={e} className={`text-xs ${wouldBeInvalid ? "text-destructive" : ""}`}>
+                            {e} {wouldBeInvalid ? "⚠ inconsistente" : ""}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {subChangeTarget && isInconsistent(subChangeAlumno.estado, subChangeTarget) && (
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive flex items-center gap-2">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    Combinación inválida: usuario "{subChangeAlumno.estado}" + suscripción "{subChangeTarget}"
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label className="text-xs">Motivo (opcional)</Label>
+                  <Input
+                    value={subChangeMotivo}
+                    onChange={(e) => setSubChangeMotivo(e.target.value)}
+                    placeholder="Motivo del cambio..."
+                    className="bg-secondary border-border text-sm"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSubChangeAlumno(null)}>Cancelar</Button>
+            <Button
+              variant="gold"
+              disabled={!subChangeTarget || savingSub || (subChangeAlumno ? isInconsistent(subChangeAlumno.estado, subChangeTarget) : false)}
+              onClick={executeSubChange}
+            >
+              {savingSub ? "Guardando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -794,7 +1197,7 @@ const ManageStudents = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar a {deleteAlumno?.nombre}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminarán todos sus datos, suscripciones y registros de entrenamientos. Para volver a usar la app, deberá registrarse nuevamente. Esta acción no se puede deshacer.
+              Se eliminarán todos sus datos, suscripciones y registros de entrenamientos. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
