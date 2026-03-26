@@ -182,6 +182,11 @@ const StudentDashboard = () => {
     );
   }
 
+  // Vacation mode: render limited dashboard
+  if (alumno?.estado === "vacaciones") {
+    return <VacationDashboard alumno={alumno} onLogout={handleLogout} />;
+  }
+
   const firstName = alumno?.nombre?.split(" ")[0] || "";
   const todayFormatted = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
