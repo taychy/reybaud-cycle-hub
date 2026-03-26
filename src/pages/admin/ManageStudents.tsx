@@ -838,8 +838,8 @@ const ManageStudents = () => {
                         </div>
                       ) : (
                         <div className="space-y-2 text-sm">
-                          <DetailRow label="Nombre" value={splitNombre(drawerAlumno).firstName} />
-                          <DetailRow label="Apellido" value={splitNombre(drawerAlumno).lastName || "—"} />
+                          <DetailRow label="Nombre" value={drawerAlumno.nombre} />
+                          <DetailRow label="Apellido" value={getApellido(drawerAlumno) || "—"} />
                           <DetailRow label="Email" value={drawerAlumno.email} mono />
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
