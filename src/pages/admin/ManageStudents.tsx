@@ -321,9 +321,9 @@ const ManageStudents = () => {
   const openDrawer = (alumno: Alumno) => {
     setDrawerAlumno(alumno);
     setEditingDetail(false);
-    const { firstName, lastName } = splitNombre(alumno);
     setDetailForm({
-      nombre: firstName,
+      nombre: alumno.nombre,
+      apellido: getApellido(alumno),
       apellido: lastName,
       email: alumno.email,
       telefono: alumno.telefono || "",
