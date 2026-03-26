@@ -350,6 +350,19 @@ const ManageStudents = () => {
   const pendingCount = alumnos.filter(isPending).length;
   const activeCount = alumnos.filter(a => a.estado === "activo").length;
   const inactiveCount = alumnos.filter(a => a.estado === "inactivo").length;
+  const blockedCount = alumnos.filter(a => a.estado === "bloqueado").length;
+  const vacacionesCount = alumnos.filter(a => a.estado === "vacaciones").length;
+
+  const getEstadoBadge = (estado: string) => {
+    switch (estado) {
+      case "activo": return { variant: "default" as const, className: "" };
+      case "inactivo": return { variant: "outline" as const, className: "" };
+      case "bloqueado": return { variant: "destructive" as const, className: "" };
+      case "vacaciones": return { variant: "secondary" as const, className: "border-blue-500/50 text-blue-500" };
+      case "pendiente": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-500" };
+      default: return { variant: "outline" as const, className: "" };
+    }
+  };
 
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -358,6 +371,8 @@ const ManageStudents = () => {
     if (statusFilter === "pendientes") return isPending(a);
     if (statusFilter === "activos") return a.estado === "activo";
     if (statusFilter === "inactivos") return a.estado === "inactivo";
+    if (statusFilter === "bloqueados") return a.estado === "bloqueado";
+    if (statusFilter === "vacaciones") return a.estado === "vacaciones";
     return true;
   });
 
