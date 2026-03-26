@@ -573,10 +573,17 @@ const ManageStudents = () => {
                           const sub = getActiveSub(alumno.id);
                           const planName = sub?.planes?.nombre;
                           return planName ? (
-                            <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(sub?.plan_id || ""); }}>
-                              {planName}
-                              <Edit2 className="w-2.5 h-2.5 ml-1" />
-                            </Badge>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(sub?.plan_id || ""); }}>
+                                {planName}
+                                <Edit2 className="w-2.5 h-2.5 ml-1" />
+                              </Badge>
+                              {sub?.estado === "pausa" && (
+                                <Badge variant="secondary" className="text-xs border-amber-500/50 text-amber-500">
+                                  Pausa
+                                </Badge>
+                              )}
+                            </div>
                           ) : (
                             <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setChangePlanAlumno(alumno); setNewPlanId(""); }}>
                               <CreditCard className="w-3 h-3 mr-1" /> Asignar
