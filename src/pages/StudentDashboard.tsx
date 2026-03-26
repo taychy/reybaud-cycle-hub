@@ -8,6 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import { EventosContent } from "@/pages/Eventos";
 import { StudentProgressContent } from "@/pages/StudentProgress";
 import TrainingDetailView from "@/components/TrainingDetailView";
+import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import { useToast } from "@/hooks/use-toast";
@@ -179,6 +180,11 @@ const StudentDashboard = () => {
         <div className="animate-pulse text-muted-foreground">Cargando...</div>
       </div>
     );
+  }
+
+  // Vacation mode: render limited dashboard
+  if (alumno?.estado === "vacaciones") {
+    return <VacationDashboard alumno={alumno} onLogout={handleLogout} />;
   }
 
   const firstName = alumno?.nombre?.split(" ")[0] || "";
