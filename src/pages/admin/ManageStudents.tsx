@@ -592,6 +592,7 @@ const ManageStudents = () => {
     { key: "vencidos", label: "Vencidos", count: vencidosCount },
     { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
+    ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
