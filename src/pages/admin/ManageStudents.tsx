@@ -656,6 +656,7 @@ const ManageStudents = () => {
                   const apellido = getApellido(alumno);
                   const subEstado = getSubEstadoLabel(alumno.id);
                   const inconsistency = getAlumnoInconsistency(alumno);
+                  const missing = getProfileMissing(alumno, subEstado);
                   return (
                     <div
                       key={alumno.id}
