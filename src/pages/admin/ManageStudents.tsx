@@ -34,7 +34,7 @@ const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos" | "inactivos">("todos");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos" | "inactivos" | "bloqueados" | "vacaciones">("todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
