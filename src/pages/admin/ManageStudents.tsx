@@ -324,7 +324,6 @@ const ManageStudents = () => {
     setDetailForm({
       nombre: alumno.nombre,
       apellido: getApellido(alumno),
-      apellido: lastName,
       email: alumno.email,
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
