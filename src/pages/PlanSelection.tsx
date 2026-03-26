@@ -302,8 +302,57 @@ const PlanSelection = () => {
           <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
         </div>
 
-        {/* Renewal banner */}
-        {isRenewal && (
+        {/* Vacation reactivation banner */}
+        {isRenewal && isFromVacation && (
+          <div className="max-w-lg mx-auto rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0 mt-0.5">🏖️</span>
+              <div className="space-y-1">
+                <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-foreground">
+                  ¡Bienvenido de vuelta!
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Tu membresía estaba en pausa. Elegí un plan para reactivar tu cuenta y volver a entrenar.
+                </p>
+              </div>
+            </div>
+
+            {previousSub && (
+              <div className="rounded-md bg-secondary/50 p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Plan anterior</span>
+                  <span className="font-medium text-foreground">{previousSub.planName}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="gold"
+                size="lg"
+                className="flex-1"
+                onClick={() => {
+                  document.getElementById("planes-grid")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Elegir plan
+              </Button>
+              <Button
+                variant="gold-outline"
+                size="lg"
+                className="flex-1"
+                onClick={handleNotifyAdmin}
+                disabled={notifyProcessing}
+              >
+                <MessageSquare className="w-4 h-4" />
+                {notifyProcessing ? "Enviando..." : "Contactar administración"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Renewal banner (non-vacation) */}
+        {isRenewal && !isFromVacation && (
           <div className="max-w-lg mx-auto rounded-lg border border-destructive/30 bg-destructive/5 p-6 space-y-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
