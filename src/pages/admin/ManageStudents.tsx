@@ -717,7 +717,7 @@ const ManageStudents = () => {
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell></TableRow>
                   ) : (
                     filtered.map((alumno) => {
-                      const { firstName, lastName } = splitNombre(alumno);
+                      const apellido = getApellido(alumno);
                       const subEstado = getSubEstadoLabel(alumno.id);
                       const inconsistency = getAlumnoInconsistency(alumno);
                       return (
