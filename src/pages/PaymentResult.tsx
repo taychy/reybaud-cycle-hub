@@ -101,6 +101,7 @@ const PaymentResult = () => {
     const cleanupAndNavigate = (path: string) => {
       localStorage.removeItem("registro_alumno_id");
       localStorage.removeItem("alumno_renewal");
+      localStorage.removeItem("alumno_from_vacation");
       navigate(path);
     };
 
