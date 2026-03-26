@@ -218,12 +218,13 @@ const ManageStudents = () => {
   }).length;
   const sinGrupoCount = alumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
+  const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
 
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
       a.email.toLowerCase().includes(search.toLowerCase()) ||
-      ((a as any).apellido || "").toLowerCase().includes(search.toLowerCase());
+      getApellido(a).toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     switch (statusFilter) {
       case "pendientes": return a.estado === "pendiente";
@@ -234,6 +235,7 @@ const ManageStudents = () => {
       case "vencidos": return getSubEstadoLabel(a.id) === "vencida" && a.estado === "activo";
       case "sin_grupo": return a.grupo === "Sin grupo" && a.estado === "activo";
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
+      case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
       default: return true;
     }
   });
