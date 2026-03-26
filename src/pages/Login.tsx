@@ -151,6 +151,14 @@ const Login = () => {
       return;
     }
 
+    // Bloqueado
+    if (data.estado === "bloqueado") {
+      setLoginError("Tu acceso está deshabilitado. Si creés que esto es un error, contactate con administración.");
+      setLoading(false);
+      return;
+    }
+
+    // Inactivo
     if (data.estado === "inactivo" && data.grupo === "Sin grupo") {
       localStorage.setItem("registro_alumno_id", data.id);
       navigate("/planes");
@@ -158,7 +166,20 @@ const Login = () => {
       return;
     }
 
-    if (data.grupo === "Sin grupo") {
+    if (data.estado === "inactivo") {
+      setLoginError("Tu cuenta se encuentra inactiva. Contactate con administración para reactivarla.");
+      setLoading(false);
+      return;
+    }
+
+    // Pendiente
+    if (data.estado === "pendiente") {
+      setLoginError("Tu registro está pendiente de aprobación. Te avisaremos cuando esté listo.");
+      setLoading(false);
+      return;
+    }
+
+    if (data.grupo === "Sin grupo" && data.estado !== "vacaciones") {
       setLoginError("Tu usuario aún no tiene grupo asignado. Contactá administración.");
       setLoading(false);
       return;
