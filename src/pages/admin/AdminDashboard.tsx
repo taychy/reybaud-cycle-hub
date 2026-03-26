@@ -320,7 +320,7 @@ const AdminDashboard = () => {
       <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen</h1>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {metrics.map((m) => (
           <Card key={m.label} className="border-border">
             <CardContent className="p-4">
