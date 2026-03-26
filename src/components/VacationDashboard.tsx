@@ -115,6 +115,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
                 onClick={() => {
                   localStorage.setItem("registro_alumno_id", alumno.id);
                   localStorage.setItem("alumno_renewal", "1");
+                  localStorage.setItem("alumno_from_vacation", "1");
                   navigate("/planes");
                 }}
               >
