@@ -225,6 +225,16 @@ const AdminDashboard = () => {
       if (informados > 0) {
         alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
       }
+      if (alumnosBloqueados > 0) {
+        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos" });
+      }
+      if (alumnosVacaciones > 0) {
+        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos" });
+      }
+      const sinGrupo = allAlumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
+      if (sinGrupo > 0) {
+        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos" });
+      }
       setAlerts(alertsList);
     } catch (err) {
       console.error("Error loading dashboard:", err);
