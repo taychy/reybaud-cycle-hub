@@ -435,9 +435,11 @@ const ManageStudents = () => {
         <div className="flex items-center gap-1 flex-wrap">
           {([
             { key: "todos", label: `Todos (${alumnos.length})` },
-            { key: "pendientes", label: `Pendientes (${pendingCount})` },
+            { key: "pendientes", label: `Pend. (${pendingCount})` },
             { key: "activos", label: `Activos (${activeCount})` },
             { key: "inactivos", label: `Inactivos (${inactiveCount})` },
+            { key: "bloqueados", label: `Bloq. (${blockedCount})` },
+            { key: "vacaciones", label: `Vac. (${vacacionesCount})` },
           ] as const).map((f) => (
             <Button
               key={f.key}
