@@ -715,6 +715,44 @@ export type Database = {
         }
         Relationships: []
       }
+      objetivos_alumno: {
+        Row: {
+          activo: boolean
+          alumno_id: string
+          created_at: string
+          fecha_objetivo: string | null
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          alumno_id: string
+          created_at?: string
+          fecha_objetivo?: string | null
+          id?: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          alumno_id?: string
+          created_at?: string
+          fecha_objetivo?: string | null
+          id?: string
+          nombre?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objetivos_alumno_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_mensual: {
         Row: {
           archivo_original_url: string | null
@@ -918,6 +956,48 @@ export type Database = {
           },
         ]
       }
+      registro_sesiones: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          entrenamiento_id: string
+          estado: string
+          fecha_registro: string
+          id: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          entrenamiento_id: string
+          estado?: string
+          fecha_registro?: string
+          id?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          entrenamiento_id?: string
+          estado?: string
+          fecha_registro?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registro_sesiones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registro_sesiones_entrenamiento_id_fkey"
+            columns: ["entrenamiento_id"]
+            isOneToOne: false
+            referencedRelation: "entrenamientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sedes: {
         Row: {
           activa: boolean
@@ -950,6 +1030,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sesiones_extra: {
+        Row: {
+          alumno_id: string
+          comentario: string | null
+          created_at: string
+          duracion_minutos: number | null
+          fecha: string
+          id: string
+          tipo: string
+        }
+        Insert: {
+          alumno_id: string
+          comentario?: string | null
+          created_at?: string
+          duracion_minutos?: number | null
+          fecha: string
+          id?: string
+          tipo?: string
+        }
+        Update: {
+          alumno_id?: string
+          comentario?: string | null
+          created_at?: string
+          duracion_minutos?: number | null
+          fecha?: string
+          id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sesiones_extra_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_movements: {
         Row: {
