@@ -79,6 +79,7 @@ const ExternalPaymentConfirm = ({ planId, planName, alumnoId, onBack }: External
           onClick={() => {
             localStorage.removeItem("registro_alumno_id");
             localStorage.removeItem("alumno_renewal");
+            localStorage.removeItem("alumno_from_vacation");
             navigate("/");
           }}
         >
