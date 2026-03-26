@@ -606,13 +606,16 @@ const ManageStudents = () => {
                         <Button variant="ghost" size="sm" onClick={() => openManualSub(alumno)} className="text-xs" title="Habilitar suscripción manual">
                           <CalendarCheck className="w-3 h-3 mr-1" /> Habilitar
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => toggleEstado(alumno)} className="text-xs">
-                          {alumno.estado === "activo" ? (
-                            <><UserX className="w-3 h-3 mr-1" /> Desactivar</>
-                          ) : (
-                            <><UserCheck className="w-3 h-3 mr-1" /> Activar</>
-                          )}
-                        </Button>
+                        <Select onValueChange={(val) => changeEstado(alumno, val)}>
+                          <SelectTrigger className="h-7 w-28 text-xs bg-secondary border-border">
+                            <SelectValue placeholder="Estado →" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["activo", "inactivo", "bloqueado", "vacaciones", "pendiente"].filter(e => e !== alumno.estado).map(e => (
+                              <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteAlumno(alumno)} className="text-xs text-destructive hover:text-destructive">
                           <Trash2 className="w-3 h-3 mr-1" /> Eliminar
                         </Button>
