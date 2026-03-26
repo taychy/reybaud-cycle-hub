@@ -699,7 +699,6 @@ const ManageStudents = () => {
                   <Badge variant={getEstadoBadge(detailAlumno.estado).variant} className={`text-xs ${getEstadoBadge(detailAlumno.estado).className}`}>
                     {detailAlumno.estado}
                   </Badge>
-                  </Badge>
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
