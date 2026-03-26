@@ -85,6 +85,7 @@ const PaymentResult = () => {
 
     localStorage.removeItem("registro_alumno_id");
     localStorage.removeItem("alumno_renewal");
+    localStorage.removeItem("alumno_from_vacation");
     setSaving(false);
 
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
