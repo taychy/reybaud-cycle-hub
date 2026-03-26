@@ -112,15 +112,55 @@ const ManageStudents = () => {
     }
   };
 
-  const toggleEstado = async (alumno: Alumno) => {
-    const newEstado = alumno.estado === "activo" ? "inactivo" : "activo";
+  const changeEstado = async (alumno: Alumno, newEstado: string) => {
     await supabase.from("alumnos").update({ estado: newEstado }).eq("id", alumno.id);
+
+    // If setting to vacaciones, pause active subscriptions
+    if (newEstado === "vacaciones") {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "pausa" })
+        .eq("alumno_id", alumno.id)
+        .eq("estado", "activa");
+    }
+
+    // If reactivating from vacaciones, unpause subscriptions
+    if (newEstado === "activo" && alumno.estado === "vacaciones") {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "activa" })
+        .eq("alumno_id", alumno.id)
+        .eq("estado", "pausa");
+    }
+
+    // If blocking, cancel active/paused subscriptions
+    if (newEstado === "bloqueado") {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "cancelada", cancelada_motivo: "Usuario bloqueado" })
+        .eq("alumno_id", alumno.id)
+        .in("estado", ["activa", "pausa"]);
+    }
+
     toast.success(`${alumno.nombre} ahora está ${newEstado}`);
     fetchAlumnos();
 
+    // Audit log
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await supabase.from("audit_log").insert({
+        user_id: session.user.id,
+        user_email: session.user.email,
+        user_role: "admin",
+        action: "cambio_estado",
+        entity_type: "alumno",
+        entity_id: alumno.id,
+        details: { estado_anterior: alumno.estado, estado_nuevo: newEstado },
+      } as any);
+    }
+
     // Send email notification when enabling
     if (newEstado === "activo") {
-      // Get current subscription end date
       const { data: subs } = await supabase.from("suscripciones").select("fecha_fin").eq("alumno_id", alumno.id).eq("estado", "activa").order("fecha_fin", { ascending: false }).limit(1);
       const fechaFin = subs?.[0]?.fecha_fin || null;
       supabase.functions.invoke("notify-student-update", {
