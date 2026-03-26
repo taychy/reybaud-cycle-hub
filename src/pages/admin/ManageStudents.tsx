@@ -484,7 +484,7 @@ const ManageStudents = () => {
                     >
                       {alumno.grupo}
                     </Badge>
-                    <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
+                    <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-xs ${getEstadoBadge(alumno.estado).className}`}>
                       {alumno.estado}
                     </Badge>
                     {!(alumno as any).password_set && (alumno as any).invited_at && (
