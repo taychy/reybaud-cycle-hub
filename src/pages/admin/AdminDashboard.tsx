@@ -115,18 +115,24 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      const [alumnosRes, subsActivasRes, allSubsRes] = await Promise.all([
-        supabase.from("alumnos").select("id, estado, telefono").eq("estado", "activo"),
+      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes] = await Promise.all([
+        supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").eq("estado", "activa"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
+        supabase.from("alumnos").select("id, estado, grupo"),
       ]);
 
       const alumnos = alumnosRes.data || [];
       const subsActivas = subsActivasRes.data || [];
       const allSubs = allSubsRes.data || [];
+      const allAlumnos = allAlumnosRes.data || [];
 
       const alumnosActivos = alumnos.length;
+      const alumnosBloqueados = allAlumnos.filter(a => a.estado === "bloqueado").length;
+      const alumnosVacaciones = allAlumnos.filter(a => a.estado === "vacaciones").length;
+      const alumnosInactivos = allAlumnos.filter(a => a.estado === "inactivo").length;
       const suscripcionesActivas = subsActivas.length;
+      const subsPausa = allSubs.filter(s => s.estado === "pausa").length;
       const pendientes = allSubs.filter(s => s.estado === "pendiente");
       const pagosPendientes = pendientes.length;
 
@@ -149,6 +155,10 @@ const AdminDashboard = () => {
         { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive" },
         { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500" },
         { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500" },
+        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive" },
+        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500" },
+        { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground" },
+        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500" },
       ]);
 
       // Upcoming expirations
