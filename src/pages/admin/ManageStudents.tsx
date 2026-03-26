@@ -795,6 +795,7 @@ const ManageStudents = () => {
                 const sub = getActiveSub(drawerAlumno.id) || getAnySub(drawerAlumno.id);
                 const subEstado = getSubEstadoLabel(drawerAlumno.id);
                 const inconsistency = getAlumnoInconsistency(drawerAlumno);
+                const missing = getProfileMissing(drawerAlumno, subEstado);
                 return (
                   <div className="space-y-6 py-4">
                     {/* Inconsistency alert */}
@@ -802,6 +803,14 @@ const ManageStudents = () => {
                       <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
                         <span className="text-xs text-destructive">Combinación inconsistente: {inconsistency}</span>
+                      </div>
+                    )}
+
+                    {/* Incomplete profile alert */}
+                    {missing.length > 0 && (
+                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-1">
+                        <span className="text-xs font-medium text-amber-400">Perfil incompleto</span>
+                        <p className="text-xs text-amber-400/80">Faltan: {missing.join(", ")}</p>
                       </div>
                     )}
 
