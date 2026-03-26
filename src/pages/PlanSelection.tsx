@@ -92,6 +92,17 @@ const PlanSelection = () => {
     }).format(precio);
   };
 
+  // Cancel paused subscriptions when reactivating from vacation
+  const cancelPausedSubs = async () => {
+    if (isFromVacation && alumnoId) {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "cancelada", cancelada_motivo: "Reactivación desde vacaciones" } as any)
+        .eq("alumno_id", alumnoId)
+        .eq("estado", "pausa");
+    }
+  };
+
   const handleMercadoPago = async () => {
     if (!selected || !alumnoId) return;
     setProcessing(true);
@@ -99,6 +110,8 @@ const PlanSelection = () => {
 
     const plan = planes.find((p) => p.id === selected);
     if (!plan) return;
+
+    await cancelPausedSubs();
 
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
