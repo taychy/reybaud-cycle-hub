@@ -64,6 +64,7 @@ export type Database = {
       }
       alumnos: {
         Row: {
+          apellido: string | null
           ciudad: string | null
           como_se_entero: string | null
           condicion_medica: string | null
@@ -92,6 +93,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          apellido?: string | null
           ciudad?: string | null
           como_se_entero?: string | null
           condicion_medica?: string | null
@@ -120,6 +122,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          apellido?: string | null
           ciudad?: string | null
           como_se_entero?: string | null
           condicion_medica?: string | null
