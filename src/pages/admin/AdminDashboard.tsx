@@ -12,7 +12,7 @@ import {
 import {
   Users, CreditCard, AlertTriangle, Clock, DollarSign, TrendingUp,
   Eye, Send, CalendarClock, CheckCircle, FileText, MessageCircle,
-  Banknote, CreditCard as CardIcon, HelpCircle,
+  Banknote, CreditCard as CardIcon, HelpCircle, Ban, Palmtree, Pause,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
@@ -115,18 +115,24 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      const [alumnosRes, subsActivasRes, allSubsRes] = await Promise.all([
-        supabase.from("alumnos").select("id, estado, telefono").eq("estado", "activo"),
+      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes] = await Promise.all([
+        supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").eq("estado", "activa"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
+        supabase.from("alumnos").select("id, estado, grupo"),
       ]);
 
       const alumnos = alumnosRes.data || [];
       const subsActivas = subsActivasRes.data || [];
       const allSubs = allSubsRes.data || [];
+      const allAlumnos = allAlumnosRes.data || [];
 
       const alumnosActivos = alumnos.length;
+      const alumnosBloqueados = allAlumnos.filter(a => a.estado === "bloqueado").length;
+      const alumnosVacaciones = allAlumnos.filter(a => a.estado === "vacaciones").length;
+      const alumnosInactivos = allAlumnos.filter(a => a.estado === "inactivo").length;
       const suscripcionesActivas = subsActivas.length;
+      const subsPausa = allSubs.filter(s => s.estado === "pausa").length;
       const pendientes = allSubs.filter(s => s.estado === "pendiente");
       const pagosPendientes = pendientes.length;
 
@@ -149,6 +155,10 @@ const AdminDashboard = () => {
         { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive" },
         { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500" },
         { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500" },
+        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive" },
+        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500" },
+        { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground" },
+        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500" },
       ]);
 
       // Upcoming expirations
@@ -214,6 +224,16 @@ const AdminDashboard = () => {
       const informados = allSubs.filter(s => (s.mp_status === "informado" || s.mp_status === "efectivo_informado" || s.mp_status === "externo_informado") && s.estado === "pendiente").length;
       if (informados > 0) {
         alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
+      }
+      if (alumnosBloqueados > 0) {
+        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos" });
+      }
+      if (alumnosVacaciones > 0) {
+        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos" });
+      }
+      const sinGrupo = allAlumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
+      if (sinGrupo > 0) {
+        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos" });
       }
       setAlerts(alertsList);
     } catch (err) {
@@ -300,7 +320,7 @@ const AdminDashboard = () => {
       <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen</h1>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {metrics.map((m) => (
           <Card key={m.label} className="border-border">
             <CardContent className="p-4">

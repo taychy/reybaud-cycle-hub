@@ -58,9 +58,33 @@ export function useAlumnoSession() {
       alumnoData.user_id = session.user.id;
     }
 
-    // Validate status
-    if (alumnoData.grupo === "Sin grupo" && alumnoData.estado !== "inactivo") {
+    // Bloqueado
+    if (alumnoData.estado === "bloqueado") {
+      setState({ alumno: null, loading: false, error: "Tu acceso está deshabilitado. Si creés que esto es un error, contactate con administración.", needsSubscription: false });
+      return;
+    }
+
+    // Inactivo
+    if (alumnoData.estado === "inactivo") {
+      setState({ alumno: null, loading: false, error: "Tu cuenta se encuentra inactiva. Contactate con administración para reactivarla.", needsSubscription: false });
+      return;
+    }
+
+    // Pendiente
+    if (alumnoData.estado === "pendiente") {
+      setState({ alumno: null, loading: false, error: "Tu registro está pendiente de aprobación.", needsSubscription: false });
+      return;
+    }
+
+    // Validate group (except vacaciones)
+    if (alumnoData.grupo === "Sin grupo" && alumnoData.estado !== "vacaciones") {
       setState({ alumno: null, loading: false, error: "Tu usuario aún no tiene grupo asignado. Contactá administración.", needsSubscription: false });
+      return;
+    }
+
+    // Vacaciones: allow access but mark as limited (no subscription needed)
+    if (alumnoData.estado === "vacaciones") {
+      setState({ alumno: alumnoData, loading: false, error: null, needsSubscription: false });
       return;
     }
 
@@ -77,7 +101,6 @@ export function useAlumnoSession() {
       .limit(1);
 
     if (!activeSub || activeSub.length === 0) {
-      // Needs subscription — caller decides how to handle
       setState({ alumno: alumnoData, loading: false, error: null, needsSubscription: true });
       return;
     }

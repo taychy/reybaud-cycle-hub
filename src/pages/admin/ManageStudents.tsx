@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard } from "lucide-react";
+import { Search, UserCheck, UserX, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, Palmtree, Ban, Clock } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -34,7 +34,7 @@ const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos" | "inactivos">("todos");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "activos" | "inactivos" | "bloqueados" | "vacaciones">("todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
@@ -112,15 +112,55 @@ const ManageStudents = () => {
     }
   };
 
-  const toggleEstado = async (alumno: Alumno) => {
-    const newEstado = alumno.estado === "activo" ? "inactivo" : "activo";
+  const changeEstado = async (alumno: Alumno, newEstado: string) => {
     await supabase.from("alumnos").update({ estado: newEstado }).eq("id", alumno.id);
+
+    // If setting to vacaciones, pause active subscriptions
+    if (newEstado === "vacaciones") {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "pausa" })
+        .eq("alumno_id", alumno.id)
+        .eq("estado", "activa");
+    }
+
+    // If reactivating from vacaciones, unpause subscriptions
+    if (newEstado === "activo" && alumno.estado === "vacaciones") {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "activa" })
+        .eq("alumno_id", alumno.id)
+        .eq("estado", "pausa");
+    }
+
+    // If blocking, cancel active/paused subscriptions
+    if (newEstado === "bloqueado") {
+      await supabase
+        .from("suscripciones")
+        .update({ estado: "cancelada", cancelada_motivo: "Usuario bloqueado" })
+        .eq("alumno_id", alumno.id)
+        .in("estado", ["activa", "pausa"]);
+    }
+
     toast.success(`${alumno.nombre} ahora está ${newEstado}`);
     fetchAlumnos();
 
+    // Audit log
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await supabase.from("audit_log").insert({
+        user_id: session.user.id,
+        user_email: session.user.email,
+        user_role: "admin",
+        action: "cambio_estado",
+        entity_type: "alumno",
+        entity_id: alumno.id,
+        details: { estado_anterior: alumno.estado, estado_nuevo: newEstado },
+      } as any);
+    }
+
     // Send email notification when enabling
     if (newEstado === "activo") {
-      // Get current subscription end date
       const { data: subs } = await supabase.from("suscripciones").select("fecha_fin").eq("alumno_id", alumno.id).eq("estado", "activa").order("fecha_fin", { ascending: false }).limit(1);
       const fechaFin = subs?.[0]?.fecha_fin || null;
       supabase.functions.invoke("notify-student-update", {
@@ -310,6 +350,19 @@ const ManageStudents = () => {
   const pendingCount = alumnos.filter(isPending).length;
   const activeCount = alumnos.filter(a => a.estado === "activo").length;
   const inactiveCount = alumnos.filter(a => a.estado === "inactivo").length;
+  const blockedCount = alumnos.filter(a => a.estado === "bloqueado").length;
+  const vacacionesCount = alumnos.filter(a => a.estado === "vacaciones").length;
+
+  const getEstadoBadge = (estado: string) => {
+    switch (estado) {
+      case "activo": return { variant: "default" as const, className: "" };
+      case "inactivo": return { variant: "outline" as const, className: "" };
+      case "bloqueado": return { variant: "destructive" as const, className: "" };
+      case "vacaciones": return { variant: "secondary" as const, className: "border-blue-500/50 text-blue-500" };
+      case "pendiente": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-500" };
+      default: return { variant: "outline" as const, className: "" };
+    }
+  };
 
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -318,6 +371,8 @@ const ManageStudents = () => {
     if (statusFilter === "pendientes") return isPending(a);
     if (statusFilter === "activos") return a.estado === "activo";
     if (statusFilter === "inactivos") return a.estado === "inactivo";
+    if (statusFilter === "bloqueados") return a.estado === "bloqueado";
+    if (statusFilter === "vacaciones") return a.estado === "vacaciones";
     return true;
   });
 
@@ -380,9 +435,11 @@ const ManageStudents = () => {
         <div className="flex items-center gap-1 flex-wrap">
           {([
             { key: "todos", label: `Todos (${alumnos.length})` },
-            { key: "pendientes", label: `Pendientes (${pendingCount})` },
+            { key: "pendientes", label: `Pend. (${pendingCount})` },
             { key: "activos", label: `Activos (${activeCount})` },
             { key: "inactivos", label: `Inactivos (${inactiveCount})` },
+            { key: "bloqueados", label: `Bloq. (${blockedCount})` },
+            { key: "vacaciones", label: `Vac. (${vacacionesCount})` },
           ] as const).map((f) => (
             <Button
               key={f.key}
@@ -427,7 +484,7 @@ const ManageStudents = () => {
                     >
                       {alumno.grupo}
                     </Badge>
-                    <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
+                    <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-xs ${getEstadoBadge(alumno.estado).className}`}>
                       {alumno.estado}
                     </Badge>
                     {!(alumno as any).password_set && (alumno as any).invited_at && (
@@ -528,7 +585,7 @@ const ManageStudents = () => {
                         })()}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={alumno.estado === "activo" ? "default" : "outline"} className="text-xs">
+                        <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-xs ${getEstadoBadge(alumno.estado).className}`}>
                           {alumno.estado}
                         </Badge>
                         {!(alumno as any).password_set && (alumno as any).invited_at && (
@@ -551,13 +608,16 @@ const ManageStudents = () => {
                         <Button variant="ghost" size="sm" onClick={() => openManualSub(alumno)} className="text-xs" title="Habilitar suscripción manual">
                           <CalendarCheck className="w-3 h-3 mr-1" /> Habilitar
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => toggleEstado(alumno)} className="text-xs">
-                          {alumno.estado === "activo" ? (
-                            <><UserX className="w-3 h-3 mr-1" /> Desactivar</>
-                          ) : (
-                            <><UserCheck className="w-3 h-3 mr-1" /> Activar</>
-                          )}
-                        </Button>
+                        <Select onValueChange={(val) => changeEstado(alumno, val)}>
+                          <SelectTrigger className="h-7 w-28 text-xs bg-secondary border-border">
+                            <SelectValue placeholder="Estado →" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["activo", "inactivo", "bloqueado", "vacaciones", "pendiente"].filter(e => e !== alumno.estado).map(e => (
+                              <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteAlumno(alumno)} className="text-xs text-destructive hover:text-destructive">
                           <Trash2 className="w-3 h-3 mr-1" /> Eliminar
                         </Button>
@@ -636,7 +696,7 @@ const ManageStudents = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Estado</span>
-                  <Badge variant={detailAlumno.estado === "activo" ? "default" : "outline"} className="text-xs">
+                  <Badge variant={getEstadoBadge(detailAlumno.estado).variant} className={`text-xs ${getEstadoBadge(detailAlumno.estado).className}`}>
                     {detailAlumno.estado}
                   </Badge>
                 </div>
@@ -656,16 +716,19 @@ const ManageStudents = () => {
                 }}>
                   <CalendarCheck className="w-3 h-3 mr-2" /> Habilitar suscripción
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
-                  toggleEstado(detailAlumno);
-                  setDetailAlumno(null);
-                }}>
-                  {detailAlumno.estado === "activo" ? (
-                    <><UserX className="w-3 h-3 mr-2" /> Desactivar</>
-                  ) : (
-                    <><UserCheck className="w-3 h-3 mr-2" /> Activar</>
-                  )}
-                </Button>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Cambiar estado</Label>
+                  <Select onValueChange={(val) => { changeEstado(detailAlumno, val); setDetailAlumno(null); }}>
+                    <SelectTrigger className="bg-secondary border-border text-xs">
+                      <SelectValue placeholder={`Estado actual: ${detailAlumno.estado}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["activo", "inactivo", "bloqueado", "vacaciones", "pendiente"].filter(e => e !== detailAlumno.estado).map(e => (
+                        <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
                   setDeleteAlumno(detailAlumno);
                   setDetailAlumno(null);
