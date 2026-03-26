@@ -721,8 +721,8 @@ const ManageStudents = () => {
                       const inconsistency = getAlumnoInconsistency(alumno);
                       return (
                         <TableRow key={alumno.id} className={`border-border cursor-pointer hover:bg-muted/30 ${inconsistency ? "bg-destructive/5" : ""}`} onClick={() => openDrawer(alumno)}>
-                          <TableCell className="font-medium text-foreground">{firstName}</TableCell>
-                          <TableCell className="text-muted-foreground">{lastName || "—"}</TableCell>
+                          <TableCell className="font-medium text-foreground">{alumno.nombre}</TableCell>
+                          <TableCell className="text-muted-foreground">{apellido || "—"}</TableCell>
                           <TableCell>
                             <Badge variant={alumno.grupo === "Sin grupo" ? "destructive" : "secondary"} className="font-mono text-xs">{alumno.grupo}</Badge>
                           </TableCell>
