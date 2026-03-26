@@ -1,0 +1,2 @@
+ALTER TABLE public.alumnos DROP CONSTRAINT alumnos_estado_check;
+ALTER TABLE public.alumnos ADD CONSTRAINT alumnos_estado_check CHECK (estado IN ('activo', 'inactivo', 'pendiente', 'bloqueado', 'vacaciones'));
