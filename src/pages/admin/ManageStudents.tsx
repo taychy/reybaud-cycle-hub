@@ -696,8 +696,9 @@ const ManageStudents = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Estado</span>
-                  <Badge variant={detailAlumno.estado === "activo" ? "default" : "outline"} className="text-xs">
+                  <Badge variant={getEstadoBadge(detailAlumno.estado).variant} className={`text-xs ${getEstadoBadge(detailAlumno.estado).className}`}>
                     {detailAlumno.estado}
+                  </Badge>
                   </Badge>
                 </div>
               </div>
