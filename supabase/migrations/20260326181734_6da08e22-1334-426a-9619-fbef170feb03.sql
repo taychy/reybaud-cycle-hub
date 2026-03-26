@@ -1,0 +1,1 @@
+ALTER TABLE public.alumnos ADD COLUMN apellido text DEFAULT NULL;
