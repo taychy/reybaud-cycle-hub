@@ -35,6 +35,7 @@ import AdminBilling from "./pages/admin/billing/AdminBilling";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
+import EventsList from "./pages/admin/EventsList";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import CompleteRegistration from "./pages/CompleteRegistration";
@@ -101,6 +102,7 @@ const App = () => (
             <Route path="facturacion" element={<AdminBilling />} />
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
+            <Route path="eventos" element={<EventsList />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
