@@ -95,11 +95,13 @@ interface Event {
   title: string;
   description: string | null;
   date: string;
+  end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   type: string;
   is_active: boolean;
   visible_to_students: boolean;
+  is_own_event: boolean;
   image_url: string | null;
   location: string | null;
   price: number | null;
@@ -115,11 +117,13 @@ const emptyForm = {
   title: "",
   description: "",
   date: "",
+  end_date: "",
   start_time: "",
   end_time: "",
   type: "otro",
   is_active: true,
   visible_to_students: true,
+  is_own_event: true,
   image_url: "",
   location: "",
   price: "",
@@ -195,11 +199,13 @@ const EventsList = () => {
       title: ev.title,
       description: ev.description || "",
       date: ev.date,
+      end_date: ev.end_date || "",
       start_time: ev.start_time || "",
       end_time: ev.end_time || "",
       type: ev.type,
       is_active: ev.is_active,
       visible_to_students: ev.visible_to_students,
+      is_own_event: ev.is_own_event,
       image_url: ev.image_url || "",
       location: ev.location || "",
       price: ev.price?.toString() || "",
@@ -248,14 +254,16 @@ const EventsList = () => {
       title: form.title,
       description: form.description || null,
       date: form.date,
+      end_date: form.end_date || null,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
       type: form.type,
       is_active: form.is_active,
       visible_to_students: form.visible_to_students,
+      is_own_event: form.is_own_event,
       image_url: form.image_url || null,
       location: form.location || null,
-      price: form.price ? parseFloat(form.price) : null,
+      price: form.is_own_event && form.price ? parseFloat(form.price) : null,
       currency: form.currency,
       duration_days: form.duration_days ? parseInt(form.duration_days) : null,
       duration_nights: form.duration_nights ? parseInt(form.duration_nights) : null,
@@ -493,11 +501,24 @@ const EventsList = () => {
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Nombre del evento" />
             </div>
 
+            {/* Evento propio / externo */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+              <Switch checked={form.is_own_event} onCheckedChange={(v) => setForm({ ...form, is_own_event: v })} />
+              <Label className="text-sm">{form.is_own_event ? "Evento propio (Reybaud)" : "Evento externo"}</Label>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Fecha *</Label>
+                <Label>{form.end_date ? "Fecha inicio *" : "Fecha *"}</Label>
                 <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               </div>
+              <div className="space-y-1.5">
+                <Label>Fecha fin <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+                <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} min={form.date} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Tipo *</Label>
                 <Select value={typeToGroup(form.type)} onValueChange={(v) => {
@@ -535,26 +556,33 @@ const EventsList = () => {
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Precio</Label>
-                <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" />
+            {form.is_own_event ? (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Precio</Label>
+                  <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Moneda</Label>
+                  <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ARS">ARS</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Capacidad</Label>
+                  <Input type="number" value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="∞" />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Moneda</Label>
-                <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ARS">ARS</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            ) : (
               <div className="space-y-1.5">
                 <Label>Capacidad</Label>
                 <Input type="number" value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="∞" />
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
