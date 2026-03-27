@@ -543,27 +543,34 @@ const EventForm = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label>Precio</Label>
-              <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Moneda</Label>
-              <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ARS">ARS</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Seña / Reserva</Label>
-              <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
-            </div>
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+            <Switch checked={meta.is_free || false} onCheckedChange={(v) => { updateMeta("is_free", v); if (v) { updateMeta("price", "0"); updateMeta("deposit_amount", ""); } }} />
+            <Label className="text-sm">Evento gratuito</Label>
           </div>
+
+          {!meta.is_free && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Precio</Label>
+                <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Moneda</Label>
+                <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Seña / Reserva</Label>
+                <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
