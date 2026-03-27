@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2, XCircle, Clock, MessageSquare } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
+import { UnregisteredSessions } from "@/components/progress/UnregisteredSessions";
 import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
+import { useCallback } from "react";
 
 interface FeedbackRecord {
   id: string;
