@@ -51,6 +51,7 @@ export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
 
       toast.success("Sesión extra registrada");
       setOpen(false);
+      setNombre("");
       setTipo("libre");
       setFecha(new Date());
       setDuracion("");
