@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ShieldAlert, Loader2 } from "lucide-react";
 
 interface Emisor {
   id: string;
@@ -12,6 +13,8 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
+  cert_pem?: string | null;
+  key_pem?: string | null;
 }
 
 interface FacturaRow {
@@ -48,40 +51,56 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
   if (!factura) return null;
 
   const activeEmisores = emisores.filter((e) => e.activo);
+  const selectedEmisor = emisores.find((e) => e.id === emisorId);
+  const emisorHasCerts = selectedEmisor ? !!(selectedEmisor.cert_pem && selectedEmisor.key_pem) : false;
 
   const handleEmit = async () => {
     if (!emisorId) {
       toast.error("Seleccioná un emisor fiscal");
       return;
     }
+
+    if (!emisorHasCerts) {
+      toast.error("El emisor seleccionado no tiene certificado AFIP configurado");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // TODO: Integración real con AFIP via edge function
-      // Por ahora, registrar la factura como emitida con datos manuales
-      const now = new Date().toISOString();
-      const emisor = emisores.find((e) => e.id === emisorId);
-      const fakeComprobante = `FC-${emisor?.punto_venta?.toString().padStart(4, "0") || "0001"}-${String(Date.now()).slice(-8)}`;
-
-      const { error } = await supabase
+      // First update client data on the factura
+      await supabase
         .from("facturas")
         .update({
-          emisor_id: emisorId,
           cliente_cuit: clienteCuit.trim() || null,
           condicion_fiscal: condicion,
-          estado: "emitida",
-          numero_comprobante: fakeComprobante,
-          fecha_emision: now,
         } as any)
         .eq("id", factura.id);
 
+      // Call AFIP edge function
+      const { data, error } = await supabase.functions.invoke("emit-factura-afip", {
+        body: {
+          factura_id: factura.id,
+          emisor_id: emisorId,
+          cliente_cuit: clienteCuit.trim() || null,
+          condicion_fiscal: condicion,
+        },
+      });
+
       if (error) throw error;
 
-      toast.success(`Factura ${fakeComprobante} registrada`);
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success(
+        `Factura emitida: N° ${data.numero_comprobante} — CAE: ${data.cae}`
+      );
       onOpenChange(false);
       onEmitted();
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al emitir la factura");
+    } catch (err: any) {
+      console.error("Error emitting invoice:", err);
+      toast.error(err?.message || "Error al emitir la factura contra AFIP");
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +110,7 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-heading">Generar factura</DialogTitle>
+          <DialogTitle className="font-heading">Generar factura AFIP</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
@@ -105,10 +124,13 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">DNI / CUIT del cliente</label>
             <Input
-              placeholder="Ej: 20-12345678-9"
+              placeholder="Ej: 20-12345678-9 o DNI 12345678"
               value={clienteCuit}
               onChange={(e) => setClienteCuit(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Dejalo vacío para Consumidor Final sin identificar
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -130,27 +152,42 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
             {activeEmisores.length === 0 ? (
               <p className="text-xs text-destructive">No hay emisores activos. Configuralos en la pestaña Emisores.</p>
             ) : (
-              <Select value={emisorId} onValueChange={setEmisorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar emisor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeEmisores.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nombre_fiscal} — {e.cuit}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={emisorId} onValueChange={setEmisorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar emisor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeEmisores.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.nombre_fiscal} — {e.cuit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {emisorId && !emisorHasCerts && (
+                  <div className="flex items-center gap-1.5 text-yellow-500">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    <p className="text-xs">Este emisor no tiene certificado AFIP. Configuralo en Emisores.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
           <Button
             className="w-full"
-            disabled={submitting || activeEmisores.length === 0}
+            disabled={submitting || activeEmisores.length === 0 || !emisorHasCerts}
             onClick={handleEmit}
           >
-            {submitting ? "Emitiendo..." : "Emitir factura"}
+            {submitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Emitiendo contra AFIP...
+              </>
+            ) : (
+              "Emitir factura AFIP"
+            )}
           </Button>
         </div>
       </DialogContent>
