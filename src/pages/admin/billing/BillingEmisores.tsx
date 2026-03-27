@@ -15,7 +15,11 @@ interface Emisor {
   activo: boolean;
 }
 
-export function BillingEmisores() {
+interface BillingEmisoresProps {
+  onDataChange?: () => void;
+}
+
+export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
   const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
