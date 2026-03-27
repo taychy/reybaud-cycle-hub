@@ -1,0 +1,604 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Search,
+  Plus,
+  Pencil,
+  Copy,
+  Trash2,
+  Eye,
+  EyeOff,
+  CalendarDays,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+
+/* ─── Type groupings ─── */
+type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
+
+const tabGroups: Record<TabFilter, string[]> = {
+  todos: [],
+  escuela: ["record_hora", "otro"],
+  carrera: ["carrera"],
+  camp_viaje: ["camp", "viaje"],
+};
+
+const tabs: { key: TabFilter; label: string; color: string; bg: string }[] = [
+  { key: "todos", label: "Todos", color: "text-foreground", bg: "bg-muted" },
+  { key: "escuela", label: "Escuela", color: "text-sky-300", bg: "bg-sky-500/20" },
+  { key: "carrera", label: "Carrera", color: "text-orange-300", bg: "bg-orange-500/20" },
+  { key: "camp_viaje", label: "Camp / Viaje", color: "text-violet-300", bg: "bg-violet-500/20" },
+];
+
+const typeToGroup = (type: string): TabFilter => {
+  if (["record_hora", "otro"].includes(type)) return "escuela";
+  if (type === "carrera") return "carrera";
+  if (["camp", "viaje"].includes(type)) return "camp_viaje";
+  return "escuela";
+};
+
+const groupLabel: Record<TabFilter, string> = {
+  todos: "Todos",
+  escuela: "Escuela",
+  carrera: "Carrera",
+  camp_viaje: "Camp / Viaje",
+};
+
+const typeDisplayLabels: Record<string, string> = {
+  record_hora: "Record",
+  otro: "Evento",
+  carrera: "Carrera",
+  camp: "Camp",
+  viaje: "Viaje",
+};
+
+// Form type options mapping to DB types
+const formTypeOptions: { label: string; group: TabFilter; dbType: string }[] = [
+  { label: "Escuela", group: "escuela", dbType: "otro" },
+  { label: "Carrera", group: "carrera", dbType: "carrera" },
+  { label: "Camp / Viaje", group: "camp_viaje", dbType: "camp" },
+];
+
+interface Event {
+  id: string;
+  title: string;
+  description: string | null;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+  type: string;
+  is_active: boolean;
+  visible_to_students: boolean;
+  image_url: string | null;
+  location: string | null;
+  price: number | null;
+  currency: string;
+  duration_days: number | null;
+  duration_nights: number | null;
+  max_capacity: number | null;
+  spots_taken: number;
+  level: string | null;
+}
+
+const emptyForm = {
+  title: "",
+  description: "",
+  date: "",
+  start_time: "",
+  end_time: "",
+  type: "otro",
+  is_active: true,
+  visible_to_students: true,
+  image_url: "",
+  location: "",
+  price: "",
+  currency: "ARS",
+  duration_days: "",
+  duration_nights: "",
+  max_capacity: "",
+  level: "",
+};
+
+const EventsList = () => {
+  const { toast } = useToast();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabFilter>("todos");
+  const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [publishedFilter, setPublishedFilter] = useState<string>("all");
+
+  // Form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+
+  const fetchEvents = async () => {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .order("date", { ascending: false });
+
+    if (!error && data) setEvents(data as unknown as Event[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  /* ─── Filtering ─── */
+  const filtered = events.filter((e) => {
+    // Tab filter
+    if (tab !== "todos" && !tabGroups[tab].includes(e.type)) return false;
+    // Search
+    if (search) {
+      const q = search.toLowerCase();
+      if (
+        !e.title.toLowerCase().includes(q) &&
+        !(e.location || "").toLowerCase().includes(q)
+      )
+        return false;
+    }
+    // Status
+    if (statusFilter === "active" && !e.is_active) return false;
+    if (statusFilter === "inactive" && e.is_active) return false;
+    // Published
+    if (publishedFilter === "published" && !e.visible_to_students) return false;
+    if (publishedFilter === "unpublished" && e.visible_to_students) return false;
+    return true;
+  });
+
+  /* ─── CRUD ─── */
+  const openCreate = () => {
+    setEditingEvent(null);
+    setForm(emptyForm);
+    setFormOpen(true);
+  };
+
+  const openEdit = (ev: Event) => {
+    setEditingEvent(ev);
+    setForm({
+      title: ev.title,
+      description: ev.description || "",
+      date: ev.date,
+      start_time: ev.start_time || "",
+      end_time: ev.end_time || "",
+      type: ev.type,
+      is_active: ev.is_active,
+      visible_to_students: ev.visible_to_students,
+      image_url: ev.image_url || "",
+      location: ev.location || "",
+      price: ev.price?.toString() || "",
+      currency: ev.currency,
+      duration_days: ev.duration_days?.toString() || "",
+      duration_nights: ev.duration_nights?.toString() || "",
+      max_capacity: ev.max_capacity?.toString() || "",
+      level: ev.level || "",
+    });
+    setFormOpen(true);
+  };
+
+  const duplicateEvent = async (ev: Event) => {
+    const { id, spots_taken, ...rest } = ev;
+    const { error } = await supabase.from("events").insert({
+      ...rest,
+      title: `${ev.title} (copia)`,
+      spots_taken: 0,
+    } as any);
+    if (error) {
+      toast({ title: "Error", description: "No se pudo duplicar.", variant: "destructive" });
+    } else {
+      toast({ title: "Duplicado", description: "Evento duplicado correctamente." });
+      fetchEvents();
+    }
+  };
+
+  const deleteEvent = async (id: string) => {
+    const { error } = await supabase.from("events").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "No se pudo eliminar.", variant: "destructive" });
+    } else {
+      toast({ title: "Eliminado" });
+      fetchEvents();
+    }
+  };
+
+  const saveEvent = async () => {
+    if (!form.title || !form.date) {
+      toast({ title: "Faltan datos", description: "Título y fecha son obligatorios.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+
+    const payload: any = {
+      title: form.title,
+      description: form.description || null,
+      date: form.date,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
+      type: form.type,
+      is_active: form.is_active,
+      visible_to_students: form.visible_to_students,
+      image_url: form.image_url || null,
+      location: form.location || null,
+      price: form.price ? parseFloat(form.price) : null,
+      currency: form.currency,
+      duration_days: form.duration_days ? parseInt(form.duration_days) : null,
+      duration_nights: form.duration_nights ? parseInt(form.duration_nights) : null,
+      max_capacity: form.max_capacity ? parseInt(form.max_capacity) : null,
+      level: form.level || null,
+    };
+
+    let error;
+    if (editingEvent) {
+      ({ error } = await supabase.from("events").update(payload).eq("id", editingEvent.id));
+    } else {
+      ({ error } = await supabase.from("events").insert(payload));
+    }
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: editingEvent ? "Actualizado" : "Creado" });
+      setFormOpen(false);
+      fetchEvents();
+    }
+    setSaving(false);
+  };
+
+  /* ─── Badge color by group ─── */
+  const typeBadge = (type: string) => {
+    const group = typeToGroup(type);
+    const t = tabs.find((t) => t.key === group);
+    return (
+      <span className={`text-[10px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full ${t?.bg || "bg-muted"} ${t?.color || "text-foreground"}`}>
+        {typeDisplayLabels[type] || type}
+      </span>
+    );
+  };
+
+  const activeFilters = statusFilter !== "all" || publishedFilter !== "all";
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Eventos</h1>
+          <p className="text-sm text-muted-foreground">{events.length} eventos en total</p>
+        </div>
+        <Button variant="gold" onClick={openCreate} className="gap-2">
+          <Plus className="w-4 h-4" /> Nuevo Evento
+        </Button>
+      </div>
+
+      {/* Tab Filters */}
+      <div className="flex gap-2 flex-wrap">
+        {tabs.map((t) => {
+          const isActive = tab === t.key;
+          const count = t.key === "todos"
+            ? events.length
+            : events.filter((e) => tabGroups[t.key].includes(e.type)).length;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-heading font-semibold transition-all flex items-center gap-2 ${
+                isActive
+                  ? `${t.bg} ${t.color} ring-1 ring-current shadow-md`
+                  : "bg-card/50 text-muted-foreground hover:bg-card border border-border/50"
+              }`}
+            >
+              {t.label}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? "bg-white/10" : "bg-muted"}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search + Secondary Filters */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre o ubicación..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button
+          variant={activeFilters ? "default" : "outline"}
+          size="icon"
+          onClick={() => setShowFilters(!showFilters)}
+          className="relative"
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          {activeFilters && (
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary" />
+          )}
+        </Button>
+      </div>
+
+      {/* Secondary Filters */}
+      {showFilters && (
+        <div className="flex flex-wrap gap-3 items-end p-4 rounded-lg bg-card/50 border border-border/50">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Estado</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="active">Activo</SelectItem>
+                <SelectItem value="inactive">Inactivo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Publicado</Label>
+            <Select value={publishedFilter} onValueChange={setPublishedFilter}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="published">Publicado</SelectItem>
+                <SelectItem value="unpublished">No publicado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {activeFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setStatusFilter("all"); setPublishedFilter("all"); }}
+              className="text-xs gap-1"
+            >
+              <X className="w-3 h-3" /> Limpiar
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Events List */}
+      {loading ? (
+        <div className="text-center text-muted-foreground animate-pulse py-8">Cargando...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center text-muted-foreground py-12">
+          <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          <p className="text-sm">No hay eventos que coincidan.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((ev) => {
+            const d = new Date(ev.date + "T12:00:00");
+            const dateStr = d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+            return (
+              <div
+                key={ev.id}
+                className="glass-card rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+              >
+                {/* Info */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-sm truncate">{ev.title}</h3>
+                    {typeBadge(ev.type)}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="w-3 h-3" /> {dateStr}
+                    </span>
+                    {ev.location && <span className="truncate">{ev.location}</span>}
+                  </div>
+                </div>
+
+                {/* Status badges */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {ev.is_active ? (
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-400">Activo</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-400">Inactivo</Badge>
+                  )}
+                  {ev.visible_to_students ? (
+                    <Badge variant="outline" className="text-[10px] border-sky-500/50 text-sky-400 gap-1">
+                      <Eye className="w-3 h-3" /> Publicado
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] border-muted text-muted-foreground gap-1">
+                      <EyeOff className="w-3 h-3" /> Oculto
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(ev)} title="Editar">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => duplicateEvent(ev)} title="Duplicar">
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" title="Eliminar">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar "{ev.title}"?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteEvent(ev.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              {editingEvent ? "Editar Evento" : "Nuevo Evento"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Título *</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Nombre del evento" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Fecha *</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo *</Label>
+                <Select value={typeToGroup(form.type)} onValueChange={(v) => {
+                  const opt = formTypeOptions.find((o) => o.group === v);
+                  if (opt) setForm({ ...form, type: opt.dbType });
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {formTypeOptions.map((o) => (
+                      <SelectItem key={o.group} value={o.group}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Hora inicio</Label>
+                <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Hora fin</Label>
+                <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Ubicación</Label>
+              <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Ej: KDT, Palermo" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Descripción</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Precio</Label>
+                <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Moneda</Label>
+                <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Capacidad</Label>
+                <Input type="number" value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="∞" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Días</Label>
+                <Input type="number" value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Noches</Label>
+                <Input type="number" value={form.duration_nights} onChange={(e) => setForm({ ...form, duration_nights: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Nivel</Label>
+              <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} placeholder="Ej: Principiante, Intermedio" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>URL imagen</Label>
+              <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+                <Label className="text-sm">Activo</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={form.visible_to_students} onCheckedChange={(v) => setForm({ ...form, visible_to_students: v })} />
+                <Label className="text-sm">Publicado</Label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="gold" onClick={saveEvent} disabled={saving} className="flex-1">
+                {saving ? "Guardando..." : editingEvent ? "Guardar cambios" : "Crear evento"}
+              </Button>
+              <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default EventsList;
