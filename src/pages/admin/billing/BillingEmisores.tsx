@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 interface Emisor {
@@ -13,6 +14,8 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
+  cert_pem?: string | null;
+  key_pem?: string | null;
 }
 
 interface BillingEmisoresProps {
@@ -24,7 +27,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Emisor | null>(null);
-  const [form, setForm] = useState({ nombre_fiscal: "", cuit: "", punto_venta: "1" });
+  const [form, setForm] = useState({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
@@ -40,13 +43,19 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1" });
+    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (e: Emisor) => {
     setEditing(e);
-    setForm({ nombre_fiscal: e.nombre_fiscal, cuit: e.cuit, punto_venta: String(e.punto_venta) });
+    setForm({
+      nombre_fiscal: e.nombre_fiscal,
+      cuit: e.cuit,
+      punto_venta: String(e.punto_venta),
+      cert_pem: e.cert_pem || "",
+      key_pem: e.key_pem || "",
+    });
     setDialogOpen(true);
   };
 
@@ -61,6 +70,8 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         nombre_fiscal: form.nombre_fiscal.trim(),
         cuit: form.cuit.trim(),
         punto_venta: parseInt(form.punto_venta) || 1,
+        cert_pem: form.cert_pem.trim() || null,
+        key_pem: form.key_pem.trim() || null,
       };
 
       if (editing) {
@@ -97,6 +108,8 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     onDataChange?.();
   };
 
+  const hasCerts = (e: Emisor) => !!(e.cert_pem && e.key_pem);
+
   if (loading) return <div className="text-muted-foreground text-center py-8">Cargando...</div>;
 
   return (
@@ -128,6 +141,19 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                   <p className="text-sm font-semibold text-foreground">{e.nombre_fiscal}</p>
                   <p className="text-xs text-muted-foreground">CUIT: {e.cuit}</p>
                   <p className="text-xs text-muted-foreground">Pto. Venta: {e.punto_venta}</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {hasCerts(e) ? (
+                      <>
+                        <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-xs text-green-500">Certificado AFIP cargado</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldAlert className="w-3.5 h-3.5 text-yellow-500" />
+                        <span className="text-xs text-yellow-500">Sin certificado AFIP</span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(e)}>
@@ -142,7 +168,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading">
               {editing ? "Editar emisor" : "Nuevo emisor fiscal"}
@@ -174,6 +200,39 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                 onChange={(e) => setForm({ ...form, punto_venta: e.target.value })}
               />
             </div>
+
+            <div className="border-t border-border pt-4 space-y-1">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" />
+                Certificado digital AFIP
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Pegá el contenido del certificado (.pem/.crt) y la clave privada (.key) para emitir facturas reales contra AFIP.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Certificado (.pem / .crt)</label>
+              <Textarea
+                placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                rows={4}
+                className="font-mono text-xs"
+                value={form.cert_pem}
+                onChange={(e) => setForm({ ...form, cert_pem: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Clave privada (.key)</label>
+              <Textarea
+                placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                rows={4}
+                className="font-mono text-xs"
+                value={form.key_pem}
+                onChange={(e) => setForm({ ...form, key_pem: e.target.value })}
+              />
+            </div>
+
             <Button className="w-full" disabled={submitting} onClick={handleSave}>
               {submitting ? "Guardando..." : editing ? "Actualizar" : "Crear emisor"}
             </Button>
