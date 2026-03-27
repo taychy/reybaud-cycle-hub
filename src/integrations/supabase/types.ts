@@ -328,6 +328,36 @@ export type Database = {
         }
         Relationships: []
       }
+      emisores_fiscales: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cuit: string
+          id: string
+          nombre_fiscal: string
+          punto_venta: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cuit: string
+          id?: string
+          nombre_fiscal: string
+          punto_venta?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cuit?: string
+          id?: string
+          nombre_fiscal?: string
+          punto_venta?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       entrenamientos: {
         Row: {
           created_at: string
@@ -623,6 +653,84 @@ export type Database = {
           visible_to_students?: boolean
         }
         Relationships: []
+      }
+      facturas: {
+        Row: {
+          alumno_id: string | null
+          cae: string | null
+          cae_vencimiento: string | null
+          cliente_cuit: string | null
+          cliente_nombre: string
+          concepto: string
+          condicion_fiscal: string
+          created_at: string
+          emisor_id: string | null
+          error_detalle: string | null
+          estado: string
+          fecha_emision: string | null
+          id: string
+          monto: number
+          numero_comprobante: string | null
+          referencia_id: string | null
+          referencia_tipo: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          cae?: string | null
+          cae_vencimiento?: string | null
+          cliente_cuit?: string | null
+          cliente_nombre: string
+          concepto: string
+          condicion_fiscal?: string
+          created_at?: string
+          emisor_id?: string | null
+          error_detalle?: string | null
+          estado?: string
+          fecha_emision?: string | null
+          id?: string
+          monto: number
+          numero_comprobante?: string | null
+          referencia_id?: string | null
+          referencia_tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          cae?: string | null
+          cae_vencimiento?: string | null
+          cliente_cuit?: string | null
+          cliente_nombre?: string
+          concepto?: string
+          condicion_fiscal?: string
+          created_at?: string
+          emisor_id?: string | null
+          error_detalle?: string | null
+          estado?: string
+          fecha_emision?: string | null
+          id?: string
+          monto?: number
+          numero_comprobante?: string | null
+          referencia_id?: string | null
+          referencia_tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feedback_coach: {
         Row: {
