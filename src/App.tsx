@@ -31,6 +31,7 @@ import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
 import AuditLog from "./pages/admin/AuditLog";
 import AdminPayments from "./pages/admin/AdminPayments";
+import AdminBilling from "./pages/admin/billing/AdminBilling";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="planes" element={<ManagePlanes />} />
             <Route path="precios" element={<ManagePrecios />} />
             <Route path="pagos" element={<AdminPayments />} />
+            <Route path="facturacion" element={<AdminBilling />} />
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
