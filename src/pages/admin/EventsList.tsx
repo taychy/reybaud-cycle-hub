@@ -583,12 +583,7 @@ const EventsList = () => {
                   <Input type="number" value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="∞" />
                 </div>
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label>Capacidad</Label>
-                <Input type="number" value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="∞" />
-              </div>
-            )}
+            ) : null}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
