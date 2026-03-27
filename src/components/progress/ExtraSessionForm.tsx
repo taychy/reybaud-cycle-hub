@@ -28,6 +28,7 @@ const TIPOS = [
 
 export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
   const [open, setOpen] = useState(false);
+  const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState("libre");
   const [fecha, setFecha] = useState<Date>(new Date());
   const [duracion, setDuracion] = useState("");
