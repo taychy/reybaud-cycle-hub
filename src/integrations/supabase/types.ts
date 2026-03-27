@@ -331,27 +331,33 @@ export type Database = {
       emisores_fiscales: {
         Row: {
           activo: boolean
+          cert_pem: string | null
           created_at: string
           cuit: string
           id: string
+          key_pem: string | null
           nombre_fiscal: string
           punto_venta: number
           updated_at: string
         }
         Insert: {
           activo?: boolean
+          cert_pem?: string | null
           created_at?: string
           cuit: string
           id?: string
+          key_pem?: string | null
           nombre_fiscal: string
           punto_venta?: number
           updated_at?: string
         }
         Update: {
           activo?: boolean
+          cert_pem?: string | null
           created_at?: string
           cuit?: string
           id?: string
+          key_pem?: string | null
           nombre_fiscal?: string
           punto_venta?: number
           updated_at?: string
