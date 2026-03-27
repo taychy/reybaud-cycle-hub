@@ -96,6 +96,29 @@ export const StudentProgressContent = () => {
           merged.push({ id: asist.id, estado: "realizada", fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "asistencia" });
         }
       }
+      // Fetch sesiones extra del mes
+      const { data: extras } = await supabase
+        .from("sesiones_extra")
+        .select("id, fecha, tipo, nombre, comentario")
+        .eq("alumno_id", aId)
+        .gte("fecha", fromDate)
+        .lte("fecha", toDate)
+        .order("fecha", { ascending: false });
+
+      for (const ex of (extras || [])) {
+        merged.push({
+          id: ex.id,
+          estado: "realizada",
+          fecha: ex.fecha,
+          titulo: (ex as any).nombre || `Sesión extra`,
+          tipo: ex.tipo,
+          source: "extra",
+        });
+      }
+
+      // Sort by date descending
+      merged.sort((a, b) => b.fecha.localeCompare(a.fecha));
+
       if (!cancelled) setSessions(merged);
 
       const { data: feedbackData } = await supabase
