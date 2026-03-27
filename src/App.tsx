@@ -31,6 +31,7 @@ import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
 import AuditLog from "./pages/admin/AuditLog";
 import AdminPayments from "./pages/admin/AdminPayments";
+import AdminBilling from "./pages/admin/billing/AdminBilling";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
