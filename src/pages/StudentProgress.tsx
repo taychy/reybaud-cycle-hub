@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
 import { UnregisteredSessions } from "@/components/progress/UnregisteredSessions";
 import { ExtraSessionForm } from "@/components/progress/ExtraSessionForm";
+import { MainGoalCard } from "@/components/progress/MainGoalCard";
 import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
 import { useCallback } from "react";
 
