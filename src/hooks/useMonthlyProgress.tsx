@@ -123,7 +123,7 @@ export function useMonthlyProgress(alumnoId: string | null, grupo: string | null
     };
 
     load();
-  }, [alumnoId, grupo]);
+  }, [alumnoId, grupo, refreshKey]);
 
   return data;
 }

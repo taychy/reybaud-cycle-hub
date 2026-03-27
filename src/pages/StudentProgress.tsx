@@ -43,8 +43,10 @@ export const StudentProgressContent = () => {
   const [grupo, setGrupo] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const progress = useMonthlyProgress(alumnoId, grupo);
+  const progress = useMonthlyProgress(alumnoId, grupo, refreshKey);
+  const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
     const load = async () => {
