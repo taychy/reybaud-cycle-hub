@@ -126,8 +126,20 @@ export const StudentProgressContent = () => {
       }
     };
 
-    // Listen for auth state - handles refresh correctly
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // First restore session from storage (waits for token refresh)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (!session?.user) {
+        navigate("/");
+        return;
+      }
+      const email = session.user.email?.toLowerCase().trim() || "";
+      resolveAlumno(session.user.id, email);
+    });
+
+    // Then listen for future auth changes (sign out, token refresh, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return; // Already handled by getSession
       if (!session?.user) {
         if (!cancelled) navigate("/");
         return;
