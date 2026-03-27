@@ -326,7 +326,7 @@ async function signCMS(data: string, certPem: string, keyPem: string): Promise<s
     }
 
     const cmsBytes = await Deno.readFile(outFile);
-    return base64Encode(cmsBytes);
+    return encodeBase64(cmsBytes);
   } finally {
     // Cleanup
     try { await Deno.remove(tmpDir, { recursive: true }); } catch { /* ok */ }
