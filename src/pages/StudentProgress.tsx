@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, XCircle, Clock, MessageSquare } from "lucide-r
 import logo from "@/assets/logo.png";
 import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
 import { UnregisteredSessions } from "@/components/progress/UnregisteredSessions";
+import { ExtraSessionForm } from "@/components/progress/ExtraSessionForm";
 import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
 import { useCallback } from "react";
 
@@ -187,6 +188,11 @@ export const StudentProgressContent = () => {
           grupo={grupo}
           onUpdate={handleProgressUpdate}
         />
+      )}
+
+      {/* Extra Session */}
+      {alumnoId && (
+        <ExtraSessionForm alumnoId={alumnoId} onCreated={handleProgressUpdate} />
       )}
 
       {/* Session History */}
