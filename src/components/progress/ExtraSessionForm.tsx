@@ -28,6 +28,7 @@ const TIPOS = [
 
 export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
   const [open, setOpen] = useState(false);
+  const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState("libre");
   const [fecha, setFecha] = useState<Date>(new Date());
   const [duracion, setDuracion] = useState("");
@@ -43,12 +44,14 @@ export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
         fecha: format(fecha, "yyyy-MM-dd"),
         duracion_minutos: duracion ? parseInt(duracion) : null,
         comentario: comentario.trim() || null,
-      });
+        nombre: nombre.trim() || null,
+      } as any);
 
       if (error) throw error;
 
       toast.success("Sesión extra registrada");
       setOpen(false);
+      setNombre("");
       setTipo("libre");
       setFecha(new Date());
       setDuracion("");
@@ -73,6 +76,17 @@ export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
           <DialogTitle className="font-heading">Cargar sesión extra</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Nombre */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Nombre de la sesión (opcional)</label>
+            <Input
+              placeholder="Ej: Salida por el lago"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              maxLength={100}
+            />
+          </div>
+
           {/* Tipo */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Tipo</label>

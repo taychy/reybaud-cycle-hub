@@ -1042,6 +1042,7 @@ export type Database = {
           duracion_minutos: number | null
           fecha: string
           id: string
+          nombre: string | null
           tipo: string
         }
         Insert: {
@@ -1051,6 +1052,7 @@ export type Database = {
           duracion_minutos?: number | null
           fecha: string
           id?: string
+          nombre?: string | null
           tipo?: string
         }
         Update: {
@@ -1060,6 +1062,7 @@ export type Database = {
           duracion_minutos?: number | null
           fecha?: string
           id?: string
+          nombre?: string | null
           tipo?: string
         }
         Relationships: [

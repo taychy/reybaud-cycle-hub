@@ -1,0 +1,1 @@
+ALTER TABLE public.sesiones_extra ADD COLUMN nombre text NULL;
