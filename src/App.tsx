@@ -102,6 +102,7 @@ const App = () => (
             <Route path="facturacion" element={<AdminBilling />} />
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
+            <Route path="eventos" element={<EventsList />} />
             <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
