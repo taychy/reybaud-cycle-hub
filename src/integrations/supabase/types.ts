@@ -720,7 +720,8 @@ export type Database = {
           activo: boolean
           alumno_id: string
           created_at: string
-          fecha_objetivo: string | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
           id: string
           nombre: string
           updated_at: string
@@ -729,7 +730,8 @@ export type Database = {
           activo?: boolean
           alumno_id: string
           created_at?: string
-          fecha_objetivo?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           id?: string
           nombre: string
           updated_at?: string
@@ -738,7 +740,8 @@ export type Database = {
           activo?: boolean
           alumno_id?: string
           created_at?: string
-          fecha_objetivo?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           id?: string
           nombre?: string
           updated_at?: string
