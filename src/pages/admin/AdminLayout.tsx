@@ -13,6 +13,7 @@ const navItems = [
   { to: "/admin/planes", label: "Planes", icon: Package },
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
   { to: "/admin/pagos", label: "Pagos", icon: Receipt },
+  { to: "/admin/facturacion", label: "Facturación", icon: FileText },
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
