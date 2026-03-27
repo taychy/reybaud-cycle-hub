@@ -15,7 +15,11 @@ interface Emisor {
   activo: boolean;
 }
 
-export function BillingEmisores() {
+interface BillingEmisoresProps {
+  onDataChange?: () => void;
+}
+
+export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
   const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,6 +80,7 @@ export function BillingEmisores() {
 
       setDialogOpen(false);
       await load();
+      onDataChange?.();
     } catch {
       toast.error("Error al guardar");
     } finally {
@@ -89,6 +94,7 @@ export function BillingEmisores() {
       .update({ activo: !emisor.activo } as any)
       .eq("id", emisor.id);
     await load();
+    onDataChange?.();
   };
 
   if (loading) return <div className="text-muted-foreground text-center py-8">Cargando...</div>;
