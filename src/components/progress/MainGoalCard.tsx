@@ -39,15 +39,23 @@ export function MainGoalCard({ alumnoId }: Props) {
   const [sameDay, setSameDay] = useState(false);
 
   const loadGoals = async () => {
-    const { data } = await supabase
-      .from("objetivos_alumno")
-      .select("id, nombre, fecha_inicio, fecha_fin, activo")
-      .eq("alumno_id", alumnoId)
-      .eq("activo", true)
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("objetivos_alumno")
+        .select("id, nombre, fecha_inicio, fecha_fin, activo")
+        .eq("alumno_id", alumnoId)
+        .eq("activo", true)
+        .order("created_at", { ascending: false });
 
-    setObjetivos((data as Objetivo[]) || []);
-    setLoading(false);
+      if (error) {
+        console.error("Error loading goals:", error);
+        return;
+      }
+
+      setObjetivos((data as Objetivo[]) || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
