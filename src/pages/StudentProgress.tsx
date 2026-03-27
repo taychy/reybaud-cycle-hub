@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2, XCircle, Clock, MessageSquare } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
+import { UnregisteredSessions } from "@/components/progress/UnregisteredSessions";
 import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
+import { useCallback } from "react";
 
 interface FeedbackRecord {
   id: string;
@@ -41,8 +43,10 @@ export const StudentProgressContent = () => {
   const [grupo, setGrupo] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const progress = useMonthlyProgress(alumnoId, grupo);
+  const progress = useMonthlyProgress(alumnoId, grupo, refreshKey);
+  const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
     const load = async () => {
@@ -175,6 +179,15 @@ export const StudentProgressContent = () => {
 
       {/* Monthly Progress */}
       <MonthlyProgressCard data={progress} />
+
+      {/* Unregistered Sessions */}
+      {alumnoId && grupo && (
+        <UnregisteredSessions
+          alumnoId={alumnoId}
+          grupo={grupo}
+          onUpdate={handleProgressUpdate}
+        />
+      )}
 
       {/* Session History */}
       <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
