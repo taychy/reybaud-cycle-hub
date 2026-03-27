@@ -122,7 +122,7 @@ export default function AdminBilling() {
         </TabsContent>
 
         <TabsContent value="emisores">
-          <BillingEmisores />
+          <BillingEmisores onDataChange={loadData} />
         </TabsContent>
       </Tabs>
 

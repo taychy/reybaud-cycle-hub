@@ -94,6 +94,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       .update({ activo: !emisor.activo } as any)
       .eq("id", emisor.id);
     await load();
+    onDataChange?.();
   };
 
   if (loading) return <div className="text-muted-foreground text-center py-8">Cargando...</div>;
