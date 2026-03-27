@@ -267,7 +267,7 @@ const EventsList = () => {
       currency: form.currency,
       duration_days: form.duration_days ? parseInt(form.duration_days) : null,
       duration_nights: form.duration_nights ? parseInt(form.duration_nights) : null,
-      max_capacity: form.max_capacity ? parseInt(form.max_capacity) : null,
+      max_capacity: form.is_own_event && form.max_capacity ? parseInt(form.max_capacity) : null,
       level: form.level || null,
     };
 
@@ -509,7 +509,17 @@ const EventsList = () => {
 
             {/* Evento propio / externo */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-              <Switch checked={form.is_own_event} onCheckedChange={(v) => setForm({ ...form, is_own_event: v })} />
+              <Switch
+                checked={form.is_own_event}
+                onCheckedChange={(v) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    is_own_event: v,
+                    price: v ? prev.price : "",
+                    max_capacity: v ? prev.max_capacity : "",
+                  }))
+                }
+              />
               <Label className="text-sm">{form.is_own_event ? "Evento propio (Reybaud)" : "Evento externo"}</Label>
             </div>
 
