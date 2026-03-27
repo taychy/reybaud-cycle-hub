@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
 import { UnregisteredSessions } from "@/components/progress/UnregisteredSessions";
 import { ExtraSessionForm } from "@/components/progress/ExtraSessionForm";
+import { MainGoalCard } from "@/components/progress/MainGoalCard";
 import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
 import { useCallback } from "react";
 
@@ -194,6 +195,9 @@ export const StudentProgressContent = () => {
       {alumnoId && (
         <ExtraSessionForm alumnoId={alumnoId} onCreated={handleProgressUpdate} />
       )}
+
+      {/* Main Goal */}
+      {alumnoId && <MainGoalCard alumnoId={alumnoId} />}
 
       {/* Session History */}
       <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
