@@ -13,7 +13,7 @@ export interface MonthlyProgressData {
   loading: boolean;
 }
 
-export function useMonthlyProgress(alumnoId: string | null, grupo: string | null) {
+export function useMonthlyProgress(alumnoId: string | null, grupo: string | null, refreshKey = 0) {
   const [data, setData] = useState<MonthlyProgressData>({
     planRealizadas: 0,
     presenciales: 0,
