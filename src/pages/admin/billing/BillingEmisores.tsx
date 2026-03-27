@@ -80,6 +80,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
       setDialogOpen(false);
       await load();
+      onDataChange?.();
     } catch {
       toast.error("Error al guardar");
     } finally {
