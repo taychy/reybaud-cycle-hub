@@ -13,6 +13,8 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
+  cert_pem?: string | null;
+  key_pem?: string | null;
 }
 
 interface FacturaRow {
