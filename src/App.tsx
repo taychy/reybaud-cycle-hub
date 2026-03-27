@@ -103,7 +103,8 @@ const App = () => (
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
-            <Route path="eventos/record-de-la-hora" element={<EventManagement />} />
+            <Route path="eventos/record-de-la-hora" element={<Navigate to="/admin/eventos" replace />} />
+            <Route path="eventos/record-de-la-hora/participantes" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="tienda" element={<StoreDashboard />} />
