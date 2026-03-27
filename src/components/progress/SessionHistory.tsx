@@ -21,20 +21,22 @@ export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
         <div className="space-y-2">
           {sessions.slice(0, 15).map((s) => (
             <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
-              {s.estado === "realizada"
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                : <XCircle className="w-4 h-4 text-destructive shrink-0" />
+              {s.source === "extra"
+                ? <Plus className="w-4 h-4 text-primary shrink-0" />
+                : s.estado === "realizada"
+                  ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  : <XCircle className="w-4 h-4 text-destructive shrink-0" />
               }
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground truncate">{s.titulo}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(s.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                   {s.tipo ? ` · ${s.tipo}` : ""}
-                  {s.source === "asistencia" ? " · Presencial" : " · Plan"}
+                  {s.source === "extra" ? " · Extra" : s.source === "asistencia" ? " · Presencial" : " · Plan"}
                 </p>
               </div>
-              <span className={`text-xs font-medium ${s.estado === "realizada" ? "text-emerald-500" : "text-destructive"}`}>
-                {s.estado === "realizada" ? "Realizada" : "No realizada"}
+              <span className={`text-xs font-medium ${s.source === "extra" ? "text-primary" : s.estado === "realizada" ? "text-emerald-500" : "text-destructive"}`}>
+                {s.source === "extra" ? "Extra" : s.estado === "realizada" ? "Realizada" : "No realizada"}
               </span>
             </div>
           ))}
