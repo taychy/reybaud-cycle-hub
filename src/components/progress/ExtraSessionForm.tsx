@@ -44,7 +44,8 @@ export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
         fecha: format(fecha, "yyyy-MM-dd"),
         duracion_minutos: duracion ? parseInt(duracion) : null,
         comentario: comentario.trim() || null,
-      });
+        nombre: nombre.trim() || null,
+      } as any);
 
       if (error) throw error;
 
