@@ -180,6 +180,15 @@ export const StudentProgressContent = () => {
       {/* Monthly Progress */}
       <MonthlyProgressCard data={progress} />
 
+      {/* Unregistered Sessions */}
+      {alumnoId && grupo && (
+        <UnregisteredSessions
+          alumnoId={alumnoId}
+          grupo={grupo}
+          onUpdate={handleProgressUpdate}
+        />
+      )}
+
       {/* Session History */}
       <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
         <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
