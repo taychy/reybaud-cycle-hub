@@ -608,9 +608,14 @@ export type Database = {
           level: string | null
           location: string | null
           max_capacity: number | null
+          metadata: Json
           price: number | null
+          same_day: boolean
+          short_description: string | null
+          show_public: boolean
           spots_taken: number
           start_time: string | null
+          status: string
           title: string
           type: Database["public"]["Enums"]["event_type"]
           updated_at: string
@@ -632,9 +637,14 @@ export type Database = {
           level?: string | null
           location?: string | null
           max_capacity?: number | null
+          metadata?: Json
           price?: number | null
+          same_day?: boolean
+          short_description?: string | null
+          show_public?: boolean
           spots_taken?: number
           start_time?: string | null
+          status?: string
           title: string
           type?: Database["public"]["Enums"]["event_type"]
           updated_at?: string
@@ -656,9 +666,14 @@ export type Database = {
           level?: string | null
           location?: string | null
           max_capacity?: number | null
+          metadata?: Json
           price?: number | null
+          same_day?: boolean
+          short_description?: string | null
+          show_public?: boolean
           spots_taken?: number
           start_time?: string | null
+          status?: string
           title?: string
           type?: Database["public"]["Enums"]["event_type"]
           updated_at?: string
