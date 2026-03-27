@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encode as base64Encode } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -326,7 +326,7 @@ async function signCMS(data: string, certPem: string, keyPem: string): Promise<s
     }
 
     const cmsBytes = await Deno.readFile(outFile);
-    return base64Encode(cmsBytes);
+    return encodeBase64(cmsBytes);
   } finally {
     // Cleanup
     try { await Deno.remove(tmpDir, { recursive: true }); } catch { /* ok */ }
