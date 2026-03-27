@@ -76,6 +76,17 @@ export function ExtraSessionForm({ alumnoId, onCreated }: Props) {
           <DialogTitle className="font-heading">Cargar sesión extra</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Nombre */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Nombre de la sesión (opcional)</label>
+            <Input
+              placeholder="Ej: Salida por el lago"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              maxLength={100}
+            />
+          </div>
+
           {/* Tipo */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Tipo</label>
