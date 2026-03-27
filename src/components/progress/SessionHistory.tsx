@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Plus } from "lucide-react";
 
 export interface SessionRecord {
   id: string;
@@ -6,7 +6,7 @@ export interface SessionRecord {
   fecha: string;
   titulo: string;
   tipo: string | null;
-  source: "registro" | "asistencia";
+  source: "registro" | "asistencia" | "extra";
 }
 
 export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
