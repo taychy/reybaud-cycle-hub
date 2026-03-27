@@ -40,9 +40,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import EventForm, {
+  eventFormFromRow,
+  eventFormToPayload,
+  type EventFormData,
+} from "@/components/admin/EventForm";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
@@ -68,13 +71,6 @@ const typeToGroup = (type: string): TabFilter => {
   return "escuela";
 };
 
-const groupLabel: Record<TabFilter, string> = {
-  todos: "Todos",
-  escuela: "Escuela",
-  carrera: "Carrera",
-  camp_viaje: "Camp / Viaje",
-};
-
 const typeDisplayLabels: Record<string, string> = {
   record_hora: "Record",
   otro: "Evento",
@@ -83,24 +79,28 @@ const typeDisplayLabels: Record<string, string> = {
   viaje: "Viaje",
 };
 
-// Form type options mapping to DB types
-const formTypeOptions: { label: string; group: TabFilter; dbType: string }[] = [
-  { label: "Escuela", group: "escuela", dbType: "otro" },
-  { label: "Carrera", group: "carrera", dbType: "carrera" },
-  { label: "Camp / Viaje", group: "camp_viaje", dbType: "camp" },
-];
+const statusLabels: Record<string, { label: string; color: string }> = {
+  borrador: { label: "Borrador", color: "border-yellow-500/50 text-yellow-400" },
+  publicado: { label: "Publicado", color: "border-emerald-500/50 text-emerald-400" },
+  finalizado: { label: "Finalizado", color: "border-muted text-muted-foreground" },
+  cancelado: { label: "Cancelado", color: "border-red-500/50 text-red-400" },
+};
 
 interface Event {
   id: string;
   title: string;
   description: string | null;
+  short_description: string | null;
   date: string;
   end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   type: string;
+  status: string;
   is_active: boolean;
   visible_to_students: boolean;
+  show_public: boolean;
+  same_day: boolean;
   is_own_event: boolean;
   image_url: string | null;
   location: string | null;
@@ -111,28 +111,8 @@ interface Event {
   max_capacity: number | null;
   spots_taken: number;
   level: string | null;
+  metadata: Record<string, any>;
 }
-
-const emptyForm = {
-  title: "",
-  description: "",
-  date: "",
-  end_date: "",
-  start_time: "",
-  end_time: "",
-  type: "otro",
-  is_active: true,
-  visible_to_students: true,
-  is_own_event: true,
-  image_url: "",
-  location: "",
-  price: "",
-  currency: "ARS",
-  duration_days: "",
-  duration_nights: "",
-  max_capacity: "",
-  level: "",
-};
 
 const EventsList = () => {
   const { toast } = useToast();
@@ -147,7 +127,6 @@ const EventsList = () => {
   // Form state
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const fetchEvents = async () => {
@@ -166,9 +145,7 @@ const EventsList = () => {
 
   /* ─── Filtering ─── */
   const filtered = events.filter((e) => {
-    // Tab filter
     if (tab !== "todos" && !tabGroups[tab].includes(e.type)) return false;
-    // Search
     if (search) {
       const q = search.toLowerCase();
       if (
@@ -177,10 +154,7 @@ const EventsList = () => {
       )
         return false;
     }
-    // Status
-    if (statusFilter === "active" && !e.is_active) return false;
-    if (statusFilter === "inactive" && e.is_active) return false;
-    // Published
+    if (statusFilter !== "all" && e.status !== statusFilter) return false;
     if (publishedFilter === "published" && !e.visible_to_students) return false;
     if (publishedFilter === "unpublished" && e.visible_to_students) return false;
     return true;
@@ -189,32 +163,11 @@ const EventsList = () => {
   /* ─── CRUD ─── */
   const openCreate = () => {
     setEditingEvent(null);
-    setForm(emptyForm);
     setFormOpen(true);
   };
 
   const openEdit = (ev: Event) => {
     setEditingEvent(ev);
-    setForm({
-      title: ev.title,
-      description: ev.description || "",
-      date: ev.date,
-      end_date: ev.end_date || "",
-      start_time: ev.start_time || "",
-      end_time: ev.end_time || "",
-      type: ev.type,
-      is_active: ev.is_active,
-      visible_to_students: ev.visible_to_students,
-      is_own_event: ev.is_own_event,
-      image_url: ev.image_url || "",
-      location: ev.location || "",
-      price: ev.price?.toString() || "",
-      currency: ev.currency,
-      duration_days: ev.duration_days?.toString() || "",
-      duration_nights: ev.duration_nights?.toString() || "",
-      max_capacity: ev.max_capacity?.toString() || "",
-      level: ev.level || "",
-    });
     setFormOpen(true);
   };
 
@@ -224,6 +177,7 @@ const EventsList = () => {
       ...rest,
       title: `${ev.title} (copia)`,
       spots_taken: 0,
+      status: "borrador",
     } as any);
     if (error) {
       toast({ title: "Error", description: "No se pudo duplicar.", variant: "destructive" });
@@ -243,39 +197,20 @@ const EventsList = () => {
     }
   };
 
-  const saveEvent = async () => {
-    if (!form.title || !form.date) {
+  const saveEvent = async (formData: EventFormData) => {
+    if (!formData.title || !formData.date) {
       toast({ title: "Faltan datos", description: "Título y fecha son obligatorios.", variant: "destructive" });
       return;
     }
     setSaving(true);
 
-    const payload: any = {
-      title: form.title,
-      description: form.description || null,
-      date: form.date,
-      end_date: form.end_date || null,
-      start_time: form.start_time || null,
-      end_time: form.end_time || null,
-      type: form.type,
-      is_active: form.is_active,
-      visible_to_students: form.visible_to_students,
-      is_own_event: form.is_own_event,
-      image_url: form.image_url || null,
-      location: form.location || null,
-      price: form.is_own_event && form.price ? parseFloat(form.price) : null,
-      currency: form.currency,
-      duration_days: form.duration_days ? parseInt(form.duration_days) : null,
-      duration_nights: form.duration_nights ? parseInt(form.duration_nights) : null,
-      max_capacity: form.is_own_event && form.max_capacity ? parseInt(form.max_capacity) : null,
-      level: form.level || null,
-    };
+    const payload = eventFormToPayload(formData);
 
     let error;
     if (editingEvent) {
-      ({ error } = await supabase.from("events").update(payload).eq("id", editingEvent.id));
+      ({ error } = await supabase.from("events").update(payload as any).eq("id", editingEvent.id));
     } else {
-      ({ error } = await supabase.from("events").insert(payload));
+      ({ error } = await supabase.from("events").insert(payload as any));
     }
 
     if (error) {
@@ -373,19 +308,21 @@ const EventsList = () => {
               <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="active">Activo</SelectItem>
-                <SelectItem value="inactive">Inactivo</SelectItem>
+                <SelectItem value="borrador">Borrador</SelectItem>
+                <SelectItem value="publicado">Publicado</SelectItem>
+                <SelectItem value="finalizado">Finalizado</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Publicado</Label>
+            <Label className="text-xs text-muted-foreground">Visible en app</Label>
             <Select value={publishedFilter} onValueChange={setPublishedFilter}>
               <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="published">Publicado</SelectItem>
-                <SelectItem value="unpublished">No publicado</SelectItem>
+                <SelectItem value="published">Visible</SelectItem>
+                <SelectItem value="unpublished">Oculto</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -415,9 +352,10 @@ const EventsList = () => {
           {filtered.map((ev) => {
             const d = new Date(ev.date + "T12:00:00");
             const dateStr = d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
-            const endDateStr = ev.end_date
+            const endDateStr = ev.end_date && ev.end_date !== ev.date
               ? new Date(ev.end_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
               : null;
+            const st = statusLabels[ev.status] || statusLabels.borrador;
             return (
               <div
                 key={ev.id}
@@ -433,23 +371,18 @@ const EventsList = () => {
                     <span className="flex items-center gap-1">
                       <CalendarDays className="w-3 h-3" /> {dateStr}{endDateStr ? ` → ${endDateStr}` : ""}
                     </span>
-                    {!ev.is_own_event && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Externo</span>
-                    )}
                     {ev.location && <span className="truncate">{ev.location}</span>}
                   </div>
                 </div>
 
                 {/* Status badges */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {ev.is_active ? (
-                    <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-400">Activo</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-400">Inactivo</Badge>
-                  )}
+                  <Badge variant="outline" className={`text-[10px] ${st.color}`}>
+                    {st.label}
+                  </Badge>
                   {ev.visible_to_students ? (
                     <Badge variant="outline" className="text-[10px] border-sky-500/50 text-sky-400 gap-1">
-                      <Eye className="w-3 h-3" /> Publicado
+                      <Eye className="w-3 h-3" /> Visible
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-[10px] border-muted text-muted-foreground gap-1">
@@ -494,146 +427,23 @@ const EventsList = () => {
 
       {/* Create / Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider">
               {editingEvent ? "Editar Evento" : "Nuevo Evento"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Título *</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Nombre del evento" />
-            </div>
-
-            {/* Evento propio / externo */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-              <Switch
-                checked={form.is_own_event}
-                onCheckedChange={(v) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    is_own_event: v,
-                    price: v ? prev.price : "",
-                    max_capacity: v ? prev.max_capacity : "",
-                  }))
-                }
-              />
-              <Label className="text-sm">{form.is_own_event ? "Evento propio (Reybaud)" : "Evento externo"}</Label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>{form.end_date ? "Fecha inicio *" : "Fecha *"}</Label>
-                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Fecha fin <span className="text-muted-foreground text-xs">(opcional)</span></Label>
-                <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} min={form.date} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Tipo *</Label>
-                <Select value={typeToGroup(form.type)} onValueChange={(v) => {
-                  const opt = formTypeOptions.find((o) => o.group === v);
-                  if (opt) setForm({ ...form, type: opt.dbType });
-                }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {formTypeOptions.map((o) => (
-                      <SelectItem key={o.group} value={o.group}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Hora inicio</Label>
-                <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Hora fin</Label>
-                <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Ubicación</Label>
-              <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Ej: KDT, Palermo" />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Descripción</Label>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
-            </div>
-
-            {form.is_own_event ? (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Precio</Label>
-                  <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Moneda</Label>
-                  <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ARS">ARS</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Capacidad</Label>
-                  <Input type="number" value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="∞" />
-                </div>
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Días</Label>
-                <Input type="number" value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Noches</Label>
-                <Input type="number" value={form.duration_nights} onChange={(e) => setForm({ ...form, duration_nights: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Nivel</Label>
-              <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} placeholder="Ej: Principiante, Intermedio" />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>URL imagen</Label>
-              <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
-            </div>
-
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
-                <Label className="text-sm">Activo</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.visible_to_students} onCheckedChange={(v) => setForm({ ...form, visible_to_students: v })} />
-                <Label className="text-sm">Publicado</Label>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button variant="gold" onClick={saveEvent} disabled={saving} className="flex-1">
-                {saving ? "Guardando..." : editingEvent ? "Guardar cambios" : "Crear evento"}
-              </Button>
-              <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
-            </div>
-          </div>
+          <EventForm
+            key={editingEvent?.id || "new"}
+            initialData={editingEvent ? eventFormFromRow(editingEvent) : undefined}
+            isEditing={!!editingEvent}
+            saving={saving}
+            onSave={saveEvent}
+            onCancel={() => setFormOpen(false)}
+            onDuplicate={editingEvent ? () => { duplicateEvent(editingEvent); setFormOpen(false); } : undefined}
+            onDelete={editingEvent ? () => { deleteEvent(editingEvent.id); setFormOpen(false); } : undefined}
+          />
         </DialogContent>
       </Dialog>
     </div>
