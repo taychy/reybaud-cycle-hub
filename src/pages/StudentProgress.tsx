@@ -1,42 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle2, XCircle, Clock, MessageSquare } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { MonthlyProgressCard } from "@/components/progress/MonthlyProgressCard";
 import { UnregisteredSessions } from "@/components/progress/UnregisteredSessions";
 import { ExtraSessionForm } from "@/components/progress/ExtraSessionForm";
 import { MainGoalCard } from "@/components/progress/MainGoalCard";
+import { SessionHistory, type SessionRecord } from "@/components/progress/SessionHistory";
+import { CoachFeedbackCard, type FeedbackRecord } from "@/components/progress/CoachFeedbackCard";
 import { useMonthlyProgress } from "@/hooks/useMonthlyProgress";
-import { useCallback } from "react";
-
-interface FeedbackRecord {
-  id: string;
-  fecha: string;
-  comentario: string;
-  tipo: string;
-  coach: { nombre: string } | null;
-}
-
-interface SessionRecord {
-  id: string;
-  estado: string;
-  fecha: string;
-  titulo: string;
-  tipo: string | null;
-  source: "registro" | "asistencia";
-}
-
-const tipoLabel = (tipo: string) => {
-  switch (tipo) {
-    case "tecnica": return "Técnica";
-    case "rendimiento": return "Rendimiento";
-    case "actitud": return "Actitud";
-    case "recomendacion": return "Recomendación";
-    default: return "General";
-  }
-};
 
 export const StudentProgressContent = () => {
   const navigate = useNavigate();
@@ -84,7 +58,6 @@ export const StudentProgressContent = () => {
       const fromDate = firstDay.toISOString().split("T")[0];
       const toDate = lastDay.toISOString().split("T")[0];
 
-      // Session history: merge registro_sesiones + asistencias
       const { data: entrenamientos } = await supabase
         .from("entrenamientos")
         .select("id, fecha, titulo, tipo")
@@ -117,28 +90,13 @@ export const StudentProgressContent = () => {
         const asist = asistMap.get(ent.id);
 
         if (reg) {
-          merged.push({
-            id: reg.id,
-            estado: reg.estado,
-            fecha: ent.fecha,
-            titulo: ent.titulo,
-            tipo: ent.tipo,
-            source: "registro",
-          });
+          merged.push({ id: reg.id, estado: reg.estado, fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "registro" });
         } else if (asist && asist.estado === "asistio") {
-          merged.push({
-            id: asist.id,
-            estado: "realizada",
-            fecha: ent.fecha,
-            titulo: ent.titulo,
-            tipo: ent.tipo,
-            source: "asistencia",
-          });
+          merged.push({ id: asist.id, estado: "realizada", fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "asistencia" });
         }
       }
       setSessions(merged);
 
-      // Feedback
       const { data: feedbackData } = await supabase
         .from("feedback_coach")
         .select("id, fecha, comentario, tipo, coach_id")
@@ -179,82 +137,21 @@ export const StudentProgressContent = () => {
         <p className="text-xs text-muted-foreground">Rendimiento y sesiones del mes</p>
       </div>
 
-      {/* Monthly Progress */}
       <MonthlyProgressCard data={progress} />
 
-      {/* Unregistered Sessions */}
       {alumnoId && grupo && (
-        <UnregisteredSessions
-          alumnoId={alumnoId}
-          grupo={grupo}
-          onUpdate={handleProgressUpdate}
-        />
+        <UnregisteredSessions alumnoId={alumnoId} grupo={grupo} onUpdate={handleProgressUpdate} />
       )}
 
-      {/* Extra Session */}
       {alumnoId && (
         <ExtraSessionForm alumnoId={alumnoId} onCreated={handleProgressUpdate} />
       )}
 
-      {/* Main Goal */}
       {alumnoId && <MainGoalCard alumnoId={alumnoId} />}
 
-      {/* Session History */}
-      <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-        <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-          Historial de sesiones
-        </h2>
-        {sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">Todavía no registraste sesiones</p>
-        ) : (
-          <div className="space-y-2">
-            {sessions.slice(0, 15).map((s) => (
-              <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
-                {s.estado === "realizada"
-                  ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  : <XCircle className="w-4 h-4 text-destructive shrink-0" />
-                }
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">{s.titulo}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(s.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                    {s.tipo ? ` · ${s.tipo}` : ""}
-                    {s.source === "asistencia" ? " · Presencial" : " · Plan"}
-                  </p>
-                </div>
-                <span className={`text-xs font-medium ${s.estado === "realizada" ? "text-emerald-500" : "text-destructive"}`}>
-                  {s.estado === "realizada" ? "Realizada" : "No realizada"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <SessionHistory sessions={sessions} />
 
-      {/* Coach Feedback */}
-      <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-        <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <MessageSquare className="w-4 h-4" /> Feedback del entrenador
-        </h2>
-        {feedback.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">Todavía no tenés feedback de tu entrenador</p>
-        ) : (
-          <div className="space-y-4">
-            {feedback.map((f) => (
-              <div key={f.id} className="border-l-2 border-primary/50 pl-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-foreground">{f.coach?.nombre || "Entrenador"}</p>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(f.tipo)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(f.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
-                </p>
-                <p className="text-sm text-foreground/90 italic">"{f.comentario}"</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <CoachFeedbackCard feedback={feedback} />
     </div>
   );
 };
