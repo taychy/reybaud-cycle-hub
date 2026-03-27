@@ -25,30 +25,31 @@ export const StudentProgressContent = () => {
   const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { navigate("/"); return; }
+    let cancelled = false;
 
+    const resolveAlumno = async (userId: string, userEmail: string) => {
       let alumno = (await supabase
         .from("alumnos")
         .select("id, grupo")
-        .eq("user_id", session.user.id)
+        .eq("user_id", userId)
         .maybeSingle()).data;
 
       if (!alumno) {
         alumno = (await supabase
           .from("alumnos")
           .select("id, grupo")
-          .eq("email", session.user.email?.toLowerCase().trim() || "")
+          .eq("email", userEmail)
           .maybeSingle()).data;
       }
+
+      if (cancelled) return;
 
       if (!alumno) { navigate("/"); return; }
 
       setAlumnoId(alumno.id);
       setGrupo(alumno.grupo);
       await loadDetails(alumno.id, alumno.grupo);
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     };
 
     const loadDetails = async (aId: string, grp: string) => {
@@ -95,7 +96,7 @@ export const StudentProgressContent = () => {
           merged.push({ id: asist.id, estado: "realizada", fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "asistencia" });
         }
       }
-      setSessions(merged);
+      if (!cancelled) setSessions(merged);
 
       const { data: feedbackData } = await supabase
         .from("feedback_coach")
@@ -111,19 +112,34 @@ export const StudentProgressContent = () => {
           .select("id, nombre")
           .in("id", coachIds);
 
-        setFeedback(feedbackData.map(f => ({
-          id: f.id,
-          fecha: f.fecha,
-          comentario: f.comentario,
-          tipo: f.tipo || "general",
-          coach: coaches?.find(c => c.id === f.coach_id)
-            ? { nombre: coaches.find(c => c.id === f.coach_id)!.nombre }
-            : null,
-        })));
+        if (!cancelled) {
+          setFeedback(feedbackData.map(f => ({
+            id: f.id,
+            fecha: f.fecha,
+            comentario: f.comentario,
+            tipo: f.tipo || "general",
+            coach: coaches?.find(c => c.id === f.coach_id)
+              ? { nombre: coaches.find(c => c.id === f.coach_id)!.nombre }
+              : null,
+          })));
+        }
       }
     };
 
-    load();
+    // Listen for auth state - handles refresh correctly
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        if (!cancelled) navigate("/");
+        return;
+      }
+      const email = session.user.email?.toLowerCase().trim() || "";
+      resolveAlumno(session.user.id, email);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   if (loading || progress.loading) {
