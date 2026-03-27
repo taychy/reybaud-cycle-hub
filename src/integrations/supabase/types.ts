@@ -599,10 +599,12 @@ export type Database = {
           description: string | null
           duration_days: number | null
           duration_nights: number | null
+          end_date: string | null
           end_time: string | null
           id: string
           image_url: string | null
           is_active: boolean
+          is_own_event: boolean
           level: string | null
           location: string | null
           max_capacity: number | null
@@ -621,10 +623,12 @@ export type Database = {
           description?: string | null
           duration_days?: number | null
           duration_nights?: number | null
+          end_date?: string | null
           end_time?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_own_event?: boolean
           level?: string | null
           location?: string | null
           max_capacity?: number | null
@@ -643,10 +647,12 @@ export type Database = {
           description?: string | null
           duration_days?: number | null
           duration_nights?: number | null
+          end_date?: string | null
           end_time?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_own_event?: boolean
           level?: string | null
           location?: string | null
           max_capacity?: number | null
