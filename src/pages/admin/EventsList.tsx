@@ -415,6 +415,9 @@ const EventsList = () => {
           {filtered.map((ev) => {
             const d = new Date(ev.date + "T12:00:00");
             const dateStr = d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+            const endDateStr = ev.end_date
+              ? new Date(ev.end_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
+              : null;
             return (
               <div
                 key={ev.id}
@@ -428,8 +431,11 @@ const EventsList = () => {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <CalendarDays className="w-3 h-3" /> {dateStr}
+                      <CalendarDays className="w-3 h-3" /> {dateStr}{endDateStr ? ` → ${endDateStr}` : ""}
                     </span>
+                    {!ev.is_own_event && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Externo</span>
+                    )}
                     {ev.location && <span className="truncate">{ev.location}</span>}
                   </div>
                 </div>
