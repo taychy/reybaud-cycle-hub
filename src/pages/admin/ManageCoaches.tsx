@@ -339,6 +339,10 @@ const ManageCoaches = () => {
                     {detailCoach.estado}
                   </Badge>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Sede</span>
+                  <span className="text-foreground text-xs">{sedes.find(s => s.id === detailCoach.sede_id)?.nombre || "Sin sede"}</span>
+                </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 {!(detailCoach as any).password_set && (detailCoach as any).invited_at && (
