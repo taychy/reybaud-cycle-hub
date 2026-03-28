@@ -146,7 +146,7 @@ const ManageCoaches = () => {
     setSaving(true);
     await supabase
       .from("coaches")
-      .update({ grupos: selectedGrupos, estado: selectedEstado } as any)
+      .update({ grupos: selectedGrupos, estado: selectedEstado, sede_id: selectedSedeId } as any)
       .eq("id", editCoach.id);
     toast.success(`Coach ${editCoach.nombre} actualizado`);
     setEditCoach(null);
