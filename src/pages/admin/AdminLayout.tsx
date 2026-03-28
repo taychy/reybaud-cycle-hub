@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -36,6 +36,7 @@ const storeNavItems = [
 const AdminLayout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
@@ -74,6 +75,16 @@ const AdminLayout = () => {
           .update({ last_login_at: new Date().toISOString() } as any)
           .eq("user_id", session.user.id);
         sessionStorage.setItem("admin_login_updated", "true");
+      }
+
+      // Check if super_admin
+      const { data: profile } = await supabase
+        .from("admin_profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+      if (isMounted && profile?.role === "super_admin") {
+        setIsSuperAdmin(true);
       }
 
       if (isMounted) setLoading(false);
@@ -183,6 +194,9 @@ const AdminLayout = () => {
           {navItems.map((item) => (
             <NavItem key={item.to} item={item} />
           ))}
+          {isSuperAdmin && (
+            <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
+          )}
 
           {/* Store section */}
           <div className="pt-4 pb-1">
@@ -275,6 +289,9 @@ const AdminLayout = () => {
             {navItems.map((item) => (
               <NavItem key={item.to} item={item} mobile />
             ))}
+            {isSuperAdmin && (
+              <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
+            )}
             <div className="pt-4 pb-1">
               <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
             </div>

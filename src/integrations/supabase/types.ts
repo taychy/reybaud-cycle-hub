@@ -817,6 +817,57 @@ export type Database = {
           },
         ]
       }
+      gastos: {
+        Row: {
+          categoria: string
+          created_at: string
+          descripcion: string
+          fecha: string
+          frecuencia: string | null
+          id: string
+          moneda: string
+          monto: number
+          notas: string | null
+          proveedor: string | null
+          recurrente: boolean
+          registrado_por: string | null
+          subcategoria: string | null
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          descripcion: string
+          fecha?: string
+          frecuencia?: string | null
+          id?: string
+          moneda?: string
+          monto: number
+          notas?: string | null
+          proveedor?: string | null
+          recurrente?: boolean
+          registrado_por?: string | null
+          subcategoria?: string | null
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          descripcion?: string
+          fecha?: string
+          frecuencia?: string | null
+          id?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          proveedor?: string | null
+          recurrente?: boolean
+          registrado_por?: string | null
+          subcategoria?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       importaciones_usuarios: {
         Row: {
           archivo_original_url: string | null
