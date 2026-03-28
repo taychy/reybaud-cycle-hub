@@ -357,7 +357,7 @@ const Login = () => {
         {/* Developer credit */}
         <div className="text-center pt-4">
           <a
-            href="https://wa.me/5491171711122"
+            href="https://wa.me/5491171711122?text=Hola%20me%20gustar%C3%ADa%20obtener%20informaci%C3%B3n%20para%20desarrollar%20una%20app%20para%20gestionar%20mi%20negocio"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
