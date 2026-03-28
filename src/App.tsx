@@ -20,6 +20,7 @@ import CoachRegister from "./pages/CoachRegister";
 import CoachDashboard from "./pages/coach/CoachDashboard";
 import CoachEventRecordDelAhora from "./pages/coach/CoachEventRecordDelAhora";
 import CoachAttendance from "./pages/coach/CoachAttendance";
+import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
