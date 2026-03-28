@@ -298,16 +298,19 @@ const AdminLayout = () => {
           </div>
 
           <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {navItems.map((item) => (
-              <NavItem key={item.to} item={item} mobile />
-            ))}
             {isSuperAdmin && (
               <>
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
                 <NavItem item={{ to: "/admin/resumen-global", label: "Resumen", icon: PieChart }} mobile />
+                <div className="pt-2 pb-1">
+                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Gestión</span>
+                </div>
               </>
             )}
+            {navItems.map((item) => (
+              <NavItem key={item.to} item={item} mobile />
+            ))}
             <div className="pt-4 pb-1">
               <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
             </div>
