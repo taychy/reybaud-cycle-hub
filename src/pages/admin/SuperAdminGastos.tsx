@@ -59,6 +59,7 @@ const SuperAdminGastos = () => {
     subcategoria: "",
     descripcion: "",
     monto: "",
+    moneda: "ARS",
     fecha: new Date().toISOString().split("T")[0],
     recurrente: false,
     frecuencia: "",
