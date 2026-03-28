@@ -43,13 +43,12 @@ const Register = () => {
       return;
     }
 
-    const fullName = `${form.nombre.trim()} ${form.apellido.trim()}`;
-
     // Create new student (inactive, sin grupo)
     const { data, error: insertError } = await supabase
       .from("alumnos")
       .insert({
-        nombre: fullName,
+        nombre: form.nombre.trim(),
+        apellido: form.apellido.trim(),
         email,
         telefono: form.telefono.trim() || null,
         documento: form.documento.trim() || null,
