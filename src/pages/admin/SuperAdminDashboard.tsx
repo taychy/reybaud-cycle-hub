@@ -311,6 +311,7 @@ const SuperAdminDashboard = () => {
       frecuencia: gastoForm.recurrente ? gastoForm.frecuencia || null : null,
       proveedor: gastoForm.proveedor || null,
       notas: gastoForm.notas || null,
+      forma_pago: gastoForm.forma_pago,
     };
 
     if (editingGasto) {
