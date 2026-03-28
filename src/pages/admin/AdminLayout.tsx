@@ -191,16 +191,24 @@ const AdminLayout = () => {
 
         {/* Nav */}
         <nav className={`flex-1 ${collapsed ? "p-1.5" : "p-3"} space-y-1 overflow-y-auto`}>
-          {navItems.map((item) => (
-            <NavItem key={item.to} item={item} />
-          ))}
           {isSuperAdmin && (
             <>
               <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
               <NavItem item={{ to: "/admin/resumen-global", label: "Resumen", icon: PieChart }} />
+              <div className="pt-2 pb-1">
+                {!collapsed && (
+                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
+                    Gestión
+                  </span>
+                )}
+                {collapsed && <div className="border-t border-sidebar-border mx-1" />}
+              </div>
             </>
           )}
+          {navItems.map((item) => (
+            <NavItem key={item.to} item={item} />
+          ))}
 
           {/* Store section */}
           <div className="pt-4 pb-1">
