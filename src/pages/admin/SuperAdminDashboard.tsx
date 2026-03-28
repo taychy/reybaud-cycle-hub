@@ -388,6 +388,17 @@ const SuperAdminDashboard = () => {
     .sort((a, b) => b.total - a.total);
   const maxGastoCat = Math.max(...gastosCatArray.map(g => g.total), 1);
 
+  const FORMA_PAGO_LABELS: Record<string, string> = {
+    efectivo: "Efectivo",
+    tarjeta_credito: "Tarjeta de Crédito",
+    mp_personal: "MP Personal",
+    mp_josi: "MP Josi",
+    mp_escuela: "MP Escuela",
+    mp_tienda: "MP Tienda",
+    mc_personal: "MC Personal",
+    banco: "Banco",
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -397,314 +408,329 @@ const SuperAdminDashboard = () => {
         </div>
       </div>
 
-      {/* Section 1: Financial KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {kpis.map((k) => (
-          <Card key={k.label} className="border-border">
-            <CardContent className="p-4 space-y-1">
-              <div className="flex items-center gap-2">
-                <k.icon className={`w-4 h-4 ${k.color}`} />
-                <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider truncate">{k.label}</span>
+      <Tabs defaultValue="metricas" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="metricas">Métricas</TabsTrigger>
+          <TabsTrigger value="gastos">Gastos</TabsTrigger>
+          <TabsTrigger value="resumen">Resumen</TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: Métricas */}
+        <TabsContent value="metricas" className="space-y-6">
+          {/* Financial KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {kpis.map((k) => (
+              <Card key={k.label} className="border-border">
+                <CardContent className="p-4 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <k.icon className={`w-4 h-4 ${k.color}`} />
+                    <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider truncate">{k.label}</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-xl font-bold font-heading">{k.value}</p>
+                    {k.trend && (
+                      <span className="flex items-center gap-0.5 text-xs">
+                        <TrendIcon direction={k.trend.direction} />
+                        {k.trend.value}
+                      </span>
+                    )}
+                  </div>
+                  {k.subtitle && (
+                    <p className="text-[10px] text-muted-foreground truncate">{k.subtitle}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Revenue vs Expenses trend */}
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Ingresos vs Gastos (6 meses)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {monthlyData.map((m) => (
+                <div key={m.month} className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">{m.month}</span>
+                    <span className="font-heading">
+                      <span className="text-green-500">{fmt(m.ingresos)}</span>
+                      {" / "}
+                      <span className="text-red-400">{fmt(m.gastos)}</span>
+                    </span>
+                  </div>
+                  <div className="flex gap-1 h-3">
+                    <div
+                      className="bg-green-500/80 rounded-full transition-all"
+                      style={{ width: `${(m.ingresos / maxMonthly) * 100}%` }}
+                    />
+                    <div
+                      className="bg-red-400/60 rounded-full transition-all"
+                      style={{ width: `${(m.gastos / maxMonthly) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-4 text-[10px] text-muted-foreground pt-1">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500/80" /> Ingresos</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400/60" /> Gastos</span>
               </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold font-heading">{k.value}</p>
-                {k.trend && (
-                  <span className="flex items-center gap-0.5 text-xs">
-                    <TrendIcon direction={k.trend.direction} />
-                    {k.trend.value}
-                  </span>
-                )}
-              </div>
-              {k.subtitle && (
-                <p className="text-[10px] text-muted-foreground truncate">{k.subtitle}</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 2: Gastos */}
+        <TabsContent value="gastos" className="space-y-6">
+          {/* Gastos por categoría */}
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-destructive" />
+                Gastos del mes por categoría
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {gastosCatArray.length > 0 ? (
+                <div className="space-y-3">
+                  {gastosCatArray.map((g) => (
+                    <div key={g.cat} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{g.cat}</span>
+                        <span className="font-heading font-bold">{fmt(g.total)}</span>
+                      </div>
+                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-destructive/70 rounded-full" style={{ width: `${(g.total / maxGastoCat) * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground text-sm">No hay gastos registrados este mes</div>
               )}
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {/* Section 2: Charts & Distribution */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Revenue vs Expenses trend */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              Ingresos vs Gastos (6 meses)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {monthlyData.map((m) => (
-              <div key={m.month} className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground font-medium">{m.month}</span>
-                  <span className="font-heading">
-                    <span className="text-green-500">{fmt(m.ingresos)}</span>
-                    {" / "}
-                    <span className="text-red-400">{fmt(m.gastos)}</span>
-                  </span>
-                </div>
-                <div className="flex gap-1 h-3">
-                  <div
-                    className="bg-green-500/80 rounded-full transition-all"
-                    style={{ width: `${(m.ingresos / maxMonthly) * 100}%` }}
-                  />
-                  <div
-                    className="bg-red-400/60 rounded-full transition-all"
-                    style={{ width: `${(m.gastos / maxMonthly) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-            <div className="flex gap-4 text-[10px] text-muted-foreground pt-1">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500/80" /> Ingresos</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400/60" /> Gastos</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Plan distribution */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-accent" />
-              Distribución por plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y divide-border">
-              {planDist.length > 0 ? planDist.map((p, idx) => (
-                <div key={p.name} className="py-2.5 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">{idx + 1}</span>
-                      <span className="text-sm font-medium truncate">{p.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-heading font-bold">{p.count}</span>
-                      <span className="text-xs text-muted-foreground ml-1">· {fmt(p.revenue)}</span>
-                    </div>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full" style={{ width: `${(p.count / maxPlanCount) * 100}%` }} />
-                  </div>
-                </div>
-              )) : (
-                <div className="py-8 text-center text-muted-foreground text-sm">Sin datos</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Section 3: Sede distribution + Gastos por categoría */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Sede distribution */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-primary" />
-              Alumnos por sede
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sedeDist.length > 0 ? (
-              <div className="space-y-3">
-                {sedeDist.map((s) => (
-                  <div key={s.name} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{s.name}</span>
-                      <span className="font-heading font-bold">{s.count}</span>
-                    </div>
-                    <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-accent/80 rounded-full" style={{ width: `${(s.count / Math.max(...sedeDist.map(x => x.count))) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-muted-foreground text-sm">Sin datos de sedes</div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Gastos por categoría */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-red-400" />
-              Gastos del mes por categoría
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {gastosCatArray.length > 0 ? (
-              <div className="space-y-3">
-                {gastosCatArray.map((g) => (
-                  <div key={g.cat} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{g.cat}</span>
-                      <span className="font-heading font-bold">{fmt(g.total)}</span>
-                    </div>
-                    <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-red-400/70 rounded-full" style={{ width: `${(g.total / maxGastoCat) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-muted-foreground text-sm">No hay gastos registrados este mes</div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Section 4: Expense Management */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-primary" />
-              Gestión de gastos
-            </CardTitle>
-            <Dialog open={gastoDialogOpen} onOpenChange={(open) => {
-              setGastoDialogOpen(open);
-              if (!open) { setEditingGasto(null); resetForm(); }
-            }}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="gold" className="gap-1">
-                  <Plus className="w-4 h-4" /> Registrar gasto
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{editingGasto ? "Editar gasto" : "Registrar gasto"}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Categoría</Label>
-                      <Select value={gastoForm.categoria} onValueChange={(v) => setGastoForm(f => ({ ...f, categoria: v }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {CATEGORIAS_GASTO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Fecha</Label>
-                      <Input type="date" value={gastoForm.fecha} onChange={(e) => setGastoForm(f => ({ ...f, fecha: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Descripción</Label>
-                    <Input value={gastoForm.descripcion} onChange={(e) => setGastoForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Ej: Alquiler local Palermo" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Monto ($)</Label>
-                      <Input type="number" value={gastoForm.monto} onChange={(e) => setGastoForm(f => ({ ...f, monto: e.target.value }))} placeholder="0" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Proveedor</Label>
-                      <Input value={gastoForm.proveedor} onChange={(e) => setGastoForm(f => ({ ...f, proveedor: e.target.value }))} placeholder="Opcional" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Forma de pago</Label>
-                    <Select value={gastoForm.forma_pago} onValueChange={(v) => setGastoForm(f => ({ ...f, forma_pago: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="efectivo">Efectivo</SelectItem>
-                        <SelectItem value="tarjeta_credito">Tarjeta de Crédito</SelectItem>
-                        <SelectItem value="mp_personal">Mercado Pago Personal</SelectItem>
-                        <SelectItem value="mp_josi">Mercado Pago Josi</SelectItem>
-                        <SelectItem value="mp_escuela">Mercado Pago Escuela</SelectItem>
-                        <SelectItem value="mp_tienda">Mercado Pago Tienda</SelectItem>
-                        <SelectItem value="mc_personal">Mercado Crédito Personal</SelectItem>
-                        <SelectItem value="banco">Banco</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch checked={gastoForm.recurrente} onCheckedChange={(v) => setGastoForm(f => ({ ...f, recurrente: v }))} />
-                    <Label className="text-xs">Gasto recurrente</Label>
-                    {gastoForm.recurrente && (
-                      <Select value={gastoForm.frecuencia} onValueChange={(v) => setGastoForm(f => ({ ...f, frecuencia: v }))}>
-                        <SelectTrigger className="w-32"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mensual">Mensual</SelectItem>
-                          <SelectItem value="trimestral">Trimestral</SelectItem>
-                          <SelectItem value="anual">Anual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Notas</Label>
-                    <Textarea value={gastoForm.notas} onChange={(e) => setGastoForm(f => ({ ...f, notas: e.target.value }))} rows={2} placeholder="Opcional" />
-                  </div>
-                  <Button onClick={handleSaveGasto} className="w-full" variant="gold">
-                    {editingGasto ? "Guardar cambios" : "Registrar gasto"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {gastos.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              No hay gastos registrados. Agregá tu primer gasto para empezar a ver métricas de rentabilidad.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Proveedor</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="w-20">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gastos.slice(0, 20).map((g) => (
-                    <TableRow key={g.id}>
-                      <TableCell className="text-xs">{new Date(g.fecha + "T12:00:00").toLocaleDateString("es-AR")}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">{g.categoria}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm max-w-[200px] truncate">{g.descripcion}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
-                      <TableCell className="text-right font-heading font-bold">{fmt(g.monto)}</TableCell>
-                      <TableCell>
-                        {g.recurrente ? (
-                          <Badge variant="secondary" className="text-[10px]">{g.frecuencia || "Recurrente"}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Único</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditGasto(g)}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteGasto(g.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+          {/* Expense Management Table */}
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  Gestión de gastos
+                </CardTitle>
+                <Dialog open={gastoDialogOpen} onOpenChange={(open) => {
+                  setGastoDialogOpen(open);
+                  if (!open) { setEditingGasto(null); resetForm(); }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="gold" className="gap-1">
+                      <Plus className="w-4 h-4" /> Registrar gasto
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>{editingGasto ? "Editar gasto" : "Registrar gasto"}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Categoría</Label>
+                          <Select value={gastoForm.categoria} onValueChange={(v) => setGastoForm(f => ({ ...f, categoria: v }))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIAS_GASTO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Fecha</Label>
+                          <Input type="date" value={gastoForm.fecha} onChange={(e) => setGastoForm(f => ({ ...f, fecha: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Descripción</Label>
+                        <Input value={gastoForm.descripcion} onChange={(e) => setGastoForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Ej: Alquiler local Palermo" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Monto ($)</Label>
+                          <Input type="number" value={gastoForm.monto} onChange={(e) => setGastoForm(f => ({ ...f, monto: e.target.value }))} placeholder="0" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Proveedor</Label>
+                          <Input value={gastoForm.proveedor} onChange={(e) => setGastoForm(f => ({ ...f, proveedor: e.target.value }))} placeholder="Opcional" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Forma de pago</Label>
+                        <Select value={gastoForm.forma_pago} onValueChange={(v) => setGastoForm(f => ({ ...f, forma_pago: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="efectivo">Efectivo</SelectItem>
+                            <SelectItem value="tarjeta_credito">Tarjeta de Crédito</SelectItem>
+                            <SelectItem value="mp_personal">Mercado Pago Personal</SelectItem>
+                            <SelectItem value="mp_josi">Mercado Pago Josi</SelectItem>
+                            <SelectItem value="mp_escuela">Mercado Pago Escuela</SelectItem>
+                            <SelectItem value="mp_tienda">Mercado Pago Tienda</SelectItem>
+                            <SelectItem value="mc_personal">Mercado Crédito Personal</SelectItem>
+                            <SelectItem value="banco">Banco</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Switch checked={gastoForm.recurrente} onCheckedChange={(v) => setGastoForm(f => ({ ...f, recurrente: v }))} />
+                        <Label className="text-xs">Gasto recurrente</Label>
+                        {gastoForm.recurrente && (
+                          <Select value={gastoForm.frecuencia} onValueChange={(v) => setGastoForm(f => ({ ...f, frecuencia: v }))}>
+                            <SelectTrigger className="w-32"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="mensual">Mensual</SelectItem>
+                              <SelectItem value="trimestral">Trimestral</SelectItem>
+                              <SelectItem value="anual">Anual</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Notas</Label>
+                        <Textarea value={gastoForm.notas} onChange={(e) => setGastoForm(f => ({ ...f, notas: e.target.value }))} rows={2} placeholder="Opcional" />
+                      </div>
+                      <Button onClick={handleSaveGasto} className="w-full" variant="gold">
+                        {editingGasto ? "Guardar cambios" : "Registrar gasto"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {gastos.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">
+                  No hay gastos registrados. Agregá tu primer gasto para empezar a ver métricas de rentabilidad.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Forma de pago</TableHead>
+                        <TableHead>Proveedor</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="w-20">Acción</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gastos.slice(0, 20).map((g) => (
+                        <TableRow key={g.id}>
+                          <TableCell className="text-xs">{new Date(g.fecha + "T12:00:00").toLocaleDateString("es-AR")}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{g.categoria}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate">{g.descripcion}</TableCell>
+                          <TableCell className="text-xs">{FORMA_PAGO_LABELS[(g as any).forma_pago] || "Efectivo"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
+                          <TableCell className="text-right font-heading font-bold">{fmt(g.monto)}</TableCell>
+                          <TableCell>
+                            {g.recurrente ? (
+                              <Badge variant="secondary" className="text-[10px]">{g.frecuencia || "Recurrente"}</Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Único</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditGasto(g)}>
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteGasto(g.id)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3: Resumen */}
+        <TabsContent value="resumen" className="space-y-6">
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Plan distribution */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <PieChart className="w-4 h-4 text-accent" />
+                  Distribución por plan
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y divide-border">
+                  {planDist.length > 0 ? planDist.map((p, idx) => (
+                    <div key={p.name} className="py-2.5 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">{idx + 1}</span>
+                          <span className="text-sm font-medium truncate">{p.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-heading font-bold">{p.count}</span>
+                          <span className="text-xs text-muted-foreground ml-1">· {fmt(p.revenue)}</span>
+                        </div>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full" style={{ width: `${(p.count / maxPlanCount) * 100}%` }} />
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="py-8 text-center text-muted-foreground text-sm">Sin datos</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sede distribution */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-primary" />
+                  Alumnos por sede
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {sedeDist.length > 0 ? (
+                  <div className="space-y-3">
+                    {sedeDist.map((s) => (
+                      <div key={s.name} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{s.name}</span>
+                          <span className="font-heading font-bold">{s.count}</span>
+                        </div>
+                        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-accent/80 rounded-full" style={{ width: `${(s.count / Math.max(...sedeDist.map(x => x.count))) * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground text-sm">Sin datos de sedes</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
