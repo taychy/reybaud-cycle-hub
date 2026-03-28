@@ -407,6 +407,16 @@ const ManageCoaches = () => {
                 ))}
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Sede</Label>
+              <Select value={selectedSedeId || "sin_sede"} onValueChange={(v) => setSelectedSedeId(v === "sin_sede" ? null : v)}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sin_sede">Sin sede</SelectItem>
+                  {sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCoach(null)}>Cancelar</Button>
