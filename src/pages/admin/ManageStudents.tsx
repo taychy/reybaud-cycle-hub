@@ -689,7 +689,7 @@ const ManageStudents = () => {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant={alumno.grupo === "Sin grupo" ? "destructive" : "secondary"} className="font-mono text-[10px]">{alumno.grupo}</Badge>
                         <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-[10px] ${getEstadoBadge(alumno.estado).className}`}>{alumno.estado}</Badge>
-                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "sin sub" : subEstado}</Badge>
+                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}</Badge>
                         {inconsistency && <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />!</Badge>}
                         {missing.length > 0 && !inconsistency && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5">Incompleto</Badge>}
                       </div>
