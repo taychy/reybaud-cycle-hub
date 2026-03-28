@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, PieChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -191,12 +191,24 @@ const AdminLayout = () => {
 
         {/* Nav */}
         <nav className={`flex-1 ${collapsed ? "p-1.5" : "p-3"} space-y-1 overflow-y-auto`}>
+          {isSuperAdmin && (
+            <>
+              <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
+              <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
+              <NavItem item={{ to: "/admin/resumen-global", label: "Resumen", icon: PieChart }} />
+              <div className="pt-2 pb-1">
+                {!collapsed && (
+                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
+                    Gestión
+                  </span>
+                )}
+                {collapsed && <div className="border-t border-sidebar-border mx-1" />}
+              </div>
+            </>
+          )}
           {navItems.map((item) => (
             <NavItem key={item.to} item={item} />
           ))}
-          {isSuperAdmin && (
-            <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
-          )}
 
           {/* Store section */}
           <div className="pt-4 pb-1">
@@ -286,12 +298,19 @@ const AdminLayout = () => {
           </div>
 
           <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+            {isSuperAdmin && (
+              <>
+                <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
+                <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
+                <NavItem item={{ to: "/admin/resumen-global", label: "Resumen", icon: PieChart }} mobile />
+                <div className="pt-2 pb-1">
+                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Gestión</span>
+                </div>
+              </>
+            )}
             {navItems.map((item) => (
               <NavItem key={item.to} item={item} mobile />
             ))}
-            {isSuperAdmin && (
-              <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
-            )}
             <div className="pt-4 pb-1">
               <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
             </div>
