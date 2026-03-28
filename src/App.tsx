@@ -87,7 +87,8 @@ const App = () => (
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
-          <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
+            <Route path="/coach/alumnos" element={<CoachAlumnos />} />
+            <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
           <Route path="/coach/asistencia" element={<CoachAttendance />} />
           <Route path="/coach/feedback" element={<CoachFeedback />} />
           <Route path="/eventos" element={<Eventos />} />
