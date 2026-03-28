@@ -620,6 +620,8 @@ const SuperAdminDashboard = () => {
                         <SelectItem value="mp_josi">Mercado Pago Josi</SelectItem>
                         <SelectItem value="mp_escuela">Mercado Pago Escuela</SelectItem>
                         <SelectItem value="mp_tienda">Mercado Pago Tienda</SelectItem>
+                        <SelectItem value="mc_personal">Mercado Crédito Personal</SelectItem>
+                        <SelectItem value="banco">Banco</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
