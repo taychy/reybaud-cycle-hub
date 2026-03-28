@@ -87,6 +87,7 @@ const SuperAdminGastos = () => {
       subcategoria: gastoForm.subcategoria || null,
       descripcion: gastoForm.descripcion,
       monto: Number(gastoForm.monto),
+      moneda: gastoForm.moneda,
       fecha: gastoForm.fecha,
       recurrente: gastoForm.recurrente,
       frecuencia: gastoForm.recurrente ? gastoForm.frecuencia || null : null,
