@@ -37,8 +37,10 @@ const ManageCoaches = () => {
   const [editCoach, setEditCoach] = useState<Coach | null>(null);
   const [selectedGrupos, setSelectedGrupos] = useState<string[]>([]);
   const [selectedEstado, setSelectedEstado] = useState("pendiente");
+  const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
+  const [sedes, setSedes] = useState<Sede[]>([]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: "", email: "" });
