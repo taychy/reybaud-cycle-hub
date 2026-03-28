@@ -195,7 +195,11 @@ const AdminLayout = () => {
             <NavItem key={item.to} item={item} />
           ))}
           {isSuperAdmin && (
-            <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
+            <>
+              <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
+              <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
+              <NavItem item={{ to: "/admin/resumen-global", label: "Resumen", icon: PieChart }} />
+            </>
           )}
 
           {/* Store section */}
