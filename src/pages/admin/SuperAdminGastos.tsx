@@ -134,6 +134,7 @@ const SuperAdminGastos = () => {
       subcategoria: g.subcategoria || "",
       descripcion: g.descripcion,
       monto: String(g.monto),
+      moneda: g.moneda || "ARS",
       fecha: g.fecha,
       recurrente: g.recurrente,
       frecuencia: g.frecuencia || "",
