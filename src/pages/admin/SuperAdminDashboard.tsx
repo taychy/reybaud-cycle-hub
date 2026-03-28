@@ -357,6 +357,7 @@ const SuperAdminDashboard = () => {
       frecuencia: g.frecuencia || "",
       proveedor: g.proveedor || "",
       notas: g.notas || "",
+      forma_pago: (g as any).forma_pago || "efectivo",
     });
     setGastoDialogOpen(true);
   };
