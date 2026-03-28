@@ -70,6 +70,7 @@ const SuperAdminDashboard = () => {
     frecuencia: "",
     proveedor: "",
     notas: "",
+    forma_pago: "efectivo",
   });
 
   const loadData = useCallback(async () => {
@@ -310,6 +311,7 @@ const SuperAdminDashboard = () => {
       frecuencia: gastoForm.recurrente ? gastoForm.frecuencia || null : null,
       proveedor: gastoForm.proveedor || null,
       notas: gastoForm.notas || null,
+      forma_pago: gastoForm.forma_pago,
     };
 
     if (editingGasto) {
@@ -339,7 +341,7 @@ const SuperAdminDashboard = () => {
     setGastoForm({
       categoria: "Otros", subcategoria: "", descripcion: "", monto: "",
       fecha: new Date().toISOString().split("T")[0], recurrente: false,
-      frecuencia: "", proveedor: "", notas: "",
+      frecuencia: "", proveedor: "", notas: "", forma_pago: "efectivo",
     });
   };
 
@@ -355,6 +357,7 @@ const SuperAdminDashboard = () => {
       frecuencia: g.frecuencia || "",
       proveedor: g.proveedor || "",
       notas: g.notas || "",
+      forma_pago: (g as any).forma_pago || "efectivo",
     });
     setGastoDialogOpen(true);
   };
@@ -605,6 +608,20 @@ const SuperAdminDashboard = () => {
                       <Label className="text-xs">Proveedor</Label>
                       <Input value={gastoForm.proveedor} onChange={(e) => setGastoForm(f => ({ ...f, proveedor: e.target.value }))} placeholder="Opcional" />
                     </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Forma de pago</Label>
+                    <Select value={gastoForm.forma_pago} onValueChange={(v) => setGastoForm(f => ({ ...f, forma_pago: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="efectivo">Efectivo</SelectItem>
+                        <SelectItem value="tarjeta_credito">Tarjeta de Crédito</SelectItem>
+                        <SelectItem value="mp_personal">Mercado Pago Personal</SelectItem>
+                        <SelectItem value="mp_josi">Mercado Pago Josi</SelectItem>
+                        <SelectItem value="mp_escuela">Mercado Pago Escuela</SelectItem>
+                        <SelectItem value="mp_tienda">Mercado Pago Tienda</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-3">
                     <Switch checked={gastoForm.recurrente} onCheckedChange={(v) => setGastoForm(f => ({ ...f, recurrente: v }))} />
