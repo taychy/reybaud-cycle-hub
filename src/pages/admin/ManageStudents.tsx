@@ -743,7 +743,7 @@ const ManageStudents = () => {
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Badge variant={getSubBadge(subEstado).variant} className={`text-xs ${getSubBadge(subEstado).className}`}>
-                                {subEstado === "sin_suscripcion" ? "sin sub" : subEstado}
+                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}</Badge>
                               </Badge>
                               {inconsistency && <AlertTriangle className="w-3 h-3 text-destructive" />}
                             </div>
