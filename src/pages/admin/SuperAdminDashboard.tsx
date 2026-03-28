@@ -341,7 +341,7 @@ const SuperAdminDashboard = () => {
     setGastoForm({
       categoria: "Otros", subcategoria: "", descripcion: "", monto: "",
       fecha: new Date().toISOString().split("T")[0], recurrente: false,
-      frecuencia: "", proveedor: "", notas: "",
+      frecuencia: "", proveedor: "", notas: "", forma_pago: "efectivo",
     });
   };
 
