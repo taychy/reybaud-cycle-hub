@@ -22,6 +22,12 @@ interface Coach {
   grupos: string[];
   estado: string;
   created_at: string;
+  sede_id: string | null;
+}
+
+interface Sede {
+  id: string;
+  nombre: string;
 }
 
 const ManageCoaches = () => {
@@ -31,8 +37,10 @@ const ManageCoaches = () => {
   const [editCoach, setEditCoach] = useState<Coach | null>(null);
   const [selectedGrupos, setSelectedGrupos] = useState<string[]>([]);
   const [selectedEstado, setSelectedEstado] = useState("pendiente");
+  const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
+  const [sedes, setSedes] = useState<Sede[]>([]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: "", email: "" });
@@ -47,6 +55,12 @@ const ManageCoaches = () => {
   };
 
   useEffect(() => { fetchCoaches(); }, []);
+
+  useEffect(() => {
+    supabase.from("sedes").select("id, nombre").eq("activa", true).order("nombre").then(({ data }) => {
+      setSedes(data || []);
+    });
+  }, []);
 
   const handleCreateCoach = async () => {
     if (!createForm.nombre.trim() || !createForm.email.trim()) {
@@ -118,6 +132,7 @@ const ManageCoaches = () => {
     setEditCoach(coach);
     setSelectedGrupos(coach.grupos || []);
     setSelectedEstado(coach.estado);
+    setSelectedSedeId(coach.sede_id || null);
   };
 
   const toggleGrupo = (grupo: string) => {
@@ -131,7 +146,7 @@ const ManageCoaches = () => {
     setSaving(true);
     await supabase
       .from("coaches")
-      .update({ grupos: selectedGrupos, estado: selectedEstado } as any)
+      .update({ grupos: selectedGrupos, estado: selectedEstado, sede_id: selectedSedeId } as any)
       .eq("id", editCoach.id);
     toast.success(`Coach ${editCoach.nombre} actualizado`);
     setEditCoach(null);
@@ -324,6 +339,10 @@ const ManageCoaches = () => {
                     {detailCoach.estado}
                   </Badge>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Sede</span>
+                  <span className="text-foreground text-xs">{sedes.find(s => s.id === detailCoach.sede_id)?.nombre || "Sin sede"}</span>
+                </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 {!(detailCoach as any).password_set && (detailCoach as any).invited_at && (
@@ -387,6 +406,16 @@ const ManageCoaches = () => {
                   </label>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Sede</Label>
+              <Select value={selectedSedeId || "sin_sede"} onValueChange={(v) => setSelectedSedeId(v === "sin_sede" ? null : v)}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sin_sede">Sin sede</SelectItem>
+                  {sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

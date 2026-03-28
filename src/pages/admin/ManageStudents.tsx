@@ -162,12 +162,18 @@ const ManageStudents = () => {
   const [newPlanId, setNewPlanId] = useState("");
   const [savingPlan, setSavingPlan] = useState(false);
 
+  // Sedes
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+
   useEffect(() => {
     supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
     supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
       setPlanes(data || []);
+    });
+    supabase.from("sedes").select("id, nombre").eq("activa", true).order("nombre").then(({ data }) => {
+      setSedes(data || []);
     });
   }, [alumnos]);
 
@@ -903,6 +909,27 @@ const ManageStudents = () => {
                             </SelectTrigger>
                             <SelectContent className="z-[100]">
                               {GRUPOS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Sede</span>
+                          <Select
+                            value={drawerAlumno.sede_id || "sin_sede"}
+                            onValueChange={async (val) => {
+                              const newVal = val === "sin_sede" ? null : val;
+                              await supabase.from("alumnos").update({ sede_id: newVal } as any).eq("id", drawerAlumno.id);
+                              toast.success("Sede actualizada");
+                              setDrawerAlumno({ ...drawerAlumno, sede_id: newVal });
+                              fetchAlumnos();
+                            }}
+                          >
+                            <SelectTrigger className="w-32 h-7 bg-secondary border-border text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[100]">
+                              <SelectItem value="sin_sede">Sin sede</SelectItem>
+                              {sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
