@@ -56,6 +56,12 @@ const ManageCoaches = () => {
 
   useEffect(() => { fetchCoaches(); }, []);
 
+  useEffect(() => {
+    supabase.from("sedes").select("id, nombre").eq("activa", true).order("nombre").then(({ data }) => {
+      setSedes(data || []);
+    });
+  }, []);
+
   const handleCreateCoach = async () => {
     if (!createForm.nombre.trim() || !createForm.email.trim()) {
       toast.error("Nombre y email son obligatorios");
