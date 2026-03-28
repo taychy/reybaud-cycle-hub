@@ -55,6 +55,7 @@ import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import UpdatePrompt from "./components/UpdatePrompt";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -62,6 +63,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <UpdatePrompt />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
