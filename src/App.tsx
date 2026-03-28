@@ -113,6 +113,8 @@ const App = () => (
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="metricas" element={<SuperAdminDashboard />} />
+            <Route path="gastos" element={<SuperAdminGastos />} />
+            <Route path="resumen-global" element={<SuperAdminResumen />} />
             <Route path="tienda" element={<StoreDashboard />} />
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
