@@ -980,16 +980,24 @@ export type Database = {
           activo: boolean
           clases_por_semana: number | null
           created_at: string
+          cuota_valor: number | null
+          cuotas_cantidad: number | null
           descripcion: string | null
           descripcion_corta: string | null
           frecuencia: string
           id: string
+          imagen_url: string | null
+          inscripciones_actuales: number
+          max_inscripciones: number | null
           moneda: string
           nombre: string
           precio: number
+          precio_promocional: number | null
           renovacion_auto_permitida: boolean
+          tipo: string
           updated_at: string
           visibilidad: string
+          whatsapp_url: string | null
         }
         Insert: {
           acceso_beneficios?: boolean
@@ -998,16 +1006,24 @@ export type Database = {
           activo?: boolean
           clases_por_semana?: number | null
           created_at?: string
+          cuota_valor?: number | null
+          cuotas_cantidad?: number | null
           descripcion?: string | null
           descripcion_corta?: string | null
           frecuencia: string
           id?: string
+          imagen_url?: string | null
+          inscripciones_actuales?: number
+          max_inscripciones?: number | null
           moneda?: string
           nombre: string
           precio: number
+          precio_promocional?: number | null
           renovacion_auto_permitida?: boolean
+          tipo?: string
           updated_at?: string
           visibilidad?: string
+          whatsapp_url?: string | null
         }
         Update: {
           acceso_beneficios?: boolean
@@ -1016,16 +1032,24 @@ export type Database = {
           activo?: boolean
           clases_por_semana?: number | null
           created_at?: string
+          cuota_valor?: number | null
+          cuotas_cantidad?: number | null
           descripcion?: string | null
           descripcion_corta?: string | null
           frecuencia?: string
           id?: string
+          imagen_url?: string | null
+          inscripciones_actuales?: number
+          max_inscripciones?: number | null
           moneda?: string
           nombre?: string
           precio?: number
+          precio_promocional?: number | null
           renovacion_auto_permitida?: boolean
+          tipo?: string
           updated_at?: string
           visibilidad?: string
+          whatsapp_url?: string | null
         }
         Relationships: []
       }
