@@ -132,6 +132,7 @@ const ManageCoaches = () => {
     setEditCoach(coach);
     setSelectedGrupos(coach.grupos || []);
     setSelectedEstado(coach.estado);
+    setSelectedSedeId(coach.sede_id || null);
   };
 
   const toggleGrupo = (grupo: string) => {
