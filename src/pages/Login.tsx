@@ -362,7 +362,7 @@ const Login = () => {
             rel="noopener noreferrer"
             className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
-            Desarrollado por SB
+            Desarrollado por Conceito Publicidade
           </a>
         </div>
       </div>
