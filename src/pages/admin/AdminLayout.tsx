@@ -77,6 +77,16 @@ const AdminLayout = () => {
         sessionStorage.setItem("admin_login_updated", "true");
       }
 
+      // Check if super_admin
+      const { data: profile } = await supabase
+        .from("admin_profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+      if (isMounted && profile?.role === "super_admin") {
+        setIsSuperAdmin(true);
+      }
+
       if (isMounted) setLoading(false);
     };
 
