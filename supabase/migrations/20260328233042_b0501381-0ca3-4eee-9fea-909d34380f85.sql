@@ -1,0 +1,1 @@
+ALTER TABLE public.coaches ADD COLUMN sede_id uuid REFERENCES public.sedes(id) DEFAULT NULL;

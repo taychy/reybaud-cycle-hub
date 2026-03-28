@@ -253,6 +253,7 @@ export type Database = {
           last_invite_sent_at: string | null
           nombre: string
           password_set: boolean
+          sede_id: string | null
           updated_at: string
           user_id: string
         }
@@ -267,6 +268,7 @@ export type Database = {
           last_invite_sent_at?: string | null
           nombre: string
           password_set?: boolean
+          sede_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -281,10 +283,19 @@ export type Database = {
           last_invite_sent_at?: string | null
           nombre?: string
           password_set?: boolean
+          sede_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coaches_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deposito_profiles: {
         Row: {
