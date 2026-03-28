@@ -467,16 +467,38 @@ const PlanSelection = () => {
                       {plan.nombre}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {frecuenciaLabels[plan.frecuencia] || plan.frecuencia}
+                      {plan.tipo === "programa" ? "Programa" : frecuenciaLabels[plan.frecuencia] || plan.frecuencia}
                     </p>
                   </div>
 
                   <div>
-                    <span className="text-3xl font-heading font-bold gold-text-gradient">
-                      {formatPrice(plan.precio)}
-                    </span>
-                    <span className="text-muted-foreground text-sm"> /mes</span>
+                    {plan.tipo === "programa" && plan.precio_promocional ? (
+                      <>
+                        <span className="text-sm text-muted-foreground line-through">
+                          {formatPrice(plan.precio, plan.moneda)}
+                        </span>
+                        <br />
+                        <span className="text-3xl font-heading font-bold gold-text-gradient">
+                          {formatPrice(plan.precio_promocional, plan.moneda)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-heading font-bold gold-text-gradient">
+                          {formatPrice(plan.precio, plan.moneda)}
+                        </span>
+                        {plan.tipo !== "programa" && (
+                          <span className="text-muted-foreground text-sm"> /mes</span>
+                        )}
+                      </>
+                    )}
                   </div>
+
+                  {plan.tipo === "programa" && plan.cuotas_cantidad && plan.cuota_valor && (
+                    <p className="text-sm text-muted-foreground">
+                      ó {plan.cuotas_cantidad} cuotas de {formatPrice(plan.cuota_valor, plan.moneda)}
+                    </p>
+                  )}
 
                   {plan.descripcion && (
                     <p className="text-sm text-secondary-foreground">
@@ -484,10 +506,28 @@ const PlanSelection = () => {
                     </p>
                   )}
 
+                  {plan.tipo === "programa" && plan.max_inscripciones && (
+                    <p className="text-xs text-muted-foreground">
+                      {(plan.max_inscripciones - (plan.inscripciones_actuales || 0))} cupos disponibles
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Check className={`w-4 h-4 ${isSelected ? "text-primary" : ""}`} />
                     <span>Acceso a entrenamientos</span>
                   </div>
+
+                  {plan.tipo === "programa" && plan.whatsapp_url && (
+                    <a
+                      href={plan.whatsapp_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      Tengo dudas, quiero hablar con el equipo
+                    </a>
+                  )}
                 </div>
 
                 {isSelected && (
