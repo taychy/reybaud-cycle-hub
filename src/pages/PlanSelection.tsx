@@ -15,6 +15,15 @@ interface Plan {
   descripcion: string | null;
   precio: number;
   frecuencia: string;
+  moneda?: string;
+  tipo?: string;
+  precio_promocional?: number | null;
+  cuotas_cantidad?: number | null;
+  cuota_valor?: number | null;
+  whatsapp_url?: string | null;
+  max_inscripciones?: number | null;
+  inscripciones_actuales?: number;
+  imagen_url?: string | null;
 }
 
 interface PreviousSubInfo {
