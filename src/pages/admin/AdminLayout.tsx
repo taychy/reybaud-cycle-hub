@@ -289,6 +289,9 @@ const AdminLayout = () => {
             {navItems.map((item) => (
               <NavItem key={item.to} item={item} mobile />
             ))}
+            {isSuperAdmin && (
+              <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
+            )}
             <div className="pt-4 pb-1">
               <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
             </div>
