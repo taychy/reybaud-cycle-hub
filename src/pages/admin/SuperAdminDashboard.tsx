@@ -70,6 +70,7 @@ const SuperAdminDashboard = () => {
     frecuencia: "",
     proveedor: "",
     notas: "",
+    forma_pago: "efectivo",
   });
 
   const loadData = useCallback(async () => {
