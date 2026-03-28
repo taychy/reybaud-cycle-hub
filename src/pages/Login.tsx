@@ -353,6 +353,18 @@ const Login = () => {
             Acceso administrador
           </button>
         </div>
+
+        {/* Developer credit */}
+        <div className="text-center pt-4">
+          <a
+            href="https://wa.me/5491171711122"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            Desarrollado por Lovable Studio
+          </a>
+        </div>
       </div>
     </div>
   );
