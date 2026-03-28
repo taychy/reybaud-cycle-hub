@@ -912,6 +912,27 @@ const ManageStudents = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Sede</span>
+                          <Select
+                            value={drawerAlumno.sede_id || "sin_sede"}
+                            onValueChange={async (val) => {
+                              const newVal = val === "sin_sede" ? null : val;
+                              await supabase.from("alumnos").update({ sede_id: newVal } as any).eq("id", drawerAlumno.id);
+                              toast.success("Sede actualizada");
+                              setDrawerAlumno({ ...drawerAlumno, sede_id: newVal });
+                              fetchAlumnos();
+                            }}
+                          >
+                            <SelectTrigger className="w-32 h-7 bg-secondary border-border text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[100]">
+                              <SelectItem value="sin_sede">Sin sede</SelectItem>
+                              {sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <DetailRow label="Plan" value={sub?.planes?.nombre || "Sin plan"} />
                         <DetailRow label="Fecha de alta" value={formatDate(drawerAlumno.created_at)} />
                         <DetailRow label="Último acceso" value={formatDate(drawerAlumno.updated_at)} />

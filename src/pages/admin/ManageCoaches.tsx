@@ -22,6 +22,12 @@ interface Coach {
   grupos: string[];
   estado: string;
   created_at: string;
+  sede_id: string | null;
+}
+
+interface Sede {
+  id: string;
+  nombre: string;
 }
 
 const ManageCoaches = () => {
