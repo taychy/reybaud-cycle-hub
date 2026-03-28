@@ -823,6 +823,7 @@ export type Database = {
           created_at: string
           descripcion: string
           fecha: string
+          forma_pago: string
           frecuencia: string | null
           id: string
           moneda: string
@@ -839,6 +840,7 @@ export type Database = {
           created_at?: string
           descripcion: string
           fecha?: string
+          forma_pago?: string
           frecuencia?: string | null
           id?: string
           moneda?: string
@@ -855,6 +857,7 @@ export type Database = {
           created_at?: string
           descripcion?: string
           fecha?: string
+          forma_pago?: string
           frecuencia?: string | null
           id?: string
           moneda?: string

@@ -1,0 +1,1 @@
+ALTER TABLE public.gastos ADD COLUMN IF NOT EXISTS forma_pago text NOT NULL DEFAULT 'efectivo';
