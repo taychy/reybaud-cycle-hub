@@ -121,7 +121,7 @@ const SuperAdminGastos = () => {
 
   const resetForm = () => {
     setGastoForm({
-      categoria: "Otros", subcategoria: "", descripcion: "", monto: "",
+      categoria: "Otros", subcategoria: "", descripcion: "", monto: "", moneda: "ARS",
       fecha: new Date().toISOString().split("T")[0], recurrente: false,
       frecuencia: "", proveedor: "", notas: "", forma_pago: "efectivo",
     });
