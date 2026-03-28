@@ -15,6 +15,15 @@ interface Plan {
   descripcion: string | null;
   precio: number;
   frecuencia: string;
+  moneda?: string;
+  tipo?: string;
+  precio_promocional?: number | null;
+  cuotas_cantidad?: number | null;
+  cuota_valor?: number | null;
+  whatsapp_url?: string | null;
+  max_inscripciones?: number | null;
+  inscripciones_actuales?: number;
+  imagen_url?: string | null;
 }
 
 interface PreviousSubInfo {
@@ -83,10 +92,10 @@ const PlanSelection = () => {
 
   const selectedPlan = planes.find((p) => p.id === selected);
 
-  const formatPrice = (precio: number) => {
+  const formatPrice = (precio: number, moneda: string = "ARS") => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
-      currency: "ARS",
+      currency: moneda === "USD" ? "USD" : "ARS",
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(precio);
@@ -458,16 +467,38 @@ const PlanSelection = () => {
                       {plan.nombre}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {frecuenciaLabels[plan.frecuencia] || plan.frecuencia}
+                      {plan.tipo === "programa" ? "Programa" : frecuenciaLabels[plan.frecuencia] || plan.frecuencia}
                     </p>
                   </div>
 
                   <div>
-                    <span className="text-3xl font-heading font-bold gold-text-gradient">
-                      {formatPrice(plan.precio)}
-                    </span>
-                    <span className="text-muted-foreground text-sm"> /mes</span>
+                    {plan.tipo === "programa" && plan.precio_promocional ? (
+                      <>
+                        <span className="text-sm text-muted-foreground line-through">
+                          {formatPrice(plan.precio, plan.moneda)}
+                        </span>
+                        <br />
+                        <span className="text-3xl font-heading font-bold gold-text-gradient">
+                          {formatPrice(plan.precio_promocional, plan.moneda)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-heading font-bold gold-text-gradient">
+                          {formatPrice(plan.precio, plan.moneda)}
+                        </span>
+                        {plan.tipo !== "programa" && (
+                          <span className="text-muted-foreground text-sm"> /mes</span>
+                        )}
+                      </>
+                    )}
                   </div>
+
+                  {plan.tipo === "programa" && plan.cuotas_cantidad && plan.cuota_valor && (
+                    <p className="text-sm text-muted-foreground">
+                      ó {plan.cuotas_cantidad} cuotas de {formatPrice(plan.cuota_valor, plan.moneda)}
+                    </p>
+                  )}
 
                   {plan.descripcion && (
                     <p className="text-sm text-secondary-foreground">
@@ -475,10 +506,28 @@ const PlanSelection = () => {
                     </p>
                   )}
 
+                  {plan.tipo === "programa" && plan.max_inscripciones && (
+                    <p className="text-xs text-muted-foreground">
+                      {(plan.max_inscripciones - (plan.inscripciones_actuales || 0))} cupos disponibles
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Check className={`w-4 h-4 ${isSelected ? "text-primary" : ""}`} />
                     <span>Acceso a entrenamientos</span>
                   </div>
+
+                  {plan.tipo === "programa" && plan.whatsapp_url && (
+                    <a
+                      href={plan.whatsapp_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      Tengo dudas, quiero hablar con el equipo
+                    </a>
+                  )}
                 </div>
 
                 {isSelected && (
