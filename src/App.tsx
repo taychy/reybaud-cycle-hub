@@ -20,6 +20,7 @@ import CoachRegister from "./pages/CoachRegister";
 import CoachDashboard from "./pages/coach/CoachDashboard";
 import CoachEventRecordDelAhora from "./pages/coach/CoachEventRecordDelAhora";
 import CoachAttendance from "./pages/coach/CoachAttendance";
+import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
@@ -86,7 +87,8 @@ const App = () => (
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<CoachDashboard />} />
-          <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
+            <Route path="/coach/alumnos" element={<CoachAlumnos />} />
+            <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
           <Route path="/coach/asistencia" element={<CoachAttendance />} />
           <Route path="/coach/feedback" element={<CoachFeedback />} />
           <Route path="/eventos" element={<Eventos />} />
