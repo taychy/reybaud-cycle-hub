@@ -162,12 +162,18 @@ const ManageStudents = () => {
   const [newPlanId, setNewPlanId] = useState("");
   const [savingPlan, setSavingPlan] = useState(false);
 
+  // Sedes
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+
   useEffect(() => {
     supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
     supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
       setPlanes(data || []);
+    });
+    supabase.from("sedes").select("id, nombre").eq("activa", true).order("nombre").then(({ data }) => {
+      setSedes(data || []);
     });
   }, [alumnos]);
 
