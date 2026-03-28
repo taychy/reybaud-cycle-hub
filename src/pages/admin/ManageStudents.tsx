@@ -881,7 +881,7 @@ const ManageStudents = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Estado suscripción</span>
                           <Badge variant={getSubBadge(subEstado).variant} className={`text-xs ${getSubBadge(subEstado).className}`}>
-                            {subEstado === "sin_suscripcion" ? "Sin suscripción" : subEstado}
+                            {subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}
                           </Badge>
                         </div>
                         <div className="flex justify-between items-center">
