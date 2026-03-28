@@ -29,14 +29,14 @@ function buildEmailHtml(userType: string, link: string, logoUrl: string) {
       <li>Acceder a la información de tus alumnos</li>
     </ul>
     <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
-      Hacé clic en el botón de abajo para crear tu contraseña.<br/>
+      Hacé clic en el botón de abajo para activar tu cuenta.<br/>
       Este enlace es válido por <strong>24 horas</strong>.
     </p>
     <a href="${link}" style="background-color:#E8832A;color:#ffffff;font-size:14px;font-weight:bold;border-radius:8px;padding:14px 28px;text-decoration:none;display:block;text-align:center;margin:8px 0 24px;">
-      Crear mi contraseña
+      Activar mi cuenta
     </a>
     <p style="font-size:13px;color:#777777;line-height:1.5;margin:0 0 20px;border-top:1px solid #eeeeee;padding-top:16px;">
-      Una vez que crees tu contraseña, vas a poder acceder al panel de coach con tu email y la clave que elijas.
+      Una vez activada, vas a poder acceder al panel de coach ingresando tu email. Te enviaremos un código de acceso cada vez que inicies sesión.
     </p>
     <p style="font-size:12px;color:#999999;margin:0;text-align:center;">
       Si no esperabas esta invitación, podés ignorar este email de forma segura.
