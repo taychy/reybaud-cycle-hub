@@ -29,6 +29,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
+import AdminMejoras from "./pages/admin/AdminMejoras";
 import ManagePlanes from "./pages/admin/ManagePlanes";
 import ManagePrecios from "./pages/admin/ManagePrecios";
 import ManageSedes from "./pages/admin/ManageSedes";
