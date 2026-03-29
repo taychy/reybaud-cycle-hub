@@ -592,39 +592,81 @@ export type Database = {
       }
       event_reservations: {
         Row: {
+          accepted_terms: boolean
+          admin_notes: string | null
           alumno_id: string
+          amount_paid: number
+          amount_total: number | null
+          balance_due: number | null
+          cancelled_at: string | null
+          confirmed_at: string | null
           created_at: string
+          created_by: string
+          currency_snapshot: string | null
           estado: string
           event_id: string
           id: string
           metodo_pago: string
           moneda: string
           monto: number | null
+          next_due_date: string | null
           notas: string | null
+          participant_notes: string | null
+          payment_status: string
+          price_snapshot: number | null
+          reservation_status: string
           updated_at: string
         }
         Insert: {
+          accepted_terms?: boolean
+          admin_notes?: string | null
           alumno_id: string
+          amount_paid?: number
+          amount_total?: number | null
+          balance_due?: number | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           created_at?: string
+          created_by?: string
+          currency_snapshot?: string | null
           estado?: string
           event_id: string
           id?: string
           metodo_pago?: string
           moneda?: string
           monto?: number | null
+          next_due_date?: string | null
           notas?: string | null
+          participant_notes?: string | null
+          payment_status?: string
+          price_snapshot?: number | null
+          reservation_status?: string
           updated_at?: string
         }
         Update: {
+          accepted_terms?: boolean
+          admin_notes?: string | null
           alumno_id?: string
+          amount_paid?: number
+          amount_total?: number | null
+          balance_due?: number | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           created_at?: string
+          created_by?: string
+          currency_snapshot?: string | null
           estado?: string
           event_id?: string
           id?: string
           metodo_pago?: string
           moneda?: string
           monto?: number | null
+          next_due_date?: string | null
           notas?: string | null
+          participant_notes?: string | null
+          payment_status?: string
+          price_snapshot?: number | null
+          reservation_status?: string
           updated_at?: string
         }
         Relationships: [
@@ -1338,6 +1380,119 @@ export type Database = {
             columns: ["entrenamiento_id"]
             isOneToOne: false
             referencedRelation: "entrenamientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_payments: {
+        Row: {
+          alumno_id: string
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          payment_reference: string | null
+          proof_url: string | null
+          reservation_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          alumno_id: string
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_reference?: string | null
+          proof_url?: string | null
+          reservation_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          alumno_id?: string
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_reference?: string | null
+          proof_url?: string | null
+          reservation_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_payments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_payments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_status_history: {
+        Row: {
+          changed_by: string | null
+          changed_by_role: string | null
+          created_at: string
+          id: string
+          new_payment_status: string | null
+          new_reservation_status: string | null
+          note: string | null
+          old_payment_status: string | null
+          old_reservation_status: string | null
+          reservation_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_role?: string | null
+          created_at?: string
+          id?: string
+          new_payment_status?: string | null
+          new_reservation_status?: string | null
+          note?: string | null
+          old_payment_status?: string | null
+          old_reservation_status?: string | null
+          reservation_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_role?: string | null
+          created_at?: string
+          id?: string
+          new_payment_status?: string | null
+          new_reservation_status?: string | null
+          note?: string | null
+          old_payment_status?: string | null
+          old_reservation_status?: string | null
+          reservation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_status_history_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
         ]

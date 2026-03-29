@@ -100,9 +100,18 @@ const getReservationBadge = (estado: string | undefined) => {
   if (!estado) return null;
   switch (estado) {
     case "pago_confirmado":
+    case "pago_validado":
+    case "reserva_confirmada":
       return { label: "Confirmado", className: "bg-emerald-500 text-white" };
     case "pendiente_verificacion":
+    case "pago_informado":
+    case "reserva_pendiente":
       return { label: "Pendiente", className: "bg-amber-500 text-white" };
+    case "solicitud_enviada":
+      return { label: "Solicitud enviada", className: "bg-sky-500 text-white" };
+    case "cancelada":
+    case "rechazada":
+      return null; // Don't show badge for cancelled/rejected
     default:
       return { label: "Reservado", className: "bg-primary text-primary-foreground" };
   }
@@ -318,12 +327,15 @@ export const EventosContent = () => {
     if (!alumno) return;
     supabase
       .from("event_reservations")
-      .select("event_id, estado")
+      .select("event_id, estado, reservation_status")
       .eq("alumno_id", alumno.id)
       .then(({ data }) => {
         if (data) {
           const map: Record<string, string> = {};
-          data.forEach((r: any) => { map[r.event_id] = r.estado; });
+          data.forEach((r: any) => {
+            // Use new reservation_status if available, fall back to estado
+            map[r.event_id] = r.reservation_status || r.estado;
+          });
           setReservations(map);
         }
       });

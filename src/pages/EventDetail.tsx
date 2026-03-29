@@ -1,22 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, CalendarDays, Clock, Ruler, Send, Gauge, Heart,
   MapPin, Users, CheckCircle, Mountain, Moon, Sun, Shield,
   ExternalLink, MessageCircle, FileText, CreditCard, AlertCircle, Loader2, Banknote,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import EventRankings from "@/components/EventRankings";
 import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
 import { useAlumnoSession } from "@/hooks/useAlumnoSession";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
+import ReservationDrawer from "@/components/reservation/ReservationDrawer";
+import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -48,10 +49,21 @@ interface Event {
 interface Reservation {
   id: string;
   estado: string;
+  reservation_status: string;
+  payment_status: string;
   metodo_pago: string;
   monto: number | null;
   moneda: string;
   notas: string | null;
+  admin_notes: string | null;
+  participant_notes: string | null;
+  amount_total: number | null;
+  amount_paid: number;
+  balance_due: number | null;
+  price_snapshot: number | null;
+  currency_snapshot: string | null;
+  next_due_date: string | null;
+  confirmed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,18 +92,6 @@ const placeholderImages: Record<string, string> = {
   otro: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&q=80",
 };
 
-/* ─── Status badge helpers ─── */
-const getEstadoBadge = (estado: string) => {
-  switch (estado) {
-    case "pago_confirmado":
-      return { label: "Pago validado", icon: CheckCircle, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
-    case "pendiente_verificacion":
-      return { label: "Pago informado · Pendiente de validación", icon: AlertCircle, className: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
-    default:
-      return { label: estado, icon: AlertCircle, className: "bg-muted text-muted-foreground border-border" };
-  }
-};
-
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -102,6 +102,7 @@ const EventDetail = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [showReservationDrawer, setShowReservationDrawer] = useState(false);
 
   // Result state
   const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; avg_speed_kmh: number | null; notes: string | null } | null>(null);
@@ -111,9 +112,6 @@ const EventDetail = () => {
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
   const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null } | null>(null);
-
-  // Reservation flow
-  const [reserving, setReserving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -128,21 +126,23 @@ const EventDetail = () => {
       });
   }, [id]);
 
-  useEffect(() => {
+  const loadReservation = useCallback(async () => {
     if (!id || !alumno) return;
-    // Load reservation
-    supabase
+    const { data } = await supabase
       .from("event_reservations")
       .select("*")
       .eq("event_id", id)
       .eq("alumno_id", alumno.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setReservation(data as unknown as Reservation);
-      });
+      .maybeSingle();
+    if (data) setReservation(data as unknown as Reservation);
+  }, [id, alumno]);
+
+  useEffect(() => {
+    if (!id || !alumno) return;
+    loadReservation();
     loadResult(id, alumno.id);
     loadParticipantResult(alumno.email);
-  }, [id, alumno]);
+  }, [id, alumno, loadReservation]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
     const { data } = await supabase
@@ -194,47 +194,8 @@ const EventDetail = () => {
     }
   };
 
-  /* ─── Reserve (Informar pago) ─── */
-  const handleReserve = async () => {
-    if (!id || !alumno || !event) return;
-    setReserving(true);
-
-    const { data: resData, error } = await supabase
-      .from("event_reservations" as any)
-      .insert({
-        event_id: id,
-        alumno_id: alumno.id,
-        estado: "pendiente_verificacion",
-        metodo_pago: "efectivo",
-        monto: event.price,
-        moneda: event.currency,
-      } as any)
-      .select("*")
-      .single();
-
-    if (error) {
-      if (error.code === "23505") {
-        toast({ title: "Ya tenés una reserva para este evento.", variant: "destructive" });
-      } else {
-        toast({ title: "Error al registrar la reserva.", variant: "destructive" });
-      }
-      setReserving(false);
-      return;
-    }
-
-    // Notify admin
-    try {
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-event-cash-payment`;
-      fetch(functionUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        body: JSON.stringify({ alumno_id: alumno.id, event_id: id, reservation_id: (resData as any)?.id }),
-      }).catch(() => {});
-    } catch { /* fire and forget */ }
-
-    setReserving(false);
+  const handleReservationCreated = (resData: any) => {
     setReservation(resData as unknown as Reservation);
-    toast({ title: "¡Reserva registrada!" });
   };
 
   if (loading) {
@@ -261,8 +222,7 @@ const EventDetail = () => {
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
   const hasReservation = !!reservation;
-  const estadoBadge = reservation ? getEstadoBadge(reservation.estado) : null;
-  const isPaymentValidated = reservation?.estado === "pago_confirmado";
+  const isActiveReservation = hasReservation && !["cancelada", "rechazada"].includes(reservation!.reservation_status);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -406,7 +366,7 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* Quick links from metadata */}
+          {/* Quick links */}
           {(event.metadata?.reglamento || event.metadata?.web_url || event.metadata?.whatsapp_url) && (
             <div className="glass-card rounded-xl p-5 space-y-3">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Más información</h3>
@@ -434,95 +394,65 @@ const EventDetail = () => {
           )}
 
           {/* ═══════════════════════════════════════════════════ */}
-          {/* CASE A: No reservation yet → show "Reservar" CTA  */}
+          {/* CASE A: No reservation → show "Reservar" CTA      */}
           {/* ═══════════════════════════════════════════════════ */}
-          {alumno && isPaid && spotsLeft !== 0 && !hasReservation && !eventPast && (
+          {alumno && !hasReservation && !eventPast && spotsLeft !== 0 && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-2">
                 <h3 className="font-heading font-semibold text-foreground">¿Querés reservar tu lugar?</h3>
               </div>
-              <Button variant="gold" className="w-full h-12 text-sm" disabled={reserving} onClick={handleReserve}>
-                {reserving ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Reservando...</>
-                ) : (
-                  <><CreditCard className="w-4 h-4 mr-2" /> Reservar</>
-                )}
+              <Button
+                variant="gold"
+                className="w-full h-12 text-sm"
+                onClick={() => setShowReservationDrawer(true)}
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Reservar
               </Button>
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════ */}
-          {/* CASE B: Has reservation → show "Mi estado" card       */}
-          {/* ═══════════════════════════════════════════════════════ */}
-          {alumno && hasReservation && estadoBadge && (
-            <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
-                <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Mi estado</h3>
-              </div>
+          {/* No spots left */}
+          {alumno && !hasReservation && !eventPast && spotsLeft === 0 && (
+            <div className="glass-card rounded-xl p-5 text-center space-y-2 animate-fade-in">
+              <Users className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">Este evento no tiene cupos disponibles en este momento.</p>
+            </div>
+          )}
 
-              {/* Status badge */}
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${estadoBadge.className}`}>
-                <estadoBadge.icon className="w-4 h-4 shrink-0" />
-                <span className="text-sm font-medium">{estadoBadge.label}</span>
-              </div>
+          {/* Not logged in */}
+          {!alumno && !eventPast && (
+            <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in text-center">
+              <p className="text-sm text-muted-foreground">Iniciá sesión para reservar tu lugar.</p>
+              <Button variant="gold" onClick={() => navigate("/login")}>
+                Iniciar sesión
+              </Button>
+            </div>
+          )}
 
-              {/* Detailed info */}
-              <div className="space-y-2 text-sm">
-                {reservation!.monto != null && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Monto total</span>
-                    <span className="font-semibold text-foreground">{formatPrice(reservation!.monto, reservation!.moneda || event.currency)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Método de pago</span>
-                  <span className="text-foreground capitalize">{reservation!.metodo_pago}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fecha de reserva</span>
-                  <span className="text-foreground">
-                    {new Date(reservation!.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </div>
-                {reservation!.notas && (
-                  <div className="pt-2 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-semibold">Observaciones del equipo:</span> {reservation!.notas}
-                    </p>
-                  </div>
-                )}
-              </div>
+          {/* ═══════════════════════════════════════════════════ */}
+          {/* CASE B: Has active reservation → "Mi estado"      */}
+          {/* ═══════════════════════════════════════════════════ */}
+          {alumno && isActiveReservation && reservation && (
+            <ReservationStatusCard
+              reservation={reservation}
+              alumnoId={alumno.id}
+              eventCurrency={event.currency}
+              reglamentoUrl={event.metadata?.reglamento}
+              whatsappUrl={event.metadata?.whatsapp_url}
+              onPaymentReported={loadReservation}
+            />
+          )}
 
-              {/* Informar pago — only if NOT yet validated */}
-              {!isPaymentValidated && (
-                <div className="pt-3 border-t border-border/50 space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    ¿Ya realizaste el pago de este evento? Informalo acá para que el equipo lo revise y actualice tu estado.
-                  </p>
-                  {reservation!.estado === "pendiente_verificacion" ? (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span className="text-xs text-amber-400">Pago informado · Pendiente de validación</span>
-                    </div>
-                  ) : (
-                    <Button variant="outline" className="w-full" onClick={handleReserve} disabled={reserving}>
-                      <Banknote className="w-4 h-4 mr-2" /> Informar pago
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {/* Confirmed state */}
-              {isPaymentValidated && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-400">Reserva confirmada</p>
-                    <p className="text-xs text-muted-foreground">Tu lugar está asegurado. ¡Nos vemos ahí! 🎉</p>
-                  </div>
-                </div>
-              )}
+          {/* CASE C: Cancelled/rejected reservation — allow re-reserve */}
+          {alumno && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && (
+            <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in">
+              <p className="text-sm text-muted-foreground text-center">
+                Tu reserva anterior fue {reservation!.reservation_status === "cancelada" ? "cancelada" : "rechazada"}.
+                Podés iniciar una nueva si lo deseás.
+              </p>
+              <Button variant="gold" className="w-full" onClick={() => setShowReservationDrawer(true)}>
+                <CreditCard className="w-4 h-4 mr-2" /> Nueva reserva
+              </Button>
             </div>
           )}
 
@@ -604,7 +534,19 @@ const EventDetail = () => {
           {id && <EventRankings eventId={id} eventType={event.type} />}
         </div>
       </main>
+
       <BottomNav activeTab="eventos" />
+
+      {/* Reservation Drawer */}
+      {alumno && event && (
+        <ReservationDrawer
+          open={showReservationDrawer}
+          onOpenChange={setShowReservationDrawer}
+          event={event}
+          alumno={alumno}
+          onReserved={handleReservationCreated}
+        />
+      )}
     </div>
   );
 };

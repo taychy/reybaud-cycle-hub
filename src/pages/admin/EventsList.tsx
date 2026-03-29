@@ -15,6 +15,7 @@ import {
   CalendarDays,
   SlidersHorizontal,
   X,
+  Users,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -46,6 +47,7 @@ import EventForm, {
   eventFormToPayload,
   type EventFormData,
 } from "@/components/admin/EventForm";
+import AdminEventReservations from "@/components/admin/AdminEventReservations";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
@@ -128,6 +130,7 @@ const EventsList = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
@@ -393,6 +396,9 @@ const EventsList = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
+                    <Users className="w-4 h-4" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(ev)} title="Editar">
                     <Pencil className="w-4 h-4" />
                   </Button>
@@ -444,6 +450,24 @@ const EventsList = () => {
             onDuplicate={editingEvent ? () => { duplicateEvent(editingEvent); setFormOpen(false); } : undefined}
             onDelete={editingEvent ? () => { deleteEvent(editingEvent.id); setFormOpen(false); } : undefined}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Reservations Dialog */}
+      <Dialog open={!!reservationsEvent} onOpenChange={(open) => !open && setReservationsEvent(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              Reservas — {reservationsEvent?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {reservationsEvent && (
+            <AdminEventReservations
+              eventId={reservationsEvent.id}
+              eventTitle={reservationsEvent.title}
+              eventCurrency={reservationsEvent.currency}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
