@@ -150,7 +150,9 @@ export const eventFormToPayload = (form: EventFormData) => ({
   metadata: form.metadata,
   // Map old fields from metadata for backward compat
   location: form.metadata.location_name || form.metadata.race_location || form.metadata.destination || null,
-  price: form.metadata.price != null ? parseFloat(form.metadata.price) : null,
+  price: form.metadata.pricing_mode === "no_mostrar" ? null
+    : form.metadata.pricing_mode === "gratuito" ? 0
+    : form.metadata.price != null && form.metadata.price !== "" ? parseFloat(form.metadata.price) : null,
   currency: form.metadata.currency || "ARS",
   max_capacity: form.metadata.max_capacity ? parseInt(form.metadata.max_capacity) : null,
   level: form.metadata.recommended_level || form.metadata.level || null,
@@ -543,12 +545,27 @@ const EventForm = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-            <Switch checked={meta.is_free || false} onCheckedChange={(v) => { updateMeta("is_free", v); if (v) { updateMeta("price", "0"); updateMeta("deposit_amount", ""); } }} />
-            <Label className="text-sm">Evento gratuito</Label>
+          <div className="space-y-1.5">
+            <Label>Precio del evento</Label>
+            <Select
+              value={meta.pricing_mode || (meta.is_free ? "gratuito" : meta.price ? "con_valor" : "no_mostrar")}
+              onValueChange={(v) => {
+                updateMeta("pricing_mode", v);
+                if (v === "gratuito") { updateMeta("price", "0"); updateMeta("is_free", true); updateMeta("deposit_amount", ""); }
+                else if (v === "no_mostrar") { updateMeta("price", ""); updateMeta("is_free", false); }
+                else { updateMeta("is_free", false); }
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="con_valor">Con valor (mostrar precio)</SelectItem>
+                <SelectItem value="gratuito">Gratuito</SelectItem>
+                <SelectItem value="no_mostrar">No mostrar precio</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {!meta.is_free && (
+          {(meta.pricing_mode === "con_valor" || (!meta.pricing_mode && !meta.is_free && meta.price)) && (
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>Precio</Label>
@@ -633,8 +650,8 @@ const EventForm = ({
               <Label className="text-sm">Permitir reserva</Label>
             </div>
             <div className="flex items-center gap-2">
-              <Switch checked={meta.show_price || false} onCheckedChange={(v) => updateMeta("show_price", v)} />
-              <Label className="text-sm">Mostrar precio</Label>
+              <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
+              <Label className="text-sm">Botón WhatsApp</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
