@@ -94,7 +94,6 @@ const PlanSelection = () => {
 
   const formatPriceLocal = (precio: number, moneda: string = "ARS") => {
     return formatPrice(precio, moneda);
-    }).format(precio);
   };
 
   // Cancel paused subscriptions when reactivating from vacation
