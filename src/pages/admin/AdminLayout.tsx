@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -196,6 +196,7 @@ const AdminLayout = () => {
               <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
               <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} />
+              <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} />
               <div className="pt-2 pb-1">
                 {!collapsed && (
                   <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
