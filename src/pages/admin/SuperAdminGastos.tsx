@@ -176,7 +176,7 @@ const SuperAdminGastos = () => {
                 <div key={g.cat} className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{g.cat}</span>
-                    <span className="font-heading font-bold">{fmt(g.total)}</span>
+                    <span className="font-heading font-bold">${g.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
                   </div>
                   <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-destructive/70 rounded-full" style={{ width: `${(g.total / maxGastoCat) * 100}%` }} />
