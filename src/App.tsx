@@ -28,7 +28,7 @@ import ManageAdmins from "./pages/admin/ManageAdmins";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
-import SuperAdminResumen from "./pages/admin/SuperAdminResumen";
+import SuperAdminControl from "./pages/admin/SuperAdminControl";
 import ManagePlanes from "./pages/admin/ManagePlanes";
 import ManagePrecios from "./pages/admin/ManagePrecios";
 import ManageSedes from "./pages/admin/ManageSedes";
@@ -116,7 +116,7 @@ const App = () => (
             <Route path="historial" element={<AuditLog />} />
             <Route path="metricas" element={<SuperAdminDashboard />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
-            <Route path="resumen-global" element={<SuperAdminResumen />} />
+            <Route path="centro-control" element={<SuperAdminControl />} />
             <Route path="tienda" element={<StoreDashboard />} />
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
