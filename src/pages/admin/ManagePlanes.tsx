@@ -280,8 +280,8 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
-  const formatPrice = (precio: number, moneda: string = "ARS") =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(precio);
+  const { formatPrice } = await import("@/lib/currency").then(m => m) || {};
+  // Use shared formatPrice from import at top
 
   const getVisibilidadBadge = (v: string) => {
     switch (v) {
