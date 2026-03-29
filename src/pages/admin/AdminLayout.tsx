@@ -195,7 +195,7 @@ const AdminLayout = () => {
             <>
               <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
-              <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: ShieldCheck }} />
+              <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} />
               <div className="pt-2 pb-1">
                 {!collapsed && (
                   <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
