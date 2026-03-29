@@ -130,6 +130,7 @@ const EventsList = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
