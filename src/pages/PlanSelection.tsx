@@ -93,9 +93,7 @@ const PlanSelection = () => {
 
   const selectedPlan = planes.find((p) => p.id === selected);
 
-  const formatPriceLocal = (precio: number, moneda: string = "ARS") => {
-    return formatPrice(precio, moneda);
-  };
+  const formatPriceLocal = (precio: number, moneda: string = "ARS") => formatPrice(precio, moneda);
 
   // Cancel paused subscriptions when reactivating from vacation
   const cancelPausedSubs = async () => {

@@ -122,7 +122,7 @@ const ManagePrecios = () => {
     }
   };
 
-  const fmtPrice = (p: number, moneda: string = "ARS") => formatPrice(p, moneda);
+  // formatPrice imported from @/lib/currency
 
   const formatDate = (d: string) => {
     const date = new Date(d);

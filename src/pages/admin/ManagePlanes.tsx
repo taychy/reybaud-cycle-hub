@@ -281,8 +281,7 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
-  const { formatPrice } = await import("@/lib/currency").then(m => m) || {};
-  // Use shared formatPrice from import at top
+  // formatPrice imported from @/lib/currency
 
   const getVisibilidadBadge = (v: string) => {
     switch (v) {
