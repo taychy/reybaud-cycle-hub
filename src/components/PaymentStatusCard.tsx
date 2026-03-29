@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatPrice } from "@/lib/currency";
 import { Clock, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
