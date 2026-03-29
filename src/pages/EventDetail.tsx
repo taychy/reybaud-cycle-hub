@@ -36,6 +36,15 @@ interface Event {
   type: string;
   is_active: boolean;
   visible_to_students: boolean;
+  price: number | null;
+  currency: string;
+  location: string | null;
+  max_capacity: number | null;
+  spots_taken: number;
+  duration_days: number | null;
+  duration_nights: number | null;
+  level: string | null;
+  image_url: string | null;
 }
 
 const typeLabels: Record<string, string> = {
