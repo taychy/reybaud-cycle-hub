@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Entrenamiento = Tables<"entrenamientos">;
@@ -13,7 +14,6 @@ interface TrainingBlock {
 }
 
 function extractBadge(trabajo: string): { badge: string; title: string } {
-  // Try to detect short uppercase codes at the start like "RE", "RE FZA", "RODAR"
   const match = trabajo.match(/^([A-ZÁÉÍÓÚ\s]{2,12}?)(?:\s{2,}|\s*[-–]\s*|\s+(?=[A-ZÁÉÍÓÚ][a-záéíóú]))/);
   if (match) {
     const badge = match[1].trim();
@@ -22,7 +22,6 @@ function extractBadge(trabajo: string): { badge: string; title: string } {
       return { badge, title };
     }
   }
-  // Fallback: use first word as badge
   const words = trabajo.split(/\s+/);
   if (words.length > 1 && words[0].length <= 8 && words[0] === words[0].toUpperCase()) {
     return { badge: words[0], title: words.slice(1).join(" ") };
@@ -40,14 +39,12 @@ export function parseDescriptionBlocks(descripcion: string): { totalMinutes: num
     const line = rawLine.trim();
     if (!line) continue;
 
-    // Total minutes line
     const minMatch = line.match(/^⏱\s*(\d+)\s*min/i);
     if (minMatch) {
       totalMinutes = parseInt(minMatch[1]);
       continue;
     }
 
-    // Block header: ▸ TRABAJO [RPM]
     if (line.startsWith("▸")) {
       if (current) blocks.push(current);
       const headerText = line.slice(1).trim();
@@ -63,26 +60,16 @@ export function parseDescriptionBlocks(descripcion: string): { totalMinutes: num
       continue;
     }
 
-    // Link lines
     if (line.startsWith("🔗")) continue;
-
-    // Physical exercise block
     if (line.startsWith("💪")) continue;
     if (line.startsWith("•") && line.includes("http")) continue;
 
     if (current) {
-      // Cadencia/footer line
       const cadMatch = line.match(/^cadencia[:\s]/i);
       if (cadMatch) {
         current.footer = line;
         continue;
       }
-      // Minutes in block
-      const blockMinMatch = line.match(/^(\d+)\s*(?:min|')/i);
-      if (blockMinMatch && !current.minutes) {
-        // This might be a bullet, not standalone minutes
-      }
-      // Regular content line - treat as bullet
       current.bullets.push(line);
     }
   }
@@ -90,8 +77,6 @@ export function parseDescriptionBlocks(descripcion: string): { totalMinutes: num
 
   return { totalMinutes, blocks };
 }
-
-const DAY_NAMES = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 
 interface TrainingDetailViewProps {
   entrenamiento: Entrenamiento;
@@ -106,16 +91,19 @@ export default function TrainingDetailView({
   selectedDayIndex,
   onDayChange,
 }: TrainingDetailViewProps) {
+  const { t } = useTranslation();
+  const DAY_NAMES = [
+    t("days.mon"), t("days.tue"), t("days.wed"), t("days.thu"),
+    t("days.fri"), t("days.sat"), t("days.sun"),
+  ];
+
   const { totalMinutes, blocks } = useMemo(
     () => parseDescriptionBlocks(entrenamiento.descripcion || ""),
     [entrenamiento.descripcion]
   );
 
-  const dayLabel = new Date(entrenamiento.fecha + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" }).toUpperCase();
-
   return (
     <div className="space-y-4">
-      {/* Duration + Day selector */}
       {totalMinutes > 0 && (
         <div className="text-center">
           <p className="text-sm text-muted-foreground font-heading">
@@ -124,7 +112,6 @@ export default function TrainingDetailView({
         </div>
       )}
 
-      {/* Day selector */}
       <div className="flex justify-between px-1 border-b border-border pb-1">
         {DAY_NAMES.map((name, i) => (
           <button
@@ -141,14 +128,12 @@ export default function TrainingDetailView({
         ))}
       </div>
 
-      {/* Training blocks */}
       <div className="space-y-3">
         {blocks.map((block, i) => (
           <TrainingBlockCard key={i} block={block} />
         ))}
       </div>
 
-      {/* Fallback if no blocks parsed */}
       {blocks.length === 0 && entrenamiento.descripcion && (
         <div className="rounded-lg border border-border bg-card/80 p-5">
           <p className="text-sm text-secondary-foreground whitespace-pre-wrap leading-relaxed">
@@ -163,7 +148,6 @@ export default function TrainingDetailView({
 function TrainingBlockCard({ block }: { block: TrainingBlock }) {
   return (
     <div className="training-block-card rounded-lg overflow-hidden shadow-xl shadow-black/30">
-      {/* Card header - darker with golden accent */}
       <div className="flex items-center justify-between px-4 py-3 training-block-header border-b border-primary/20">
         <div className="flex items-center gap-2.5">
           {block.badge && (
@@ -182,7 +166,6 @@ function TrainingBlockCard({ block }: { block: TrainingBlock }) {
         )}
       </div>
 
-      {/* Bullets - textured background */}
       {block.bullets.length > 0 && (
         <div className="px-4 py-3 space-y-1.5 training-block-body">
           {block.bullets.map((bullet, i) => (
@@ -193,7 +176,6 @@ function TrainingBlockCard({ block }: { block: TrainingBlock }) {
         </div>
       )}
 
-      {/* Footer - cadencia with subtle separator */}
       {block.footer && (
         <div className="px-4 py-2.5 border-t border-primary/10 training-block-footer">
           <p className="text-xs text-primary/70 font-heading tracking-wide">

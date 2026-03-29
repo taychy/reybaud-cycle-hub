@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
@@ -11,6 +12,7 @@ import TrainingDetailView from "@/components/TrainingDetailView";
 import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
+import LanguageSelector from "@/components/LanguageSelector";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -26,17 +28,10 @@ interface PendingPaymentInfo {
   medioPago: string;
 }
 
-const getGreeting = () => {
-  const h = new Date().getHours();
-  if (h < 12) return "Buen día";
-  if (h < 19) return "Buenas tardes";
-  return "Buenas noches";
-};
-
-
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const initialTab = (location.state as any)?.tab || "hoy";
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
@@ -51,6 +46,13 @@ const StudentDashboard = () => {
     () => localStorage.getItem("hide_install_banner") !== "1"
   );
   
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return t("greeting.morning");
+    if (h < 19) return t("greeting.afternoon");
+    return t("greeting.evening");
+  };
+
   // Day index: 0=Mon, 6=Sun
   const todayDayIndex = (() => {
     const d = new Date().getDay(); // 0=Sun
@@ -177,7 +179,7 @@ const StudentDashboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Cargando...</div>
+        <div className="animate-pulse text-muted-foreground">{t("dashboard.loading")}</div>
       </div>
     );
   }
@@ -216,7 +218,7 @@ const StudentDashboard = () => {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                  Pelotón {alumno?.grupo}
+                  {t("dashboard.peloton")} {alumno?.grupo}
                 </span>
               </div>
             </div>
@@ -224,7 +226,7 @@ const StudentDashboard = () => {
             {/* Cuenta section */}
             <div className="space-y-3">
               <h3 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                Cuenta
+                {t("more.account")}
               </h3>
               <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm overflow-hidden">
                 <button
@@ -235,8 +237,8 @@ const StudentDashboard = () => {
                     <CreditCard className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-foreground">Pagos y suscripción</p>
-                    <p className="text-xs text-muted-foreground">Ver estado de tu plan y tus pagos</p>
+                    <p className="font-medium text-foreground">{t("more.paymentsSubscription")}</p>
+                    <p className="text-xs text-muted-foreground">{t("more.paymentsDesc")}</p>
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -251,7 +253,7 @@ const StudentDashboard = () => {
                 onClick={handleLogout}
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                Cerrar sesión
+                {t("more.logout")}
               </Button>
             </div>
           </div>
@@ -264,7 +266,7 @@ const StudentDashboard = () => {
               <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
                 <Download className="w-5 h-5 shrink-0" />
                 <a href="/instalar" className="font-medium flex-1 hover:underline">
-                  Instalá la app en tu teléfono
+                  {t("dashboard.installApp")}
                 </a>
                 <button
                   onClick={() => {
@@ -272,7 +274,7 @@ const StudentDashboard = () => {
                     localStorage.setItem("hide_install_banner", "1");
                   }}
                   className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Cerrar"
+                  aria-label="Close"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -285,7 +287,7 @@ const StudentDashboard = () => {
                 {getGreeting()}, <span className="gold-text-gradient">{firstName}</span>
               </h1>
               <p className="text-xs text-muted-foreground">
-                Pelotón {alumno?.grupo} · <span className="capitalize">{todayFormatted}</span>
+                {t("dashboard.peloton")} {alumno?.grupo} · <span className="capitalize">{todayFormatted}</span>
               </p>
             </div>
 
@@ -328,19 +330,19 @@ const StudentDashboard = () => {
                       });
                       setMarkingDone(false);
                       if (error) {
-                        toast({ title: "Error", description: "No se pudo registrar. Intentá de nuevo.", variant: "destructive" });
+                        toast({ title: t("dashboard.errorTitle"), description: t("dashboard.errorDesc"), variant: "destructive" });
                         return;
                       }
                       setRealizado(true);
-                      toast({ title: "¡Bien hecho! 💪", description: "Entrenamiento marcado como realizado." });
+                      toast({ title: t("dashboard.successTitle"), description: t("dashboard.successDesc") });
                     }}
                   >
                     {realizado ? (
-                      <><CheckCircle2 className="w-4 h-4" /> Realizado</>
+                      <><CheckCircle2 className="w-4 h-4" /> {t("dashboard.done")}</>
                     ) : markingDone ? (
-                      "Guardando..."
+                      t("dashboard.saving")
                     ) : (
-                      "Marcar como Realizado"
+                      t("dashboard.markDone")
                     )}
                   </Button>
                   {entrenamiento.link_archivo && (
@@ -351,7 +353,7 @@ const StudentDashboard = () => {
                       className="flex items-center justify-center gap-2 w-full rounded-md border border-border px-4 py-2.5 text-sm font-heading uppercase tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      Ver archivo adjunto
+                      {t("dashboard.viewAttachment")}
                     </a>
                   )}
                 </div>
@@ -359,9 +361,9 @@ const StudentDashboard = () => {
                 {/* Training metrics */}
                 {entrenamiento.resistencia + entrenamiento.tecnica + entrenamiento.intensidad > 0 && (
                   <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-                    <MetricBar label="Resistencia" value={entrenamiento.resistencia ?? 0} />
-                    <MetricBar label="Técnica" value={entrenamiento.tecnica ?? 0} />
-                    <MetricBar label="Intensidad" value={entrenamiento.intensidad ?? 0} />
+                    <MetricBar label={t("dashboard.resistance")} value={entrenamiento.resistencia ?? 0} />
+                    <MetricBar label={t("dashboard.technique")} value={entrenamiento.tecnica ?? 0} />
+                    <MetricBar label={t("dashboard.intensity")} value={entrenamiento.intensidad ?? 0} />
                   </div>
                 )}
               </>
@@ -385,7 +387,7 @@ const StudentDashboard = () => {
                     <Calendar className="w-6 h-6 text-muted-foreground" />
                   </div>
                   <p className="text-muted-foreground text-sm">
-                    No hay entrenamiento cargado para este día.
+                    {t("dashboard.noTraining")}
                   </p>
                 </div>
               </>
@@ -401,6 +403,7 @@ const StudentDashboard = () => {
       <header className="flex items-center justify-between px-5 pt-5 pb-2">
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
+          <LanguageSelector />
           <span className="text-xs text-muted-foreground font-heading">{firstName}</span>
           {activeTab !== "mas" && (
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">

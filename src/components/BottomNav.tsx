@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Home, Trophy, ShoppingCart, TrendingUp, MoreHorizontal } from "lucide-react";
 
 type Tab = "hoy" | "eventos" | "tienda" | "progreso" | "mas";
@@ -17,12 +18,12 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 
 const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleTab = (tab: Tab) => {
     if (onTabChange) {
       onTabChange(tab);
     } else {
-      // Navigate to dashboard with tab state
       navigate("/alumno", { state: { tab } });
     }
   };
@@ -32,25 +33,25 @@ const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
       <div className="max-w-md mx-auto flex items-center justify-around py-2 relative">
         <NavItem
           icon={<Home className="w-5 h-5" />}
-          label="Inicio"
+          label={t("nav.home")}
           active={activeTab === "hoy"}
           onClick={() => handleTab("hoy")}
         />
         <NavItem
           icon={<Trophy className="w-5 h-5" />}
-          label="Eventos"
+          label={t("nav.events")}
           active={activeTab === "eventos"}
           onClick={() => handleTab("eventos")}
         />
         <NavItem
           icon={<TrendingUp className="w-5 h-5" />}
-          label="Progreso"
+          label={t("nav.progress")}
           active={activeTab === "progreso"}
           onClick={() => handleTab("progreso")}
         />
         <NavItem
           icon={<MoreHorizontal className="w-5 h-5" />}
-          label="Más"
+          label={t("nav.more")}
           active={activeTab === "mas"}
           onClick={() => handleTab("mas")}
         />
