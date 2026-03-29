@@ -300,6 +300,7 @@ const SuperAdminGastos = () => {
                     <TableHead>Descripción</TableHead>
                     <TableHead>Forma de pago</TableHead>
                     <TableHead>Proveedor</TableHead>
+                     <TableHead>Moneda</TableHead>
                     <TableHead className="text-right">Monto</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead className="w-20">Acción</TableHead>
