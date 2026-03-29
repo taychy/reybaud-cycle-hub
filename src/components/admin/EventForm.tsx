@@ -648,8 +648,8 @@ const EventForm = ({
               <Label className="text-sm">Permitir reserva</Label>
             </div>
             <div className="flex items-center gap-2">
-              <Switch checked={meta.show_price || false} onCheckedChange={(v) => updateMeta("show_price", v)} />
-              <Label className="text-sm">Mostrar precio</Label>
+              <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
+              <Label className="text-sm">Botón WhatsApp</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
