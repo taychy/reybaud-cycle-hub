@@ -224,9 +224,20 @@ const SuperAdminGastos = () => {
                     <Label className="text-xs">Descripción</Label>
                     <Input value={gastoForm.descripcion} onChange={(e) => setGastoForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Ej: Alquiler local Palermo" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Monto ($)</Label>
+                      <Label className="text-xs">Moneda</Label>
+                      <Select value={gastoForm.moneda} onValueChange={(v) => setGastoForm(f => ({ ...f, moneda: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ARS">$ ARS</SelectItem>
+                          <SelectItem value="USD">US$ USD</SelectItem>
+                          <SelectItem value="EUR">€ EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Monto</Label>
                       <Input type="number" value={gastoForm.monto} onChange={(e) => setGastoForm(f => ({ ...f, monto: e.target.value }))} placeholder="0" />
                     </div>
                     <div className="space-y-1">
