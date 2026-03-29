@@ -65,6 +65,7 @@ const EventDetail = () => {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", date: "", start_time: "" });
   const [saving, setSaving] = useState(false);
+  const [hasReservation, setHasReservation] = useState(false);
 
   // Student result state
   const [alumno, setAlumno] = useState<Alumno | null>(null);
