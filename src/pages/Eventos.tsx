@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
+import BottomNav from "@/components/BottomNav";
 
 interface Event {
   id: string;
@@ -408,7 +409,7 @@ const Eventos = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="flex items-center gap-3 px-5 pt-5 pb-2">
-        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
+        <button onClick={() => navigate("/alumno")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
@@ -416,6 +417,7 @@ const Eventos = () => {
       <main className="flex-1 px-4 pb-24">
         <EventosContent />
       </main>
+      <BottomNav activeTab="eventos" />
     </div>
   );
 };
