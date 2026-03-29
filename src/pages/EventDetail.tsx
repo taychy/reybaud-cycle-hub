@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CalendarDays, Clock, Pencil, Trash2, Ruler, Send, Gauge } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Pencil, Trash2, Ruler, Send, Gauge, MapPin, Users, DollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
