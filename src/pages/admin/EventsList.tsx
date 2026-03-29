@@ -396,6 +396,9 @@ const EventsList = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
+                    <Users className="w-4 h-4" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(ev)} title="Editar">
                     <Pencil className="w-4 h-4" />
                   </Button>
