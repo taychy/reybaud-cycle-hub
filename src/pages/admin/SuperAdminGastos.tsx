@@ -46,8 +46,7 @@ const FORMA_PAGO_LABELS: Record<string, string> = {
   banco: "Banco",
 };
 
-const MONEDA_SIMBOLO: Record<string, string> = { ARS: "$", USD: "US$", EUR: "€" };
-const fmtMoneda = (n: number, moneda: string) => `${MONEDA_SIMBOLO[moneda] || "$"}${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+const fmtMoneda = (n: number, moneda: string) => formatPrice(n, moneda);
 
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
