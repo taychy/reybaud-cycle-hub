@@ -470,6 +470,42 @@ export type Database = {
           },
         ]
       }
+      event_favorites: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          event_id: string
+          id: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_favorites_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_favorites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           approved_at: string | null
