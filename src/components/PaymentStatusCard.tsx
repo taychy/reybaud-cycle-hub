@@ -11,12 +11,7 @@ interface PaymentStatusCardProps {
   medioPago: string;
 }
 
-const formatPrice = (precio: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+// formatPrice imported from @/lib/currency
   }).format(precio);
 
 const formatDate = (dateStr: string) => {
