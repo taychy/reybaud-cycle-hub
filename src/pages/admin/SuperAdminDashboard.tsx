@@ -83,8 +83,8 @@ const SuperAdminDashboard = () => {
         .filter((o: any) => o.created_at >= startOfMonth)
         .reduce((sum: number, o: any) => sum + (o.total || 0), 0);
 
-      const gastosEsteMes = gastosData.filter((g: any) => g.fecha >= startOfMonth).reduce((sum: number, g: any) => sum + g.monto, 0);
-      const gastosMesAnterior = gastosData.filter((g: any) => g.fecha >= startOfLastMonth && g.fecha <= endOfLastMonth).reduce((sum: number, g: any) => sum + g.monto, 0);
+      const gastosEsteMes = gastosData.filter((g: any) => g.fecha >= startOfMonth && (!g.moneda || g.moneda === "ARS")).reduce((sum: number, g: any) => sum + g.monto, 0);
+      const gastosMesAnterior = gastosData.filter((g: any) => g.fecha >= startOfLastMonth && g.fecha <= endOfLastMonth && (!g.moneda || g.moneda === "ARS")).reduce((sum: number, g: any) => sum + g.monto, 0);
 
       const nuevosEsteMes = alumnos.filter(a => a.created_at >= startOfMonth).length;
       const inactivosEsteMes = subs.filter(s => (s.estado === "cancelada" || s.estado === "vencida") && s.created_at >= startOfMonth).length;
