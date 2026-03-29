@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
+import BottomNav from "@/components/BottomNav";
 
 interface Event {
   id: string;
