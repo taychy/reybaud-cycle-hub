@@ -150,7 +150,9 @@ export const eventFormToPayload = (form: EventFormData) => ({
   metadata: form.metadata,
   // Map old fields from metadata for backward compat
   location: form.metadata.location_name || form.metadata.race_location || form.metadata.destination || null,
-  price: form.metadata.price != null ? parseFloat(form.metadata.price) : null,
+  price: form.metadata.pricing_mode === "no_mostrar" ? null
+    : form.metadata.pricing_mode === "gratuito" ? 0
+    : form.metadata.price != null && form.metadata.price !== "" ? parseFloat(form.metadata.price) : null,
   currency: form.metadata.currency || "ARS",
   max_capacity: form.metadata.max_capacity ? parseInt(form.metadata.max_capacity) : null,
   level: form.metadata.recommended_level || form.metadata.level || null,
