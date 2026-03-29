@@ -4,16 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CalendarDays,
-  MapPin,
-  Users,
-  ChevronRight,
-  SlidersHorizontal,
-  ArrowLeft,
-  X,
+  CalendarDays, MapPin, Users, ChevronRight, Heart,
+  ArrowLeft, Bookmark, Calendar, Plane,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import BottomNav from "@/components/BottomNav";
+import { useAlumnoSession } from "@/hooks/useAlumnoSession";
+import { useEventFavorites } from "@/hooks/useEventFavorites";
+import { formatPrice } from "@/lib/currency";
 
 interface Event {
   id: string;
@@ -36,9 +34,10 @@ interface Event {
   level: string | null;
 }
 
-type TabFilter = "todos" | "escuela" | "viajes";
+type TabFilter = "todos" | "escuela" | "carreras" | "viajes" | "mis_eventos" | "favoritos";
 
-const escuelaTypes = ["record_hora", "carrera", "otro"];
+const escuelaTypes = ["record_hora", "otro"];
+const carreraTypes = ["carrera"];
 const viajesTypes = ["camp", "viaje"];
 
 const typeLabels: Record<string, string> = {
@@ -58,10 +57,21 @@ const placeholderImages: Record<string, string> = {
 };
 
 /* ─── Event Card ─── */
-const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) => {
+const EventCard = ({
+  event,
+  onClick,
+  isFavorite,
+  onToggleFavorite,
+  hasReservation,
+}: {
+  event: Event;
+  onClick: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  hasReservation: boolean;
+}) => {
   const isPaid = event.price != null && event.price > 0;
-  const spotsLeft =
-    event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
+  const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const d = new Date(event.date + "T12:00:00");
   const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
 
@@ -78,9 +88,22 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
+        {/* Favorite heart */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/70 backdrop-blur-sm flex items-center justify-center transition-colors hover:bg-background/90"
+        >
+          <Heart
+            className={`w-4 h-4 transition-colors ${isFavorite ? "fill-red-500 text-red-500" : "text-foreground/70"}`}
+          />
+        </button>
         {/* Tag badge */}
         <div className="absolute top-2.5 left-2.5">
-          {isPaid ? (
+          {hasReservation ? (
+            <Badge className="bg-emerald-500 text-white text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
+              Reservado
+            </Badge>
+          ) : isPaid ? (
             <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
               Reservar
             </Badge>
@@ -99,12 +122,6 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
             </span>
           </div>
         )}
-        {/* Type pill */}
-        <div className="absolute top-2.5 right-2.5">
-          <span className="bg-black/50 backdrop-blur-sm text-white text-[10px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full">
-            {typeLabels[event.type] || event.type}
-          </span>
-        </div>
       </div>
 
       {/* Content */}
@@ -145,10 +162,9 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
         <div className="flex items-end justify-between pt-1 border-t border-border/50">
           {isPaid ? (
             <div>
-              <p className="text-[10px] text-muted-foreground">Precio por persona</p>
+              <p className="text-[10px] text-muted-foreground">Precio</p>
               <p className="text-lg font-bold font-heading text-primary leading-none">
-                {event.currency === "USD" ? "US$" : event.currency === "EUR" ? "€" : "$"}{" "}
-                {event.price!.toLocaleString("es-AR")}
+                {formatPrice(event.price!, event.currency)}
               </p>
             </div>
           ) : (
@@ -156,14 +172,11 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
           )}
           <Button
             size="sm"
-            variant={isPaid ? "gold" : "outline"}
+            variant={hasReservation ? "outline" : isPaid ? "gold" : "outline"}
             className="text-xs h-8 px-3"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick();
-            }}
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
-            {isPaid ? "Reservar" : "Ver detalle"}
+            {hasReservation ? "Ver estado" : isPaid ? "Reservar" : "Ver detalle"}
             <ChevronRight className="w-3.5 h-3.5 ml-1" />
           </Button>
         </div>
@@ -173,7 +186,17 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
 };
 
 /* ─── Featured Banner Carousel ─── */
-const FeaturedBanner = ({ events, onSelect }: { events: Event[]; onSelect: (id: string) => void }) => {
+const FeaturedBanner = ({
+  events,
+  onSelect,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  events: Event[];
+  onSelect: (id: string) => void;
+  isFavorite: (id: string) => boolean;
+  onToggleFavorite: (id: string) => void;
+}) => {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
@@ -198,6 +221,13 @@ const FeaturedBanner = ({ events, onSelect }: { events: Event[]; onSelect: (id: 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
       </div>
+      {/* Favorite heart */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleFavorite(ev.id); }}
+        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center hover:bg-background/80 transition-colors"
+      >
+        <Heart className={`w-5 h-5 ${isFavorite(ev.id) ? "fill-red-500 text-red-500" : "text-white/80"}`} />
+      </button>
       <div className="absolute bottom-0 left-0 right-0 p-4 space-y-1">
         <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase">
           Destacado
@@ -231,66 +261,17 @@ const FeaturedBanner = ({ events, onSelect }: { events: Event[]; onSelect: (id: 
   );
 };
 
-/* ─── Filter Sheet ─── */
-const FilterSheet = ({
-  open,
-  onClose,
-  levelFilter,
-  setLevelFilter,
-  levels,
-}: {
-  open: boolean;
-  onClose: () => void;
-  levelFilter: string | null;
-  setLevelFilter: (v: string | null) => void;
-  levels: string[];
-}) => {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-card rounded-t-2xl p-5 space-y-4 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <h3 className="font-heading font-semibold text-foreground">Filtros</h3>
-          <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
-        </div>
-        <div className="space-y-2">
-          <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground">Nivel</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setLevelFilter(null)}
-              className={`px-3 py-1.5 rounded-full text-xs font-heading transition-colors ${!levelFilter ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-            >
-              Todos
-            </button>
-            {levels.map((l) => (
-              <button
-                key={l}
-                onClick={() => setLevelFilter(l)}
-                className={`px-3 py-1.5 rounded-full text-xs font-heading transition-colors ${levelFilter === l ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-        <Button variant="gold" className="w-full" onClick={onClose}>
-          Aplicar
-        </Button>
-      </div>
-    </div>
-  );
-};
-
 /* ─── Main Content ─── */
 export const EventosContent = () => {
   const navigate = useNavigate();
+  const { alumno } = useAlumnoSession();
+  const { isFavorite, toggleFavorite, favoriteIds } = useEventFavorites(alumno?.id || null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("todos");
-  const [levelFilter, setLevelFilter] = useState<string | null>(null);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [reservedEventIds, setReservedEventIds] = useState<Set<string>>(new Set());
 
+  // Load events
   useEffect(() => {
     supabase
       .from("events")
@@ -303,26 +284,41 @@ export const EventosContent = () => {
       });
   }, []);
 
+  // Load student reservations
+  useEffect(() => {
+    if (!alumno) return;
+    supabase
+      .from("event_reservations")
+      .select("event_id")
+      .eq("alumno_id", alumno.id)
+      .then(({ data }) => {
+        if (data) setReservedEventIds(new Set(data.map((r: any) => r.event_id)));
+      });
+  }, [alumno]);
+
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = events.filter((e) => e.date >= today);
 
   const filtered = upcoming.filter((e) => {
     if (tab === "escuela" && !escuelaTypes.includes(e.type)) return false;
+    if (tab === "carreras" && !carreraTypes.includes(e.type)) return false;
     if (tab === "viajes" && !viajesTypes.includes(e.type)) return false;
-    if (levelFilter && e.level !== levelFilter) return false;
+    if (tab === "mis_eventos" && !reservedEventIds.has(e.id)) return false;
+    if (tab === "favoritos" && !favoriteIds.has(e.id)) return false;
     return true;
   });
 
-  const featured = upcoming.filter(
-    (e) => viajesTypes.includes(e.type) || (e.image_url && e.price)
-  ).slice(0, 5);
+  const featured = upcoming
+    .filter((e) => viajesTypes.includes(e.type) || (e.image_url && e.price))
+    .slice(0, 5);
 
-  const levels = [...new Set(events.map((e) => e.level).filter(Boolean))] as string[];
-
-  const tabs: { key: TabFilter; label: string }[] = [
+  const tabs: { key: TabFilter; label: string; icon?: React.ReactNode }[] = [
     { key: "todos", label: "Todos" },
     { key: "escuela", label: "Escuela" },
-    { key: "viajes", label: "Viajes & Camps" },
+    { key: "carreras", label: "Carreras" },
+    { key: "viajes", label: "Viajes & Camps", icon: <Plane className="w-3 h-3" /> },
+    { key: "mis_eventos", label: "Mis eventos", icon: <Bookmark className="w-3 h-3" /> },
+    { key: "favoritos", label: "Favoritos", icon: <Heart className="w-3 h-3" /> },
   ];
 
   return (
@@ -334,17 +330,18 @@ export const EventosContent = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-heading font-semibold transition-all ${
+            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-heading font-semibold transition-all flex items-center gap-1.5 ${
               tab === t.key
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted"
             }`}
           >
+            {t.icon}
             {t.label}
           </button>
         ))}
@@ -355,50 +352,52 @@ export const EventosContent = () => {
       ) : (
         <>
           {/* Featured Banner */}
-          {tab !== "escuela" && featured.length > 0 && (
-            <FeaturedBanner events={featured} onSelect={(id) => navigate(`/eventos/${id}`)} />
+          {tab === "todos" && featured.length > 0 && (
+            <FeaturedBanner
+              events={featured}
+              onSelect={(id) => navigate(`/eventos/${id}`)}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
+            />
           )}
 
           {/* Events Grid */}
           {filtered.length === 0 ? (
             <div className="text-center py-12 space-y-2">
-              <p className="text-muted-foreground text-sm">No hay eventos disponibles.</p>
-              <p className="text-xs text-muted-foreground">Probá cambiando los filtros.</p>
+              <p className="text-muted-foreground text-sm">
+                {tab === "mis_eventos"
+                  ? "Aún no reservaste ningún evento."
+                  : tab === "favoritos"
+                  ? "No tenés eventos favoritos."
+                  : "No hay eventos disponibles."}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {tab === "mis_eventos" || tab === "favoritos"
+                  ? "Explorá los eventos disponibles."
+                  : "Probá cambiando los filtros."}
+              </p>
+              {(tab === "mis_eventos" || tab === "favoritos") && (
+                <Button variant="outline" size="sm" onClick={() => setTab("todos")} className="mt-2">
+                  Ver todos los eventos
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {filtered.map((e) => (
-                <EventCard key={e.id} event={e} onClick={() => navigate(`/eventos/${e.id}`)} />
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  onClick={() => navigate(`/eventos/${e.id}`)}
+                  isFavorite={isFavorite(e.id)}
+                  onToggleFavorite={() => toggleFavorite(e.id)}
+                  hasReservation={reservedEventIds.has(e.id)}
+                />
               ))}
             </div>
           )}
         </>
       )}
-
-      {/* Floating Filter Button */}
-      {levels.length > 0 && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
-          <Button
-            variant="outline"
-            className="rounded-full shadow-lg bg-card border-border/80 px-5 gap-2"
-            onClick={() => setFilterOpen(true)}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filtrar
-            {levelFilter && (
-              <span className="ml-1 w-2 h-2 rounded-full bg-primary inline-block" />
-            )}
-          </Button>
-        </div>
-      )}
-
-      <FilterSheet
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        levelFilter={levelFilter}
-        setLevelFilter={setLevelFilter}
-        levels={levels}
-      />
     </div>
   );
 };
