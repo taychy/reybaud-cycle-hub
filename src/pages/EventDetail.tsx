@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, CalendarDays, Clock, Ruler, Send, Gauge, Heart,
   MapPin, Users, CheckCircle, Mountain, Moon, Sun, Shield,
+  ExternalLink, MessageCircle, FileText, CreditCard, AlertCircle, Loader2, Banknote,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import EventRankings from "@/components/EventRankings";
-import EventCashReservation from "@/components/EventCashReservation";
 import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
 import { useAlumnoSession } from "@/hooks/useAlumnoSession";
@@ -45,6 +45,17 @@ interface Event {
   metadata: any;
 }
 
+interface Reservation {
+  id: string;
+  estado: string;
+  metodo_pago: string;
+  monto: number | null;
+  moneda: string;
+  notas: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const typeLabels: Record<string, string> = {
   record_hora: "Record de la Hora",
   camp: "Camp",
@@ -69,6 +80,18 @@ const placeholderImages: Record<string, string> = {
   otro: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&q=80",
 };
 
+/* ─── Status badge helpers ─── */
+const getEstadoBadge = (estado: string) => {
+  switch (estado) {
+    case "pago_confirmado":
+      return { label: "Pago validado", icon: CheckCircle, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
+    case "pendiente_verificacion":
+      return { label: "Pago informado · Pendiente de validación", icon: AlertCircle, className: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
+    default:
+      return { label: estado, icon: AlertCircle, className: "bg-muted text-muted-foreground border-border" };
+  }
+};
+
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -78,9 +101,9 @@ const EventDetail = () => {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasReservation, setHasReservation] = useState(false);
-  const [reservationStatus, setReservationStatus] = useState<string | null>(null);
+  const [reservation, setReservation] = useState<Reservation | null>(null);
 
+  // Result state
   const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; avg_speed_kmh: number | null; notes: string | null } | null>(null);
   const [showResultForm, setShowResultForm] = useState(false);
   const [resultDistance, setResultDistance] = useState("");
@@ -89,9 +112,11 @@ const EventDetail = () => {
   const [submittingResult, setSubmittingResult] = useState(false);
   const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null } | null>(null);
 
+  // Reservation flow
+  const [reserving, setReserving] = useState(false);
+
   useEffect(() => {
     if (!id) return;
-
     supabase
       .from("events")
       .select("*")
@@ -103,25 +128,18 @@ const EventDetail = () => {
       });
   }, [id]);
 
-  // Load reservation and results when alumno is available
   useEffect(() => {
     if (!id || !alumno) return;
-
-    // Check reservation
+    // Load reservation
     supabase
       .from("event_reservations")
-      .select("id, estado")
+      .select("*")
       .eq("event_id", id)
       .eq("alumno_id", alumno.id)
       .maybeSingle()
-      .then(({ data: resData }) => {
-        if (resData) {
-          setHasReservation(true);
-          setReservationStatus((resData as any).estado);
-        }
+      .then(({ data }) => {
+        if (data) setReservation(data as unknown as Reservation);
       });
-
-    // Load results
     loadResult(id, alumno.id);
     loadParticipantResult(alumno.email);
   }, [id, alumno]);
@@ -176,6 +194,49 @@ const EventDetail = () => {
     }
   };
 
+  /* ─── Reserve (Informar pago) ─── */
+  const handleReserve = async () => {
+    if (!id || !alumno || !event) return;
+    setReserving(true);
+
+    const { data: resData, error } = await supabase
+      .from("event_reservations" as any)
+      .insert({
+        event_id: id,
+        alumno_id: alumno.id,
+        estado: "pendiente_verificacion",
+        metodo_pago: "efectivo",
+        monto: event.price,
+        moneda: event.currency,
+      } as any)
+      .select("*")
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        toast({ title: "Ya tenés una reserva para este evento.", variant: "destructive" });
+      } else {
+        toast({ title: "Error al registrar la reserva.", variant: "destructive" });
+      }
+      setReserving(false);
+      return;
+    }
+
+    // Notify admin
+    try {
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-event-cash-payment`;
+      fetch(functionUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({ alumno_id: alumno.id, event_id: id, reservation_id: (resData as any)?.id }),
+      }).catch(() => {});
+    } catch { /* fire and forget */ }
+
+    setReserving(false);
+    setReservation(resData as unknown as Reservation);
+    toast({ title: "¡Reserva registrada!" });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -196,16 +257,12 @@ const EventDetail = () => {
   const d = new Date(event.date + "T12:00:00");
   const dateFormatted = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const isPaid = event.price != null && event.price > 0;
-  const isViajeCamp = ["camp", "viaje"].includes(event.type);
   const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
-
-  const reservationBadge = reservationStatus === "pago_confirmado"
-    ? { label: "Pago confirmado", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" }
-    : reservationStatus === "pendiente_verificacion"
-    ? { label: "Pendiente de verificación", className: "bg-amber-500/20 text-amber-400 border-amber-500/30" }
-    : null;
+  const hasReservation = !!reservation;
+  const estadoBadge = reservation ? getEstadoBadge(reservation.estado) : null;
+  const isPaymentValidated = reservation?.estado === "pago_confirmado";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -215,31 +272,22 @@ const EventDetail = () => {
           <img src={heroImage} alt={event.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         </div>
-        {/* Floating back button */}
         <button
           onClick={() => navigate("/eventos")}
           className="absolute top-4 left-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        {/* Favorite button */}
         <button
           onClick={() => toggleFavorite(event.id)}
           className="absolute top-4 right-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
         >
           <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
         </button>
-        {/* Type badge on hero */}
         <div className="absolute bottom-4 left-4 flex items-center gap-2">
           <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
-          {hasReservation && reservationBadge && (
-            <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1 ${reservationBadge.className}`}>
-              <CheckCircle className="w-3 h-3" />
-              {reservationBadge.label}
-            </span>
-          )}
         </div>
       </div>
 
@@ -249,7 +297,6 @@ const EventDetail = () => {
           {/* Title & Date */}
           <div className="space-y-3">
             <h1 className="text-2xl font-heading font-bold text-foreground leading-tight">{event.title}</h1>
-
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-primary" />
@@ -262,7 +309,6 @@ const EventDetail = () => {
                 </span>
               )}
             </div>
-
             {event.location && (
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 text-primary" />
@@ -271,8 +317,8 @@ const EventDetail = () => {
             )}
           </div>
 
-          {/* Price & Details Card */}
-          {(isPaid || event.max_capacity || isViajeCamp) && (
+          {/* Price & Quick Details */}
+          {(isPaid || event.max_capacity || event.duration_days) && (
             <div className="glass-card rounded-xl p-5 space-y-4">
               {isPaid && (
                 <div className="flex items-baseline justify-between">
@@ -290,31 +336,25 @@ const EventDetail = () => {
                   )}
                 </div>
               )}
-
-              {/* Quick info pills */}
               <div className="flex flex-wrap gap-2">
                 {event.duration_days && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
-                    <Sun className="w-3.5 h-3.5" />
-                    {event.duration_days} día{event.duration_days > 1 ? "s" : ""}
+                    <Sun className="w-3.5 h-3.5" /> {event.duration_days} día{event.duration_days > 1 ? "s" : ""}
                   </span>
                 )}
                 {event.duration_nights != null && event.duration_nights > 0 && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
-                    <Moon className="w-3.5 h-3.5" />
-                    {event.duration_nights} noche{event.duration_nights > 1 ? "s" : ""}
+                    <Moon className="w-3.5 h-3.5" /> {event.duration_nights} noche{event.duration_nights > 1 ? "s" : ""}
                   </span>
                 )}
                 {event.level && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
-                    <Mountain className="w-3.5 h-3.5" />
-                    {event.level}
+                    <Mountain className="w-3.5 h-3.5" /> {event.level}
                   </span>
                 )}
                 {!isPaid && spotsLeft != null && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
-                    <Users className="w-3.5 h-3.5" />
-                    {spotsLeft > 0 ? `${spotsLeft} cupos` : "Sin cupos"}
+                    <Users className="w-3.5 h-3.5" /> {spotsLeft > 0 ? `${spotsLeft} cupos` : "Sin cupos"}
                   </span>
                 )}
               </div>
@@ -331,7 +371,7 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* Itinerary from metadata */}
+          {/* Itinerary */}
           {event.metadata?.itinerario && Array.isArray(event.metadata.itinerario) && event.metadata.itinerario.length > 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Itinerario</h3>
@@ -340,9 +380,7 @@ const EventDetail = () => {
                   <div key={i} className="flex gap-3">
                     <div className="flex flex-col items-center">
                       <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                      {i < event.metadata.itinerario.length - 1 && (
-                        <div className="w-px flex-1 bg-border" />
-                      )}
+                      {i < event.metadata.itinerario.length - 1 && <div className="w-px flex-1 bg-border" />}
                     </div>
                     <div className="pb-3">
                       {item.dia && <p className="text-xs font-heading font-semibold text-primary">{item.dia}</p>}
@@ -354,60 +392,144 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* What's included from metadata */}
+          {/* What's included */}
           {event.metadata?.incluye && Array.isArray(event.metadata.incluye) && event.metadata.incluye.length > 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">¿Qué incluye?</h3>
               <ul className="space-y-1.5">
                 {event.metadata.incluye.map((item: string, i: number) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                    {item}
+                    <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" /> {item}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {/* Reservation CTA — dynamic based on status */}
-          {alumno && isPaid && spotsLeft !== 0 && !hasReservation && (
-            <EventCashReservation
-              eventId={event.id}
-              eventTitle={event.title}
-              alumnoId={alumno.id}
-              price={event.price}
-              currency={event.currency || "ARS"}
-              onReserved={() => {
-                setHasReservation(true);
-                setReservationStatus("pendiente_verificacion");
-              }}
-            />
-          )}
-
-          {/* Already reserved — "Ver mi estado" */}
-          {alumno && hasReservation && (
+          {/* Quick links from metadata */}
+          {(event.metadata?.reglamento || event.metadata?.web_url || event.metadata?.whatsapp_url) && (
             <div className="glass-card rounded-xl p-5 space-y-3">
-              <div className="flex items-center justify-center gap-2 text-primary">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-heading font-semibold text-sm">Mi reserva</span>
-              </div>
-              <div className="text-center space-y-1">
-                {reservationStatus === "pago_confirmado" ? (
-                  <>
-                    <p className="text-sm text-emerald-400 font-semibold">¡Pago confirmado!</p>
-                    <p className="text-xs text-muted-foreground">Tu lugar está asegurado. Nos vemos ahí 🎉</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-amber-400 font-semibold">Pendiente de verificación</p>
-                    <p className="text-xs text-muted-foreground">Tu aviso de pago fue registrado. El administrador lo verificará pronto.</p>
-                  </>
+              <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Más información</h3>
+              <div className="flex flex-wrap gap-2">
+                {event.metadata.reglamento && (
+                  <a href={event.metadata.reglamento} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <FileText className="w-3.5 h-3.5" /> Reglamento
+                  </a>
+                )}
+                {event.metadata.web_url && (
+                  <a href={event.metadata.web_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <ExternalLink className="w-3.5 h-3.5" /> Ver web
+                  </a>
+                )}
+                {event.metadata.whatsapp_url && (
+                  <a href={event.metadata.whatsapp_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
+                    <MessageCircle className="w-3.5 h-3.5" /> Chatear por WhatsApp
+                  </a>
                 )}
               </div>
             </div>
           )}
 
-          {/* Student result section — only show AFTER the event date */}
+          {/* ═══════════════════════════════════════════════════ */}
+          {/* CASE A: No reservation yet → show "Reservar" CTA  */}
+          {/* ═══════════════════════════════════════════════════ */}
+          {alumno && isPaid && spotsLeft !== 0 && !hasReservation && !eventPast && (
+            <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
+              <div className="text-center space-y-2">
+                <h3 className="font-heading font-semibold text-foreground">¿Querés reservar tu lugar?</h3>
+                <p className="text-xs text-muted-foreground">
+                  Reservá tu lugar y luego informá tu pago para que el equipo lo valide.
+                </p>
+              </div>
+              <Button variant="gold" className="w-full h-12 text-sm" disabled={reserving} onClick={handleReserve}>
+                {reserving ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Reservando...</>
+                ) : (
+                  <><CreditCard className="w-4 h-4 mr-2" /> Reservar</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* CASE B: Has reservation → show "Mi estado" card       */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {alumno && hasReservation && estadoBadge && (
+            <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Mi estado</h3>
+              </div>
+
+              {/* Status badge */}
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${estadoBadge.className}`}>
+                <estadoBadge.icon className="w-4 h-4 shrink-0" />
+                <span className="text-sm font-medium">{estadoBadge.label}</span>
+              </div>
+
+              {/* Detailed info */}
+              <div className="space-y-2 text-sm">
+                {reservation!.monto != null && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monto total</span>
+                    <span className="font-semibold text-foreground">{formatPrice(reservation!.monto, reservation!.moneda || event.currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Método de pago</span>
+                  <span className="text-foreground capitalize">{reservation!.metodo_pago}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fecha de reserva</span>
+                  <span className="text-foreground">
+                    {new Date(reservation!.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                </div>
+                {reservation!.notas && (
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-semibold">Observaciones del equipo:</span> {reservation!.notas}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Informar pago — only if NOT yet validated */}
+              {!isPaymentValidated && (
+                <div className="pt-3 border-t border-border/50 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    ¿Ya realizaste el pago de este evento? Informalo acá para que el equipo lo revise y actualice tu estado.
+                  </p>
+                  {reservation!.estado === "pendiente_verificacion" ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-xs text-amber-400">Pago informado · Pendiente de validación</span>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full" onClick={handleReserve} disabled={reserving}>
+                      <Banknote className="w-4 h-4 mr-2" /> Informar pago
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Confirmed state */}
+              {isPaymentValidated && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-400">Reserva confirmada</p>
+                    <p className="text-xs text-muted-foreground">Tu lugar está asegurado. ¡Nos vemos ahí! 🎉</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Student result section — only after event */}
           {alumno && eventPast && (
             <>
               {event.type === "record_hora" && participantResult ? (

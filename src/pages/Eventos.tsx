@@ -48,6 +48,14 @@ const typeLabels: Record<string, string> = {
   viaje: "Viaje",
 };
 
+const typeBadgeColors: Record<string, string> = {
+  camp: "bg-emerald-500/90 text-white",
+  viaje: "bg-violet-500/90 text-white",
+  carrera: "bg-orange-500/90 text-white",
+  record_hora: "bg-sky-500/90 text-white",
+  otro: "bg-muted text-muted-foreground",
+};
+
 const placeholderImages: Record<string, string> = {
   camp: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=600&h=400&fit=crop",
   viaje: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&h=400&fit=crop",
@@ -58,17 +66,9 @@ const placeholderImages: Record<string, string> = {
 
 /* ─── Category Icon Button ─── */
 const CategoryIcon = ({
-  icon,
-  label,
-  active,
-  badge,
-  onClick,
+  icon, label, active, badge: badgeText, onClick,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  badge?: string;
-  onClick: () => void;
+  icon: React.ReactNode; label: string; active?: boolean; badge?: string; onClick: () => void;
 }) => (
   <button onClick={onClick} className="flex flex-col items-center gap-1.5 min-w-[64px] group">
     <div className="relative">
@@ -83,40 +83,44 @@ const CategoryIcon = ({
           {icon}
         </div>
       </div>
-      {badge && (
+      {badgeText && (
         <span className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-[8px] font-heading font-bold px-1.5 py-0.5 rounded-full leading-none">
-          {badge}
+          {badgeText}
         </span>
       )}
     </div>
-    <span
-      className={`text-[10px] font-heading font-medium transition-colors text-center leading-tight ${
-        active ? "text-primary" : "text-muted-foreground"
-      }`}
-    >
+    <span className={`text-[10px] font-heading font-medium transition-colors text-center leading-tight ${active ? "text-primary" : "text-muted-foreground"}`}>
       {label}
     </span>
   </button>
 );
 
+/* ─── Reservation status helpers ─── */
+const getReservationBadge = (estado: string | undefined) => {
+  if (!estado) return null;
+  switch (estado) {
+    case "pago_confirmado":
+      return { label: "Confirmado", className: "bg-emerald-500 text-white" };
+    case "pendiente_verificacion":
+      return { label: "Pendiente", className: "bg-amber-500 text-white" };
+    default:
+      return { label: "Reservado", className: "bg-primary text-primary-foreground" };
+  }
+};
+
 /* ─── Event Card ─── */
 const EventCard = ({
-  event,
-  onClick,
-  isFavorite,
-  onToggleFavorite,
-  hasReservation,
+  event, onClick, isFavorite, onToggleFavorite, reservationStatus,
 }: {
-  event: Event;
-  onClick: () => void;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
-  hasReservation: boolean;
+  event: Event; onClick: () => void; isFavorite: boolean;
+  onToggleFavorite: () => void; reservationStatus?: string;
 }) => {
   const isPaid = event.price != null && event.price > 0;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const d = new Date(event.date + "T12:00:00");
   const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  const hasReservation = !!reservationStatus;
+  const resBadge = getReservationBadge(reservationStatus);
 
   return (
     <div
@@ -136,65 +140,63 @@ const EventCard = ({
           onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
           className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/70 backdrop-blur-sm flex items-center justify-center transition-colors hover:bg-background/90"
         >
-          <Heart
-            className={`w-4 h-4 transition-colors ${isFavorite ? "fill-red-500 text-red-500" : "text-foreground/70"}`}
-          />
+          <Heart className={`w-4 h-4 transition-colors ${isFavorite ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
         </button>
-        {/* Tag badge */}
+
+        {/* Type badge top-left */}
         <div className="absolute top-2.5 left-2.5">
-          {hasReservation ? (
-            <Badge className="bg-emerald-500 text-white text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
-              Reservado
-            </Badge>
-          ) : isPaid ? (
-            <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
-              Reservar
-            </Badge>
-          ) : (
-            <Badge className="bg-accent text-accent-foreground text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 shadow-lg">
-              Gratuito
-            </Badge>
-          )}
+          <span className={`text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
+            {typeLabels[event.type] || event.type}
+          </span>
         </div>
-        {/* Duration pill */}
-        {event.duration_days && (
+
+        {/* Reservation badge bottom-left */}
+        {hasReservation && resBadge && (
           <div className="absolute bottom-2.5 left-2.5">
-            <span className="bg-black/60 backdrop-blur-sm text-white text-[10px] font-heading px-2.5 py-1 rounded-full">
-              {event.duration_days} día{event.duration_days > 1 ? "s" : ""}
-              {event.duration_nights ? ` / ${event.duration_nights} noche${event.duration_nights > 1 ? "s" : ""}` : ""}
+            <Badge className={`text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 shadow-lg ${resBadge.className}`}>
+              {resBadge.label}
+            </Badge>
+          </div>
+        )}
+
+        {/* Duration pill bottom-right */}
+        {event.duration_days && (
+          <div className="absolute bottom-2.5 right-2.5">
+            <span className="bg-black/60 backdrop-blur-sm text-white text-[9px] font-heading px-2 py-0.5 rounded-full">
+              {event.duration_days}D{event.duration_nights ? ` / ${event.duration_nights}N` : ""}
             </span>
           </div>
         )}
       </div>
 
       {/* Content */}
-      <div className="p-3.5 space-y-2">
+      <div className="p-3 space-y-1.5">
         <h3 className="font-heading font-semibold text-sm text-foreground leading-tight line-clamp-2">
           {event.title}
         </h3>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
+          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <CalendarDays className="w-3 h-3 text-primary shrink-0" />
+            {dateStr}
+          </span>
           {event.location && (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <MapPin className="w-3 h-3 text-primary shrink-0" />
               <span className="truncate">{event.location}</span>
             </span>
           )}
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarDays className="w-3 h-3 text-primary shrink-0" />
-            {dateStr}
-          </span>
         </div>
 
         {/* Level & Spots */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {event.level && (
-            <span className="text-[10px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+            <span className="text-[9px] font-heading uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
               {event.level}
             </span>
           )}
           {spotsLeft != null && (
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
               <Users className="w-3 h-3" />
               {spotsLeft > 0 ? `${spotsLeft} cupos` : "Agotado"}
             </span>
@@ -202,25 +204,25 @@ const EventCard = ({
         </div>
 
         {/* Price + CTA */}
-        <div className="flex items-end justify-between pt-1 border-t border-border/50">
+        <div className="flex items-end justify-between pt-1.5 border-t border-border/50">
           {isPaid ? (
             <div>
-              <p className="text-[10px] text-muted-foreground">Precio</p>
-              <p className="text-lg font-bold font-heading text-primary leading-none">
+              <p className="text-[9px] text-muted-foreground">Desde</p>
+              <p className="text-base font-bold font-heading text-primary leading-none">
                 {formatPrice(event.price!, event.currency)}
               </p>
             </div>
           ) : (
-            <span className="text-xs text-muted-foreground">Evento gratuito</span>
+            <span className="text-[11px] text-muted-foreground">Gratuito</span>
           )}
           <Button
             size="sm"
             variant={hasReservation ? "outline" : isPaid ? "gold" : "outline"}
-            className="text-xs h-8 px-3"
+            className="text-[10px] h-7 px-2.5"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
             {hasReservation ? "Ver estado" : isPaid ? "Reservar" : "Ver detalle"}
-            <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
         </div>
       </div>
@@ -230,15 +232,10 @@ const EventCard = ({
 
 /* ─── Featured Banner Carousel ─── */
 const FeaturedBanner = ({
-  events,
-  onSelect,
-  isFavorite,
-  onToggleFavorite,
+  events, onSelect, isFavorite, onToggleFavorite,
 }: {
-  events: Event[];
-  onSelect: (id: string) => void;
-  isFavorite: (id: string) => boolean;
-  onToggleFavorite: (id: string) => void;
+  events: Event[]; onSelect: (id: string) => void;
+  isFavorite: (id: string) => boolean; onToggleFavorite: (id: string) => void;
 }) => {
   const [current, setCurrent] = useState(0);
 
@@ -252,10 +249,7 @@ const FeaturedBanner = ({
   const ev = events[current];
 
   return (
-    <div
-      className="relative rounded-2xl overflow-hidden cursor-pointer group"
-      onClick={() => onSelect(ev.id)}
-    >
+    <div className="relative rounded-2xl overflow-hidden cursor-pointer group" onClick={() => onSelect(ev.id)}>
       <div className="aspect-[2/1] md:aspect-[3/1]">
         <img
           src={ev.image_url || placeholderImages[ev.type] || placeholderImages.otro}
@@ -264,7 +258,6 @@ const FeaturedBanner = ({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
       </div>
-      {/* Favorite heart */}
       <button
         onClick={(e) => { e.stopPropagation(); onToggleFavorite(ev.id); }}
         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center hover:bg-background/80 transition-colors"
@@ -272,23 +265,18 @@ const FeaturedBanner = ({
         <Heart className={`w-5 h-5 ${isFavorite(ev.id) ? "fill-red-500 text-red-500" : "text-white/80"}`} />
       </button>
       <div className="absolute bottom-0 left-0 right-0 p-4 space-y-1">
-        <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase">
-          Destacado
-        </Badge>
+        <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase">Destacado</Badge>
         <h2 className="text-white font-heading font-bold text-lg leading-tight">{ev.title}</h2>
         <div className="flex items-center gap-3 text-white/80 text-xs">
           {ev.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" /> {ev.location}
-            </span>
+            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {ev.location}</span>
           )}
           <span className="flex items-center gap-1">
-            <CalendarDays className="w-3 h-3" />{" "}
+            <CalendarDays className="w-3 h-3" />
             {new Date(ev.date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
           </span>
         </div>
       </div>
-      {/* Dots */}
       {events.length > 1 && (
         <div className="absolute bottom-2 right-4 flex gap-1.5">
           {events.map((_, i) => (
@@ -312,9 +300,8 @@ export const EventosContent = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("todos");
-  const [reservedEventIds, setReservedEventIds] = useState<Set<string>>(new Set());
+  const [reservations, setReservations] = useState<Record<string, string>>({});
 
-  // Load events
   useEffect(() => {
     supabase
       .from("events")
@@ -327,20 +314,24 @@ export const EventosContent = () => {
       });
   }, []);
 
-  // Load student reservations
   useEffect(() => {
     if (!alumno) return;
     supabase
       .from("event_reservations")
-      .select("event_id")
+      .select("event_id, estado")
       .eq("alumno_id", alumno.id)
       .then(({ data }) => {
-        if (data) setReservedEventIds(new Set(data.map((r: any) => r.event_id)));
+        if (data) {
+          const map: Record<string, string> = {};
+          data.forEach((r: any) => { map[r.event_id] = r.estado; });
+          setReservations(map);
+        }
       });
   }, [alumno]);
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = events.filter((e) => e.date >= today);
+  const reservedEventIds = new Set(Object.keys(reservations));
 
   const filtered = upcoming.filter((e) => {
     if (tab === "escuela" && !escuelaTypes.includes(e.type)) return false;
@@ -355,7 +346,7 @@ export const EventosContent = () => {
     .filter((e) => viajesTypes.includes(e.type) || (e.image_url && e.price))
     .slice(0, 5);
 
-  const categories: { key: TabFilter; label: string; icon: React.ReactNode; badge?: string }[] = [
+  const categories: { key: TabFilter; label: string; icon: React.ReactNode }[] = [
     { key: "todos", label: "Todos", icon: <LayoutGrid className="w-5 h-5" /> },
     { key: "escuela", label: "Escuela", icon: <Bike className="w-5 h-5" /> },
     { key: "carreras", label: "Carreras", icon: <Trophy className="w-5 h-5" /> },
@@ -366,23 +357,14 @@ export const EventosContent = () => {
 
   return (
     <div className="w-full max-w-lg mx-auto space-y-5 animate-fade-in pb-4">
-      {/* Header */}
       <div className="pt-2">
         <h1 className="text-2xl font-heading font-bold text-foreground">Eventos</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Encontrá tu próxima experiencia</p>
       </div>
 
-      {/* Category Icons – Despegar style */}
       <div className="flex justify-between px-1 overflow-x-auto no-scrollbar">
         {categories.map((c) => (
-          <CategoryIcon
-            key={c.key}
-            icon={c.icon}
-            label={c.label}
-            active={tab === c.key}
-            badge={c.badge}
-            onClick={() => setTab(c.key)}
-          />
+          <CategoryIcon key={c.key} icon={c.icon} label={c.label} active={tab === c.key} onClick={() => setTab(c.key)} />
         ))}
       </div>
 
@@ -390,35 +372,19 @@ export const EventosContent = () => {
         <div className="text-center text-muted-foreground animate-pulse py-12">Cargando...</div>
       ) : (
         <>
-          {/* Featured Banner */}
           {tab === "todos" && featured.length > 0 && (
-            <FeaturedBanner
-              events={featured}
-              onSelect={(id) => navigate(`/eventos/${id}`)}
-              isFavorite={isFavorite}
-              onToggleFavorite={toggleFavorite}
-            />
+            <FeaturedBanner events={featured} onSelect={(id) => navigate(`/eventos/${id}`)} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} />
           )}
 
-          {/* Events Grid */}
           {filtered.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <p className="text-muted-foreground text-sm">
-                {tab === "mis_eventos"
-                  ? "Aún no reservaste ningún evento."
-                  : tab === "favoritos"
-                  ? "No tenés eventos favoritos."
+                {tab === "mis_eventos" ? "Aún no reservaste ningún evento."
+                  : tab === "favoritos" ? "No tenés eventos favoritos."
                   : "No hay eventos disponibles."}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {tab === "mis_eventos" || tab === "favoritos"
-                  ? "Explorá los eventos disponibles."
-                  : "Probá cambiando los filtros."}
-              </p>
               {(tab === "mis_eventos" || tab === "favoritos") && (
-                <Button variant="outline" size="sm" onClick={() => setTab("todos")} className="mt-2">
-                  Ver todos los eventos
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => setTab("todos")} className="mt-2">Ver todos los eventos</Button>
               )}
             </div>
           ) : (
@@ -430,7 +396,7 @@ export const EventosContent = () => {
                   onClick={() => navigate(`/eventos/${e.id}`)}
                   isFavorite={isFavorite(e.id)}
                   onToggleFavorite={() => toggleFavorite(e.id)}
-                  hasReservation={reservedEventIds.has(e.id)}
+                  reservationStatus={reservations[e.id]}
                 />
               ))}
             </div>
