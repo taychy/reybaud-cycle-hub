@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   CalendarDays, MapPin, Users, ChevronRight, Heart,
-  ArrowLeft, Bookmark, Calendar, Plane,
+  ArrowLeft, Bookmark, Plane, Trophy, Bike, LayoutGrid,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import BottomNav from "@/components/BottomNav";
@@ -55,6 +55,49 @@ const placeholderImages: Record<string, string> = {
   record_hora: "https://images.unsplash.com/photo-1534787238916-9ba6764efd4f?w=600&h=400&fit=crop",
   otro: "https://images.unsplash.com/photo-1571188654248-7a89213915f7?w=600&h=400&fit=crop",
 };
+
+/* ─── Category Icon Button ─── */
+const CategoryIcon = ({
+  icon,
+  label,
+  active,
+  badge,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  badge?: string;
+  onClick: () => void;
+}) => (
+  <button onClick={onClick} className="flex flex-col items-center gap-1.5 min-w-[64px] group">
+    <div className="relative">
+      <div
+        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${
+          active
+            ? "bg-primary/20 border-2 border-primary shadow-[0_0_12px_hsl(27_90%_55%/0.3)]"
+            : "bg-muted/60 border border-border/50 group-hover:border-primary/40 group-hover:bg-muted"
+        }`}
+      >
+        <div className={`transition-colors ${active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}>
+          {icon}
+        </div>
+      </div>
+      {badge && (
+        <span className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-[8px] font-heading font-bold px-1.5 py-0.5 rounded-full leading-none">
+          {badge}
+        </span>
+      )}
+    </div>
+    <span
+      className={`text-[10px] font-heading font-medium transition-colors text-center leading-tight ${
+        active ? "text-primary" : "text-muted-foreground"
+      }`}
+    >
+      {label}
+    </span>
+  </button>
+);
 
 /* ─── Event Card ─── */
 const EventCard = ({
@@ -312,13 +355,13 @@ export const EventosContent = () => {
     .filter((e) => viajesTypes.includes(e.type) || (e.image_url && e.price))
     .slice(0, 5);
 
-  const tabs: { key: TabFilter; label: string; icon?: React.ReactNode }[] = [
-    { key: "todos", label: "Todos" },
-    { key: "escuela", label: "Escuela" },
-    { key: "carreras", label: "Carreras" },
-    { key: "viajes", label: "Viajes & Camps", icon: <Plane className="w-3 h-3" /> },
-    { key: "mis_eventos", label: "Mis eventos", icon: <Bookmark className="w-3 h-3" /> },
-    { key: "favoritos", label: "Favoritos", icon: <Heart className="w-3 h-3" /> },
+  const categories: { key: TabFilter; label: string; icon: React.ReactNode; badge?: string }[] = [
+    { key: "todos", label: "Todos", icon: <LayoutGrid className="w-5 h-5" /> },
+    { key: "escuela", label: "Escuela", icon: <Bike className="w-5 h-5" /> },
+    { key: "carreras", label: "Carreras", icon: <Trophy className="w-5 h-5" /> },
+    { key: "viajes", label: "Viajes", icon: <Plane className="w-5 h-5" /> },
+    { key: "mis_eventos", label: "Mis eventos", icon: <Bookmark className="w-5 h-5" /> },
+    { key: "favoritos", label: "Favoritos", icon: <Heart className="w-5 h-5" /> },
   ];
 
   return (
@@ -329,21 +372,17 @@ export const EventosContent = () => {
         <p className="text-xs text-muted-foreground mt-0.5">Encontrá tu próxima experiencia</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-heading font-semibold transition-all flex items-center gap-1.5 ${
-              tab === t.key
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {t.icon}
-            {t.label}
-          </button>
+      {/* Category Icons – Despegar style */}
+      <div className="flex justify-between px-1 overflow-x-auto no-scrollbar">
+        {categories.map((c) => (
+          <CategoryIcon
+            key={c.key}
+            icon={c.icon}
+            label={c.label}
+            active={tab === c.key}
+            badge={c.badge}
+            onClick={() => setTab(c.key)}
+          />
         ))}
       </div>
 
