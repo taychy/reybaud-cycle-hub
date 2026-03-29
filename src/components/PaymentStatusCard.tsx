@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Clock, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -8,32 +9,6 @@ interface PaymentStatusCardProps {
   fechaPago: string;
   medioPago: string;
 }
-
-const statusConfig: Record<string, {
-  icon: React.ReactNode;
-  label: string;
-  message: string;
-  colorClass: string;
-}> = {
-  pendiente_verificacion: {
-    icon: <Clock className="w-5 h-5" />,
-    label: "⏳ Pendiente de validación",
-    message: "Tu pago está siendo revisado por administración.",
-    colorClass: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5",
-  },
-  activa: {
-    icon: <CheckCircle2 className="w-5 h-5" />,
-    label: "✅ Pago confirmado",
-    message: "Tu pago fue confirmado. Ya podés usar la app normalmente.",
-    colorClass: "text-emerald-500 border-emerald-500/30 bg-emerald-500/5",
-  },
-  rechazada: {
-    icon: <XCircle className="w-5 h-5" />,
-    label: "❌ Pago rechazado",
-    message: "Hubo un problema con el pago informado. Por favor revisalo o contactá a administración.",
-    colorClass: "text-destructive border-destructive/30 bg-destructive/5",
-  },
-};
 
 const formatPrice = (precio: number) =>
   new Intl.NumberFormat("es-AR", {
@@ -56,15 +31,43 @@ const formatDate = (dateStr: string) => {
   }
 };
 
-const medioPagoLabels: Record<string, string> = {
-  pendiente_verificacion: "Efectivo / Externo",
-  efectivo: "Efectivo",
-  mercadopago: "Mercado Pago",
-  tarjeta: "Tarjeta",
-  plataforma_externa: "Plataforma externa",
-};
-
 const PaymentStatusCard = ({ estado, planName, precio, fechaPago, medioPago }: PaymentStatusCardProps) => {
+  const { t } = useTranslation();
+
+  const statusConfig: Record<string, {
+    icon: React.ReactNode;
+    label: string;
+    message: string;
+    colorClass: string;
+  }> = {
+    pendiente_verificacion: {
+      icon: <Clock className="w-5 h-5" />,
+      label: t("paymentStatus.pendingLabel"),
+      message: t("paymentStatus.pendingMsg"),
+      colorClass: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5",
+    },
+    activa: {
+      icon: <CheckCircle2 className="w-5 h-5" />,
+      label: t("paymentStatus.confirmedLabel"),
+      message: t("paymentStatus.confirmedMsg"),
+      colorClass: "text-emerald-500 border-emerald-500/30 bg-emerald-500/5",
+    },
+    rechazada: {
+      icon: <XCircle className="w-5 h-5" />,
+      label: t("paymentStatus.rejectedLabel"),
+      message: t("paymentStatus.rejectedMsg"),
+      colorClass: "text-destructive border-destructive/30 bg-destructive/5",
+    },
+  };
+
+  const medioPagoLabels: Record<string, string> = {
+    pendiente_verificacion: t("paymentStatus.cashExternal"),
+    efectivo: t("paymentStatus.cash"),
+    mercadopago: t("paymentStatus.mercadoPago"),
+    tarjeta: t("paymentStatus.card"),
+    plataforma_externa: t("paymentStatus.externalPlatform"),
+  };
+
   const config = statusConfig[estado] || statusConfig.pendiente_verificacion;
 
   return (
@@ -72,25 +75,25 @@ const PaymentStatusCard = ({ estado, planName, precio, fechaPago, medioPago }: P
       <div className="flex items-center gap-2">
         {config.icon}
         <h3 className="text-sm font-heading font-semibold uppercase tracking-wider text-foreground">
-          Estado de tu pago
+          {t("paymentStatus.title")}
         </h3>
       </div>
 
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Plan</span>
+          <span className="text-muted-foreground">{t("paymentStatus.plan")}</span>
           <span className="font-medium text-foreground">{planName}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Monto</span>
+          <span className="text-muted-foreground">{t("paymentStatus.amount")}</span>
           <span className="font-medium text-foreground">{formatPrice(precio)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Fecha del pago</span>
+          <span className="text-muted-foreground">{t("paymentStatus.paymentDate")}</span>
           <span className="font-medium text-foreground">{formatDate(fechaPago)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Medio de pago</span>
+          <span className="text-muted-foreground">{t("paymentStatus.paymentMethod")}</span>
           <span className="font-medium text-foreground">{medioPagoLabels[medioPago] || medioPago}</span>
         </div>
       </div>
@@ -108,7 +111,7 @@ const PaymentStatusCard = ({ estado, planName, precio, fechaPago, medioPago }: P
         >
           <Button variant="gold-outline" size="sm" className="w-full mt-2">
             <ExternalLink className="w-4 h-4" />
-            Contactar administración
+            {t("paymentStatus.contactAdmin")}
           </Button>
         </a>
       )}

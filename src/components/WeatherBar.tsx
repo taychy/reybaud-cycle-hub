@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Cloud, Sun, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Wind } from "lucide-react";
 
 interface WeatherData {
@@ -19,26 +20,26 @@ const weatherIcon = (code: number) => {
   return <Cloud className="w-3.5 h-3.5 text-muted-foreground" />;
 };
 
-const weatherLabel = (code: number): string => {
-  if (code === 0) return "Despejado";
-  if (code === 1) return "Mayormente despejado";
-  if (code === 2) return "Parcialmente nublado";
-  if (code === 3) return "Nublado";
-  if (code <= 48) return "Niebla";
-  if (code <= 57) return "Llovizna";
-  if (code <= 67) return "Lluvia";
-  if (code <= 77) return "Nieve";
-  if (code <= 82) return "Chaparrones";
-  if (code <= 99) return "Tormenta";
-  return "—";
-};
-
-// Default: Buenos Aires area
 const DEFAULT_LAT = -34.6;
 const DEFAULT_LON = -58.38;
 
 export default function WeatherBar() {
+  const { t } = useTranslation();
   const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  const weatherLabel = (code: number): string => {
+    if (code === 0) return t("weather.clear");
+    if (code === 1) return t("weather.mostlyClear");
+    if (code === 2) return t("weather.partlyCloudy");
+    if (code === 3) return t("weather.cloudy");
+    if (code <= 48) return t("weather.fog");
+    if (code <= 57) return t("weather.drizzle");
+    if (code <= 67) return t("weather.rain");
+    if (code <= 77) return t("weather.snow");
+    if (code <= 82) return t("weather.showers");
+    if (code <= 99) return t("weather.storm");
+    return "—";
+  };
 
   useEffect(() => {
     const fetchWeather = async (lat: number, lon: number) => {

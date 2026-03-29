@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "./i18n";
 
 // Capture PWA install prompt globally before any component mounts
 (window as any).__pwaInstallPrompt = null;
