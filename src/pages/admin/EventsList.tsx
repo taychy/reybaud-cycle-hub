@@ -47,6 +47,7 @@ import EventForm, {
   eventFormToPayload,
   type EventFormData,
 } from "@/components/admin/EventForm";
+import AdminEventReservations from "@/components/admin/AdminEventReservations";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
