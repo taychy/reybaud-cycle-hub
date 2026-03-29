@@ -23,7 +23,7 @@ interface MatrixViewProps {
 
 const MatrixView = ({ entrenamientos, allEntrenamientos, month, selectedIds, onToggleSelect, onCellClick }: MatrixViewProps) => {
   const groups = useMemo(() => {
-    const g = new Set(allEntrenamientos.map(e => e.grupo));
+    const g = new Set(allEntrenamientos.map(e => e.grupo as string));
     const order = ["G1", "G2", "G3", "G4", "Principiante"];
     const active = order.filter(o => g.has(o));
     return active.length > 0 ? active : ["G1", "G2", "G3", "G4"];
