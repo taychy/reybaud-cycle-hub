@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CalendarDays, Clock, Pencil, Trash2, Ruler, Send, Gauge } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Pencil, Trash2, Ruler, Send, Gauge, MapPin, Users, DollarSign, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import logo from "@/assets/logo.png";
 import EventRankings from "@/components/EventRankings";
+import EventCashReservation from "@/components/EventCashReservation";
 import BottomNav from "@/components/BottomNav";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -35,6 +36,15 @@ interface Event {
   type: string;
   is_active: boolean;
   visible_to_students: boolean;
+  price: number | null;
+  currency: string;
+  location: string | null;
+  max_capacity: number | null;
+  spots_taken: number;
+  duration_days: number | null;
+  duration_nights: number | null;
+  level: string | null;
+  image_url: string | null;
 }
 
 const typeLabels: Record<string, string> = {
@@ -55,6 +65,7 @@ const EventDetail = () => {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", date: "", start_time: "" });
   const [saving, setSaving] = useState(false);
+  const [hasReservation, setHasReservation] = useState(false);
 
   // Student result state
   const [alumno, setAlumno] = useState<Alumno | null>(null);
@@ -113,6 +124,16 @@ const EventDetail = () => {
               setAlumno(alumnoData);
               loadResult(id, alumnoData.id);
               loadParticipantResult(alumnoData.email);
+              // Check existing reservation
+              supabase
+                .from("event_reservations" as any)
+                .select("id")
+                .eq("event_id", id)
+                .eq("alumno_id", alumnoData.id)
+                .maybeSingle()
+                .then(({ data: resData }: any) => {
+                  if (resData) setHasReservation(true);
+                });
             }
           });
       }
@@ -325,6 +346,67 @@ const EventDetail = () => {
                   </AlertDialog>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Event details: price, location, capacity */}
+          {!editing && (event.price || event.location || event.max_capacity) && (
+            <div className="glass-card rounded-xl p-5 space-y-3">
+              {event.location && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <span>{event.location}</span>
+                </div>
+              )}
+              {event.price != null && event.price > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                  <span className="font-heading font-bold text-primary text-lg">
+                    {event.currency === "USD" ? "US$" : event.currency === "EUR" ? "€" : "$"}{" "}
+                    {event.price.toLocaleString("es-AR")}
+                  </span>
+                  <span className="text-muted-foreground text-xs">por persona</span>
+                </div>
+              )}
+              {event.max_capacity != null && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span>
+                    {event.max_capacity - event.spots_taken > 0
+                      ? `${event.max_capacity - event.spots_taken} cupos disponibles`
+                      : "Sin cupos disponibles"}
+                  </span>
+                </div>
+              )}
+              {event.duration_days && (
+                <p className="text-xs text-muted-foreground">
+                  Duración: {event.duration_days} día{event.duration_days > 1 ? "s" : ""}
+                  {event.duration_nights ? ` / ${event.duration_nights} noche${event.duration_nights > 1 ? "s" : ""}` : ""}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Cash reservation for paid events (camps/viajes) */}
+          {alumno && !editing && !hasReservation && event.price != null && event.price > 0 && (
+            <EventCashReservation
+              eventId={event.id}
+              eventTitle={event.title}
+              alumnoId={alumno.id}
+              price={event.price}
+              currency={event.currency || "ARS"}
+              onReserved={() => setHasReservation(true)}
+            />
+          )}
+
+          {/* Already reserved indicator */}
+          {alumno && !editing && hasReservation && (
+            <div className="glass-card rounded-xl p-5 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-primary">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-heading font-semibold text-sm">Reserva registrada</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Tu pago está pendiente de verificación.</p>
             </div>
           )}
 
