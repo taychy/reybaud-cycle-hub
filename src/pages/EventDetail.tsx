@@ -124,6 +124,16 @@ const EventDetail = () => {
               setAlumno(alumnoData);
               loadResult(id, alumnoData.id);
               loadParticipantResult(alumnoData.email);
+              // Check existing reservation
+              supabase
+                .from("event_reservations" as any)
+                .select("id")
+                .eq("event_id", id)
+                .eq("alumno_id", alumnoData.id)
+                .maybeSingle()
+                .then(({ data: resData }: any) => {
+                  if (resData) setHasReservation(true);
+                });
             }
           });
       }
