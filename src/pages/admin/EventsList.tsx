@@ -452,6 +452,24 @@ const EventsList = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Reservations Dialog */}
+      <Dialog open={!!reservationsEvent} onOpenChange={(open) => !open && setReservationsEvent(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">
+              Reservas — {reservationsEvent?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {reservationsEvent && (
+            <AdminEventReservations
+              eventId={reservationsEvent.id}
+              eventTitle={reservationsEvent.title}
+              eventCurrency={reservationsEvent.currency}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
