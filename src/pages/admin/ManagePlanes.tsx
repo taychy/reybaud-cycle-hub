@@ -546,8 +546,9 @@ const ManagePlanes = () => {
                   <Select value={form.moneda} onValueChange={(v) => setForm({ ...form, moneda: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ARS">ARS</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="ARS">$ ARS</SelectItem>
+                      <SelectItem value="USD">US$ USD</SelectItem>
+                      <SelectItem value="EUR">€ EUR</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

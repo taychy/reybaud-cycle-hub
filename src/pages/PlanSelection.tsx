@@ -92,12 +92,8 @@ const PlanSelection = () => {
 
   const selectedPlan = planes.find((p) => p.id === selected);
 
-  const formatPrice = (precio: number, moneda: string = "ARS") => {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: moneda === "USD" ? "USD" : "ARS",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
+  const formatPriceLocal = (precio: number, moneda: string = "ARS") => {
+    return formatPrice(precio, moneda);
     }).format(precio);
   };
 

@@ -121,8 +121,7 @@ const ManagePrecios = () => {
     }
   };
 
-  const formatPrice = (p: number, moneda: string = "ARS") =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(p);
+  const fmtPrice = (p: number, moneda: string = "ARS") => formatPrice(p, moneda);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
