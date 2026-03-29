@@ -116,7 +116,7 @@ const App = () => (
             <Route path="historial" element={<AuditLog />} />
             <Route path="metricas" element={<SuperAdminDashboard />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
-            <Route path="resumen-global" element={<SuperAdminResumen />} />
+            <Route path="centro-control" element={<SuperAdminControl />} />
             <Route path="tienda" element={<StoreDashboard />} />
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
