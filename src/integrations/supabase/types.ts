@@ -915,6 +915,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mejoras_sugeridas: {
+        Row: {
+          autor_email: string
+          autor_nombre: string
+          created_at: string
+          id: string
+          leido: boolean
+          mensaje: string
+        }
+        Insert: {
+          autor_email: string
+          autor_nombre: string
+          created_at?: string
+          id?: string
+          leido?: boolean
+          mensaje: string
+        }
+        Update: {
+          autor_email?: string
+          autor_nombre?: string
+          created_at?: string
+          id?: string
+          leido?: boolean
+          mensaje?: string
+        }
+        Relationships: []
+      }
       objetivos_alumno: {
         Row: {
           activo: boolean
