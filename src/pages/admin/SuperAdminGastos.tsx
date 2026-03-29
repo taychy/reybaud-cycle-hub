@@ -45,7 +45,8 @@ const FORMA_PAGO_LABELS: Record<string, string> = {
   banco: "Banco",
 };
 
-const fmt = (n: number) => `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+const MONEDA_SIMBOLO: Record<string, string> = { ARS: "$", USD: "US$", EUR: "€" };
+const fmtMoneda = (n: number, moneda: string) => `${MONEDA_SIMBOLO[moneda] || "$"}${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,7 @@ const SuperAdminGastos = () => {
     subcategoria: "",
     descripcion: "",
     monto: "",
+    moneda: "ARS",
     fecha: new Date().toISOString().split("T")[0],
     recurrente: false,
     frecuencia: "",
@@ -85,6 +87,7 @@ const SuperAdminGastos = () => {
       subcategoria: gastoForm.subcategoria || null,
       descripcion: gastoForm.descripcion,
       monto: Number(gastoForm.monto),
+      moneda: gastoForm.moneda,
       fecha: gastoForm.fecha,
       recurrente: gastoForm.recurrente,
       frecuencia: gastoForm.recurrente ? gastoForm.frecuencia || null : null,
@@ -118,7 +121,7 @@ const SuperAdminGastos = () => {
 
   const resetForm = () => {
     setGastoForm({
-      categoria: "Otros", subcategoria: "", descripcion: "", monto: "",
+      categoria: "Otros", subcategoria: "", descripcion: "", monto: "", moneda: "ARS",
       fecha: new Date().toISOString().split("T")[0], recurrente: false,
       frecuencia: "", proveedor: "", notas: "", forma_pago: "efectivo",
     });
@@ -131,6 +134,7 @@ const SuperAdminGastos = () => {
       subcategoria: g.subcategoria || "",
       descripcion: g.descripcion,
       monto: String(g.monto),
+      moneda: g.moneda || "ARS",
       fecha: g.fecha,
       recurrente: g.recurrente,
       frecuencia: g.frecuencia || "",
@@ -172,7 +176,7 @@ const SuperAdminGastos = () => {
                 <div key={g.cat} className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{g.cat}</span>
-                    <span className="font-heading font-bold">{fmt(g.total)}</span>
+                    <span className="font-heading font-bold">${g.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
                   </div>
                   <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-destructive/70 rounded-full" style={{ width: `${(g.total / maxGastoCat) * 100}%` }} />
@@ -220,9 +224,20 @@ const SuperAdminGastos = () => {
                     <Label className="text-xs">Descripción</Label>
                     <Input value={gastoForm.descripcion} onChange={(e) => setGastoForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Ej: Alquiler local Palermo" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Monto ($)</Label>
+                      <Label className="text-xs">Moneda</Label>
+                      <Select value={gastoForm.moneda} onValueChange={(v) => setGastoForm(f => ({ ...f, moneda: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ARS">$ ARS</SelectItem>
+                          <SelectItem value="USD">US$ USD</SelectItem>
+                          <SelectItem value="EUR">€ EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Monto</Label>
                       <Input type="number" value={gastoForm.monto} onChange={(e) => setGastoForm(f => ({ ...f, monto: e.target.value }))} placeholder="0" />
                     </div>
                     <div className="space-y-1">
@@ -285,6 +300,7 @@ const SuperAdminGastos = () => {
                     <TableHead>Descripción</TableHead>
                     <TableHead>Forma de pago</TableHead>
                     <TableHead>Proveedor</TableHead>
+                     <TableHead>Moneda</TableHead>
                     <TableHead className="text-right">Monto</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead className="w-20">Acción</TableHead>
@@ -298,7 +314,8 @@ const SuperAdminGastos = () => {
                       <TableCell className="text-sm max-w-[200px] truncate">{g.descripcion}</TableCell>
                       <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || "Efectivo"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
-                      <TableCell className="text-right font-heading font-bold">{fmt(g.monto)}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{g.moneda || "ARS"}</Badge></TableCell>
+                      <TableCell className="text-right font-heading font-bold">{fmtMoneda(g.monto, g.moneda || "ARS")}</TableCell>
                       <TableCell>
                         {g.recurrente ? (
                           <Badge variant="secondary" className="text-[10px]">{g.frecuencia || "Recurrente"}</Badge>
