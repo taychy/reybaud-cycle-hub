@@ -15,6 +15,7 @@ import {
   CalendarDays,
   SlidersHorizontal,
   X,
+  Users,
 } from "lucide-react";
 import {
   AlertDialog,
