@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,8 +122,7 @@ const ManagePrecios = () => {
     }
   };
 
-  const formatPrice = (p: number, moneda: string = "ARS") =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(p);
+  // formatPrice imported from @/lib/currency
 
   const formatDate = (d: string) => {
     const date = new Date(d);

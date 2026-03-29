@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -280,8 +281,7 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
-  const formatPrice = (precio: number, moneda: string = "ARS") =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: moneda === "USD" ? "USD" : "ARS", minimumFractionDigits: 0 }).format(precio);
+  // formatPrice imported from @/lib/currency
 
   const getVisibilidadBadge = (v: string) => {
     switch (v) {
@@ -546,8 +546,9 @@ const ManagePlanes = () => {
                   <Select value={form.moneda} onValueChange={(v) => setForm({ ...form, moneda: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ARS">ARS</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="ARS">$ ARS</SelectItem>
+                      <SelectItem value="USD">US$ USD</SelectItem>
+                      <SelectItem value="EUR">€ EUR</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

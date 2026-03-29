@@ -146,7 +146,7 @@ const EventCard = ({ event, onClick }: { event: Event; onClick: () => void }) =>
             <div>
               <p className="text-[10px] text-muted-foreground">Precio por persona</p>
               <p className="text-lg font-bold font-heading text-primary leading-none">
-                {event.currency === "USD" ? "USD" : "$"}{" "}
+                {event.currency === "USD" ? "US$" : event.currency === "EUR" ? "€" : "$"}{" "}
                 {event.price!.toLocaleString("es-AR")}
               </p>
             </div>

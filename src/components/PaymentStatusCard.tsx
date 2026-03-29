@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatPrice } from "@/lib/currency";
 import { Clock, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,13 +11,7 @@ interface PaymentStatusCardProps {
   medioPago: string;
 }
 
-const formatPrice = (precio: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(precio);
+// formatPrice imported from @/lib/currency
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "—";

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -92,14 +93,7 @@ const PlanSelection = () => {
 
   const selectedPlan = planes.find((p) => p.id === selected);
 
-  const formatPrice = (precio: number, moneda: string = "ARS") => {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: moneda === "USD" ? "USD" : "ARS",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(precio);
-  };
+  const formatPriceLocal = (precio: number, moneda: string = "ARS") => formatPrice(precio, moneda);
 
   // Cancel paused subscriptions when reactivating from vacation
   const cancelPausedSubs = async () => {

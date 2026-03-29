@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,8 +46,7 @@ const FORMA_PAGO_LABELS: Record<string, string> = {
   banco: "Banco",
 };
 
-const MONEDA_SIMBOLO: Record<string, string> = { ARS: "$", USD: "US$", EUR: "€" };
-const fmtMoneda = (n: number, moneda: string) => `${MONEDA_SIMBOLO[moneda] || "$"}${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+const fmtMoneda = (n: number, moneda: string) => formatPrice(n, moneda);
 
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
