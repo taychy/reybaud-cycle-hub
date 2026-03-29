@@ -314,7 +314,8 @@ const SuperAdminGastos = () => {
                       <TableCell className="text-sm max-w-[200px] truncate">{g.descripcion}</TableCell>
                       <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || "Efectivo"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
-                      <TableCell className="text-right font-heading font-bold">{fmt(g.monto)}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{g.moneda || "ARS"}</Badge></TableCell>
+                      <TableCell className="text-right font-heading font-bold">{fmtMoneda(g.monto, g.moneda || "ARS")}</TableCell>
                       <TableCell>
                         {g.recurrente ? (
                           <Badge variant="secondary" className="text-[10px]">{g.frecuencia || "Recurrente"}</Badge>
