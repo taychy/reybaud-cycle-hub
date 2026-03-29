@@ -8,6 +8,7 @@ import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
+  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/alumnos", label: "Alumnos", icon: Users },
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/planes", label: "Planes", icon: Package },
@@ -17,7 +18,6 @@ const navItems = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
-  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
