@@ -100,9 +100,18 @@ const getReservationBadge = (estado: string | undefined) => {
   if (!estado) return null;
   switch (estado) {
     case "pago_confirmado":
+    case "pago_validado":
+    case "reserva_confirmada":
       return { label: "Confirmado", className: "bg-emerald-500 text-white" };
     case "pendiente_verificacion":
+    case "pago_informado":
+    case "reserva_pendiente":
       return { label: "Pendiente", className: "bg-amber-500 text-white" };
+    case "solicitud_enviada":
+      return { label: "Solicitud enviada", className: "bg-sky-500 text-white" };
+    case "cancelada":
+    case "rechazada":
+      return null; // Don't show badge for cancelled/rejected
     default:
       return { label: "Reservado", className: "bg-primary text-primary-foreground" };
   }
