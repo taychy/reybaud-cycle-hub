@@ -318,12 +318,15 @@ export const EventosContent = () => {
     if (!alumno) return;
     supabase
       .from("event_reservations")
-      .select("event_id, estado")
+      .select("event_id, estado, reservation_status")
       .eq("alumno_id", alumno.id)
       .then(({ data }) => {
         if (data) {
           const map: Record<string, string> = {};
-          data.forEach((r: any) => { map[r.event_id] = r.estado; });
+          data.forEach((r: any) => {
+            // Use new reservation_status if available, fall back to estado
+            map[r.event_id] = r.reservation_status || r.estado;
+          });
           setReservations(map);
         }
       });
