@@ -349,6 +349,67 @@ const EventDetail = () => {
             </div>
           )}
 
+          {/* Event details: price, location, capacity */}
+          {!editing && (event.price || event.location || event.max_capacity) && (
+            <div className="glass-card rounded-xl p-5 space-y-3">
+              {event.location && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <span>{event.location}</span>
+                </div>
+              )}
+              {event.price != null && event.price > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                  <span className="font-heading font-bold text-primary text-lg">
+                    {event.currency === "USD" ? "US$" : event.currency === "EUR" ? "€" : "$"}{" "}
+                    {event.price.toLocaleString("es-AR")}
+                  </span>
+                  <span className="text-muted-foreground text-xs">por persona</span>
+                </div>
+              )}
+              {event.max_capacity != null && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span>
+                    {event.max_capacity - event.spots_taken > 0
+                      ? `${event.max_capacity - event.spots_taken} cupos disponibles`
+                      : "Sin cupos disponibles"}
+                  </span>
+                </div>
+              )}
+              {event.duration_days && (
+                <p className="text-xs text-muted-foreground">
+                  Duración: {event.duration_days} día{event.duration_days > 1 ? "s" : ""}
+                  {event.duration_nights ? ` / ${event.duration_nights} noche${event.duration_nights > 1 ? "s" : ""}` : ""}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Cash reservation for paid events (camps/viajes) */}
+          {alumno && !editing && !hasReservation && event.price != null && event.price > 0 && (
+            <EventCashReservation
+              eventId={event.id}
+              eventTitle={event.title}
+              alumnoId={alumno.id}
+              price={event.price}
+              currency={event.currency || "ARS"}
+              onReserved={() => setHasReservation(true)}
+            />
+          )}
+
+          {/* Already reserved indicator */}
+          {alumno && !editing && hasReservation && (
+            <div className="glass-card rounded-xl p-5 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-primary">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-heading font-semibold text-sm">Reserva registrada</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Tu pago está pendiente de verificación.</p>
+            </div>
+          )}
+
           {/* Student result section - below event card */}
           {alumno && !editing && (
             <>
