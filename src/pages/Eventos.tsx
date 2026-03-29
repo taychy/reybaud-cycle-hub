@@ -362,7 +362,7 @@ export const EventosContent = () => {
         <p className="text-xs text-muted-foreground mt-0.5">Encontrá tu próxima experiencia</p>
       </div>
 
-      <div className="flex justify-between px-1 overflow-x-auto no-scrollbar">
+      <div className="flex justify-between px-1 overflow-x-auto overflow-y-visible no-scrollbar py-1">
         {categories.map((c) => (
           <CategoryIcon key={c.key} icon={c.icon} label={c.label} active={tab === c.key} onClick={() => setTab(c.key)} />
         ))}
