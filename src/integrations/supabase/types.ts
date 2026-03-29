@@ -1946,6 +1946,39 @@ export type Database = {
           },
         ]
       }
+      training_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          entries: Json
+          id: string
+          name: string
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entries?: Json
+          id?: string
+          name: string
+          template_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entries?: Json
+          id?: string
+          name?: string
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
