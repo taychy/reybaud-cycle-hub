@@ -554,6 +554,60 @@ export type Database = {
         }
         Relationships: []
       }
+      event_reservations: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          estado: string
+          event_id: string
+          id: string
+          metodo_pago: string
+          moneda: string
+          monto: number | null
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          estado?: string
+          event_id: string
+          id?: string
+          metodo_pago?: string
+          moneda?: string
+          monto?: number | null
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          estado?: string
+          event_id?: string
+          id?: string
+          metodo_pago?: string
+          moneda?: string
+          monto?: number | null
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reservations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reservations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_results: {
         Row: {
           alumno_id: string
