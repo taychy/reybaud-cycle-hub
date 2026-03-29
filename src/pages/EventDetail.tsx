@@ -440,9 +440,6 @@ const EventDetail = () => {
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-2">
                 <h3 className="font-heading font-semibold text-foreground">¿Querés reservar tu lugar?</h3>
-                <p className="text-xs text-muted-foreground">
-                  Reservá tu lugar y luego informá tu pago para que el equipo lo valide.
-                </p>
               </div>
               <Button variant="gold" className="w-full h-12 text-sm" disabled={reserving} onClick={handleReserve}>
                 {reserving ? (
