@@ -12,7 +12,6 @@ interface PaymentStatusCardProps {
 }
 
 // formatPrice imported from @/lib/currency
-  }).format(precio);
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "—";
