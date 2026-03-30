@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, AlertTriangle, CheckCircle2, FileSpreadsheet, Eye } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { parseTrainingExcel, type ParsedTraining } from "@/lib/parseTrainingExcel";
 
@@ -15,6 +15,7 @@ export const ImportPlanContent = () => {
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
   const [detectedMonth, setDetectedMonth] = useState("");
+  const [detectedMonths, setDetectedMonths] = useState<string[]>([]);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -24,40 +25,52 @@ export const ImportPlanContent = () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer);
 
-    const { trainings, errors: parseErrors, month } = parseTrainingExcel(workbook);
+    const { trainings, errors: parseErrors, month, months } = parseTrainingExcel(workbook);
 
     setParsed(trainings);
     setErrors(parseErrors);
     setDetectedMonth(month);
+    setDetectedMonths(months.length > 0 ? months : month ? [month] : []);
     setImported(false);
   };
 
   const handleImport = async () => {
-    if (!detectedMonth) return;
+    if (detectedMonths.length === 0) return;
     setImporting(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    const { data: plan, error: planError } = await supabase
-      .from("plan_mensual")
-      .insert({
-        mes: detectedMonth,
-        estado: "borrador" as const,
-        cargado_por: session?.user?.id,
-      })
-      .select()
-      .single();
+    const planByMonth = new Map<string, string>();
 
-    if (planError || !plan) {
-      toast.error("Error creando el plan mensual");
-      setImporting(false);
-      return;
+    for (const month of detectedMonths) {
+      const { data: plan, error: planError } = await supabase
+        .from("plan_mensual")
+        .insert({
+          mes: month,
+          estado: "borrador" as const,
+          cargado_por: session?.user?.id,
+        })
+        .select()
+        .single();
+
+      if (planError || !plan) {
+        toast.error(`Error creando el plan mensual ${month}`);
+        setImporting(false);
+        return;
+      }
+
+      planByMonth.set(month, plan.id);
     }
 
     let ok = 0;
     let errCount = 0;
 
     for (const t of parsed) {
+      const monthKey = t.fecha.slice(0, 7);
+      const importPlanId = planByMonth.get(monthKey);
+
       const { data: existing } = await supabase
         .from("entrenamientos")
         .select("id")
@@ -73,10 +86,11 @@ export const ImportPlanContent = () => {
             descripcion: t.descripcion || null,
             tipo: (t.tipo || null) as any,
             link_archivo: t.link_archivo || null,
-            origen_importacion_id: plan.id,
+            origen_importacion_id: importPlanId || null,
           })
           .eq("id", existing.id);
-        if (error) errCount++; else ok++;
+        if (error) errCount++;
+        else ok++;
       } else {
         const { error } = await supabase.from("entrenamientos").insert({
           fecha: t.fecha,
@@ -85,10 +99,11 @@ export const ImportPlanContent = () => {
           descripcion: t.descripcion || null,
           tipo: (t.tipo || null) as any,
           link_archivo: t.link_archivo || null,
-          origen_importacion_id: plan.id,
+          origen_importacion_id: importPlanId || null,
           visible: false,
         });
-        if (error) errCount++; else ok++;
+        if (error) errCount++;
+        else ok++;
       }
     }
 
@@ -98,19 +113,24 @@ export const ImportPlanContent = () => {
   };
 
   const publishPlan = async () => {
-    if (!detectedMonth) return;
+    if (detectedMonths.length === 0) return;
 
-    const { data, error } = await supabase.rpc("publish_month", {
-      p_mes: detectedMonth,
-    });
+    let totalAffected = 0;
+    for (const month of detectedMonths) {
+      const { data, error } = await supabase.rpc("publish_month", {
+        p_mes: month,
+      });
 
-    if (error) {
-      console.error("Error publishing:", error);
-      toast.error("Error al publicar: " + error.message);
-      return;
+      if (error) {
+        console.error("Error publishing:", error);
+        toast.error(`Error al publicar ${month}: ${error.message}`);
+        return;
+      }
+
+      totalAffected += Number(data || 0);
     }
 
-    toast.success(`Plan de ${detectedMonth} publicado — ${data} entrenamientos visibles`);
+    toast.success(`Planes publicados (${detectedMonths.join(", ")}) — ${totalAffected} entrenamientos visibles`);
   };
 
   // Deduplicate for preview: show unique fecha rows, grouped
@@ -122,9 +142,7 @@ export const ImportPlanContent = () => {
         <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
           Importar Plan Mensual
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Subí el archivo Excel con el plan semanal de entrenamientos
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">Subí el archivo Excel con el plan semanal de entrenamientos</p>
       </div>
 
       <div
@@ -146,7 +164,9 @@ export const ImportPlanContent = () => {
                 <span className="text-sm font-medium">{errors.length} advertencias</span>
               </div>
               <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
-                {errors.map((e, i) => <p key={i}>{e}</p>)}
+                {errors.map((e, i) => (
+                  <p key={i}>{e}</p>
+                ))}
               </div>
             </div>
           )}
@@ -156,7 +176,7 @@ export const ImportPlanContent = () => {
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  {parsed.length} entrenamientos · {uniqueDates.length} días · Mes: {detectedMonth}
+                  {parsed.length} entrenamientos · {uniqueDates.length} días · Meses: {detectedMonths.join(", ") || detectedMonth}
                 </span>
               </div>
               <Button variant="gold" size="sm" onClick={handleImport} disabled={importing}>
@@ -178,7 +198,9 @@ export const ImportPlanContent = () => {
                     <TableRow key={i} className="border-border">
                       <TableCell className="text-foreground text-xs font-mono">{t.fecha}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-xs font-mono">{t.grupo}</Badge>
+                        <Badge variant="secondary" className="text-xs font-mono">
+                          {t.grupo}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-foreground text-sm">{t.titulo}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">{t.tipo || "-"}</TableCell>
@@ -197,9 +219,17 @@ export const ImportPlanContent = () => {
           <p className="text-foreground font-medium">Importación completada</p>
           <div className="flex justify-center gap-3">
             <Button variant="gold" size="sm" onClick={publishPlan}>
-              <Eye className="w-4 h-4 mr-1" /> Publicar mes
+              <Eye className="w-4 h-4 mr-1" /> Publicar mes{detectedMonths.length > 1 ? "es" : ""}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => { setParsed([]); setErrors([]); setImported(false); }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setParsed([]);
+                setErrors([]);
+                setImported(false);
+              }}
+            >
               Importar otro
             </Button>
           </div>

@@ -418,5 +418,8 @@ export function parseTrainingExcel(
     return true;
   });
 
-  return { trainings: deduped, errors, month };
+  const months = Array.from(new Set(deduped.map((t) => t.fecha.slice(0, 7)))).sort();
+  if (!month && months.length > 0) month = months[0];
+
+  return { trainings: deduped, errors, month, months };
 }
