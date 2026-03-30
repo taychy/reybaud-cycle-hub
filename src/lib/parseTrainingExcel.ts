@@ -214,7 +214,7 @@ function parsePhysicalExercises(workbook: ExcelJS.Workbook): PhysicalExercise[] 
 
 export function parseTrainingExcel(
   workbook: ExcelJS.Workbook
-): { trainings: ParsedTraining[]; errors: string[]; month: string } {
+): { trainings: ParsedTraining[]; errors: string[]; month: string; months: string[] } {
   const trainings: ParsedTraining[] = [];
   const errors: string[] = [];
   let month = "";
