@@ -214,7 +214,7 @@ function parsePhysicalExercises(workbook: ExcelJS.Workbook): PhysicalExercise[] 
 
 export function parseTrainingExcel(
   workbook: ExcelJS.Workbook
-): { trainings: ParsedTraining[]; errors: string[]; month: string } {
+): { trainings: ParsedTraining[]; errors: string[]; month: string; months: string[] } {
   const trainings: ParsedTraining[] = [];
   const errors: string[] = [];
   let month = "";
@@ -418,5 +418,8 @@ export function parseTrainingExcel(
     return true;
   });
 
-  return { trainings: deduped, errors, month };
+  const months = Array.from(new Set(deduped.map((t) => t.fecha.slice(0, 7)))).sort();
+  if (!month && months.length > 0) month = months[0];
+
+  return { trainings: deduped, errors, month, months };
 }
