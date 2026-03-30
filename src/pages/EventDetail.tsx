@@ -228,7 +228,7 @@ const EventDetail = () => {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Image */}
       <div className="relative">
-        <div className="aspect-[16/9] max-h-[280px] overflow-hidden">
+        <div className="aspect-[16/9] max-h-[280px] md:max-h-[420px] overflow-hidden">
           <img src={heroImage} alt={event.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         </div>
@@ -252,7 +252,7 @@ const EventDetail = () => {
       </div>
 
       <main className="flex-1 px-4 pb-24 -mt-2">
-        <div className="w-full max-w-md mx-auto space-y-4 animate-fade-in">
+        <div className="w-full max-w-md md:max-w-2xl mx-auto space-y-4 animate-fade-in">
 
           {/* Title & Date */}
           <div className="space-y-3">
