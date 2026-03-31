@@ -18,6 +18,7 @@ import { useAlumnoSession } from "@/hooks/useAlumnoSession";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
+import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
