@@ -459,8 +459,13 @@ const EventDetail = () => {
             </div>
           )}
 
+          {/* Event Announcements */}
+          {id && !["carrera"].includes(event.type) && (
+            <EventAnnouncementsSection eventId={id} />
+          )}
+
           {/* Student result section — only after event */}
-          {alumno && eventPast && (
+          {alumno && eventPast && event.type !== "camp" && event.type !== "viaje" && (
             <>
               {event.type === "record_hora" && participantResult ? (
                 <div className="glass-card rounded-xl p-5 space-y-3">
