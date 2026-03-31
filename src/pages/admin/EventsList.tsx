@@ -48,6 +48,7 @@ import EventForm, {
   type EventFormData,
 } from "@/components/admin/EventForm";
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
+import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
@@ -462,11 +463,16 @@ const EventsList = () => {
             </DialogTitle>
           </DialogHeader>
           {reservationsEvent && (
-            <AdminEventReservations
-              eventId={reservationsEvent.id}
-              eventTitle={reservationsEvent.title}
-              eventCurrency={reservationsEvent.currency}
-            />
+            <div className="space-y-6">
+              <AdminEventReservations
+                eventId={reservationsEvent.id}
+                eventTitle={reservationsEvent.title}
+                eventCurrency={reservationsEvent.currency}
+              />
+              <div className="border-t border-border pt-6">
+                <EventAnnouncementsManager eventId={reservationsEvent.id} />
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

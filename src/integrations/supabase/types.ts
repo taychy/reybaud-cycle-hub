@@ -470,6 +470,56 @@ export type Database = {
           },
         ]
       }
+      event_announcements: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          event_id: string
+          id: string
+          is_highlighted: boolean
+          published_at: string
+          sort_order: number
+          title: string
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          event_id: string
+          id?: string
+          is_highlighted?: boolean
+          published_at?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          is_highlighted?: boolean
+          published_at?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_announcements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_favorites: {
         Row: {
           alumno_id: string
@@ -598,6 +648,8 @@ export type Database = {
           amount_paid: number
           amount_total: number | null
           balance_due: number | null
+          cancellation_reason: string | null
+          cancellation_requested_at: string | null
           cancelled_at: string | null
           confirmed_at: string | null
           created_at: string
@@ -624,6 +676,8 @@ export type Database = {
           amount_paid?: number
           amount_total?: number | null
           balance_due?: number | null
+          cancellation_reason?: string | null
+          cancellation_requested_at?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
           created_at?: string
@@ -650,6 +704,8 @@ export type Database = {
           amount_paid?: number
           amount_total?: number | null
           balance_due?: number | null
+          cancellation_reason?: string | null
+          cancellation_requested_at?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
           created_at?: string
