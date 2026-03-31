@@ -437,6 +437,9 @@ const EventDetail = () => {
               reservation={reservation}
               alumnoId={alumno.id}
               eventCurrency={event.currency}
+              eventDate={event.date}
+              eventTitle={event.title}
+              eventMetadata={event.metadata}
               reglamentoUrl={event.metadata?.reglamento}
               whatsappUrl={event.metadata?.whatsapp_url}
               onPaymentReported={loadReservation}
