@@ -653,11 +653,73 @@ const EventForm = ({
               <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
               <Label className="text-sm">Botón WhatsApp</Label>
             </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
-              <Label className="text-sm">Botón WhatsApp</Label>
-            </div>
           </div>
+        </fieldset>
+      )}
+
+      {/* ─── CANCELLATION POLICY (camp_viaje) ─── */}
+      {selectedCategory === "camp_viaje" && (
+        <fieldset className="space-y-4 border border-violet-500/20 rounded-lg p-4">
+          <legend className="text-xs font-heading uppercase tracking-wider text-violet-400 px-2">Política de cancelación</legend>
+
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+            <Switch checked={meta.allow_cancellation || false} onCheckedChange={(v) => updateMeta("allow_cancellation", v)} />
+            <Label className="text-sm">Permitir cancelación por parte del participante</Label>
+          </div>
+
+          {meta.allow_cancellation && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Días antes del evento para cancelar</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={meta.cancellation_days_before ?? 7}
+                    onChange={(e) => updateMeta("cancellation_days_before", parseInt(e.target.value) || 0)}
+                    placeholder="Ej: 7"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tipo de política</Label>
+                  <Select value={meta.cancellation_type || "sin_penalidad"} onValueChange={(v) => updateMeta("cancellation_type", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sin_penalidad">Sin penalidad</SelectItem>
+                      <SelectItem value="seña_no_reembolsable">Seña no reembolsable</SelectItem>
+                      <SelectItem value="credito_a_favor">Crédito a favor</SelectItem>
+                      <SelectItem value="sujeta_revision">Sujeta a revisión del equipo</SelectItem>
+                      <SelectItem value="personalizada">Personalizada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Texto breve de política (visible para el participante)</Label>
+                <Input
+                  value={meta.cancellation_text_short || ""}
+                  onChange={(e) => updateMeta("cancellation_text_short", e.target.value)}
+                  placeholder="Ej: La seña no es reembolsable."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Texto completo de políticas de cancelación</Label>
+                <Textarea
+                  value={meta.cancellation_text_full || ""}
+                  onChange={(e) => updateMeta("cancellation_text_full", e.target.value)}
+                  rows={3}
+                  placeholder="Política detallada..."
+                />
+              </div>
+
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                <Switch checked={meta.require_cancellation_reason || false} onCheckedChange={(v) => updateMeta("require_cancellation_reason", v)} />
+                <Label className="text-sm">Pedir motivo de cancelación</Label>
+              </div>
+            </>
+          )}
         </fieldset>
       )}
 
