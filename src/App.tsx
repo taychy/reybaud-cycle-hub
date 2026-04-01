@@ -62,6 +62,9 @@ import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import UpdatePrompt from "./components/UpdatePrompt";
+import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
+import AdminTurnera from "./pages/admin/AdminTurnera";
+import BookingFlow from "./pages/booking/BookingFlow";
 const queryClient = new QueryClient();
 
 const App = () => (
