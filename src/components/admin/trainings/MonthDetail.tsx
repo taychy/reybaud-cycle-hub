@@ -13,6 +13,7 @@ import ListView from "./ListView";
 import TrainingFormDialog from "./TrainingFormDialog";
 import TrainingCellDrawer from "./TrainingCellDrawer";
 import TemplateManager from "./TemplateManager";
+import DuplicatesDrawer from "./DuplicatesDrawer";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
