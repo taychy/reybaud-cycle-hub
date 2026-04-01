@@ -40,11 +40,13 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
+    const [y, m] = month.split("-").map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
     const { data } = await supabase
       .from("entrenamientos")
       .select("*")
       .gte("fecha", `${month}-01`)
-      .lte("fecha", `${month}-31`)
+      .lte("fecha", `${month}-${String(lastDay).padStart(2, "0")}`)
       .order("fecha")
       .order("grupo");
     setEntrenamientos(data || []);
