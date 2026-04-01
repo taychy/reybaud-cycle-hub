@@ -24,12 +24,105 @@ export const StudentProgressContent = () => {
   const progress = useMonthlyProgress(alumnoId, grupo, refreshKey);
   const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
+  const loadDetails = useCallback(async (aId: string, grp: string) => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fromDate = firstDay.toISOString().split("T")[0];
+    const toDate = lastDay.toISOString().split("T")[0];
+
+    const { data: entrenamientos } = await supabase
+      .from("entrenamientos")
+      .select("id, fecha, titulo, tipo")
+      .eq("grupo", grp as any)
+      .eq("visible", true)
+      .gte("fecha", fromDate)
+      .lte("fecha", toDate)
+      .order("fecha", { ascending: false });
+
+    const entIds = (entrenamientos || []).map(e => e.id);
+
+    const { data: registros } = await supabase
+      .from("registro_sesiones")
+      .select("id, entrenamiento_id, estado")
+      .eq("alumno_id", aId)
+      .in("entrenamiento_id", entIds.length > 0 ? entIds : ["__none__"]);
+
+    const { data: asistencias } = await supabase
+      .from("asistencias")
+      .select("id, entrenamiento_id, estado")
+      .eq("alumno_id", aId)
+      .in("entrenamiento_id", entIds.length > 0 ? entIds : ["__none__"]);
+
+    const regMap = new Map((registros || []).map(r => [r.entrenamiento_id, r]));
+    const asistMap = new Map((asistencias || []).map(a => [a.entrenamiento_id, a]));
+
+    const merged: SessionRecord[] = [];
+    for (const ent of (entrenamientos || [])) {
+      const reg = regMap.get(ent.id);
+      const asist = asistMap.get(ent.id);
+
+      if (reg) {
+        merged.push({ id: reg.id, estado: reg.estado, fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "registro" });
+      } else if (asist && asist.estado === "asistio") {
+        merged.push({ id: asist.id, estado: "realizada", fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "asistencia" });
+      }
+    }
+
+    const { data: extras } = await supabase
+      .from("sesiones_extra")
+      .select("id, fecha, tipo, nombre, comentario")
+      .eq("alumno_id", aId)
+      .gte("fecha", fromDate)
+      .lte("fecha", toDate)
+      .order("fecha", { ascending: false });
+
+    for (const ex of (extras || [])) {
+      merged.push({
+        id: ex.id,
+        estado: "realizada",
+        fecha: ex.fecha,
+        titulo: (ex as any).nombre || `Sesión extra`,
+        tipo: ex.tipo,
+        source: "extra",
+      });
+    }
+
+    merged.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    setSessions(merged);
+
+    const { data: feedbackData } = await supabase
+      .from("feedback_coach")
+      .select("id, fecha, comentario, tipo, coach_id")
+      .eq("alumno_id", aId)
+      .order("fecha", { ascending: false })
+      .limit(20);
+
+    if (feedbackData && feedbackData.length > 0) {
+      const coachIds = [...new Set(feedbackData.map(f => f.coach_id))];
+      const { data: coaches } = await supabase
+        .from("coaches")
+        .select("id, nombre")
+        .in("id", coachIds);
+
+      setFeedback(feedbackData.map(f => ({
+        id: f.id,
+        fecha: f.fecha,
+        comentario: f.comentario,
+        tipo: f.tipo || "general",
+        coach: coaches?.find(c => c.id === f.coach_id)
+          ? { nombre: coaches.find(c => c.id === f.coach_id)!.nombre }
+          : null,
+      })));
+    }
+  }, []);
+
   // Reload session history when refreshKey changes
   useEffect(() => {
-    if (alumnoId && grupo) {
+    if (alumnoId && grupo && refreshKey > 0) {
       loadDetails(alumnoId, grupo);
     }
-  }, [refreshKey]);
+  }, [refreshKey, alumnoId, grupo, loadDetails]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,104 +152,6 @@ export const StudentProgressContent = () => {
       if (!cancelled) setLoading(false);
     };
 
-    const loadDetails = async (aId: string, grp: string) => {
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const fromDate = firstDay.toISOString().split("T")[0];
-      const toDate = lastDay.toISOString().split("T")[0];
-
-      const { data: entrenamientos } = await supabase
-        .from("entrenamientos")
-        .select("id, fecha, titulo, tipo")
-        .eq("grupo", grp as any)
-        .eq("visible", true)
-        .gte("fecha", fromDate)
-        .lte("fecha", toDate)
-        .order("fecha", { ascending: false });
-
-      const entIds = (entrenamientos || []).map(e => e.id);
-
-      const { data: registros } = await supabase
-        .from("registro_sesiones")
-        .select("id, entrenamiento_id, estado")
-        .eq("alumno_id", aId)
-        .in("entrenamiento_id", entIds.length > 0 ? entIds : ["__none__"]);
-
-      const { data: asistencias } = await supabase
-        .from("asistencias")
-        .select("id, entrenamiento_id, estado")
-        .eq("alumno_id", aId)
-        .in("entrenamiento_id", entIds.length > 0 ? entIds : ["__none__"]);
-
-      const regMap = new Map((registros || []).map(r => [r.entrenamiento_id, r]));
-      const asistMap = new Map((asistencias || []).map(a => [a.entrenamiento_id, a]));
-
-      const merged: SessionRecord[] = [];
-      for (const ent of (entrenamientos || [])) {
-        const reg = regMap.get(ent.id);
-        const asist = asistMap.get(ent.id);
-
-        if (reg) {
-          merged.push({ id: reg.id, estado: reg.estado, fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "registro" });
-        } else if (asist && asist.estado === "asistio") {
-          merged.push({ id: asist.id, estado: "realizada", fecha: ent.fecha, titulo: ent.titulo, tipo: ent.tipo, source: "asistencia" });
-        }
-      }
-      // Fetch sesiones extra del mes
-      const { data: extras } = await supabase
-        .from("sesiones_extra")
-        .select("id, fecha, tipo, nombre, comentario")
-        .eq("alumno_id", aId)
-        .gte("fecha", fromDate)
-        .lte("fecha", toDate)
-        .order("fecha", { ascending: false });
-
-      for (const ex of (extras || [])) {
-        merged.push({
-          id: ex.id,
-          estado: "realizada",
-          fecha: ex.fecha,
-          titulo: (ex as any).nombre || `Sesión extra`,
-          tipo: ex.tipo,
-          source: "extra",
-        });
-      }
-
-      // Sort by date descending
-      merged.sort((a, b) => b.fecha.localeCompare(a.fecha));
-
-      if (!cancelled) setSessions(merged);
-
-      const { data: feedbackData } = await supabase
-        .from("feedback_coach")
-        .select("id, fecha, comentario, tipo, coach_id")
-        .eq("alumno_id", aId)
-        .order("fecha", { ascending: false })
-        .limit(20);
-
-      if (feedbackData && feedbackData.length > 0) {
-        const coachIds = [...new Set(feedbackData.map(f => f.coach_id))];
-        const { data: coaches } = await supabase
-          .from("coaches")
-          .select("id, nombre")
-          .in("id", coachIds);
-
-        if (!cancelled) {
-          setFeedback(feedbackData.map(f => ({
-            id: f.id,
-            fecha: f.fecha,
-            comentario: f.comentario,
-            tipo: f.tipo || "general",
-            coach: coaches?.find(c => c.id === f.coach_id)
-              ? { nombre: coaches.find(c => c.id === f.coach_id)!.nombre }
-              : null,
-          })));
-        }
-      }
-    };
-
-    // First restore session from storage (waits for token refresh)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
       if (!session?.user) {
@@ -167,9 +162,8 @@ export const StudentProgressContent = () => {
       resolveAlumno(session.user.id, email);
     });
 
-    // Then listen for future auth changes (sign out, token refresh, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "INITIAL_SESSION") return; // Already handled by getSession
+      if (event === "INITIAL_SESSION") return;
       if (!session?.user) {
         if (!cancelled) navigate("/");
         return;
@@ -182,7 +176,7 @@ export const StudentProgressContent = () => {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, loadDetails]);
 
   if (loading || progress.loading) {
     return <div className="animate-pulse text-muted-foreground text-center py-8">Cargando...</div>;
