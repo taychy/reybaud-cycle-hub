@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Grid3X3, List, Plus, Eye, EyeOff, Trash2, Copy, LayoutTemplate } from "lucide-react";
+import { ArrowLeft, Grid3X3, List, Plus, Eye, EyeOff, Trash2, Copy, LayoutTemplate, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import SummaryCards from "./SummaryCards";
