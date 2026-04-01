@@ -37,6 +37,7 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
   const [editingTraining, setEditingTraining] = useState<Entrenamiento | null>(null);
   const [drawerTraining, setDrawerTraining] = useState<Entrenamiento | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     const { data } = await supabase
