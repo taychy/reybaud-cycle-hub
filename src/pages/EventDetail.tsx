@@ -225,6 +225,14 @@ const EventDetail = () => {
   const hasReservation = !!reservation;
   const isActiveReservation = hasReservation && !["cancelada", "rechazada"].includes(reservation!.reservation_status);
 
+  // Event nature from metadata
+  const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";
+  const isReservable = eventNature === "propio_con_reserva";
+  const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+  const isInformativeOnly = eventNature === "propio_informativo" || eventNature === "externo_informativo";
+  const isExternal = eventNature === "externo_informativo";
+  const allowsParticipation = isReservable || isInscriptionOnly;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Image */}
@@ -395,25 +403,52 @@ const EventDetail = () => {
           )}
 
           {/* ═══════════════════════════════════════════════════ */}
-          {/* CASE A: No reservation → show "Reservar" CTA      */}
+          {/* Informative events — no action CTA                 */}
           {/* ═══════════════════════════════════════════════════ */}
-          {alumno && !hasReservation && !eventPast && spotsLeft !== 0 && (
+          {isInformativeOnly && !eventPast && (
+            <div className="glass-card rounded-xl p-5 text-center space-y-3 animate-fade-in">
+              <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">
+                {isExternal
+                  ? "Este evento es organizado por un tercero. Te lo compartimos porque puede ser de tu interés."
+                  : "Este evento es solo informativo. No requiere inscripción."}
+              </p>
+              {event.metadata?.web_url && (
+                <a href={event.metadata.web_url} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="mt-2">
+                    <ExternalLink className="w-4 h-4 mr-2" /> Ver sitio del organizador
+                  </Button>
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════ */}
+          {/* CASE A: No reservation → show CTA (Reservar/Inscribirme) */}
+          {/* ═══════════════════════════════════════════════════ */}
+          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-2">
-                <h3 className="font-heading font-semibold text-foreground">¿Querés reservar tu lugar?</h3>
+                <h3 className="font-heading font-semibold text-foreground">
+                  {isInscriptionOnly ? "¿Querés inscribirte?" : "¿Querés reservar tu lugar?"}
+                </h3>
               </div>
               <Button
                 variant="gold"
                 className="w-full h-12 text-sm"
                 onClick={() => setShowReservationDrawer(true)}
               >
-                <CreditCard className="w-4 h-4 mr-2" /> Reservar
+                {isInscriptionOnly ? (
+                  <><CheckCircle className="w-4 h-4 mr-2" /> Inscribirme</>
+                ) : (
+                  <><CreditCard className="w-4 h-4 mr-2" /> Reservar</>
+                )}
               </Button>
             </div>
           )}
 
           {/* No spots left */}
-          {alumno && !hasReservation && !eventPast && spotsLeft === 0 && (
+          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft === 0 && (
             <div className="glass-card rounded-xl p-5 text-center space-y-2 animate-fade-in">
               <Users className="w-8 h-8 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">Este evento no tiene cupos disponibles en este momento.</p>
@@ -421,9 +456,11 @@ const EventDetail = () => {
           )}
 
           {/* Not logged in */}
-          {!alumno && !eventPast && (
+          {!alumno && allowsParticipation && !eventPast && (
             <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in text-center">
-              <p className="text-sm text-muted-foreground">Iniciá sesión para reservar tu lugar.</p>
+              <p className="text-sm text-muted-foreground">
+                {isInscriptionOnly ? "Iniciá sesión para inscribirte." : "Iniciá sesión para reservar tu lugar."}
+              </p>
               <Button variant="gold" onClick={() => navigate("/login")}>
                 Iniciar sesión
               </Button>
@@ -448,14 +485,18 @@ const EventDetail = () => {
           )}
 
           {/* CASE C: Cancelled/rejected reservation — allow re-reserve */}
-          {alumno && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && (
+          {alumno && allowsParticipation && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in">
               <p className="text-sm text-muted-foreground text-center">
-                Tu reserva anterior fue {reservation!.reservation_status === "cancelada" ? "cancelada" : "rechazada"}.
+                Tu {isInscriptionOnly ? "inscripción" : "reserva"} anterior fue {reservation!.reservation_status === "cancelada" ? "cancelada" : "rechazada"}.
                 Podés iniciar una nueva si lo deseás.
               </p>
               <Button variant="gold" className="w-full" onClick={() => setShowReservationDrawer(true)}>
-                <CreditCard className="w-4 h-4 mr-2" /> Nueva reserva
+                {isInscriptionOnly ? (
+                  <><CheckCircle className="w-4 h-4 mr-2" /> Nueva inscripción</>
+                ) : (
+                  <><CreditCard className="w-4 h-4 mr-2" /> Nueva reserva</>
+                )}
               </Button>
             </div>
           )}
@@ -547,13 +588,14 @@ const EventDetail = () => {
       <BottomNav activeTab="eventos" />
 
       {/* Reservation Drawer */}
-      {alumno && event && (
+      {alumno && event && allowsParticipation && (
         <ReservationDrawer
           open={showReservationDrawer}
           onOpenChange={setShowReservationDrawer}
           event={event}
           alumno={alumno}
           onReserved={handleReservationCreated}
+          eventNature={eventNature}
         />
       )}
     </div>

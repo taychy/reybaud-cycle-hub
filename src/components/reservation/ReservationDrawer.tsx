@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
   CalendarDays, MapPin, Users, Mountain, Loader2, CheckCircle,
-  CreditCard, ArrowRight, X,
+  CreditCard, ArrowRight, X, UserCheck,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -35,13 +35,15 @@ interface ReservationDrawerProps {
   event: Event;
   alumno: Alumno;
   onReserved: (reservation: any) => void;
+  eventNature?: string;
 }
 
-const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: ReservationDrawerProps) => {
+const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva" }: ReservationDrawerProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<"summary" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
 
+  const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const isPaid = event.price != null && event.price > 0;
   const d = new Date(event.date + "T12:00:00");
@@ -53,26 +55,60 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
   if (!alumno.apellido) missingFields.push("Apellido");
   if (!alumno.telefono) missingFields.push("Teléfono");
 
+  // Labels based on event nature
+  const labels = isInscriptionOnly
+    ? {
+        drawerTitle: "Inscripción",
+        drawerTitleSuccess: "¡Inscripción confirmada!",
+        drawerDesc: event.title,
+        drawerDescSuccess: "Tu inscripción fue registrada correctamente.",
+        summaryHint: "Estás por inscribirte a este evento. Tu lugar queda confirmado al enviar.",
+        confirmBtn: "Confirmar inscripción",
+        confirmIcon: UserCheck,
+        successTitle: "¡Te inscribiste con éxito!",
+        successDesc: "Tu lugar está confirmado. ¡Nos vemos ahí! 🎉",
+        successBtn: "Ver mi estado",
+        toastTitle: "¡Inscripción confirmada!",
+      }
+    : {
+        drawerTitle: "Reservar lugar",
+        drawerTitleSuccess: "¡Reserva enviada!",
+        drawerDesc: event.title,
+        drawerDescSuccess: "Tu solicitud fue registrada correctamente.",
+        summaryHint: 'Estás por iniciar la reserva de este evento. Una vez enviada, vas a poder seguir el estado desde "Mis eventos".',
+        confirmBtn: "Confirmar reserva",
+        confirmIcon: CreditCard,
+        successTitle: "Tu solicitud de reserva fue enviada con éxito.",
+        successDesc: 'Ya podés seguir el estado de este evento desde "Mis eventos".',
+        successBtn: "Ver mi estado",
+        toastTitle: "¡Solicitud de reserva enviada!",
+      };
+
   const handleSubmit = async () => {
     setStep("submitting");
+
+    // For inscription-only: confirm immediately
+    const reservationStatus = isInscriptionOnly ? "reserva_confirmada" : "solicitud_enviada";
+    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
 
     const { data, error } = await supabase
       .from("event_reservations" as any)
       .insert({
         event_id: event.id,
         alumno_id: alumno.id,
-        reservation_status: "solicitud_enviada",
-        payment_status: isPaid ? "no_informado" : "no_aplica",
-        estado: "solicitud_enviada",
-        metodo_pago: "pendiente",
+        reservation_status: reservationStatus,
+        payment_status: paymentStatus,
+        estado: reservationStatus,
+        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
         amount_total: event.price,
         price_snapshot: event.price,
         currency_snapshot: event.currency,
         moneda: event.currency,
         monto: event.price,
-        balance_due: event.price,
+        balance_due: isInscriptionOnly ? 0 : event.price,
         participant_notes: notes.trim() || null,
         created_by: "cliente",
+        confirmed_at: isInscriptionOnly ? new Date().toISOString() : null,
       } as any)
       .select("*")
       .single();
@@ -81,7 +117,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
       if (error.code === "23505") {
         toast({ title: "Ya tenés una reserva para este evento.", variant: "destructive" });
       } else {
-        toast({ title: "Error al registrar la reserva.", description: error.message, variant: "destructive" });
+        toast({ title: "Error al registrar.", description: error.message, variant: "destructive" });
       }
       setStep("form");
       return;
@@ -90,26 +126,28 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
     // Log status history
     await supabase.from("reservation_status_history" as any).insert({
       reservation_id: (data as any).id,
-      new_reservation_status: "solicitud_enviada",
-      new_payment_status: isPaid ? "no_informado" : "no_aplica",
+      new_reservation_status: reservationStatus,
+      new_payment_status: paymentStatus,
       changed_by: alumno.user_id,
       changed_by_role: "alumno",
-      note: "Reserva iniciada por el alumno",
+      note: isInscriptionOnly ? "Inscripción confirmada automáticamente" : "Reserva iniciada por el alumno",
     } as any);
 
-    // Notify admin
-    try {
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-event-cash-payment`;
-      fetch(functionUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        body: JSON.stringify({ alumno_id: alumno.id, event_id: event.id, reservation_id: (data as any)?.id }),
-      }).catch(() => {});
-    } catch { /* fire and forget */ }
+    // Notify admin (fire and forget)
+    if (!isInscriptionOnly) {
+      try {
+        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-event-cash-payment`;
+        fetch(functionUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          body: JSON.stringify({ alumno_id: alumno.id, event_id: event.id, reservation_id: (data as any)?.id }),
+        }).catch(() => {});
+      } catch { /* fire and forget */ }
+    }
 
     setStep("success");
     onReserved(data);
-    toast({ title: "¡Solicitud de reserva enviada!" });
+    toast({ title: labels.toastTitle });
   };
 
   const handleClose = () => {
@@ -125,10 +163,10 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
       <DrawerContent className="max-h-[90vh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="font-heading text-lg">
-            {step === "success" ? "¡Reserva enviada!" : "Reservar lugar"}
+            {step === "success" ? labels.drawerTitleSuccess : labels.drawerTitle}
           </DrawerTitle>
           <DrawerDescription>
-            {step === "success" ? "Tu solicitud fue registrada correctamente." : event.title}
+            {step === "success" ? labels.drawerDescSuccess : labels.drawerDesc}
           </DrawerDescription>
         </DrawerHeader>
 
@@ -145,7 +183,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
                   {event.level && <p className="flex items-center gap-2"><Mountain className="w-4 h-4 text-primary" /> Nivel: {event.level}</p>}
                   {spotsLeft != null && <p className="flex items-center gap-2"><Users className="w-4 h-4 text-primary" /> {spotsLeft > 0 ? `${spotsLeft} cupos disponibles` : "Sin cupos"}</p>}
                 </div>
-                {isPaid && (
+                {isPaid && !isInscriptionOnly && (
                   <div className="pt-2 border-t border-border/50">
                     <p className="text-xs text-muted-foreground">Precio por persona</p>
                     <p className="text-xl font-heading font-bold text-primary">{formatPrice(event.price!, event.currency)}</p>
@@ -154,7 +192,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
-                Estás por iniciar la reserva de este evento. Una vez enviada, vas a poder seguir el estado desde "Mis eventos".
+                {labels.summaryHint}
               </p>
 
               {missingFields.length > 0 && (
@@ -207,7 +245,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
                   Volver
                 </Button>
                 <Button variant="gold" className="flex-1" onClick={handleSubmit}>
-                  <CreditCard className="w-4 h-4 mr-2" /> Confirmar reserva
+                  <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}
                 </Button>
               </div>
             </>
@@ -217,7 +255,9 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
           {step === "submitting" && (
             <div className="text-center py-8 space-y-3">
               <Loader2 className="w-10 h-10 text-primary mx-auto animate-spin" />
-              <p className="text-sm text-muted-foreground">Procesando tu reserva...</p>
+              <p className="text-sm text-muted-foreground">
+                {isInscriptionOnly ? "Confirmando tu inscripción..." : "Procesando tu reserva..."}
+              </p>
             </div>
           )}
 
@@ -226,11 +266,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved }: Re
             <div className="text-center py-6 space-y-4">
               <CheckCircle className="w-14 h-14 text-emerald-400 mx-auto" />
               <div className="space-y-1">
-                <h3 className="font-heading font-semibold text-foreground">Tu solicitud de reserva fue enviada con éxito.</h3>
-                <p className="text-sm text-muted-foreground">Ya podés seguir el estado de este evento desde "Mis eventos".</p>
+                <h3 className="font-heading font-semibold text-foreground">{labels.successTitle}</h3>
+                <p className="text-sm text-muted-foreground">{labels.successDesc}</p>
               </div>
               <Button variant="gold" className="w-full" onClick={handleClose}>
-                Ver mi estado
+                {labels.successBtn}
               </Button>
             </div>
           )}

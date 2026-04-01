@@ -32,6 +32,7 @@ interface Event {
   max_capacity: number | null;
   spots_taken: number;
   level: string | null;
+  metadata: any;
 }
 
 type TabFilter = "todos" | "escuela" | "carreras" | "viajes" | "mis_eventos" | "favoritos";
@@ -130,6 +131,9 @@ const EventCard = ({
   const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
   const hasReservation = !!reservationStatus;
   const resBadge = getReservationBadge(reservationStatus);
+  const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";
+  const isInformative = eventNature === "propio_informativo" || eventNature === "externo_informativo";
+  const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
 
   return (
     <div
@@ -230,7 +234,11 @@ const EventCard = ({
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
-            {hasReservation ? "Ver estado" : isPaid ? "Reservar" : "Ver detalle"}
+            {hasReservation ? "Ver estado"
+              : isInformative ? "Ver info"
+              : isInscriptionOnly ? "Inscribirme"
+              : isPaid ? "Reservar"
+              : "Ver detalle"}
             <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
         </div>
