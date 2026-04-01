@@ -234,7 +234,11 @@ const EventCard = ({
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
-            {hasReservation ? "Ver estado" : isPaid ? "Reservar" : "Ver detalle"}
+            {hasReservation ? "Ver estado"
+              : isInformative ? "Ver info"
+              : isInscriptionOnly ? "Inscribirme"
+              : isPaid ? "Reservar"
+              : "Ver detalle"}
             <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
         </div>
