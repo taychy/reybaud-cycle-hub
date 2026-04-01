@@ -300,6 +300,9 @@ const ManageCoaches = () => {
                       <Button variant="ghost" size="sm" onClick={() => openEdit(coach)} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-1" /> Editar
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setAgendaCoach(coach)} className="text-xs">
+                        <Calendar className="w-3 h-3 mr-1" /> Agenda
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => setDeleteCoach(coach)} className="text-xs text-destructive hover:text-destructive">
                         <Trash2 className="w-3 h-3 mr-1" /> Eliminar
                       </Button>
