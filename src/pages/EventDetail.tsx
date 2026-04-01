@@ -588,13 +588,14 @@ const EventDetail = () => {
       <BottomNav activeTab="eventos" />
 
       {/* Reservation Drawer */}
-      {alumno && event && (
+      {alumno && event && allowsParticipation && (
         <ReservationDrawer
           open={showReservationDrawer}
           onOpenChange={setShowReservationDrawer}
           event={event}
           alumno={alumno}
           onReserved={handleReservationCreated}
+          eventNature={eventNature}
         />
       )}
     </div>
