@@ -1,0 +1,1 @@
+ALTER TABLE public.honorarios ADD COLUMN coach_id uuid REFERENCES public.coaches(id) ON DELETE SET NULL;

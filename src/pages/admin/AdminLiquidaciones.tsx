@@ -47,7 +47,8 @@ const AdminLiquidaciones = () => {
   const [reglas, setReglas] = useState<ReglaLiq[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHonForm, setShowHonForm] = useState(false);
-  const [honForm, setHonForm] = useState({ nombre_concepto: "", categoria: "clase", valor: "" });
+  const [editingHon, setEditingHon] = useState<any>(null);
+  const [honForm, setHonForm] = useState({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
   const [showAjusteForm, setShowAjusteForm] = useState(false);
   const [ajusteForm, setAjusteForm] = useState({ coach_id: "", tipo_actividad: "ajuste", valor_base: "", observaciones: "" });
 
@@ -79,17 +80,37 @@ const AdminLiquidaciones = () => {
     setLoading(false);
   };
 
-  const addHonorario = async () => {
+  const openHonForm = (hon?: any) => {
+    if (hon) {
+      setEditingHon(hon);
+      setHonForm({ nombre_concepto: hon.nombre_concepto, categoria: hon.categoria, valor: String(hon.valor), coach_id: hon.coach_id || "" });
+    } else {
+      setEditingHon(null);
+      setHonForm({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
+    }
+    setShowHonForm(true);
+  };
+
+  const saveHonorario = async () => {
     if (!honForm.nombre_concepto || !honForm.valor) return;
-    const { error } = await supabase.from("honorarios").insert({
+    const payload: any = {
       nombre_concepto: honForm.nombre_concepto,
       categoria: honForm.categoria,
       valor: Number(honForm.valor),
-    } as any);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Honorario creado" });
+      coach_id: honForm.coach_id || null,
+    };
+    if (editingHon) {
+      const { error } = await supabase.from("honorarios").update(payload).eq("id", editingHon.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Honorario actualizado" });
+    } else {
+      const { error } = await supabase.from("honorarios").insert(payload);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Honorario creado" });
+    }
     setShowHonForm(false);
-    setHonForm({ nombre_concepto: "", categoria: "clase", valor: "" });
+    setEditingHon(null);
+    setHonForm({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
     loadData();
   };
 
@@ -278,11 +299,11 @@ const AdminLiquidaciones = () => {
         <TabsContent value="honorarios" className="space-y-4 mt-4">
           <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">Valores por tipo de actividad. Se usan al crear movimientos.</p>
-            <Button size="sm" onClick={() => setShowHonForm(true)}><Plus className="w-4 h-4 mr-2" /> Nuevo</Button>
+            <Button size="sm" onClick={() => openHonForm()}><Plus className="w-4 h-4 mr-2" /> Nuevo</Button>
           </div>
-          <Dialog open={showHonForm} onOpenChange={setShowHonForm}>
+          <Dialog open={showHonForm} onOpenChange={(open) => { setShowHonForm(open); if (!open) setEditingHon(null); }}>
             <DialogContent>
-              <DialogHeader><DialogTitle>Nuevo honorario</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editingHon ? "Editar honorario" : "Nuevo honorario"}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <Input placeholder="Nombre del concepto" value={honForm.nombre_concepto} onChange={(e) => setHonForm({ ...honForm, nombre_concepto: e.target.value })} />
                 <Select value={honForm.categoria} onValueChange={(v) => setHonForm({ ...honForm, categoria: v })}>
@@ -295,7 +316,14 @@ const AdminLiquidaciones = () => {
                   </SelectContent>
                 </Select>
                 <Input type="number" placeholder="Valor ($)" value={honForm.valor} onChange={(e) => setHonForm({ ...honForm, valor: e.target.value })} />
-                <Button onClick={addHonorario} className="w-full">Guardar</Button>
+                <Select value={honForm.coach_id || "none"} onValueChange={(v) => setHonForm({ ...honForm, coach_id: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Profesor asignado (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin profesor fijo</SelectItem>
+                    {coaches.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button onClick={saveHonorario} className="w-full">{editingHon ? "Guardar cambios" : "Crear"}</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -304,6 +332,7 @@ const AdminLiquidaciones = () => {
               <TableRow>
                 <TableHead>Concepto</TableHead>
                 <TableHead>Categoría</TableHead>
+                <TableHead>Profesor</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Vigencia</TableHead>
                 <TableHead></TableHead>
@@ -311,16 +340,20 @@ const AdminLiquidaciones = () => {
             </TableHeader>
             <TableBody>
               {honorarios.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No hay honorarios cargados. Esperando los valores del admin.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No hay honorarios cargados.</TableCell></TableRow>
               ) : (
                 honorarios.map((h: any) => (
-                  <TableRow key={h.id}>
+                  <TableRow key={h.id} className="cursor-pointer hover:bg-muted/30" onClick={() => openHonForm(h)}>
                     <TableCell className="font-medium">{h.nombre_concepto}</TableCell>
                     <TableCell><Badge variant="secondary" className="text-xs capitalize">{h.categoria}</Badge></TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{h.coach_id ? coachName(h.coach_id) : "–"}</TableCell>
                     <TableCell className="text-right font-mono">${Number(h.valor).toLocaleString("es-AR")}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{h.vigencia_desde}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => deleteHonorario(h.id)}>Eliminar</Button>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => openHonForm(h)}>Editar</Button>
+                        <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => deleteHonorario(h.id)}>Eliminar</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
