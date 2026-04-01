@@ -22,6 +22,7 @@ import CoachEventRecordDelAhora from "./pages/coach/CoachEventRecordDelAhora";
 import CoachAttendance from "./pages/coach/CoachAttendance";
 import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
+import CoachLiquidaciones from "./pages/coach/CoachLiquidaciones";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
