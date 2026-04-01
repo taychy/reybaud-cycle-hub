@@ -142,6 +142,7 @@ const App = () => (
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
           </Route>
+          <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
