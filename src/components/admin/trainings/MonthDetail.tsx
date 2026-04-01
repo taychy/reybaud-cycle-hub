@@ -310,6 +310,13 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
         entrenamientos={entrenamientos}
         onApplied={fetchData}
       />
+
+      <DuplicatesDrawer
+        open={duplicatesOpen}
+        onOpenChange={setDuplicatesOpen}
+        entrenamientos={entrenamientos}
+        onDeleted={() => { setDuplicatesOpen(false); fetchData(); }}
+      />
     </div>
   );
 };
