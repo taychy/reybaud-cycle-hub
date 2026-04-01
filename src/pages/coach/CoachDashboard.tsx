@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare } from "lucide-react";
+import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -188,6 +188,15 @@ const CoachDashboard = () => {
           >
             <MessageSquare className="w-5 h-5 text-primary" />
             Dar feedback a alumno
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
+            onClick={() => navigate("/coach/liquidaciones")}
+          >
+            <Banknote className="w-5 h-5 text-primary" />
+            Liquidaciones
           </Button>
 
           <Button

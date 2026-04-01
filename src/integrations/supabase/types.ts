@@ -339,6 +339,67 @@ export type Database = {
         }
         Relationships: []
       }
+      disponibilidad_coaches: {
+        Row: {
+          activo: boolean
+          coach_id: string
+          created_at: string
+          dia_semana: number
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          sede_id: string | null
+          servicio_id: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          coach_id: string
+          created_at?: string
+          dia_semana: number
+          hora_fin: string
+          hora_inicio: string
+          id?: string
+          sede_id?: string | null
+          servicio_id: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          coach_id?: string
+          created_at?: string
+          dia_semana?: number
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          sede_id?: string | null
+          servicio_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disponibilidad_coaches_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_coaches_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_coaches_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_turnera"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emisores_fiscales: {
         Row: {
           activo: boolean
@@ -1070,6 +1131,42 @@ export type Database = {
         }
         Relationships: []
       }
+      honorarios: {
+        Row: {
+          activo: boolean
+          categoria: string
+          created_at: string
+          id: string
+          nombre_concepto: string
+          updated_at: string
+          valor: number
+          vigencia_desde: string
+          vigencia_hasta: string | null
+        }
+        Insert: {
+          activo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          nombre_concepto: string
+          updated_at?: string
+          valor?: number
+          vigencia_desde?: string
+          vigencia_hasta?: string | null
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          nombre_concepto?: string
+          updated_at?: string
+          valor?: number
+          vigencia_desde?: string
+          vigencia_hasta?: string | null
+        }
+        Relationships: []
+      }
       importaciones_usuarios: {
         Row: {
           archivo_original_url: string | null
@@ -1103,6 +1200,59 @@ export type Database = {
         }
         Relationships: []
       }
+      liquidaciones_mensuales: {
+        Row: {
+          coach_id: string
+          created_at: string
+          estado: string
+          fecha_envio: string | null
+          fecha_pago: string | null
+          id: string
+          mes: string
+          observaciones_admin: string | null
+          total_confirmado: number
+          total_estimado: number
+          total_pagado: number
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          estado?: string
+          fecha_envio?: string | null
+          fecha_pago?: string | null
+          id?: string
+          mes: string
+          observaciones_admin?: string | null
+          total_confirmado?: number
+          total_estimado?: number
+          total_pagado?: number
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          estado?: string
+          fecha_envio?: string | null
+          fecha_pago?: string | null
+          id?: string
+          mes?: string
+          observaciones_admin?: string | null
+          total_confirmado?: number
+          total_estimado?: number
+          total_pagado?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidaciones_mensuales_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mejoras_sugeridas: {
         Row: {
           autor_email: string
@@ -1129,6 +1279,130 @@ export type Database = {
           mensaje?: string
         }
         Relationships: []
+      }
+      movimientos_liquidacion: {
+        Row: {
+          alumno_id: string | null
+          coach_id: string
+          created_at: string
+          duracion: number | null
+          entrada: number
+          entrenamiento_id: string | null
+          estado_economico: string
+          estado_operativo: string
+          evento: string | null
+          extras: number
+          fecha: string
+          grupo: string | null
+          id: string
+          liquidacion_mensual_id: string | null
+          nombre_externo: string | null
+          observaciones: string | null
+          origen: string
+          reserva_turnera_id: string | null
+          sede_id: string | null
+          tipo_actividad: string
+          total: number
+          updated_at: string
+          valor_base: number
+          viaticos: number
+        }
+        Insert: {
+          alumno_id?: string | null
+          coach_id: string
+          created_at?: string
+          duracion?: number | null
+          entrada?: number
+          entrenamiento_id?: string | null
+          estado_economico?: string
+          estado_operativo?: string
+          evento?: string | null
+          extras?: number
+          fecha: string
+          grupo?: string | null
+          id?: string
+          liquidacion_mensual_id?: string | null
+          nombre_externo?: string | null
+          observaciones?: string | null
+          origen?: string
+          reserva_turnera_id?: string | null
+          sede_id?: string | null
+          tipo_actividad: string
+          total?: number
+          updated_at?: string
+          valor_base?: number
+          viaticos?: number
+        }
+        Update: {
+          alumno_id?: string | null
+          coach_id?: string
+          created_at?: string
+          duracion?: number | null
+          entrada?: number
+          entrenamiento_id?: string | null
+          estado_economico?: string
+          estado_operativo?: string
+          evento?: string | null
+          extras?: number
+          fecha?: string
+          grupo?: string | null
+          id?: string
+          liquidacion_mensual_id?: string | null
+          nombre_externo?: string | null
+          observaciones?: string | null
+          origen?: string
+          reserva_turnera_id?: string | null
+          sede_id?: string | null
+          tipo_actividad?: string
+          total?: number
+          updated_at?: string
+          valor_base?: number
+          viaticos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_liquidacion_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_entrenamiento_id_fkey"
+            columns: ["entrenamiento_id"]
+            isOneToOne: false
+            referencedRelation: "entrenamientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_liquidacion_mensual_id_fkey"
+            columns: ["liquidacion_mensual_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones_mensuales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_reserva_turnera_id_fkey"
+            columns: ["reserva_turnera_id"]
+            isOneToOne: false
+            referencedRelation: "reservas_turnera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       objetivos_alumno: {
         Row: {
@@ -1440,6 +1714,146 @@ export type Database = {
           },
         ]
       }
+      reglas_liquidacion: {
+        Row: {
+          created_at: string
+          estado_operativo: string
+          id: string
+          liquida: boolean
+          observacion: string | null
+          porcentaje_pago: number
+          tipo_actividad: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estado_operativo: string
+          id?: string
+          liquida?: boolean
+          observacion?: string | null
+          porcentaje_pago?: number
+          tipo_actividad: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estado_operativo?: string
+          id?: string
+          liquida?: boolean
+          observacion?: string | null
+          porcentaje_pago?: number
+          tipo_actividad?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reservas_turnera: {
+        Row: {
+          acepto_politica: boolean
+          alumno_id: string | null
+          apellido: string
+          celular: string | null
+          coach_id: string
+          created_at: string
+          documento: string | null
+          email: string
+          estado_economico: string
+          estado_operativo: string
+          fecha: string
+          fecha_nacimiento: string | null
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          moneda_snapshot: string | null
+          nombre: string
+          nota: string | null
+          origen_link: string | null
+          precio_snapshot: number | null
+          sede_id: string | null
+          servicio_id: string
+          updated_at: string
+        }
+        Insert: {
+          acepto_politica?: boolean
+          alumno_id?: string | null
+          apellido: string
+          celular?: string | null
+          coach_id: string
+          created_at?: string
+          documento?: string | null
+          email: string
+          estado_economico?: string
+          estado_operativo?: string
+          fecha: string
+          fecha_nacimiento?: string | null
+          hora_fin: string
+          hora_inicio: string
+          id?: string
+          moneda_snapshot?: string | null
+          nombre: string
+          nota?: string | null
+          origen_link?: string | null
+          precio_snapshot?: number | null
+          sede_id?: string | null
+          servicio_id: string
+          updated_at?: string
+        }
+        Update: {
+          acepto_politica?: boolean
+          alumno_id?: string | null
+          apellido?: string
+          celular?: string | null
+          coach_id?: string
+          created_at?: string
+          documento?: string | null
+          email?: string
+          estado_economico?: string
+          estado_operativo?: string
+          fecha?: string
+          fecha_nacimiento?: string | null
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          moneda_snapshot?: string | null
+          nombre?: string
+          nota?: string | null
+          origen_link?: string | null
+          precio_snapshot?: number | null
+          sede_id?: string | null
+          servicio_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_turnera_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_turnera"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_payments: {
         Row: {
           alumno_id: string
@@ -1585,6 +1999,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      servicios_turnera: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string | null
+          duracion_minutos: number
+          id: string
+          modalidad: string | null
+          moneda: string
+          nombre: string
+          politica_cancelacion: string | null
+          precio: number | null
+          sede_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          duracion_minutos?: number
+          id?: string
+          modalidad?: string | null
+          moneda?: string
+          nombre: string
+          politica_cancelacion?: string | null
+          precio?: number | null
+          sede_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          duracion_minutos?: number
+          id?: string
+          modalidad?: string | null
+          moneda?: string
+          nombre?: string
+          politica_cancelacion?: string | null
+          precio?: number | null
+          sede_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicios_turnera_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sesiones_extra: {
         Row: {

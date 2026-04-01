@@ -22,6 +22,7 @@ import CoachEventRecordDelAhora from "./pages/coach/CoachEventRecordDelAhora";
 import CoachAttendance from "./pages/coach/CoachAttendance";
 import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
+import CoachLiquidaciones from "./pages/coach/CoachLiquidaciones";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
@@ -61,6 +62,9 @@ import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import UpdatePrompt from "./components/UpdatePrompt";
+import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
+import AdminTurnera from "./pages/admin/AdminTurnera";
+import BookingFlow from "./pages/booking/BookingFlow";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -92,6 +96,7 @@ const App = () => (
             <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
           <Route path="/coach/asistencia" element={<CoachAttendance />} />
           <Route path="/coach/feedback" element={<CoachFeedback />} />
+          <Route path="/coach/liquidaciones" element={<CoachLiquidaciones />} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
@@ -119,6 +124,8 @@ const App = () => (
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
             <Route path="mejoras" element={<AdminMejoras />} />
+            <Route path="liquidaciones" element={<AdminLiquidaciones />} />
+            <Route path="turnera" element={<AdminTurnera />} />
             <Route path="tienda" element={<StoreDashboard />} />
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
@@ -135,6 +142,7 @@ const App = () => (
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
           </Route>
+          <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
