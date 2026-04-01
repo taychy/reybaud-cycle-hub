@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Grid3X3, List, Plus, Eye, EyeOff, Trash2, Copy, LayoutTemplate } from "lucide-react";
+import { ArrowLeft, Grid3X3, List, Plus, Eye, EyeOff, Trash2, Copy, LayoutTemplate, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import SummaryCards from "./SummaryCards";
@@ -13,6 +13,7 @@ import ListView from "./ListView";
 import TrainingFormDialog from "./TrainingFormDialog";
 import TrainingCellDrawer from "./TrainingCellDrawer";
 import TemplateManager from "./TemplateManager";
+import DuplicatesDrawer from "./DuplicatesDrawer";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
@@ -36,6 +37,7 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
   const [editingTraining, setEditingTraining] = useState<Entrenamiento | null>(null);
   const [drawerTraining, setDrawerTraining] = useState<Entrenamiento | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     const { data } = await supabase
@@ -167,6 +169,10 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
           </h3>
           <p className="text-xs text-muted-foreground">{entrenamientos.length} entrenamientos</p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setDuplicatesOpen(true)}>
+          <Search className="w-4 h-4 mr-1.5" />
+          Duplicados
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setTemplateOpen(true)}>
           <LayoutTemplate className="w-4 h-4 mr-1.5" />
           Plantillas
@@ -303,6 +309,13 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
         month={month}
         entrenamientos={entrenamientos}
         onApplied={fetchData}
+      />
+
+      <DuplicatesDrawer
+        open={duplicatesOpen}
+        onOpenChange={setDuplicatesOpen}
+        entrenamientos={entrenamientos}
+        onDeleted={() => { setDuplicatesOpen(false); fetchData(); }}
       />
     </div>
   );
