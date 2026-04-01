@@ -38,7 +38,9 @@ const MonthOverview = ({ onSelectMonth }: MonthOverviewProps) => {
   const [targetMonth, setTargetMonth] = useState("");
 
   const fetchAll = async () => {
-    const { data } = await supabase.from("entrenamientos").select("*").order("fecha");
+    const { data, error } = await supabase.from("entrenamientos").select("*").order("fecha");
+    if (error) console.error("Error fetching entrenamientos:", error);
+    console.log("Entrenamientos fetched:", data?.length ?? 0, "items");
     setEntrenamientos(data || []);
     setLoading(false);
   };
