@@ -483,6 +483,14 @@ const ManageCoaches = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Agenda grupal dialog */}
+      <Dialog open={!!agendaCoach} onOpenChange={open => { if (!open) setAgendaCoach(null); }}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
+          {agendaCoach && (
+            <CoachAgendaGrupal coachId={agendaCoach.id} coachNombre={agendaCoach.nombre} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
