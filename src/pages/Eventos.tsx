@@ -32,6 +32,7 @@ interface Event {
   max_capacity: number | null;
   spots_taken: number;
   level: string | null;
+  metadata: any;
 }
 
 type TabFilter = "todos" | "escuela" | "carreras" | "viajes" | "mis_eventos" | "favoritos";
