@@ -331,15 +331,17 @@ const EventForm = ({
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="propio_con_reserva">Organizado por nosotros — con reserva</SelectItem>
+              <SelectItem value="propio_solo_inscripcion">Organizado por nosotros — solo inscripción</SelectItem>
               <SelectItem value="propio_informativo">Organizado por nosotros — solo informativo</SelectItem>
               <SelectItem value="externo_informativo">Evento externo — informamos porque es de interés</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {meta.event_nature === "propio_con_reserva" && "Los alumnos podrán reservar su lugar desde la app."}
-            {meta.event_nature === "propio_informativo" && "Se muestra en el calendario pero no se puede reservar."}
+            {meta.event_nature === "propio_con_reserva" && "Los alumnos podrán reservar su lugar y deberán realizar un pago o seña."}
+            {meta.event_nature === "propio_solo_inscripcion" && "Los alumnos se inscriben sin necesidad de pagar. Solo confirman asistencia."}
+            {meta.event_nature === "propio_informativo" && "Se muestra en el calendario pero no se puede reservar ni inscribirse."}
             {meta.event_nature === "externo_informativo" && "El organizador es externo. Se muestra como referencia para nuestros alumnos."}
-            {!meta.event_nature && "Los alumnos podrán reservar su lugar desde la app."}
+            {!meta.event_nature && "Los alumnos podrán reservar su lugar y deberán realizar un pago o seña."}
           </p>
         </div>
 
