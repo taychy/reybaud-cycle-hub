@@ -47,7 +47,8 @@ const AdminLiquidaciones = () => {
   const [reglas, setReglas] = useState<ReglaLiq[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHonForm, setShowHonForm] = useState(false);
-  const [honForm, setHonForm] = useState({ nombre_concepto: "", categoria: "clase", valor: "" });
+  const [editingHon, setEditingHon] = useState<any>(null);
+  const [honForm, setHonForm] = useState({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
   const [showAjusteForm, setShowAjusteForm] = useState(false);
   const [ajusteForm, setAjusteForm] = useState({ coach_id: "", tipo_actividad: "ajuste", valor_base: "", observaciones: "" });
 
