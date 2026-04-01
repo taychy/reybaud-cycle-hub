@@ -169,6 +169,10 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
           </h3>
           <p className="text-xs text-muted-foreground">{entrenamientos.length} entrenamientos</p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setDuplicatesOpen(true)}>
+          <Search className="w-4 h-4 mr-1.5" />
+          Duplicados
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setTemplateOpen(true)}>
           <LayoutTemplate className="w-4 h-4 mr-1.5" />
           Plantillas
