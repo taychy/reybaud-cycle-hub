@@ -24,6 +24,13 @@ export const StudentProgressContent = () => {
   const progress = useMonthlyProgress(alumnoId, grupo, refreshKey);
   const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
+  // Reload session history when refreshKey changes
+  useEffect(() => {
+    if (alumnoId && grupo) {
+      loadDetails(alumnoId, grupo);
+    }
+  }, [refreshKey]);
+
   useEffect(() => {
     let cancelled = false;
 
