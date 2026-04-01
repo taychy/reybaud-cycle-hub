@@ -96,6 +96,7 @@ const App = () => (
             <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
           <Route path="/coach/asistencia" element={<CoachAttendance />} />
           <Route path="/coach/feedback" element={<CoachFeedback />} />
+          <Route path="/coach/liquidaciones" element={<CoachLiquidaciones />} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
