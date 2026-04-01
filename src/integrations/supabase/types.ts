@@ -62,6 +62,73 @@ export type Database = {
         }
         Relationships: []
       }
+      agenda_grupal: {
+        Row: {
+          activo: boolean
+          coach_id: string
+          created_at: string
+          dia_semana: number
+          grupo: string
+          honorario_id: string | null
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          notas: string | null
+          sede_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          coach_id: string
+          created_at?: string
+          dia_semana: number
+          grupo?: string
+          honorario_id?: string | null
+          hora_fin: string
+          hora_inicio: string
+          id?: string
+          notas?: string | null
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          coach_id?: string
+          created_at?: string
+          dia_semana?: number
+          grupo?: string
+          honorario_id?: string | null
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          notas?: string | null
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_grupal_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_grupal_honorario_id_fkey"
+            columns: ["honorario_id"]
+            isOneToOne: false
+            referencedRelation: "honorarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_grupal_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alumnos: {
         Row: {
           apellido: string | null

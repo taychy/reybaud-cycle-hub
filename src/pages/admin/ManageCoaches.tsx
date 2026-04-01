@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2 } from "lucide-react";
+import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
 
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
@@ -88,6 +89,7 @@ const ManageCoaches = () => {
   const [resending, setResending] = useState<string | null>(null);
   const [deleteCoach, setDeleteCoach] = useState<Coach | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [agendaCoach, setAgendaCoach] = useState<Coach | null>(null);
 
   const handleResendInvite = async (coach: Coach) => {
     const lastSent = (coach as any).last_invite_sent_at;
@@ -298,6 +300,9 @@ const ManageCoaches = () => {
                       <Button variant="ghost" size="sm" onClick={() => openEdit(coach)} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-1" /> Editar
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setAgendaCoach(coach)} className="text-xs">
+                        <Calendar className="w-3 h-3 mr-1" /> Agenda
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => setDeleteCoach(coach)} className="text-xs text-destructive hover:text-destructive">
                         <Trash2 className="w-3 h-3 mr-1" /> Eliminar
                       </Button>
@@ -363,6 +368,12 @@ const ManageCoaches = () => {
                   setDetailCoach(null);
                 }}>
                   <Edit2 className="w-3 h-3 mr-2" /> Editar coach
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                  setAgendaCoach(detailCoach);
+                  setDetailCoach(null);
+                }}>
+                  <Calendar className="w-3 h-3 mr-2" /> Ver agenda grupal
                 </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
                   setDeleteCoach(detailCoach);
@@ -470,6 +481,14 @@ const ManageCoaches = () => {
               {deleting ? "Eliminando..." : "Eliminar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Agenda grupal dialog */}
+      <Dialog open={!!agendaCoach} onOpenChange={open => { if (!open) setAgendaCoach(null); }}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
+          {agendaCoach && (
+            <CoachAgendaGrupal coachId={agendaCoach.id} coachNombre={agendaCoach.nombre} />
+          )}
         </DialogContent>
       </Dialog>
     </div>
