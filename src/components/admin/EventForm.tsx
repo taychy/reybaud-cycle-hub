@@ -132,35 +132,34 @@ export const eventFormFromRow = (ev: any): EventFormData => ({
   metadata: ev.metadata || {},
 });
 
-export const eventFormToPayload = (form: EventFormData) => ({
-  title: form.title,
-  short_description: form.short_description || null,
-  description: form.description || null,
-  date: form.date,
-  start_time: form.start_time || null,
-  same_day: form.same_day,
-  end_date: form.same_day ? form.date : form.end_date || null,
-  end_time: form.end_time || null,
-  status: form.status,
-  is_active: form.status === "publicado",
-  visible_to_students: form.visible_to_students,
-  show_public: form.show_public,
-  type: form.type,
-  image_url: form.image_url || null,
-  metadata: form.metadata,
-  // Map old fields from metadata for backward compat
-  location: form.metadata.location_name || form.metadata.race_location || form.metadata.destination || null,
-  price: form.metadata.pricing_mode === "no_mostrar" ? null
-    : form.metadata.pricing_mode === "gratuito" ? 0
-    : form.metadata.price != null && form.metadata.price !== "" ? parseFloat(form.metadata.price) : null,
-  currency: meta.currency || "ARS",
-  max_capacity: meta.max_capacity ? parseInt(meta.max_capacity) : null,
-  level: meta.recommended_level || meta.level || null,
-  is_own_event: meta.event_nature !== "externo_informativo",
-  price: meta.pricing_mode === "no_mostrar" ? null
-    : meta.pricing_mode === "gratuito" ? 0
-    : meta.price != null && meta.price !== "" ? parseFloat(meta.price) : null,
-});
+export const eventFormToPayload = (form: EventFormData) => {
+  const m = form.metadata;
+  return {
+    title: form.title,
+    short_description: form.short_description || null,
+    description: form.description || null,
+    date: form.date,
+    start_time: form.start_time || null,
+    same_day: form.same_day,
+    end_date: form.same_day ? form.date : form.end_date || null,
+    end_time: form.end_time || null,
+    status: form.status,
+    is_active: form.status === "publicado",
+    visible_to_students: form.visible_to_students,
+    show_public: form.show_public,
+    type: form.type,
+    image_url: form.image_url || null,
+    metadata: form.metadata,
+    location: m.location_name || m.race_location || m.destination || null,
+    price: m.pricing_mode === "no_mostrar" ? null
+      : m.pricing_mode === "gratuito" ? 0
+      : m.price != null && m.price !== "" ? parseFloat(m.price) : null,
+    currency: m.currency || "ARS",
+    max_capacity: m.max_capacity ? parseInt(m.max_capacity) : null,
+    level: m.recommended_level || m.level || null,
+    is_own_event: m.event_nature !== "externo_informativo",
+  };
+};
 
 /* ─── Component ─── */
 const EventForm = ({
