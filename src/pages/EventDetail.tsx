@@ -225,6 +225,14 @@ const EventDetail = () => {
   const hasReservation = !!reservation;
   const isActiveReservation = hasReservation && !["cancelada", "rechazada"].includes(reservation!.reservation_status);
 
+  // Event nature from metadata
+  const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";
+  const isReservable = eventNature === "propio_con_reserva";
+  const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+  const isInformativeOnly = eventNature === "propio_informativo" || eventNature === "externo_informativo";
+  const isExternal = eventNature === "externo_informativo";
+  const allowsParticipation = isReservable || isInscriptionOnly;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Image */}
