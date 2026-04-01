@@ -132,32 +132,34 @@ export const eventFormFromRow = (ev: any): EventFormData => ({
   metadata: ev.metadata || {},
 });
 
-export const eventFormToPayload = (form: EventFormData) => ({
-  title: form.title,
-  short_description: form.short_description || null,
-  description: form.description || null,
-  date: form.date,
-  start_time: form.start_time || null,
-  same_day: form.same_day,
-  end_date: form.same_day ? form.date : form.end_date || null,
-  end_time: form.end_time || null,
-  status: form.status,
-  is_active: form.status === "publicado",
-  visible_to_students: form.visible_to_students,
-  show_public: form.show_public,
-  type: form.type,
-  image_url: form.image_url || null,
-  metadata: form.metadata,
-  // Map old fields from metadata for backward compat
-  location: form.metadata.location_name || form.metadata.race_location || form.metadata.destination || null,
-  price: form.metadata.pricing_mode === "no_mostrar" ? null
-    : form.metadata.pricing_mode === "gratuito" ? 0
-    : form.metadata.price != null && form.metadata.price !== "" ? parseFloat(form.metadata.price) : null,
-  currency: form.metadata.currency || "ARS",
-  max_capacity: form.metadata.max_capacity ? parseInt(form.metadata.max_capacity) : null,
-  level: form.metadata.recommended_level || form.metadata.level || null,
-  is_own_event: categoryFromDbType(form.type) !== "carrera",
-});
+export const eventFormToPayload = (form: EventFormData) => {
+  const m = form.metadata;
+  return {
+    title: form.title,
+    short_description: form.short_description || null,
+    description: form.description || null,
+    date: form.date,
+    start_time: form.start_time || null,
+    same_day: form.same_day,
+    end_date: form.same_day ? form.date : form.end_date || null,
+    end_time: form.end_time || null,
+    status: form.status,
+    is_active: form.status === "publicado",
+    visible_to_students: form.visible_to_students,
+    show_public: form.show_public,
+    type: form.type,
+    image_url: form.image_url || null,
+    metadata: form.metadata,
+    location: m.location_name || m.race_location || m.destination || null,
+    price: m.pricing_mode === "no_mostrar" ? null
+      : m.pricing_mode === "gratuito" ? 0
+      : m.price != null && m.price !== "" ? parseFloat(m.price) : null,
+    currency: m.currency || "ARS",
+    max_capacity: m.max_capacity ? parseInt(m.max_capacity) : null,
+    level: m.recommended_level || m.level || null,
+    is_own_event: m.event_nature !== "externo_informativo",
+  };
+};
 
 /* ─── Component ─── */
 const EventForm = ({
@@ -314,6 +316,76 @@ const EventForm = ({
             <Label className="text-sm">Vista pública</Label>
           </div>
         </div>
+      </fieldset>
+
+      {/* ─── EVENT NATURE & PRICING (common) ─── */}
+      <fieldset className="space-y-4 border border-primary/20 rounded-lg p-4">
+        <legend className="text-xs font-heading uppercase tracking-wider text-primary px-2">Naturaleza y Precio</legend>
+
+        <div className="space-y-1.5">
+          <Label>¿Cómo se gestiona este evento?</Label>
+          <Select
+            value={meta.event_nature || "propio_con_reserva"}
+            onValueChange={(v) => updateMeta("event_nature", v)}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="propio_con_reserva">Organizado por nosotros — con reserva</SelectItem>
+              <SelectItem value="propio_informativo">Organizado por nosotros — solo informativo</SelectItem>
+              <SelectItem value="externo_informativo">Evento externo — informamos porque es de interés</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {meta.event_nature === "propio_con_reserva" && "Los alumnos podrán reservar su lugar desde la app."}
+            {meta.event_nature === "propio_informativo" && "Se muestra en el calendario pero no se puede reservar."}
+            {meta.event_nature === "externo_informativo" && "El organizador es externo. Se muestra como referencia para nuestros alumnos."}
+            {!meta.event_nature && "Los alumnos podrán reservar su lugar desde la app."}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Precio del evento</Label>
+          <Select
+            value={meta.pricing_mode || "no_mostrar"}
+            onValueChange={(v) => {
+              updateMeta("pricing_mode", v);
+              if (v === "gratuito") { updateMeta("price", "0"); updateMeta("is_free", true); updateMeta("deposit_amount", ""); }
+              else if (v === "no_mostrar") { updateMeta("price", ""); updateMeta("is_free", false); }
+              else { updateMeta("is_free", false); }
+            }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="con_valor">Con valor (mostrar precio)</SelectItem>
+              <SelectItem value="gratuito">Gratuito</SelectItem>
+              <SelectItem value="no_mostrar">No mostrar precio</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {meta.pricing_mode === "con_valor" && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>Precio</Label>
+              <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Moneda</Label>
+              <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ARS">ARS</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Seña / Reserva</Label>
+              <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
+            </div>
+          </div>
+        )}
       </fieldset>
 
       {/* ─── ESCUELA FIELDS ─── */}
@@ -545,50 +617,6 @@ const EventForm = ({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Precio del evento</Label>
-            <Select
-              value={meta.pricing_mode || (meta.is_free ? "gratuito" : meta.price ? "con_valor" : "no_mostrar")}
-              onValueChange={(v) => {
-                updateMeta("pricing_mode", v);
-                if (v === "gratuito") { updateMeta("price", "0"); updateMeta("is_free", true); updateMeta("deposit_amount", ""); }
-                else if (v === "no_mostrar") { updateMeta("price", ""); updateMeta("is_free", false); }
-                else { updateMeta("is_free", false); }
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="con_valor">Con valor (mostrar precio)</SelectItem>
-                <SelectItem value="gratuito">Gratuito</SelectItem>
-                <SelectItem value="no_mostrar">No mostrar precio</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {(meta.pricing_mode === "con_valor" || (!meta.pricing_mode && !meta.is_free && meta.price)) && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Precio</Label>
-                <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Moneda</Label>
-                <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ARS">ARS</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Seña / Reserva</Label>
-                <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
-              </div>
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Cupos totales</Label>
@@ -645,10 +673,6 @@ const EventForm = ({
           </div>
 
           <div className="flex items-center gap-6 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Switch checked={meta.allow_booking || false} onCheckedChange={(v) => updateMeta("allow_booking", v)} />
-              <Label className="text-sm">Permitir reserva</Label>
-            </div>
             <div className="flex items-center gap-2">
               <Switch checked={meta.show_whatsapp_button || false} onCheckedChange={(v) => updateMeta("show_whatsapp_button", v)} />
               <Label className="text-sm">Botón WhatsApp</Label>
