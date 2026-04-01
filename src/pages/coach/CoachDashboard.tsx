@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare } from "lucide-react";
+import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
