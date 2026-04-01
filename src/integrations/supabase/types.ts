@@ -1135,6 +1135,7 @@ export type Database = {
         Row: {
           activo: boolean
           categoria: string
+          coach_id: string | null
           created_at: string
           id: string
           nombre_concepto: string
@@ -1146,6 +1147,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           categoria?: string
+          coach_id?: string | null
           created_at?: string
           id?: string
           nombre_concepto: string
@@ -1157,6 +1159,7 @@ export type Database = {
         Update: {
           activo?: boolean
           categoria?: string
+          coach_id?: string | null
           created_at?: string
           id?: string
           nombre_concepto?: string
@@ -1165,7 +1168,15 @@ export type Database = {
           vigencia_desde?: string
           vigencia_hasta?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "honorarios_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       importaciones_usuarios: {
         Row: {
