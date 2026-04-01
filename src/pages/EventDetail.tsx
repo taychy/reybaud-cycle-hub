@@ -485,14 +485,18 @@ const EventDetail = () => {
           )}
 
           {/* CASE C: Cancelled/rejected reservation — allow re-reserve */}
-          {alumno && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && (
+          {alumno && allowsParticipation && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in">
               <p className="text-sm text-muted-foreground text-center">
-                Tu reserva anterior fue {reservation!.reservation_status === "cancelada" ? "cancelada" : "rechazada"}.
+                Tu {isInscriptionOnly ? "inscripción" : "reserva"} anterior fue {reservation!.reservation_status === "cancelada" ? "cancelada" : "rechazada"}.
                 Podés iniciar una nueva si lo deseás.
               </p>
               <Button variant="gold" className="w-full" onClick={() => setShowReservationDrawer(true)}>
-                <CreditCard className="w-4 h-4 mr-2" /> Nueva reserva
+                {isInscriptionOnly ? (
+                  <><CheckCircle className="w-4 h-4 mr-2" /> Nueva inscripción</>
+                ) : (
+                  <><CreditCard className="w-4 h-4 mr-2" /> Nueva reserva</>
+                )}
               </Button>
             </div>
           )}
