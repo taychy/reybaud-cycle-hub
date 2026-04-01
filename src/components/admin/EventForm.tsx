@@ -153,10 +153,13 @@ export const eventFormToPayload = (form: EventFormData) => ({
   price: form.metadata.pricing_mode === "no_mostrar" ? null
     : form.metadata.pricing_mode === "gratuito" ? 0
     : form.metadata.price != null && form.metadata.price !== "" ? parseFloat(form.metadata.price) : null,
-  currency: form.metadata.currency || "ARS",
-  max_capacity: form.metadata.max_capacity ? parseInt(form.metadata.max_capacity) : null,
-  level: form.metadata.recommended_level || form.metadata.level || null,
-  is_own_event: categoryFromDbType(form.type) !== "carrera",
+  currency: meta.currency || "ARS",
+  max_capacity: meta.max_capacity ? parseInt(meta.max_capacity) : null,
+  level: meta.recommended_level || meta.level || null,
+  is_own_event: meta.event_nature !== "externo_informativo",
+  price: meta.pricing_mode === "no_mostrar" ? null
+    : meta.pricing_mode === "gratuito" ? 0
+    : meta.price != null && meta.price !== "" ? parseFloat(meta.price) : null,
 });
 
 /* ─── Component ─── */
