@@ -403,25 +403,52 @@ const EventDetail = () => {
           )}
 
           {/* ═══════════════════════════════════════════════════ */}
-          {/* CASE A: No reservation → show "Reservar" CTA      */}
+          {/* Informative events — no action CTA                 */}
           {/* ═══════════════════════════════════════════════════ */}
-          {alumno && !hasReservation && !eventPast && spotsLeft !== 0 && (
+          {isInformativeOnly && !eventPast && (
+            <div className="glass-card rounded-xl p-5 text-center space-y-3 animate-fade-in">
+              <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">
+                {isExternal
+                  ? "Este evento es organizado por un tercero. Te lo compartimos porque puede ser de tu interés."
+                  : "Este evento es solo informativo. No requiere inscripción."}
+              </p>
+              {event.metadata?.web_url && (
+                <a href={event.metadata.web_url} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="mt-2">
+                    <ExternalLink className="w-4 h-4 mr-2" /> Ver sitio del organizador
+                  </Button>
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════ */}
+          {/* CASE A: No reservation → show CTA (Reservar/Inscribirme) */}
+          {/* ═══════════════════════════════════════════════════ */}
+          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-2">
-                <h3 className="font-heading font-semibold text-foreground">¿Querés reservar tu lugar?</h3>
+                <h3 className="font-heading font-semibold text-foreground">
+                  {isInscriptionOnly ? "¿Querés inscribirte?" : "¿Querés reservar tu lugar?"}
+                </h3>
               </div>
               <Button
                 variant="gold"
                 className="w-full h-12 text-sm"
                 onClick={() => setShowReservationDrawer(true)}
               >
-                <CreditCard className="w-4 h-4 mr-2" /> Reservar
+                {isInscriptionOnly ? (
+                  <><CheckCircle className="w-4 h-4 mr-2" /> Inscribirme</>
+                ) : (
+                  <><CreditCard className="w-4 h-4 mr-2" /> Reservar</>
+                )}
               </Button>
             </div>
           )}
 
           {/* No spots left */}
-          {alumno && !hasReservation && !eventPast && spotsLeft === 0 && (
+          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft === 0 && (
             <div className="glass-card rounded-xl p-5 text-center space-y-2 animate-fade-in">
               <Users className="w-8 h-8 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">Este evento no tiene cupos disponibles en este momento.</p>
@@ -429,9 +456,11 @@ const EventDetail = () => {
           )}
 
           {/* Not logged in */}
-          {!alumno && !eventPast && (
+          {!alumno && allowsParticipation && !eventPast && (
             <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in text-center">
-              <p className="text-sm text-muted-foreground">Iniciá sesión para reservar tu lugar.</p>
+              <p className="text-sm text-muted-foreground">
+                {isInscriptionOnly ? "Iniciá sesión para inscribirte." : "Iniciá sesión para reservar tu lugar."}
+              </p>
               <Button variant="gold" onClick={() => navigate("/login")}>
                 Iniciar sesión
               </Button>
