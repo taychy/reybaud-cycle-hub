@@ -178,7 +178,8 @@ const ManageStudents = () => {
   }, [alumnos]);
 
   const getActiveSub = (alumnoId: string) => {
-    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa"));
+    const today = new Date().toISOString().split("T")[0];
+    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa") && (!s.fecha_fin || s.fecha_fin >= today));
   };
 
   const getAnySub = (alumnoId: string) => {
