@@ -38,9 +38,15 @@ const MonthOverview = ({ onSelectMonth }: MonthOverviewProps) => {
   const [targetMonth, setTargetMonth] = useState("");
 
   const fetchAll = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log("MonthOverview session:", sessionData?.session?.user?.email ?? "NO SESSION");
     const { data, error } = await supabase.from("entrenamientos").select("*").order("fecha");
     if (error) console.error("Error fetching entrenamientos:", error);
     console.log("Entrenamientos fetched:", data?.length ?? 0, "items");
+    if (data && data.length > 0) {
+      const months = new Set(data.map((e: any) => e.fecha?.substring(0, 7)));
+      console.log("Months found:", Array.from(months).sort());
+    }
     setEntrenamientos(data || []);
     setLoading(false);
   };
