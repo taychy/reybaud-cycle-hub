@@ -80,17 +80,37 @@ const AdminLiquidaciones = () => {
     setLoading(false);
   };
 
-  const addHonorario = async () => {
+  const openHonForm = (hon?: any) => {
+    if (hon) {
+      setEditingHon(hon);
+      setHonForm({ nombre_concepto: hon.nombre_concepto, categoria: hon.categoria, valor: String(hon.valor), coach_id: hon.coach_id || "" });
+    } else {
+      setEditingHon(null);
+      setHonForm({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
+    }
+    setShowHonForm(true);
+  };
+
+  const saveHonorario = async () => {
     if (!honForm.nombre_concepto || !honForm.valor) return;
-    const { error } = await supabase.from("honorarios").insert({
+    const payload: any = {
       nombre_concepto: honForm.nombre_concepto,
       categoria: honForm.categoria,
       valor: Number(honForm.valor),
-    } as any);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Honorario creado" });
+      coach_id: honForm.coach_id || null,
+    };
+    if (editingHon) {
+      const { error } = await supabase.from("honorarios").update(payload).eq("id", editingHon.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Honorario actualizado" });
+    } else {
+      const { error } = await supabase.from("honorarios").insert(payload);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Honorario creado" });
+    }
     setShowHonForm(false);
-    setHonForm({ nombre_concepto: "", categoria: "clase", valor: "" });
+    setEditingHon(null);
+    setHonForm({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
     loadData();
   };
 
