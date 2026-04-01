@@ -42,13 +42,18 @@ const MonthDetail = ({ month, onBack }: MonthDetailProps) => {
   const fetchData = useCallback(async () => {
     const [y, m] = month.split("-").map(Number);
     const lastDay = new Date(y, m, 0).getDate();
-    const { data } = await supabase
+    const from = `${month}-01`;
+    const to = `${month}-${String(lastDay).padStart(2, "0")}`;
+    console.log("MonthDetail fetching:", from, "to", to);
+    const { data, error } = await supabase
       .from("entrenamientos")
       .select("*")
-      .gte("fecha", `${month}-01`)
-      .lte("fecha", `${month}-${String(lastDay).padStart(2, "0")}`)
+      .gte("fecha", from)
+      .lte("fecha", to)
       .order("fecha")
       .order("grupo");
+    if (error) console.error("MonthDetail fetch error:", error);
+    console.log("MonthDetail result:", data?.length ?? 0, "items");
     setEntrenamientos(data || []);
     setLoading(false);
   }, [month]);
