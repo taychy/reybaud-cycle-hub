@@ -386,6 +386,7 @@ const EventForm = ({
             </div>
           </div>
         )}
+      </fieldset>
 
       {/* ─── ESCUELA FIELDS ─── */}
       {selectedCategory === "escuela" && (
