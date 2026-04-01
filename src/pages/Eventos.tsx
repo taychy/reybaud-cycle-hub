@@ -131,6 +131,9 @@ const EventCard = ({
   const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
   const hasReservation = !!reservationStatus;
   const resBadge = getReservationBadge(reservationStatus);
+  const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";
+  const isInformative = eventNature === "propio_informativo" || eventNature === "externo_informativo";
+  const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
 
   return (
     <div
