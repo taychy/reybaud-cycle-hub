@@ -17,6 +17,8 @@ const navItems = [
   { to: "/admin/facturacion", label: "Facturación", icon: FileText },
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
+  { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
+  { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
