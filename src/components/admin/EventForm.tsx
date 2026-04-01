@@ -617,50 +617,6 @@ const EventForm = ({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Precio del evento</Label>
-            <Select
-              value={meta.pricing_mode || (meta.is_free ? "gratuito" : meta.price ? "con_valor" : "no_mostrar")}
-              onValueChange={(v) => {
-                updateMeta("pricing_mode", v);
-                if (v === "gratuito") { updateMeta("price", "0"); updateMeta("is_free", true); updateMeta("deposit_amount", ""); }
-                else if (v === "no_mostrar") { updateMeta("price", ""); updateMeta("is_free", false); }
-                else { updateMeta("is_free", false); }
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="con_valor">Con valor (mostrar precio)</SelectItem>
-                <SelectItem value="gratuito">Gratuito</SelectItem>
-                <SelectItem value="no_mostrar">No mostrar precio</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {(meta.pricing_mode === "con_valor" || (!meta.pricing_mode && !meta.is_free && meta.price)) && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Precio</Label>
-                <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Moneda</Label>
-                <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ARS">ARS</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Seña / Reserva</Label>
-                <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
-              </div>
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Cupos totales</Label>
