@@ -318,6 +318,75 @@ const EventForm = ({
         </div>
       </fieldset>
 
+      {/* ─── EVENT NATURE & PRICING (common) ─── */}
+      <fieldset className="space-y-4 border border-primary/20 rounded-lg p-4">
+        <legend className="text-xs font-heading uppercase tracking-wider text-primary px-2">Naturaleza y Precio</legend>
+
+        <div className="space-y-1.5">
+          <Label>¿Cómo se gestiona este evento?</Label>
+          <Select
+            value={meta.event_nature || "propio_con_reserva"}
+            onValueChange={(v) => updateMeta("event_nature", v)}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="propio_con_reserva">Organizado por nosotros — con reserva</SelectItem>
+              <SelectItem value="propio_informativo">Organizado por nosotros — solo informativo</SelectItem>
+              <SelectItem value="externo_informativo">Evento externo — informamos porque es de interés</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {meta.event_nature === "propio_con_reserva" && "Los alumnos podrán reservar su lugar desde la app."}
+            {meta.event_nature === "propio_informativo" && "Se muestra en el calendario pero no se puede reservar."}
+            {meta.event_nature === "externo_informativo" && "El organizador es externo. Se muestra como referencia para nuestros alumnos."}
+            {!meta.event_nature && "Los alumnos podrán reservar su lugar desde la app."}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Precio del evento</Label>
+          <Select
+            value={meta.pricing_mode || "no_mostrar"}
+            onValueChange={(v) => {
+              updateMeta("pricing_mode", v);
+              if (v === "gratuito") { updateMeta("price", "0"); updateMeta("is_free", true); updateMeta("deposit_amount", ""); }
+              else if (v === "no_mostrar") { updateMeta("price", ""); updateMeta("is_free", false); }
+              else { updateMeta("is_free", false); }
+            }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="con_valor">Con valor (mostrar precio)</SelectItem>
+              <SelectItem value="gratuito">Gratuito</SelectItem>
+              <SelectItem value="no_mostrar">No mostrar precio</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {meta.pricing_mode === "con_valor" && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>Precio</Label>
+              <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Moneda</Label>
+              <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ARS">ARS</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Seña / Reserva</Label>
+              <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
+            </div>
+          </div>
+        )}
+
       {/* ─── ESCUELA FIELDS ─── */}
       {selectedCategory === "escuela" && (
         <fieldset className="space-y-4 border border-sky-500/20 rounded-lg p-4">
