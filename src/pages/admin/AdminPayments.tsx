@@ -34,6 +34,7 @@ type Suscripcion = {
   alumnos: {
     id: string;
     nombre: string;
+    apellido: string | null;
     email: string;
     telefono: string | null;
     sede_id: string | null;
