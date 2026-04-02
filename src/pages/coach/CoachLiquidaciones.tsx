@@ -144,7 +144,45 @@ const CoachLiquidaciones = () => {
     init();
   }, [navigate]);
 
-  const filteredMovimientos = movimientos.filter((m) => {
+  const reloadMovimientos = async () => {
+    if (!coachId) return;
+    const startDate = `${mesActual}-01`;
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const { data: movs } = await supabase
+      .from("movimientos_liquidacion")
+      .select("*")
+      .eq("coach_id", coachId)
+      .gte("fecha", startDate)
+      .lte("fecha", endDate)
+      .order("fecha", { ascending: true });
+    setMovimientos((movs as any[]) || []);
+  };
+
+  const submitClase = async () => {
+    if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
+    const { error } = await supabase.from("movimientos_liquidacion").insert({
+      coach_id: coachId,
+      fecha: claseForm.fecha,
+      tipo_actividad: claseForm.tipo_actividad,
+      grupo: claseForm.grupo || null,
+      origen: "carga_coach",
+      valor_base: 0,
+      total: 0,
+      estado_operativo: "realizada",
+      estado_economico: "pendiente_revision",
+      observaciones: claseForm.observaciones || null,
+    } as any);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Clase registrada", description: "Queda pendiente de revisión por el administrador." });
+    setShowClaseForm(false);
+    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", observaciones: "" });
+    reloadMovimientos();
+  };
+
+
     if (filtro === "todas") return true;
     if (filtro === "grupales") return m.tipo_actividad.startsWith("grupal") || m.tipo_actividad === "fondo_salida" || m.tipo_actividad === "tecnica" || m.tipo_actividad === "evento_escuela";
     if (filtro === "personalizadas") return m.tipo_actividad === "personalizada";
