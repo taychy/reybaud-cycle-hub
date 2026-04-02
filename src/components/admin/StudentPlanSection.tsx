@@ -26,7 +26,11 @@ interface SuscripcionData {
   fecha_fin: string | null;
   mp_status: string | null;
   created_at: string;
+  descuento_id: string | null;
+  precio_base: number | null;
+  precio_final: number | null;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
+  descuentos: { id: string; nombre: string; valor: number; tipo: string } | null;
 }
 
 interface Props {
@@ -82,7 +86,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, created_at, planes(id, nombre, precio, moneda)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
