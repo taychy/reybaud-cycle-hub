@@ -89,6 +89,13 @@ const CoachLiquidaciones = () => {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [historico, setHistorico] = useState<LiquidacionMensual[]>([]);
   const [filtro, setFiltro] = useState<string>("todas");
+  const [showClaseForm, setShowClaseForm] = useState(false);
+  const [claseForm, setClaseForm] = useState({
+    tipo_actividad: "grupal_1h30",
+    fecha: new Date().toISOString().split("T")[0],
+    grupo: "",
+    observaciones: "",
+  });
 
   const now = new Date();
   const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
