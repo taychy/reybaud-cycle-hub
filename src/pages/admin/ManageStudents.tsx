@@ -483,6 +483,7 @@ const ManageStudents = () => {
       await supabase.from("suscripciones").update({ estado: "cancelada", cancelada_motivo: stateChangeMotivo || "Usuario bloqueado" } as any).eq("alumno_id", alumno.id).in("estado", ["activa", "pausa"]);
     }
     toast.success(`${alumno.nombre} ahora está ${newEstado}`);
+    await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_usuario", title: `Estado → ${newEstado}`, description: `Cambio de "${alumno.estado}" a "${newEstado}"${stateChangeMotivo ? `. Motivo: ${stateChangeMotivo}` : ""}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       await supabase.from("audit_log").insert({
