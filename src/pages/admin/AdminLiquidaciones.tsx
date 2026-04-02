@@ -148,6 +148,14 @@ const AdminLiquidaciones = () => {
     loadData();
   };
 
+  const updateMovEstado = async (movId: string, nuevoEstado: string) => {
+    const updates: any = { estado_economico: nuevoEstado };
+    await supabase.from("movimientos_liquidacion").update(updates).eq("id", movId);
+    toast({ title: `Movimiento marcado como ${nuevoEstado}` });
+    loadData();
+  };
+
+
   const coachName = (id: string) => coaches.find(c => c.id === id)?.nombre || "–";
 
   const formatMes = (m: string) => {
