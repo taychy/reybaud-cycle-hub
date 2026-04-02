@@ -829,19 +829,31 @@ const ManageStudents = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">Nombre</TableHead>
-                    <TableHead className="text-muted-foreground">Apellido</TableHead>
-                    <TableHead className="text-muted-foreground">Grupo</TableHead>
-                    <TableHead className="text-muted-foreground">Estado</TableHead>
-                    <TableHead className="text-muted-foreground">Suscripción</TableHead>
-                    <TableHead className="text-muted-foreground hidden xl:table-cell">Último acceso</TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("nombre")}>
+                      <span className="flex items-center gap-1">Nombre <SortIcon col="nombre" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("apellido")}>
+                      <span className="flex items-center gap-1">Apellido <SortIcon col="apellido" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("grupo")}>
+                      <span className="flex items-center gap-1">Grupo <SortIcon col="grupo" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("estado")}>
+                      <span className="flex items-center gap-1">Estado <SortIcon col="estado" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("suscripcion")}>
+                      <span className="flex items-center gap-1">Suscripción <SortIcon col="suscripcion" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground hidden xl:table-cell cursor-pointer select-none" onClick={() => toggleSort("ultimo_acceso")}>
+                      <span className="flex items-center gap-1">Último acceso <SortIcon col="ultimo_acceso" /></span>
+                    </TableHead>
                     <TableHead className="text-muted-foreground w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
-                  ) : filtered.length === 0 ? (
+                  ) : sorted.length === 0 ? (
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell></TableRow>
                   ) : (
                     filtered.map((alumno) => {
