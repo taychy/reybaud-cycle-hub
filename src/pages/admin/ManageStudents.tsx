@@ -227,6 +227,38 @@ const ManageStudents = () => {
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
   const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
 
+  // --- Duplicates detection (by email) ---
+  const duplicateEmailSet = new Set<string>();
+  const emailCount: Record<string, number> = {};
+  alumnos.forEach(a => {
+    const e = a.email.toLowerCase().trim();
+    emailCount[e] = (emailCount[e] || 0) + 1;
+  });
+  Object.entries(emailCount).forEach(([email, count]) => {
+    if (count > 1) duplicateEmailSet.add(email);
+  });
+  // Also detect by nombre+apellido
+  const nameCount: Record<string, number> = {};
+  alumnos.forEach(a => {
+    const key = `${a.nombre.toLowerCase().trim()}|${(getApellido(a) || "").toLowerCase().trim()}`;
+    if (key !== "|") nameCount[key] = (nameCount[key] || 0) + 1;
+  });
+  const duplicateNameSet = new Set<string>();
+  Object.entries(nameCount).forEach(([key, count]) => {
+    if (count > 1) duplicateNameSet.add(key);
+  });
+  const isDuplicate = (a: Alumno) => {
+    const emailDup = duplicateEmailSet.has(a.email.toLowerCase().trim());
+    const nameKey = `${a.nombre.toLowerCase().trim()}|${(getApellido(a) || "").toLowerCase().trim()}`;
+    const nameDup = duplicateNameSet.has(nameKey);
+    return emailDup || nameDup;
+  };
+  const duplicadosCount = alumnos.filter(isDuplicate).length;
+
+  // --- Access status ---
+  const conAccesoCount = alumnos.filter(a => !!a.user_id).length;
+  const sinAccesoCount = alumnos.filter(a => !a.user_id).length;
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -243,6 +275,9 @@ const ManageStudents = () => {
       case "sin_grupo": return a.grupo === "Sin grupo" && a.estado === "activo";
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
       case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
+      case "duplicados": return isDuplicate(a);
+      case "con_acceso": return !!a.user_id;
+      case "sin_acceso": return !a.user_id;
       default: return true;
     }
   });
