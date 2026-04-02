@@ -98,7 +98,7 @@ const ReservationStatusCard = ({
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [hasPayments, setHasPayments] = useState(false);
 
-  const resSt = reservationStatusConfig[reservation.reservation_status] || reservationStatusConfig.solicitud_enviada;
+  const installments = installmentFromMetadata(eventMetadata);
   const paySt = paymentStatusConfig[reservation.payment_status] || paymentStatusConfig.no_informado;
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
 
