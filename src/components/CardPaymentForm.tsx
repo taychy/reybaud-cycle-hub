@@ -369,7 +369,7 @@ const CardPaymentForm = ({
               Procesando...
             </>
           ) : (
-            `Pagar ${formatPrice(planPrice)}`
+            `Pagar ${formatPriceLocal(planPrice)}`
           )}
         </Button>
       </form>
