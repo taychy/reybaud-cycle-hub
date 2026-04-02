@@ -518,6 +518,7 @@ const ManageStudents = () => {
     supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
+  };
 
   const openSubChange = (alumno: Alumno) => {
     setSubChangeAlumno(alumno);
