@@ -320,7 +320,8 @@ const EventDetail = () => {
                     </div>
                   )}
                 </div>
-              )}
+                );
+              })()}
               {priceDisplay.mode === "gratuito" && (
                 <div className="flex items-baseline justify-between">
                   <p className="text-sm font-heading font-semibold text-emerald-400">Evento gratuito</p>
