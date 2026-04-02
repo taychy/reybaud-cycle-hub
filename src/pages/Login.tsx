@@ -34,9 +34,7 @@ const Login = () => {
       }
 
       const { data: alumno } = await supabase
-        .from("alumnos")
-        .select("id, estado, grupo")
-        .eq("email", userEmail)
+        .rpc("lookup_alumno_by_email", { p_email: userEmail })
         .maybeSingle();
 
       if (!alumno) {
