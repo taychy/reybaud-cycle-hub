@@ -88,11 +88,8 @@ const getStatusBadge = (status: string) => {
 };
 
 const getMetodoPago = (sub: Suscripcion): string => {
-  if (sub.mp_status === "efectivo" || sub.mp_status === "cash") return "Efectivo";
-  if (sub.mp_status === "externo") return "Pago externo";
-  if (sub.mp_payment_id) return "Tarjeta / MP";
-  if (sub.mp_status === "manual") return "Manual";
-  return "Sin definir";
+  if (sub.mp_payment_id && !sub.mp_status) return getPaymentMethodLabel("mercadopago");
+  return getPaymentMethodLabel(sub.mp_status);
 };
 
 // formatPrice imported from @/lib/currency
