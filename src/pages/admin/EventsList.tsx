@@ -470,6 +470,7 @@ const EventsList = () => {
                 eventCurrency={reservationsEvent.currency}
                 eventPrice={reservationsEvent.price}
                 eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
+                eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
               />
               <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />
