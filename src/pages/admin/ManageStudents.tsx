@@ -378,25 +378,48 @@ const ManageStudents = () => {
 
   const saveDetail = async () => {
     if (!drawerAlumno) return;
-    const { error } = await supabase.from("alumnos").update({
-      nombre: detailForm.nombre,
-      apellido: detailForm.apellido || null,
-      email: detailForm.email,
-      telefono: detailForm.telefono || null,
-      documento: detailForm.documento || null,
-      notas: detailForm.notas || null,
-    } as any).eq("id", drawerAlumno.id);
+
+    const payload = {
+      nombre: detailForm.nombre.trim(),
+      apellido: detailForm.apellido.trim() || null,
+      email: detailForm.email.trim().toLowerCase(),
+      telefono: detailForm.telefono.trim() || null,
+      documento: detailForm.documento.trim() || null,
+      notas: detailForm.notas.trim() || null,
+    } as any;
+
+    const { data, error } = await supabase
+      .from("alumnos")
+      .update(payload)
+      .eq("id", drawerAlumno.id)
+      .select("*")
+      .single();
+
     if (error) {
       console.error("Error updating alumno:", error);
-      toast.error("Error al guardar los cambios");
+      toast.error(error.message || "Error al guardar los cambios");
       return;
     }
+
+    const updatedAlumno = (data || { ...drawerAlumno, ...payload }) as Alumno;
+
+    setAlumnos((prev) => prev.map((alumno) => (
+      alumno.id === updatedAlumno.id ? updatedAlumno : alumno
+    )));
+    setDrawerAlumno(updatedAlumno);
+    setDetailForm({
+      nombre: updatedAlumno.nombre,
+      apellido: getApellido(updatedAlumno),
+      email: updatedAlumno.email,
+      telefono: updatedAlumno.telefono || "",
+      documento: updatedAlumno.documento || "",
+      notas: updatedAlumno.notas || "",
+    });
+
     toast.success("Datos actualizados");
     await logStudentActivity({ alumnoId: drawerAlumno.id, eventType: "edicion_datos", title: "Edición de datos", description: "Datos personales modificados desde la ficha", actorRole: isSuperAdmin ? "super_admin" : "admin" });
     setEditingDetail(false);
-    fetchAlumnos();
-    const { data } = await supabase.from("alumnos").select("*").eq("id", drawerAlumno.id).maybeSingle();
-    if (data) setDrawerAlumno(data);
+    await fetchAlumnos();
   };
 
   // --- Handlers (same logic as before) ---
