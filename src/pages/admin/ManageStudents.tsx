@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -227,6 +227,38 @@ const ManageStudents = () => {
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
   const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
 
+  // --- Duplicates detection (by email) ---
+  const duplicateEmailSet = new Set<string>();
+  const emailCount: Record<string, number> = {};
+  alumnos.forEach(a => {
+    const e = a.email.toLowerCase().trim();
+    emailCount[e] = (emailCount[e] || 0) + 1;
+  });
+  Object.entries(emailCount).forEach(([email, count]) => {
+    if (count > 1) duplicateEmailSet.add(email);
+  });
+  // Also detect by nombre+apellido
+  const nameCount: Record<string, number> = {};
+  alumnos.forEach(a => {
+    const key = `${a.nombre.toLowerCase().trim()}|${(getApellido(a) || "").toLowerCase().trim()}`;
+    if (key !== "|") nameCount[key] = (nameCount[key] || 0) + 1;
+  });
+  const duplicateNameSet = new Set<string>();
+  Object.entries(nameCount).forEach(([key, count]) => {
+    if (count > 1) duplicateNameSet.add(key);
+  });
+  const isDuplicate = (a: Alumno) => {
+    const emailDup = duplicateEmailSet.has(a.email.toLowerCase().trim());
+    const nameKey = `${a.nombre.toLowerCase().trim()}|${(getApellido(a) || "").toLowerCase().trim()}`;
+    const nameDup = duplicateNameSet.has(nameKey);
+    return emailDup || nameDup;
+  };
+  const duplicadosCount = alumnos.filter(isDuplicate).length;
+
+  // --- Access status ---
+  const conAccesoCount = alumnos.filter(a => !!a.user_id).length;
+  const sinAccesoCount = alumnos.filter(a => !a.user_id).length;
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -243,6 +275,9 @@ const ManageStudents = () => {
       case "sin_grupo": return a.grupo === "Sin grupo" && a.estado === "activo";
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
       case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
+      case "duplicados": return isDuplicate(a);
+      case "con_acceso": return !!a.user_id;
+      case "sin_acceso": return !a.user_id;
       default: return true;
     }
   });
@@ -600,6 +635,9 @@ const ManageStudents = () => {
     { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
     ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
+    ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
+    { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
+    { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -699,6 +737,8 @@ const ManageStudents = () => {
                         <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}</Badge>
                         {inconsistency && <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />!</Badge>}
                         {missing.length > 0 && !inconsistency && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5">Incompleto</Badge>}
+                        {isDuplicate(alumno) && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5"><Copy className="w-2.5 h-2.5" />Dup</Badge>}
+                        {!alumno.user_id && <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground gap-0.5">Sin acceso</Badge>}
                       </div>
                     </div>
                   );
@@ -735,6 +775,10 @@ const ManageStudents = () => {
                           <TableCell className="font-medium text-foreground">
                             <div className="flex items-center gap-1.5">
                               {alumno.nombre}
+                              <span title={alumno.user_id ? "Tiene acceso a la app" : "Sin acceso a la app"}>
+                                <Smartphone className={`w-3.5 h-3.5 shrink-0 ${alumno.user_id ? "text-emerald-500" : "text-muted-foreground/40"}`} />
+                              </span>
+                              {isDuplicate(alumno) && <span title="Posible duplicado"><Copy className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                               {missing.length > 0 && !inconsistency && (
                                 <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title={`Faltan: ${missing.join(", ")}`} />
                               )}
