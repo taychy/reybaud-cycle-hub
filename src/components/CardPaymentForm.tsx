@@ -153,7 +153,10 @@ const CardPaymentForm = ({
                   alumno_id: alumnoId,
                   plan_id: planId,
                   estado: "pendiente",
-                })
+                  descuento_id: descuentoId,
+                  precio_base: precioBase,
+                  precio_final: planPrice,
+                } as any)
                 .select("id")
                 .single();
 
@@ -230,10 +233,12 @@ const CardPaymentForm = ({
     }
   };
 
-  const formatPrice = (precio: number) => {
+  const hasDiscount = descuentoId !== null && planPrice < precioBase;
+
+  const formatPriceLocal = (precio: number) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
-      currency: "ARS",
+      currency: moneda || "ARS",
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(precio);
@@ -247,9 +252,27 @@ const CardPaymentForm = ({
           Pago con tarjeta
         </h2>
         <p className="text-sm text-muted-foreground">
-          {planName} — {formatPrice(planPrice)}/mes
+          {planName} — {formatPriceLocal(planPrice)}/mes
         </p>
       </div>
+
+      {/* Discount summary */}
+      {hasDiscount && (
+        <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Precio base</span>
+            <span className="text-muted-foreground line-through">{formatPriceLocal(precioBase)}</span>
+          </div>
+          <div className="flex justify-between text-emerald-400">
+            <span>{descuentoNombre} ({descuentoTipo === "fijo" ? `-${formatPriceLocal(descuentoValor!)}` : `-${descuentoValor}%`})</span>
+            <span>-{formatPriceLocal(precioBase - planPrice)}</span>
+          </div>
+          <div className="border-t border-border pt-1 flex justify-between font-medium">
+            <span className="text-foreground">Total</span>
+            <span className="text-foreground">{formatPriceLocal(planPrice)}</span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">
