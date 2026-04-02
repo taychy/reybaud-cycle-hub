@@ -383,10 +383,7 @@ const ManagePlanes = () => {
                       {(planesSedes[plan.id] || []).map((sid) => sedes.find((s) => s.id === sid)?.nombre).filter(Boolean).join(", ") || "Todas"}
                     </TableCell>
                     <TableCell>
-                      {tipo === "programa" 
-                        ? `${plan.inscripciones_actuales || 0}${plan.max_inscripciones ? `/${plan.max_inscripciones}` : ""}`
-                        : alumnoCount[plan.id] || 0
-                      }
+                      {alumnoCount[plan.id] || 0}{tipo === "programa" && plan.max_inscripciones ? `/${plan.max_inscripciones}` : ""}
                     </TableCell>
                     <TableCell>{getVisibilidadBadge(plan.visibilidad || "visible")}</TableCell>
                     <TableCell>
