@@ -53,6 +53,31 @@ const TIPO_LABELS: Record<string, string> = {
 
 const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "ajustes"] as const;
 
+const HONORARIO_SEARCH_TERMS: Record<string, string[]> = {
+  grupal_1h30: ["grupal 1h30", "1h30", "1h 30", "90min"],
+  grupal_2h: ["grupal 2h", "2h", "2 h", "120min"],
+  fondo_salida: ["fondo", "salida"],
+  tecnica: ["tecnica", "técnica"],
+  evento_escuela: ["evento escuela"],
+  evaluatoria: ["evaluatoria", "evaluacion", "evaluación"],
+  personalizada: ["personalizada", "particular", "particular circuito", "circuito 1h"],
+  ajuste: ["ajuste"],
+};
+
+const normalizeText = (value: string | null | undefined) =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const matchesHonorario = (tipoActividad: string, nombreConcepto: string | null | undefined) => {
+  const normalizedName = normalizeText(nombreConcepto);
+  const terms = HONORARIO_SEARCH_TERMS[tipoActividad] ?? [tipoActividad];
+
+  return terms.some((term) => normalizedName.includes(normalizeText(term)));
+};
+
 type Movimiento = {
   id: string;
   fecha: string;
@@ -175,21 +200,13 @@ const CoachLiquidaciones = () => {
   }, [mes, coachId, loadMovimientos]);
 
   const lookupHonorarioValue = async (tipoActividad: string, cId: string): Promise<number> => {
-    // Map tipo_actividad keys to search terms for honorarios.nombre_concepto
-    const searchTerms: Record<string, string[]> = {
-      grupal_1h30: ["grupal 1h30", "grupal_1h30", "1h30"],
-      grupal_2h: ["grupal 2h", "grupal_2h", "2h"],
-      fondo_salida: ["fondo", "salida", "fondo_salida"],
-      tecnica: ["técnica", "tecnica"],
-      evento_escuela: ["evento escuela", "evento_escuela"],
-      evaluatoria: ["evaluatoria", "evaluación", "evaluacion"],
-      personalizada: ["personalizada"],
-    };
-    const terms = searchTerms[tipoActividad] || [tipoActividad];
-
     // Try coach-specific honorario first, then generic
     for (const coachFilter of [cId, null]) {
-      let query = supabase.from("honorarios").select("valor").eq("activo", true);
+      let query = supabase
+        .from("honorarios")
+        .select("valor, nombre_concepto")
+        .eq("activo", true);
+
       if (coachFilter) {
         query = query.eq("coach_id", coachFilter);
       } else {
@@ -198,11 +215,10 @@ const CoachLiquidaciones = () => {
 
       const { data: honorarios } = await query;
       if (honorarios && honorarios.length > 0) {
-        // Find by matching nombre_concepto against search terms
-        // Since we can't do OR ilike in supabase-js easily, we fetch all and filter
-        const match = (honorarios as any[]).find((h: any) =>
-          terms.some(t => h.nombre_concepto?.toLowerCase().includes(t.toLowerCase()))
+        const match = (honorarios as { valor: number; nombre_concepto: string | null }[]).find((h) =>
+          matchesHonorario(tipoActividad, h.nombre_concepto)
         );
+
         if (match) return Number(match.valor);
       }
     }
