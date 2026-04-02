@@ -573,6 +573,7 @@ const ManageStudents = () => {
     const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
     supabase.functions.invoke("notify-student-update", { body: { alumno_id: manualSubAlumno.id, type: emailType, fecha_vencimiento: manualFechaFin } }).catch(() => {});
     toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
+    await logStudentActivity({ alumnoId: manualSubAlumno.id, eventType: "pago", title: "Suscripción manual habilitada", description: `Vencimiento: ${manualFechaFin}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "suscripcion", referenceLabel: `Hasta ${manualFechaFin}` });
     setManualSubAlumno(null);
     setManualFechaFin("");
     setSavingManual(false);
