@@ -6,25 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 
-const navItems = [
+/* ─── Nav sections ─── */
+type NavItem = { to: string; label: string; icon: any };
+interface NavSection { label: string; items: NavItem[] }
+
+const mainItems: NavItem[] = [
   { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
-  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/alumnos", label: "Alumnos", icon: Users },
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
+  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+  { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
+];
+
+const finanzasItems: NavItem[] = [
+  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/planes", label: "Planes", icon: Package },
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
-  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/facturacion", label: "Facturación", icon: FileText },
   { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
+];
+
+const configItems: NavItem[] = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-  { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 
-const storeNavItems = [
+const storeItems: NavItem[] = [
   { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
   { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
@@ -33,6 +43,13 @@ const storeNavItems = [
   { to: "/admin/tienda/banners", label: "Banners", icon: Image },
   { to: "/admin/tienda/stock", label: "Stock", icon: Package },
   { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+];
+
+const navSections: NavSection[] = [
+  { label: "Principal", items: mainItems },
+  { label: "Finanzas", items: finanzasItems },
+  { label: "Configuración", items: configItems },
+  { label: "Tienda", items: storeItems },
 ];
 
 const AdminLayout = () => {
