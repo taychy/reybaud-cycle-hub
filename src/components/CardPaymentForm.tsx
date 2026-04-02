@@ -29,6 +29,12 @@ const CardPaymentForm = ({
   planId,
   planName,
   planPrice,
+  precioBase,
+  descuentoId,
+  descuentoNombre,
+  descuentoValor,
+  descuentoTipo,
+  moneda,
   alumnoId,
   onBack,
 }: CardPaymentFormProps) => {
