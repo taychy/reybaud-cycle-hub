@@ -371,6 +371,11 @@ const ManageStudents = () => {
 
     actions.push({ label: "Ver detalle", icon: Eye, action: () => openDrawer(alumno) });
 
+    // Impersonation (super admin only)
+    if (isSuperAdmin) {
+      actions.push({ label: "Ver como usuario", icon: Eye, action: () => navigate(`/admin/ver-como/${alumno.id}`) });
+    }
+
     // State transitions
     if (estado === "inactivo" || estado === "vacaciones") {
       actions.push({ label: "Reactivar", icon: Play, action: () => openStateChange(alumno, "activo") });
