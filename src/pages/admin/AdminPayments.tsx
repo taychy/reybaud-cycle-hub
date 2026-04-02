@@ -402,9 +402,9 @@ const AdminPayments = () => {
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="tarjeta">Tarjeta / MP</SelectItem>
-                  <SelectItem value="externo">Pago externo</SelectItem>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
                   <SelectItem value="manual">Manual</SelectItem>
                 </SelectContent>
               </Select>
