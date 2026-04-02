@@ -49,9 +49,10 @@ const TIPO_LABELS: Record<string, string> = {
   evaluatoria: "Evaluatoria",
   personalizada: "Personalizada",
   ajuste: "Ajuste manual",
+  viatico: "Viático",
 };
 
-const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "ajustes"] as const;
+const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "viaticos", "ajustes"] as const;
 
 const HONORARIO_SEARCH_TERMS: Record<string, string[]> = {
   grupal_1h30: ["grupal 1h30", "1h30", "1h 30", "90min"],
@@ -142,12 +143,19 @@ const CoachLiquidaciones = () => {
   const [filtro, setFiltro] = useState<string>("todas");
   const [mes, setMes] = useState(getCurrentMonth);
   const [showClaseForm, setShowClaseForm] = useState(false);
+  const [showViaticoForm, setShowViaticoForm] = useState(false);
   const [claseForm, setClaseForm] = useState({
     tipo_actividad: "grupal_1h30",
     fecha: new Date().toISOString().split("T")[0],
     grupo: "",
     nombre_externo: "",
     alumno_ids: [] as string[],
+    observaciones: "",
+  });
+  const [viaticoForm, setViaticoForm] = useState({
+    fecha: new Date().toISOString().split("T")[0],
+    monto: "",
+    concepto: "",
     observaciones: "",
   });
 
@@ -311,18 +319,57 @@ const CoachLiquidaciones = () => {
     loadMovimientos(coachId, mes);
   };
 
+  const submitViatico = async () => {
+    if (!coachId || !viaticoForm.fecha || !viaticoForm.monto || !viaticoForm.concepto) {
+      toast({ title: "Completá los campos", description: "Fecha, concepto y monto son obligatorios.", variant: "destructive" });
+      return;
+    }
+    const monto = parseFloat(viaticoForm.monto);
+    if (isNaN(monto) || monto <= 0) {
+      toast({ title: "Monto inválido", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase.from("movimientos_liquidacion").insert({
+      coach_id: coachId,
+      fecha: viaticoForm.fecha,
+      tipo_actividad: "viatico",
+      grupo: null,
+      nombre_externo: null,
+      evento: viaticoForm.concepto,
+      origen: "carga_coach",
+      valor_base: 0,
+      viaticos: monto,
+      total: monto,
+      estado_operativo: "realizada",
+      estado_economico: "pendiente_revision",
+      observaciones: viaticoForm.observaciones || null,
+    } as any);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Viático registrado", description: `$${monto.toLocaleString("es-AR")} — Pendiente de revisión.` });
+    setShowViaticoForm(false);
+    setViaticoForm({ fecha: new Date().toISOString().split("T")[0], monto: "", concepto: "", observaciones: "" });
+    loadMovimientos(coachId, mes);
+  };
+
   const filteredMovimientos = movimientos.filter((m) => {
     if (filtro === "todas") return true;
     if (filtro === "grupales") return m.tipo_actividad.startsWith("grupal") || m.tipo_actividad === "fondo_salida" || m.tipo_actividad === "tecnica" || m.tipo_actividad === "evento_escuela";
     if (filtro === "personalizadas") return m.tipo_actividad === "personalizada";
     if (filtro === "evaluatorias") return m.tipo_actividad === "evaluatoria";
-    if (filtro === "ajustes") return m.origen === "ajuste_manual" || m.origen === "carga_coach";
+    if (filtro === "viaticos") return m.tipo_actividad === "viatico";
+    if (filtro === "ajustes") return m.origen === "ajuste_manual" || (m.origen === "carga_coach" && m.tipo_actividad !== "viatico");
     return true;
   });
 
   const confirmado = movimientos.filter(m => m.estado_economico === "liquidable" || m.estado_economico === "liquidada").reduce((s, m) => s + Number(m.total), 0);
   const estimado = movimientos.filter(m => m.estado_operativo === "programada" || m.estado_operativo === "reservada").reduce((s, m) => s + Number(m.total), 0);
   const pendiente = movimientos.filter(m => m.estado_economico === "pendiente_revision").reduce((s, m) => s + Number(m.total), 0);
+  const totalViaticos = movimientos.filter(m => m.tipo_actividad === "viatico").reduce((s, m) => s + Number(m.total), 0);
 
   // Find liquidacion for the selected month
   const liqMes = historico.find(h => h.mes === mes);
@@ -424,17 +471,29 @@ const CoachLiquidaciones = () => {
           <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-primary" />
-                <span className="text-xs text-muted-foreground">Último pago</span>
+                <DollarSign className="w-4 h-4 text-violet-400" />
+                <span className="text-xs text-muted-foreground">Viáticos</span>
               </div>
               <p className="text-xl font-heading font-bold text-foreground">
-                {ultimoPago ? `$${Number(ultimoPago.total_pagado).toLocaleString("es-AR")}` : "–"}
+                ${totalViaticos.toLocaleString("es-AR")}
               </p>
-              {ultimoPago?.fecha_pago && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(ultimoPago.fecha_pago).toLocaleDateString("es-AR")}
-                </p>
-              )}
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border col-span-2">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-muted-foreground">Último pago</span>
+                  <p className="text-xl font-heading font-bold text-foreground">
+                    {ultimoPago ? `$${Number(ultimoPago.total_pagado).toLocaleString("es-AR")}` : "–"}
+                  </p>
+                </div>
+                {ultimoPago?.fecha_pago && (
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(ultimoPago.fecha_pago).toLocaleDateString("es-AR")}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -454,15 +513,23 @@ const CoachLiquidaciones = () => {
           ))}
         </div>
 
-        {/* Add class button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => setShowClaseForm(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" /> Registrar clase
-        </Button>
+        {/* Action buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowClaseForm(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Registrar clase
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowViaticoForm(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Registrar viático
+          </Button>
+        </div>
 
         {/* Class registration dialog */}
         <Dialog open={showClaseForm} onOpenChange={setShowClaseForm}>
@@ -560,7 +627,55 @@ const CoachLiquidaciones = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Movements list */}
+        {/* Viático registration dialog */}
+        <Dialog open={showViaticoForm} onOpenChange={setShowViaticoForm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar viático</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Fecha</label>
+                <Input
+                  type="date"
+                  value={viaticoForm.fecha}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, fecha: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Concepto</label>
+                <Input
+                  placeholder="Ej: Peaje, Combustible, Estacionamiento..."
+                  value={viaticoForm.concepto}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, concepto: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Monto ($)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={viaticoForm.monto}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, monto: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
+                <Textarea
+                  placeholder="Detalle adicional..."
+                  value={viaticoForm.observaciones}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, observaciones: e.target.value })}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                El viático quedará en estado "Pendiente de revisión" hasta que el administrador lo apruebe.
+              </p>
+              <Button onClick={submitViatico} className="w-full">Registrar viático</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <div className="space-y-2">
           {filteredMovimientos.length === 0 ? (
             <Card className="bg-card border-border">
