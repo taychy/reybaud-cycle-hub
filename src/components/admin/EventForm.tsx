@@ -331,9 +331,47 @@ const EventForm = ({
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <Label>URL imagen</Label>
-          <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
+        <div className="space-y-2">
+          <Label>Imagen del evento</Label>
+          {form.image_url ? (
+            <div className="relative rounded-lg overflow-hidden border border-border">
+              <img
+                src={form.image_url}
+                alt="Preview"
+                className="w-full h-40 object-cover"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full p-1.5 hover:bg-destructive/80 transition-colors"
+              >
+                <span className="text-xs font-medium text-foreground">✕</span>
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            >
+              <p className="text-sm text-muted-foreground">
+                {uploading ? "Subiendo..." : "Hacé clic para subir una imagen"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP — máx. 5MB</p>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <Input
+            value={form.image_url}
+            onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+            placeholder="O pegá una URL directa..."
+            className="text-xs"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
