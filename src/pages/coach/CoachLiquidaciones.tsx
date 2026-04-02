@@ -536,6 +536,7 @@ const CoachLiquidaciones = () => {
                   >
                     <SelectTrigger><SelectValue placeholder="Seleccionar grupo" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="Todos">Todos los grupos</SelectItem>
                       {coachGrupos.map((g) => (
                         <SelectItem key={g} value={g}>{g}</SelectItem>
                       ))}
