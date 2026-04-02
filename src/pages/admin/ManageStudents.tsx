@@ -1065,7 +1065,7 @@ const ManageStudents = () => {
                       <div className="grid grid-cols-2 gap-2">
                         {/* State transitions */}
                         {getValidTransitions(drawerAlumno.estado).map(e => (
-                          <Button key={e} variant="outline" size="sm" className="text-xs justify-start" onClick={() => { openStateChange(drawerAlumno, e); setDrawerAlumno(null); }}>
+                          <Button key={e} variant="outline" size="sm" className="text-xs justify-start" onClick={() => openStateChange(drawerAlumno, e)}>
                             {e === "activo" && <Play className="w-3 h-3 mr-1.5" />}
                             {e === "vacaciones" && <Palmtree className="w-3 h-3 mr-1.5" />}
                             {e === "inactivo" && <UserX className="w-3 h-3 mr-1.5" />}
