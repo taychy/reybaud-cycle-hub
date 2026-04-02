@@ -16,12 +16,21 @@ interface KPI {
   subtitle?: string;
 }
 
+interface PlanPerformance {
+  name: string;
+  inscriptos: number;
+  facturacion: number;
+  moneda: string;
+  porcentaje: number; // share of total revenue
+}
+
 const fmt = (n: number) => `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 
 const SuperAdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ month: string; ingresos: number; gastos: number }[]>([]);
+  const [planPerformance, setPlanPerformance] = useState<PlanPerformance[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -108,6 +117,21 @@ const SuperAdminDashboard = () => {
         { label: "Morosidad", value: fmt(montoPendiente), icon: AlertTriangle, color: montoPendiente > 0 ? "text-yellow-500" : "text-green-500", subtitle: `${pendientes.length} pagos pendientes` },
         { label: "Alumnos nuevos", value: nuevosEsteMes, icon: Users, color: "text-primary", subtitle: "Este mes" },
       ]);
+
+      // Plan performance
+      const planPerfMap: Record<string, { name: string; inscriptos: number; facturacion: number; moneda: string }> = {};
+      subsActivas.forEach(s => {
+        const plan = planesMap.get(s.plan_id);
+        if (!plan) return;
+        if (!planPerfMap[s.plan_id]) planPerfMap[s.plan_id] = { name: plan.nombre, inscriptos: 0, facturacion: 0, moneda: (plan as any).moneda || "ARS" };
+        planPerfMap[s.plan_id].inscriptos++;
+        planPerfMap[s.plan_id].facturacion += plan.precio;
+      });
+      const totalFact = Object.values(planPerfMap).reduce((s, p) => s + p.facturacion, 0);
+      const perfArr = Object.values(planPerfMap)
+        .map(p => ({ ...p, porcentaje: totalFact > 0 ? Math.round((p.facturacion / totalFact) * 100) : 0 }))
+        .sort((a, b) => b.facturacion - a.facturacion);
+      setPlanPerformance(perfArr);
 
       // Monthly trends (last 6 months)
       const monthly: { month: string; ingresos: number; gastos: number }[] = [];
@@ -207,6 +231,61 @@ const SuperAdminDashboard = () => {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500/80" /> Ingresos</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400/60" /> Gastos</span>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Plan Performance */}
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-accent" />
+            Rendimiento por plan
+          </CardTitle>
+          <p className="text-[10px] text-muted-foreground">Inscriptos activos y facturación mensual estimada</p>
+        </CardHeader>
+        <CardContent>
+          {planPerformance.length > 0 ? (
+            <div className="space-y-0 divide-y divide-border">
+              {/* Header */}
+              <div className="grid grid-cols-12 gap-2 pb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                <span className="col-span-5">Plan</span>
+                <span className="col-span-2 text-center">Inscriptos</span>
+                <span className="col-span-3 text-right">Facturación</span>
+                <span className="col-span-2 text-right">% del total</span>
+              </div>
+              {planPerformance.map((p) => {
+                const maxFact = Math.max(...planPerformance.map(x => x.facturacion), 1);
+                return (
+                  <div key={p.name} className="py-2.5 space-y-1.5">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <span className="col-span-5 text-sm font-medium truncate">{p.name}</span>
+                      <span className="col-span-2 text-center">
+                        <span className="inline-flex items-center justify-center bg-primary/10 text-primary text-xs font-bold rounded-full w-8 h-6">{p.inscriptos}</span>
+                      </span>
+                      <span className="col-span-3 text-right text-sm font-heading font-bold">
+                        {p.moneda === "USD" ? "US" : ""}${p.facturacion.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                      </span>
+                      <span className="col-span-2 text-right text-xs text-muted-foreground font-mono">{p.porcentaje}%</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-accent to-accent/50 rounded-full transition-all" style={{ width: `${(p.facturacion / maxFact) * 100}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Totals */}
+              <div className="grid grid-cols-12 gap-2 pt-3 items-center">
+                <span className="col-span-5 text-sm font-heading font-bold uppercase">Total</span>
+                <span className="col-span-2 text-center text-sm font-bold">{planPerformance.reduce((s, p) => s + p.inscriptos, 0)}</span>
+                <span className="col-span-3 text-right text-sm font-heading font-bold text-accent">
+                  {fmt(planPerformance.reduce((s, p) => s + p.facturacion, 0))}
+                </span>
+                <span className="col-span-2 text-right text-xs text-muted-foreground">100%</span>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground text-sm">No hay suscripciones activas</div>
+          )}
         </CardContent>
       </Card>
     </div>
