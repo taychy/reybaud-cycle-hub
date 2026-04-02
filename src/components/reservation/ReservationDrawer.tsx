@@ -197,7 +197,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
 
               {missingFields.length > 0 && (
                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400">
-                  Antes de continuar, completá estos datos en tu perfil: {missingFields.join(", ")}
+                  Recordá completar estos datos en tu perfil: {missingFields.join(", ")}
                 </div>
               )}
 
@@ -209,7 +209,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   variant="gold"
                   className="flex-1"
                   onClick={() => setStep("form")}
-                  disabled={missingFields.length > 0 || (spotsLeft !== null && spotsLeft <= 0)}
+                  disabled={spotsLeft !== null && spotsLeft <= 0}
                 >
                   Continuar <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
