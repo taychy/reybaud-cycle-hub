@@ -233,6 +233,61 @@ const SuperAdminDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Plan Performance */}
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-accent" />
+            Rendimiento por plan
+          </CardTitle>
+          <p className="text-[10px] text-muted-foreground">Inscriptos activos y facturación mensual estimada</p>
+        </CardHeader>
+        <CardContent>
+          {planPerformance.length > 0 ? (
+            <div className="space-y-0 divide-y divide-border">
+              {/* Header */}
+              <div className="grid grid-cols-12 gap-2 pb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                <span className="col-span-5">Plan</span>
+                <span className="col-span-2 text-center">Inscriptos</span>
+                <span className="col-span-3 text-right">Facturación</span>
+                <span className="col-span-2 text-right">% del total</span>
+              </div>
+              {planPerformance.map((p) => {
+                const maxFact = Math.max(...planPerformance.map(x => x.facturacion), 1);
+                return (
+                  <div key={p.name} className="py-2.5 space-y-1.5">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <span className="col-span-5 text-sm font-medium truncate">{p.name}</span>
+                      <span className="col-span-2 text-center">
+                        <span className="inline-flex items-center justify-center bg-primary/10 text-primary text-xs font-bold rounded-full w-8 h-6">{p.inscriptos}</span>
+                      </span>
+                      <span className="col-span-3 text-right text-sm font-heading font-bold">
+                        {p.moneda === "USD" ? "US" : ""}${p.facturacion.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                      </span>
+                      <span className="col-span-2 text-right text-xs text-muted-foreground font-mono">{p.porcentaje}%</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-accent to-accent/50 rounded-full transition-all" style={{ width: `${(p.facturacion / maxFact) * 100}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Totals */}
+              <div className="grid grid-cols-12 gap-2 pt-3 items-center">
+                <span className="col-span-5 text-sm font-heading font-bold uppercase">Total</span>
+                <span className="col-span-2 text-center text-sm font-bold">{planPerformance.reduce((s, p) => s + p.inscriptos, 0)}</span>
+                <span className="col-span-3 text-right text-sm font-heading font-bold text-accent">
+                  {fmt(planPerformance.reduce((s, p) => s + p.facturacion, 0))}
+                </span>
+                <span className="col-span-2 text-right text-xs text-muted-foreground">100%</span>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground text-sm">No hay suscripciones activas</div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
