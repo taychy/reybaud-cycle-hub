@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
+import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 
 type Alumno = Tables<"alumnos">;
