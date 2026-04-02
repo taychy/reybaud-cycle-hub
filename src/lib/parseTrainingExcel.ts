@@ -43,8 +43,23 @@ function formatDate(d: Date): string {
 function cellText(row: ExcelJS.Row, col: number): string {
   const cell = row.getCell(col);
   if (cell.value == null) return "";
-  if (typeof cell.value === "object" && "richText" in cell.value) {
-    return (cell.value as any).richText.map((r: any) => r.text).join("").trim();
+  if (typeof cell.value === "object") {
+    if ("richText" in cell.value) {
+      return (cell.value as any).richText.map((r: any) => typeof r === "string" ? r : (r?.text ?? "")).join("").trim();
+    }
+    if ("result" in cell.value) {
+      return String((cell.value as any).result ?? "").trim();
+    }
+    if ("text" in cell.value) {
+      return String((cell.value as any).text ?? "").trim();
+    }
+    // Prevent [object Object] from leaking through
+    try {
+      const str = JSON.stringify(cell.value);
+      return str === "{}" ? "" : str;
+    } catch {
+      return "";
+    }
   }
   return String(cell.value).trim();
 }
