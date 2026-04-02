@@ -72,6 +72,8 @@ export function parseDescriptionBlocks(descripcion: string): { totalMinutes: num
         current.footer = line;
         continue;
       }
+      // Skip [object Object] artifacts from bad imports
+      if (line === "[object Object]") continue;
       current.bullets.push(line);
     }
   }
