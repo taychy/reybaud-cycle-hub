@@ -13,6 +13,8 @@ import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import LanguageSelector from "@/components/LanguageSelector";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -32,6 +34,8 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const { isImpersonating, targetAlumno } = useImpersonation();
+  const readOnly = isImpersonating;
   const initialTab = (location.state as any)?.tab || "hoy";
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
@@ -60,24 +64,33 @@ const StudentDashboard = () => {
   })();
   const [selectedDay, setSelectedDay] = useState(todayDayIndex);
 
-  // Load alumno from Supabase Auth session
+  // Load alumno from Supabase Auth session or impersonation context
   useEffect(() => {
     const loadAlumno = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) {
-        navigate("/");
-        return;
-      }
+      let alumnoData: Alumno | null = null;
 
-      const { data: alumnoData } = await supabase
-        .from("alumnos")
-        .select("*")
-        .eq("email", session.user.email.toLowerCase().trim())
-        .maybeSingle();
+      if (isImpersonating && targetAlumno) {
+        // Impersonation mode: use the target alumno directly
+        alumnoData = targetAlumno;
+      } else {
+        // Normal mode: load from auth session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.email) {
+          navigate("/");
+          return;
+        }
 
-      if (!alumnoData) {
-        navigate("/");
-        return;
+        const { data } = await supabase
+          .from("alumnos")
+          .select("*")
+          .eq("email", session.user.email.toLowerCase().trim())
+          .maybeSingle();
+
+        if (!data) {
+          navigate("/");
+          return;
+        }
+        alumnoData = data;
       }
 
       setAlumno(alumnoData);
@@ -150,7 +163,7 @@ const StudentDashboard = () => {
     };
 
     loadAlumno();
-  }, [navigate]);
+  }, [navigate, isImpersonating, targetAlumno]);
 
   // When user selects a different day
   useEffect(() => {
@@ -186,7 +199,14 @@ const StudentDashboard = () => {
 
   // Vacation mode: render limited dashboard
   if (alumno?.estado === "vacaciones") {
-    return <VacationDashboard alumno={alumno} onLogout={handleLogout} />;
+    return (
+      <>
+        <ImpersonationBanner />
+        <div className={isImpersonating ? "pt-12" : ""}>
+          <VacationDashboard alumno={alumno} onLogout={isImpersonating ? () => {} : handleLogout} />
+        </div>
+      </>
+    );
   }
 
   const firstName = alumno?.nombre?.split(" ")[0] || "";
@@ -320,7 +340,7 @@ const StudentDashboard = () => {
                   <Button
                     variant={realizado ? "secondary" : "gold"}
                     className="w-full"
-                    disabled={realizado || markingDone}
+                    disabled={realizado || markingDone || readOnly}
                     onClick={async () => {
                       if (!alumno || !entrenamiento) return;
                       setMarkingDone(true);
@@ -399,13 +419,16 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Impersonation banner */}
+      <ImpersonationBanner />
+
       {/* Top bar */}
-      <header className="flex items-center justify-between px-5 pt-5 pb-2">
+      <header className={`flex items-center justify-between px-5 pt-5 pb-2 ${isImpersonating ? "mt-12" : ""}`}>
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
-          <LanguageSelector />
+          {!isImpersonating && <LanguageSelector />}
           <span className="text-xs text-muted-foreground font-heading">{firstName}</span>
-          {activeTab !== "mas" && (
+          {activeTab !== "mas" && !isImpersonating && (
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">
               <LogOut className="w-4 h-4" />
             </Button>

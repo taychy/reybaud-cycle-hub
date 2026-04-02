@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -112,6 +113,8 @@ const getEffectiveStatus = (sub: SubscriptionRecord): string => {
 const StudentPayments = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isImpersonating, targetAlumno } = useImpersonation();
+  const readOnly = isImpersonating;
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,16 +124,24 @@ const StudentPayments = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) { navigate("/"); return; }
+      let alumnoData: Alumno | null = null;
 
-      const { data: alumnoData } = await supabase
-        .from("alumnos")
-        .select("*")
-        .eq("email", session.user.email.toLowerCase().trim())
-        .maybeSingle();
+      if (isImpersonating && targetAlumno) {
+        alumnoData = targetAlumno;
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.email) { navigate("/"); return; }
 
-      if (!alumnoData) { navigate("/"); return; }
+        const { data } = await supabase
+          .from("alumnos")
+          .select("*")
+          .eq("email", session.user.email.toLowerCase().trim())
+          .maybeSingle();
+
+        if (!data) { navigate("/"); return; }
+        alumnoData = data;
+      }
+
       setAlumno(alumnoData);
 
       const { data: subs } = await supabase
@@ -164,10 +175,10 @@ const StudentPayments = () => {
       setLoading(false);
     };
     load();
-  }, [navigate]);
+  }, [navigate, isImpersonating, targetAlumno]);
 
   const handleToggleRenovacion = async () => {
-    if (!activeSub) return;
+    if (!activeSub || readOnly) return;
     setTogglingRenovacion(true);
     const newValue = !activeSub.auto_renovacion;
 
@@ -192,7 +203,7 @@ const StudentPayments = () => {
   };
 
   const handleCancelSubscription = async () => {
-    if (!activeSub) return;
+    if (!activeSub || readOnly) return;
     setCancelling(true);
 
     const { error } = await supabase
@@ -215,6 +226,7 @@ const StudentPayments = () => {
   };
 
   const handleChangePlan = () => {
+    if (readOnly) return;
     if (alumno) {
       localStorage.setItem("registro_alumno_id", alumno.id);
       localStorage.setItem("alumno_renewal", "1");
@@ -237,8 +249,14 @@ const StudentPayments = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Impersonation banner */}
+      {isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg">
+          <span>Vista de solo lectura — {targetAlumno?.nombre}</span>
+        </div>
+      )}
       {/* Header */}
-      <header className="flex items-center gap-3 px-5 pt-5 pb-2">
+      <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-10" : ""}`}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-muted-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Button>

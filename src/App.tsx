@@ -67,10 +67,13 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
 import BookingFlow from "./pages/booking/BookingFlow";
+import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
+import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ImpersonationProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -104,6 +107,7 @@ const App = () => (
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
+          <Route path="/admin/ver-como/:alumnoId" element={<ImpersonateStudent />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
@@ -151,6 +155,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </ImpersonationProvider>
   </QueryClientProvider>
 );
 

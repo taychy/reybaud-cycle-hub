@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,7 @@ const getProfileMissing = (alumno: Alumno, subEstado: string): string[] => {
 const isProfileIncomplete = (alumno: Alumno, subEstado: string) => getProfileMissing(alumno, subEstado).length > 0;
 
 const ManageStudents = () => {
+  const navigate = useNavigate();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -370,6 +372,11 @@ const ManageStudents = () => {
     const estado = alumno.estado;
 
     actions.push({ label: "Ver detalle", icon: Eye, action: () => openDrawer(alumno) });
+
+    // Impersonation (super admin only)
+    if (isSuperAdmin) {
+      actions.push({ label: "Ver como usuario", icon: Eye, action: () => navigate(`/admin/ver-como/${alumno.id}`) });
+    }
 
     // State transitions
     if (estado === "inactivo" || estado === "vacaciones") {
@@ -966,6 +973,17 @@ const ManageStudents = () => {
                 const missing = getProfileMissing(drawerAlumno, subEstado);
                 return (
                   <div className="space-y-6 py-4">
+                    {/* Impersonation button for super admin */}
+                    {isSuperAdmin && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => navigate(`/admin/ver-como/${drawerAlumno.id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver como usuario
+                      </Button>
+                    )}
                     {/* Inconsistency alert */}
                     {inconsistency && (
                       <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 flex items-center gap-2">
