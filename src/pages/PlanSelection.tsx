@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const PlanSelection = () => {
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
+  const { applyDiscount } = useStudentDiscounts(alumnoId);
 
   useEffect(() => {
     if (!alumnoId) {
@@ -477,26 +479,49 @@ const PlanSelection = () => {
                   </div>
 
                   <div>
-                    {plan.tipo === "programa" && plan.precio_promocional ? (
-                      <>
-                        <span className="text-sm text-muted-foreground line-through">
-                          {formatPrice(plan.precio, plan.moneda)}
-                        </span>
-                        <br />
-                        <span className="text-3xl font-heading font-bold gold-text-gradient">
-                          {formatPrice(plan.precio_promocional, plan.moneda)}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-3xl font-heading font-bold gold-text-gradient">
-                          {formatPrice(plan.precio, plan.moneda)}
-                        </span>
-                        {plan.tipo !== "programa" && (
-                          <span className="text-muted-foreground text-sm"> /mes</span>
-                        )}
-                      </>
-                    )}
+                    {(() => {
+                      const basePrice = plan.tipo === "programa" && plan.precio_promocional
+                        ? plan.precio_promocional
+                        : plan.precio;
+                      const disc = applyDiscount(basePrice, "planes");
+                      const hasPromo = plan.tipo === "programa" && plan.precio_promocional;
+                      const hasStudentDiscount = disc.discount !== null;
+
+                      return (
+                        <>
+                          {hasPromo && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              {formatPrice(plan.precio, plan.moneda)}
+                            </span>
+                          )}
+                          {hasStudentDiscount && !hasPromo && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              {formatPrice(plan.precio, plan.moneda)}
+                            </span>
+                          )}
+                          {hasStudentDiscount && hasPromo && (
+                            <>
+                              <br />
+                              <span className="text-sm text-muted-foreground line-through">
+                                {formatPrice(plan.precio_promocional!, plan.moneda)}
+                              </span>
+                            </>
+                          )}
+                          <br />
+                          <span className="text-3xl font-heading font-bold gold-text-gradient">
+                            {formatPrice(disc.final, plan.moneda)}
+                          </span>
+                          {plan.tipo !== "programa" && (
+                            <span className="text-muted-foreground text-sm"> /mes</span>
+                          )}
+                          {hasStudentDiscount && (
+                            <p className="text-xs text-emerald-400 mt-1">
+                              {disc.discount!.nombre} (-{disc.discount!.valor}%)
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {plan.tipo === "programa" && plan.cuotas_cantidad && plan.cuota_valor && (

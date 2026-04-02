@@ -21,6 +21,7 @@ const mainItems: NavItem[] = [
 const finanzasItems: NavItem[] = [
   { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/planes", label: "Planes", icon: Package },
+  { to: "/admin/descuentos", label: "Descuentos", icon: Tag },
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
   { to: "/admin/facturacion", label: "Facturación", icon: FileText },
   { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },

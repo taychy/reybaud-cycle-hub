@@ -32,6 +32,7 @@ import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
 import AdminMejoras from "./pages/admin/AdminMejoras";
 import ManagePlanes from "./pages/admin/ManagePlanes";
+import ManageDescuentos from "./pages/admin/ManageDescuentos";
 import ManagePrecios from "./pages/admin/ManagePrecios";
 import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
@@ -111,6 +112,7 @@ const App = () => (
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="planes" element={<ManagePlanes />} />
             <Route path="precios" element={<ManagePrecios />} />
+            <Route path="descuentos" element={<ManageDescuentos />} />
             <Route path="pagos" element={<AdminPayments />} />
             <Route path="facturacion" element={<AdminBilling />} />
             <Route path="sedes" element={<ManageSedes />} />

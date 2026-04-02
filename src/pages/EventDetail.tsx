@@ -16,6 +16,7 @@ import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
 import { getEventPriceDisplay } from "@/lib/eventPricing";
 import { useAlumnoSession } from "@/hooks/useAlumnoSession";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
@@ -100,6 +101,7 @@ const EventDetail = () => {
   const { toast } = useToast();
   const { alumno } = useAlumnoSession();
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
+  const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -291,13 +293,25 @@ const EventDetail = () => {
           {/* Price & Quick Details */}
           {(isPaid || priceDisplay.mode === "gratuito" || event.max_capacity || event.duration_days) && (
             <div className="glass-card rounded-xl p-5 space-y-4">
-              {isPaid && (
+              {isPaid && (() => {
+                const disc = applyDiscount(priceDisplay.price!, "eventos");
+                return (
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-heading">Precio por persona</p>
-                    <p className="text-2xl font-heading font-bold text-primary leading-tight">
-                      {formatPrice(priceDisplay.price!, priceDisplay.currency)}
-                    </p>
+                    {disc.discount ? (
+                      <>
+                        <p className="text-sm text-muted-foreground line-through">{formatPrice(disc.original, priceDisplay.currency)}</p>
+                        <p className="text-2xl font-heading font-bold text-primary leading-tight">
+                          {formatPrice(disc.final, priceDisplay.currency)}
+                        </p>
+                        <p className="text-xs text-emerald-400">{disc.discount.nombre} (-{disc.discount.valor}%)</p>
+                      </>
+                    ) : (
+                      <p className="text-2xl font-heading font-bold text-primary leading-tight">
+                        {formatPrice(priceDisplay.price!, priceDisplay.currency)}
+                      </p>
+                    )}
                   </div>
                   {spotsLeft != null && (
                     <div className={`text-right ${spotsLeft <= 5 ? "text-destructive" : "text-muted-foreground"}`}>
@@ -306,7 +320,8 @@ const EventDetail = () => {
                     </div>
                   )}
                 </div>
-              )}
+                );
+              })()}
               {priceDisplay.mode === "gratuito" && (
                 <div className="flex items-baseline justify-between">
                   <p className="text-sm font-heading font-semibold text-emerald-400">Evento gratuito</p>
