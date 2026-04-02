@@ -305,7 +305,82 @@ const CoachLiquidaciones = () => {
           ))}
         </div>
 
-        {/* Movements list */}
+        {/* Add class button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => setShowClaseForm(true)}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Registrar clase
+        </Button>
+
+        {/* Class registration dialog */}
+        <Dialog open={showClaseForm} onOpenChange={setShowClaseForm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar clase realizada</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Fecha</label>
+                <Input
+                  type="date"
+                  value={claseForm.fecha}
+                  onChange={(e) => setClaseForm({ ...claseForm, fecha: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Tipo de actividad</label>
+                <Select
+                  value={claseForm.tipo_actividad}
+                  onValueChange={(v) => setClaseForm({ ...claseForm, tipo_actividad: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grupal_1h30">Grupal 1h30</SelectItem>
+                    <SelectItem value="grupal_2h">Grupal 2h</SelectItem>
+                    <SelectItem value="fondo_salida">Fondo/Salida</SelectItem>
+                    <SelectItem value="tecnica">Técnica</SelectItem>
+                    <SelectItem value="evento_escuela">Evento Escuela</SelectItem>
+                    <SelectItem value="evaluatoria">Evaluatoria</SelectItem>
+                    <SelectItem value="personalizada">Personalizada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {coachGrupos.length > 0 && (
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Grupo</label>
+                  <Select
+                    value={claseForm.grupo}
+                    onValueChange={(v) => setClaseForm({ ...claseForm, grupo: v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Seleccionar grupo" /></SelectTrigger>
+                    <SelectContent>
+                      {coachGrupos.map((g) => (
+                        <SelectItem key={g} value={g}>{g}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
+                <Textarea
+                  placeholder="Detalle de la clase..."
+                  value={claseForm.observaciones}
+                  onChange={(e) => setClaseForm({ ...claseForm, observaciones: e.target.value })}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                La clase quedará en estado "Pendiente de revisión" hasta que el administrador la apruebe.
+              </p>
+              <Button onClick={submitClase} className="w-full">Registrar clase</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+
         <div className="space-y-2">
           {filteredMovimientos.length === 0 ? (
             <Card className="bg-card border-border">
