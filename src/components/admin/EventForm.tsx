@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -175,6 +177,49 @@ const EventForm = ({
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(
     initialData ? categoryFromDbType(initialData.type) : null
   );
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Solo se permiten archivos de imagen.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La imagen no puede superar los 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("event-images")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Error al subir la imagen.");
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage
+      .from("event-images")
+      .getPublicUrl(path);
+
+    setForm((prev) => ({ ...prev, image_url: publicUrl.publicUrl }));
+    toast.success("Imagen subida correctamente.");
+    setUploading(false);
+  };
+
+  const handleRemoveImage = () => {
+    setForm((prev) => ({ ...prev, image_url: "" }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const updateMeta = (key: string, value: any) =>
     setForm((prev) => ({ ...prev, metadata: { ...prev.metadata, [key]: value } }));
@@ -286,9 +331,47 @@ const EventForm = ({
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <Label>URL imagen</Label>
-          <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
+        <div className="space-y-2">
+          <Label>Imagen del evento</Label>
+          {form.image_url ? (
+            <div className="relative rounded-lg overflow-hidden border border-border">
+              <img
+                src={form.image_url}
+                alt="Preview"
+                className="w-full h-40 object-cover"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full p-1.5 hover:bg-destructive/80 transition-colors"
+              >
+                <span className="text-xs font-medium text-foreground">✕</span>
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            >
+              <p className="text-sm text-muted-foreground">
+                {uploading ? "Subiendo..." : "Hacé clic para subir una imagen"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP — máx. 5MB</p>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <Input
+            value={form.image_url}
+            onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+            placeholder="O pegá una URL directa..."
+            className="text-xs"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
