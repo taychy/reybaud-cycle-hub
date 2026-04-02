@@ -174,25 +174,97 @@ const CoachLiquidaciones = () => {
     }
   }, [mes, coachId, loadMovimientos]);
 
+  const lookupHonorarioValue = async (tipoActividad: string, cId: string): Promise<number> => {
+    // Map tipo_actividad keys to search terms for honorarios.nombre_concepto
+    const searchTerms: Record<string, string[]> = {
+      grupal_1h30: ["grupal 1h30", "grupal_1h30", "1h30"],
+      grupal_2h: ["grupal 2h", "grupal_2h", "2h"],
+      fondo_salida: ["fondo", "salida", "fondo_salida"],
+      tecnica: ["técnica", "tecnica"],
+      evento_escuela: ["evento escuela", "evento_escuela"],
+      evaluatoria: ["evaluatoria", "evaluación", "evaluacion"],
+      personalizada: ["personalizada"],
+    };
+    const terms = searchTerms[tipoActividad] || [tipoActividad];
+
+    // Try coach-specific honorario first, then generic
+    for (const coachFilter of [cId, null]) {
+      let query = supabase.from("honorarios").select("valor").eq("activo", true);
+      if (coachFilter) {
+        query = query.eq("coach_id", coachFilter);
+      } else {
+        query = query.is("coach_id", null);
+      }
+
+      const { data: honorarios } = await query;
+      if (honorarios && honorarios.length > 0) {
+        // Find by matching nombre_concepto against search terms
+        // Since we can't do OR ilike in supabase-js easily, we fetch all and filter
+        const match = (honorarios as any[]).find((h: any) =>
+          terms.some(t => h.nombre_concepto?.toLowerCase().includes(t.toLowerCase()))
+        );
+        if (match) return Number(match.valor);
+      }
+    }
+
+    // Fallback: try from agenda_grupal linked honorario
+    const { data: agenda } = await supabase
+      .from("agenda_grupal")
+      .select("honorario_id, honorarios(valor)")
+      .eq("coach_id", cId)
+      .not("honorario_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (agenda && (agenda as any).honorarios?.valor) {
+      return Number((agenda as any).honorarios.valor);
+    }
+
+    return 0;
+  };
+
   const submitClase = async () => {
     if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
+
+    const valorBase = await lookupHonorarioValue(claseForm.tipo_actividad, coachId);
+
+    // Determine estado_economico based on reglas_liquidacion
+    let estadoEconomico = "pendiente_revision";
+    let finalValor = valorBase;
+    try {
+      const { data: regla } = await supabase
+        .from("reglas_liquidacion")
+        .select("liquida, porcentaje_pago")
+        .eq("tipo_actividad", claseForm.tipo_actividad)
+        .eq("estado_operativo", "realizada")
+        .maybeSingle();
+
+      if (regla && !regla.liquida) {
+        estadoEconomico = "no_liquidable";
+        finalValor = 0;
+      } else if (regla) {
+        finalValor = valorBase * (regla.porcentaje_pago / 100);
+      }
+    } catch {
+      // proceed with default
+    }
+
     const { error } = await supabase.from("movimientos_liquidacion").insert({
       coach_id: coachId,
       fecha: claseForm.fecha,
       tipo_actividad: claseForm.tipo_actividad,
       grupo: claseForm.grupo || null,
       origen: "carga_coach",
-      valor_base: 0,
-      total: 0,
+      valor_base: finalValor,
+      total: finalValor,
       estado_operativo: "realizada",
-      estado_economico: "pendiente_revision",
+      estado_economico: estadoEconomico,
       observaciones: claseForm.observaciones || null,
     } as any);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Clase registrada", description: "Queda pendiente de revisión por el administrador." });
+    toast({ title: "Clase registrada", description: finalValor > 0 ? `Valor: $${finalValor.toLocaleString("es-AR")} — Pendiente de revisión.` : "Queda pendiente de revisión por el administrador." });
     setShowClaseForm(false);
     setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", observaciones: "" });
     loadMovimientos(coachId, mes);

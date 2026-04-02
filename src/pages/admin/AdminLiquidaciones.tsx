@@ -148,6 +148,14 @@ const AdminLiquidaciones = () => {
     loadData();
   };
 
+  const updateMovEstado = async (movId: string, nuevoEstado: string) => {
+    const updates: any = { estado_economico: nuevoEstado };
+    await supabase.from("movimientos_liquidacion").update(updates).eq("id", movId);
+    toast({ title: `Movimiento marcado como ${nuevoEstado}` });
+    loadData();
+  };
+
+
   const coachName = (id: string) => coaches.find(c => c.id === id)?.nombre || "–";
 
   const formatMes = (m: string) => {
@@ -270,14 +278,16 @@ const AdminLiquidaciones = () => {
                   <TableHead>Coach</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Detalle</TableHead>
+                  <TableHead>Origen</TableHead>
                   <TableHead>Estado op.</TableHead>
                   <TableHead>Estado econ.</TableHead>
                   <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {movimientos.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sin movimientos</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sin movimientos</TableCell></TableRow>
                 ) : (
                   movimientos.map(m => (
                     <TableRow key={m.id}>
@@ -285,9 +295,27 @@ const AdminLiquidaciones = () => {
                       <TableCell className="text-xs">{coachName(m.coach_id)}</TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{TIPO_LABELS[m.tipo_actividad] || m.tipo_actividad}</Badge></TableCell>
                       <TableCell className="text-xs">{m.grupo || m.nombre_externo || m.evento || "–"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] ${m.origen === "carga_coach" ? "border-primary/40 text-primary" : ""}`}>
+                          {m.origen === "carga_coach" ? "Coach" : m.origen === "ajuste_manual" ? "Ajuste" : m.origen === "agenda_admin" ? "Agenda" : m.origen}
+                        </Badge>
+                      </TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{ESTADO_OP_LABELS[m.estado_operativo] || m.estado_operativo}</Badge></TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{m.estado_economico}</Badge></TableCell>
                       <TableCell className="text-right font-mono font-medium">${Number(m.total).toLocaleString("es-AR")}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {m.estado_economico === "pendiente_revision" && (
+                            <>
+                              <Button variant="ghost" size="sm" className="text-xs h-7 text-emerald-400" onClick={() => updateMovEstado(m.id, "liquidable")}>Confirmar</Button>
+                              <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive" onClick={() => updateMovEstado(m.id, "no_liquidable")}>Excluir</Button>
+                            </>
+                          )}
+                          {m.estado_economico === "liquidable" && (
+                            <Button variant="ghost" size="sm" className="text-xs h-7 text-primary" onClick={() => updateMovEstado(m.id, "pagada")}>Pagar</Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
