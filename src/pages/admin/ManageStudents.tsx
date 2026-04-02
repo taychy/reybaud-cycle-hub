@@ -773,10 +773,10 @@ const ManageStudents = () => {
             <div className="space-y-2">
               {loading ? (
                 <p className="text-center text-muted-foreground py-8">Cargando...</p>
-              ) : filtered.length === 0 ? (
+              ) : sorted.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No se encontraron alumnos</p>
               ) : (
-                filtered.map((alumno) => {
+                sorted.map((alumno) => {
                   const apellido = getApellido(alumno);
                   const subEstado = getSubEstadoLabel(alumno.id);
                   const inconsistency = getAlumnoInconsistency(alumno);
