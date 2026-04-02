@@ -108,12 +108,13 @@ const CoachLiquidaciones = () => {
 
       const { data: coach } = await supabase
         .from("coaches")
-        .select("id")
+        .select("id, grupos")
         .eq("user_id", session.user.id)
         .single();
       if (!coach) { navigate("/coach"); return; }
 
       setCoachId(coach.id);
+      setCoachGrupos((coach as any).grupos || []);
 
       // Fetch current month movements
       const startDate = `${mesActual}-01`;
