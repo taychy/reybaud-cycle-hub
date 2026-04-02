@@ -973,6 +973,17 @@ const ManageStudents = () => {
                 const missing = getProfileMissing(drawerAlumno, subEstado);
                 return (
                   <div className="space-y-6 py-4">
+                    {/* Impersonation button for super admin */}
+                    {isSuperAdmin && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => navigate(`/admin/ver-como/${drawerAlumno.id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver como usuario
+                      </Button>
+                    )}
                     {/* Inconsistency alert */}
                     {inconsistency && (
                       <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 flex items-center gap-2">
