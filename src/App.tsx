@@ -67,10 +67,13 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
 import BookingFlow from "./pages/booking/BookingFlow";
+import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
+import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ImpersonationProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
