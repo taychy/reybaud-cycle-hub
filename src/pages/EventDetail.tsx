@@ -241,7 +241,7 @@ const EventDetail = () => {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Image */}
       <div className="relative">
-        <div className="aspect-[16/9] max-h-[280px] md:max-h-[420px] overflow-hidden">
+        <div className="w-full h-[280px] md:h-[420px] overflow-hidden">
           <img src={heroImage} alt={event.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         </div>
