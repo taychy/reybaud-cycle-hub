@@ -23,6 +23,8 @@ interface Descuento {
   usos_actuales: number;
   activo: boolean;
   aplica_a: string;
+  vigencia_desde: string | null;
+  vigencia_hasta: string | null;
   created_at: string;
 }
 
@@ -72,11 +74,14 @@ const ManageDescuentos = () => {
   // Form state
   const [form, setForm] = useState({
     nombre: "",
+    tipo: "porcentaje",
     categoria: "general",
     valor: 0,
     codigo: "",
     max_usos: "",
     aplica_a: "todo",
+    vigencia_desde: "",
+    vigencia_hasta: "",
     activo: true,
   });
 
@@ -92,7 +97,7 @@ const ManageDescuentos = () => {
   useEffect(() => { loadDescuentos(); }, []);
 
   const resetForm = () => {
-    setForm({ nombre: "", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", activo: true });
+    setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", activo: true });
     setEditing(null);
   };
 
@@ -102,11 +107,14 @@ const ManageDescuentos = () => {
     setEditing(d);
     setForm({
       nombre: d.nombre,
+      tipo: d.tipo || "porcentaje",
       categoria: d.categoria,
       valor: d.valor,
       codigo: d.codigo || "",
       max_usos: d.max_usos?.toString() || "",
       aplica_a: d.aplica_a,
+      vigencia_desde: d.vigencia_desde || "",
+      vigencia_hasta: d.vigencia_hasta || "",
       activo: d.activo,
     });
     setDialogOpen(true);
@@ -120,12 +128,14 @@ const ManageDescuentos = () => {
 
     const payload: any = {
       nombre: form.nombre,
-      tipo: "porcentaje",
+      tipo: form.tipo,
       categoria: form.categoria,
       valor: form.valor,
       codigo: form.codigo.trim() || null,
       max_usos: form.max_usos ? parseInt(form.max_usos) : null,
       aplica_a: form.aplica_a,
+      vigencia_desde: form.vigencia_desde || null,
+      vigencia_hasta: form.vigencia_hasta || null,
       activo: form.activo,
     };
 
