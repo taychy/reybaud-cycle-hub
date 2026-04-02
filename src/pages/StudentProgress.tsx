@@ -214,7 +214,7 @@ const StudentProgress = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="flex items-center gap-3 px-4 pt-5 pb-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/alumno")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
