@@ -20,6 +20,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
+import CancelReservationDrawer from "@/components/reservation/CancelReservationDrawer";
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -107,6 +108,7 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [showReservationDrawer, setShowReservationDrawer] = useState(false);
+  const [showCancelDrawer, setShowCancelDrawer] = useState(false);
 
   // Result state
   const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; avg_speed_kmh: number | null; notes: string | null } | null>(null);
@@ -499,17 +501,33 @@ const EventDetail = () => {
           {/* CASE B: Has active reservation → "Mi estado"      */}
           {/* ═══════════════════════════════════════════════════ */}
           {alumno && isActiveReservation && reservation && (
-            <ReservationStatusCard
-              reservation={reservation}
-              alumnoId={alumno.id}
-              eventCurrency={event.currency}
-              eventDate={event.date}
-              eventTitle={event.title}
-              eventMetadata={event.metadata}
-              reglamentoUrl={event.metadata?.reglamento}
-              whatsappUrl={event.metadata?.whatsapp_url}
-              onPaymentReported={loadReservation}
-            />
+            <>
+              <ReservationStatusCard
+                reservation={reservation}
+                alumnoId={alumno.id}
+                eventCurrency={event.currency}
+                eventDate={event.date}
+                eventTitle={event.title}
+                eventMetadata={event.metadata}
+                reglamentoUrl={event.metadata?.reglamento}
+                whatsappUrl={event.metadata?.whatsapp_url}
+                onPaymentReported={loadReservation}
+              />
+              {/* Cancel button */}
+              {event.metadata?.cancellation?.allow_cancellation !== false && (
+                <div className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => setShowCancelDrawer(true)}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
+                    Cancelar mi {isInscriptionOnly ? "inscripción" : "reserva"}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
           {/* CASE C: Cancelled/rejected reservation — allow re-reserve */}
@@ -624,6 +642,29 @@ const EventDetail = () => {
           alumno={alumno}
           onReserved={handleReservationCreated}
           eventNature={eventNature}
+        />
+      )}
+
+      {/* Cancel Reservation Drawer */}
+      {alumno && reservation && isActiveReservation && (
+        <CancelReservationDrawer
+          open={showCancelDrawer}
+          onOpenChange={setShowCancelDrawer}
+          reservationId={reservation.id}
+          eventTitle={event.title}
+          eventDate={event.date}
+          cancellationPolicy={{
+            allow_cancellation: event.metadata?.cancellation?.allow_cancellation ?? true,
+            cancellation_days_before: event.metadata?.cancellation?.cancellation_days_before ?? 0,
+            cancellation_type: event.metadata?.cancellation?.cancellation_type ?? "sin_penalidad",
+            cancellation_text_short: event.metadata?.cancellation?.cancellation_text_short ?? "",
+            cancellation_text_full: event.metadata?.cancellation?.cancellation_text_full ?? "",
+            require_reason: event.metadata?.cancellation?.require_reason ?? false,
+          }}
+          onCancelled={() => {
+            setShowCancelDrawer(false);
+            loadReservation();
+          }}
         />
       )}
     </div>
