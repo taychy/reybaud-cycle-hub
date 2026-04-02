@@ -154,8 +154,8 @@ const AdminPayments = () => {
       if (filterSede !== "todos" && s.alumnos?.sede_id !== filterSede) return false;
       if (filterAlumno && ![s.alumnos?.nombre, s.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase().includes(filterAlumno.toLowerCase())) return false;
       if (filterMetodo !== "todos") {
-        const metodo = getMetodoPago(s).toLowerCase();
-        if (!metodo.includes(filterMetodo.toLowerCase())) return false;
+        const normalized = s.mp_payment_id && !s.mp_status ? "mercadopago" : normalizePaymentMethod(s.mp_status);
+        if (normalized !== filterMetodo) return false;
       }
       if (filterFechaDesde && s.created_at < filterFechaDesde) return false;
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
