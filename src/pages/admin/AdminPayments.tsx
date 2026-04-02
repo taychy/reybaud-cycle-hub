@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { formatPrice } from "@/lib/currency";
+import { PAYMENT_METHODS, getPaymentMethodLabel, normalizePaymentMethod } from "@/lib/paymentMethods";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,11 +89,8 @@ const getStatusBadge = (status: string) => {
 };
 
 const getMetodoPago = (sub: Suscripcion): string => {
-  if (sub.mp_status === "efectivo" || sub.mp_status === "cash") return "Efectivo";
-  if (sub.mp_status === "externo") return "Pago externo";
-  if (sub.mp_payment_id) return "Tarjeta / MP";
-  if (sub.mp_status === "manual") return "Manual";
-  return "Sin definir";
+  if (sub.mp_payment_id && !sub.mp_status) return getPaymentMethodLabel("mercadopago");
+  return getPaymentMethodLabel(sub.mp_status);
 };
 
 // formatPrice imported from @/lib/currency
@@ -156,8 +154,8 @@ const AdminPayments = () => {
       if (filterSede !== "todos" && s.alumnos?.sede_id !== filterSede) return false;
       if (filterAlumno && ![s.alumnos?.nombre, s.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase().includes(filterAlumno.toLowerCase())) return false;
       if (filterMetodo !== "todos") {
-        const metodo = getMetodoPago(s).toLowerCase();
-        if (!metodo.includes(filterMetodo.toLowerCase())) return false;
+        const normalized = s.mp_payment_id && !s.mp_status ? "mercadopago" : normalizePaymentMethod(s.mp_status);
+        if (normalized !== filterMetodo) return false;
       }
       if (filterFechaDesde && s.created_at < filterFechaDesde) return false;
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
@@ -243,7 +241,7 @@ const AdminPayments = () => {
       estado: "activa",
       fecha_inicio: manualPayData.fecha_pago,
       fecha_fin: fechaFin.toISOString().split("T")[0],
-      mp_status: manualPayData.metodo === "efectivo" ? "efectivo" : "externo",
+      mp_status: manualPayData.metodo,
     }).eq("id", manualPayDialog.id);
     if (!error) {
       await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualPayDialog.alumno_id);
@@ -404,9 +402,9 @@ const AdminPayments = () => {
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="tarjeta">Tarjeta / MP</SelectItem>
-                  <SelectItem value="externo">Pago externo</SelectItem>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
                   <SelectItem value="manual">Manual</SelectItem>
                 </SelectContent>
               </Select>
@@ -610,9 +608,9 @@ const AdminPayments = () => {
               <Select value={manualPayData.metodo} onValueChange={(v) => setManualPayData((p) => ({ ...p, metodo: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="transferencia">Transferencia</SelectItem>
-                  <SelectItem value="otro">Otro</SelectItem>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
