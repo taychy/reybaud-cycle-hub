@@ -650,10 +650,130 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice
                 />
               </div>
 
+              {/* Installment schedule */}
+              {installments.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-heading font-semibold text-sm">Plan de cuotas</h4>
+                  <div className="space-y-1">
+                    {installments.map((inst: any, idx: number) => {
+                      const instAmount = parseFloat(inst.amount || "0");
+                      const accumulatedBefore = installments.slice(0, idx).reduce((s: number, c: any) => s + (parseFloat(c.amount) || 0), 0);
+                      const isPaid = (selectedRes.amount_paid || 0) >= accumulatedBefore + instAmount;
+                      const isPartial = !isPaid && (selectedRes.amount_paid || 0) > accumulatedBefore;
+                      const isOverdue = inst.due_date && new Date(inst.due_date) < new Date() && !isPaid;
+                      return (
+                        <div key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs border ${
+                          isPaid ? "bg-emerald-500/10 border-emerald-500/20" : isOverdue ? "bg-destructive/10 border-destructive/20" : "bg-muted/40 border-border/30"
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            {isPaid ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : isOverdue ? <AlertCircle className="w-3.5 h-3.5 text-destructive" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
+                            <span className="font-medium">{inst.label || `Cuota ${idx + 1}`}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">{formatPrice(instAmount, eventCurrency)}</span>
+                            {inst.due_date && (
+                              <span className={isOverdue ? "text-destructive" : "text-muted-foreground"}>
+                                Vence {new Date(inst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                              </span>
+                            )}
+                            {isPaid && <span className="text-emerald-400 font-medium">Pagada</span>}
+                            {isPartial && <span className="text-sky-400 font-medium">Parcial</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Payments */}
               <div className="space-y-2">
-                <h4 className="font-heading font-semibold text-sm">Pagos informados</h4>
-                {payments.length === 0 ? (
+                <div className="flex items-center justify-between">
+                  <h4 className="font-heading font-semibold text-sm">Pagos registrados</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setShowAdminPayment(!showAdminPayment);
+                      setAdminPayAmount(selectedRes.balance_due?.toString() || "");
+                    }}
+                  >
+                    <Banknote className="w-3.5 h-3.5 mr-1" /> Registrar pago
+                  </Button>
+                </div>
+
+                {/* Admin payment form */}
+                {showAdminPayment && (
+                  <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+                    <p className="text-xs font-semibold text-primary">Registrar pago (se valida automáticamente)</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Monto *</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={adminPayAmount}
+                          onChange={(e) => setAdminPayAmount(e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Ej: 50000"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Fecha</Label>
+                        <Input
+                          type="date"
+                          value={adminPayDate}
+                          onChange={(e) => setAdminPayDate(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Método</Label>
+                        <Select value={adminPayMethod} onValueChange={setAdminPayMethod}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="efectivo">Efectivo</SelectItem>
+                            <SelectItem value="transferencia">Transferencia</SelectItem>
+                            <SelectItem value="mercadopago">MercadoPago</SelectItem>
+                            <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                            <SelectItem value="plataforma_externa">Plataforma ext.</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Referencia</Label>
+                        <Input
+                          value={adminPayRef}
+                          onChange={(e) => setAdminPayRef(e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Nro transferencia..."
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Nota (opcional)</Label>
+                      <Input
+                        value={adminPayNotes}
+                        onChange={(e) => setAdminPayNotes(e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder="Observaciones..."
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setShowAdminPayment(false)}>Cancelar</Button>
+                      <Button variant="default" size="sm" className="text-xs h-7" disabled={submittingAdminPay} onClick={registerAdminPayment}>
+                        {submittingAdminPay ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                        Registrar y validar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {payments.length === 0 && !showAdminPayment ? (
                   <p className="text-xs text-muted-foreground">Sin pagos registrados.</p>
                 ) : (
                   <div className="space-y-2">
