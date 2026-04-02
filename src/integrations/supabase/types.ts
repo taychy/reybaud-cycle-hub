@@ -406,6 +406,99 @@ export type Database = {
         }
         Relationships: []
       }
+      descuentos: {
+        Row: {
+          activo: boolean
+          aplica_a: string
+          categoria: string
+          codigo: string | null
+          created_at: string
+          id: string
+          max_usos: number | null
+          nombre: string
+          tipo: string
+          updated_at: string
+          usos_actuales: number
+          valor: number
+        }
+        Insert: {
+          activo?: boolean
+          aplica_a?: string
+          categoria?: string
+          codigo?: string | null
+          created_at?: string
+          id?: string
+          max_usos?: number | null
+          nombre: string
+          tipo?: string
+          updated_at?: string
+          usos_actuales?: number
+          valor?: number
+        }
+        Update: {
+          activo?: boolean
+          aplica_a?: string
+          categoria?: string
+          codigo?: string | null
+          created_at?: string
+          id?: string
+          max_usos?: number | null
+          nombre?: string
+          tipo?: string
+          updated_at?: string
+          usos_actuales?: number
+          valor?: number
+        }
+        Relationships: []
+      }
+      descuentos_alumno: {
+        Row: {
+          activo: boolean
+          alumno_id: string
+          asignado_por: string | null
+          created_at: string
+          descuento_id: string
+          id: string
+          nota: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          alumno_id: string
+          asignado_por?: string | null
+          created_at?: string
+          descuento_id: string
+          id?: string
+          nota?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          alumno_id?: string
+          asignado_por?: string | null
+          created_at?: string
+          descuento_id?: string
+          id?: string
+          nota?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "descuentos_alumno_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "descuentos_alumno_descuento_id_fkey"
+            columns: ["descuento_id"]
+            isOneToOne: false
+            referencedRelation: "descuentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disponibilidad_coaches: {
         Row: {
           activo: boolean
