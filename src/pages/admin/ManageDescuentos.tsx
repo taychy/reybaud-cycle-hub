@@ -372,6 +372,17 @@ const ManageDescuentos = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-muted-foreground">Vigencia desde (opcional)</label>
+                <Input type="date" value={form.vigencia_desde} onChange={e => setForm(f => ({ ...f, vigencia_desde: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Vigencia hasta (opcional)</label>
+                <Input type="date" value={form.vigencia_hasta} onChange={e => setForm(f => ({ ...f, vigencia_hasta: e.target.value }))} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">Dejá vacío para descuento permanente</p>
             <div className="flex items-center gap-2">
               <Switch checked={form.activo} onCheckedChange={v => setForm(f => ({ ...f, activo: v }))} />
               <span className="text-sm text-muted-foreground">Activo</span>
