@@ -209,7 +209,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   variant="gold"
                   className="flex-1"
                   onClick={() => setStep("form")}
-                  disabled={missingFields.length > 0 || (spotsLeft !== null && spotsLeft <= 0)}
+                  disabled={spotsLeft !== null && spotsLeft <= 0}
                 >
                   Continuar <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
