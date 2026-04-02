@@ -242,7 +242,7 @@ const AdminMejoras = () => {
               </p>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="h-[50vh] overflow-y-auto px-4 py-3 space-y-3">
+              <div ref={aiScrollRef} className="h-[50vh] overflow-y-auto px-4 py-3 space-y-3">
                 {aiMessages.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm gap-3">
                     <Bot className="w-10 h-10 opacity-30" />
