@@ -849,12 +849,13 @@ const ManageStudents = () => {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <Label className="text-xs">Teléfono</Label>
-                              <Input value={detailForm.telefono} onChange={(e) => setDetailForm({ ...detailForm, telefono: e.target.value })} className="bg-secondary border-border text-sm h-8" />
+                              <Input value={detailForm.telefono} onChange={(e) => setDetailForm({ ...detailForm, telefono: e.target.value })} className="bg-secondary border-border text-sm h-8" placeholder="Ej: 5491140312299" />
+                              <p className="text-[10px] text-muted-foreground">Formato: 549 + código de área + número (sin 15)</p>
                             </div>
                             <div className="space-y-1">
                               <Label className="text-xs">DNI/CUIT</Label>
-                              <Input value={detailForm.documento} onChange={(e) => setDetailForm({ ...detailForm, documento: e.target.value })} className="bg-secondary border-border text-sm h-8" />
-                            </div>
+                              <Input value={detailForm.documento} onChange={(e) => setDetailForm({ ...detailForm, documento: e.target.value })} className="bg-secondary border-border text-sm h-8" placeholder="Ej: 17951790" />
+                              <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Notas internas</Label>
