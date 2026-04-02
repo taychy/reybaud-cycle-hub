@@ -216,31 +216,22 @@ const AdminLayout = () => {
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
               <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} />
               <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} />
-              <div className="pt-2 pb-1">
+            </>
+          )}
+          {navSections.map((section, idx) => (
+            <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
+              <div className="pb-1">
                 {!collapsed && (
                   <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
-                    Gestión
+                    {section.label}
                   </span>
                 )}
                 {collapsed && <div className="border-t border-sidebar-border mx-1" />}
               </div>
-            </>
-          )}
-          {navItems.map((item) => (
-            <NavItem key={item.to} item={item} />
-          ))}
-
-          {/* Store section */}
-          <div className="pt-4 pb-1">
-            {!collapsed && (
-              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
-                Tienda
-              </span>
-            )}
-            {collapsed && <div className="border-t border-sidebar-border mx-1" />}
-          </div>
-          {storeNavItems.map((item) => (
-            <NavItem key={item.to} item={item} />
+              {section.items.map((item) => (
+                <NavItem key={item.to} item={item} />
+              ))}
+            </div>
           ))}
 
           {/* Logout inside nav */}
