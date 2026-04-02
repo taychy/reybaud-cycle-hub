@@ -39,6 +39,14 @@ const CoachDashboard = () => {
       const coachGrupos = (coach as any).grupos || [];
       setGrupos(coachGrupos);
 
+      // Mark activation as complete on first login (OTP flow doesn't go through SetPassword)
+      if (!(coach as any).password_set) {
+        await supabase
+          .from("coaches")
+          .update({ password_set: true } as any)
+          .eq("id", (coach as any).id);
+      }
+
       if (coachGrupos.length > 0) {
         const today = new Date().toISOString().split("T")[0];
         const { data: nextClass } = await supabase
