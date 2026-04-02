@@ -448,7 +448,7 @@ const ManageStudents = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Invitación reenviada a ${alumno.email}`);
-      fetchAlumnos();
+      await logStudentActivity({ alumnoId: alumno.id, eventType: "reenvio_invitacion", title: "Reenvío de invitación", description: `Email reenviado a ${alumno.email}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
     } catch (err: any) {
       toast.error(err.message || "Error al reenviar invitación");
     } finally {
