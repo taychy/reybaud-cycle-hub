@@ -2484,6 +2484,51 @@ export type Database = {
         }
         Relationships: []
       }
+      student_activity_log: {
+        Row: {
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string
+          alumno_id: string
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          reference_id: string | null
+          reference_label: string | null
+          reference_type: string | null
+          title: string
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string
+          alumno_id: string
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          reference_id?: string | null
+          reference_label?: string | null
+          reference_type?: string | null
+          title: string
+        }
+        Update: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string
+          alumno_id?: string
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          reference_id?: string | null
+          reference_label?: string | null
+          reference_type?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       suscripciones: {
         Row: {
           alumno_id: string

@@ -18,6 +18,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
+import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
+import { logStudentActivity } from "@/lib/logStudentActivity";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -385,9 +387,9 @@ const ManageStudents = () => {
       notas: detailForm.notas || null,
     } as any).eq("id", drawerAlumno.id);
     toast.success("Datos actualizados");
+    await logStudentActivity({ alumnoId: drawerAlumno.id, eventType: "edicion_datos", title: "Edición de datos", description: "Datos personales modificados desde la ficha", actorRole: isSuperAdmin ? "super_admin" : "admin" });
     setEditingDetail(false);
     fetchAlumnos();
-    // Refresh drawer data
     const { data } = await supabase.from("alumnos").select("*").eq("id", drawerAlumno.id).maybeSingle();
     if (data) setDrawerAlumno(data);
   };
@@ -416,6 +418,11 @@ const ManageStudents = () => {
       if (createForm.apellido.trim()) {
         await supabase.from("alumnos").update({ apellido: createForm.apellido.trim() } as any).eq("email", createForm.email.trim());
       }
+      // Log activity
+      const { data: newAlumno } = await supabase.from("alumnos").select("id").eq("email", createForm.email.trim().toLowerCase()).maybeSingle();
+      if (newAlumno) {
+        await logStudentActivity({ alumnoId: newAlumno.id, eventType: "alta", title: "Alta de alumno", description: `Creado e invitación enviada a ${createForm.email.trim()}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
+      }
       toast.success(data?.message || "Alumno creado e invitación enviada");
       setShowCreate(false);
       setCreateForm({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
@@ -441,7 +448,7 @@ const ManageStudents = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Invitación reenviada a ${alumno.email}`);
-      fetchAlumnos();
+      await logStudentActivity({ alumnoId: alumno.id, eventType: "reenvio_invitacion", title: "Reenvío de invitación", description: `Email reenviado a ${alumno.email}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
     } catch (err: any) {
       toast.error(err.message || "Error al reenviar invitación");
     } finally {
@@ -476,6 +483,7 @@ const ManageStudents = () => {
       await supabase.from("suscripciones").update({ estado: "cancelada", cancelada_motivo: stateChangeMotivo || "Usuario bloqueado" } as any).eq("alumno_id", alumno.id).in("estado", ["activa", "pausa"]);
     }
     toast.success(`${alumno.nombre} ahora está ${newEstado}`);
+    await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_usuario", title: `Estado → ${newEstado}`, description: `Cambio de "${alumno.estado}" a "${newEstado}"${stateChangeMotivo ? `. Motivo: ${stateChangeMotivo}` : ""}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       await supabase.from("audit_log").insert({
@@ -531,6 +539,7 @@ const ManageStudents = () => {
       } as any);
     }
     toast.success(`Suscripción de ${subChangeAlumno.nombre} actualizada a "${subChangeTarget}"`);
+    await logStudentActivity({ alumnoId: subChangeAlumno.id, eventType: "estado_suscripcion", title: `Suscripción → ${subChangeTarget}`, description: `Cambio de "${sub.estado}" a "${subChangeTarget}"${subChangeMotivo ? `. Motivo: ${subChangeMotivo}` : ""}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "suscripcion", referenceId: sub.id });
     setSavingSub(false);
     setSubChangeAlumno(null);
     fetchAlumnos();
@@ -564,6 +573,7 @@ const ManageStudents = () => {
     const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
     supabase.functions.invoke("notify-student-update", { body: { alumno_id: manualSubAlumno.id, type: emailType, fecha_vencimiento: manualFechaFin } }).catch(() => {});
     toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
+    await logStudentActivity({ alumnoId: manualSubAlumno.id, eventType: "pago", title: "Suscripción manual habilitada", description: `Vencimiento: ${manualFechaFin}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "suscripcion", referenceLabel: `Hasta ${manualFechaFin}` });
     setManualSubAlumno(null);
     setManualFechaFin("");
     setSavingManual(false);
@@ -602,6 +612,7 @@ const ManageStudents = () => {
         body: { alumno_id: changePlanAlumno.id, type: "plan_cambiado", plan_nombre: selectedPlan?.nombre || "Nuevo plan", plan_precio: selectedPlan?.precio, plan_moneda: selectedPlan?.moneda },
       }).catch(() => {});
       toast.success(`Plan actualizado para ${changePlanAlumno.nombre}`);
+      await logStudentActivity({ alumnoId: changePlanAlumno.id, eventType: "cambio_plan", title: "Cambio de plan", description: `Nuevo plan: ${selectedPlan?.nombre || "—"}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—" });
       setChangePlanAlumno(null);
       setNewPlanId("");
       fetchAlumnos();
@@ -1014,6 +1025,10 @@ const ManageStudents = () => {
                         <Separator />
                       </>
                     )}
+
+                    {/* Activity Log */}
+                    <StudentActivityLog alumnoId={drawerAlumno.id} />
+                    <Separator />
 
                     {/* Actions */}
                     <div className="space-y-2">
