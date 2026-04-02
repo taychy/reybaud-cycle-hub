@@ -501,17 +501,33 @@ const EventDetail = () => {
           {/* CASE B: Has active reservation → "Mi estado"      */}
           {/* ═══════════════════════════════════════════════════ */}
           {alumno && isActiveReservation && reservation && (
-            <ReservationStatusCard
-              reservation={reservation}
-              alumnoId={alumno.id}
-              eventCurrency={event.currency}
-              eventDate={event.date}
-              eventTitle={event.title}
-              eventMetadata={event.metadata}
-              reglamentoUrl={event.metadata?.reglamento}
-              whatsappUrl={event.metadata?.whatsapp_url}
-              onPaymentReported={loadReservation}
-            />
+            <>
+              <ReservationStatusCard
+                reservation={reservation}
+                alumnoId={alumno.id}
+                eventCurrency={event.currency}
+                eventDate={event.date}
+                eventTitle={event.title}
+                eventMetadata={event.metadata}
+                reglamentoUrl={event.metadata?.reglamento}
+                whatsappUrl={event.metadata?.whatsapp_url}
+                onPaymentReported={loadReservation}
+              />
+              {/* Cancel button */}
+              {event.metadata?.cancellation?.allow_cancellation !== false && (
+                <div className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => setShowCancelDrawer(true)}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
+                    Cancelar mi {isInscriptionOnly ? "inscripción" : "reserva"}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
           {/* CASE C: Cancelled/rejected reservation — allow re-reserve */}
