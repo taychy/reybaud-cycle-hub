@@ -387,9 +387,9 @@ const ManageStudents = () => {
       notas: detailForm.notas || null,
     } as any).eq("id", drawerAlumno.id);
     toast.success("Datos actualizados");
+    await logStudentActivity({ alumnoId: drawerAlumno.id, eventType: "edicion_datos", title: "Edición de datos", description: "Datos personales modificados desde la ficha", actorRole: isSuperAdmin ? "super_admin" : "admin" });
     setEditingDetail(false);
     fetchAlumnos();
-    // Refresh drawer data
     const { data } = await supabase.from("alumnos").select("*").eq("id", drawerAlumno.id).maybeSingle();
     if (data) setDrawerAlumno(data);
   };
