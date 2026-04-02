@@ -107,6 +107,7 @@ const App = () => (
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
+          <Route path="/admin/ver-como/:alumnoId" element={<ImpersonateStudent />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
