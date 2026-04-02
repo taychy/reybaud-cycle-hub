@@ -230,9 +230,13 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Observaciones o requerimientos especiales (opcional)</Label>
+                <Label className="text-xs text-muted-foreground">Observaciones (opcional)</Label>
                 <Textarea
-                  placeholder="Ej: necesito habitación individual, soy celíaco, etc."
+                  placeholder={
+                    event.type === "camp" || event.type === "viaje"
+                      ? "Ej: necesito habitación individual, soy celíaco, etc."
+                      : "Ej: llego 30 min tarde, voy con un acompañante, etc."
+                  }
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
