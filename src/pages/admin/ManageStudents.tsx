@@ -279,6 +279,21 @@ const ManageStudents = () => {
   const conAccesoCount = alumnos.filter(a => !!a.user_id).length;
   const sinAccesoCount = alumnos.filter(a => !a.user_id).length;
 
+  // --- Plan-based counts ---
+  const planCounts: Record<string, { name: string; count: number }> = {};
+  const sinPlanIds = new Set<string>();
+  alumnos.forEach(a => {
+    const sub = getActiveSub(a.id) || getAnySub(a.id);
+    if (sub && sub.planes) {
+      const planId = sub.plan_id;
+      if (!planCounts[planId]) planCounts[planId] = { name: (sub.planes as any).nombre, count: 0 };
+      planCounts[planId].count++;
+    } else {
+      sinPlanIds.add(a.id);
+    }
+  });
+  const sinPlanCount = sinPlanIds.size;
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
