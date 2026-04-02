@@ -34,6 +34,7 @@ type Suscripcion = {
   alumnos: {
     id: string;
     nombre: string;
+    apellido: string | null;
     email: string;
     telefono: string | null;
     sede_id: string | null;
@@ -134,7 +135,7 @@ const AdminPayments = () => {
     const [subsRes, sedesRes, planesRes] = await Promise.all([
       supabase
         .from("suscripciones")
-        .select("*, alumnos(id, nombre, email, telefono, sede_id), planes(id, nombre, precio, moneda, frecuencia)")
+        .select("*, alumnos(id, nombre, apellido, email, telefono, sede_id), planes(id, nombre, precio, moneda, frecuencia)")
         .order("created_at", { ascending: false }),
       supabase.from("sedes").select("id, nombre").eq("activa", true),
       supabase.from("planes").select("id, nombre"),
@@ -153,7 +154,7 @@ const AdminPayments = () => {
       if (filterEstado !== "todos" && status !== filterEstado) return false;
       if (filterPlan !== "todos" && s.plan_id !== filterPlan) return false;
       if (filterSede !== "todos" && s.alumnos?.sede_id !== filterSede) return false;
-      if (filterAlumno && !s.alumnos?.nombre.toLowerCase().includes(filterAlumno.toLowerCase())) return false;
+      if (filterAlumno && ![s.alumnos?.nombre, s.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase().includes(filterAlumno.toLowerCase())) return false;
       if (filterMetodo !== "todos") {
         const metodo = getMetodoPago(s).toLowerCase();
         if (!metodo.includes(filterMetodo.toLowerCase())) return false;
@@ -460,7 +461,7 @@ const AdminPayments = () => {
                           <TableCell className="px-2">
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                           </TableCell>
-                          <TableCell className="font-medium text-sm">{sub.alumnos?.nombre || "—"}</TableCell>
+                          <TableCell className="font-medium text-sm">{[sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" ") || "—"}</TableCell>
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
                           <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>
