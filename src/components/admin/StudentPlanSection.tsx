@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -69,6 +70,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const { discounts, applyDiscount, loading: discountsLoading } = useStudentDiscounts(alumno.id);
 
   // Change plan dialog
   const [showChangePlan, setShowChangePlan] = useState(false);
@@ -270,35 +272,48 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             </div>
           )}
 
-          {/* Precio */}
-          {currentSub?.planes && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-xs">Precio del plan</span>
-              <span className={`text-xs font-mono ${currentSub.descuento_id ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                {currentSub.planes.moneda} {currentSub.precio_base ?? currentSub.planes.precio}
-              </span>
-            </div>
-          )}
+          {/* Precio y descuento */}
+          {currentSub?.planes && (() => {
+            const planPrice = currentSub.planes.precio;
+            const moneda = currentSub.planes.moneda;
+            // Priority: discount stored on subscription, then live discount from descuentos_alumno
+            const hasSavedDiscount = currentSub.descuento_id && currentSub.descuentos;
+            const liveDiscount = !hasSavedDiscount ? applyDiscount(planPrice, "planes") : null;
+            const hasLiveDiscount = liveDiscount && liveDiscount.discount;
+            const hasAnyDiscount = hasSavedDiscount || hasLiveDiscount;
 
-          {/* Descuento aplicado */}
-          {currentSub?.descuento_id && currentSub.descuentos && (
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-emerald-400">
-                {currentSub.descuentos.nombre} ({currentSub.descuentos.tipo === "fijo" ? `$${currentSub.descuentos.valor}` : `${currentSub.descuentos.valor}%`})
-              </span>
-              <span className="text-xs text-emerald-400 font-mono">
-                -{currentSub.planes.moneda} {(currentSub.precio_base ?? currentSub.planes.precio) - (currentSub.precio_final ?? currentSub.planes.precio)}
-              </span>
-            </div>
-          )}
+            const displayBase = hasSavedDiscount ? (currentSub.precio_base ?? planPrice) : planPrice;
+            const displayFinal = hasSavedDiscount
+              ? (currentSub.precio_final ?? planPrice)
+              : hasLiveDiscount ? liveDiscount.final : planPrice;
+            const discountLabel = hasSavedDiscount
+              ? `${currentSub.descuentos!.nombre} (${currentSub.descuentos!.tipo === "fijo" ? `$${currentSub.descuentos!.valor}` : `${currentSub.descuentos!.valor}%`})`
+              : hasLiveDiscount ? `${liveDiscount.discount!.nombre} (${liveDiscount.discount!.tipo === "fijo" ? `$${liveDiscount.discount!.valor}` : `${liveDiscount.discount!.valor}%`})` : "";
+            const savings = displayBase - displayFinal;
 
-          {/* Precio final */}
-          {currentSub?.descuento_id && currentSub.precio_final != null && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-xs font-medium">Precio final</span>
-              <span className="text-foreground text-xs font-mono font-medium">{currentSub.planes?.moneda} {currentSub.precio_final}</span>
-            </div>
-          )}
+            return (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-xs">Precio del plan</span>
+                  <span className={`text-xs font-mono ${hasAnyDiscount ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                    {moneda} {displayBase}
+                  </span>
+                </div>
+                {hasAnyDiscount && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-emerald-400">{discountLabel}</span>
+                      <span className="text-xs text-emerald-400 font-mono">-{moneda} {savings}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground text-xs font-medium">Precio final</span>
+                      <span className="text-foreground text-xs font-mono font-medium">{moneda} {displayFinal}</span>
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Action buttons */}
