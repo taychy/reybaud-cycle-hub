@@ -6,25 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 
-const navItems = [
+/* ─── Nav sections ─── */
+type NavItem = { to: string; label: string; icon: any };
+interface NavSection { label: string; items: NavItem[] }
+
+const mainItems: NavItem[] = [
   { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
-  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/alumnos", label: "Alumnos", icon: Users },
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
+  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+  { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
+];
+
+const finanzasItems: NavItem[] = [
+  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/planes", label: "Planes", icon: Package },
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
-  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
   { to: "/admin/facturacion", label: "Facturación", icon: FileText },
   { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
+];
+
+const configItems: NavItem[] = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-  { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 
-const storeNavItems = [
+const storeItems: NavItem[] = [
   { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
   { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
@@ -33,6 +43,13 @@ const storeNavItems = [
   { to: "/admin/tienda/banners", label: "Banners", icon: Image },
   { to: "/admin/tienda/stock", label: "Stock", icon: Package },
   { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+];
+
+const navSections: NavSection[] = [
+  { label: "Principal", items: mainItems },
+  { label: "Finanzas", items: finanzasItems },
+  { label: "Configuración", items: configItems },
+  { label: "Tienda", items: storeItems },
 ];
 
 const AdminLayout = () => {
@@ -109,7 +126,7 @@ const AdminLayout = () => {
     );
   }
 
-  const NavItem = ({ item, mobile = false }: { item: typeof navItems[0]; mobile?: boolean }) => {
+  const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2.5";
 
@@ -199,31 +216,22 @@ const AdminLayout = () => {
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
               <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} />
               <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} />
-              <div className="pt-2 pb-1">
+            </>
+          )}
+          {navSections.map((section, idx) => (
+            <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
+              <div className="pb-1">
                 {!collapsed && (
                   <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
-                    Gestión
+                    {section.label}
                   </span>
                 )}
                 {collapsed && <div className="border-t border-sidebar-border mx-1" />}
               </div>
-            </>
-          )}
-          {navItems.map((item) => (
-            <NavItem key={item.to} item={item} />
-          ))}
-
-          {/* Store section */}
-          <div className="pt-4 pb-1">
-            {!collapsed && (
-              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
-                Tienda
-              </span>
-            )}
-            {collapsed && <div className="border-t border-sidebar-border mx-1" />}
-          </div>
-          {storeNavItems.map((item) => (
-            <NavItem key={item.to} item={item} />
+              {section.items.map((item) => (
+                <NavItem key={item.to} item={item} />
+              ))}
+            </div>
           ))}
 
           {/* Logout inside nav */}
@@ -306,19 +314,20 @@ const AdminLayout = () => {
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
                 <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} mobile />
-                <div className="pt-2 pb-1">
-                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Gestión</span>
-                </div>
+                <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} mobile />
               </>
             )}
-            {navItems.map((item) => (
-              <NavItem key={item.to} item={item} mobile />
-            ))}
-            <div className="pt-4 pb-1">
-              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
-            </div>
-            {storeNavItems.map((item) => (
-              <NavItem key={item.to} item={item} mobile />
+            {navSections.map((section, idx) => (
+              <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
+                <div className="pb-1">
+                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
+                    {section.label}
+                  </span>
+                </div>
+                {section.items.map((item) => (
+                  <NavItem key={item.to} item={item} mobile />
+                ))}
+              </div>
             ))}
           </nav>
 
