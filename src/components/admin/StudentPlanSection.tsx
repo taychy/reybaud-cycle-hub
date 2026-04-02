@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
