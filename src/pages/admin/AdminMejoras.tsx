@@ -172,6 +172,7 @@ const AdminMejoras = () => {
                 }
                 return [...prev, { role: "assistant", content: finalContent }];
               });
+              scrollAiToBottom();
             }
           } catch {
             textBuffer = line + "\n" + textBuffer;
