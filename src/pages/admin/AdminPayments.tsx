@@ -154,7 +154,7 @@ const AdminPayments = () => {
       if (filterEstado !== "todos" && status !== filterEstado) return false;
       if (filterPlan !== "todos" && s.plan_id !== filterPlan) return false;
       if (filterSede !== "todos" && s.alumnos?.sede_id !== filterSede) return false;
-      if (filterAlumno && !s.alumnos?.nombre.toLowerCase().includes(filterAlumno.toLowerCase())) return false;
+      if (filterAlumno && ![s.alumnos?.nombre, s.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase().includes(filterAlumno.toLowerCase())) return false;
       if (filterMetodo !== "todos") {
         const metodo = getMetodoPago(s).toLowerCase();
         if (!metodo.includes(filterMetodo.toLowerCase())) return false;
