@@ -139,13 +139,17 @@ const PlanSelection = () => {
 
     await cancelPausedSubs();
 
+    const disc = selectedDiscount;
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
         alumno_id: alumnoId,
         plan_id: plan.id,
         estado: "pendiente",
-      })
+        descuento_id: disc?.discount?.id ?? null,
+        precio_base: disc?.original ?? plan.precio,
+        precio_final: disc?.final ?? plan.precio,
+      } as any)
       .select("id")
       .single();
 
