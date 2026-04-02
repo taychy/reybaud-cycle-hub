@@ -347,7 +347,7 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice
     loadReservations();
   };
 
-
+  const validatePayment = async (paymentId: string, status: "validado" | "rechazado") => {
     await supabase
       .from("reservation_payments" as any)
       .update({
