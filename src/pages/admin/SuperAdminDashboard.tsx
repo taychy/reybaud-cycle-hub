@@ -30,6 +30,7 @@ const SuperAdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ month: string; ingresos: number; gastos: number }[]>([]);
+  const [planPerformance, setPlanPerformance] = useState<PlanPerformance[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
