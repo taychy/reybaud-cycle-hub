@@ -34,12 +34,15 @@ const AdminMejoras = () => {
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const aiBottomRef = useRef<HTMLDivElement>(null);
+  const aiScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
   const scrollAiToBottom = () => {
-    aiBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (aiScrollRef.current) {
+      aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight;
+    }
   };
 
   const loadMejoras = useCallback(async () => {
@@ -169,6 +172,7 @@ const AdminMejoras = () => {
                 }
                 return [...prev, { role: "assistant", content: finalContent }];
               });
+              scrollAiToBottom();
             }
           } catch {
             textBuffer = line + "\n" + textBuffer;
@@ -239,7 +243,7 @@ const AdminMejoras = () => {
               </p>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="h-[50vh] overflow-y-auto px-4 py-3 space-y-3">
+              <div ref={aiScrollRef} className="h-[50vh] overflow-y-auto px-4 py-3 space-y-3">
                 {aiMessages.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm gap-3">
                     <Bot className="w-10 h-10 opacity-30" />
