@@ -279,6 +279,21 @@ const ManageStudents = () => {
   const conAccesoCount = alumnos.filter(a => !!a.user_id).length;
   const sinAccesoCount = alumnos.filter(a => !a.user_id).length;
 
+  // --- Plan-based counts ---
+  const planCounts: Record<string, { name: string; count: number }> = {};
+  const sinPlanIds = new Set<string>();
+  alumnos.forEach(a => {
+    const sub = getActiveSub(a.id) || getAnySub(a.id);
+    if (sub && sub.planes) {
+      const planId = sub.plan_id;
+      if (!planCounts[planId]) planCounts[planId] = { name: (sub.planes as any).nombre, count: 0 };
+      planCounts[planId].count++;
+    } else {
+      sinPlanIds.add(a.id);
+    }
+  });
+  const sinPlanCount = sinPlanIds.size;
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -298,7 +313,14 @@ const ManageStudents = () => {
       case "duplicados": return isDuplicate(a);
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
-      default: return true;
+      case "sin_plan": return sinPlanIds.has(a.id);
+      default:
+        if (statusFilter.startsWith("plan_")) {
+          const planId = statusFilter.replace("plan_", "");
+          const sub = getActiveSub(a.id) || getAnySub(a.id);
+          return sub?.plan_id === planId;
+        }
+        return true;
     }
   });
 
@@ -717,6 +739,10 @@ const ManageStudents = () => {
     ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
     { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
     { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
+    ...Object.entries(planCounts).map(([planId, { name, count }]) => ({
+      key: `plan_${planId}`, label: name, count,
+    })),
+    { key: "sin_plan", label: "Sin plan", count: sinPlanCount },
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
