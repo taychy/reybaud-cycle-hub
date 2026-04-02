@@ -513,15 +513,23 @@ const CoachLiquidaciones = () => {
           ))}
         </div>
 
-        {/* Add class button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => setShowClaseForm(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" /> Registrar clase
-        </Button>
+        {/* Action buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowClaseForm(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Registrar clase
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowViaticoForm(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Registrar viático
+          </Button>
+        </div>
 
         {/* Class registration dialog */}
         <Dialog open={showClaseForm} onOpenChange={setShowClaseForm}>
