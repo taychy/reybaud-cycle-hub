@@ -113,6 +113,8 @@ const getEffectiveStatus = (sub: SubscriptionRecord): string => {
 const StudentPayments = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isImpersonating, targetAlumno } = useImpersonation();
+  const readOnly = isImpersonating;
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,16 +124,24 @@ const StudentPayments = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) { navigate("/"); return; }
+      let alumnoData: Alumno | null = null;
 
-      const { data: alumnoData } = await supabase
-        .from("alumnos")
-        .select("*")
-        .eq("email", session.user.email.toLowerCase().trim())
-        .maybeSingle();
+      if (isImpersonating && targetAlumno) {
+        alumnoData = targetAlumno;
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.email) { navigate("/"); return; }
 
-      if (!alumnoData) { navigate("/"); return; }
+        const { data } = await supabase
+          .from("alumnos")
+          .select("*")
+          .eq("email", session.user.email.toLowerCase().trim())
+          .maybeSingle();
+
+        if (!data) { navigate("/"); return; }
+        alumnoData = data;
+      }
+
       setAlumno(alumnoData);
 
       const { data: subs } = await supabase
