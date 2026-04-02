@@ -85,6 +85,7 @@ type LiquidacionMensual = {
 const CoachLiquidaciones = () => {
   const navigate = useNavigate();
   const [coachId, setCoachId] = useState<string | null>(null);
+  const [coachGrupos, setCoachGrupos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [historico, setHistorico] = useState<LiquidacionMensual[]>([]);
