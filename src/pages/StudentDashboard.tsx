@@ -13,6 +13,8 @@ import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import LanguageSelector from "@/components/LanguageSelector";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
