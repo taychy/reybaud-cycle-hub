@@ -51,6 +51,11 @@ interface ReservationStatusCardProps {
   onPaymentReported: () => void;
 }
 
+const installmentFromMetadata = (meta: any) => {
+  if (!meta?.installments_enabled || !meta?.installments) return [];
+  return meta.installments as { number: number; amount: string; due_date: string; label: string }[];
+};
+
 const reservationStatusConfig: Record<string, { label: string; icon: typeof CheckCircle; className: string }> = {
   solicitud_enviada: { label: "Solicitud enviada", icon: Clock, className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
   reserva_pendiente: { label: "Reserva pendiente", icon: AlertCircle, className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
@@ -93,6 +98,7 @@ const ReservationStatusCard = ({
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [hasPayments, setHasPayments] = useState(false);
 
+  const installments = installmentFromMetadata(eventMetadata);
   const resSt = reservationStatusConfig[reservation.reservation_status] || reservationStatusConfig.solicitud_enviada;
   const paySt = paymentStatusConfig[reservation.payment_status] || paymentStatusConfig.no_informado;
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
@@ -247,7 +253,45 @@ const ReservationStatusCard = ({
           </div>
         </div>
 
-        {/* Admin notes */}
+        {/* Installment schedule */}
+        {installments.length > 0 && (
+          <div className="space-y-2 pt-2 border-t border-border/50">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plan de cuotas</p>
+            <div className="space-y-1.5">
+              {installments.map((inst, idx) => {
+                const instAmount = parseFloat(inst.amount || "0");
+                const accBefore = installments.slice(0, idx).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+                const isPaid = (reservation.amount_paid || 0) >= accBefore + instAmount;
+                const isOverdue = inst.due_date && new Date(inst.due_date) < new Date() && !isPaid;
+                return (
+                  <div key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
+                    isPaid ? "bg-emerald-500/10 border border-emerald-500/20" : isOverdue ? "bg-destructive/10 border border-destructive/20" : "bg-muted/40 border border-border/30"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {isPaid ? (
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
+                      <span className="font-medium">{inst.label || `Cuota ${idx + 1}`}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{formatPrice(instAmount, currency)}</span>
+                      {inst.due_date && (
+                        <span className={`${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+                          {new Date(inst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                        </span>
+                      )}
+                      {isPaid && <span className="text-emerald-400">✓</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+
         {reservation.admin_notes && (
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground">
