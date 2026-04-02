@@ -178,7 +178,7 @@ const StudentPayments = () => {
   }, [navigate, isImpersonating, targetAlumno]);
 
   const handleToggleRenovacion = async () => {
-    if (!activeSub) return;
+    if (!activeSub || readOnly) return;
     setTogglingRenovacion(true);
     const newValue = !activeSub.auto_renovacion;
 
@@ -203,7 +203,7 @@ const StudentPayments = () => {
   };
 
   const handleCancelSubscription = async () => {
-    if (!activeSub) return;
+    if (!activeSub || readOnly) return;
     setCancelling(true);
 
     const { error } = await supabase
@@ -226,6 +226,7 @@ const StudentPayments = () => {
   };
 
   const handleChangePlan = () => {
+    if (readOnly) return;
     if (alumno) {
       localStorage.setItem("registro_alumno_id", alumno.id);
       localStorage.setItem("alumno_renewal", "1");
