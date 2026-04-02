@@ -52,7 +52,7 @@ const TIPO_LABELS: Record<string, string> = {
   viatico: "Viático",
 };
 
-const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "ajustes"] as const;
+const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "viaticos", "ajustes"] as const;
 
 const HONORARIO_SEARCH_TERMS: Record<string, string[]> = {
   grupal_1h30: ["grupal 1h30", "1h30", "1h 30", "90min"],
