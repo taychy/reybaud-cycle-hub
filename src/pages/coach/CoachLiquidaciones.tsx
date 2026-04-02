@@ -5,7 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, DollarSign, Clock, CheckCircle, TrendingUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, DollarSign, Clock, CheckCircle, TrendingUp, Plus } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const ESTADO_OP_LABELS: Record<string, string> = {
@@ -81,10 +85,18 @@ type LiquidacionMensual = {
 const CoachLiquidaciones = () => {
   const navigate = useNavigate();
   const [coachId, setCoachId] = useState<string | null>(null);
+  const [coachGrupos, setCoachGrupos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [historico, setHistorico] = useState<LiquidacionMensual[]>([]);
   const [filtro, setFiltro] = useState<string>("todas");
+  const [showClaseForm, setShowClaseForm] = useState(false);
+  const [claseForm, setClaseForm] = useState({
+    tipo_actividad: "grupal_1h30",
+    fecha: new Date().toISOString().split("T")[0],
+    grupo: "",
+    observaciones: "",
+  });
 
   const now = new Date();
   const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -96,12 +108,13 @@ const CoachLiquidaciones = () => {
 
       const { data: coach } = await supabase
         .from("coaches")
-        .select("id")
+        .select("id, grupos")
         .eq("user_id", session.user.id)
         .single();
       if (!coach) { navigate("/coach"); return; }
 
       setCoachId(coach.id);
+      setCoachGrupos((coach as any).grupos || []);
 
       // Fetch current month movements
       const startDate = `${mesActual}-01`;
@@ -131,12 +144,50 @@ const CoachLiquidaciones = () => {
     init();
   }, [navigate]);
 
+  const reloadMovimientos = async () => {
+    if (!coachId) return;
+    const startDate = `${mesActual}-01`;
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const { data: movs } = await supabase
+      .from("movimientos_liquidacion")
+      .select("*")
+      .eq("coach_id", coachId)
+      .gte("fecha", startDate)
+      .lte("fecha", endDate)
+      .order("fecha", { ascending: true });
+    setMovimientos((movs as any[]) || []);
+  };
+
+  const submitClase = async () => {
+    if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
+    const { error } = await supabase.from("movimientos_liquidacion").insert({
+      coach_id: coachId,
+      fecha: claseForm.fecha,
+      tipo_actividad: claseForm.tipo_actividad,
+      grupo: claseForm.grupo || null,
+      origen: "carga_coach",
+      valor_base: 0,
+      total: 0,
+      estado_operativo: "realizada",
+      estado_economico: "pendiente_revision",
+      observaciones: claseForm.observaciones || null,
+    } as any);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Clase registrada", description: "Queda pendiente de revisión por el administrador." });
+    setShowClaseForm(false);
+    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", observaciones: "" });
+    reloadMovimientos();
+  };
+
   const filteredMovimientos = movimientos.filter((m) => {
     if (filtro === "todas") return true;
     if (filtro === "grupales") return m.tipo_actividad.startsWith("grupal") || m.tipo_actividad === "fondo_salida" || m.tipo_actividad === "tecnica" || m.tipo_actividad === "evento_escuela";
     if (filtro === "personalizadas") return m.tipo_actividad === "personalizada";
     if (filtro === "evaluatorias") return m.tipo_actividad === "evaluatoria";
-    if (filtro === "ajustes") return m.origen === "ajuste_manual";
+    if (filtro === "ajustes") return m.origen === "ajuste_manual" || m.origen === "carga_coach";
     return true;
   });
 
@@ -254,7 +305,82 @@ const CoachLiquidaciones = () => {
           ))}
         </div>
 
-        {/* Movements list */}
+        {/* Add class button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => setShowClaseForm(true)}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Registrar clase
+        </Button>
+
+        {/* Class registration dialog */}
+        <Dialog open={showClaseForm} onOpenChange={setShowClaseForm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar clase realizada</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Fecha</label>
+                <Input
+                  type="date"
+                  value={claseForm.fecha}
+                  onChange={(e) => setClaseForm({ ...claseForm, fecha: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Tipo de actividad</label>
+                <Select
+                  value={claseForm.tipo_actividad}
+                  onValueChange={(v) => setClaseForm({ ...claseForm, tipo_actividad: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grupal_1h30">Grupal 1h30</SelectItem>
+                    <SelectItem value="grupal_2h">Grupal 2h</SelectItem>
+                    <SelectItem value="fondo_salida">Fondo/Salida</SelectItem>
+                    <SelectItem value="tecnica">Técnica</SelectItem>
+                    <SelectItem value="evento_escuela">Evento Escuela</SelectItem>
+                    <SelectItem value="evaluatoria">Evaluatoria</SelectItem>
+                    <SelectItem value="personalizada">Personalizada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {coachGrupos.length > 0 && (
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Grupo</label>
+                  <Select
+                    value={claseForm.grupo}
+                    onValueChange={(v) => setClaseForm({ ...claseForm, grupo: v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Seleccionar grupo" /></SelectTrigger>
+                    <SelectContent>
+                      {coachGrupos.map((g) => (
+                        <SelectItem key={g} value={g}>{g}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
+                <Textarea
+                  placeholder="Detalle de la clase..."
+                  value={claseForm.observaciones}
+                  onChange={(e) => setClaseForm({ ...claseForm, observaciones: e.target.value })}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                La clase quedará en estado "Pendiente de revisión" hasta que el administrador la apruebe.
+              </p>
+              <Button onClick={submitClase} className="w-full">Registrar clase</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+
         <div className="space-y-2">
           {filteredMovimientos.length === 0 ? (
             <Card className="bg-card border-border">
