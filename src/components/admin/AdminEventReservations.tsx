@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/currency";
 import {
   Search, Filter, ChevronDown, CheckCircle, XCircle, Clock,
   AlertCircle, Eye, CreditCard, Users, CalendarDays, Banknote,
-  ArrowUpDown, RefreshCw, Loader2,
+  ArrowUpDown, RefreshCw, Loader2, UserPlus,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -96,9 +96,18 @@ interface AdminEventReservationsProps {
   eventId: string;
   eventTitle: string;
   eventCurrency: string;
+  eventPrice?: number | null;
+  eventNature?: string;
 }
 
-const AdminEventReservations = ({ eventId, eventTitle, eventCurrency }: AdminEventReservationsProps) => {
+interface AlumnoOption {
+  id: string;
+  nombre: string;
+  apellido: string | null;
+  email: string;
+}
+
+const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice, eventNature }: AdminEventReservationsProps) => {
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +117,13 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency }: AdminEve
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Add student state
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentResults, setStudentResults] = useState<AlumnoOption[]>([]);
+  const [searchingStudents, setSearchingStudents] = useState(false);
+  const [addingStudent, setAddingStudent] = useState<string | null>(null);
 
   const loadReservations = async () => {
     setLoading(true);
@@ -129,6 +145,59 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency }: AdminEve
       .eq("reservation_id", reservationId)
       .order("created_at", { ascending: false });
     if (data) setPayments(data as unknown as Payment[]);
+  };
+
+  const searchStudents = async (q: string) => {
+    if (q.length < 2) { setStudentResults([]); return; }
+    setSearchingStudents(true);
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, nombre, apellido, email")
+      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(10);
+    const existingIds = new Set(reservations.map(r => r.alumno_id));
+    setStudentResults((data || []).filter(a => !existingIds.has(a.id)) as AlumnoOption[]);
+    setSearchingStudents(false);
+  };
+
+  const addStudentToEvent = async (alumno: AlumnoOption) => {
+    setAddingStudent(alumno.id);
+    const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+    const isPaid = eventPrice != null && eventPrice > 0;
+    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
+
+    const { error } = await supabase
+      .from("event_reservations" as any)
+      .insert({
+        event_id: eventId,
+        alumno_id: alumno.id,
+        reservation_status: "reserva_confirmada",
+        payment_status: paymentStatus,
+        estado: "reserva_confirmada",
+        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
+        amount_total: eventPrice,
+        price_snapshot: eventPrice,
+        currency_snapshot: eventCurrency,
+        moneda: eventCurrency,
+        monto: eventPrice,
+        balance_due: isInscriptionOnly || !isPaid ? 0 : eventPrice,
+        created_by: "admin",
+        confirmed_at: new Date().toISOString(),
+      } as any);
+
+    if (error) {
+      if (error.code === "23505") {
+        toast({ title: "Este alumno ya tiene una reserva en este evento.", variant: "destructive" });
+      } else {
+        toast({ title: "Error al agregar", description: error.message, variant: "destructive" });
+      }
+    } else {
+      toast({ title: `${alumno.nombre} ${alumno.apellido || ""} agregado al evento` });
+      loadReservations();
+      // Remove from search results
+      setStudentResults(prev => prev.filter(s => s.id !== alumno.id));
+    }
+    setAddingStudent(null);
   };
 
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
@@ -309,7 +378,52 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency }: AdminEve
         <Button variant="outline" size="sm" onClick={loadReservations}>
           <RefreshCw className="w-4 h-4" />
         </Button>
+        <Button variant="gold" size="sm" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); }}>
+          <UserPlus className="w-4 h-4 mr-1" /> Agregar alumno
+        </Button>
       </div>
+
+      {/* Add Student Dialog */}
+      <Dialog open={showAddStudent} onOpenChange={setShowAddStudent}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agregar alumno al evento</DialogTitle>
+            <DialogDescription>Buscá un alumno por nombre o email para inscribirlo manualmente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Buscar por nombre o email..."
+              value={studentSearch}
+              onChange={(e) => { setStudentSearch(e.target.value); searchStudents(e.target.value); }}
+              autoFocus
+            />
+            {searchingStudents && <p className="text-xs text-muted-foreground animate-pulse">Buscando...</p>}
+            {studentResults.length > 0 && (
+              <div className="max-h-[250px] overflow-y-auto space-y-1">
+                {studentResults.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                    <div>
+                      <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
+                      <p className="text-xs text-muted-foreground">{a.email}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={addingStudent === a.id}
+                      onClick={() => addStudentToEvent(a)}
+                    >
+                      {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {studentSearch.length >= 2 && !searchingStudents && studentResults.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">No se encontraron alumnos.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Table */}
       {loading ? (
