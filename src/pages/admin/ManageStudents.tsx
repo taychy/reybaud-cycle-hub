@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -133,6 +133,23 @@ const ManageStudents = () => {
 
   const [resending, setResending] = useState<string | null>(null);
   const isMobile = useIsMobile();
+
+  // Sorting
+  type SortKey = "nombre" | "apellido" | "grupo" | "estado" | "suscripcion" | "ultimo_acceso";
+  type SortDir = "asc" | "desc" | null;
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir("asc"); }
+    else if (sortDir === "asc") { setSortDir("desc"); }
+    else { setSortKey(null); setSortDir(null); }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="w-3 h-3 text-muted-foreground/50" />;
+    return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />;
+  };
 
   useEffect(() => {
     const checkRole = async () => {
@@ -283,6 +300,21 @@ const ManageStudents = () => {
       case "sin_acceso": return !a.user_id;
       default: return true;
     }
+  });
+
+  // --- Sorting ---
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sortKey || !sortDir) return 0;
+    let cmp = 0;
+    switch (sortKey) {
+      case "nombre": cmp = a.nombre.localeCompare(b.nombre, "es"); break;
+      case "apellido": cmp = getApellido(a).localeCompare(getApellido(b), "es"); break;
+      case "grupo": cmp = (a.grupo || "").localeCompare(b.grupo || "", "es"); break;
+      case "estado": cmp = a.estado.localeCompare(b.estado, "es"); break;
+      case "suscripcion": cmp = getSubEstadoLabel(a.id).localeCompare(getSubEstadoLabel(b.id), "es"); break;
+      case "ultimo_acceso": cmp = (a.updated_at || "").localeCompare(b.updated_at || ""); break;
+    }
+    return sortDir === "desc" ? -cmp : cmp;
   });
 
   // --- Badges ---
@@ -741,10 +773,10 @@ const ManageStudents = () => {
             <div className="space-y-2">
               {loading ? (
                 <p className="text-center text-muted-foreground py-8">Cargando...</p>
-              ) : filtered.length === 0 ? (
+              ) : sorted.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No se encontraron alumnos</p>
               ) : (
-                filtered.map((alumno) => {
+                sorted.map((alumno) => {
                   const apellido = getApellido(alumno);
                   const subEstado = getSubEstadoLabel(alumno.id);
                   const inconsistency = getAlumnoInconsistency(alumno);
@@ -797,22 +829,34 @@ const ManageStudents = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">Nombre</TableHead>
-                    <TableHead className="text-muted-foreground">Apellido</TableHead>
-                    <TableHead className="text-muted-foreground">Grupo</TableHead>
-                    <TableHead className="text-muted-foreground">Estado</TableHead>
-                    <TableHead className="text-muted-foreground">Suscripción</TableHead>
-                    <TableHead className="text-muted-foreground hidden xl:table-cell">Último acceso</TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("nombre")}>
+                      <span className="flex items-center gap-1">Nombre <SortIcon col="nombre" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("apellido")}>
+                      <span className="flex items-center gap-1">Apellido <SortIcon col="apellido" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("grupo")}>
+                      <span className="flex items-center gap-1">Grupo <SortIcon col="grupo" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("estado")}>
+                      <span className="flex items-center gap-1">Estado <SortIcon col="estado" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => toggleSort("suscripcion")}>
+                      <span className="flex items-center gap-1">Suscripción <SortIcon col="suscripcion" /></span>
+                    </TableHead>
+                    <TableHead className="text-muted-foreground hidden xl:table-cell cursor-pointer select-none" onClick={() => toggleSort("ultimo_acceso")}>
+                      <span className="flex items-center gap-1">Último acceso <SortIcon col="ultimo_acceso" /></span>
+                    </TableHead>
                     <TableHead className="text-muted-foreground w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
-                  ) : filtered.length === 0 ? (
+                  ) : sorted.length === 0 ? (
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No se encontraron alumnos</TableCell></TableRow>
                   ) : (
-                    filtered.map((alumno) => {
+                    sorted.map((alumno) => {
                       const apellido = getApellido(alumno);
                       const subEstado = getSubEstadoLabel(alumno.id);
                       const inconsistency = getAlumnoInconsistency(alumno);
