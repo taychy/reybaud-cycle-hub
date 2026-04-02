@@ -64,24 +64,33 @@ const StudentDashboard = () => {
   })();
   const [selectedDay, setSelectedDay] = useState(todayDayIndex);
 
-  // Load alumno from Supabase Auth session
+  // Load alumno from Supabase Auth session or impersonation context
   useEffect(() => {
     const loadAlumno = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) {
-        navigate("/");
-        return;
-      }
+      let alumnoData: Alumno | null = null;
 
-      const { data: alumnoData } = await supabase
-        .from("alumnos")
-        .select("*")
-        .eq("email", session.user.email.toLowerCase().trim())
-        .maybeSingle();
+      if (isImpersonating && targetAlumno) {
+        // Impersonation mode: use the target alumno directly
+        alumnoData = targetAlumno;
+      } else {
+        // Normal mode: load from auth session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.email) {
+          navigate("/");
+          return;
+        }
 
-      if (!alumnoData) {
-        navigate("/");
-        return;
+        const { data } = await supabase
+          .from("alumnos")
+          .select("*")
+          .eq("email", session.user.email.toLowerCase().trim())
+          .maybeSingle();
+
+        if (!data) {
+          navigate("/");
+          return;
+        }
+        alumnoData = data;
       }
 
       setAlumno(alumnoData);
@@ -154,7 +163,7 @@ const StudentDashboard = () => {
     };
 
     loadAlumno();
-  }, [navigate]);
+  }, [navigate, isImpersonating, targetAlumno]);
 
   // When user selects a different day
   useEffect(() => {
