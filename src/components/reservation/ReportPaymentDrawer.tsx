@@ -15,6 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 
 interface Reservation {
   id: string;
