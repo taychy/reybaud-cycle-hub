@@ -135,6 +135,7 @@ const CoachLiquidaciones = () => {
   const navigate = useNavigate();
   const [coachId, setCoachId] = useState<string | null>(null);
   const [coachGrupos, setCoachGrupos] = useState<string[]>([]);
+  const [alumnos, setAlumnos] = useState<{ id: string; nombre: string; apellido: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [historico, setHistorico] = useState<LiquidacionMensual[]>([]);
@@ -145,6 +146,8 @@ const CoachLiquidaciones = () => {
     tipo_actividad: "grupal_1h30",
     fecha: new Date().toISOString().split("T")[0],
     grupo: "",
+    nombre_externo: "",
+    alumno_ids: [] as string[],
     observaciones: "",
   });
 
@@ -176,6 +179,17 @@ const CoachLiquidaciones = () => {
 
       setCoachId(coach.id);
       setCoachGrupos((coach as any).grupos || []);
+
+      // Load alumnos from coach's groups
+      if ((coach as any).grupos && (coach as any).grupos.length > 0) {
+        const { data: alumnosData } = await supabase
+          .from("alumnos")
+          .select("id, nombre, apellido")
+          .in("grupo", (coach as any).grupos)
+          .eq("estado", "activo")
+          .order("nombre");
+        setAlumnos((alumnosData as any[]) || []);
+      }
 
       await loadMovimientos(coach.id, mes);
 
@@ -238,6 +252,9 @@ const CoachLiquidaciones = () => {
     return 0;
   };
 
+  const isIndividualType = (tipo: string) =>
+    tipo === "personalizada" || tipo === "evaluatoria";
+
   const submitClase = async () => {
     if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
 
@@ -268,7 +285,15 @@ const CoachLiquidaciones = () => {
       coach_id: coachId,
       fecha: claseForm.fecha,
       tipo_actividad: claseForm.tipo_actividad,
-      grupo: claseForm.grupo || null,
+      grupo: isIndividualType(claseForm.tipo_actividad) ? null : (claseForm.grupo || null),
+      nombre_externo: isIndividualType(claseForm.tipo_actividad)
+        ? (claseForm.alumno_ids.length > 0
+          ? claseForm.alumno_ids.map(aid => {
+              const a = alumnos.find(al => al.id === aid);
+              return a ? `${a.nombre} ${a.apellido || ""}`.trim() : "";
+            }).filter(Boolean).join(", ")
+          : claseForm.nombre_externo || null)
+        : null,
       origen: "carga_coach",
       valor_base: finalValor,
       total: finalValor,
@@ -282,7 +307,7 @@ const CoachLiquidaciones = () => {
     }
     toast({ title: "Clase registrada", description: finalValor > 0 ? `Valor: $${finalValor.toLocaleString("es-AR")} — Pendiente de revisión.` : "Queda pendiente de revisión por el administrador." });
     setShowClaseForm(false);
-    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", observaciones: "" });
+    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", nombre_externo: "", alumno_ids: [], observaciones: "" });
     loadMovimientos(coachId, mes);
   };
 
@@ -472,7 +497,37 @@ const CoachLiquidaciones = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {coachGrupos.length > 0 && (
+              {isIndividualType(claseForm.tipo_actividad) ? (
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground mb-1 block">Alumno(s)</label>
+                  {alumnos.length > 0 ? (
+                    <div className="max-h-40 overflow-y-auto border border-border rounded-md p-2 space-y-1">
+                      {alumnos.map((a) => (
+                        <label key={a.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <input
+                            type="checkbox"
+                            checked={claseForm.alumno_ids.includes(a.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setClaseForm({ ...claseForm, alumno_ids: [...claseForm.alumno_ids, a.id] });
+                              } else {
+                                setClaseForm({ ...claseForm, alumno_ids: claseForm.alumno_ids.filter(id => id !== a.id) });
+                              }
+                            }}
+                            className="rounded border-border"
+                          />
+                          <span className="text-foreground">{a.nombre} {a.apellido || ""}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                  <Input
+                    placeholder="O escribí el nombre manualmente"
+                    value={claseForm.nombre_externo}
+                    onChange={(e) => setClaseForm({ ...claseForm, nombre_externo: e.target.value })}
+                  />
+                </div>
+              ) : coachGrupos.length > 0 ? (
                 <div>
                   <label className="text-sm text-muted-foreground mb-1 block">Grupo</label>
                   <Select
@@ -487,7 +542,7 @@ const CoachLiquidaciones = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              ) : null}
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
                 <Textarea
