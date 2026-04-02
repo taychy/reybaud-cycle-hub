@@ -26,9 +26,7 @@ const Register = () => {
 
     // Check if email already exists
     const { data: existing } = await supabase
-      .from("alumnos")
-      .select("id, estado")
-      .eq("email", email)
+      .rpc("lookup_alumno_by_email", { p_email: email })
       .maybeSingle();
 
     if (existing) {
