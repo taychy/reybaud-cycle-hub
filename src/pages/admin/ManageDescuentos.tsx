@@ -284,7 +284,6 @@ const ManageDescuentos = () => {
                           {d.tipo === "fijo" ? `$${d.valor}` : `${d.valor}%`}
                         </span>
                       </TableCell>
-                      </TableCell>
                       <TableCell>
                         {d.codigo ? (
                           <Badge variant="outline" className="bg-muted text-foreground font-mono text-xs">
