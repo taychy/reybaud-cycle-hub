@@ -378,7 +378,52 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice
         <Button variant="outline" size="sm" onClick={loadReservations}>
           <RefreshCw className="w-4 h-4" />
         </Button>
+        <Button variant="gold" size="sm" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); }}>
+          <UserPlus className="w-4 h-4 mr-1" /> Agregar alumno
+        </Button>
       </div>
+
+      {/* Add Student Dialog */}
+      <Dialog open={showAddStudent} onOpenChange={setShowAddStudent}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agregar alumno al evento</DialogTitle>
+            <DialogDescription>Buscá un alumno por nombre o email para inscribirlo manualmente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Buscar por nombre o email..."
+              value={studentSearch}
+              onChange={(e) => { setStudentSearch(e.target.value); searchStudents(e.target.value); }}
+              autoFocus
+            />
+            {searchingStudents && <p className="text-xs text-muted-foreground animate-pulse">Buscando...</p>}
+            {studentResults.length > 0 && (
+              <div className="max-h-[250px] overflow-y-auto space-y-1">
+                {studentResults.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                    <div>
+                      <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
+                      <p className="text-xs text-muted-foreground">{a.email}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={addingStudent === a.id}
+                      onClick={() => addStudentToEvent(a)}
+                    >
+                      {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {studentSearch.length >= 2 && !searchingStudents && studentResults.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">No se encontraron alumnos.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Table */}
       {loading ? (
