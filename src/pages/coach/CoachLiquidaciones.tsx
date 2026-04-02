@@ -471,17 +471,29 @@ const CoachLiquidaciones = () => {
           <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-primary" />
-                <span className="text-xs text-muted-foreground">Último pago</span>
+                <DollarSign className="w-4 h-4 text-violet-400" />
+                <span className="text-xs text-muted-foreground">Viáticos</span>
               </div>
               <p className="text-xl font-heading font-bold text-foreground">
-                {ultimoPago ? `$${Number(ultimoPago.total_pagado).toLocaleString("es-AR")}` : "–"}
+                ${totalViaticos.toLocaleString("es-AR")}
               </p>
-              {ultimoPago?.fecha_pago && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(ultimoPago.fecha_pago).toLocaleDateString("es-AR")}
-                </p>
-              )}
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border col-span-2">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-muted-foreground">Último pago</span>
+                  <p className="text-xl font-heading font-bold text-foreground">
+                    {ultimoPago ? `$${Number(ultimoPago.total_pagado).toLocaleString("es-AR")}` : "–"}
+                  </p>
+                </div>
+                {ultimoPago?.fecha_pago && (
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(ultimoPago.fecha_pago).toLocaleDateString("es-AR")}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
