@@ -612,6 +612,7 @@ const ManageStudents = () => {
         body: { alumno_id: changePlanAlumno.id, type: "plan_cambiado", plan_nombre: selectedPlan?.nombre || "Nuevo plan", plan_precio: selectedPlan?.precio, plan_moneda: selectedPlan?.moneda },
       }).catch(() => {});
       toast.success(`Plan actualizado para ${changePlanAlumno.nombre}`);
+      await logStudentActivity({ alumnoId: changePlanAlumno.id, eventType: "cambio_plan", title: "Cambio de plan", description: `Nuevo plan: ${selectedPlan?.nombre || "—"}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—" });
       setChangePlanAlumno(null);
       setNewPlanId("");
       fetchAlumnos();
