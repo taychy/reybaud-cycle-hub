@@ -2774,6 +2774,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      lookup_alumno_by_email: {
+        Args: { p_email: string }
+        Returns: {
+          estado: string
+          grupo: string
+          id: string
+          nombre: string
+        }[]
+      }
       publish_month: { Args: { p_mes: string }; Returns: number }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
