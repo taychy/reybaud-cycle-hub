@@ -510,7 +510,14 @@ const ManageStudents = () => {
     setSavingState(false);
     setStateChangeAlumno(null);
     fetchAlumnos();
-  };
+    // Refresh drawer if still open
+    if (drawerAlumno && drawerAlumno.id === alumno.id) {
+      setDrawerAlumno({ ...alumno, estado: newEstado } as any);
+    }
+    // Refresh suscripciones
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+      setSuscripciones((data as any) || []);
+    });
 
   const openSubChange = (alumno: Alumno) => {
     setSubChangeAlumno(alumno);
