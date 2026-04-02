@@ -177,6 +177,49 @@ const EventForm = ({
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(
     initialData ? categoryFromDbType(initialData.type) : null
   );
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Solo se permiten archivos de imagen.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La imagen no puede superar los 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("event-images")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Error al subir la imagen.");
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage
+      .from("event-images")
+      .getPublicUrl(path);
+
+    setForm((prev) => ({ ...prev, image_url: publicUrl.publicUrl }));
+    toast.success("Imagen subida correctamente.");
+    setUploading(false);
+  };
+
+  const handleRemoveImage = () => {
+    setForm((prev) => ({ ...prev, image_url: "" }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const updateMeta = (key: string, value: any) =>
     setForm((prev) => ({ ...prev, metadata: { ...prev.metadata, [key]: value } }));
