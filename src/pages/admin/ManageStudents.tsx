@@ -992,7 +992,6 @@ const ManageStudents = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        <DetailRow label="Plan" value={sub?.planes?.nombre || "Sin plan"} />
                         <DetailRow label="Fecha de alta" value={formatDate(drawerAlumno.created_at)} />
                         <DetailRow label="Último acceso" value={formatDate(drawerAlumno.updated_at)} />
                       </div>
@@ -1000,21 +999,19 @@ const ManageStudents = () => {
 
                     <Separator />
 
-                    {/* Subscription details */}
-                    {sub && (
-                      <>
-                        <div className="space-y-3">
-                          <h3 className="text-sm font-semibold text-foreground">Suscripción</h3>
-                          <div className="space-y-2 text-sm">
-                            <DetailRow label="Plan" value={sub.planes?.nombre || "—"} />
-                            <DetailRow label="Estado" value={sub.estado} />
-                            <DetailRow label="Inicio" value={formatDate(sub.fecha_inicio)} />
-                            <DetailRow label="Vencimiento" value={formatDate(sub.fecha_fin)} />
-                          </div>
-                        </div>
-                        <Separator />
-                      </>
-                    )}
+                    {/* Plan y Suscripción */}
+                    <StudentPlanSection
+                      alumno={drawerAlumno}
+                      isSuperAdmin={isSuperAdmin}
+                      onRefresh={() => {
+                        fetchAlumnos();
+                        supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+                          setSuscripciones((data as any) || []);
+                        });
+                      }}
+                      onAlumnoUpdate={(a) => setDrawerAlumno(a)}
+                    />
+                    <Separator />
 
                     {/* Notas internas */}
                     {drawerAlumno.notas && !editingDetail && (
