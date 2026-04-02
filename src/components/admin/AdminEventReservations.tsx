@@ -96,9 +96,18 @@ interface AdminEventReservationsProps {
   eventId: string;
   eventTitle: string;
   eventCurrency: string;
+  eventPrice?: number | null;
+  eventNature?: string;
 }
 
-const AdminEventReservations = ({ eventId, eventTitle, eventCurrency }: AdminEventReservationsProps) => {
+interface AlumnoOption {
+  id: string;
+  nombre: string;
+  apellido: string | null;
+  email: string;
+}
+
+const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice, eventNature }: AdminEventReservationsProps) => {
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +117,13 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency }: AdminEve
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Add student state
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentResults, setStudentResults] = useState<AlumnoOption[]>([]);
+  const [searchingStudents, setSearchingStudents] = useState(false);
+  const [addingStudent, setAddingStudent] = useState<string | null>(null);
 
   const loadReservations = async () => {
     setLoading(true);
