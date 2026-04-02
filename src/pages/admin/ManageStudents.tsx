@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -510,6 +510,14 @@ const ManageStudents = () => {
     setSavingState(false);
     setStateChangeAlumno(null);
     fetchAlumnos();
+    // Refresh drawer if still open
+    if (drawerAlumno && drawerAlumno.id === alumno.id) {
+      setDrawerAlumno({ ...alumno, estado: newEstado } as any);
+    }
+    // Refresh suscripciones
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+      setSuscripciones((data as any) || []);
+    });
   };
 
   const openSubChange = (alumno: Alumno) => {
@@ -943,9 +951,28 @@ const ManageStudents = () => {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Estado usuario</span>
-                          <Badge variant={getEstadoBadge(drawerAlumno.estado).variant} className={`text-xs ${getEstadoBadge(drawerAlumno.estado).className}`}>
-                            {drawerAlumno.estado}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant={getEstadoBadge(drawerAlumno.estado).variant} className={`text-xs ${getEstadoBadge(drawerAlumno.estado).className}`}>
+                              {drawerAlumno.estado}
+                            </Badge>
+                            {getValidTransitions(drawerAlumno.estado).length > 0 && (
+                              <Select
+                                value=""
+                                onValueChange={(val) => {
+                                  openStateChange(drawerAlumno, val);
+                                }}
+                              >
+                                <SelectTrigger className="w-7 h-7 p-0 bg-secondary border-border [&>svg]:hidden">
+                                  <Pencil className="w-3 h-3 mx-auto text-muted-foreground" />
+                                </SelectTrigger>
+                                <SelectContent className="z-[200]">
+                                  {getValidTransitions(drawerAlumno.estado).map(e => (
+                                    <SelectItem key={e} value={e} className="text-xs">{e.charAt(0).toUpperCase() + e.slice(1)}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Estado suscripción</span>
@@ -1038,7 +1065,7 @@ const ManageStudents = () => {
                       <div className="grid grid-cols-2 gap-2">
                         {/* State transitions */}
                         {getValidTransitions(drawerAlumno.estado).map(e => (
-                          <Button key={e} variant="outline" size="sm" className="text-xs justify-start" onClick={() => { openStateChange(drawerAlumno, e); setDrawerAlumno(null); }}>
+                          <Button key={e} variant="outline" size="sm" className="text-xs justify-start" onClick={() => openStateChange(drawerAlumno, e)}>
                             {e === "activo" && <Play className="w-3 h-3 mr-1.5" />}
                             {e === "vacaciones" && <Palmtree className="w-3 h-3 mr-1.5" />}
                             {e === "inactivo" && <UserX className="w-3 h-3 mr-1.5" />}
@@ -1048,7 +1075,7 @@ const ManageStudents = () => {
                         ))}
                         {/* Sub state change */}
                         {getActiveSub(drawerAlumno.id) && (
-                          <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => { openSubChange(drawerAlumno); setDrawerAlumno(null); }}>
+                          <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => openSubChange(drawerAlumno)}>
                             <FileText className="w-3 h-3 mr-1.5" /> Estado sub
                           </Button>
                         )}
