@@ -737,6 +737,8 @@ const ManageStudents = () => {
                         <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}</Badge>
                         {inconsistency && <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />!</Badge>}
                         {missing.length > 0 && !inconsistency && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5">Incompleto</Badge>}
+                        {isDuplicate(alumno) && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5"><Copy className="w-2.5 h-2.5" />Dup</Badge>}
+                        {!alumno.user_id && <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground gap-0.5">Sin acceso</Badge>}
                       </div>
                     </div>
                   );
