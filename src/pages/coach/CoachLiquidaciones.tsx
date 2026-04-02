@@ -49,6 +49,7 @@ const TIPO_LABELS: Record<string, string> = {
   evaluatoria: "Evaluatoria",
   personalizada: "Personalizada",
   ajuste: "Ajuste manual",
+  viatico: "Viático",
 };
 
 const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "ajustes"] as const;
