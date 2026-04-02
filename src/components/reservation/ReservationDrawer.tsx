@@ -91,34 +91,62 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     const reservationStatus = isInscriptionOnly ? "reserva_confirmada" : "solicitud_enviada";
     const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
 
-    const { data, error } = await supabase
+    const reservationPayload = {
+      event_id: event.id,
+      alumno_id: alumno.id,
+      reservation_status: reservationStatus,
+      payment_status: paymentStatus,
+      estado: reservationStatus,
+      metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
+      amount_total: event.price,
+      amount_paid: 0,
+      price_snapshot: event.price,
+      currency_snapshot: event.currency,
+      moneda: event.currency,
+      monto: event.price,
+      balance_due: isInscriptionOnly ? 0 : event.price,
+      participant_notes: notes.trim() || null,
+      created_by: "cliente",
+      confirmed_at: isInscriptionOnly ? new Date().toISOString() : null,
+      cancelled_at: null,
+      cancellation_reason: null,
+      cancellation_requested_at: null,
+    };
+
+    // Check if there's an existing (cancelled) reservation to reactivate
+    const { data: existing } = await supabase
       .from("event_reservations" as any)
-      .insert({
-        event_id: event.id,
-        alumno_id: alumno.id,
-        reservation_status: reservationStatus,
-        payment_status: paymentStatus,
-        estado: reservationStatus,
-        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
-        amount_total: event.price,
-        price_snapshot: event.price,
-        currency_snapshot: event.currency,
-        moneda: event.currency,
-        monto: event.price,
-        balance_due: isInscriptionOnly ? 0 : event.price,
-        participant_notes: notes.trim() || null,
-        created_by: "cliente",
-        confirmed_at: isInscriptionOnly ? new Date().toISOString() : null,
-      } as any)
-      .select("*")
-      .single();
+      .select("id, reservation_status")
+      .eq("event_id", event.id)
+      .eq("alumno_id", alumno.id)
+      .maybeSingle();
+
+    let data: any;
+    let error: any;
+
+    if (existing) {
+      // Reactivate the existing reservation
+      const { data: updated, error: updateError } = await supabase
+        .from("event_reservations" as any)
+        .update(reservationPayload as any)
+        .eq("id", (existing as any).id)
+        .select("*")
+        .single();
+      data = updated;
+      error = updateError;
+    } else {
+      // Create new reservation
+      const { data: inserted, error: insertError } = await supabase
+        .from("event_reservations" as any)
+        .insert(reservationPayload as any)
+        .select("*")
+        .single();
+      data = inserted;
+      error = insertError;
+    }
 
     if (error) {
-      if (error.code === "23505") {
-        toast({ title: "Ya tenés una reserva para este evento.", variant: "destructive" });
-      } else {
-        toast({ title: "Error al registrar.", description: error.message, variant: "destructive" });
-      }
+      toast({ title: "Error al registrar.", description: error.message, variant: "destructive" });
       setStep("form");
       return;
     }
