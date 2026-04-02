@@ -40,7 +40,9 @@ const AdminMejoras = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
   const scrollAiToBottom = () => {
-    aiBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (aiScrollRef.current) {
+      aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight;
+    }
   };
 
   const loadMejoras = useCallback(async () => {
