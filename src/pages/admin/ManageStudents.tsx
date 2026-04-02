@@ -849,11 +849,13 @@ const ManageStudents = () => {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <Label className="text-xs">Teléfono</Label>
-                              <Input value={detailForm.telefono} onChange={(e) => setDetailForm({ ...detailForm, telefono: e.target.value })} className="bg-secondary border-border text-sm h-8" />
+                              <Input value={detailForm.telefono} onChange={(e) => setDetailForm({ ...detailForm, telefono: e.target.value })} className="bg-secondary border-border text-sm h-8" placeholder="Ej: 5491140312299" />
+                              <p className="text-[10px] text-muted-foreground">Formato: 549 + código de área + número (sin 15)</p>
                             </div>
                             <div className="space-y-1">
                               <Label className="text-xs">DNI/CUIT</Label>
-                              <Input value={detailForm.documento} onChange={(e) => setDetailForm({ ...detailForm, documento: e.target.value })} className="bg-secondary border-border text-sm h-8" />
+                              <Input value={detailForm.documento} onChange={(e) => setDetailForm({ ...detailForm, documento: e.target.value })} className="bg-secondary border-border text-sm h-8" placeholder="Ej: 17951790" />
+                              <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                             </div>
                           </div>
                           <div className="space-y-1">
@@ -1161,11 +1163,13 @@ const ManageStudents = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Teléfono</Label>
-                    <Input value={createForm.telefono} onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })} className="bg-secondary border-border" placeholder="Opcional" />
+                    <Input value={createForm.telefono} onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })} className="bg-secondary border-border" placeholder="Ej: 5491140312299" />
+                    <p className="text-[10px] text-muted-foreground">Formato: 549 + código de área + número (sin 15)</p>
                   </div>
                   <div className="space-y-2">
                     <Label>DNI/CUIT</Label>
-                    <Input value={createForm.documento} onChange={(e) => setCreateForm({ ...createForm, documento: e.target.value })} className="bg-secondary border-border" placeholder="Opcional" />
+                    <Input value={createForm.documento} onChange={(e) => setCreateForm({ ...createForm, documento: e.target.value })} className="bg-secondary border-border" placeholder="Ej: 17951790" />
+                    <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                   </div>
                 </div>
               </div>
