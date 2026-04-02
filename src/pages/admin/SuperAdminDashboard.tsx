@@ -118,6 +118,21 @@ const SuperAdminDashboard = () => {
         { label: "Alumnos nuevos", value: nuevosEsteMes, icon: Users, color: "text-primary", subtitle: "Este mes" },
       ]);
 
+      // Plan performance
+      const planPerfMap: Record<string, { name: string; inscriptos: number; facturacion: number; moneda: string }> = {};
+      subsActivas.forEach(s => {
+        const plan = planesMap.get(s.plan_id);
+        if (!plan) return;
+        if (!planPerfMap[s.plan_id]) planPerfMap[s.plan_id] = { name: plan.nombre, inscriptos: 0, facturacion: 0, moneda: (plan as any).moneda || "ARS" };
+        planPerfMap[s.plan_id].inscriptos++;
+        planPerfMap[s.plan_id].facturacion += plan.precio;
+      });
+      const totalFact = Object.values(planPerfMap).reduce((s, p) => s + p.facturacion, 0);
+      const perfArr = Object.values(planPerfMap)
+        .map(p => ({ ...p, porcentaje: totalFact > 0 ? Math.round((p.facturacion / totalFact) * 100) : 0 }))
+        .sort((a, b) => b.facturacion - a.facturacion);
+      setPlanPerformance(perfArr);
+
       // Monthly trends (last 6 months)
       const monthly: { month: string; ingresos: number; gastos: number }[] = [];
       for (let i = 5; i >= 0; i--) {
