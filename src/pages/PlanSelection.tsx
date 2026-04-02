@@ -66,8 +66,19 @@ const PlanSelection = () => {
       .select("*")
       .eq("activo", true)
       .order("precio", { ascending: false })
-      .then(({ data }) => {
-        setPlanes((data as Plan[]) || []);
+      .then(async ({ data }) => {
+        const planesData = (data as Plan[]) || [];
+        // Fetch live subscription counts for programs with max capacity
+        const programIds = planesData.filter(p => p.tipo === "programa" && p.max_inscripciones).map(p => p.id);
+        if (programIds.length > 0) {
+          const { data: subs } = await supabase.from("suscripciones").select("plan_id").in("plan_id", programIds).in("estado", ["activa", "pendiente_verificacion"]);
+          if (subs) {
+            const countMap: Record<string, number> = {};
+            subs.forEach((s: any) => { countMap[s.plan_id] = (countMap[s.plan_id] || 0) + 1; });
+            planesData.forEach(p => { if (countMap[p.id]) p.inscripciones_actuales = countMap[p.id]; });
+          }
+        }
+        setPlanes(planesData);
         setLoading(false);
       });
 
