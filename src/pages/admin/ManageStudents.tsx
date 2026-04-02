@@ -18,6 +18,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
+import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
