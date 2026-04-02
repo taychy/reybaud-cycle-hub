@@ -99,6 +99,7 @@ const ReservationStatusCard = ({
   const [hasPayments, setHasPayments] = useState(false);
 
   const installments = installmentFromMetadata(eventMetadata);
+  const resSt = reservationStatusConfig[reservation.reservation_status] || reservationStatusConfig.solicitud_enviada;
   const paySt = paymentStatusConfig[reservation.payment_status] || paymentStatusConfig.no_informado;
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
 
