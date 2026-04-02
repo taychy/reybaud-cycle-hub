@@ -418,6 +418,11 @@ const ManageStudents = () => {
       if (createForm.apellido.trim()) {
         await supabase.from("alumnos").update({ apellido: createForm.apellido.trim() } as any).eq("email", createForm.email.trim());
       }
+      // Log activity
+      const { data: newAlumno } = await supabase.from("alumnos").select("id").eq("email", createForm.email.trim().toLowerCase()).maybeSingle();
+      if (newAlumno) {
+        await logStudentActivity({ alumnoId: newAlumno.id, eventType: "alta", title: "Alta de alumno", description: `Creado e invitación enviada a ${createForm.email.trim()}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
+      }
       toast.success(data?.message || "Alumno creado e invitación enviada");
       setShowCreate(false);
       setCreateForm({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
