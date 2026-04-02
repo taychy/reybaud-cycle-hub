@@ -147,6 +147,59 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice
     if (data) setPayments(data as unknown as Payment[]);
   };
 
+  const searchStudents = async (q: string) => {
+    if (q.length < 2) { setStudentResults([]); return; }
+    setSearchingStudents(true);
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, nombre, apellido, email")
+      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(10);
+    const existingIds = new Set(reservations.map(r => r.alumno_id));
+    setStudentResults((data || []).filter(a => !existingIds.has(a.id)) as AlumnoOption[]);
+    setSearchingStudents(false);
+  };
+
+  const addStudentToEvent = async (alumno: AlumnoOption) => {
+    setAddingStudent(alumno.id);
+    const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+    const isPaid = eventPrice != null && eventPrice > 0;
+    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
+
+    const { error } = await supabase
+      .from("event_reservations" as any)
+      .insert({
+        event_id: eventId,
+        alumno_id: alumno.id,
+        reservation_status: "reserva_confirmada",
+        payment_status: paymentStatus,
+        estado: "reserva_confirmada",
+        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
+        amount_total: eventPrice,
+        price_snapshot: eventPrice,
+        currency_snapshot: eventCurrency,
+        moneda: eventCurrency,
+        monto: eventPrice,
+        balance_due: isInscriptionOnly || !isPaid ? 0 : eventPrice,
+        created_by: "admin",
+        confirmed_at: new Date().toISOString(),
+      } as any);
+
+    if (error) {
+      if (error.code === "23505") {
+        toast({ title: "Este alumno ya tiene una reserva en este evento.", variant: "destructive" });
+      } else {
+        toast({ title: "Error al agregar", description: error.message, variant: "destructive" });
+      }
+    } else {
+      toast({ title: `${alumno.nombre} ${alumno.apellido || ""} agregado al evento` });
+      loadReservations();
+      // Remove from search results
+      setStudentResults(prev => prev.filter(s => s.id !== alumno.id));
+    }
+    setAddingStudent(null);
+  };
+
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
     setUpdatingId(resId);
     const res = reservations.find(r => r.id === resId);
