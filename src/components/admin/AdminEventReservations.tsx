@@ -98,6 +98,7 @@ interface AdminEventReservationsProps {
   eventCurrency: string;
   eventPrice?: number | null;
   eventNature?: string;
+  eventMetadata?: Record<string, any>;
 }
 
 interface AlumnoOption {
