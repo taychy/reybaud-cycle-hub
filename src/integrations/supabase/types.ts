@@ -420,6 +420,8 @@ export type Database = {
           updated_at: string
           usos_actuales: number
           valor: number
+          vigencia_desde: string | null
+          vigencia_hasta: string | null
         }
         Insert: {
           activo?: boolean
@@ -434,6 +436,8 @@ export type Database = {
           updated_at?: string
           usos_actuales?: number
           valor?: number
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
         }
         Update: {
           activo?: boolean
@@ -448,6 +452,8 @@ export type Database = {
           updated_at?: string
           usos_actuales?: number
           valor?: number
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
         }
         Relationships: []
       }
@@ -2629,6 +2635,7 @@ export type Database = {
           cancelada_at: string | null
           cancelada_motivo: string | null
           created_at: string
+          descuento_id: string | null
           estado: string
           fecha_fin: string | null
           fecha_inicio: string | null
@@ -2637,6 +2644,8 @@ export type Database = {
           mp_preference_id: string | null
           mp_status: string | null
           plan_id: string
+          precio_base: number | null
+          precio_final: number | null
           updated_at: string
         }
         Insert: {
@@ -2645,6 +2654,7 @@ export type Database = {
           cancelada_at?: string | null
           cancelada_motivo?: string | null
           created_at?: string
+          descuento_id?: string | null
           estado?: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
@@ -2653,6 +2663,8 @@ export type Database = {
           mp_preference_id?: string | null
           mp_status?: string | null
           plan_id: string
+          precio_base?: number | null
+          precio_final?: number | null
           updated_at?: string
         }
         Update: {
@@ -2661,6 +2673,7 @@ export type Database = {
           cancelada_at?: string | null
           cancelada_motivo?: string | null
           created_at?: string
+          descuento_id?: string | null
           estado?: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
@@ -2669,6 +2682,8 @@ export type Database = {
           mp_preference_id?: string | null
           mp_status?: string | null
           plan_id?: string
+          precio_base?: number | null
+          precio_final?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2677,6 +2692,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_descuento_id_fkey"
+            columns: ["descuento_id"]
+            isOneToOne: false
+            referencedRelation: "descuentos"
             referencedColumns: ["id"]
           },
           {
