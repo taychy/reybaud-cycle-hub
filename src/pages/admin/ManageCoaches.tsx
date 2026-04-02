@@ -228,7 +228,7 @@ const ManageCoaches = () => {
                   </Badge>
                   {!(coach as any).password_set && (coach as any).invited_at && (
                     <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
-                      Clave pendiente
+                       Activación pendiente
                     </Badge>
                   )}
                 </div>
@@ -281,7 +281,7 @@ const ManageCoaches = () => {
                         </Badge>
                         {!(coach as any).password_set && (coach as any).invited_at && (
                           <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
-                            Clave pendiente
+                            Activación pendiente
                           </Badge>
                         )}
                       </div>
