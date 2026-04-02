@@ -134,6 +134,23 @@ const ManageStudents = () => {
   const [resending, setResending] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
+  // Sorting
+  type SortKey = "nombre" | "apellido" | "grupo" | "estado" | "suscripcion" | "ultimo_acceso";
+  type SortDir = "asc" | "desc" | null;
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir("asc"); }
+    else if (sortDir === "asc") { setSortDir("desc"); }
+    else { setSortKey(null); setSortDir(null); }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="w-3 h-3 text-muted-foreground/50" />;
+    return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />;
+  };
+
   useEffect(() => {
     const checkRole = async () => {
       const { data: { session } } = await supabase.auth.getSession();
