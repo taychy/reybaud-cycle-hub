@@ -241,7 +241,7 @@ const AdminPayments = () => {
       estado: "activa",
       fecha_inicio: manualPayData.fecha_pago,
       fecha_fin: fechaFin.toISOString().split("T")[0],
-      mp_status: manualPayData.metodo === "efectivo" ? "efectivo" : "externo",
+      mp_status: manualPayData.metodo,
     }).eq("id", manualPayDialog.id);
     if (!error) {
       await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualPayDialog.alumno_id);

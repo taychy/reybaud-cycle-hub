@@ -178,11 +178,9 @@ const ReportPaymentDrawer = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="efectivo">Efectivo</SelectItem>
-                    <SelectItem value="transferencia">Transferencia bancaria</SelectItem>
-                    <SelectItem value="mercadopago">MercadoPago</SelectItem>
-                    <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                    <SelectItem value="otro">Otro</SelectItem>
+                    {PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
