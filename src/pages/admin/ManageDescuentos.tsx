@@ -23,6 +23,8 @@ interface Descuento {
   usos_actuales: number;
   activo: boolean;
   aplica_a: string;
+  vigencia_desde: string | null;
+  vigencia_hasta: string | null;
   created_at: string;
 }
 
@@ -72,11 +74,14 @@ const ManageDescuentos = () => {
   // Form state
   const [form, setForm] = useState({
     nombre: "",
+    tipo: "porcentaje",
     categoria: "general",
     valor: 0,
     codigo: "",
     max_usos: "",
     aplica_a: "todo",
+    vigencia_desde: "",
+    vigencia_hasta: "",
     activo: true,
   });
 
@@ -92,7 +97,7 @@ const ManageDescuentos = () => {
   useEffect(() => { loadDescuentos(); }, []);
 
   const resetForm = () => {
-    setForm({ nombre: "", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", activo: true });
+    setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", activo: true });
     setEditing(null);
   };
 
@@ -102,11 +107,14 @@ const ManageDescuentos = () => {
     setEditing(d);
     setForm({
       nombre: d.nombre,
+      tipo: d.tipo || "porcentaje",
       categoria: d.categoria,
       valor: d.valor,
       codigo: d.codigo || "",
       max_usos: d.max_usos?.toString() || "",
       aplica_a: d.aplica_a,
+      vigencia_desde: d.vigencia_desde || "",
+      vigencia_hasta: d.vigencia_hasta || "",
       activo: d.activo,
     });
     setDialogOpen(true);
@@ -120,12 +128,14 @@ const ManageDescuentos = () => {
 
     const payload: any = {
       nombre: form.nombre,
-      tipo: "porcentaje",
+      tipo: form.tipo,
       categoria: form.categoria,
       valor: form.valor,
       codigo: form.codigo.trim() || null,
       max_usos: form.max_usos ? parseInt(form.max_usos) : null,
       aplica_a: form.aplica_a,
+      vigencia_desde: form.vigencia_desde || null,
+      vigencia_hasta: form.vigencia_hasta || null,
       activo: form.activo,
     };
 
@@ -270,7 +280,9 @@ const ManageDescuentos = () => {
                         <Badge variant="outline" className={cat.className}>{cat.label}</Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-primary font-semibold">{d.valor}%</span>
+                        <span className="text-primary font-semibold">
+                          {d.tipo === "fijo" ? `$${d.valor}` : `${d.valor}%`}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {d.codigo ? (
@@ -328,8 +340,20 @@ const ManageDescuentos = () => {
               </Select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground">Porcentaje de descuento (%)</label>
-              <Input type="number" min={1} max={100} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: Number(e.target.value) }))} />
+              <label className="text-sm text-muted-foreground">Tipo de descuento</label>
+              <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                  <SelectItem value="fijo">Monto fijo ($)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">
+                {form.tipo === "fijo" ? "Monto de descuento ($)" : "Porcentaje de descuento (%)"}
+              </label>
+              <Input type="number" min={1} max={form.tipo === "porcentaje" ? 100 : undefined} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: Number(e.target.value) }))} />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Código (opcional, para referidos)</label>
@@ -348,6 +372,17 @@ const ManageDescuentos = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-muted-foreground">Vigencia desde (opcional)</label>
+                <Input type="date" value={form.vigencia_desde} onChange={e => setForm(f => ({ ...f, vigencia_desde: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Vigencia hasta (opcional)</label>
+                <Input type="date" value={form.vigencia_hasta} onChange={e => setForm(f => ({ ...f, vigencia_hasta: e.target.value }))} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">Dejá vacío para descuento permanente</p>
             <div className="flex items-center gap-2">
               <Switch checked={form.activo} onCheckedChange={v => setForm(f => ({ ...f, activo: v }))} />
               <span className="text-sm text-muted-foreground">Activo</span>
@@ -366,7 +401,9 @@ const ManageDescuentos = () => {
           <DialogHeader>
             <DialogTitle>
               Asignar alumnos — {selectedDescuento?.nombre}
-              <Badge className="ml-2" variant="outline">{selectedDescuento?.valor}%</Badge>
+              <Badge className="ml-2" variant="outline">
+                {selectedDescuento?.tipo === "fijo" ? `$${selectedDescuento?.valor}` : `${selectedDescuento?.valor}%`}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
           <Input
