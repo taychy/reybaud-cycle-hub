@@ -134,9 +134,7 @@ const Login = () => {
     }
 
     const { data, error: fetchError } = await supabase
-      .from("alumnos")
-      .select("id, estado, grupo")
-      .eq("email", trimmedEmail)
+      .rpc("lookup_alumno_by_email", { p_email: trimmedEmail })
       .maybeSingle();
 
     if (fetchError || !data) {
