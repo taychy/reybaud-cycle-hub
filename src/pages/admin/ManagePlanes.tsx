@@ -450,10 +450,7 @@ const ManagePlanes = () => {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>
-                    {tipo === "programa" 
-                      ? `${plan.inscripciones_actuales || 0}${plan.max_inscripciones ? `/${plan.max_inscripciones}` : ""} inscriptos`
-                      : `${alumnoCount[plan.id] || 0} alumnos`
-                    }
+                    {alumnoCount[plan.id] || 0}{tipo === "programa" && plan.max_inscripciones ? `/${plan.max_inscripciones}` : ""} {tipo === "programa" ? "inscriptos" : "alumnos"}
                   </span>
                 </div>
                 <div className="flex gap-2">
