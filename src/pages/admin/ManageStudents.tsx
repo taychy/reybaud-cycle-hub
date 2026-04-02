@@ -93,6 +93,7 @@ const getProfileMissing = (alumno: Alumno, subEstado: string): string[] => {
 const isProfileIncomplete = (alumno: Alumno, subEstado: string) => getProfileMissing(alumno, subEstado).length > 0;
 
 const ManageStudents = () => {
+  const navigate = useNavigate();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
