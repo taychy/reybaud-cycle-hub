@@ -14,6 +14,7 @@ import {
 import EventRankings from "@/components/EventRankings";
 import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
+import { getEventPriceDisplay } from "@/lib/eventPricing";
 import { useAlumnoSession } from "@/hooks/useAlumnoSession";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";

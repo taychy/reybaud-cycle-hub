@@ -12,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import { useAlumnoSession } from "@/hooks/useAlumnoSession";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import { formatPrice } from "@/lib/currency";
+import { getEventPriceDisplay } from "@/lib/eventPricing";
 
 interface Event {
   id: string;
