@@ -16,6 +16,14 @@ interface KPI {
   subtitle?: string;
 }
 
+interface PlanPerformance {
+  name: string;
+  inscriptos: number;
+  facturacion: number;
+  moneda: string;
+  porcentaje: number; // share of total revenue
+}
+
 const fmt = (n: number) => `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 
 const SuperAdminDashboard = () => {
