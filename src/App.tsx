@@ -23,6 +23,7 @@ import CoachAttendance from "./pages/coach/CoachAttendance";
 import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
 import CoachLiquidaciones from "./pages/coach/CoachLiquidaciones";
+import CoachEntrenamientos from "./pages/coach/CoachEntrenamientos";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
@@ -98,6 +99,7 @@ const App = () => (
           <Route path="/coach/asistencia" element={<CoachAttendance />} />
           <Route path="/coach/feedback" element={<CoachFeedback />} />
           <Route path="/coach/liquidaciones" element={<CoachLiquidaciones />} />
+          <Route path="/coach/entrenamientos" element={<CoachEntrenamientos />} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
