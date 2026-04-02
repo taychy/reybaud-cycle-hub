@@ -51,6 +51,11 @@ interface ReservationStatusCardProps {
   onPaymentReported: () => void;
 }
 
+const installmentFromMetadata = (meta: any) => {
+  if (!meta?.installments_enabled || !meta?.installments) return [];
+  return meta.installments as { number: number; amount: string; due_date: string; label: string }[];
+};
+
 const reservationStatusConfig: Record<string, { label: string; icon: typeof CheckCircle; className: string }> = {
   solicitud_enviada: { label: "Solicitud enviada", icon: Clock, className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
   reserva_pendiente: { label: "Reserva pendiente", icon: AlertCircle, className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
