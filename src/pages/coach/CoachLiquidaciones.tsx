@@ -182,12 +182,12 @@ const CoachLiquidaciones = () => {
     reloadMovimientos();
   };
 
-
+  const filteredMovimientos = movimientos.filter((m) => {
     if (filtro === "todas") return true;
     if (filtro === "grupales") return m.tipo_actividad.startsWith("grupal") || m.tipo_actividad === "fondo_salida" || m.tipo_actividad === "tecnica" || m.tipo_actividad === "evento_escuela";
     if (filtro === "personalizadas") return m.tipo_actividad === "personalizada";
     if (filtro === "evaluatorias") return m.tipo_actividad === "evaluatoria";
-    if (filtro === "ajustes") return m.origen === "ajuste_manual";
+    if (filtro === "ajustes") return m.origen === "ajuste_manual" || m.origen === "carga_coach";
     return true;
   });
 
