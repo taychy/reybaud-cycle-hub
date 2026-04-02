@@ -644,6 +644,29 @@ const EventDetail = () => {
           eventNature={eventNature}
         />
       )}
+
+      {/* Cancel Reservation Drawer */}
+      {alumno && reservation && isActiveReservation && (
+        <CancelReservationDrawer
+          open={showCancelDrawer}
+          onOpenChange={setShowCancelDrawer}
+          reservationId={reservation.id}
+          eventTitle={event.title}
+          eventDate={event.date}
+          cancellationPolicy={{
+            allow_cancellation: event.metadata?.cancellation?.allow_cancellation ?? true,
+            cancellation_days_before: event.metadata?.cancellation?.cancellation_days_before ?? 0,
+            cancellation_type: event.metadata?.cancellation?.cancellation_type ?? "sin_penalidad",
+            cancellation_text_short: event.metadata?.cancellation?.cancellation_text_short ?? "",
+            cancellation_text_full: event.metadata?.cancellation?.cancellation_text_full ?? "",
+            require_reason: event.metadata?.cancellation?.require_reason ?? false,
+          }}
+          onCancelled={() => {
+            setShowCancelDrawer(false);
+            loadReservation();
+          }}
+        />
+      )}
     </div>
   );
 };
