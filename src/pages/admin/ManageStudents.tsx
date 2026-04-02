@@ -943,9 +943,28 @@ const ManageStudents = () => {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Estado usuario</span>
-                          <Badge variant={getEstadoBadge(drawerAlumno.estado).variant} className={`text-xs ${getEstadoBadge(drawerAlumno.estado).className}`}>
-                            {drawerAlumno.estado}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant={getEstadoBadge(drawerAlumno.estado).variant} className={`text-xs ${getEstadoBadge(drawerAlumno.estado).className}`}>
+                              {drawerAlumno.estado}
+                            </Badge>
+                            {getValidTransitions(drawerAlumno.estado).length > 0 && (
+                              <Select
+                                value=""
+                                onValueChange={(val) => {
+                                  openStateChange(drawerAlumno, val);
+                                }}
+                              >
+                                <SelectTrigger className="w-7 h-7 p-0 bg-secondary border-border [&>svg]:hidden">
+                                  <Pencil className="w-3 h-3 mx-auto text-muted-foreground" />
+                                </SelectTrigger>
+                                <SelectContent className="z-[200]">
+                                  {getValidTransitions(drawerAlumno.estado).map(e => (
+                                    <SelectItem key={e} value={e} className="text-xs">{e.charAt(0).toUpperCase() + e.slice(1)}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Estado suscripción</span>
