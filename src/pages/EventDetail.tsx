@@ -289,16 +289,27 @@ const EventDetail = () => {
           </div>
 
           {/* Price & Quick Details */}
-          {(isPaid || event.max_capacity || event.duration_days) && (
+          {(isPaid || priceDisplay.mode === "gratuito" || event.max_capacity || event.duration_days) && (
             <div className="glass-card rounded-xl p-5 space-y-4">
               {isPaid && (
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-heading">Precio por persona</p>
                     <p className="text-2xl font-heading font-bold text-primary leading-tight">
-                      {formatPrice(event.price!, event.currency)}
+                      {formatPrice(priceDisplay.price!, priceDisplay.currency)}
                     </p>
                   </div>
+                  {spotsLeft != null && (
+                    <div className={`text-right ${spotsLeft <= 5 ? "text-destructive" : "text-muted-foreground"}`}>
+                      <p className="text-lg font-heading font-bold">{spotsLeft > 0 ? spotsLeft : 0}</p>
+                      <p className="text-[10px] uppercase tracking-wider">cupos</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {priceDisplay.mode === "gratuito" && (
+                <div className="flex items-baseline justify-between">
+                  <p className="text-sm font-heading font-semibold text-emerald-400">Evento gratuito</p>
                   {spotsLeft != null && (
                     <div className={`text-right ${spotsLeft <= 5 ? "text-destructive" : "text-muted-foreground"}`}>
                       <p className="text-lg font-heading font-bold">{spotsLeft > 0 ? spotsLeft : 0}</p>
@@ -323,7 +334,7 @@ const EventDetail = () => {
                     <Mountain className="w-3.5 h-3.5" /> {event.level}
                   </span>
                 )}
-                {!isPaid && spotsLeft != null && (
+                {!isPaid && priceDisplay.mode !== "gratuito" && spotsLeft != null && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
                     <Users className="w-3.5 h-3.5" /> {spotsLeft > 0 ? `${spotsLeft} cupos` : "Sin cupos"}
                   </span>
