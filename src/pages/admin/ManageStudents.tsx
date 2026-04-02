@@ -539,6 +539,7 @@ const ManageStudents = () => {
       } as any);
     }
     toast.success(`Suscripción de ${subChangeAlumno.nombre} actualizada a "${subChangeTarget}"`);
+    await logStudentActivity({ alumnoId: subChangeAlumno.id, eventType: "estado_suscripcion", title: `Suscripción → ${subChangeTarget}`, description: `Cambio de "${sub.estado}" a "${subChangeTarget}"${subChangeMotivo ? `. Motivo: ${subChangeMotivo}` : ""}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "suscripcion", referenceId: sub.id });
     setSavingSub(false);
     setSubChangeAlumno(null);
     fetchAlumnos();
