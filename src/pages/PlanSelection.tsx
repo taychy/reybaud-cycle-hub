@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const PlanSelection = () => {
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
+  const { applyDiscount } = useStudentDiscounts(alumnoId);
 
   useEffect(() => {
     if (!alumnoId) {
