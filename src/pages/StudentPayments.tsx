@@ -248,8 +248,14 @@ const StudentPayments = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Impersonation banner */}
+      {isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg">
+          <span>Vista de solo lectura — {targetAlumno?.nombre}</span>
+        </div>
+      )}
       {/* Header */}
-      <header className="flex items-center gap-3 px-5 pt-5 pb-2">
+      <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-10" : ""}`}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-muted-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Button>
