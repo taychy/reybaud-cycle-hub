@@ -1075,7 +1075,7 @@ const ManageStudents = () => {
                         ))}
                         {/* Sub state change */}
                         {getActiveSub(drawerAlumno.id) && (
-                          <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => { openSubChange(drawerAlumno); setDrawerAlumno(null); }}>
+                          <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => openSubChange(drawerAlumno)}>
                             <FileText className="w-3 h-3 mr-1.5" /> Estado sub
                           </Button>
                         )}
