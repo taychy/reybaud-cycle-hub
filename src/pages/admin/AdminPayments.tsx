@@ -608,9 +608,9 @@ const AdminPayments = () => {
               <Select value={manualPayData.metodo} onValueChange={(v) => setManualPayData((p) => ({ ...p, metodo: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="transferencia">Transferencia</SelectItem>
-                  <SelectItem value="otro">Otro</SelectItem>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
