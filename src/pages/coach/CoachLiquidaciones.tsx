@@ -319,18 +319,57 @@ const CoachLiquidaciones = () => {
     loadMovimientos(coachId, mes);
   };
 
+  const submitViatico = async () => {
+    if (!coachId || !viaticoForm.fecha || !viaticoForm.monto || !viaticoForm.concepto) {
+      toast({ title: "Completá los campos", description: "Fecha, concepto y monto son obligatorios.", variant: "destructive" });
+      return;
+    }
+    const monto = parseFloat(viaticoForm.monto);
+    if (isNaN(monto) || monto <= 0) {
+      toast({ title: "Monto inválido", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase.from("movimientos_liquidacion").insert({
+      coach_id: coachId,
+      fecha: viaticoForm.fecha,
+      tipo_actividad: "viatico",
+      grupo: null,
+      nombre_externo: null,
+      evento: viaticoForm.concepto,
+      origen: "carga_coach",
+      valor_base: 0,
+      viaticos: monto,
+      total: monto,
+      estado_operativo: "realizada",
+      estado_economico: "pendiente_revision",
+      observaciones: viaticoForm.observaciones || null,
+    } as any);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Viático registrado", description: `$${monto.toLocaleString("es-AR")} — Pendiente de revisión.` });
+    setShowViaticoForm(false);
+    setViaticoForm({ fecha: new Date().toISOString().split("T")[0], monto: "", concepto: "", observaciones: "" });
+    loadMovimientos(coachId, mes);
+  };
+
   const filteredMovimientos = movimientos.filter((m) => {
     if (filtro === "todas") return true;
     if (filtro === "grupales") return m.tipo_actividad.startsWith("grupal") || m.tipo_actividad === "fondo_salida" || m.tipo_actividad === "tecnica" || m.tipo_actividad === "evento_escuela";
     if (filtro === "personalizadas") return m.tipo_actividad === "personalizada";
     if (filtro === "evaluatorias") return m.tipo_actividad === "evaluatoria";
-    if (filtro === "ajustes") return m.origen === "ajuste_manual" || m.origen === "carga_coach";
+    if (filtro === "viaticos") return m.tipo_actividad === "viatico";
+    if (filtro === "ajustes") return m.origen === "ajuste_manual" || (m.origen === "carga_coach" && m.tipo_actividad !== "viatico");
     return true;
   });
 
   const confirmado = movimientos.filter(m => m.estado_economico === "liquidable" || m.estado_economico === "liquidada").reduce((s, m) => s + Number(m.total), 0);
   const estimado = movimientos.filter(m => m.estado_operativo === "programada" || m.estado_operativo === "reservada").reduce((s, m) => s + Number(m.total), 0);
   const pendiente = movimientos.filter(m => m.estado_economico === "pendiente_revision").reduce((s, m) => s + Number(m.total), 0);
+  const totalViaticos = movimientos.filter(m => m.tipo_actividad === "viatico").reduce((s, m) => s + Number(m.total), 0);
 
   // Find liquidacion for the selected month
   const liqMes = historico.find(h => h.mes === mes);
