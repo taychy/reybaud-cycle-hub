@@ -775,12 +775,10 @@ const ManageStudents = () => {
                           <TableCell className="font-medium text-foreground">
                             <div className="flex items-center gap-1.5">
                               {alumno.nombre}
-                              {alumno.user_id ? (
-                                <Smartphone className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Tiene acceso a la app" />
-                              ) : (
-                                <Smartphone className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" title="Sin acceso a la app" />
-                              )}
-                              {isDuplicate(alumno) && <Copy className="w-3 h-3 text-amber-500 shrink-0" title="Posible duplicado" />}
+                              <span title={alumno.user_id ? "Tiene acceso a la app" : "Sin acceso a la app"}>
+                                <Smartphone className={`w-3.5 h-3.5 shrink-0 ${alumno.user_id ? "text-emerald-500" : "text-muted-foreground/40"}`} />
+                              </span>
+                              {isDuplicate(alumno) && <span title="Posible duplicado"><Copy className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                               {missing.length > 0 && !inconsistency && (
                                 <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title={`Faltan: ${missing.join(", ")}`} />
                               )}
