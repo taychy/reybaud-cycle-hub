@@ -1016,6 +1016,10 @@ const ManageStudents = () => {
                       </>
                     )}
 
+                    {/* Activity Log */}
+                    <StudentActivityLog alumnoId={drawerAlumno.id} />
+                    <Separator />
+
                     {/* Actions */}
                     <div className="space-y-2">
                       <h3 className="text-sm font-semibold text-foreground">Acciones</h3>
