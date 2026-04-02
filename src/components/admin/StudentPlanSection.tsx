@@ -274,7 +274,29 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {currentSub?.planes && (
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground text-xs">Precio del plan</span>
-              <span className="text-foreground text-xs font-mono">{currentSub.planes.moneda} {currentSub.planes.precio}</span>
+              <span className={`text-xs font-mono ${currentSub.descuento_id ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                {currentSub.planes.moneda} {currentSub.precio_base ?? currentSub.planes.precio}
+              </span>
+            </div>
+          )}
+
+          {/* Descuento aplicado */}
+          {currentSub?.descuento_id && currentSub.descuentos && (
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-emerald-400">
+                {currentSub.descuentos.nombre} ({currentSub.descuentos.tipo === "fijo" ? `$${currentSub.descuentos.valor}` : `${currentSub.descuentos.valor}%`})
+              </span>
+              <span className="text-xs text-emerald-400 font-mono">
+                -{currentSub.planes.moneda} {(currentSub.precio_base ?? currentSub.planes.precio) - (currentSub.precio_final ?? currentSub.planes.precio)}
+              </span>
+            </div>
+          )}
+
+          {/* Precio final */}
+          {currentSub?.descuento_id && currentSub.precio_final != null && (
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-xs font-medium">Precio final</span>
+              <span className="text-foreground text-xs font-mono font-medium">{currentSub.planes?.moneda} {currentSub.precio_final}</span>
             </div>
           )}
         </div>
