@@ -12,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import { useAlumnoSession } from "@/hooks/useAlumnoSession";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import { formatPrice } from "@/lib/currency";
+import { getEventPriceDisplay } from "@/lib/eventPricing";
 
 interface Event {
   id: string;
@@ -125,7 +126,7 @@ const EventCard = ({
   event: Event; onClick: () => void; isFavorite: boolean;
   onToggleFavorite: () => void; reservationStatus?: string;
 }) => {
-  const isPaid = event.price != null && event.price > 0;
+  const priceDisplay = getEventPriceDisplay(event);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const d = new Date(event.date + "T12:00:00");
   const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
@@ -218,26 +219,28 @@ const EventCard = ({
 
         {/* Price + CTA */}
         <div className="flex items-end justify-between pt-1.5 border-t border-border/50">
-          {isPaid ? (
+          {priceDisplay.mode === "con_valor" && priceDisplay.price != null ? (
             <div>
               <p className="text-[9px] text-muted-foreground">Desde</p>
               <p className="text-base font-bold font-heading text-primary leading-none">
-                {formatPrice(event.price!, event.currency)}
+                {formatPrice(priceDisplay.price, priceDisplay.currency)}
               </p>
             </div>
-          ) : (
+          ) : priceDisplay.mode === "gratuito" ? (
             <span className="text-[11px] text-muted-foreground">Gratuito</span>
+          ) : (
+            <span />
           )}
           <Button
             size="sm"
-            variant={hasReservation ? "outline" : isPaid ? "gold" : "outline"}
+            variant={hasReservation ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
             {hasReservation ? "Ver estado"
               : isInformative ? "Ver info"
               : isInscriptionOnly ? "Inscribirme"
-              : isPaid ? "Reservar"
+              : priceDisplay.mode === "con_valor" ? "Reservar"
               : "Ver detalle"}
             <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
