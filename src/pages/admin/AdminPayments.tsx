@@ -135,7 +135,7 @@ const AdminPayments = () => {
     const [subsRes, sedesRes, planesRes] = await Promise.all([
       supabase
         .from("suscripciones")
-        .select("*, alumnos(id, nombre, email, telefono, sede_id), planes(id, nombre, precio, moneda, frecuencia)")
+        .select("*, alumnos(id, nombre, apellido, email, telefono, sede_id), planes(id, nombre, precio, moneda, frecuencia)")
         .order("created_at", { ascending: false }),
       supabase.from("sedes").select("id, nombre").eq("activa", true),
       supabase.from("planes").select("id, nombre"),
