@@ -175,7 +175,7 @@ const StudentPayments = () => {
       setLoading(false);
     };
     load();
-  }, [navigate]);
+  }, [navigate, isImpersonating, targetAlumno]);
 
   const handleToggleRenovacion = async () => {
     if (!activeSub) return;
