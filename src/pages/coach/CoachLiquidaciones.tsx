@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, DollarSign, Clock, CheckCircle, TrendingUp, Plus } from "lucide-react";
+import { ArrowLeft, DollarSign, Clock, CheckCircle, TrendingUp, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const ESTADO_OP_LABELS: Record<string, string> = {
@@ -82,6 +82,30 @@ type LiquidacionMensual = {
   fecha_pago: string | null;
 };
 
+const getCurrentMonth = () => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const getMonthRange = (mes: string) => {
+  const [y, m] = mes.split("-").map(Number);
+  const startDate = `${mes}-01`;
+  const endDate = new Date(y, m, 0).toISOString().split("T")[0];
+  return { startDate, endDate };
+};
+
+const shiftMonth = (mes: string, delta: number) => {
+  const [y, m] = mes.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const formatMes = (m: string) => {
+  const [y, mo] = m.split("-");
+  const date = new Date(Number(y), Number(mo) - 1);
+  return date.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+};
+
 const CoachLiquidaciones = () => {
   const navigate = useNavigate();
   const [coachId, setCoachId] = useState<string | null>(null);
@@ -90,6 +114,7 @@ const CoachLiquidaciones = () => {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [historico, setHistorico] = useState<LiquidacionMensual[]>([]);
   const [filtro, setFiltro] = useState<string>("todas");
+  const [mes, setMes] = useState(getCurrentMonth);
   const [showClaseForm, setShowClaseForm] = useState(false);
   const [claseForm, setClaseForm] = useState({
     tipo_actividad: "grupal_1h30",
@@ -98,8 +123,19 @@ const CoachLiquidaciones = () => {
     observaciones: "",
   });
 
-  const now = new Date();
-  const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const isCurrentMonth = mes === getCurrentMonth();
+
+  const loadMovimientos = useCallback(async (cId: string, mesStr: string) => {
+    const { startDate, endDate } = getMonthRange(mesStr);
+    const { data: movs } = await supabase
+      .from("movimientos_liquidacion")
+      .select("*")
+      .eq("coach_id", cId)
+      .gte("fecha", startDate)
+      .lte("fecha", endDate)
+      .order("fecha", { ascending: true });
+    setMovimientos((movs as any[]) || []);
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -116,26 +152,13 @@ const CoachLiquidaciones = () => {
       setCoachId(coach.id);
       setCoachGrupos((coach as any).grupos || []);
 
-      // Fetch current month movements
-      const startDate = `${mesActual}-01`;
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-
-      const { data: movs } = await supabase
-        .from("movimientos_liquidacion")
-        .select("*")
-        .eq("coach_id", coach.id)
-        .gte("fecha", startDate)
-        .lte("fecha", endDate)
-        .order("fecha", { ascending: true });
-
-      setMovimientos((movs as any[]) || []);
+      await loadMovimientos(coach.id, mes);
 
       // Fetch historical liquidaciones
       const { data: hist } = await supabase
         .from("liquidaciones_mensuales")
         .select("*")
         .eq("coach_id", coach.id)
-        .neq("mes", mesActual)
         .order("mes", { ascending: false });
 
       setHistorico((hist as any[]) || []);
@@ -144,19 +167,12 @@ const CoachLiquidaciones = () => {
     init();
   }, [navigate]);
 
-  const reloadMovimientos = async () => {
-    if (!coachId) return;
-    const startDate = `${mesActual}-01`;
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-    const { data: movs } = await supabase
-      .from("movimientos_liquidacion")
-      .select("*")
-      .eq("coach_id", coachId)
-      .gte("fecha", startDate)
-      .lte("fecha", endDate)
-      .order("fecha", { ascending: true });
-    setMovimientos((movs as any[]) || []);
-  };
+  // Reload movements when month changes
+  useEffect(() => {
+    if (coachId) {
+      loadMovimientos(coachId, mes);
+    }
+  }, [mes, coachId, loadMovimientos]);
 
   const submitClase = async () => {
     if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
@@ -179,7 +195,7 @@ const CoachLiquidaciones = () => {
     toast({ title: "Clase registrada", description: "Queda pendiente de revisión por el administrador." });
     setShowClaseForm(false);
     setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", observaciones: "" });
-    reloadMovimientos();
+    loadMovimientos(coachId, mes);
   };
 
   const filteredMovimientos = movimientos.filter((m) => {
@@ -194,17 +210,14 @@ const CoachLiquidaciones = () => {
   const confirmado = movimientos.filter(m => m.estado_economico === "liquidable" || m.estado_economico === "liquidada").reduce((s, m) => s + Number(m.total), 0);
   const estimado = movimientos.filter(m => m.estado_operativo === "programada" || m.estado_operativo === "reservada").reduce((s, m) => s + Number(m.total), 0);
   const pendiente = movimientos.filter(m => m.estado_economico === "pendiente_revision").reduce((s, m) => s + Number(m.total), 0);
+
+  // Find liquidacion for the selected month
+  const liqMes = historico.find(h => h.mes === mes);
   const ultimoPago = historico.find(h => h.estado === "pagada");
 
   const formatDate = (d: string) => {
     const date = new Date(d + "T12:00:00");
     return date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
-  };
-
-  const formatMes = (m: string) => {
-    const [y, mo] = m.split("-");
-    const date = new Date(Number(y), Number(mo) - 1);
-    return date.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
   };
 
   if (loading) {
@@ -232,10 +245,33 @@ const CoachLiquidaciones = () => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Month label */}
-        <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-          {formatMes(mesActual)}
-        </p>
+        {/* Month navigation */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="icon" onClick={() => setMes(shiftMonth(mes, -1))}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <p className="text-sm text-foreground font-heading font-semibold uppercase tracking-wider capitalize">
+            {formatMes(mes)}
+          </p>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMes(shiftMonth(mes, 1))}
+            disabled={isCurrentMonth}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Liquidacion status for past months */}
+        {liqMes && (
+          <div className="flex items-center justify-center">
+            <Badge variant="outline" className="text-xs capitalize">
+              Estado: {liqMes.estado}
+              {liqMes.fecha_pago && ` — Pagado ${new Date(liqMes.fecha_pago).toLocaleDateString("es-AR")}`}
+            </Badge>
+          </div>
+        )}
 
         {/* Summary cards */}
         <div className="grid grid-cols-2 gap-3">
@@ -380,7 +416,7 @@ const CoachLiquidaciones = () => {
           </DialogContent>
         </Dialog>
 
-
+        {/* Movements list */}
         <div className="space-y-2">
           {filteredMovimientos.length === 0 ? (
             <Card className="bg-card border-border">
@@ -399,6 +435,11 @@ const CoachLiquidaciones = () => {
                         <Badge variant="secondary" className="text-xs">
                           {TIPO_LABELS[m.tipo_actividad] || m.tipo_actividad}
                         </Badge>
+                        {m.origen === "carga_coach" && (
+                          <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
+                            Cargado por vos
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-foreground truncate">
                         {m.grupo || m.nombre_externo || m.evento || "–"}
@@ -432,35 +473,6 @@ const CoachLiquidaciones = () => {
             ))
           )}
         </div>
-
-        {/* Historical */}
-        {historico.length > 0 && (
-          <div className="space-y-3 pt-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-              Histórico
-            </p>
-            {historico.map((h) => (
-              <Card key={h.id} className="bg-card border-border">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground capitalize">{formatMes(h.mes)}</p>
-                    <Badge variant="outline" className="text-[10px] mt-1 capitalize">{h.estado}</Badge>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-heading font-bold text-foreground">
-                      ${Number(h.total_confirmado).toLocaleString("es-AR")}
-                    </p>
-                    {h.fecha_pago && (
-                      <p className="text-xs text-muted-foreground">
-                        Pagado {new Date(h.fecha_pago).toLocaleDateString("es-AR")}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
       </main>
     </div>
   );
