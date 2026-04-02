@@ -3,32 +3,47 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowLeft, Banknote } from "lucide-react";
+import { formatPrice } from "@/lib/currency";
 
 interface CashPaymentConfirmProps {
   planId: string;
   planName: string;
   alumnoId: string;
+  precioBase: number;
+  precioFinal: number;
+  descuentoId: string | null;
+  descuentoNombre: string | null;
+  descuentoValor: number | null;
+  descuentoTipo: string | null;
+  moneda: string;
   onBack: () => void;
 }
 
-const CashPaymentConfirm = ({ planId, planName, alumnoId, onBack }: CashPaymentConfirmProps) => {
+const CashPaymentConfirm = ({
+  planId, planName, alumnoId, precioBase, precioFinal,
+  descuentoId, descuentoNombre, descuentoValor, descuentoTipo, moneda, onBack,
+}: CashPaymentConfirmProps) => {
   const navigate = useNavigate();
   const [step, setStep] = useState<"confirm" | "done">("confirm");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasDiscount = descuentoId !== null && precioFinal < precioBase;
+
   const handleConfirmCash = async () => {
     setProcessing(true);
     setError(null);
 
-    // Create subscription with "pendiente_verificacion" status
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
         alumno_id: alumnoId,
         plan_id: planId,
         estado: "pendiente_verificacion",
-      })
+        descuento_id: descuentoId,
+        precio_base: precioBase,
+        precio_final: precioFinal,
+      } as any)
       .select("id")
       .single();
 
@@ -38,7 +53,6 @@ const CashPaymentConfirm = ({ planId, planName, alumnoId, onBack }: CashPaymentC
       return;
     }
 
-    // Notify admin in background
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cash-payment`;
       fetch(functionUrl, {
@@ -101,6 +115,34 @@ const CashPaymentConfirm = ({ planId, planName, alumnoId, onBack }: CashPaymentC
         </p>
       </div>
 
+      {/* Discount summary */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Precio del plan</span>
+          <span className={`text-foreground ${hasDiscount ? "line-through text-muted-foreground" : "font-medium"}`}>
+            {formatPrice(precioBase, moneda)}
+          </span>
+        </div>
+        {hasDiscount && (
+          <>
+            <div className="flex justify-between text-emerald-400">
+              <span>{descuentoNombre} ({descuentoTipo === "fijo" ? `-${formatPrice(descuentoValor!, moneda)}` : `-${descuentoValor}%`})</span>
+              <span>-{formatPrice(precioBase - precioFinal, moneda)}</span>
+            </div>
+            <div className="border-t border-border pt-2 flex justify-between font-medium">
+              <span className="text-foreground">Total a pagar</span>
+              <span className="text-foreground">{formatPrice(precioFinal, moneda)}</span>
+            </div>
+          </>
+        )}
+        {!hasDiscount && (
+          <div className="border-t border-border pt-2 flex justify-between font-medium">
+            <span className="text-foreground">Total a pagar</span>
+            <span className="text-foreground">{formatPrice(precioFinal, moneda)}</span>
+          </div>
+        )}
+      </div>
+
       {error && (
         <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">
           {error}
@@ -114,7 +156,7 @@ const CashPaymentConfirm = ({ planId, planName, alumnoId, onBack }: CashPaymentC
         disabled={processing}
         onClick={handleConfirmCash}
       >
-        {processing ? "Registrando..." : "Confirmar pago en efectivo"}
+        {processing ? "Registrando..." : `Confirmar pago de ${formatPrice(precioFinal, moneda)}`}
       </Button>
 
       <button

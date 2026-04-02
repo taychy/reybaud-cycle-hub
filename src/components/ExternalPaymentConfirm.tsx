@@ -3,19 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowLeft, Globe } from "lucide-react";
+import { formatPrice } from "@/lib/currency";
 
 interface ExternalPaymentConfirmProps {
   planId: string;
   planName: string;
   alumnoId: string;
+  precioBase: number;
+  precioFinal: number;
+  descuentoId: string | null;
+  descuentoNombre: string | null;
+  descuentoValor: number | null;
+  descuentoTipo: string | null;
+  moneda: string;
   onBack: () => void;
 }
 
-const ExternalPaymentConfirm = ({ planId, planName, alumnoId, onBack }: ExternalPaymentConfirmProps) => {
+const ExternalPaymentConfirm = ({
+  planId, planName, alumnoId, precioBase, precioFinal,
+  descuentoId, descuentoNombre, descuentoValor, descuentoTipo, moneda, onBack,
+}: ExternalPaymentConfirmProps) => {
   const navigate = useNavigate();
   const [step, setStep] = useState<"confirm" | "done">("confirm");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasDiscount = descuentoId !== null && precioFinal < precioBase;
 
   const handleConfirm = async () => {
     setProcessing(true);
@@ -27,7 +40,10 @@ const ExternalPaymentConfirm = ({ planId, planName, alumnoId, onBack }: External
         alumno_id: alumnoId,
         plan_id: planId,
         estado: "pendiente_verificacion",
-      })
+        descuento_id: descuentoId,
+        precio_base: precioBase,
+        precio_final: precioFinal,
+      } as any)
       .select("id")
       .single();
 
@@ -37,7 +53,6 @@ const ExternalPaymentConfirm = ({ planId, planName, alumnoId, onBack }: External
       return;
     }
 
-    // Notify admin
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cash-payment`;
       fetch(functionUrl, {
@@ -102,6 +117,34 @@ const ExternalPaymentConfirm = ({ planId, planName, alumnoId, onBack }: External
         </p>
       </div>
 
+      {/* Discount summary */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Precio del plan</span>
+          <span className={`text-foreground ${hasDiscount ? "line-through text-muted-foreground" : "font-medium"}`}>
+            {formatPrice(precioBase, moneda)}
+          </span>
+        </div>
+        {hasDiscount && (
+          <>
+            <div className="flex justify-between text-emerald-400">
+              <span>{descuentoNombre} ({descuentoTipo === "fijo" ? `-${formatPrice(descuentoValor!, moneda)}` : `-${descuentoValor}%`})</span>
+              <span>-{formatPrice(precioBase - precioFinal, moneda)}</span>
+            </div>
+            <div className="border-t border-border pt-2 flex justify-between font-medium">
+              <span className="text-foreground">Total a pagar</span>
+              <span className="text-foreground">{formatPrice(precioFinal, moneda)}</span>
+            </div>
+          </>
+        )}
+        {!hasDiscount && (
+          <div className="border-t border-border pt-2 flex justify-between font-medium">
+            <span className="text-foreground">Total a pagar</span>
+            <span className="text-foreground">{formatPrice(precioFinal, moneda)}</span>
+          </div>
+        )}
+      </div>
+
       {error && (
         <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">
           {error}
@@ -115,7 +158,7 @@ const ExternalPaymentConfirm = ({ planId, planName, alumnoId, onBack }: External
         disabled={processing}
         onClick={handleConfirm}
       >
-        {processing ? "Registrando..." : "Confirmar pago realizado"}
+        {processing ? "Registrando..." : `Confirmar pago de ${formatPrice(precioFinal, moneda)}`}
       </Button>
 
       <button
