@@ -378,15 +378,19 @@ const ManageStudents = () => {
 
   const saveDetail = async () => {
     if (!drawerAlumno) return;
-    const fullName = detailForm.apellido ? `${detailForm.nombre} ${detailForm.apellido}` : detailForm.nombre;
-    await supabase.from("alumnos").update({
-      nombre: fullName,
+    const { error } = await supabase.from("alumnos").update({
+      nombre: detailForm.nombre,
       apellido: detailForm.apellido || null,
       email: detailForm.email,
       telefono: detailForm.telefono || null,
       documento: detailForm.documento || null,
       notas: detailForm.notas || null,
     } as any).eq("id", drawerAlumno.id);
+    if (error) {
+      console.error("Error updating alumno:", error);
+      toast.error("Error al guardar los cambios");
+      return;
+    }
     toast.success("Datos actualizados");
     await logStudentActivity({ alumnoId: drawerAlumno.id, eventType: "edicion_datos", title: "Edición de datos", description: "Datos personales modificados desde la ficha", actorRole: isSuperAdmin ? "super_admin" : "admin" });
     setEditingDetail(false);
