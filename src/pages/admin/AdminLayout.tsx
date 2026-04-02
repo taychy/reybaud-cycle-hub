@@ -314,19 +314,20 @@ const AdminLayout = () => {
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
                 <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} mobile />
-                <div className="pt-2 pb-1">
-                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Gestión</span>
-                </div>
+                <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} mobile />
               </>
             )}
-            {navItems.map((item) => (
-              <NavItem key={item.to} item={item} mobile />
-            ))}
-            <div className="pt-4 pb-1">
-              <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Tienda</span>
-            </div>
-            {storeNavItems.map((item) => (
-              <NavItem key={item.to} item={item} mobile />
+            {navSections.map((section, idx) => (
+              <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
+                <div className="pb-1">
+                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
+                    {section.label}
+                  </span>
+                </div>
+                {section.items.map((item) => (
+                  <NavItem key={item.to} item={item} mobile />
+                ))}
+              </div>
             ))}
           </nav>
 
