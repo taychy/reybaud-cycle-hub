@@ -199,7 +199,14 @@ const StudentDashboard = () => {
 
   // Vacation mode: render limited dashboard
   if (alumno?.estado === "vacaciones") {
-    return <VacationDashboard alumno={alumno} onLogout={handleLogout} />;
+    return (
+      <>
+        <ImpersonationBanner />
+        <div className={isImpersonating ? "pt-12" : ""}>
+          <VacationDashboard alumno={alumno} onLogout={isImpersonating ? () => {} : handleLogout} />
+        </div>
+      </>
+    );
   }
 
   const firstName = alumno?.nombre?.split(" ")[0] || "";
@@ -333,7 +340,7 @@ const StudentDashboard = () => {
                   <Button
                     variant={realizado ? "secondary" : "gold"}
                     className="w-full"
-                    disabled={realizado || markingDone}
+                    disabled={realizado || markingDone || readOnly}
                     onClick={async () => {
                       if (!alumno || !entrenamiento) return;
                       setMarkingDone(true);
@@ -412,13 +419,16 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Impersonation banner */}
+      <ImpersonationBanner />
+
       {/* Top bar */}
-      <header className="flex items-center justify-between px-5 pt-5 pb-2">
+      <header className={`flex items-center justify-between px-5 pt-5 pb-2 ${isImpersonating ? "mt-12" : ""}`}>
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
-          <LanguageSelector />
+          {!isImpersonating && <LanguageSelector />}
           <span className="text-xs text-muted-foreground font-heading">{firstName}</span>
-          {activeTab !== "mas" && (
+          {activeTab !== "mas" && !isImpersonating && (
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">
               <LogOut className="w-4 h-4" />
             </Button>
