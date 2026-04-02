@@ -340,8 +340,20 @@ const ManageDescuentos = () => {
               </Select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground">Porcentaje de descuento (%)</label>
-              <Input type="number" min={1} max={100} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: Number(e.target.value) }))} />
+              <label className="text-sm text-muted-foreground">Tipo de descuento</label>
+              <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                  <SelectItem value="fijo">Monto fijo ($)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">
+                {form.tipo === "fijo" ? "Monto de descuento ($)" : "Porcentaje de descuento (%)"}
+              </label>
+              <Input type="number" min={1} max={form.tipo === "porcentaje" ? 100 : undefined} value={form.valor} onChange={e => setForm(f => ({ ...f, valor: Number(e.target.value) }))} />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Código (opcional, para referidos)</label>
