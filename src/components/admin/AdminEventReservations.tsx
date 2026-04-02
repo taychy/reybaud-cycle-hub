@@ -108,7 +108,7 @@ interface AlumnoOption {
   email: string;
 }
 
-const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice, eventNature }: AdminEventReservationsProps) => {
+const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice, eventNature, eventMetadata }: AdminEventReservationsProps) => {
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +125,17 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice
   const [studentResults, setStudentResults] = useState<AlumnoOption[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [addingStudent, setAddingStudent] = useState<string | null>(null);
+
+  // Admin register payment state
+  const [showAdminPayment, setShowAdminPayment] = useState(false);
+  const [adminPayAmount, setAdminPayAmount] = useState("");
+  const [adminPayDate, setAdminPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [adminPayMethod, setAdminPayMethod] = useState("efectivo");
+  const [adminPayRef, setAdminPayRef] = useState("");
+  const [adminPayNotes, setAdminPayNotes] = useState("");
+  const [submittingAdminPay, setSubmittingAdminPay] = useState(false);
+
+  const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
   const loadReservations = async () => {
     setLoading(true);
