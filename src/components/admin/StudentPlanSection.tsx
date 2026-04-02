@@ -70,6 +70,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const { discounts, applyDiscount, loading: discountsLoading } = useStudentDiscounts(alumno.id);
 
   // Change plan dialog
   const [showChangePlan, setShowChangePlan] = useState(false);
