@@ -269,8 +269,85 @@ const AdminEventReservations = ({ eventId, eventTitle, eventCurrency, eventPrice
     toast({ title: "Notas guardadas" });
     loadReservations();
   };
+  const registerAdminPayment = async () => {
+    if (!selectedRes || !adminPayAmount || parseFloat(adminPayAmount) <= 0) {
+      toast({ title: "Ingresá un monto válido.", variant: "destructive" });
+      return;
+    }
+    setSubmittingAdminPay(true);
+    const amt = parseFloat(adminPayAmount);
 
-  const validatePayment = async (paymentId: string, status: "validado" | "rechazado") => {
+    // Insert payment as already validated
+    const { error: payErr } = await supabase
+      .from("reservation_payments" as any)
+      .insert({
+        reservation_id: selectedRes.id,
+        alumno_id: selectedRes.alumno_id,
+        amount: amt,
+        currency: selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency,
+        payment_date: adminPayDate,
+        payment_method: adminPayMethod,
+        payment_reference: adminPayRef.trim() || null,
+        notes: adminPayNotes.trim() || null,
+        status: "validado",
+        reviewed_at: new Date().toISOString(),
+      } as any);
+
+    if (payErr) {
+      toast({ title: "Error al registrar pago", description: payErr.message, variant: "destructive" });
+      setSubmittingAdminPay(false);
+      return;
+    }
+
+    // Recalculate totals
+    const newPaid = (selectedRes.amount_paid || 0) + amt;
+    const newBalance = Math.max(0, (selectedRes.amount_total || 0) - newPaid);
+    const newPaymentStatus = newBalance <= 0 ? "pago_validado" : "parcial";
+
+    // Find next installment due date
+    let nextDue: string | null = null;
+    if (installments.length > 0 && newBalance > 0) {
+      let accumulated = 0;
+      for (const inst of installments) {
+        accumulated += parseFloat(inst.amount || "0");
+        if (accumulated > newPaid && inst.due_date) {
+          nextDue = inst.due_date;
+          break;
+        }
+      }
+    }
+
+    await supabase
+      .from("event_reservations" as any)
+      .update({
+        amount_paid: newPaid,
+        balance_due: newBalance,
+        payment_status: newPaymentStatus,
+        estado: newPaymentStatus === "pago_validado" ? "pago_confirmado" : "pendiente_verificacion",
+        next_due_date: nextDue,
+      } as any)
+      .eq("id", selectedRes.id);
+
+    // Log history
+    await supabase.from("reservation_status_history" as any).insert({
+      reservation_id: selectedRes.id,
+      old_payment_status: selectedRes.payment_status,
+      new_payment_status: newPaymentStatus,
+      changed_by_role: "admin",
+      note: `Pago registrado por admin: ${formatPrice(amt, eventCurrency)} via ${adminPayMethod}`,
+    } as any);
+
+    setSubmittingAdminPay(false);
+    setShowAdminPayment(false);
+    setAdminPayAmount("");
+    setAdminPayRef("");
+    setAdminPayNotes("");
+    toast({ title: "Pago registrado y validado" });
+    loadPayments(selectedRes.id);
+    loadReservations();
+  };
+
+
     await supabase
       .from("reservation_payments" as any)
       .update({
