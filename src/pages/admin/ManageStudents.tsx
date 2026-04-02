@@ -1042,13 +1042,7 @@ const ManageStudents = () => {
                             {e.charAt(0).toUpperCase() + e.slice(1)}
                           </Button>
                         ))}
-                        {/* Sub actions */}
-                        <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => { setChangePlanAlumno(drawerAlumno); setNewPlanId(getActiveSub(drawerAlumno.id)?.plan_id || ""); setDrawerAlumno(null); }}>
-                          <CreditCard className="w-3 h-3 mr-1.5" /> Cambiar plan
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => { openManualSub(drawerAlumno); setDrawerAlumno(null); }}>
-                          <CalendarCheck className="w-3 h-3 mr-1.5" /> Habilitar sub
-                        </Button>
+                        {/* Sub state change */}
                         {getActiveSub(drawerAlumno.id) && (
                           <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => { openSubChange(drawerAlumno); setDrawerAlumno(null); }}>
                             <FileText className="w-3 h-3 mr-1.5" /> Estado sub
