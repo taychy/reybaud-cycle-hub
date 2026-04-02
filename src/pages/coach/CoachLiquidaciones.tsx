@@ -176,23 +176,81 @@ const CoachLiquidaciones = () => {
 
   const submitClase = async () => {
     if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
+
+    // Lookup honorario value for this activity type and coach
+    let valorBase = 0;
+    try {
+      // First try coach-specific honorario
+      const { data: honCoach } = await supabase
+        .from("honorarios")
+        .select("valor")
+        .eq("activo", true)
+        .ilike("nombre_concepto", `%${claseForm.tipo_actividad.replace(/_/g, "%")}%`)
+        .eq("coach_id", coachId)
+        .limit(1)
+        .maybeSingle();
+
+      if (honCoach) {
+        valorBase = Number(honCoach.valor);
+      } else {
+        // Fallback: generic honorario (no coach assigned)
+        const { data: honGeneric } = await supabase
+          .from("honorarios")
+          .select("valor")
+          .eq("activo", true)
+          .ilike("nombre_concepto", `%${claseForm.tipo_actividad.replace(/_/g, "%")}%`)
+          .is("coach_id", null)
+          .limit(1)
+          .maybeSingle();
+        if (honGeneric) {
+          valorBase = Number(honGeneric.valor);
+        }
+      }
+    } catch {
+      // If honorario lookup fails, proceed with 0
+    }
+
+    // Determine estado_economico based on reglas_liquidacion
+    let estadoEconomico = "pendiente_revision";
+    try {
+      const { data: regla } = await supabase
+        .from("reglas_liquidacion")
+        .select("liquida, porcentaje_pago")
+        .eq("tipo_actividad", claseForm.tipo_actividad)
+        .eq("estado_operativo", "realizada")
+        .maybeSingle();
+
+      if (regla) {
+        if (regla.liquida) {
+          valorBase = valorBase * (regla.porcentaje_pago / 100);
+          estadoEconomico = "pendiente_revision"; // Coach entries always start pending
+        } else {
+          estadoEconomico = "no_liquidable";
+        }
+      }
+    } catch {
+      // proceed with default
+    }
+
+    const total = valorBase;
+
     const { error } = await supabase.from("movimientos_liquidacion").insert({
       coach_id: coachId,
       fecha: claseForm.fecha,
       tipo_actividad: claseForm.tipo_actividad,
       grupo: claseForm.grupo || null,
       origen: "carga_coach",
-      valor_base: 0,
-      total: 0,
+      valor_base: valorBase,
+      total,
       estado_operativo: "realizada",
-      estado_economico: "pendiente_revision",
+      estado_economico: estadoEconomico,
       observaciones: claseForm.observaciones || null,
     } as any);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Clase registrada", description: "Queda pendiente de revisión por el administrador." });
+    toast({ title: "Clase registrada", description: valorBase > 0 ? `Valor: $${valorBase.toLocaleString("es-AR")} — Pendiente de revisión.` : "Queda pendiente de revisión por el administrador." });
     setShowClaseForm(false);
     setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", observaciones: "" });
     loadMovimientos(coachId, mes);
