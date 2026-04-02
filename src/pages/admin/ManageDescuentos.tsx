@@ -401,7 +401,9 @@ const ManageDescuentos = () => {
           <DialogHeader>
             <DialogTitle>
               Asignar alumnos — {selectedDescuento?.nombre}
-              <Badge className="ml-2" variant="outline">{selectedDescuento?.valor}%</Badge>
+              <Badge className="ml-2" variant="outline">
+                {selectedDescuento?.tipo === "fijo" ? `$${selectedDescuento?.valor}` : `${selectedDescuento?.valor}%`}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
           <Input
