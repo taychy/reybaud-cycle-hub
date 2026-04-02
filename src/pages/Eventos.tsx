@@ -126,7 +126,7 @@ const EventCard = ({
   event: Event; onClick: () => void; isFavorite: boolean;
   onToggleFavorite: () => void; reservationStatus?: string;
 }) => {
-  const isPaid = event.price != null && event.price > 0;
+  const priceDisplay = getEventPriceDisplay(event);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const d = new Date(event.date + "T12:00:00");
   const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
