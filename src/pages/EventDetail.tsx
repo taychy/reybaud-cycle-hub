@@ -221,6 +221,7 @@ const EventDetail = () => {
   const dateFormatted = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const priceDisplay = getEventPriceDisplay(event);
   const isPaid = priceDisplay.mode === "con_valor" && priceDisplay.price != null;
+  const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
   const hasReservation = !!reservation;
