@@ -3,11 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { formatPrice } from "@/lib/currency";
 
 interface CardPaymentFormProps {
   planId: string;
   planName: string;
   planPrice: number;
+  precioBase: number;
+  descuentoId: string | null;
+  descuentoNombre: string | null;
+  descuentoValor: number | null;
+  descuentoTipo: string | null;
+  moneda: string;
   alumnoId: string;
   onBack: () => void;
 }
