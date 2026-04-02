@@ -302,6 +302,21 @@ const ManageStudents = () => {
     }
   });
 
+  // --- Sorting ---
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sortKey || !sortDir) return 0;
+    let cmp = 0;
+    switch (sortKey) {
+      case "nombre": cmp = a.nombre.localeCompare(b.nombre, "es"); break;
+      case "apellido": cmp = getApellido(a).localeCompare(getApellido(b), "es"); break;
+      case "grupo": cmp = (a.grupo || "").localeCompare(b.grupo || "", "es"); break;
+      case "estado": cmp = a.estado.localeCompare(b.estado, "es"); break;
+      case "suscripcion": cmp = getSubEstadoLabel(a.id).localeCompare(getSubEstadoLabel(b.id), "es"); break;
+      case "ultimo_acceso": cmp = (a.updated_at || "").localeCompare(b.updated_at || ""); break;
+    }
+    return sortDir === "desc" ? -cmp : cmp;
+  });
+
   // --- Badges ---
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
