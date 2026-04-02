@@ -627,7 +627,55 @@ const CoachLiquidaciones = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Movements list */}
+        {/* Viático registration dialog */}
+        <Dialog open={showViaticoForm} onOpenChange={setShowViaticoForm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar viático</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Fecha</label>
+                <Input
+                  type="date"
+                  value={viaticoForm.fecha}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, fecha: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Concepto</label>
+                <Input
+                  placeholder="Ej: Peaje, Combustible, Estacionamiento..."
+                  value={viaticoForm.concepto}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, concepto: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Monto ($)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={viaticoForm.monto}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, monto: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
+                <Textarea
+                  placeholder="Detalle adicional..."
+                  value={viaticoForm.observaciones}
+                  onChange={(e) => setViaticoForm({ ...viaticoForm, observaciones: e.target.value })}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                El viático quedará en estado "Pendiente de revisión" hasta que el administrador lo apruebe.
+              </p>
+              <Button onClick={submitViatico} className="w-full">Registrar viático</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <div className="space-y-2">
           {filteredMovimientos.length === 0 ? (
             <Card className="bg-card border-border">
