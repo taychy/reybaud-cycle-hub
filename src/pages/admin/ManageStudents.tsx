@@ -313,7 +313,14 @@ const ManageStudents = () => {
       case "duplicados": return isDuplicate(a);
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
-      default: return true;
+      case "sin_plan": return sinPlanIds.has(a.id);
+      default:
+        if (statusFilter.startsWith("plan_")) {
+          const planId = statusFilter.replace("plan_", "");
+          const sub = getActiveSub(a.id) || getAnySub(a.id);
+          return sub?.plan_id === planId;
+        }
+        return true;
     }
   });
 
@@ -732,6 +739,10 @@ const ManageStudents = () => {
     ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
     { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
     { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
+    ...Object.entries(planCounts).map(([planId, { name, count }]) => ({
+      key: `plan_${planId}`, label: name, count,
+    })),
+    { key: "sin_plan", label: "Sin plan", count: sinPlanCount },
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
