@@ -106,6 +106,16 @@ const PlanSelection = () => {
 
   const selectedPlan = planes.find((p) => p.id === selected);
 
+  // Compute discount for selected plan
+  const selectedDiscount = selectedPlan
+    ? applyDiscount(
+        selectedPlan.tipo === "programa" && selectedPlan.precio_promocional
+          ? selectedPlan.precio_promocional
+          : selectedPlan.precio,
+        "planes"
+      )
+    : null;
+
   const formatPriceLocal = (precio: number, moneda: string = "ARS") => formatPrice(precio, moneda);
 
   // Cancel paused subscriptions when reactivating from vacation
@@ -277,6 +287,13 @@ const PlanSelection = () => {
             planId={selectedPlan.id}
             planName={selectedPlan.nombre}
             alumnoId={alumnoId}
+            precioBase={selectedDiscount?.original ?? selectedPlan.precio}
+            precioFinal={selectedDiscount?.final ?? selectedPlan.precio}
+            descuentoId={selectedDiscount?.discount?.id ?? null}
+            descuentoNombre={selectedDiscount?.discount?.nombre ?? null}
+            descuentoValor={selectedDiscount?.discount?.valor ?? null}
+            descuentoTipo={selectedDiscount?.discount?.tipo ?? null}
+            moneda={selectedPlan.moneda || "ARS"}
             onBack={() => setStep("select-method")}
           />
         </div>
@@ -295,7 +312,13 @@ const PlanSelection = () => {
           <CardPaymentForm
             planId={selectedPlan.id}
             planName={selectedPlan.nombre}
-            planPrice={selectedPlan.precio}
+            planPrice={selectedDiscount?.final ?? selectedPlan.precio}
+            precioBase={selectedDiscount?.original ?? selectedPlan.precio}
+            descuentoId={selectedDiscount?.discount?.id ?? null}
+            descuentoNombre={selectedDiscount?.discount?.nombre ?? null}
+            descuentoValor={selectedDiscount?.discount?.valor ?? null}
+            descuentoTipo={selectedDiscount?.discount?.tipo ?? null}
+            moneda={selectedPlan.moneda || "ARS"}
             alumnoId={alumnoId}
             onBack={() => setStep("select-method")}
           />
@@ -316,6 +339,13 @@ const PlanSelection = () => {
             planId={selectedPlan.id}
             planName={selectedPlan.nombre}
             alumnoId={alumnoId}
+            precioBase={selectedDiscount?.original ?? selectedPlan.precio}
+            precioFinal={selectedDiscount?.final ?? selectedPlan.precio}
+            descuentoId={selectedDiscount?.discount?.id ?? null}
+            descuentoNombre={selectedDiscount?.discount?.nombre ?? null}
+            descuentoValor={selectedDiscount?.discount?.valor ?? null}
+            descuentoTipo={selectedDiscount?.discount?.tipo ?? null}
+            moneda={selectedPlan.moneda || "ARS"}
             onBack={() => setStep("select-method")}
           />
         </div>
