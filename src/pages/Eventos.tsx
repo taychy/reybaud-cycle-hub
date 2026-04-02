@@ -219,26 +219,28 @@ const EventCard = ({
 
         {/* Price + CTA */}
         <div className="flex items-end justify-between pt-1.5 border-t border-border/50">
-          {isPaid ? (
+          {priceDisplay.mode === "con_valor" && priceDisplay.price != null ? (
             <div>
               <p className="text-[9px] text-muted-foreground">Desde</p>
               <p className="text-base font-bold font-heading text-primary leading-none">
-                {formatPrice(event.price!, event.currency)}
+                {formatPrice(priceDisplay.price, priceDisplay.currency)}
               </p>
             </div>
-          ) : (
+          ) : priceDisplay.mode === "gratuito" ? (
             <span className="text-[11px] text-muted-foreground">Gratuito</span>
+          ) : (
+            <span />
           )}
           <Button
             size="sm"
-            variant={hasReservation ? "outline" : isPaid ? "gold" : "outline"}
+            variant={hasReservation ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
             {hasReservation ? "Ver estado"
               : isInformative ? "Ver info"
               : isInscriptionOnly ? "Inscribirme"
-              : isPaid ? "Reservar"
+              : priceDisplay.mode === "con_valor" ? "Reservar"
               : "Ver detalle"}
             <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
