@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/currency";
 import {
   Search, Filter, ChevronDown, CheckCircle, XCircle, Clock,
   AlertCircle, Eye, CreditCard, Users, CalendarDays, Banknote,
-  ArrowUpDown, RefreshCw, Loader2,
+  ArrowUpDown, RefreshCw, Loader2, UserPlus,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
