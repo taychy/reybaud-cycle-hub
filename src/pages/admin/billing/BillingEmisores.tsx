@@ -16,6 +16,8 @@ interface Emisor {
   activo: boolean;
   cert_pem?: string | null;
   key_pem?: string | null;
+  es_predeterminado?: boolean;
+  facturacion_automatica?: boolean;
 }
 
 interface BillingEmisoresProps {
