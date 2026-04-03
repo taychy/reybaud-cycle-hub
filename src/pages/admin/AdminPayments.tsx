@@ -269,6 +269,24 @@ const AdminPayments = () => {
         fecha_pago: manualPayData.fecha_pago,
         observaciones: manualPayData.observaciones,
       });
+
+      // Auto-facturar
+      if (manualPayDialog.planes) {
+        supabase.functions.invoke("auto-facturar", {
+          body: {
+            alumno_id: manualPayDialog.alumno_id,
+            concepto: `Suscripción ${manualPayDialog.planes.nombre}`,
+            monto: manualPayDialog.planes.precio,
+            referencia_tipo: "suscripcion",
+            referencia_id: manualPayDialog.id,
+          },
+        }).then(({ data }) => {
+          if (data?.emitted) {
+            toast({ title: "Factura AFIP emitida", description: `N° ${data.numero_comprobante}` });
+          }
+        }).catch(() => {});
+      }
+
       toast({ title: "Pago manual registrado" });
       fetchData();
     }
