@@ -110,6 +110,27 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     onDataChange?.();
   };
 
+  const setAsDefault = async (emisor: Emisor) => {
+    const newValue = !emisor.es_predeterminado;
+    await supabase
+      .from("emisores_fiscales")
+      .update({ es_predeterminado: newValue } as any)
+      .eq("id", emisor.id);
+    toast.success(newValue ? `${emisor.nombre_fiscal} es ahora el emisor predeterminado` : "Emisor predeterminado desactivado");
+    await load();
+    onDataChange?.();
+  };
+
+  const toggleAutoFacturacion = async (emisor: Emisor) => {
+    await supabase
+      .from("emisores_fiscales")
+      .update({ facturacion_automatica: !emisor.facturacion_automatica } as any)
+      .eq("id", emisor.id);
+    toast.success(emisor.facturacion_automatica ? "Facturación automática desactivada" : "Facturación automática activada");
+    await load();
+    onDataChange?.();
+  };
+
   const hasCerts = (e: Emisor) => !!(e.cert_pem && e.key_pem);
 
   if (loading) return <div className="text-muted-foreground text-center py-8">Cargando...</div>;
