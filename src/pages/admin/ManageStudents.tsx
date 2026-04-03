@@ -1176,7 +1176,16 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
-                    {/* Notas internas */}
+                    {/* Apto Físico */}
+                    <MedicalCertificateSection
+                      alumno={drawerAlumno}
+                      isSuperAdmin={isSuperAdmin}
+                      onAlumnoUpdate={(a) => {
+                        setDrawerAlumno(a);
+                        setAlumnos(prev => prev.map(al => al.id === a.id ? a : al));
+                      }}
+                    />
+                    <Separator />
                     {drawerAlumno.notas && !editingDetail && (
                       <>
                         <div className="space-y-2">
