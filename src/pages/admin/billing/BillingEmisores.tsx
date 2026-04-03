@@ -155,13 +155,20 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
           {emisores.map((e) => (
             <div
               key={e.id}
-              className={`rounded-xl border p-4 space-y-2 transition-colors ${
+              className={`rounded-xl border p-4 space-y-3 transition-colors ${
                 e.activo ? "border-border bg-card" : "border-border/50 bg-card/50 opacity-60"
-              }`}
+              } ${e.es_predeterminado ? "ring-2 ring-primary/50" : ""}`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{e.nombre_fiscal}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-foreground">{e.nombre_fiscal}</p>
+                    {e.es_predeterminado && (
+                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                        Predeterminado
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">CUIT: {e.cuit}</p>
                   <p className="text-xs text-muted-foreground">Pto. Venta: {e.punto_venta}</p>
                   <div className="flex items-center gap-1 mt-1">
@@ -179,12 +186,41 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-7 w-7 ${e.es_predeterminado ? "text-primary" : "text-muted-foreground"}`}
+                    onClick={() => setAsDefault(e)}
+                    title={e.es_predeterminado ? "Quitar como predeterminado" : "Marcar como predeterminado"}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${e.es_predeterminado ? "fill-current" : ""}`} />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(e)}>
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
                   <Switch checked={e.activo} onCheckedChange={() => toggleActive(e)} />
                 </div>
               </div>
+
+              {/* Auto-facturacion toggle */}
+              {e.activo && e.es_predeterminado && (
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Facturación automática</span>
+                  </div>
+                  <Switch
+                    checked={!!e.facturacion_automatica}
+                    onCheckedChange={() => toggleAutoFacturacion(e)}
+                    disabled={!hasCerts(e)}
+                  />
+                </div>
+              )}
+              {e.es_predeterminado && !hasCerts(e) && (
+                <p className="text-[10px] text-yellow-500">
+                  Cargá el certificado AFIP para habilitar facturación automática
+                </p>
+              )}
             </div>
           ))}
         </div>
