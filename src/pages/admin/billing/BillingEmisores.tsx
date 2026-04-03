@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, ShieldAlert, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 interface Emisor {
