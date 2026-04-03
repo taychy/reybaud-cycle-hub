@@ -148,6 +148,11 @@ export type Database = {
           invite_send_count: number
           invited_at: string | null
           last_invite_sent_at: string | null
+          medical_certificate_expiration_date: string | null
+          medical_certificate_requested_at: string | null
+          medical_certificate_status: string
+          medical_certificate_uploaded_at: string | null
+          medical_certificate_url: string | null
           nombre: string
           notas: string | null
           password_set: boolean
@@ -177,6 +182,11 @@ export type Database = {
           invite_send_count?: number
           invited_at?: string | null
           last_invite_sent_at?: string | null
+          medical_certificate_expiration_date?: string | null
+          medical_certificate_requested_at?: string | null
+          medical_certificate_status?: string
+          medical_certificate_uploaded_at?: string | null
+          medical_certificate_url?: string | null
           nombre: string
           notas?: string | null
           password_set?: boolean
@@ -206,6 +216,11 @@ export type Database = {
           invite_send_count?: number
           invited_at?: string | null
           last_invite_sent_at?: string | null
+          medical_certificate_expiration_date?: string | null
+          medical_certificate_requested_at?: string | null
+          medical_certificate_status?: string
+          medical_certificate_uploaded_at?: string | null
+          medical_certificate_url?: string | null
           nombre?: string
           notas?: string | null
           password_set?: boolean
