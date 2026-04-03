@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
+import { MedicalCertificateStudent } from "@/components/student/MedicalCertificateStudent";
 import BottomNav from "@/components/BottomNav";
 import { EventosContent } from "@/pages/Eventos";
 import { StudentProgressContent } from "@/pages/StudentProgress";
