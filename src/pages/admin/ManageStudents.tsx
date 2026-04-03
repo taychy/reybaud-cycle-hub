@@ -21,6 +21,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
+import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 
 type Alumno = Tables<"alumnos">;
@@ -1175,7 +1176,16 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
-                    {/* Notas internas */}
+                    {/* Apto Físico */}
+                    <MedicalCertificateSection
+                      alumno={drawerAlumno}
+                      isSuperAdmin={isSuperAdmin}
+                      onAlumnoUpdate={(a) => {
+                        setDrawerAlumno(a);
+                        setAlumnos(prev => prev.map(al => al.id === a.id ? a : al));
+                      }}
+                    />
+                    <Separator />
                     {drawerAlumno.notas && !editingDetail && (
                       <>
                         <div className="space-y-2">
