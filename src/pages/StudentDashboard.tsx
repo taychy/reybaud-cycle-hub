@@ -266,6 +266,20 @@ const StudentDashboard = () => {
               </div>
             </div>
 
+            {/* Trámites section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                Trámites
+              </h3>
+              {alumno && (
+                <MedicalCertificateStudent
+                  alumno={alumno}
+                  onUpdate={(a) => setAlumno(a)}
+                  readOnly={readOnly}
+                />
+              )}
+            </div>
+
             {/* Logout */}
             <div className="pt-4">
               <Button
