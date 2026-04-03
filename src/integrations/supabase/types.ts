@@ -572,6 +572,8 @@ export type Database = {
           cert_pem: string | null
           created_at: string
           cuit: string
+          es_predeterminado: boolean
+          facturacion_automatica: boolean
           id: string
           key_pem: string | null
           nombre_fiscal: string
@@ -583,6 +585,8 @@ export type Database = {
           cert_pem?: string | null
           created_at?: string
           cuit: string
+          es_predeterminado?: boolean
+          facturacion_automatica?: boolean
           id?: string
           key_pem?: string | null
           nombre_fiscal: string
@@ -594,6 +598,8 @@ export type Database = {
           cert_pem?: string | null
           created_at?: string
           cuit?: string
+          es_predeterminado?: boolean
+          facturacion_automatica?: boolean
           id?: string
           key_pem?: string | null
           nombre_fiscal?: string
