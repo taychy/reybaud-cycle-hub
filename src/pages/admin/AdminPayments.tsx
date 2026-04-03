@@ -191,6 +191,24 @@ const AdminPayments = () => {
     if (!error) {
       await supabase.from("alumnos").update({ estado: "activo" }).eq("id", sub.alumno_id);
       await logAudit("marcar_pagado", sub.id, { alumno: sub.alumnos?.nombre });
+      
+      // Auto-facturar
+      if (sub.planes) {
+        supabase.functions.invoke("auto-facturar", {
+          body: {
+            alumno_id: sub.alumno_id,
+            concepto: `Suscripción ${sub.planes.nombre}`,
+            monto: sub.planes.precio,
+            referencia_tipo: "suscripcion",
+            referencia_id: sub.id,
+          },
+        }).then(({ data }) => {
+          if (data?.emitted) {
+            toast({ title: "Factura AFIP emitida", description: `N° ${data.numero_comprobante}` });
+          }
+        }).catch(() => {});
+      }
+
       toast({ title: "Pago registrado", description: `Se marcó como pagado para ${sub.alumnos?.nombre}` });
       fetchData();
     } else {
