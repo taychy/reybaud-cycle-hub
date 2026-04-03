@@ -669,6 +669,26 @@ const ManageStudents = () => {
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
     const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
     supabase.functions.invoke("notify-student-update", { body: { alumno_id: manualSubAlumno.id, type: emailType, fecha_vencimiento: manualFechaFin } }).catch(() => {});
+    
+    // Auto-facturar: create factura record and attempt AFIP emission
+    const selectedPlan = planes.find(p => p.id === planId);
+    if (selectedPlan) {
+      supabase.functions.invoke("auto-facturar", {
+        body: {
+          alumno_id: manualSubAlumno.id,
+          concepto: `Suscripción ${selectedPlan.nombre} — ${manualFechaFin}`,
+          monto: selectedPlan.precio,
+          referencia_tipo: "suscripcion",
+        },
+      }).then(({ data }) => {
+        if (data?.emitted) {
+          toast.success(`Factura AFIP emitida: N° ${data.numero_comprobante}`);
+        } else if (data?.created) {
+          // Record created but not auto-emitted, silent - admin can emit manually
+        }
+      }).catch(() => {});
+    }
+
     toast.success(`Suscripción manual creada para ${manualSubAlumno.nombre} hasta ${manualFechaFin}`);
     await logStudentActivity({ alumnoId: manualSubAlumno.id, eventType: "pago", title: "Suscripción manual habilitada", description: `Vencimiento: ${manualFechaFin}`, actorRole: isSuperAdmin ? "super_admin" : "admin", referenceType: "suscripcion", referenceLabel: `Hasta ${manualFechaFin}` });
     setManualSubAlumno(null);

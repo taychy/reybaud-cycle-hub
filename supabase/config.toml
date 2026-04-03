@@ -33,3 +33,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.send-result-request-email]
     verify_jwt = false
+  [functions.auto-facturar]
+    verify_jwt = false
