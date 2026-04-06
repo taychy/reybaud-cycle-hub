@@ -2,6 +2,8 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, Eye, Loader2, FileCheck, FileX, AlertTriangle, Clock, FileText } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
@@ -40,6 +42,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 
 export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }: MedicalCertificateStudentProps) => {
   const [uploading, setUploading] = useState(false);
+  const [signatureDate, setSignatureDate] = useState("");
 
   const status = getStatus(alumno);
   const config = statusConfig[status];
@@ -47,10 +50,23 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
   const certUrl = (alumno as any).medical_certificate_url;
   const uploadedAt = (alumno as any).medical_certificate_uploaded_at;
   const expDate = (alumno as any).medical_certificate_expiration_date;
+  const sigDate = (alumno as any).medical_certificate_signature_date;
+
+  const calcExpiration = (sigDateStr: string): string => {
+    const d = new Date(sigDateStr);
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split("T")[0];
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!signatureDate) {
+      toast.error("Ingresá la fecha de firma del médico antes de subir el archivo.");
+      e.target.value = "";
+      return;
+    }
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
       toast.error("Formato no permitido. Usá PDF, JPG o PNG.");
@@ -71,11 +87,15 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
 
+      const expirationDate = calcExpiration(signatureDate);
+
       const { data: updated, error: updateError } = await supabase
         .from("alumnos")
         .update({
           medical_certificate_url: path,
           medical_certificate_uploaded_at: new Date().toISOString(),
+          medical_certificate_signature_date: signatureDate,
+          medical_certificate_expiration_date: expirationDate,
           medical_certificate_status: "cargado",
         } as any)
         .eq("id", alumno.id)
@@ -84,7 +104,17 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
 
       if (updateError) throw updateError;
       onUpdate(updated as Alumno);
-      toast.success("Apto físico cargado correctamente");
+
+      // Notify admins for audit
+      try {
+        await supabase.functions.invoke("notify-medical-certificate-upload", {
+          body: { alumno_id: alumno.id },
+        });
+      } catch {
+        // Non-blocking: don't fail upload if notification fails
+      }
+
+      toast.success("Apto físico cargado correctamente. Los administradores serán notificados para su revisión.");
     } catch (err: any) {
       toast.error(err.message || "Error al subir el archivo");
     } finally {
@@ -126,6 +156,14 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
                 {uploadedAt ? new Date(uploadedAt).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
               </span>
             </div>
+            {sigDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Firma del médico</span>
+                <span className="text-foreground">
+                  {new Date(sigDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                </span>
+              </div>
+            )}
             {expDate && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Vencimiento</span>
@@ -137,13 +175,29 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
           </div>
         )}
 
+        {!readOnly && !certUrl && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Fecha de firma del médico *</Label>
+            <Input
+              type="date"
+              value={signatureDate}
+              onChange={(e) => setSignatureDate(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className="bg-secondary border-border text-xs h-8"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              El vencimiento se calcula automáticamente: 12 meses desde la firma.
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-2">
           {!readOnly && (
             <Button
               variant={certUrl ? "outline" : "gold"}
               size="sm"
               className="flex-1 text-xs"
-              disabled={uploading}
+              disabled={uploading || (!certUrl && !signatureDate)}
               onClick={() => document.getElementById("student-cert-upload")?.click()}
             >
               {uploading ? (

@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Upload, Download, Eye, MailPlus, Loader2, FileCheck, FileX, AlertTriangle, Clock, Trash2 } from "lucide-react";
+import { Upload, Eye, MailPlus, Loader2, FileCheck, FileX, AlertTriangle, Clock, Trash2 } from "lucide-react";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -19,7 +18,7 @@ interface MedicalCertificateSectionProps {
 }
 
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const getStatus = (alumno: Alumno) => {
   const a = alumno as any;
@@ -43,16 +42,74 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 };
 
 export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate }: MedicalCertificateSectionProps) => {
+  const a = alumno as any;
   const [uploading, setUploading] = useState(false);
   const [requesting, setRequesting] = useState(false);
-  const [expirationDate, setExpirationDate] = useState((alumno as any).medical_certificate_expiration_date || "");
+  const [signatureDate, setSignatureDate] = useState(a.medical_certificate_signature_date || "");
+  const [expirationDate, setExpirationDate] = useState(a.medical_certificate_expiration_date || "");
 
   const status = getStatus(alumno);
   const config = statusConfig[status];
   const StatusIcon = config.icon;
-  const certUrl = (alumno as any).medical_certificate_url;
-  const uploadedAt = (alumno as any).medical_certificate_uploaded_at;
-  const expDate = (alumno as any).medical_certificate_expiration_date;
+  const certUrl = a.medical_certificate_url;
+  const uploadedAt = a.medical_certificate_uploaded_at;
+
+  const calcExpiration = (sigDateStr: string): string => {
+    const d = new Date(sigDateStr);
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
+  const computeStatus = (expDateStr: string | null): string => {
+    if (!expDateStr) return "cargado";
+    const exp = new Date(expDateStr);
+    const now = new Date();
+    if (exp < now) return "vencido";
+    const thirtyDays = new Date();
+    thirtyDays.setDate(thirtyDays.getDate() + 30);
+    if (exp <= thirtyDays) return "por_vencer";
+    return "cargado";
+  };
+
+  const handleSignatureDateChange = async (date: string) => {
+    setSignatureDate(date);
+    if (date) {
+      const newExp = calcExpiration(date);
+      setExpirationDate(newExp);
+      if (certUrl) {
+        const newStatus = computeStatus(newExp);
+        const { data: updated } = await supabase
+          .from("alumnos")
+          .update({
+            medical_certificate_signature_date: date,
+            medical_certificate_expiration_date: newExp,
+            medical_certificate_status: newStatus,
+          } as any)
+          .eq("id", alumno.id)
+          .select("*")
+          .single();
+        if (updated) onAlumnoUpdate(updated as Alumno);
+        toast.success("Fecha de firma y vencimiento actualizados");
+      }
+    }
+  };
+
+  const handleExpirationChange = async (date: string) => {
+    setExpirationDate(date);
+    if (certUrl) {
+      const newStatus = computeStatus(date || null);
+      const { data: updated } = await supabase
+        .from("alumnos")
+        .update({
+          medical_certificate_expiration_date: date || null,
+          medical_certificate_status: newStatus,
+        } as any)
+        .eq("id", alumno.id)
+        .select("*")
+        .single();
+      if (updated) onAlumnoUpdate(updated as Alumno);
+    }
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,37 +134,23 @@ export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from("medical-certificates").getPublicUrl(path);
-
-      // Since bucket is private, construct signed URL or use the path
-      const { data: signedData } = await supabase.storage
-        .from("medical-certificates")
-        .createSignedUrl(path, 60 * 60 * 24 * 365); // 1 year
-
-      const fileUrl = signedData?.signedUrl || urlData.publicUrl;
-
-      const computedStatus = expirationDate
-        ? new Date(expirationDate) < new Date()
-          ? "vencido"
-          : new Date(expirationDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            ? "por_vencer"
-            : "cargado"
-        : "cargado";
+      const expToSave = signatureDate ? calcExpiration(signatureDate) : expirationDate || null;
+      const statusToSave = computeStatus(expToSave);
 
       const { data: updated, error: updateError } = await supabase
         .from("alumnos")
         .update({
           medical_certificate_url: path,
           medical_certificate_uploaded_at: new Date().toISOString(),
-          medical_certificate_expiration_date: expirationDate || null,
-          medical_certificate_status: computedStatus,
+          medical_certificate_signature_date: signatureDate || null,
+          medical_certificate_expiration_date: expToSave,
+          medical_certificate_status: statusToSave,
         } as any)
         .eq("id", alumno.id)
         .select("*")
         .single();
 
       if (updateError) throw updateError;
-
       onAlumnoUpdate(updated as Alumno);
       await logStudentActivity({
         alumnoId: alumno.id,
@@ -128,7 +171,7 @@ export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate
     if (!certUrl) return;
     const { data } = await supabase.storage
       .from("medical-certificates")
-      .createSignedUrl(certUrl, 60 * 60); // 1 hour
+      .createSignedUrl(certUrl, 60 * 60);
     if (data?.signedUrl) {
       window.open(data.signedUrl, "_blank");
     } else {
@@ -175,6 +218,7 @@ export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate
         .update({
           medical_certificate_url: null,
           medical_certificate_uploaded_at: null,
+          medical_certificate_signature_date: null,
           medical_certificate_expiration_date: null,
           medical_certificate_status: "no_cargado",
         } as any)
@@ -183,34 +227,11 @@ export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate
         .single();
       if (error) throw error;
       onAlumnoUpdate(updated as Alumno);
+      setSignatureDate("");
       setExpirationDate("");
       toast.success("Apto físico eliminado");
     } catch (err: any) {
       toast.error(err.message || "Error al eliminar");
-    }
-  };
-
-  const handleExpirationChange = async (date: string) => {
-    setExpirationDate(date);
-    if (certUrl) {
-      const computedStatus = date
-        ? new Date(date) < new Date()
-          ? "vencido"
-          : new Date(date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            ? "por_vencer"
-            : "cargado"
-        : "cargado";
-
-      const { data: updated } = await supabase
-        .from("alumnos")
-        .update({
-          medical_certificate_expiration_date: date || null,
-          medical_certificate_status: computedStatus,
-        } as any)
-        .eq("id", alumno.id)
-        .select("*")
-        .single();
-      if (updated) onAlumnoUpdate(updated as Alumno);
     }
   };
 
@@ -232,11 +253,19 @@ export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate
               {uploadedAt ? new Date(uploadedAt).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
             </span>
           </div>
-          {expDate && (
+          {signatureDate && (
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Firma del médico</span>
+              <span className="text-foreground">
+                {new Date(signatureDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+              </span>
+            </div>
+          )}
+          {expirationDate && (
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Vencimiento</span>
               <span className={`text-foreground ${status === "vencido" ? "text-destructive" : status === "por_vencer" ? "text-amber-400" : ""}`}>
-                {new Date(expDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                {new Date(expirationDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
               </span>
             </div>
           )}
@@ -244,7 +273,21 @@ export const MedicalCertificateSection = ({ alumno, isSuperAdmin, onAlumnoUpdate
       )}
 
       <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Fecha de vencimiento</Label>
+        <Label className="text-xs text-muted-foreground">Fecha de firma del médico</Label>
+        <Input
+          type="date"
+          value={signatureDate}
+          onChange={(e) => handleSignatureDateChange(e.target.value)}
+          max={new Date().toISOString().split("T")[0]}
+          className="bg-secondary border-border text-xs h-8"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          El vencimiento se calcula automáticamente: 12 meses desde la firma.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs text-muted-foreground">Fecha de vencimiento (auto-calculada)</Label>
         <Input
           type="date"
           value={expirationDate}
