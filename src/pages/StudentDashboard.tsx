@@ -329,16 +329,17 @@ const StudentDashboard = () => {
             {/* Weather */}
             <WeatherBar />
 
-            {/* Payment status */}
-            {pendingPayment && (
+            {/* Payment status - show all pending */}
+            {pendingPayments.map((pp) => (
               <PaymentStatusCard
-                estado={pendingPayment.estado}
-                planName={pendingPayment.planName}
-                precio={pendingPayment.precio}
-                fechaPago={pendingPayment.fechaPago}
-                medioPago={pendingPayment.medioPago}
+                key={pp.id}
+                estado={pp.estado}
+                planName={pp.planName}
+                precio={pp.precio}
+                fechaPago={pp.fechaPago}
+                medioPago={pp.medioPago}
               />
-            )}
+            ))}
 
             {/* Training detail view */}
             {entrenamiento ? (
