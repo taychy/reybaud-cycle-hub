@@ -141,6 +141,33 @@ Deno.serve(async (req) => {
           </p>
         </div>
       `;
+    } else if (type === "pago_vencido") {
+      const fechaText = fecha_vencimiento
+        ? new Date(fecha_vencimiento + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })
+        : null;
+      subject = `⚠️ Tu mensualidad está vencida`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d4820a; margin-bottom: 16px;">⚠️ Mensualidad vencida</h2>
+          <p style="color: #333; margin-bottom: 16px;">
+            Hola <strong>${firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud se encuentra vencida${fechaText ? ` desde el <strong>${fechaText}</strong>` : ""}.
+          </p>
+          <p style="color: #333; margin-bottom: 16px;">
+            Para mantener tu acceso completo a la app y a tus entrenamientos, te pedimos que regularices tu pago lo antes posible.
+          </p>
+          <p style="color: #333; margin-bottom: 16px;">
+            Podés hacerlo directamente desde la app o contactando a administración.
+          </p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app/alumno/pagos" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Regularizar pago
+            </a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
+            Ciclismo Reybaud — Escuela de ciclismo
+          </p>
+        </div>
+      `;
     } else if (type === "plan_cambiado") {
       const precioText = plan_precio ? ` (${plan_moneda || "ARS"} ${plan_precio})` : "";
       subject = `📋 Tu plan fue actualizado`;
