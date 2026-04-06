@@ -63,6 +63,8 @@ const VALID_SUB_TRANSITIONS: Record<string, string[]> = {
   pausa: ["activa"],
   pendiente: ["activa", "cancelada"],
   pendiente_verificacion: ["activa", "cancelada"],
+  pago_pendiente: ["activa", "cancelada"],
+  acceso_pausado: ["activa", "cancelada"],
   cancelada: [],
 };
 
