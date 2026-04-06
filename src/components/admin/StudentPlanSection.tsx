@@ -267,7 +267,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {sub.fecha_fin && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Vencimiento</span>
-              <span className={isExpired ? "text-destructive font-medium" : "text-foreground"}>
+              <span className={effectiveEstado === "pago_pendiente" || effectiveEstado === "acceso_pausado" || effectiveEstado === "vencida" ? "text-destructive font-medium" : "text-foreground"}>
                 {formatDate(sub.fecha_fin)}
               </span>
             </div>
@@ -301,7 +301,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         </div>
 
         {/* Per-subscription actions */}
-        {(isActive && !isExpired) && (
+        {isActive && (
           <div className="flex flex-wrap gap-1 pt-1">
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openChangePlan(sub.id)}>
               <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
