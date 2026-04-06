@@ -251,6 +251,8 @@ const ManageStudents = () => {
     const subE = getSubEstadoLabel(a.id);
     return subE === "vencida" && a.estado === "activo";
   }).length;
+  const pagoPendienteCount = alumnos.filter(a => getSubEstadoLabel(a.id) === "pago_pendiente").length;
+  const accesoPausadoCount = alumnos.filter(a => getSubEstadoLabel(a.id) === "acceso_pausado").length;
   const sinGrupoCount = alumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
   const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
