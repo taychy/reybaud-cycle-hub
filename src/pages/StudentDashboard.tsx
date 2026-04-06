@@ -438,7 +438,7 @@ const StudentDashboard = () => {
                   <Button
                     variant={realizado ? "secondary" : "gold"}
                     className="w-full"
-                    disabled={realizado || markingDone || readOnly}
+                    disabled={realizado || markingDone || readOnly || !accessPerms?.canMarkTraining}
                     onClick={async () => {
                       if (!alumno || !entrenamiento) return;
                       setMarkingDone(true);
