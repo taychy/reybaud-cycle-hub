@@ -91,31 +91,30 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    // Send email via Resend gateway
-    if (resendApiKey && lovableApiKey) {
-      const gatewayUrl = "https://connector-gateway.lovable.dev/resend/emails";
-      const emailResponse = await fetch(gatewayUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${lovableApiKey}`,
-          "X-Connection-Api-Key": resendApiKey,
-        },
-        body: JSON.stringify({
-          from: "Ciclismo Reybaud <onboarding@resend.dev>",
-          to: [alumno.email],
-          subject: "Solicitud de Apto Físico - Ciclismo Reybaud",
-          html,
-        }),
-      });
+    // Send email via Resend API directly
+    if (!resendApiKey) {
+      console.warn("No RESEND_API_KEY configured, skipping email");
+      throw new Error("RESEND_API_KEY no configurada");
+    }
 
-      if (!emailResponse.ok) {
-        const errText = await emailResponse.text();
-        console.error("Email send error:", errText);
-        throw new Error("Error al enviar email");
-      }
-    } else {
-      console.warn("No RESEND_API_KEY or LOVABLE_API_KEY, skipping email");
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: "Ciclismo Reybaud <onboarding@resend.dev>",
+        to: [alumno.email],
+        subject: "Solicitud de Apto Físico - Ciclismo Reybaud",
+        html,
+      }),
+    });
+
+    if (!emailResponse.ok) {
+      const errText = await emailResponse.text();
+      console.error("Email send error:", errText);
+      throw new Error("Error al enviar email");
     }
 
     // Update requested_at
