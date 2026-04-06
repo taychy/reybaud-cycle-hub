@@ -770,6 +770,8 @@ const ManageStudents = () => {
     { key: "inactivos", label: "Inactivos", count: inactiveCount },
     { key: "bloqueados", label: "Bloqueados", count: blockedCount },
     { key: "vencidos", label: "Vencidos", count: vencidosCount },
+    ...(pagoPendienteCount > 0 ? [{ key: "pago_pendiente", label: "Pago pendiente", count: pagoPendienteCount }] : []),
+    ...(accesoPausadoCount > 0 ? [{ key: "acceso_pausado", label: "Acceso pausado", count: accesoPausadoCount }] : []),
     { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
     ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
