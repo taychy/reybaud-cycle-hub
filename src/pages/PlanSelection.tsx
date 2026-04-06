@@ -107,12 +107,15 @@ const PlanSelection = () => {
   const selectedPlan = planes.find((p) => p.id === selected);
 
   // Compute discount for selected plan
+  // If student already has active subscriptions, this is a secondary subscription
+  const isSecondary = subscriptionCount > 0;
   const selectedDiscount = selectedPlan
     ? applyDiscount(
         selectedPlan.tipo === "programa" && selectedPlan.precio_promocional
           ? selectedPlan.precio_promocional
           : selectedPlan.precio,
-        "planes"
+        "planes",
+        isSecondary
       )
     : null;
 
