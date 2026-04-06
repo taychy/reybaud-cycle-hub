@@ -197,7 +197,7 @@ const StudentPayments = () => {
 
   const activeSubs = subscriptions.filter(s => {
     const eff = getEffectiveStatus(s);
-    return (eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente") && s.fecha_fin && s.fecha_fin >= todayStr;
+    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente" || eff === "pago_pendiente";
   });
   const historicSubs = subscriptions.filter(s => !activeSubs.includes(s));
 
