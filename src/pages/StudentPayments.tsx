@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -64,8 +65,8 @@ const statusConfig: Record<string, {
   },
   activa: {
     icon: <CheckCircle2 className="w-4 h-4" />,
-    label: "Confirmado",
-    message: "Tu pago fue confirmado.",
+    label: "Activo",
+    message: "Tu plan está vigente.",
     badgeClass: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
   },
   rechazada: {
@@ -79,6 +80,18 @@ const statusConfig: Record<string, {
     label: "Pendiente",
     message: "Suscripción pendiente de pago.",
     badgeClass: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
+  },
+  pago_pendiente: {
+    icon: <AlertTriangle className="w-4 h-4" />,
+    label: "Pago pendiente",
+    message: "Tu plan venció. Regularizá tu pago antes del día 5 para mantener tu acceso completo.",
+    badgeClass: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+  },
+  acceso_pausado: {
+    icon: <XCircle className="w-4 h-4" />,
+    label: "Acceso pausado",
+    message: "Tu acceso está pausado por pago pendiente. Cuando regularices tu mensualidad, reactivamos tu plan.",
+    badgeClass: "bg-destructive/10 text-destructive border-destructive/30",
   },
   vencida: {
     icon: <XCircle className="w-4 h-4" />,
@@ -108,14 +121,11 @@ const formatDate = (dateStr: string | null) => {
 };
 
 const getEffectiveStatus = (sub: SubscriptionRecord): string => {
-  if (sub.cancelada_at) return "cancelada";
-  if (sub.estado === "activa" && sub.fecha_fin) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const fin = new Date(sub.fecha_fin + "T23:59:59");
-    if (fin < today) return "vencida";
-  }
-  return sub.estado;
+  return getEffectiveSubStatus({
+    estado: sub.estado,
+    fecha_fin: sub.fecha_fin,
+    cancelada_at: sub.cancelada_at,
+  });
 };
 
 const StudentPayments = () => {
@@ -187,7 +197,7 @@ const StudentPayments = () => {
 
   const activeSubs = subscriptions.filter(s => {
     const eff = getEffectiveStatus(s);
-    return (eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente") && s.fecha_fin && s.fecha_fin >= todayStr;
+    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente" || eff === "pago_pendiente";
   });
   const historicSubs = subscriptions.filter(s => !activeSubs.includes(s));
 

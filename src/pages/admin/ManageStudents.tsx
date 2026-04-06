@@ -24,6 +24,7 @@ import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -62,6 +63,8 @@ const VALID_SUB_TRANSITIONS: Record<string, string[]> = {
   pausa: ["activa"],
   pendiente: ["activa", "cancelada"],
   pendiente_verificacion: ["activa", "cancelada"],
+  pago_pendiente: ["activa", "cancelada"],
+  acceso_pausado: ["activa", "cancelada"],
   cancelada: [],
 };
 
@@ -202,8 +205,11 @@ const ManageStudents = () => {
   }, [alumnos]);
 
   const getActiveSub = (alumnoId: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa") && (!s.fecha_fin || s.fecha_fin >= today));
+    return suscripciones.find(s => {
+      if (s.alumno_id !== alumnoId) return false;
+      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+      return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
+    });
   };
 
   const getAnySub = (alumnoId: string) => {
@@ -213,12 +219,12 @@ const ManageStudents = () => {
 
   const getSubEstadoLabel = (alumnoId: string): string => {
     const active = getActiveSub(alumnoId);
-    if (active) return active.estado;
+    if (active) {
+      return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin });
+    }
     const any = getAnySub(alumnoId);
     if (any) {
-      if (any.estado === "vencida") return "vencida";
-      if (any.estado === "cancelada") return "cancelada";
-      return any.estado;
+      return getEffectiveSubStatus({ estado: any.estado, fecha_fin: any.fecha_fin });
     }
     return "sin_suscripcion";
   };
@@ -247,6 +253,8 @@ const ManageStudents = () => {
     const subE = getSubEstadoLabel(a.id);
     return subE === "vencida" && a.estado === "activo";
   }).length;
+  const pagoPendienteCount = alumnos.filter(a => getSubEstadoLabel(a.id) === "pago_pendiente").length;
+  const accesoPausadoCount = alumnos.filter(a => getSubEstadoLabel(a.id) === "acceso_pausado").length;
   const sinGrupoCount = alumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
   const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
@@ -311,6 +319,8 @@ const ManageStudents = () => {
       case "inactivos": return a.estado === "inactivo";
       case "bloqueados": return a.estado === "bloqueado";
       case "vencidos": return getSubEstadoLabel(a.id) === "vencida" && a.estado === "activo";
+      case "pago_pendiente": return getSubEstadoLabel(a.id) === "pago_pendiente";
+      case "acceso_pausado": return getSubEstadoLabel(a.id) === "acceso_pausado";
       case "sin_grupo": return a.grupo === "Sin grupo" && a.estado === "activo";
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
       case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
@@ -359,6 +369,8 @@ const ManageStudents = () => {
     switch (estado) {
       case "activa": return { variant: "default" as const, className: "bg-emerald-600/20 text-emerald-400 border-emerald-500/30" };
       case "pausa": return { variant: "secondary" as const, className: "border-amber-500/50 text-amber-400" };
+      case "pago_pendiente": return { variant: "outline" as const, className: "bg-amber-500/20 text-amber-400 border-amber-500/30" };
+      case "acceso_pausado": return { variant: "destructive" as const, className: "bg-destructive/20 text-destructive border-destructive/30" };
       case "vencida": return { variant: "destructive" as const, className: "" };
       case "pendiente": case "pendiente_verificacion": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-400" };
       case "cancelada": return { variant: "outline" as const, className: "text-muted-foreground" };
@@ -762,6 +774,8 @@ const ManageStudents = () => {
     { key: "inactivos", label: "Inactivos", count: inactiveCount },
     { key: "bloqueados", label: "Bloqueados", count: blockedCount },
     { key: "vencidos", label: "Vencidos", count: vencidosCount },
+    ...(pagoPendienteCount > 0 ? [{ key: "pago_pendiente", label: "Pago pendiente", count: pagoPendienteCount }] : []),
+    ...(accesoPausadoCount > 0 ? [{ key: "acceso_pausado", label: "Acceso pausado", count: accesoPausadoCount }] : []),
     { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
     ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
@@ -868,7 +882,7 @@ const ManageStudents = () => {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant={alumno.grupo === "Sin grupo" ? "destructive" : "secondary"} className="font-mono text-[10px]">{alumno.grupo}</Badge>
                         <Badge variant={getEstadoBadge(alumno.estado).variant} className={`text-[10px] ${getEstadoBadge(alumno.estado).className}`}>{alumno.estado}</Badge>
-                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}</Badge>
+                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : (SUB_STATUS_LABELS[subEstado] || subEstado)}</Badge>
                         {inconsistency && <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-2.5 h-2.5" />!</Badge>}
                         {missing.length > 0 && !inconsistency && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5">Incompleto</Badge>}
                         {isDuplicate(alumno) && <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 gap-0.5"><Copy className="w-2.5 h-2.5" />Dup</Badge>}
@@ -940,7 +954,7 @@ const ManageStudents = () => {
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Badge variant={getSubBadge(subEstado).variant} className={`text-xs ${getSubBadge(subEstado).className}`}>
-                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}</Badge>
+                        <Badge variant={getSubBadge(subEstado).variant} className={`text-[10px] ${getSubBadge(subEstado).className}`}>{subEstado === "sin_suscripcion" ? "Sin plan" : (SUB_STATUS_LABELS[subEstado] || subEstado)}</Badge>
                               </Badge>
                               {inconsistency && <AlertTriangle className="w-3 h-3 text-destructive" />}
                             </div>
@@ -1110,7 +1124,7 @@ const ManageStudents = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Estado suscripción</span>
                           <Badge variant={getSubBadge(subEstado).variant} className={`text-xs ${getSubBadge(subEstado).className}`}>
-                            {subEstado === "sin_suscripcion" ? "Sin plan" : subEstado}
+                            {subEstado === "sin_suscripcion" ? "Sin plan" : (SUB_STATUS_LABELS[subEstado] || subEstado)}
                           </Badge>
                         </div>
                         <div className="flex justify-between items-center">

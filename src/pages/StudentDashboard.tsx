@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal, AlertTriangle, Lock } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
 import { MedicalCertificateStudent } from "@/components/student/MedicalCertificateStudent";
 import BottomNav from "@/components/BottomNav";
@@ -17,6 +17,7 @@ import LanguageSelector from "@/components/LanguageSelector";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -49,6 +50,7 @@ const StudentDashboard = () => {
   const [markingDone, setMarkingDone] = useState(false);
   const [pendingPayments, setPendingPayments] = useState<PendingPaymentInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">(initialTab);
+  const [accessPerms, setAccessPerms] = useState<AccessPermissions | null>(null);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
@@ -99,23 +101,33 @@ const StudentDashboard = () => {
 
       setAlumno(alumnoData);
 
-      // Check for pending/recent payment
-      const { data: recentSubs } = await supabase
+      // Fetch ALL subscriptions for access permissions
+      const { data: allSubs } = await supabase
         .from("suscripciones")
-        .select("id, estado, created_at, plan_id, planes(nombre, precio)")
+        .select("id, estado, fecha_fin, cancelada_at, created_at, plan_id, planes(nombre, precio)")
         .eq("alumno_id", alumnoData.id)
-        .in("estado", ["pendiente_verificacion", "rechazada"])
         .order("created_at", { ascending: false });
 
-      if (recentSubs && recentSubs.length > 0) {
-        setPendingPayments(recentSubs.map((sub: any) => ({
-          id: sub.id,
-          estado: sub.estado,
-          planName: sub.planes?.nombre || "Plan",
-          precio: sub.planes?.precio || 0,
-          fechaPago: sub.created_at,
-          medioPago: "pendiente_verificacion",
-        })));
+      if (allSubs) {
+        const subInputs: SubStatusInput[] = allSubs.map((s: any) => ({
+          estado: s.estado,
+          fecha_fin: s.fecha_fin,
+          cancelada_at: s.cancelada_at,
+        }));
+        setAccessPerms(getAccessPermissions(subInputs));
+
+        // Also set pending payment cards
+        const pending = allSubs.filter((s: any) => s.estado === "pendiente_verificacion" || s.estado === "rechazada");
+        if (pending.length > 0) {
+          setPendingPayments(pending.map((sub: any) => ({
+            id: sub.id,
+            estado: sub.estado,
+            planName: sub.planes?.nombre || "Plan",
+            precio: sub.planes?.precio || 0,
+            fechaPago: sub.created_at,
+            medioPago: "pendiente_verificacion",
+          })));
+        }
       }
 
       // Get Monday of current week
@@ -228,12 +240,69 @@ const StudentDashboard = () => {
     month: "long",
   });
 
+  // Restricted tab handler
+  const handleTabChange = (tab: "hoy" | "eventos" | "tienda" | "progreso" | "mas") => {
+    if (accessPerms) {
+      if (tab === "progreso" && !accessPerms.canViewProgress) {
+        toast({ title: "Acceso restringido", description: "Regularizá tu pago para acceder a tu progreso.", variant: "destructive" });
+        return;
+      }
+      if (tab === "eventos" && !accessPerms.canViewEvents) {
+        toast({ title: "Acceso restringido", description: "Regularizá tu pago para acceder a eventos.", variant: "destructive" });
+        return;
+      }
+    }
+    setActiveTab(tab);
+  };
+
+  const renderAccessBanner = () => {
+    if (!accessPerms?.bannerMessage) return null;
+    const isError = accessPerms.bannerType === "error";
+    return (
+      <div className={`rounded-xl border p-4 space-y-3 ${
+        isError
+          ? "border-destructive/30 bg-destructive/5"
+          : "border-amber-500/30 bg-amber-500/5"
+      }`}>
+        <div className="flex items-start gap-3">
+          {isError ? (
+            <Lock className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          )}
+          <div className="space-y-2">
+            <p className={`text-sm font-medium ${isError ? "text-destructive" : "text-amber-500"}`}>
+              {accessPerms.status === "pago_pendiente" ? "Pago pendiente" : "Acceso pausado por pago pendiente"}
+            </p>
+            <p className="text-xs text-muted-foreground">{accessPerms.bannerMessage}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="gold" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
+            Pagar ahora
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
+            Informar pago
+          </Button>
+        </div>
+        <a
+          href="https://wa.me/5491140312299?text=Hola%2C%20necesito%20ayuda%20con%20mi%20pago"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          Contactar administración
+        </a>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "eventos":
-        return <EventosContent />;
+        return accessPerms?.canViewEvents ? <EventosContent /> : null;
       case "progreso":
-        return <StudentProgressContent />;
+        return accessPerms?.canViewProgress ? <StudentProgressContent /> : null;
       case "tienda":
         return null;
       case "mas":
@@ -307,6 +376,8 @@ const StudentDashboard = () => {
       default: // "hoy"
         return (
           <div className="w-full max-w-md space-y-5 animate-fade-in">
+            {/* Access restriction banner */}
+            {renderAccessBanner()}
             {/* Install banner */}
             {showInstallBanner && !window.matchMedia("(display-mode: standalone)").matches && (
               <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
@@ -367,7 +438,7 @@ const StudentDashboard = () => {
                   <Button
                     variant={realizado ? "secondary" : "gold"}
                     className="w-full"
-                    disabled={realizado || markingDone || readOnly}
+                    disabled={realizado || markingDone || readOnly || !accessPerms?.canMarkTraining}
                     onClick={async () => {
                       if (!alumno || !entrenamiento) return;
                       setMarkingDone(true);
@@ -468,7 +539,7 @@ const StudentDashboard = () => {
       </main>
 
       {/* Bottom navigation */}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );
 };

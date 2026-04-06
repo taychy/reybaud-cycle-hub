@@ -13,6 +13,7 @@ import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertT
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
+import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -45,6 +46,8 @@ const getSubBadge = (estado: string) => {
   switch (estado) {
     case "activa": return { variant: "default" as const, className: "bg-emerald-600/20 text-emerald-400 border-emerald-500/30" };
     case "pausa": return { variant: "secondary" as const, className: "border-amber-500/50 text-amber-400" };
+    case "pago_pendiente": return { variant: "outline" as const, className: "bg-amber-500/20 text-amber-400 border-amber-500/30" };
+    case "acceso_pausado": return { variant: "destructive" as const, className: "bg-destructive/20 text-destructive border-destructive/30" };
     case "vencida": return { variant: "destructive" as const, className: "" };
     case "pendiente": case "pendiente_verificacion": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-400" };
     case "cancelada": return { variant: "outline" as const, className: "text-muted-foreground" };
@@ -96,13 +99,14 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   useEffect(() => { fetchData(); }, [alumno.id]);
 
-  // Categorize subscriptions
-  const today = new Date().toISOString().split("T")[0];
-  const activeSubs = subs.filter(s =>
-    (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa") &&
-    (!s.fecha_fin || s.fecha_fin >= today)
-  );
+  // Categorize subscriptions using shared effective status
+  const activeSubs = subs.filter(s => {
+    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
+  });
   const historicSubs = subs.filter(s => !activeSubs.includes(s));
+
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
 
   // --- Actions ---
   const handlePauseSub = async (subId: string) => {
@@ -222,11 +226,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   }
 
   const renderSubCard = (sub: SuscripcionData, index: number) => {
-    const badge = getSubBadge(sub.estado);
-    const isActive = sub.estado === "activa" || sub.estado === "pendiente_verificacion" || sub.estado === "pausa";
-    const isExpired = sub.fecha_fin ? sub.fecha_fin < today : false;
-    const effectiveEstado = isActive && isExpired ? "vencida" : sub.estado;
-    const effectiveBadge = isActive && isExpired ? getSubBadge("vencida") : badge;
+    const effectiveEstado = getEffStatus(sub);
+    const effectiveBadge = getSubBadge(effectiveEstado);
+    const isActive = effectiveEstado === "activa" || effectiveEstado === "pendiente_verificacion" || effectiveEstado === "pausa" || effectiveEstado === "pago_pendiente";
 
     // Discount logic
     const isSecondary = index > 0;
@@ -265,7 +267,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {sub.fecha_fin && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Vencimiento</span>
-              <span className={isExpired ? "text-destructive font-medium" : "text-foreground"}>
+              <span className={effectiveEstado === "pago_pendiente" || effectiveEstado === "acceso_pausado" || effectiveEstado === "vencida" ? "text-destructive font-medium" : "text-foreground"}>
                 {formatDate(sub.fecha_fin)}
               </span>
             </div>
@@ -299,7 +301,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         </div>
 
         {/* Per-subscription actions */}
-        {(isActive && !isExpired) && (
+        {isActive && (
           <div className="flex flex-wrap gap-1 pt-1">
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openChangePlan(sub.id)}>
               <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
