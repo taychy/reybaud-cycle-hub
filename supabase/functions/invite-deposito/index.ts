@@ -83,53 +83,44 @@ Deno.serve(async (req) => {
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
     const redirectTo = `${baseAppUrl}/activar-cuenta`;
 
-    // Check if user already exists in Auth
-    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u: any) => u.email?.toLowerCase() === email);
-
     let userId: string;
     let confirmationUrl: string | undefined;
     const now = new Date().toISOString();
+    let alreadyExisted = false;
 
-    if (existingUser) {
+    // Try to create the user first; if already exists, handle gracefully
+    const tempPassword = crypto.randomUUID();
+    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { nombre, deposito_role: true },
+    });
+
+    if (createError && createError.message?.includes("already been registered")) {
+      // User exists — look them up by email
+      alreadyExisted = true;
+      const { data: existingUsers } = await adminClient.auth.admin.listUsers({ filter: email });
+      const existingUser = existingUsers?.users?.find((u: any) => u.email?.toLowerCase() === email);
+      if (!existingUser) throw new Error("No se pudo encontrar el usuario existente");
       userId = existingUser.id;
-
-      // Generate recovery link for existing user
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
-        email,
-        options: { redirectTo },
-      });
-
-      if (linkError) {
-        console.error("generateLink error:", linkError);
-      } else {
-        confirmationUrl = linkData.properties?.action_link;
-      }
+    } else if (createError) {
+      throw createError;
     } else {
-      // Create new user with temp password (don't use inviteUserByEmail)
-      const tempPassword = crypto.randomUUID();
-      const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: { nombre, deposito_role: true },
-      });
-      if (createError) throw createError;
       userId = newUser.user.id;
+    }
 
-      // Generate recovery link so user can set their own password
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
-        email,
-        options: { redirectTo },
-      });
+    // Generate recovery link so user can set their own password
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo },
+    });
 
-      if (linkError) {
-        console.error("generateLink error for new user:", linkError);
-      } else {
-        confirmationUrl = linkData.properties?.action_link;
-      }
+    if (linkError) {
+      console.error("generateLink error:", linkError);
+    } else {
+      confirmationUrl = linkData.properties?.action_link;
     }
 
     // Upsert deposito profile
