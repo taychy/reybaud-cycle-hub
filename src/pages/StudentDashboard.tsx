@@ -168,6 +168,15 @@ const StudentDashboard = () => {
     loadAlumno();
   }, [navigate, isImpersonating, targetAlumno]);
 
+  // Auto-scroll to section when linked from email
+  useEffect(() => {
+    if (sectionParam && activeTab === "mas" && !loading) {
+      setTimeout(() => {
+        document.getElementById(sectionParam)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
+  }, [sectionParam, activeTab, loading]);
+
   // When user selects a different day
   useEffect(() => {
     const training = weekTrainings[selectedDay] ?? null;
