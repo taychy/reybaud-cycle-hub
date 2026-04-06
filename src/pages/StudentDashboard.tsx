@@ -304,7 +304,7 @@ const StudentDashboard = () => {
       case "progreso":
         return accessPerms?.canViewProgress ? <StudentProgressContent /> : null;
       case "tienda":
-        return null;
+        return <TiendaSection />;
       case "mas":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">
