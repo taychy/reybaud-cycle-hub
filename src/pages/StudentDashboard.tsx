@@ -539,7 +539,7 @@ const StudentDashboard = () => {
       </main>
 
       {/* Bottom navigation */}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );
 };

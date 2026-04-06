@@ -64,8 +64,8 @@ const statusConfig: Record<string, {
   },
   activa: {
     icon: <CheckCircle2 className="w-4 h-4" />,
-    label: "Confirmado",
-    message: "Tu pago fue confirmado.",
+    label: "Activo",
+    message: "Tu plan está vigente.",
     badgeClass: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
   },
   rechazada: {
@@ -79,6 +79,18 @@ const statusConfig: Record<string, {
     label: "Pendiente",
     message: "Suscripción pendiente de pago.",
     badgeClass: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
+  },
+  pago_pendiente: {
+    icon: <AlertTriangle className="w-4 h-4" />,
+    label: "Pago pendiente",
+    message: "Tu plan venció. Regularizá tu pago antes del día 5 para mantener tu acceso completo.",
+    badgeClass: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+  },
+  acceso_pausado: {
+    icon: <XCircle className="w-4 h-4" />,
+    label: "Acceso pausado",
+    message: "Tu acceso está pausado por pago pendiente. Cuando regularices tu mensualidad, reactivamos tu plan.",
+    badgeClass: "bg-destructive/10 text-destructive border-destructive/30",
   },
   vencida: {
     icon: <XCircle className="w-4 h-4" />,
