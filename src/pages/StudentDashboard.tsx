@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal } from "lucide-react";
+import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal, AlertTriangle, Lock } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
 import { MedicalCertificateStudent } from "@/components/student/MedicalCertificateStudent";
 import BottomNav from "@/components/BottomNav";
@@ -17,6 +17,7 @@ import LanguageSelector from "@/components/LanguageSelector";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
