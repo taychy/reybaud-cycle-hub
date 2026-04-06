@@ -17,47 +17,26 @@ const AdminLogin = () => {
 
   // Auto-redirect if already authenticated
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        const { data: isAdmin } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "admin",
-        });
-        if (isAdmin) {
-          navigate("/admin", { replace: true });
-          return;
-        }
-        const { data: isCoach } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "coach" as any,
-        });
-        if (isCoach) {
-          navigate("/coach", { replace: true });
-          return;
-        }
+    const checkAdminSession = async (session: any) => {
+      if (!session) return false;
+      const { data: isAdmin } = await supabase.rpc("has_role", {
+        _user_id: session.user.id,
+        _role: "admin",
+      });
+      if (isAdmin) {
+        navigate("/admin", { replace: true });
+        return true;
       }
+      return false;
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      await checkAdminSession(session);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        const { data: isAdmin } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "admin",
-        });
-        if (isAdmin) {
-          navigate("/admin", { replace: true });
-          return;
-        }
-        const { data: isCoach } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "coach" as any,
-        });
-        if (isCoach) {
-          navigate("/coach", { replace: true });
-          return;
-        }
-      }
-      setCheckingSession(false);
+      const redirected = await checkAdminSession(session);
+      if (!redirected) setCheckingSession(false);
     });
 
     return () => subscription.unsubscribe();
@@ -75,13 +54,13 @@ const AdminLogin = () => {
       return;
     }
 
-    // Verify the email belongs to an admin or coach using security definer function
+    // Verify the email belongs to an admin (not coach — coaches use their own portal)
     const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
       _email: trimmedEmail,
     });
 
     if (!isValidEmail) {
-      setError("No se encontró una cuenta de administrador o coach con ese email.");
+      setError("No se encontró una cuenta de administrador con ese email. Si sos coach, ingresá desde el portal de coaches.");
       setLoading(false);
       return;
     }
