@@ -99,13 +99,14 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   useEffect(() => { fetchData(); }, [alumno.id]);
 
-  // Categorize subscriptions
-  const today = new Date().toISOString().split("T")[0];
-  const activeSubs = subs.filter(s =>
-    (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa") &&
-    (!s.fecha_fin || s.fecha_fin >= today)
-  );
+  // Categorize subscriptions using shared effective status
+  const activeSubs = subs.filter(s => {
+    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
+  });
   const historicSubs = subs.filter(s => !activeSubs.includes(s));
+
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
 
   // --- Actions ---
   const handlePauseSub = async (subId: string) => {
