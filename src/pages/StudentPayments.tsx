@@ -121,14 +121,11 @@ const formatDate = (dateStr: string | null) => {
 };
 
 const getEffectiveStatus = (sub: SubscriptionRecord): string => {
-  if (sub.cancelada_at) return "cancelada";
-  if (sub.estado === "activa" && sub.fecha_fin) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const fin = new Date(sub.fecha_fin + "T23:59:59");
-    if (fin < today) return "vencida";
-  }
-  return sub.estado;
+  return getEffectiveSubStatus({
+    estado: sub.estado,
+    fecha_fin: sub.fecha_fin,
+    cancelada_at: sub.cancelada_at,
+  });
 };
 
 const StudentPayments = () => {
