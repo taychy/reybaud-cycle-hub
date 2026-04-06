@@ -367,6 +367,8 @@ const ManageStudents = () => {
     switch (estado) {
       case "activa": return { variant: "default" as const, className: "bg-emerald-600/20 text-emerald-400 border-emerald-500/30" };
       case "pausa": return { variant: "secondary" as const, className: "border-amber-500/50 text-amber-400" };
+      case "pago_pendiente": return { variant: "outline" as const, className: "bg-amber-500/20 text-amber-400 border-amber-500/30" };
+      case "acceso_pausado": return { variant: "destructive" as const, className: "bg-destructive/20 text-destructive border-destructive/30" };
       case "vencida": return { variant: "destructive" as const, className: "" };
       case "pendiente": case "pendiente_verificacion": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-400" };
       case "cancelada": return { variant: "outline" as const, className: "text-muted-foreground" };
