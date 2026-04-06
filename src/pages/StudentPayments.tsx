@@ -156,7 +156,7 @@ const StudentPayments = () => {
 
       const { data: subs } = await supabase
         .from("suscripciones")
-        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, cancelada_at, plan_id, planes(nombre, precio, frecuencia)")
+        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, cancelada_at, plan_id, descuento_id, precio_base, precio_final, planes(nombre, precio, frecuencia), descuentos(nombre, valor, tipo, categoria)")
         .eq("alumno_id", alumnoData.id)
         .order("created_at", { ascending: false });
 
@@ -170,7 +170,11 @@ const StudentPayments = () => {
           mp_status: s.mp_status,
           auto_renovacion: s.auto_renovacion ?? false,
           cancelada_at: s.cancelada_at,
+          descuento_id: s.descuento_id,
+          precio_base: s.precio_base,
+          precio_final: s.precio_final,
           plan: s.planes ? { nombre: s.planes.nombre, precio: s.planes.precio, frecuencia: s.planes.frecuencia } : null,
+          descuento: s.descuentos ? { nombre: s.descuentos.nombre, valor: s.descuentos.valor, tipo: s.descuentos.tipo, categoria: s.descuentos.categoria } : null,
         }));
         setSubscriptions(mapped);
 
