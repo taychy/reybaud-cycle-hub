@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
@@ -318,6 +318,40 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             )}
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 text-destructive hover:text-destructive" onClick={() => { setRemoveSubId(sub.id); setShowRemovePlan(true); }}>
               <XCircle className="w-3 h-3 mr-0.5" /> Quitar
+            </Button>
+          </div>
+        )}
+
+        {/* Notify overdue button for expired/pending statuses */}
+        {(effectiveEstado === "vencida" || effectiveEstado === "pago_pendiente" || effectiveEstado === "acceso_pausado") && (
+          <div className="pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-6 px-2 text-amber-400 border-amber-500/30 hover:bg-amber-500/10 w-full"
+              onClick={async () => {
+                try {
+                  await supabase.functions.invoke("notify-student-update", {
+                    body: {
+                      alumno_id: alumno.id,
+                      type: "pago_vencido",
+                      fecha_vencimiento: sub.fecha_fin,
+                    },
+                  });
+                  toast.success("Notificación enviada al alumno");
+                  await logStudentActivity({
+                    alumnoId: alumno.id,
+                    eventType: "mail",
+                    title: "Aviso de pago vencido enviado",
+                    description: `Se notificó al alumno sobre pago pendiente del plan "${sub.planes?.nombre || "—"}"`,
+                    actorRole,
+                  });
+                } catch {
+                  toast.error("Error al enviar notificación");
+                }
+              }}
+            >
+              <Bell className="w-3 h-3 mr-0.5" /> Notificar pago pendiente
             </Button>
           </div>
         )}
