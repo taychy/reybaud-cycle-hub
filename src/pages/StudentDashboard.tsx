@@ -100,21 +100,20 @@ const StudentDashboard = () => {
       // Check for pending/recent payment
       const { data: recentSubs } = await supabase
         .from("suscripciones")
-        .select("estado, created_at, plan_id, planes(nombre, precio)")
+        .select("id, estado, created_at, plan_id, planes(nombre, precio)")
         .eq("alumno_id", alumnoData.id)
         .in("estado", ["pendiente_verificacion", "rechazada"])
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: false });
 
       if (recentSubs && recentSubs.length > 0) {
-        const sub = recentSubs[0] as any;
-        setPendingPayment({
+        setPendingPayments(recentSubs.map((sub: any) => ({
+          id: sub.id,
           estado: sub.estado,
           planName: sub.planes?.nombre || "Plan",
           precio: sub.planes?.precio || 0,
           fechaPago: sub.created_at,
           medioPago: "pendiente_verificacion",
-        });
+        })));
       }
 
       // Get Monday of current week
