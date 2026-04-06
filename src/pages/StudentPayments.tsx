@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
