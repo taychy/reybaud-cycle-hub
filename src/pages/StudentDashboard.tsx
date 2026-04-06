@@ -240,12 +240,69 @@ const StudentDashboard = () => {
     month: "long",
   });
 
+  // Restricted tab handler
+  const handleTabChange = (tab: "hoy" | "eventos" | "tienda" | "progreso" | "mas") => {
+    if (accessPerms) {
+      if (tab === "progreso" && !accessPerms.canViewProgress) {
+        toast({ title: "Acceso restringido", description: "Regularizá tu pago para acceder a tu progreso.", variant: "destructive" });
+        return;
+      }
+      if (tab === "eventos" && !accessPerms.canViewEvents) {
+        toast({ title: "Acceso restringido", description: "Regularizá tu pago para acceder a eventos.", variant: "destructive" });
+        return;
+      }
+    }
+    setActiveTab(tab);
+  };
+
+  const renderAccessBanner = () => {
+    if (!accessPerms?.bannerMessage) return null;
+    const isError = accessPerms.bannerType === "error";
+    return (
+      <div className={`rounded-xl border p-4 space-y-3 ${
+        isError
+          ? "border-destructive/30 bg-destructive/5"
+          : "border-amber-500/30 bg-amber-500/5"
+      }`}>
+        <div className="flex items-start gap-3">
+          {isError ? (
+            <Lock className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          )}
+          <div className="space-y-2">
+            <p className={`text-sm font-medium ${isError ? "text-destructive" : "text-amber-500"}`}>
+              {accessPerms.status === "pago_pendiente" ? "Pago pendiente" : "Acceso pausado por pago pendiente"}
+            </p>
+            <p className="text-xs text-muted-foreground">{accessPerms.bannerMessage}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="gold" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
+            Pagar ahora
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
+            Informar pago
+          </Button>
+        </div>
+        <a
+          href="https://wa.me/5491140312299?text=Hola%2C%20necesito%20ayuda%20con%20mi%20pago"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          Contactar administración
+        </a>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "eventos":
-        return <EventosContent />;
+        return accessPerms?.canViewEvents ? <EventosContent /> : null;
       case "progreso":
-        return <StudentProgressContent />;
+        return accessPerms?.canViewProgress ? <StudentProgressContent /> : null;
       case "tienda":
         return null;
       case "mas":
