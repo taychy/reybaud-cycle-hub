@@ -55,7 +55,7 @@ const PlanSelection = () => {
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
-  const { applyDiscount } = useStudentDiscounts(alumnoId);
+  const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
   useEffect(() => {
     if (!alumnoId) {
@@ -107,12 +107,15 @@ const PlanSelection = () => {
   const selectedPlan = planes.find((p) => p.id === selected);
 
   // Compute discount for selected plan
+  // If student already has active subscriptions, this is a secondary subscription
+  const isSecondary = subscriptionCount > 0;
   const selectedDiscount = selectedPlan
     ? applyDiscount(
         selectedPlan.tipo === "programa" && selectedPlan.precio_promocional
           ? selectedPlan.precio_promocional
           : selectedPlan.precio,
-        "planes"
+        "planes",
+        isSecondary
       )
     : null;
 
@@ -517,7 +520,7 @@ const PlanSelection = () => {
                       const basePrice = plan.tipo === "programa" && plan.precio_promocional
                         ? plan.precio_promocional
                         : plan.precio;
-                      const disc = applyDiscount(basePrice, "planes");
+                      const disc = applyDiscount(basePrice, "planes", isSecondary);
                       const hasPromo = plan.tipo === "programa" && plan.precio_promocional;
                       const hasStudentDiscount = disc.discount !== null;
 
