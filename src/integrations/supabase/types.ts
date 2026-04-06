@@ -150,6 +150,7 @@ export type Database = {
           last_invite_sent_at: string | null
           medical_certificate_expiration_date: string | null
           medical_certificate_requested_at: string | null
+          medical_certificate_signature_date: string | null
           medical_certificate_status: string
           medical_certificate_uploaded_at: string | null
           medical_certificate_url: string | null
@@ -184,6 +185,7 @@ export type Database = {
           last_invite_sent_at?: string | null
           medical_certificate_expiration_date?: string | null
           medical_certificate_requested_at?: string | null
+          medical_certificate_signature_date?: string | null
           medical_certificate_status?: string
           medical_certificate_uploaded_at?: string | null
           medical_certificate_url?: string | null
@@ -218,6 +220,7 @@ export type Database = {
           last_invite_sent_at?: string | null
           medical_certificate_expiration_date?: string | null
           medical_certificate_requested_at?: string | null
+          medical_certificate_signature_date?: string | null
           medical_certificate_status?: string
           medical_certificate_uploaded_at?: string | null
           medical_certificate_url?: string | null

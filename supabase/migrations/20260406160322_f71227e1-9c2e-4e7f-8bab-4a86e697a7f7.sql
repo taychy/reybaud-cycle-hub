@@ -1,0 +1,1 @@
+ALTER TABLE public.alumnos ADD COLUMN medical_certificate_signature_date date;
