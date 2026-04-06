@@ -520,7 +520,7 @@ const PlanSelection = () => {
                       const basePrice = plan.tipo === "programa" && plan.precio_promocional
                         ? plan.precio_promocional
                         : plan.precio;
-                      const disc = applyDiscount(basePrice, "planes");
+                      const disc = applyDiscount(basePrice, "planes", isSecondary);
                       const hasPromo = plan.tipo === "programa" && plan.precio_promocional;
                       const hasStudentDiscount = disc.discount !== null;
 
