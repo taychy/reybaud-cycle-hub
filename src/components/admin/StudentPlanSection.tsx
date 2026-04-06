@@ -226,11 +226,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   }
 
   const renderSubCard = (sub: SuscripcionData, index: number) => {
-    const badge = getSubBadge(sub.estado);
-    const isActive = sub.estado === "activa" || sub.estado === "pendiente_verificacion" || sub.estado === "pausa";
-    const isExpired = sub.fecha_fin ? sub.fecha_fin < today : false;
-    const effectiveEstado = isActive && isExpired ? "vencida" : sub.estado;
-    const effectiveBadge = isActive && isExpired ? getSubBadge("vencida") : badge;
+    const effectiveEstado = getEffStatus(sub);
+    const effectiveBadge = getSubBadge(effectiveEstado);
+    const isActive = effectiveEstado === "activa" || effectiveEstado === "pendiente_verificacion" || effectiveEstado === "pausa" || effectiveEstado === "pago_pendiente";
 
     // Discount logic
     const isSecondary = index > 0;
