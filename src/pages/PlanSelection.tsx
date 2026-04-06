@@ -55,7 +55,7 @@ const PlanSelection = () => {
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
-  const { applyDiscount } = useStudentDiscounts(alumnoId);
+  const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
   useEffect(() => {
     if (!alumnoId) {
