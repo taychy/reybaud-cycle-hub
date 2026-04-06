@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, Edit2, Plus, Trash2, UserX, UserCheck, Eye, MailPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import UserRolesManager from "@/components/admin/UserRolesManager";
 
 interface AdminProfile {
   id: string;
@@ -480,6 +481,9 @@ const ManageAdmins = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Role management section */}
+      {isSuperAdmin && <UserRolesManager />}
     </div>
   );
 };
