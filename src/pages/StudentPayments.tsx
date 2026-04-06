@@ -3,7 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus } from "lucide-react";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -421,6 +421,14 @@ const StudentPayments = () => {
                   <span className="text-sm font-medium text-muted-foreground">Total mensual</span>
                   <span className="text-lg font-semibold gold-text-gradient">{formatPrice(totalActivo)}</span>
                 </div>
+              )}
+
+              {/* Add another plan */}
+              {!readOnly && (
+                <Button variant="gold-outline" className="w-full" onClick={handleChangePlan}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Contratar otro plan o servicio
+                </Button>
               )}
             </div>
           ) : (
