@@ -45,7 +45,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
-  const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
+  const [pendingPayments, setPendingPayments] = useState<PendingPaymentInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">(initialTab);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
