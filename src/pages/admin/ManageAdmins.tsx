@@ -481,6 +481,9 @@ const ManageAdmins = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Role management section */}
+      {isSuperAdmin && <UserRolesManager />}
     </div>
   );
 };
