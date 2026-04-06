@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      already_existed: !!existingUser,
+      already_existed: alreadyExisted,
       message: `Invitación enviada a ${email}`,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
