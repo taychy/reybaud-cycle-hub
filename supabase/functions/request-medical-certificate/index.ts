@@ -69,9 +69,8 @@ Deno.serve(async (req) => {
     }
 
     // Build email
-    const profileUrl = `${supabaseUrl.replace('.supabase.co', '')}/alumno/dashboard`;
     const appUrl = Deno.env.get("APP_URL") || "https://reybaud-cycle-hub.lovable.app";
-    const dashboardLink = `${appUrl}/alumno/dashboard`;
+    const dashboardLink = `${appUrl}/alumno`;
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
