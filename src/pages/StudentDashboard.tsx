@@ -38,7 +38,9 @@ const StudentDashboard = () => {
   const { t } = useTranslation();
   const { isImpersonating, targetAlumno } = useImpersonation();
   const readOnly = isImpersonating;
-  const initialTab = (location.state as any)?.tab || "hoy";
+  const searchParams = new URLSearchParams(location.search);
+  const sectionParam = searchParams.get("section");
+  const initialTab = sectionParam === "apto-fisico" ? "mas" : ((location.state as any)?.tab || "hoy");
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [weekTrainings, setWeekTrainings] = useState<(Entrenamiento | null)[]>([null, null, null, null, null, null, null]);
@@ -267,7 +269,7 @@ const StudentDashboard = () => {
             </div>
 
             {/* Trámites section */}
-            <div className="space-y-3">
+            <div id="apto-fisico" className="space-y-3">
               <h3 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground px-1">
                 Trámites
               </h3>

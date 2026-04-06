@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     // Build email
     const appUrl = Deno.env.get("APP_URL") || "https://reybaud-cycle-hub.lovable.app";
-    const dashboardLink = `${appUrl}/alumno`;
+    const dashboardLink = `${appUrl}/alumno?section=apto-fisico`;
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
