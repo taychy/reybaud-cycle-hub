@@ -317,6 +317,8 @@ const ManageStudents = () => {
       case "inactivos": return a.estado === "inactivo";
       case "bloqueados": return a.estado === "bloqueado";
       case "vencidos": return getSubEstadoLabel(a.id) === "vencida" && a.estado === "activo";
+      case "pago_pendiente": return getSubEstadoLabel(a.id) === "pago_pendiente";
+      case "acceso_pausado": return getSubEstadoLabel(a.id) === "acceso_pausado";
       case "sin_grupo": return a.grupo === "Sin grupo" && a.estado === "activo";
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
       case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
