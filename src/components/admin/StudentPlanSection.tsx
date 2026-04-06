@@ -13,6 +13,7 @@ import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertT
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
+import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
