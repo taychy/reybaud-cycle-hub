@@ -44,6 +44,12 @@ const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
           onClick={() => handleTab("eventos")}
         />
         <NavItem
+          icon={<ShoppingCart className="w-5 h-5" />}
+          label={t("nav.store", "Tienda")}
+          active={activeTab === "tienda"}
+          onClick={() => handleTab("tienda")}
+        />
+        <NavItem
           icon={<TrendingUp className="w-5 h-5" />}
           label={t("nav.progress")}
           active={activeTab === "progreso"}
