@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -427,9 +427,15 @@ const ManageStudents = () => {
 
     actions.push({ label: "", icon: null, action: () => {}, separator: true });
 
-    // Resend invite
-    if (!(alumno as any).password_set && (alumno as any).invited_at) {
-      actions.push({ label: "Reenviar invitación", icon: MailPlus, action: () => handleResendInvite(alumno) });
+    // Resend invite (show whenever password not set)
+    if (!(alumno as any).password_set) {
+      actions.push({ label: (alumno as any).invited_at ? "Reenviar invitación" : "Enviar invitación", icon: MailPlus, action: () => handleResendInvite(alumno) });
+    }
+
+    // Notify overdue payment
+    const subEstado = getSubEstadoLabel(alumno.id);
+    if (subEstado === "pago_pendiente" || subEstado === "acceso_pausado" || subEstado === "vencida") {
+      actions.push({ label: "Notificar pago vencido", icon: BellRing, action: () => handleNotifyOverdue(alumno) });
     }
 
     actions.push({ label: "Eliminar", icon: Trash2, action: () => setDeleteAlumno(alumno), destructive: true });
@@ -556,6 +562,21 @@ const ManageStudents = () => {
       toast.error(err.message || "Error al reenviar invitación");
     } finally {
       setResending(null);
+    }
+  };
+
+  const handleNotifyOverdue = async (alumno: Alumno) => {
+    try {
+      const sub = getActiveSub(alumno.id) || getAnySub(alumno.id);
+      const { data, error } = await supabase.functions.invoke("notify-student-update", {
+        body: { alumno_id: alumno.id, type: "pago_vencido", fecha_vencimiento: sub?.fecha_fin || null },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Notificación de pago vencido enviada a ${alumno.email}`);
+      await logStudentActivity({ alumnoId: alumno.id, eventType: "notificacion_pago_vencido", title: "Notificación de pago vencido", description: `Email enviado a ${alumno.email}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
+    } catch (err: any) {
+      toast.error(err.message || "Error al enviar notificación");
     }
   };
 
@@ -1240,11 +1261,19 @@ const ManageStudents = () => {
                             <FileText className="w-3 h-3 mr-1.5" /> Estado sub
                           </Button>
                         )}
-                        {!(drawerAlumno as any).password_set && (drawerAlumno as any).invited_at && (
+                        {!(drawerAlumno as any).password_set && (
                           <Button variant="outline" size="sm" className="text-xs justify-start" disabled={resending === drawerAlumno.id} onClick={() => handleResendInvite(drawerAlumno)}>
-                            <MailPlus className="w-3 h-3 mr-1.5" /> Reenviar invite
+                            <MailPlus className="w-3 h-3 mr-1.5" /> {(drawerAlumno as any).invited_at ? "Reenviar invite" : "Enviar invite"}
                           </Button>
                         )}
+                        {(() => {
+                          const dSubEstado = getSubEstadoLabel(drawerAlumno.id);
+                          return (dSubEstado === "pago_pendiente" || dSubEstado === "acceso_pausado" || dSubEstado === "vencida") ? (
+                            <Button variant="outline" size="sm" className="text-xs justify-start text-orange-600 hover:text-orange-700" onClick={() => handleNotifyOverdue(drawerAlumno)}>
+                              <BellRing className="w-3 h-3 mr-1.5" /> Notificar pago vencido
+                            </Button>
+                          ) : null;
+                        })()}
                       </div>
                       <Button variant="outline" size="sm" className="w-full text-xs text-destructive hover:text-destructive justify-start mt-2" onClick={() => { setDeleteAlumno(drawerAlumno); setDrawerAlumno(null); }}>
                         <Trash2 className="w-3 h-3 mr-1.5" /> Eliminar alumno
