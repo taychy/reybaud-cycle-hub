@@ -203,8 +203,11 @@ const ManageStudents = () => {
   }, [alumnos]);
 
   const getActiveSub = (alumnoId: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    return suscripciones.find(s => s.alumno_id === alumnoId && (s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa") && (!s.fecha_fin || s.fecha_fin >= today));
+    return suscripciones.find(s => {
+      if (s.alumno_id !== alumnoId) return false;
+      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+      return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
+    });
   };
 
   const getAnySub = (alumnoId: string) => {
@@ -214,12 +217,12 @@ const ManageStudents = () => {
 
   const getSubEstadoLabel = (alumnoId: string): string => {
     const active = getActiveSub(alumnoId);
-    if (active) return active.estado;
+    if (active) {
+      return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin });
+    }
     const any = getAnySub(alumnoId);
     if (any) {
-      if (any.estado === "vencida") return "vencida";
-      if (any.estado === "cancelada") return "cancelada";
-      return any.estado;
+      return getEffectiveSubStatus({ estado: any.estado, fecha_fin: any.fecha_fin });
     }
     return "sin_suscripcion";
   };
