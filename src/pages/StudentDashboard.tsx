@@ -101,23 +101,33 @@ const StudentDashboard = () => {
 
       setAlumno(alumnoData);
 
-      // Check for pending/recent payment
-      const { data: recentSubs } = await supabase
+      // Fetch ALL subscriptions for access permissions
+      const { data: allSubs } = await supabase
         .from("suscripciones")
-        .select("id, estado, created_at, plan_id, planes(nombre, precio)")
+        .select("id, estado, fecha_fin, cancelada_at, created_at, plan_id, planes(nombre, precio)")
         .eq("alumno_id", alumnoData.id)
-        .in("estado", ["pendiente_verificacion", "rechazada"])
         .order("created_at", { ascending: false });
 
-      if (recentSubs && recentSubs.length > 0) {
-        setPendingPayments(recentSubs.map((sub: any) => ({
-          id: sub.id,
-          estado: sub.estado,
-          planName: sub.planes?.nombre || "Plan",
-          precio: sub.planes?.precio || 0,
-          fechaPago: sub.created_at,
-          medioPago: "pendiente_verificacion",
-        })));
+      if (allSubs) {
+        const subInputs: SubStatusInput[] = allSubs.map((s: any) => ({
+          estado: s.estado,
+          fecha_fin: s.fecha_fin,
+          cancelada_at: s.cancelada_at,
+        }));
+        setAccessPerms(getAccessPermissions(subInputs));
+
+        // Also set pending payment cards
+        const pending = allSubs.filter((s: any) => s.estado === "pendiente_verificacion" || s.estado === "rechazada");
+        if (pending.length > 0) {
+          setPendingPayments(pending.map((sub: any) => ({
+            id: sub.id,
+            estado: sub.estado,
+            planName: sub.planes?.nombre || "Plan",
+            precio: sub.planes?.precio || 0,
+            fechaPago: sub.created_at,
+            medioPago: "pendiente_verificacion",
+          })));
+        }
       }
 
       // Get Monday of current week
