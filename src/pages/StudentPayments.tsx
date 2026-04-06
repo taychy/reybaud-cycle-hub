@@ -481,10 +481,31 @@ const StudentPayments = () => {
                       </div>
 
                       <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monto</span>
-                          <span className="text-foreground">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
-                        </div>
+                        {sub.descuento && sub.precio_base != null ? (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Valor original</span>
+                              <span className="text-muted-foreground line-through">{formatPrice(sub.precio_base)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-emerald-400">
+                                {sub.descuento.nombre} ({sub.descuento.tipo === "fijo" ? `$${sub.descuento.valor}` : `${sub.descuento.valor}%`})
+                              </span>
+                              <span className="text-emerald-400">
+                                -{formatPrice(sub.precio_base - (sub.precio_final ?? sub.precio_base))}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground font-medium">Total final</span>
+                              <span className="text-foreground font-medium">{formatPrice(sub.precio_final ?? sub.precio_base)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Monto</span>
+                            <span className="text-foreground">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Fecha</span>
                           <span className="text-foreground">{formatDate(sub.created_at)}</span>
