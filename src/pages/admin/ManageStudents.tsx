@@ -24,6 +24,7 @@ import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
