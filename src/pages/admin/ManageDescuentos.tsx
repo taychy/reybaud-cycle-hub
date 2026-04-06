@@ -116,7 +116,40 @@ const ManageDescuentos = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadDescuentos(); }, []);
+  useEffect(() => { loadDescuentos(); loadOverview(); }, []);
+
+  const loadOverview = async () => {
+    setOverviewLoading(true);
+    const { data } = await supabase
+      .from("descuentos_alumno" as any)
+      .select("alumno_id, activo, nota, created_at, alumnos!inner(nombre, apellido, email), descuentos!inner(nombre, categoria, valor, tipo, aplica_a)")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setAlumnosConDescuento((data as any[]).map((d: any) => ({
+        alumno_id: d.alumno_id,
+        alumno_nombre: d.alumnos?.nombre || "",
+        alumno_apellido: d.alumnos?.apellido || "",
+        alumno_email: d.alumnos?.email || "",
+        descuento_nombre: d.descuentos?.nombre || "",
+        descuento_categoria: d.descuentos?.categoria || "",
+        descuento_valor: d.descuentos?.valor || 0,
+        descuento_tipo: d.descuentos?.tipo || "porcentaje",
+        descuento_aplica_a: d.descuentos?.aplica_a || "todo",
+        activo: d.activo,
+        created_at: d.created_at,
+        nota: d.nota,
+      })));
+    }
+    setOverviewLoading(false);
+  };
+
+  const filteredOverview = alumnosConDescuento.filter(a => {
+    const q = overviewSearch.toLowerCase();
+    const matchSearch = !q || `${a.alumno_nombre} ${a.alumno_apellido} ${a.alumno_email} ${a.descuento_nombre}`.toLowerCase().includes(q);
+    const matchCat = overviewCatFilter === "todos" || a.descuento_categoria === overviewCatFilter;
+    return matchSearch && matchCat;
+  });
 
   const resetForm = () => {
     setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", activo: true });
