@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -33,10 +34,19 @@ interface SubscriptionRecord {
   mp_status: string | null;
   auto_renovacion: boolean;
   cancelada_at: string | null;
+  descuento_id: string | null;
+  precio_base: number | null;
+  precio_final: number | null;
   plan: {
     nombre: string;
     precio: number;
     frecuencia: string;
+  } | null;
+  descuento: {
+    nombre: string;
+    valor: number;
+    tipo: string;
+    categoria: string;
   } | null;
 }
 
