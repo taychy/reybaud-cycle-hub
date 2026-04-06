@@ -306,10 +306,32 @@ const StudentPayments = () => {
                   <span className="text-muted-foreground">Plan</span>
                   <span className="font-semibold text-foreground">{activeSub.plan?.nombre || "—"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Monto</span>
-                  <span className="font-semibold gold-text-gradient">{activeSub.plan ? formatPrice(activeSub.plan.precio) : "—"}</span>
-                </div>
+                {/* Discount breakdown */}
+                {activeSub.descuento && activeSub.precio_base != null ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor original</span>
+                      <span className="font-mono text-muted-foreground line-through">{formatPrice(activeSub.precio_base)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-emerald-400 text-xs">
+                        {activeSub.descuento.nombre} ({activeSub.descuento.tipo === "fijo" ? `$${activeSub.descuento.valor}` : `${activeSub.descuento.valor}%`})
+                      </span>
+                      <span className="text-emerald-400 font-mono text-xs">
+                        -{formatPrice(activeSub.precio_base - (activeSub.precio_final ?? activeSub.precio_base))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground font-medium">Total final</span>
+                      <span className="font-semibold gold-text-gradient">{formatPrice(activeSub.precio_final ?? activeSub.precio_base)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monto</span>
+                    <span className="font-semibold gold-text-gradient">{activeSub.plan ? formatPrice(activeSub.plan.precio) : "—"}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Vencimiento</span>
                   <span className="font-medium text-foreground">{formatDate(activeSub.fecha_fin)}</span>
