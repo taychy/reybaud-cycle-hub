@@ -3,7 +3,6 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -18,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import BottomNav from "@/components/BottomNav";
@@ -94,8 +94,6 @@ const statusConfig: Record<string, {
   },
 };
 
-// formatPrice imported from @/lib/currency
-
 const formatDate = (dateStr: string | null) => {
   if (!dateStr) return "—";
   try {
@@ -128,9 +126,8 @@ const StudentPayments = () => {
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSub, setActiveSub] = useState<SubscriptionRecord | null>(null);
-  const [togglingRenovacion, setTogglingRenovacion] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -141,13 +138,11 @@ const StudentPayments = () => {
       } else {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.email) { navigate("/"); return; }
-
         const { data } = await supabase
           .from("alumnos")
           .select("*")
           .eq("email", session.user.email.toLowerCase().trim())
           .maybeSingle();
-
         if (!data) { navigate("/"); return; }
         alumnoData = data;
       }
@@ -177,13 +172,6 @@ const StudentPayments = () => {
           descuento: s.descuentos ? { nombre: s.descuentos.nombre, valor: s.descuentos.valor, tipo: s.descuentos.tipo, categoria: s.descuentos.categoria } : null,
         }));
         setSubscriptions(mapped);
-
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-        const active = mapped.find(
-          (s) => s.estado === "activa" && !s.cancelada_at && s.fecha_fin && s.fecha_fin >= todayStr
-        );
-        setActiveSub(active || null);
       }
 
       setLoading(false);
@@ -191,50 +179,53 @@ const StudentPayments = () => {
     load();
   }, [navigate, isImpersonating, targetAlumno]);
 
-  const handleToggleRenovacion = async () => {
-    if (!activeSub || readOnly) return;
-    setTogglingRenovacion(true);
-    const newValue = !activeSub.auto_renovacion;
+  // Categorize
+  const todayStr = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  })();
 
+  const activeSubs = subscriptions.filter(s => {
+    const eff = getEffectiveStatus(s);
+    return (eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente") && s.fecha_fin && s.fecha_fin >= todayStr;
+  });
+  const historicSubs = subscriptions.filter(s => !activeSubs.includes(s));
+
+  const handleToggleRenovacion = async (sub: SubscriptionRecord) => {
+    if (readOnly) return;
+    setTogglingId(sub.id);
+    const newValue = !sub.auto_renovacion;
     const { error } = await supabase
       .from("suscripciones")
       .update({ auto_renovacion: newValue } as any)
-      .eq("id", activeSub.id);
-
-    setTogglingRenovacion(false);
+      .eq("id", sub.id);
+    setTogglingId(null);
     if (error) {
-      toast({ title: "Error", description: "No se pudo actualizar la configuración.", variant: "destructive" });
+      toast({ title: "Error", description: "No se pudo actualizar.", variant: "destructive" });
     } else {
-      setActiveSub({ ...activeSub, auto_renovacion: newValue });
-      setSubscriptions(prev => prev.map(s => s.id === activeSub.id ? { ...s, auto_renovacion: newValue } : s));
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, auto_renovacion: newValue } : s));
       toast({
         title: newValue ? "Renovación activada" : "Renovación desactivada",
-        description: newValue
-          ? `Tu plan se renovará automáticamente el ${formatDate(activeSub.fecha_fin)}.`
-          : `Tu plan no se renovará al vencer el ${formatDate(activeSub.fecha_fin)}.`,
+        description: `${sub.plan?.nombre || "Plan"}: ${newValue ? "se renovará" : "no se renovará"} automáticamente.`,
       });
     }
   };
 
-  const handleCancelSubscription = async () => {
-    if (!activeSub || readOnly) return;
-    setCancelling(true);
-
+  const handleCancelSubscription = async (sub: SubscriptionRecord) => {
+    if (readOnly) return;
+    setCancellingId(sub.id);
     const { error } = await supabase
       .from("suscripciones")
       .update({ cancelada_at: new Date().toISOString(), auto_renovacion: false } as any)
-      .eq("id", activeSub.id);
-
-    setCancelling(false);
+      .eq("id", sub.id);
+    setCancellingId(null);
     if (error) {
-      toast({ title: "Error", description: "No se pudo cancelar. Intentá de nuevo.", variant: "destructive" });
+      toast({ title: "Error", description: "No se pudo cancelar.", variant: "destructive" });
     } else {
-      const updated = { ...activeSub, cancelada_at: new Date().toISOString(), auto_renovacion: false };
-      setActiveSub(null);
-      setSubscriptions(prev => prev.map(s => s.id === activeSub.id ? updated : s));
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, cancelada_at: new Date().toISOString(), auto_renovacion: false } : s));
       toast({
         title: "Suscripción cancelada",
-        description: `Tu acceso sigue disponible hasta el ${formatDate(activeSub.fecha_fin)}.`,
+        description: `${sub.plan?.nombre || "Plan"}: acceso disponible hasta ${formatDate(sub.fecha_fin)}.`,
       });
     }
   };
@@ -256,199 +247,180 @@ const StudentPayments = () => {
     );
   }
 
-  const activeStatus = activeSub ? getEffectiveStatus(activeSub) : null;
-  const daysRemaining = activeSub?.fecha_fin
-    ? Math.max(0, Math.ceil((new Date(activeSub.fecha_fin + "T23:59:59").getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  // Total monthly summary
+  const totalActivo = activeSubs.reduce((sum, s) => {
+    const price = s.precio_final ?? s.precio_base ?? s.plan?.precio ?? 0;
+    return sum + price;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Impersonation banner */}
       {isImpersonating && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg">
           <span>Vista de solo lectura — {targetAlumno?.nombre}</span>
         </div>
       )}
-      {/* Header */}
       <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-10" : ""}`}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-muted-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
         <h1 className="text-lg font-heading font-semibold text-foreground uppercase tracking-wider">
-          Suscripción y pagos
+          Mis planes y pagos
         </h1>
       </header>
 
       <main className="flex-1 px-4 pb-8">
         <div className="w-full max-w-md mx-auto space-y-6 animate-fade-in">
 
-          {/* Subtitle */}
           <p className="text-sm text-muted-foreground text-center">
-            Gestioná tu plan de forma simple
+            Gestioná tus planes de forma simple
           </p>
 
-          {/* ──────── Active Plan Card ──────── */}
-          {activeSub ? (
-            <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-primary">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="text-sm font-heading font-semibold uppercase tracking-wider">Plan activo</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {daysRemaining} día{daysRemaining !== 1 ? "s" : ""} restante{daysRemaining !== 1 ? "s" : ""}
-                </span>
-              </div>
+          {/* ──────── Active Plans ──────── */}
+          {activeSubs.length > 0 ? (
+            <div className="space-y-4">
+              <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+                Planes activos ({activeSubs.length})
+              </h2>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Plan</span>
-                  <span className="font-semibold text-foreground">{activeSub.plan?.nombre || "—"}</span>
-                </div>
-                {/* Discount breakdown */}
-                {activeSub.descuento && activeSub.precio_base != null ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor original</span>
-                      <span className="font-mono text-muted-foreground line-through">{formatPrice(activeSub.precio_base)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-emerald-400 text-xs">
-                        {activeSub.descuento.nombre} ({activeSub.descuento.tipo === "fijo" ? `$${activeSub.descuento.valor}` : `${activeSub.descuento.valor}%`})
+              {activeSubs.map((sub) => {
+                const effectiveStatus = getEffectiveStatus(sub);
+                const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
+                const daysRemaining = sub.fecha_fin
+                  ? Math.max(0, Math.ceil((new Date(sub.fecha_fin + "T23:59:59").getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : 0;
+
+                return (
+                  <div key={sub.id} className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-primary">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span className="text-sm font-heading font-semibold uppercase tracking-wider">
+                          {sub.plan?.nombre || "Plan"}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
                       </span>
-                      <span className="text-emerald-400 font-mono text-xs">
-                        -{formatPrice(activeSub.precio_base - (activeSub.precio_final ?? activeSub.precio_base))}
-                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground font-medium">Total final</span>
-                      <span className="font-semibold gold-text-gradient">{formatPrice(activeSub.precio_final ?? activeSub.precio_base)}</span>
+
+                    <div className="space-y-2 text-sm">
+                      {/* Discount breakdown */}
+                      {sub.descuento && sub.precio_base != null ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Valor original</span>
+                            <span className="font-mono text-muted-foreground line-through">{formatPrice(sub.precio_base)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-emerald-400 text-xs">
+                              {sub.descuento.nombre} ({sub.descuento.tipo === "fijo" ? `$${sub.descuento.valor}` : `${sub.descuento.valor}%`})
+                            </span>
+                            <span className="text-emerald-400 font-mono text-xs">
+                              -{formatPrice(sub.precio_base - (sub.precio_final ?? sub.precio_base))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground font-medium">Total</span>
+                            <span className="font-semibold gold-text-gradient">{formatPrice(sub.precio_final ?? sub.precio_base)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Monto</span>
+                          <span className="font-semibold gold-text-gradient">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Vencimiento</span>
+                        <span className="font-medium text-foreground">{formatDate(sub.fecha_fin)}</span>
+                      </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Monto</span>
-                    <span className="font-semibold gold-text-gradient">{activeSub.plan ? formatPrice(activeSub.plan.precio) : "—"}</span>
+
+                    {/* Auto-renewal */}
+                    <div className={`rounded-lg p-3 text-xs ${
+                      sub.auto_renovacion
+                        ? "bg-primary/5 border border-primary/20 text-primary"
+                        : "bg-muted/50 border border-border text-muted-foreground"
+                    }`}>
+                      {sub.auto_renovacion ? (
+                        <>
+                          <span className="font-semibold">Renovación automática activada.</span>{" "}
+                          Próximo cobro: {formatPrice(sub.plan?.precio || 0)} el {formatDate(sub.fecha_fin)}.
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold">Renovación automática desactivada.</span>{" "}
+                          Vence el {formatDate(sub.fecha_fin)}.
+                        </>
+                      )}
+                    </div>
+
+                    {/* Per-plan actions */}
+                    <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
+                      {/* Toggle renewal */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4 text-primary" />
+                          <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                        </div>
+                        <Switch
+                          checked={sub.auto_renovacion}
+                          onCheckedChange={() => handleToggleRenovacion(sub)}
+                          disabled={togglingId === sub.id}
+                        />
+                      </div>
+
+                      {/* Cancel */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left">
+                            <Ban className="w-4 h-4 text-destructive" />
+                            <span className="text-xs font-medium text-destructive">Cancelar este plan</span>
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-card border-border">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-foreground">¿Cancelar "{sub.plan?.nombre}"?</AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2">
+                              <p>Tu acceso a este plan seguirá disponible hasta el {formatDate(sub.fecha_fin)}.</p>
+                              <p>Tus otros planes no se verán afectados.</p>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="border-border">Volver</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleCancelSubscription(sub)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              disabled={cancellingId === sub.id}
+                            >
+                              {cancellingId === sub.id ? "Cancelando..." : "Sí, cancelar"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Vencimiento</span>
-                  <span className="font-medium text-foreground">{formatDate(activeSub.fecha_fin)}</span>
-                </div>
-              </div>
+                );
+              })}
 
-              {/* Auto-renewal status message */}
-              <div className={`rounded-lg p-3 text-xs ${
-                activeSub.auto_renovacion
-                  ? "bg-primary/5 border border-primary/20 text-primary"
-                  : "bg-muted/50 border border-border text-muted-foreground"
-              }`}>
-                {activeSub.auto_renovacion ? (
-                  <>
-                    <span className="font-semibold">Renovación automática activada.</span>{" "}
-                    Próximo cobro estimado: {formatPrice(activeSub.plan?.precio || 0)} el {formatDate(activeSub.fecha_fin)}.
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold">Renovación automática desactivada.</span>{" "}
-                    Tu plan vencerá el {formatDate(activeSub.fecha_fin)} y no se renovará automáticamente.
-                  </>
-                )}
-              </div>
+              {/* Total summary */}
+              {activeSubs.length > 1 && (
+                <div className="rounded-xl border border-border bg-card/80 p-4 flex justify-between items-center">
+                  <span className="text-sm font-medium text-muted-foreground">Total mensual</span>
+                  <span className="text-lg font-semibold gold-text-gradient">{formatPrice(totalActivo)}</span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-6 text-center space-y-3 shadow-lg shadow-black/20">
               <CreditCard className="w-10 h-10 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">No tenés un plan activo.</p>
+              <p className="text-sm text-muted-foreground">No tenés planes activos.</p>
               <p className="text-xs text-muted-foreground">Elegí un plan para acceder a tus entrenamientos.</p>
               <Button variant="gold" size="sm" onClick={handleChangePlan}>
                 Ver planes disponibles
               </Button>
-            </div>
-          )}
-
-          {/* ──────── Actions Block ──────── */}
-          {activeSub && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-                Gestión de suscripción
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Podés cambiar de plan, cancelar tu suscripción o activar la renovación automática.
-              </p>
-
-              <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm overflow-hidden shadow-lg shadow-black/20">
-                {/* Auto renewal toggle */}
-                <div className="flex items-center justify-between px-4 py-4 border-b border-border/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <RefreshCw className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Renovación automática</p>
-                      <p className="text-xs text-muted-foreground">
-                        {activeSub.auto_renovacion ? "Activada" : "Desactivada"}
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={activeSub.auto_renovacion}
-                    onCheckedChange={handleToggleRenovacion}
-                    disabled={togglingRenovacion}
-                  />
-                </div>
-
-                {/* Change plan */}
-                <button
-                  onClick={handleChangePlan}
-                  className="w-full flex items-center gap-3 px-4 py-4 hover:bg-accent/30 transition-colors border-b border-border/50"
-                >
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <ArrowRightLeft className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-foreground">Cambiar plan</p>
-                    <p className="text-xs text-muted-foreground">Elegí otro plan según tus objetivos</p>
-                  </div>
-                </button>
-
-                {/* Cancel subscription */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-4 hover:bg-accent/30 transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                        <Ban className="w-4 h-4 text-destructive" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-medium text-destructive">Cancelar suscripción</p>
-                        <p className="text-xs text-muted-foreground">Mantener acceso hasta el fin del período</p>
-                      </div>
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-card border-border">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="text-foreground">¿Cancelar tu suscripción?</AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-3">
-                        <p>Tu acceso estará disponible hasta el final del período abonado ({formatDate(activeSub.fecha_fin)}).</p>
-                        <p>Después de esa fecha, no podrás acceder a los entrenamientos hasta que actives un nuevo plan.</p>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="border-border">Volver</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleCancelSubscription}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        disabled={cancelling}
-                      >
-                        {cancelling ? "Cancelando..." : "Sí, cancelar"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
             </div>
           )}
 
@@ -458,13 +430,13 @@ const StudentPayments = () => {
               Historial de pagos
             </h2>
 
-            {subscriptions.length === 0 ? (
+            {historicSubs.length === 0 && activeSubs.length === 0 ? (
               <div className="rounded-xl border border-border bg-card/80 p-6 text-center">
                 <p className="text-sm text-muted-foreground">No hay pagos registrados.</p>
               </div>
-            ) : (
+            ) : historicSubs.length === 0 ? null : (
               <div className="space-y-3">
-                {subscriptions.map((sub) => {
+                {historicSubs.map((sub) => {
                   const effectiveStatus = getEffectiveStatus(sub);
                   const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
 

@@ -24,6 +24,7 @@ type Alumno = Tables<"alumnos">;
 type Entrenamiento = Tables<"entrenamientos">;
 
 interface PendingPaymentInfo {
+  id: string;
   estado: string;
   planName: string;
   precio: number;
@@ -44,7 +45,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [realizado, setRealizado] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
-  const [pendingPayment, setPendingPayment] = useState<PendingPaymentInfo | null>(null);
+  const [pendingPayments, setPendingPayments] = useState<PendingPaymentInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">(initialTab);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
@@ -99,21 +100,20 @@ const StudentDashboard = () => {
       // Check for pending/recent payment
       const { data: recentSubs } = await supabase
         .from("suscripciones")
-        .select("estado, created_at, plan_id, planes(nombre, precio)")
+        .select("id, estado, created_at, plan_id, planes(nombre, precio)")
         .eq("alumno_id", alumnoData.id)
         .in("estado", ["pendiente_verificacion", "rechazada"])
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: false });
 
       if (recentSubs && recentSubs.length > 0) {
-        const sub = recentSubs[0] as any;
-        setPendingPayment({
+        setPendingPayments(recentSubs.map((sub: any) => ({
+          id: sub.id,
           estado: sub.estado,
           planName: sub.planes?.nombre || "Plan",
           precio: sub.planes?.precio || 0,
           fechaPago: sub.created_at,
           medioPago: "pendiente_verificacion",
-        });
+        })));
       }
 
       // Get Monday of current week
@@ -329,16 +329,17 @@ const StudentDashboard = () => {
             {/* Weather */}
             <WeatherBar />
 
-            {/* Payment status */}
-            {pendingPayment && (
+            {/* Payment status - show all pending */}
+            {pendingPayments.map((pp) => (
               <PaymentStatusCard
-                estado={pendingPayment.estado}
-                planName={pendingPayment.planName}
-                precio={pendingPayment.precio}
-                fechaPago={pendingPayment.fechaPago}
-                medioPago={pendingPayment.medioPago}
+                key={pp.id}
+                estado={pp.estado}
+                planName={pp.planName}
+                precio={pp.precio}
+                fechaPago={pp.fechaPago}
+                medioPago={pp.medioPago}
               />
-            )}
+            ))}
 
             {/* Training detail view */}
             {entrenamiento ? (
