@@ -61,6 +61,21 @@ const categoriaBadge: Record<string, { label: string; className: string }> = {
   general: { label: "General", className: "bg-muted text-muted-foreground border-border" },
 };
 
+interface AlumnoConDescuento {
+  alumno_id: string;
+  alumno_nombre: string;
+  alumno_apellido: string;
+  alumno_email: string;
+  descuento_nombre: string;
+  descuento_categoria: string;
+  descuento_valor: number;
+  descuento_tipo: string;
+  descuento_aplica_a: string;
+  activo: boolean;
+  created_at: string;
+  nota: string | null;
+}
+
 const ManageDescuentos = () => {
   const [descuentos, setDescuentos] = useState<Descuento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +86,12 @@ const ManageDescuentos = () => {
   const [alumnos, setAlumnos] = useState<any[]>([]);
   const [asignados, setAsignados] = useState<DescuentoAlumno[]>([]);
   const [searchAlumno, setSearchAlumno] = useState("");
+
+  // Overview tab state
+  const [alumnosConDescuento, setAlumnosConDescuento] = useState<AlumnoConDescuento[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewSearch, setOverviewSearch] = useState("");
+  const [overviewCatFilter, setOverviewCatFilter] = useState("todos");
 
   // Form state
   const [form, setForm] = useState({
