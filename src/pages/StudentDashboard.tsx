@@ -376,6 +376,8 @@ const StudentDashboard = () => {
       default: // "hoy"
         return (
           <div className="w-full max-w-md space-y-5 animate-fade-in">
+            {/* Access restriction banner */}
+            {renderAccessBanner()}
             {/* Install banner */}
             {showInstallBanner && !window.matchMedia("(display-mode: standalone)").matches && (
               <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
