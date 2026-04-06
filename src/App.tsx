@@ -69,6 +69,7 @@ import AdminTurnera from "./pages/admin/AdminTurnera";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -86,10 +87,10 @@ const App = () => (
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/pago-resultado" element={<PaymentResult />} />
-          <Route path="/alumno" element={<StudentDashboard />} />
-          <Route path="/alumno/dashboard" element={<StudentDashboard />} />
-          <Route path="/alumno/pagos" element={<StudentPayments />} />
-          <Route path="/alumno/progreso" element={<StudentProgress />} />
+          <Route path="/alumno" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/dashboard" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/pagos" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentPayments /></ProtectedRoute>} />
+          <Route path="/alumno/progreso" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentProgress /></ProtectedRoute>} />
           <Route path="/crear-clave" element={<SetPassword />} />
           <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />
@@ -97,20 +98,20 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
-          <Route path="/coach" element={<CoachDashboard />} />
-          <Route path="/coach/alumnos" element={<CoachAlumnos />} />
-          <Route path="/coach/entrenamientos" element={<CoachEntrenamientos />} />
-          <Route path="/coach/eventos/record-de-la-hora" element={<CoachEventRecordDelAhora />} />
-          <Route path="/coach/asistencia" element={<CoachAttendance />} />
-          <Route path="/coach/feedback" element={<CoachFeedback />} />
-          <Route path="/coach/liquidaciones" element={<CoachLiquidaciones />} />
+          <Route path="/coach" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachDashboard /></ProtectedRoute>} />
+          <Route path="/coach/alumnos" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAlumnos /></ProtectedRoute>} />
+          <Route path="/coach/entrenamientos" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachEntrenamientos /></ProtectedRoute>} />
+          <Route path="/coach/eventos/record-de-la-hora" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachEventRecordDelAhora /></ProtectedRoute>} />
+          <Route path="/coach/asistencia" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAttendance /></ProtectedRoute>} />
+          <Route path="/coach/feedback" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachFeedback /></ProtectedRoute>} />
+          <Route path="/coach/liquidaciones" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachLiquidaciones /></ProtectedRoute>} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
-          <Route path="/admin/ver-como/:alumnoId" element={<ImpersonateStudent />} />
+          <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
             <Route path="resumen" element={<AdminDashboard />} />
             <Route path="alumnos" element={<ManageStudents />} />
