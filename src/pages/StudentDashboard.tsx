@@ -24,6 +24,7 @@ type Alumno = Tables<"alumnos">;
 type Entrenamiento = Tables<"entrenamientos">;
 
 interface PendingPaymentInfo {
+  id: string;
   estado: string;
   planName: string;
   precio: number;
