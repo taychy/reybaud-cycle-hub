@@ -22,6 +22,7 @@ import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
+import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 
 type Alumno = Tables<"alumnos">;
@@ -1174,6 +1175,11 @@ const ManageStudents = () => {
                       }}
                       onAlumnoUpdate={(a) => setDrawerAlumno(a)}
                     />
+                    <Separator />
+
+                    {/* Descuentos y grupo familiar */}
+                    <StudentDiscountSection alumno={drawerAlumno} />
+
                     <Separator />
 
                     {/* Apto Físico */}

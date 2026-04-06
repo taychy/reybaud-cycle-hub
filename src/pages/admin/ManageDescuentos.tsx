@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Percent, Users, Copy, Tag } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Pencil, Trash2, Percent, Users, Copy, Tag, Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Descuento {
@@ -60,6 +61,21 @@ const categoriaBadge: Record<string, { label: string; className: string }> = {
   general: { label: "General", className: "bg-muted text-muted-foreground border-border" },
 };
 
+interface AlumnoConDescuento {
+  alumno_id: string;
+  alumno_nombre: string;
+  alumno_apellido: string;
+  alumno_email: string;
+  descuento_nombre: string;
+  descuento_categoria: string;
+  descuento_valor: number;
+  descuento_tipo: string;
+  descuento_aplica_a: string;
+  activo: boolean;
+  created_at: string;
+  nota: string | null;
+}
+
 const ManageDescuentos = () => {
   const [descuentos, setDescuentos] = useState<Descuento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +86,12 @@ const ManageDescuentos = () => {
   const [alumnos, setAlumnos] = useState<any[]>([]);
   const [asignados, setAsignados] = useState<DescuentoAlumno[]>([]);
   const [searchAlumno, setSearchAlumno] = useState("");
+
+  // Overview tab state
+  const [alumnosConDescuento, setAlumnosConDescuento] = useState<AlumnoConDescuento[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewSearch, setOverviewSearch] = useState("");
+  const [overviewCatFilter, setOverviewCatFilter] = useState("todos");
 
   // Form state
   const [form, setForm] = useState({
@@ -94,7 +116,40 @@ const ManageDescuentos = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadDescuentos(); }, []);
+  useEffect(() => { loadDescuentos(); loadOverview(); }, []);
+
+  const loadOverview = async () => {
+    setOverviewLoading(true);
+    const { data } = await supabase
+      .from("descuentos_alumno" as any)
+      .select("alumno_id, activo, nota, created_at, alumnos!inner(nombre, apellido, email), descuentos!inner(nombre, categoria, valor, tipo, aplica_a)")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setAlumnosConDescuento((data as any[]).map((d: any) => ({
+        alumno_id: d.alumno_id,
+        alumno_nombre: d.alumnos?.nombre || "",
+        alumno_apellido: d.alumnos?.apellido || "",
+        alumno_email: d.alumnos?.email || "",
+        descuento_nombre: d.descuentos?.nombre || "",
+        descuento_categoria: d.descuentos?.categoria || "",
+        descuento_valor: d.descuentos?.valor || 0,
+        descuento_tipo: d.descuentos?.tipo || "porcentaje",
+        descuento_aplica_a: d.descuentos?.aplica_a || "todo",
+        activo: d.activo,
+        created_at: d.created_at,
+        nota: d.nota,
+      })));
+    }
+    setOverviewLoading(false);
+  };
+
+  const filteredOverview = alumnosConDescuento.filter(a => {
+    const q = overviewSearch.toLowerCase();
+    const matchSearch = !q || `${a.alumno_nombre} ${a.alumno_apellido} ${a.alumno_email} ${a.descuento_nombre}`.toLowerCase().includes(q);
+    const matchCat = overviewCatFilter === "todos" || a.descuento_categoria === overviewCatFilter;
+    return matchSearch && matchCat;
+  });
 
   const resetForm = () => {
     setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", activo: true });
@@ -235,89 +290,176 @@ const ManageDescuentos = () => {
         </Button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {categorias.filter(c => c.value !== "general").map(cat => {
-          const count = descuentos.filter(d => d.categoria === cat.value && d.activo).length;
-          return (
-            <Card key={cat.value} className="bg-card border-border">
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-heading font-bold text-foreground">{count}</p>
-                <p className="text-xs text-muted-foreground">{cat.label}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <Tabs defaultValue="descuentos" className="w-full">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="descuentos" className="gap-1.5"><Tag className="w-4 h-4" />Descuentos</TabsTrigger>
+          <TabsTrigger value="alumnos" className="gap-1.5"><Users className="w-4 h-4" />Alumnos con descuento</TabsTrigger>
+        </TabsList>
 
-      {/* Table */}
-      <Card className="bg-card border-border">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border">
-                <TableHead className="text-muted-foreground">Nombre</TableHead>
-                <TableHead className="text-muted-foreground">Categoría</TableHead>
-                <TableHead className="text-muted-foreground">Descuento</TableHead>
-                <TableHead className="text-muted-foreground">Código</TableHead>
-                <TableHead className="text-muted-foreground">Aplica a</TableHead>
-                <TableHead className="text-muted-foreground">Estado</TableHead>
-                <TableHead className="text-muted-foreground w-32">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
-              ) : descuentos.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay descuentos creados</TableCell></TableRow>
-              ) : (
-                descuentos.map(d => {
-                  const cat = categoriaBadge[d.categoria] || categoriaBadge.general;
-                  return (
-                    <TableRow key={d.id} className="border-border">
-                      <TableCell className="font-medium text-foreground">{d.nombre}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cat.className}>{cat.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-primary font-semibold">
-                          {d.tipo === "fijo" ? `$${d.valor}` : `${d.valor}%`}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {d.codigo ? (
-                          <Badge variant="outline" className="bg-muted text-foreground font-mono text-xs">
-                            {d.codigo}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground capitalize">{d.aplica_a}</TableCell>
-                      <TableCell>
-                        <Switch checked={d.activo} onCheckedChange={() => toggleActivo(d)} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openAssign(d)} title="Asignar alumnos">
-                            <Users className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(d)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(d.id)} className="text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <TabsContent value="descuentos" className="space-y-5 mt-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {categorias.filter(c => c.value !== "general").map(cat => {
+              const count = descuentos.filter(d => d.categoria === cat.value && d.activo).length;
+              return (
+                <Card key={cat.value} className="bg-card border-border">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-heading font-bold text-foreground">{count}</p>
+                    <p className="text-xs text-muted-foreground">{cat.label}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Table */}
+          <Card className="bg-card border-border">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border">
+                    <TableHead className="text-muted-foreground">Nombre</TableHead>
+                    <TableHead className="text-muted-foreground">Categoría</TableHead>
+                    <TableHead className="text-muted-foreground">Descuento</TableHead>
+                    <TableHead className="text-muted-foreground">Código</TableHead>
+                    <TableHead className="text-muted-foreground">Aplica a</TableHead>
+                    <TableHead className="text-muted-foreground">Estado</TableHead>
+                    <TableHead className="text-muted-foreground w-32">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
+                  ) : descuentos.length === 0 ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay descuentos creados</TableCell></TableRow>
+                  ) : (
+                    descuentos.map(d => {
+                      const cat = categoriaBadge[d.categoria] || categoriaBadge.general;
+                      return (
+                        <TableRow key={d.id} className="border-border">
+                          <TableCell className="font-medium text-foreground">{d.nombre}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={cat.className}>{cat.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-primary font-semibold">
+                              {d.tipo === "fijo" ? `$${d.valor}` : `${d.valor}%`}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {d.codigo ? (
+                              <Badge variant="outline" className="bg-muted text-foreground font-mono text-xs">
+                                {d.codigo}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground capitalize">{d.aplica_a}</TableCell>
+                          <TableCell>
+                            <Switch checked={d.activo} onCheckedChange={() => toggleActivo(d)} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => openAssign(d)} title="Asignar alumnos">
+                                <Users className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(d)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(d.id)} className="text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="alumnos" className="space-y-5 mt-4">
+          {/* Filter bar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar alumno o descuento..." value={overviewSearch} onChange={e => setOverviewSearch(e.target.value)} className="pl-9 bg-secondary border-border" />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {[{ value: "todos", label: "Todos" }, ...categorias].map(c => (
+                <Button key={c.value} variant={overviewCatFilter === c.value ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setOverviewCatFilter(c.value)}>
+                  {c.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border">
+                    <TableHead className="text-muted-foreground">Alumno</TableHead>
+                    <TableHead className="text-muted-foreground">Descuento</TableHead>
+                    <TableHead className="text-muted-foreground">Categoría</TableHead>
+                    <TableHead className="text-muted-foreground">Valor</TableHead>
+                    <TableHead className="text-muted-foreground">Aplica a</TableHead>
+                    <TableHead className="text-muted-foreground">Desde</TableHead>
+                    <TableHead className="text-muted-foreground">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overviewLoading ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
+                  ) : filteredOverview.length === 0 ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay alumnos con descuentos</TableCell></TableRow>
+                  ) : (
+                    filteredOverview.map((a, idx) => {
+                      const cat = categoriaBadge[a.descuento_categoria] || categoriaBadge.general;
+                      return (
+                        <TableRow key={`${a.alumno_id}-${a.descuento_nombre}-${idx}`} className="border-border">
+                          <TableCell>
+                            <div>
+                              <span className="font-medium text-foreground text-sm">{a.alumno_nombre} {a.alumno_apellido}</span>
+                              <p className="text-[10px] text-muted-foreground">{a.alumno_email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-foreground">{a.descuento_nombre}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={cat.className}>{cat.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-primary font-semibold text-sm">
+                              {a.descuento_tipo === "fijo" ? `$${a.descuento_valor}` : `${a.descuento_valor}%`}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground capitalize">{a.descuento_aplica_a}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(a.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={a.activo ? "default" : "outline"} className={a.activo ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "text-muted-foreground text-[10px]"}>
+                              {a.activo ? "Activo" : "Inactivo"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <p className="text-xs text-muted-foreground">
+            {filteredOverview.filter(a => a.activo).length} descuentos activos de {filteredOverview.length} total
+          </p>
+        </TabsContent>
+      </Tabs>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

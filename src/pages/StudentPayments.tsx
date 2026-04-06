@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -33,10 +34,19 @@ interface SubscriptionRecord {
   mp_status: string | null;
   auto_renovacion: boolean;
   cancelada_at: string | null;
+  descuento_id: string | null;
+  precio_base: number | null;
+  precio_final: number | null;
   plan: {
     nombre: string;
     precio: number;
     frecuencia: string;
+  } | null;
+  descuento: {
+    nombre: string;
+    valor: number;
+    tipo: string;
+    categoria: string;
   } | null;
 }
 
@@ -146,7 +156,7 @@ const StudentPayments = () => {
 
       const { data: subs } = await supabase
         .from("suscripciones")
-        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, cancelada_at, plan_id, planes(nombre, precio, frecuencia)")
+        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, cancelada_at, plan_id, descuento_id, precio_base, precio_final, planes(nombre, precio, frecuencia), descuentos(nombre, valor, tipo, categoria)")
         .eq("alumno_id", alumnoData.id)
         .order("created_at", { ascending: false });
 
@@ -160,7 +170,11 @@ const StudentPayments = () => {
           mp_status: s.mp_status,
           auto_renovacion: s.auto_renovacion ?? false,
           cancelada_at: s.cancelada_at,
+          descuento_id: s.descuento_id,
+          precio_base: s.precio_base,
+          precio_final: s.precio_final,
           plan: s.planes ? { nombre: s.planes.nombre, precio: s.planes.precio, frecuencia: s.planes.frecuencia } : null,
+          descuento: s.descuentos ? { nombre: s.descuentos.nombre, valor: s.descuentos.valor, tipo: s.descuentos.tipo, categoria: s.descuentos.categoria } : null,
         }));
         setSubscriptions(mapped);
 
@@ -292,10 +306,32 @@ const StudentPayments = () => {
                   <span className="text-muted-foreground">Plan</span>
                   <span className="font-semibold text-foreground">{activeSub.plan?.nombre || "—"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Monto</span>
-                  <span className="font-semibold gold-text-gradient">{activeSub.plan ? formatPrice(activeSub.plan.precio) : "—"}</span>
-                </div>
+                {/* Discount breakdown */}
+                {activeSub.descuento && activeSub.precio_base != null ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor original</span>
+                      <span className="font-mono text-muted-foreground line-through">{formatPrice(activeSub.precio_base)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-emerald-400 text-xs">
+                        {activeSub.descuento.nombre} ({activeSub.descuento.tipo === "fijo" ? `$${activeSub.descuento.valor}` : `${activeSub.descuento.valor}%`})
+                      </span>
+                      <span className="text-emerald-400 font-mono text-xs">
+                        -{formatPrice(activeSub.precio_base - (activeSub.precio_final ?? activeSub.precio_base))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground font-medium">Total final</span>
+                      <span className="font-semibold gold-text-gradient">{formatPrice(activeSub.precio_final ?? activeSub.precio_base)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monto</span>
+                    <span className="font-semibold gold-text-gradient">{activeSub.plan ? formatPrice(activeSub.plan.precio) : "—"}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Vencimiento</span>
                   <span className="font-medium text-foreground">{formatDate(activeSub.fecha_fin)}</span>
@@ -445,10 +481,31 @@ const StudentPayments = () => {
                       </div>
 
                       <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monto</span>
-                          <span className="text-foreground">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
-                        </div>
+                        {sub.descuento && sub.precio_base != null ? (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Valor original</span>
+                              <span className="text-muted-foreground line-through">{formatPrice(sub.precio_base)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-emerald-400">
+                                {sub.descuento.nombre} ({sub.descuento.tipo === "fijo" ? `$${sub.descuento.valor}` : `${sub.descuento.valor}%`})
+                              </span>
+                              <span className="text-emerald-400">
+                                -{formatPrice(sub.precio_base - (sub.precio_final ?? sub.precio_base))}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground font-medium">Total final</span>
+                              <span className="text-foreground font-medium">{formatPrice(sub.precio_final ?? sub.precio_base)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Monto</span>
+                            <span className="text-foreground">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Fecha</span>
                           <span className="text-foreground">{formatDate(sub.created_at)}</span>

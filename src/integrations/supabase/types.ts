@@ -1321,6 +1321,80 @@ export type Database = {
         }
         Relationships: []
       }
+      grupo_familiar: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          notas: string | null
+          titular_alumno_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          notas?: string | null
+          titular_alumno_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          notas?: string | null
+          titular_alumno_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupo_familiar_titular_alumno_id_fkey"
+            columns: ["titular_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupo_familiar_miembros: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          grupo_id: string
+          id: string
+          recibe_descuento: boolean
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          grupo_id: string
+          id?: string
+          recibe_descuento?: boolean
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          grupo_id?: string
+          id?: string
+          recibe_descuento?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupo_familiar_miembros_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_familiar_miembros_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupo_familiar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       honorarios: {
         Row: {
           activo: boolean

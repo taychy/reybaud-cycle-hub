@@ -70,7 +70,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const { discounts, applyDiscount, loading: discountsLoading } = useStudentDiscounts(alumno.id);
+  const { discounts, applyDiscount, loading: discountsLoading, subscriptionCount } = useStudentDiscounts(alumno.id);
 
   // Change plan dialog
   const [showChangePlan, setShowChangePlan] = useState(false);
@@ -276,9 +276,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {currentSub?.planes && (() => {
             const planPrice = currentSub.planes.precio;
             const moneda = currentSub.planes.moneda;
+            // Determine if this is the secondary subscription (for segunda_actividad discounts)
+            const subIndex = subs.filter(s => s.estado === "activa" || s.estado === "pendiente_verificacion" || s.estado === "pausa")
+              .findIndex(s => s.id === currentSub.id);
+            const isSecondary = subIndex > 0 || (subscriptionCount > 1 && subIndex !== 0);
             // Priority: discount stored on subscription, then live discount from descuentos_alumno
             const hasSavedDiscount = currentSub.descuento_id && currentSub.descuentos;
-            const liveDiscount = !hasSavedDiscount ? applyDiscount(planPrice, "planes") : null;
+            const liveDiscount = !hasSavedDiscount ? applyDiscount(planPrice, "planes", isSecondary) : null;
             const hasLiveDiscount = liveDiscount && liveDiscount.discount;
             const hasAnyDiscount = hasSavedDiscount || hasLiveDiscount;
 
