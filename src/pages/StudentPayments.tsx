@@ -28,6 +28,7 @@ type Alumno = Tables<"alumnos">;
 
 interface SubscriptionRecord {
   id: string;
+  plan_id: string;
   estado: string;
   created_at: string;
   fecha_inicio: string | null;
