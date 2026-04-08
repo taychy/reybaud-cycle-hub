@@ -178,7 +178,20 @@ const StudentDashboard = () => {
       }
     };
 
-    loadAlumno();
+    // Listen for auth state changes (handles token refresh on app reopen)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      resolveAlumno(session);
+    });
+
+    // Also check current session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      resolveAlumno(session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [navigate, isImpersonating, targetAlumno]);
 
   // Auto-scroll to section when linked from email
