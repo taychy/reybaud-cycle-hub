@@ -386,6 +386,17 @@ const StudentPayments = () => {
                         />
                       </div>
 
+                      {/* Change plan */}
+                      {effectiveStatus === "activa" && sub.fecha_inicio && sub.fecha_fin && (
+                        <button
+                          className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left border-b border-border/50"
+                          onClick={() => setChangePlanSub(sub)}
+                        >
+                          <ArrowRightLeft className="w-4 h-4 text-primary" />
+                          <span className="text-xs font-medium text-foreground">Cambiar de plan</span>
+                        </button>
+                      )}
+
                       {/* Cancel */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
