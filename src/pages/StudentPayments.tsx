@@ -549,6 +549,27 @@ const StudentPayments = () => {
           </div>
         </div>
       </main>
+
+      {/* Change plan drawer */}
+      {changePlanSub && alumno && (
+        <ChangePlanDrawer
+          open={!!changePlanSub}
+          onOpenChange={(open) => { if (!open) setChangePlanSub(null); }}
+          currentSubscription={{
+            id: changePlanSub.id,
+            plan_id: changePlanSub.plan_id,
+            plan_nombre: changePlanSub.plan?.nombre || "Plan",
+            plan_precio: changePlanSub.plan?.precio || 0,
+            fecha_inicio: changePlanSub.fecha_inicio,
+            fecha_fin: changePlanSub.fecha_fin,
+            precio_final: changePlanSub.precio_final,
+            precio_base: changePlanSub.precio_base,
+          }}
+          alumnoId={alumno.id}
+          onPlanChanged={() => window.location.reload()}
+        />
+      )}
+
       <BottomNav />
     </div>
   );
