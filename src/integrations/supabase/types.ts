@@ -160,6 +160,7 @@ export type Database = {
           profile_complete: boolean
           provincia: string | null
           registration_status: string
+          saldo_a_favor: number
           sede_id: string | null
           telefono: string | null
           updated_at: string
@@ -195,6 +196,7 @@ export type Database = {
           profile_complete?: boolean
           provincia?: string | null
           registration_status?: string
+          saldo_a_favor?: number
           sede_id?: string | null
           telefono?: string | null
           updated_at?: string
@@ -230,6 +232,7 @@ export type Database = {
           profile_complete?: boolean
           provincia?: string | null
           registration_status?: string
+          saldo_a_favor?: number
           sede_id?: string | null
           telefono?: string | null
           updated_at?: string
@@ -325,6 +328,102 @@ export type Database = {
           user_role?: string
         }
         Relationships: []
+      }
+      cambios_plan: {
+        Row: {
+          alumno_id: string
+          costo_nuevo_prorrateado: number
+          created_at: string
+          credito_calculado: number
+          dias_restantes: number
+          dias_totales: number
+          diferencia: number
+          id: string
+          notas: string | null
+          plan_anterior_id: string
+          plan_nuevo_id: string
+          precio_anterior: number
+          precio_nuevo: number
+          realizado_por: string | null
+          saldo_aplicado: number
+          suscripcion_anterior_id: string
+          suscripcion_nueva_id: string
+        }
+        Insert: {
+          alumno_id: string
+          costo_nuevo_prorrateado?: number
+          created_at?: string
+          credito_calculado?: number
+          dias_restantes: number
+          dias_totales: number
+          diferencia?: number
+          id?: string
+          notas?: string | null
+          plan_anterior_id: string
+          plan_nuevo_id: string
+          precio_anterior: number
+          precio_nuevo: number
+          realizado_por?: string | null
+          saldo_aplicado?: number
+          suscripcion_anterior_id: string
+          suscripcion_nueva_id: string
+        }
+        Update: {
+          alumno_id?: string
+          costo_nuevo_prorrateado?: number
+          created_at?: string
+          credito_calculado?: number
+          dias_restantes?: number
+          dias_totales?: number
+          diferencia?: number
+          id?: string
+          notas?: string | null
+          plan_anterior_id?: string
+          plan_nuevo_id?: string
+          precio_anterior?: number
+          precio_nuevo?: number
+          realizado_por?: string | null
+          saldo_aplicado?: number
+          suscripcion_anterior_id?: string
+          suscripcion_nueva_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cambios_plan_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_plan_anterior_id_fkey"
+            columns: ["plan_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_plan_nuevo_id_fkey"
+            columns: ["plan_nuevo_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_anterior_id_fkey"
+            columns: ["suscripcion_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
+            columns: ["suscripcion_nueva_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coaches: {
         Row: {
