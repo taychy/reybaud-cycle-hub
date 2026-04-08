@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus } from "lucide-react";
+import ChangePlanDrawer from "@/components/ChangePlanDrawer";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -28,6 +29,7 @@ type Alumno = Tables<"alumnos">;
 
 interface SubscriptionRecord {
   id: string;
+  plan_id: string;
   estado: string;
   created_at: string;
   fecha_inicio: string | null;
@@ -138,6 +140,7 @@ const StudentPayments = () => {
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [changePlanSub, setChangePlanSub] = useState<SubscriptionRecord | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -168,6 +171,7 @@ const StudentPayments = () => {
       if (subs) {
         const mapped: SubscriptionRecord[] = subs.map((s: any) => ({
           id: s.id,
+          plan_id: s.plan_id,
           estado: s.estado,
           created_at: s.created_at,
           fecha_inicio: s.fecha_inicio,
@@ -382,6 +386,17 @@ const StudentPayments = () => {
                         />
                       </div>
 
+                      {/* Change plan */}
+                      {effectiveStatus === "activa" && sub.fecha_inicio && sub.fecha_fin && (
+                        <button
+                          className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left border-b border-border/50"
+                          onClick={() => setChangePlanSub(sub)}
+                        >
+                          <ArrowRightLeft className="w-4 h-4 text-primary" />
+                          <span className="text-xs font-medium text-foreground">Cambiar de plan</span>
+                        </button>
+                      )}
+
                       {/* Cancel */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -534,6 +549,27 @@ const StudentPayments = () => {
           </div>
         </div>
       </main>
+
+      {/* Change plan drawer */}
+      {changePlanSub && alumno && (
+        <ChangePlanDrawer
+          open={!!changePlanSub}
+          onOpenChange={(open) => { if (!open) setChangePlanSub(null); }}
+          currentSubscription={{
+            id: changePlanSub.id,
+            plan_id: changePlanSub.plan_id,
+            plan_nombre: changePlanSub.plan?.nombre || "Plan",
+            plan_precio: changePlanSub.plan?.precio || 0,
+            fecha_inicio: changePlanSub.fecha_inicio,
+            fecha_fin: changePlanSub.fecha_fin,
+            precio_final: changePlanSub.precio_final,
+            precio_base: changePlanSub.precio_base,
+          }}
+          alumnoId={alumno.id}
+          onPlanChanged={() => window.location.reload()}
+        />
+      )}
+
       <BottomNav />
     </div>
   );

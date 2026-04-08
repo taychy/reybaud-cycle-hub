@@ -83,6 +83,18 @@ Deno.serve(async (req) => {
             break;
         }
 
+        // Check if alumno has saldo_a_favor
+        const { data: alumnoData } = await supabaseAdmin
+          .from("alumnos")
+          .select("saldo_a_favor")
+          .eq("id", sub.alumno_id)
+          .single();
+
+        const saldoAFavor = alumnoData?.saldo_a_favor || 0;
+        const precioBase = plan.precio;
+        const precioFinal = Math.max(0, precioBase - saldoAFavor);
+        const saldoUsado = Math.min(saldoAFavor, precioBase);
+
         // Create new subscription for the next period
         const { error: insertError } = await supabaseAdmin
           .from("suscripciones")
@@ -93,6 +105,8 @@ Deno.serve(async (req) => {
             fecha_inicio: newStart.toISOString().split("T")[0],
             fecha_fin: newEnd.toISOString().split("T")[0],
             auto_renovacion: true,
+            precio_base: precioBase,
+            precio_final: precioFinal,
           });
 
         if (insertError) {
@@ -100,13 +114,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Deduct used saldo_a_favor
+        if (saldoUsado > 0) {
+          await supabaseAdmin
+            .from("alumnos")
+            .update({ saldo_a_favor: saldoAFavor - saldoUsado })
+            .eq("id", sub.alumno_id);
+        }
+
         // Log the renewal
-        console.log(`Renewed subscription for alumno ${sub.alumno_id}: ${plan.nombre} until ${newEnd.toISOString().split("T")[0]}`);
+        console.log(`Renewed subscription for alumno ${sub.alumno_id}: ${plan.nombre} until ${newEnd.toISOString().split("T")[0]}${saldoUsado > 0 ? ` (saldo used: ${saldoUsado})` : ""}`);
 
         results.push({
           alumno_id: sub.alumno_id,
           status: "renewed",
-          details: `New period: ${newStart.toISOString().split("T")[0]} → ${newEnd.toISOString().split("T")[0]}`,
+          details: `New period: ${newStart.toISOString().split("T")[0]} → ${newEnd.toISOString().split("T")[0]}${saldoUsado > 0 ? ` | Saldo used: ${saldoUsado}, Final price: ${precioFinal}` : ""}`,
         });
       } catch (err) {
         results.push({ alumno_id: sub.alumno_id, status: "error", details: String(err) });
