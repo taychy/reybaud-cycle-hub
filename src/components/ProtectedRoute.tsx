@@ -29,28 +29,20 @@ const ProtectedRoute = ({
   useEffect(() => {
     let cancelled = false;
 
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        if (!cancelled) setStatus("unauthenticated");
-        return;
-      }
-
-      // Check each allowed role against the DB
+    const checkRoles = async (userId: string) => {
       const foundRoles: string[] = [];
       for (const role of (["admin", "coach"] as const)) {
         const { data } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
+          _user_id: userId,
           _role: role as any,
         });
         if (data) foundRoles.push(role);
       }
 
-      // For alumno, check if there's an alumno record linked
       const { data: alumnoData } = await supabase
         .from("alumnos")
         .select("id")
-        .eq("user_id", session.user.id)
+        .eq("user_id", userId)
         .maybeSingle();
       if (alumnoData) foundRoles.push("alumno");
 
@@ -61,8 +53,30 @@ const ProtectedRoute = ({
       setStatus(hasAccess ? "allowed" : "denied");
     };
 
-    check();
-    return () => { cancelled = true; };
+    // Listen for auth state changes (handles token refresh on app reopen)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      if (!session) {
+        setStatus("unauthenticated");
+      } else {
+        checkRoles(session.user.id);
+      }
+    });
+
+    // Also check current session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (!session) {
+        setStatus("unauthenticated");
+      } else {
+        checkRoles(session.user.id);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [allowedRoles, loginPath]);
 
   useEffect(() => {

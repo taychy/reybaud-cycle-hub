@@ -72,15 +72,15 @@ const StudentDashboard = () => {
 
   // Load alumno from Supabase Auth session or impersonation context
   useEffect(() => {
-    const loadAlumno = async () => {
+    let cancelled = false;
+
+    const resolveAlumno = async (session: { user: { email?: string; id: string } } | null) => {
+      if (cancelled) return;
       let alumnoData: Alumno | null = null;
 
       if (isImpersonating && targetAlumno) {
-        // Impersonation mode: use the target alumno directly
         alumnoData = targetAlumno;
       } else {
-        // Normal mode: load from auth session
-        const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.email) {
           navigate("/");
           return;
@@ -99,6 +99,7 @@ const StudentDashboard = () => {
         alumnoData = data;
       }
 
+      if (cancelled) return;
       setAlumno(alumnoData);
 
       // Fetch ALL subscriptions for access permissions
@@ -177,7 +178,20 @@ const StudentDashboard = () => {
       }
     };
 
-    loadAlumno();
+    // Listen for auth state changes (handles token refresh on app reopen)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      resolveAlumno(session);
+    });
+
+    // Also check current session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      resolveAlumno(session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [navigate, isImpersonating, targetAlumno]);
 
   // Auto-scroll to section when linked from email
