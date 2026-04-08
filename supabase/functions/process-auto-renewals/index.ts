@@ -123,12 +123,12 @@ Deno.serve(async (req) => {
         }
 
         // Log the renewal
-        console.log(`Renewed subscription for alumno ${sub.alumno_id}: ${plan.nombre} until ${newEnd.toISOString().split("T")[0]}`);
+        console.log(`Renewed subscription for alumno ${sub.alumno_id}: ${plan.nombre} until ${newEnd.toISOString().split("T")[0]}${saldoUsado > 0 ? ` (saldo used: ${saldoUsado})` : ""}`);
 
         results.push({
           alumno_id: sub.alumno_id,
           status: "renewed",
-          details: `New period: ${newStart.toISOString().split("T")[0]} → ${newEnd.toISOString().split("T")[0]}`,
+          details: `New period: ${newStart.toISOString().split("T")[0]} → ${newEnd.toISOString().split("T")[0]}${saldoUsado > 0 ? ` | Saldo used: ${saldoUsado}, Final price: ${precioFinal}` : ""}`,
         });
       } catch (err) {
         results.push({ alumno_id: sub.alumno_id, status: "error", details: String(err) });
