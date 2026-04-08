@@ -140,6 +140,7 @@ const StudentPayments = () => {
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [changePlanSub, setChangePlanSub] = useState<SubscriptionRecord | null>(null);
 
   useEffect(() => {
     const load = async () => {
