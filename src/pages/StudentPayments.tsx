@@ -169,6 +169,7 @@ const StudentPayments = () => {
       if (subs) {
         const mapped: SubscriptionRecord[] = subs.map((s: any) => ({
           id: s.id,
+          plan_id: s.plan_id,
           estado: s.estado,
           created_at: s.created_at,
           fecha_inicio: s.fecha_inicio,
