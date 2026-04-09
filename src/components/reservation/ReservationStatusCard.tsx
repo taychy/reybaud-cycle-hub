@@ -243,6 +243,28 @@ const ReservationStatusCard = ({
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showBikeDrawer, setShowBikeDrawer] = useState(false);
+  const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
+  const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
+    open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
+  });
+  const [checklistData, setChecklistData] = useState<Record<string, any>>({});
+
+  const loadChecklistData = useCallback(async () => {
+    const { data } = await supabase
+      .from("reservation_checklist_data")
+      .select("*")
+      .eq("reservation_id", reservation.id);
+    if (data) {
+      const map: Record<string, any> = {};
+      data.forEach((row) => { map[row.step_key] = row; });
+      setChecklistData(map);
+    }
+  }, [reservation.id]);
+
+  useEffect(() => {
+    loadChecklistData();
+  }, [loadChecklistData]);
 
   const installments = installmentFromMetadata(eventMetadata);
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
