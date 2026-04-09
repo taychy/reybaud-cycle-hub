@@ -870,6 +870,45 @@ export type Database = {
           },
         ]
       }
+      event_external_participants: {
+        Row: {
+          apellido: string | null
+          created_at: string
+          documento: string | null
+          email: string
+          estado: string
+          id: string
+          nombre: string
+          notas: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          apellido?: string | null
+          created_at?: string
+          documento?: string | null
+          email: string
+          estado?: string
+          id?: string
+          nombre: string
+          notas?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          apellido?: string | null
+          created_at?: string
+          documento?: string | null
+          email?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          notas?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_favorites: {
         Row: {
           alumno_id: string
@@ -994,7 +1033,7 @@ export type Database = {
         Row: {
           accepted_terms: boolean
           admin_notes: string | null
-          alumno_id: string
+          alumno_id: string | null
           amount_paid: number
           amount_total: number | null
           balance_due: number | null
@@ -1007,6 +1046,7 @@ export type Database = {
           currency_snapshot: string | null
           estado: string
           event_id: string
+          external_participant_id: string | null
           id: string
           metodo_pago: string
           moneda: string
@@ -1022,7 +1062,7 @@ export type Database = {
         Insert: {
           accepted_terms?: boolean
           admin_notes?: string | null
-          alumno_id: string
+          alumno_id?: string | null
           amount_paid?: number
           amount_total?: number | null
           balance_due?: number | null
@@ -1035,6 +1075,7 @@ export type Database = {
           currency_snapshot?: string | null
           estado?: string
           event_id: string
+          external_participant_id?: string | null
           id?: string
           metodo_pago?: string
           moneda?: string
@@ -1050,7 +1091,7 @@ export type Database = {
         Update: {
           accepted_terms?: boolean
           admin_notes?: string | null
-          alumno_id?: string
+          alumno_id?: string | null
           amount_paid?: number
           amount_total?: number | null
           balance_due?: number | null
@@ -1063,6 +1104,7 @@ export type Database = {
           currency_snapshot?: string | null
           estado?: string
           event_id?: string
+          external_participant_id?: string | null
           id?: string
           metodo_pago?: string
           moneda?: string
@@ -1088,6 +1130,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reservations_external_participant_id_fkey"
+            columns: ["external_participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_external_participants"
             referencedColumns: ["id"]
           },
         ]
