@@ -42,9 +42,11 @@ const Register = () => {
     }
 
     // Create new student (inactive, sin grupo)
-    const { data, error: insertError } = await supabase
+    const newId = crypto.randomUUID();
+    const { error: insertError } = await supabase
       .from("alumnos")
       .insert({
+        id: newId,
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         email,
@@ -52,9 +54,7 @@ const Register = () => {
         documento: form.documento.trim() || null,
         estado: "inactivo",
         grupo: "Sin grupo",
-      } as any)
-      .select("id")
-      .single();
+      } as any);
 
     if (insertError) {
       setError("Error al crear la cuenta. Intentá nuevamente.");
@@ -62,7 +62,7 @@ const Register = () => {
       return;
     }
 
-    localStorage.setItem("registro_alumno_id", data.id);
+    localStorage.setItem("registro_alumno_id", newId);
     navigate("/planes");
   };
 
