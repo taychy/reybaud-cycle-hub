@@ -256,7 +256,101 @@ const AdminEventReservations = ({
     if (data) setPayments(data as unknown as Payment[]);
   };
 
-  /* ─── Stats ─── */
+  const loadNotifications = async (reservationId: string) => {
+    const { data } = await supabase
+      .from("reservation_notifications" as any)
+      .select("*")
+      .eq("reservation_id", reservationId)
+      .order("created_at", { ascending: false });
+    if (data) setNotifications(data as unknown as Notification[]);
+  };
+
+  const getNotifContext = (res: EventReservation, extra: Record<string, any> = {}) => {
+    const c = res.currency_snapshot || res.moneda || eventCurrency;
+    const bal = res.balance_due ?? ((res.amount_total || 0) - (res.amount_paid || 0));
+    return {
+      nombre: `${res.alumno?.nombre || ""} ${res.alumno?.apellido || ""}`.trim(),
+      evento: eventTitle,
+      monto: formatPrice(extra.monto || 0, c),
+      abonado: formatPrice(res.amount_paid || 0, c),
+      saldo: formatPrice(bal, c),
+      monto_cuota: extra.monto_cuota ? formatPrice(extra.monto_cuota, c) : "",
+      vencimiento: extra.vencimiento || "",
+      mensaje: extra.mensaje || "",
+      ...extra,
+    };
+  };
+
+  const prepareTemplate = (key: NotifTemplateKey, res: EventReservation, extra: Record<string, any> = {}) => {
+    const tpl = notifTemplates[key];
+    const ctx = getNotifContext(res, extra);
+    setNotifyTemplate(key);
+    setNotifySubject(tpl.asunto.replace("{{evento}}", eventTitle));
+    setNotifyBody(tpl.contenido(ctx));
+    setNotifyHtml(tpl.html(ctx));
+  };
+
+  const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
+    if (!selectedRes) return false;
+    setSendingNotif(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const adminEmail = sessionData?.session?.user?.email || "admin";
+    const adminId = sessionData?.session?.user?.id;
+
+    const { data, error } = await supabase.functions.invoke("notify-reservation", {
+      body: {
+        reservation_id: selectedRes.id,
+        alumno_id: selectedRes.alumno_id,
+        tipo,
+        asunto,
+        contenido_html: contenidoHtml,
+        contenido_texto: contenidoTexto,
+        enviado_por: adminId,
+        enviado_por_email: adminEmail,
+        metadata: meta,
+        idempotency_key: idempKey || undefined,
+        canal: "email",
+      },
+    });
+
+    setSendingNotif(false);
+
+    if (error) {
+      toast({ title: "Error al enviar notificación", description: error.message, variant: "destructive" });
+      return false;
+    }
+    if (data?.duplicate) {
+      toast({ title: "Notificación ya enviada previamente", description: "Se evitó el duplicado." });
+      return true;
+    }
+    toast({ title: "Notificación enviada", description: `Email enviado a ${selectedRes.alumno?.email}` });
+    loadNotifications(selectedRes.id);
+    return true;
+  };
+
+  const logWhatsAppAction = async (res: EventReservation, tipo: string, mensaje: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    await supabase.from("reservation_notifications" as any).insert({
+      reservation_id: res.id,
+      alumno_id: res.alumno_id,
+      tipo,
+      canal: "whatsapp_manual",
+      asunto: `WhatsApp: ${tipo}`,
+      contenido: mensaje,
+      enviado_por: sessionData?.session?.user?.id || null,
+      enviado_por_email: sessionData?.session?.user?.email || null,
+      metadata: {},
+    } as any);
+    if (selectedRes?.id === res.id) loadNotifications(res.id);
+  };
+
+  const getWhatsAppMsgForTemplate = (key: NotifTemplateKey, res: EventReservation, extra: Record<string, any> = {}) => {
+    const ctx = getNotifContext(res, extra);
+    return notifTemplates[key].contenido(ctx);
+  };
+
+
 
   const stats = useMemo(() => {
     const active = reservations.filter(r => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada");
