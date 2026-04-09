@@ -14,6 +14,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const navigate = useNavigate();
