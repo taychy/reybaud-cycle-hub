@@ -656,7 +656,10 @@ const AdminEventReservations = ({
   const openDetail = (r: EventReservation) => {
     setSelectedRes(r);
     setShowAdminPayment(false);
+    setShowNotifyDialog(false);
+    setDetailTab("info");
     loadPayments(r.id);
+    loadNotifications(r.id);
   };
 
   /* ─── Priority indicators ─── */
