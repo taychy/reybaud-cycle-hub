@@ -493,7 +493,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {previewSub && (() => {
             const firstName = alumno.nombre?.split(" ")[0] || alumno.nombre;
             const fechaText = previewSub.fecha_fin
-              ? new Date(previewSub.fecha_fin + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })
+              ? (() => {
+                  const [y, m, d] = previewSub.fecha_fin.split("-").map(Number);
+                  return new Date(y, m - 1, d).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" });
+                })()
               : null;
             return (
               <div className="space-y-4">
