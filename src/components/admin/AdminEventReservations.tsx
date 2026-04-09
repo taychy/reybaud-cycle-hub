@@ -282,8 +282,9 @@ const AdminEventReservations = ({
   const getNotifContext = (res: EventReservation, extra: Record<string, any> = {}) => {
     const c = res.currency_snapshot || res.moneda || eventCurrency;
     const bal = res.balance_due ?? ((res.amount_total || 0) - (res.amount_paid || 0));
+    const p = getParticipant(res);
     return {
-      nombre: `${res.alumno?.nombre || ""} ${res.alumno?.apellido || ""}`.trim(),
+      nombre: `${p.nombre} ${p.apellido || ""}`.trim(),
       evento: eventTitle,
       monto: formatPrice(extra.monto || 0, c),
       abonado: formatPrice(res.amount_paid || 0, c),
