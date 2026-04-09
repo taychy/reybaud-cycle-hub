@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +8,15 @@ import { formatPrice } from "@/lib/currency";
 import {
   Shield, CheckCircle, AlertCircle, Clock, XCircle, Ban,
   Banknote, FileText, MessageCircle, CreditCard, Eye, Upload, X,
-  ChevronDown, ChevronUp, Bell, CalendarDays, ArrowRight,
+  ChevronDown, ChevronUp, ChevronRight, Bell, CalendarDays, ArrowRight,
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
   CircleDot, Loader2,
 } from "lucide-react";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
+import TripBikeDrawer from "./TripBikeDrawer";
+import TripPedalsDrawer from "./TripPedalsDrawer";
+import TripDocumentDrawer from "./TripDocumentDrawer";
 
 interface Reservation {
   id: string;
@@ -158,9 +161,10 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
+  actionType: "bike" | "pedals" | "document" | "payment" | "none";
 }
 
-const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] => {
+const buildChecklist = (reservation: Reservation, meta: any, checklistData: Record<string, any>): ChecklistItem[] => {
   const items: ChecklistItem[] = [
     {
       id: "reserva",
@@ -168,6 +172,7 @@ const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] =>
       description: "Tu lugar está separado",
       icon: CheckCircle,
       completed: true,
+      actionType: "none",
     },
     {
       id: "pago",
@@ -176,34 +181,39 @@ const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] =>
       icon: Banknote,
       completed: reservation.payment_status === "pago_validado" ||
         (reservation.amount_total != null && reservation.amount_paid >= reservation.amount_total),
+      actionType: "payment",
     },
     {
-      id: "talla_bici",
-      label: "Cargar talla de bicicleta",
-      description: "Para preparar alquiler o asesoramiento",
+      id: "bici",
+      label: "Bicicleta y posición",
+      description: "Cargá tu estatura, talle o fitting",
       icon: Bike,
-      completed: false,
+      completed: !!checklistData["bici"]?.completed,
+      actionType: "bike",
     },
     {
       id: "pedales",
-      label: "Indicar tipo de pedales",
-      description: "Para compatibilidad de equipamiento",
+      label: "Pedales y calas",
+      description: "Contanos qué usás o subí una foto",
       icon: Footprints,
-      completed: false,
+      completed: !!checklistData["pedales"]?.completed,
+      actionType: "pedals",
     },
     {
       id: "pasaje",
-      label: "Adjuntar pasaje",
-      description: "Tu pasaje de avión o transporte",
+      label: "Pasaje o transporte",
+      description: "Subí tu reserva de vuelo o transporte",
       icon: Plane,
-      completed: false,
+      completed: !!checklistData["pasaje"]?.completed,
+      actionType: "document",
     },
     {
       id: "seguro",
-      label: "Adjuntar seguro viajero",
-      description: "Requisito importante del viaje",
+      label: "Seguro viajero",
+      description: "Adjuntá tu póliza de seguro",
       icon: ShieldCheck,
-      completed: false,
+      completed: !!checklistData["seguro"]?.completed,
+      actionType: "document",
     },
     {
       id: "extras",
@@ -211,10 +221,10 @@ const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] =>
       description: "Opciones adicionales disponibles",
       icon: Package,
       completed: false,
+      actionType: "none",
     },
   ];
 
-  // Filter based on metadata config if available
   const enabledSteps = meta?.checklist_steps;
   if (enabledSteps && Array.isArray(enabledSteps)) {
     return items.filter(item => enabledSteps.includes(item.id));
@@ -233,6 +243,28 @@ const ReservationStatusCard = ({
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showBikeDrawer, setShowBikeDrawer] = useState(false);
+  const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
+  const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
+    open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
+  });
+  const [checklistData, setChecklistData] = useState<Record<string, any>>({});
+
+  const loadChecklistData = useCallback(async () => {
+    const { data } = await supabase
+      .from("reservation_checklist_data")
+      .select("*")
+      .eq("reservation_id", reservation.id);
+    if (data) {
+      const map: Record<string, any> = {};
+      data.forEach((row) => { map[row.step_key] = row; });
+      setChecklistData(map);
+    }
+  }, [reservation.id]);
+
+  useEffect(() => {
+    loadChecklistData();
+  }, [loadChecklistData]);
 
   const installments = installmentFromMetadata(eventMetadata);
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
@@ -317,7 +349,7 @@ const ReservationStatusCard = ({
   const nextStep = getNextStep();
 
   /* ─── Checklist ─── */
-  const checklist = buildChecklist(reservation, eventMetadata);
+  const checklist = buildChecklist(reservation, eventMetadata, checklistData);
   const completedCount = checklist.filter(c => c.completed).length;
   const checklistPercent = checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0;
 
@@ -586,27 +618,69 @@ const ReservationStatusCard = ({
             <Progress value={checklistPercent} className="h-2" />
 
             <div className="space-y-2">
-              {checklist.map((item) => (
-                <div key={item.id} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  item.completed ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-muted/30 border border-border/30"
-                }`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                    item.completed ? "bg-emerald-500/20" : "bg-muted"
-                  }`}>
+              {checklist.map((item) => {
+                const isClickable = item.actionType !== "none" && !item.completed;
+                const handleClick = () => {
+                  if (item.actionType === "bike") setShowBikeDrawer(true);
+                  else if (item.actionType === "pedals") setShowPedalsDrawer(true);
+                  else if (item.actionType === "payment") setShowPaymentDrawer(true);
+                  else if (item.actionType === "document") {
+                    const configs: Record<string, { title: string; description: string; helpText: string; icon: React.ReactNode }> = {
+                      pasaje: {
+                        title: "Pasaje o transporte",
+                        description: "Subí tu reserva de vuelo o transporte",
+                        helpText: "Adjuntá tu pasaje de avión, bus o cualquier documento de transporte. Puede ser PDF, foto o captura de pantalla.",
+                        icon: <Plane className="w-5 h-5 text-primary" />,
+                      },
+                      seguro: {
+                        title: "Seguro viajero",
+                        description: "Adjuntá tu póliza de seguro",
+                        helpText: "Subí tu póliza de seguro de viaje. Es un requisito importante para tu seguridad.",
+                        icon: <ShieldCheck className="w-5 h-5 text-primary" />,
+                      },
+                    };
+                    const cfg = configs[item.id] || { title: item.label, description: item.description, helpText: "", icon: <FileText className="w-5 h-5 text-primary" /> };
+                    setDocDrawer({ open: true, stepKey: item.id, ...cfg });
+                  }
+                };
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={item.actionType !== "none" ? handleClick : undefined}
+                    disabled={item.actionType === "none"}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-left ${
+                      item.completed
+                        ? "bg-emerald-500/5 border border-emerald-500/20"
+                        : item.actionType !== "none"
+                          ? "bg-muted/30 border border-border/30 hover:bg-muted/50 hover:border-primary/30 active:scale-[0.98] cursor-pointer"
+                          : "bg-muted/20 border border-border/20 opacity-60"
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                      item.completed ? "bg-emerald-500/20" : "bg-muted"
+                    }`}>
+                      {item.completed ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <item.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${item.completed ? "text-emerald-400" : "text-foreground font-medium"}`}>
+                        {item.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{item.description}</p>
+                    </div>
                     {item.completed ? (
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <item.icon className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${item.completed ? "text-emerald-400 line-through" : "text-foreground font-medium"}`}>
-                      {item.label}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">{item.description}</p>
-                  </div>
-                </div>
-              ))}
+                      <span className="text-[10px] text-emerald-400 font-medium shrink-0">Listo</span>
+                    ) : item.actionType !== "none" ? (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -745,6 +819,35 @@ const ReservationStatusCard = ({
         eventDate={eventDate}
         cancellationPolicy={cancellationPolicy}
         onCancelled={onPaymentReported}
+      />
+
+      <TripBikeDrawer
+        open={showBikeDrawer}
+        onOpenChange={setShowBikeDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        onSaved={loadChecklistData}
+      />
+
+      <TripPedalsDrawer
+        open={showPedalsDrawer}
+        onOpenChange={setShowPedalsDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        onSaved={loadChecklistData}
+      />
+
+      <TripDocumentDrawer
+        open={docDrawer.open}
+        onOpenChange={(open) => setDocDrawer(prev => ({ ...prev, open }))}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        stepKey={docDrawer.stepKey}
+        title={docDrawer.title}
+        description={docDrawer.description}
+        icon={docDrawer.icon}
+        helpText={docDrawer.helpText}
+        onSaved={loadChecklistData}
       />
     </>
   );
