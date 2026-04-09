@@ -1310,6 +1310,9 @@ const AdminEventReservations = ({
                           <div className="flex items-center gap-1.5">
                             {n.canal === "email" ? <Mail className="w-3 h-3 text-muted-foreground" /> : <MessageCircle className="w-3 h-3 text-muted-foreground" />}
                             <span className="text-xs font-medium">{n.asunto}</span>
+                            {n.metadata?.email_sent === false && (
+                              <Badge variant="outline" className="text-[9px] border-destructive/30 text-destructive">No enviado</Badge>
+                            )}
                           </div>
                           <Badge variant="outline" className="text-[9px]">{n.tipo.replace(/_/g, " ")}</Badge>
                         </div>
@@ -1318,6 +1321,9 @@ const AdminEventReservations = ({
                           {n.enviado_por_email && ` · por ${n.enviado_por_email}`}
                           {" · "}{n.canal}
                         </p>
+                        {n.metadata?.email_error && (
+                          <p className="text-[10px] text-destructive">{n.metadata.email_error}</p>
+                        )}
                       </div>
                     ))}
                   </div>
