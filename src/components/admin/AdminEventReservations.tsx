@@ -985,10 +985,11 @@ const AdminEventReservations = ({
                     </Button>
                   ) : null;
                 })()}
-                <Button variant="outline" size="sm" asChild>
-                  <a href={`mailto:${selectedRes.alumno?.email}`}>
-                    <Mail className="w-3.5 h-3.5 mr-1.5" /> Email
-                  </a>
+                <Button variant="outline" size="sm" onClick={() => {
+                  prepareTemplate("novedad", selectedRes);
+                  setShowNotifyDialog(true);
+                }}>
+                  <Mail className="w-3.5 h-3.5 mr-1.5" /> Email
                 </Button>
               </div>
 
