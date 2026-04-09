@@ -896,40 +896,76 @@ const AdminEventReservations = ({
         </Button>
       </div>
 
-      {/* ─── Add Student Dialog ─── */}
+      {/* ─── Add Participant Dialog ─── */}
       <Dialog open={showAddStudent} onOpenChange={setShowAddStudent}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Agregar alumno al evento</DialogTitle>
-            <DialogDescription>Buscá un alumno por nombre o email para inscribirlo.</DialogDescription>
+            <DialogTitle>Agregar participante</DialogTitle>
+            <DialogDescription>Inscribí un alumno existente o un participante externo.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              placeholder="Buscar por nombre o email..."
-              value={studentSearch}
-              onChange={(e) => { setStudentSearch(e.target.value); searchStudents(e.target.value); }}
-              autoFocus
-            />
-            {searchingStudents && <p className="text-xs text-muted-foreground animate-pulse">Buscando...</p>}
-            {studentResults.length > 0 && (
-              <div className="max-h-[250px] overflow-y-auto space-y-1">
-                {studentResults.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
-                      <p className="text-xs text-muted-foreground">{a.email}</p>
+          <Tabs value={addExternalMode ? "external" : "student"} onValueChange={(v) => setAddExternalMode(v === "external")}>
+            <TabsList className="w-full">
+              <TabsTrigger value="student" className="flex-1">Alumno</TabsTrigger>
+              <TabsTrigger value="external" className="flex-1">Participante externo</TabsTrigger>
+            </TabsList>
+            <TabsContent value="student" className="space-y-3 mt-3">
+              <Input
+                placeholder="Buscar por nombre o email..."
+                value={studentSearch}
+                onChange={(e) => { setStudentSearch(e.target.value); searchStudents(e.target.value); }}
+                autoFocus
+              />
+              {searchingStudents && <p className="text-xs text-muted-foreground animate-pulse">Buscando...</p>}
+              {studentResults.length > 0 && (
+                <div className="max-h-[250px] overflow-y-auto space-y-1">
+                  {studentResults.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50">
+                      <div>
+                        <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
+                        <p className="text-xs text-muted-foreground">{a.email}</p>
+                      </div>
+                      <Button size="sm" variant="outline" disabled={addingStudent === a.id} onClick={() => addStudentToEvent(a)}>
+                        {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                      </Button>
                     </div>
-                    <Button size="sm" variant="outline" disabled={addingStudent === a.id} onClick={() => addStudentToEvent(a)}>
-                      {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
-                    </Button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+              {studentSearch.length >= 2 && !searchingStudents && studentResults.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-3">No se encontraron alumnos.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="external" className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Nombre *</Label>
+                  <Input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nombre" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Apellido</Label>
+                  <Input value={extLastName} onChange={(e) => setExtLastName(e.target.value)} placeholder="Apellido" />
+                </div>
               </div>
-            )}
-            {studentSearch.length >= 2 && !searchingStudents && studentResults.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-3">No se encontraron alumnos.</p>
-            )}
-          </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Email *</Label>
+                <Input type="email" value={extEmail} onChange={(e) => setExtEmail(e.target.value)} placeholder="email@ejemplo.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Teléfono</Label>
+                  <Input value={extPhone} onChange={(e) => setExtPhone(e.target.value)} placeholder="+54 9 11..." />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Documento</Label>
+                  <Input value={extDoc} onChange={(e) => setExtDoc(e.target.value)} placeholder="DNI" />
+                </div>
+              </div>
+              <Button className="w-full" disabled={addingExternal || !extName || !extEmail} onClick={addExternalToEvent}>
+                {addingExternal ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <UserPlus className="w-4 h-4 mr-1.5" />}
+                Agregar participante externo
+              </Button>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
