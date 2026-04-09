@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +8,15 @@ import { formatPrice } from "@/lib/currency";
 import {
   Shield, CheckCircle, AlertCircle, Clock, XCircle, Ban,
   Banknote, FileText, MessageCircle, CreditCard, Eye, Upload, X,
-  ChevronDown, ChevronUp, Bell, CalendarDays, ArrowRight,
+  ChevronDown, ChevronUp, ChevronRight, Bell, CalendarDays, ArrowRight,
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
   CircleDot, Loader2,
 } from "lucide-react";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
+import TripBikeDrawer from "./TripBikeDrawer";
+import TripPedalsDrawer from "./TripPedalsDrawer";
+import TripDocumentDrawer from "./TripDocumentDrawer";
 
 interface Reservation {
   id: string;
