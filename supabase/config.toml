@@ -35,3 +35,7 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.auto-facturar]
     verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.notify-reservation]
+    verify_jwt = false

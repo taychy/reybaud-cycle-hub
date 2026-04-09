@@ -4,9 +4,11 @@ const corsHeaders = {
 }
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+const SENDER_DOMAIN = 'notify.reybaud-app.com';
+const FROM_NAME = 'Reybaud Ciclismo';
 
 interface NotifyPayload {
   reservation_id: string;
@@ -101,39 +103,33 @@ Deno.serve(async (req) => {
     let emailSent = false;
     let emailError: string | null = null;
 
-    // Send email if canal is email
+    // Send email if canal is email — via Lovable email queue
     if (canal === 'email') {
-      if (!RESEND_API_KEY) {
-        emailError = 'Email service not configured (missing API key)';
-        console.error(emailError);
-      } else {
-        try {
-          const emailRes = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-          from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
-              to: [recipientEmail],
-              subject: payload.asunto,
-              html: payload.contenido_html,
-              text: payload.contenido_texto,
-            }),
-          });
+      try {
+        const messageId = crypto.randomUUID();
+        const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+          p_queue_name: 'transactional_emails',
+          p_message_id: messageId,
+          p_to_email: recipientEmail,
+          p_to_name: recipientName,
+          p_from_email: `notificaciones@${SENDER_DOMAIN}`,
+          p_from_name: FROM_NAME,
+          p_subject: payload.asunto,
+          p_html_body: payload.contenido_html,
+          p_text_body: payload.contenido_texto || '',
+          p_template_name: `reservation_${payload.tipo}`,
+          p_idempotency_key: payload.idempotency_key || messageId,
+        });
 
-          if (!emailRes.ok) {
-            const errBody = await emailRes.text();
-            console.error('Resend error:', errBody);
-            emailError = `Email provider error (${emailRes.status}): ${errBody}`;
-          } else {
-            emailSent = true;
-          }
-        } catch (fetchErr) {
-          emailError = `Network error sending email: ${fetchErr.message}`;
+        if (enqueueErr) {
+          emailError = `Queue error: ${enqueueErr.message}`;
           console.error(emailError);
+        } else {
+          emailSent = true;
         }
+      } catch (queueErr) {
+        emailError = `Queue exception: ${queueErr.message}`;
+        console.error(emailError);
       }
     }
 
@@ -173,7 +169,7 @@ Deno.serve(async (req) => {
         notification_id: notif?.id,
         error_code: 'email_send_failed',
       }), {
-        status: 200, // 200 because the notification was logged successfully
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
