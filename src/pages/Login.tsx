@@ -17,6 +17,7 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [adminRedirect, setAdminRedirect] = useState<string | null>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -138,7 +139,16 @@ const Login = () => {
       .maybeSingle();
 
     if (fetchError || !data) {
-      setLoginError(t("login.userNotFound"));
+      // Check if email belongs to admin or coach
+      const { data: isAdminOrCoach } = await supabase.rpc("check_admin_or_coach_email" as any, {
+        _email: trimmedEmail,
+      });
+      if (isAdminOrCoach) {
+        setLoginError(null);
+        setAdminRedirect(trimmedEmail);
+      } else {
+        setLoginError(t("login.userNotFound"));
+      }
       setLoading(false);
       return;
     }
@@ -293,11 +303,29 @@ const Login = () => {
                 autoComplete="username"
                 placeholder={t("login.emailPlaceholder")}
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
+                onChange={(e) => { setEmail(e.target.value); setLoginError(null); setAdminRedirect(null); }}
                 required
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
+
+            {adminRedirect && (
+              <div className="text-sm bg-primary/10 rounded-md p-3 space-y-2">
+                <p className="text-foreground">
+                  Este email corresponde a una cuenta de <strong>administrador o coach</strong>, no de alumno.
+                </p>
+                <Button
+                  type="button"
+                  variant="gold-outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => navigate("/admin/login")}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Ir al panel de Admin / Coach
+                </Button>
+              </div>
+            )}
 
             {loginError && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
