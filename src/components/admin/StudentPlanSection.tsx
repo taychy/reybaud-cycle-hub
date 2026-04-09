@@ -333,29 +333,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               variant="outline"
               size="sm"
               className="text-[10px] h-6 px-2 text-amber-400 border-amber-500/30 hover:bg-amber-500/10 w-full"
-              onClick={async () => {
-                try {
-                  await supabase.functions.invoke("notify-student-update", {
-                    body: {
-                      alumno_id: alumno.id,
-                      type: "pago_vencido",
-                      fecha_vencimiento: sub.fecha_fin,
-                    },
-                  });
-                  toast.success("Notificación enviada al alumno");
-                  await logStudentActivity({
-                    alumnoId: alumno.id,
-                    eventType: "mail",
-                    title: "Aviso de pago vencido enviado",
-                    description: `Se notificó al alumno sobre pago pendiente del plan "${sub.planes?.nombre || "—"}"`,
-                    actorRole,
-                  });
-                } catch {
-                  toast.error("Error al enviar notificación");
-                }
-              }}
+              onClick={() => setPreviewSub(sub)}
             >
-              <Bell className="w-3 h-3 mr-0.5" /> Notificar pago pendiente
+              <Eye className="w-3 h-3 mr-0.5" /> Vista previa y enviar notificación
             </Button>
           </div>
         )}
