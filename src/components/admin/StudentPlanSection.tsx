@@ -40,6 +40,7 @@ interface Props {
   isSuperAdmin: boolean;
   onRefresh: () => void;
   onAlumnoUpdate: (a: Alumno) => void;
+  openOverduePreviewToken?: number;
 }
 
 const getSubBadge = (estado: string) => {
@@ -63,7 +64,10 @@ const getPaymentMethodLabel = (method: string | null) => {
   return map[method] || method;
 };
 
-export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUpdate }: Props) {
+const isOverdueStatus = (estado: string) =>
+  estado === "vencida" || estado === "pago_pendiente" || estado === "acceso_pausado";
+
+export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUpdate, openOverduePreviewToken }: Props) {
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +89,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   // Email preview state
   const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
   const [sendingNotif, setSendingNotif] = useState(false);
+  const [lastHandledOverduePreviewToken, setLastHandledOverduePreviewToken] = useState<number | null>(null);
 
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
 
@@ -102,6 +107,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   };
 
   useEffect(() => { fetchData(); }, [alumno.id]);
+
+  useEffect(() => {
+    if (!openOverduePreviewToken || openOverduePreviewToken === lastHandledOverduePreviewToken) return;
+
+    const overdueSub = subs.find((sub) => isOverdueStatus(getEffStatus(sub)));
+    if (!overdueSub) return;
+
+    setPreviewSub(overdueSub);
+    setLastHandledOverduePreviewToken(openOverduePreviewToken);
+  }, [openOverduePreviewToken, lastHandledOverduePreviewToken, subs]);
 
   // Categorize subscriptions using shared effective status
   const activeSubs = subs.filter(s => {
@@ -327,7 +342,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         )}
 
         {/* Notify overdue button for expired/pending statuses */}
-        {(effectiveEstado === "vencida" || effectiveEstado === "pago_pendiente" || effectiveEstado === "acceso_pausado") && (
+        {isOverdueStatus(effectiveEstado) && (
           <div className="pt-1">
             <Button
               variant="outline"

@@ -139,6 +139,7 @@ const ManageStudents = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [resending, setResending] = useState<string | null>(null);
+  const [overduePreviewRequestToken, setOverduePreviewRequestToken] = useState(0);
   const isMobile = useIsMobile();
 
   // Sorting
@@ -435,7 +436,7 @@ const ManageStudents = () => {
     // Notify overdue payment
     const subEstado = getSubEstadoLabel(alumno.id);
     if (subEstado === "pago_pendiente" || subEstado === "acceso_pausado" || subEstado === "vencida") {
-      actions.push({ label: "Notificar pago vencido", icon: BellRing, action: () => handleNotifyOverdue(alumno) });
+      actions.push({ label: "Vista previa y enviar", icon: BellRing, action: () => openOverduePreview(alumno) });
     }
 
     actions.push({ label: "Eliminar", icon: Trash2, action: () => setDeleteAlumno(alumno), destructive: true });
@@ -565,19 +566,11 @@ const ManageStudents = () => {
     }
   };
 
-  const handleNotifyOverdue = async (alumno: Alumno) => {
-    try {
-      const sub = getActiveSub(alumno.id) || getAnySub(alumno.id);
-      const { data, error } = await supabase.functions.invoke("notify-student-update", {
-        body: { alumno_id: alumno.id, type: "pago_vencido", fecha_vencimiento: sub?.fecha_fin || null },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success(`Notificación de pago vencido enviada a ${alumno.email}`);
-      await logStudentActivity({ alumnoId: alumno.id, eventType: "notificacion_pago_vencido", title: "Notificación de pago vencido", description: `Email enviado a ${alumno.email}`, actorRole: isSuperAdmin ? "super_admin" : "admin" });
-    } catch (err: any) {
-      toast.error(err.message || "Error al enviar notificación");
+  const openOverduePreview = (alumno: Alumno) => {
+    if (!drawerAlumno || drawerAlumno.id !== alumno.id) {
+      openDrawer(alumno);
     }
+    setOverduePreviewRequestToken((current) => current + 1);
   };
 
   const openStateChange = (alumno: Alumno, targetEstado: string) => {
@@ -1202,6 +1195,7 @@ const ManageStudents = () => {
                     <StudentPlanSection
                       alumno={drawerAlumno}
                       isSuperAdmin={isSuperAdmin}
+                      openOverduePreviewToken={overduePreviewRequestToken}
                       onRefresh={() => {
                         fetchAlumnos();
                         supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
@@ -1269,8 +1263,8 @@ const ManageStudents = () => {
                         {(() => {
                           const dSubEstado = getSubEstadoLabel(drawerAlumno.id);
                           return (dSubEstado === "pago_pendiente" || dSubEstado === "acceso_pausado" || dSubEstado === "vencida") ? (
-                            <Button variant="outline" size="sm" className="text-xs justify-start text-orange-600 hover:text-orange-700" onClick={() => handleNotifyOverdue(drawerAlumno)}>
-                              <BellRing className="w-3 h-3 mr-1.5" /> Notificar pago vencido
+                            <Button variant="outline" size="sm" className="text-xs justify-start text-orange-600 hover:text-orange-700" onClick={() => openOverduePreview(drawerAlumno)}>
+                              <BellRing className="w-3 h-3 mr-1.5" /> Vista previa y enviar
                             </Button>
                           ) : null;
                         })()}
