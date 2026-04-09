@@ -303,7 +303,7 @@ const Login = () => {
                 autoComplete="username"
                 placeholder={t("login.emailPlaceholder")}
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
+                onChange={(e) => { setEmail(e.target.value); setLoginError(null); setAdminRedirect(null); }}
                 required
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
