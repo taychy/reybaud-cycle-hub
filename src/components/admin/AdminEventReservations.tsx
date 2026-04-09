@@ -522,6 +522,57 @@ const AdminEventReservations = ({
     setAddingStudent(null);
   };
 
+  const addExternalToEvent = async () => {
+    if (!extName || !extEmail) { toast({ title: "Nombre y email son obligatorios", variant: "destructive" }); return; }
+    setAddingExternal(true);
+
+    const { data: extP, error: extErr } = await supabase
+      .from("event_external_participants" as any)
+      .insert({ nombre: extName, apellido: extLastName || null, email: extEmail, telefono: extPhone || null, documento: extDoc || null } as any)
+      .select("id")
+      .single();
+
+    if (extErr || !extP) {
+      toast({ title: "Error al crear participante", description: extErr?.message, variant: "destructive" });
+      setAddingExternal(false);
+      return;
+    }
+
+    const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+    const isPaid = eventPrice != null && eventPrice > 0;
+    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
+
+    const { error } = await supabase
+      .from("event_reservations" as any)
+      .insert({
+        event_id: eventId,
+        alumno_id: null,
+        external_participant_id: (extP as any).id,
+        reservation_status: "reserva_confirmada",
+        payment_status: paymentStatus,
+        estado: "reserva_confirmada",
+        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
+        amount_total: eventPrice,
+        price_snapshot: eventPrice,
+        currency_snapshot: eventCurrency,
+        moneda: eventCurrency,
+        monto: eventPrice,
+        balance_due: isInscriptionOnly || !isPaid ? 0 : eventPrice,
+        created_by: "admin",
+        confirmed_at: new Date().toISOString(),
+      } as any);
+
+    if (error) {
+      toast({ title: "Error al agregar reserva", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: `${extName} ${extLastName} agregado como participante externo` });
+      loadReservations();
+      setShowAddStudent(false);
+      setExtName(""); setExtLastName(""); setExtEmail(""); setExtPhone(""); setExtDoc("");
+    }
+    setAddingExternal(false);
+  };
+
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
     setUpdatingId(resId);
     const res = reservations.find(r => r.id === resId);
