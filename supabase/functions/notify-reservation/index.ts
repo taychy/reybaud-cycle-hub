@@ -4,7 +4,7 @@ const corsHeaders = {
 }
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (!alumno?.email) {
-      return new Response(JSON.stringify({ error: 'Student not found or no email' }), {
+      return new Response(JSON.stringify({ error: 'Student not found or no email', error_code: 'student_not_found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -70,36 +70,45 @@ Deno.serve(async (req) => {
 
     const canal = payload.canal || 'email';
     let emailSent = false;
+    let emailError: string | null = null;
 
     // Send email if canal is email
     if (canal === 'email') {
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
-          to: [alumno.email],
-          subject: payload.asunto,
-          html: payload.contenido_html,
-          text: payload.contenido_texto,
-        }),
-      });
+      if (!RESEND_API_KEY) {
+        emailError = 'Email service not configured (missing API key)';
+        console.error(emailError);
+      } else {
+        try {
+          const emailRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+              from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
+              to: [alumno.email],
+              subject: payload.asunto,
+              html: payload.contenido_html,
+              text: payload.contenido_texto,
+            }),
+          });
 
-      if (!emailRes.ok) {
-        const errBody = await emailRes.text();
-        console.error('Resend error:', errBody);
-        return new Response(JSON.stringify({ error: 'Email send failed', detail: errBody }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+          if (!emailRes.ok) {
+            const errBody = await emailRes.text();
+            console.error('Resend error:', errBody);
+            emailError = `Email provider error (${emailRes.status}): ${errBody}`;
+          } else {
+            emailSent = true;
+          }
+        } catch (fetchErr) {
+          emailError = `Network error sending email: ${fetchErr.message}`;
+          console.error(emailError);
+        }
       }
-      emailSent = true;
     }
 
-    // Log notification
+    // Always log notification — even on failure
     const { data: notif, error: insertErr } = await supabase
       .from('reservation_notifications')
       .insert({
@@ -111,7 +120,11 @@ Deno.serve(async (req) => {
         contenido: payload.contenido_texto,
         enviado_por: payload.enviado_por || null,
         enviado_por_email: payload.enviado_por_email || null,
-        metadata: payload.metadata || {},
+        metadata: {
+          ...(payload.metadata || {}),
+          email_sent: emailSent,
+          email_error: emailError || undefined,
+        },
         idempotency_key: payload.idempotency_key || null,
       })
       .select('id')
@@ -119,6 +132,21 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       console.error('Insert error:', insertErr);
+    }
+
+    // If email failed, return error but notification is still logged
+    if (canal === 'email' && !emailSent) {
+      return new Response(JSON.stringify({
+        success: false,
+        email_sent: false,
+        email_error: emailError,
+        notification_logged: !!notif,
+        notification_id: notif?.id,
+        error_code: 'email_send_failed',
+      }), {
+        status: 200, // 200 because the notification was logged successfully
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({
@@ -132,7 +160,7 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('Error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err.message, error_code: 'internal_error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
