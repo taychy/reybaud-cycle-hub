@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatPrice } from "@/lib/currency";
 import {
   Shield, CheckCircle, AlertCircle, Clock, XCircle, Ban,
   Banknote, FileText, MessageCircle, CreditCard, Eye, Upload, X,
   ChevronDown, ChevronUp, Bell, CalendarDays, ArrowRight,
+  HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
+  CircleDot, Loader2,
 } from "lucide-react";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
@@ -81,48 +85,142 @@ const installmentFromMetadata = (meta: any) => {
   return meta.installments as { number: number; amount: string; due_date: string; label: string }[];
 };
 
-/* ─── Status configs ─── */
-const reservationStatusConfig: Record<string, { label: string; icon: typeof CheckCircle; className: string }> = {
-  solicitud_enviada: { label: "Reserva enviada", icon: Clock, className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
-  reserva_pendiente: { label: "Reserva pendiente", icon: AlertCircle, className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  reserva_confirmada: { label: "¡Reserva confirmada!", icon: CheckCircle, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  cancelada: { label: "Reserva cancelada", icon: Ban, className: "bg-muted text-muted-foreground border-border" },
-  cancelacion_solicitada: { label: "Cancelación en proceso", icon: Clock, className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  rechazada: { label: "Reserva rechazada", icon: XCircle, className: "bg-destructive/15 text-destructive border-destructive/30" },
-  lista_espera: { label: "En lista de espera", icon: Clock, className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+/* ─── Human-friendly status messages ─── */
+const getHumanStatus = (reservation: Reservation): { title: string; subtitle: string; tone: "success" | "info" | "warning" | "error" | "neutral" } => {
+  const rs = reservation.reservation_status;
+  const ps = reservation.payment_status;
+
+  if (rs === "reserva_confirmada" && ps === "pago_validado")
+    return { title: "¡Tu lugar está confirmado! 🎉", subtitle: "Todo en orden. Ahora a preparar el viaje.", tone: "success" };
+  if (rs === "reserva_confirmada" && ps === "parcial")
+    return { title: "Tu lugar ya está reservado", subtitle: "Registramos correctamente tu pago inicial. Seguí completando tu plan de pago.", tone: "info" };
+  if (rs === "reserva_confirmada" && ps === "pago_informado")
+    return { title: "Tu lugar ya está reservado", subtitle: "Estamos verificando tu último pago. No necesitás hacer nada más por ahora.", tone: "info" };
+  if (rs === "reserva_confirmada" && ps === "no_informado")
+    return { title: "Tu lugar ya está reservado", subtitle: "Realizá tu pago para asegurar tu lugar.", tone: "warning" };
+  if (rs === "solicitud_enviada")
+    return { title: "Solicitud recibida", subtitle: "El equipo está revisando tu solicitud. Te avisamos pronto.", tone: "info" };
+  if (rs === "reserva_pendiente")
+    return { title: "Reserva pendiente", subtitle: "Estamos procesando tu reserva.", tone: "info" };
+  if (ps === "pago_rechazado")
+    return { title: "Revisá tu pago", subtitle: "Hubo un problema con tu comprobante. Actualizalo para continuar.", tone: "error" };
+  if (rs === "cancelacion_solicitada")
+    return { title: "Cancelación en proceso", subtitle: "Tu solicitud de cancelación está siendo revisada.", tone: "neutral" };
+  if (rs === "cancelada")
+    return { title: "Reserva cancelada", subtitle: "Tu reserva fue cancelada.", tone: "neutral" };
+  if (rs === "rechazada")
+    return { title: "Reserva rechazada", subtitle: "Contactá al equipo para más información.", tone: "error" };
+  if (ps === "pago_informado")
+    return { title: "Pago en revisión", subtitle: "Estamos verificando tu pago. Te avisamos cuando esté confirmado.", tone: "info" };
+  return { title: "Tu reserva está activa", subtitle: "", tone: "info" };
 };
 
-const paymentStatusLabels: Record<string, string> = {
-  no_informado: "Todavía no registramos tu pago",
-  no_aplica: "Sin costo",
-  pago_pendiente: "Tu pago está pendiente",
-  pago_informado: "Pago enviado · Estamos verificándolo",
-  pago_validado: "Pago confirmado ✓",
-  pago_rechazado: "Tu pago fue rechazado — revisá los datos",
-  parcial: "Pago parcial registrado",
+const toneStyles: Record<string, { border: string; bg: string; icon: string; iconBg: string }> = {
+  success: { border: "border-emerald-500/40", bg: "bg-emerald-500/5", icon: "text-emerald-400", iconBg: "bg-emerald-500/20" },
+  info: { border: "border-primary/30", bg: "bg-primary/5", icon: "text-primary", iconBg: "bg-primary/20" },
+  warning: { border: "border-amber-500/40", bg: "bg-amber-500/5", icon: "text-amber-400", iconBg: "bg-amber-500/20" },
+  error: { border: "border-destructive/40", bg: "bg-destructive/5", icon: "text-destructive", iconBg: "bg-destructive/20" },
+  neutral: { border: "border-border", bg: "bg-muted/30", icon: "text-muted-foreground", iconBg: "bg-muted" },
 };
 
-const paymentStatusBadge: Record<string, string> = {
-  no_informado: "bg-muted text-muted-foreground",
-  no_aplica: "bg-emerald-500/15 text-emerald-400",
-  pago_pendiente: "bg-amber-500/15 text-amber-400",
-  pago_informado: "bg-sky-500/15 text-sky-400",
-  pago_validado: "bg-emerald-500/15 text-emerald-400",
-  pago_rechazado: "bg-destructive/15 text-destructive",
-  parcial: "bg-amber-500/15 text-amber-400",
+const toneIcon: Record<string, typeof CheckCircle> = {
+  success: CheckCircle,
+  info: Shield,
+  warning: AlertCircle,
+  error: XCircle,
+  neutral: Ban,
 };
 
-/* ─── Progress steps (client-friendly) ─── */
-const progressSteps = [
-  { key: "reserva", label: "Reserva hecha" },
-  { key: "pago", label: "Pago informado" },
-  { key: "validacion", label: "Pago validado" },
+/* ─── Onboarding stepper ─── */
+const stepperSteps = [
+  { key: "reserva", label: "Reserva realizada", description: "Tu lugar fue separado" },
+  { key: "pago", label: "Pago cargado", description: "Informaste tu comprobante" },
+  { key: "validacion", label: "Pago validado", description: "Confirmado por administración" },
 ];
 
-const getProgressIndex = (reservation: Reservation): number => {
+const getStepperIndex = (reservation: Reservation): number => {
   if (reservation.reservation_status === "reserva_confirmada" && reservation.payment_status === "pago_validado") return 3;
   if (["pago_informado", "pago_validado"].includes(reservation.payment_status)) return 2;
+  if (reservation.payment_status === "parcial") return 2;
   return 1;
+};
+
+const getStepperLabel = (index: number): string => {
+  if (index >= 3) return "¡Todo listo!";
+  if (index === 2) return "Estás acá: verificación en curso";
+  return "Estás acá: completando tu plan de pago";
+};
+
+/* ─── Checklist items ─── */
+interface ChecklistItem {
+  id: string;
+  label: string;
+  description: string;
+  icon: typeof Bike;
+  completed: boolean;
+}
+
+const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] => {
+  const items: ChecklistItem[] = [
+    {
+      id: "reserva",
+      label: "Reserva realizada",
+      description: "Tu lugar está separado",
+      icon: CheckCircle,
+      completed: true,
+    },
+    {
+      id: "pago",
+      label: "Informar próximo pago",
+      description: "Cargá tu comprobante de pago",
+      icon: Banknote,
+      completed: reservation.payment_status === "pago_validado" ||
+        (reservation.amount_total != null && reservation.amount_paid >= reservation.amount_total),
+    },
+    {
+      id: "talla_bici",
+      label: "Cargar talla de bicicleta",
+      description: "Para preparar alquiler o asesoramiento",
+      icon: Bike,
+      completed: false,
+    },
+    {
+      id: "pedales",
+      label: "Indicar tipo de pedales",
+      description: "Para compatibilidad de equipamiento",
+      icon: Footprints,
+      completed: false,
+    },
+    {
+      id: "pasaje",
+      label: "Adjuntar pasaje",
+      description: "Tu pasaje de avión o transporte",
+      icon: Plane,
+      completed: false,
+    },
+    {
+      id: "seguro",
+      label: "Adjuntar seguro viajero",
+      description: "Requisito importante del viaje",
+      icon: ShieldCheck,
+      completed: false,
+    },
+    {
+      id: "extras",
+      label: "Elegir extras del viaje",
+      description: "Opciones adicionales disponibles",
+      icon: Package,
+      completed: false,
+    },
+  ];
+
+  // Filter based on metadata config if available
+  const enabledSteps = meta?.checklist_steps;
+  if (enabledSteps && Array.isArray(enabledSteps)) {
+    return items.filter(item => enabledSteps.includes(item.id));
+  }
+
+  return items;
 };
 
 const ReservationStatusCard = ({
@@ -134,10 +232,13 @@ const ReservationStatusCard = ({
   const [showTimeline, setShowTimeline] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const installments = installmentFromMetadata(eventMetadata);
-  const resSt = reservationStatusConfig[reservation.reservation_status] || reservationStatusConfig.solicitud_enviada;
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
+  const humanStatus = getHumanStatus(reservation);
+  const tone = toneStyles[humanStatus.tone];
+  const StatusIcon = toneIcon[humanStatus.tone];
 
   const isPaymentValidated = reservation.payment_status === "pago_validado";
   const isConfirmed = reservation.reservation_status === "reserva_confirmada";
@@ -164,15 +265,27 @@ const ReservationStatusCard = ({
     && withinCancellationWindow
     && !["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status);
 
-  const progressIndex = getProgressIndex(reservation);
+  const stepperIndex = getStepperIndex(reservation);
 
   /* ─── Installment helpers ─── */
-  const paidInstallments = installments.filter((inst, idx) => {
+  const paidInstallments = installments.filter((_inst, idx) => {
     const accBefore = installments.slice(0, idx).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-    return (reservation.amount_paid || 0) >= accBefore + (parseFloat(inst.amount) || 0);
+    return (reservation.amount_paid || 0) >= accBefore + (parseFloat(_inst.amount) || 0);
   }).length;
   const pendingInstallments = installments.length - paidInstallments;
   const nextInstallment = installments[paidInstallments] || null;
+
+  /* ─── Financial percentage ─── */
+  const total = reservation.amount_total || 0;
+  const paid = reservation.amount_paid || 0;
+  const paidPercent = total > 0 ? Math.min(Math.round((paid / total) * 100), 100) : 0;
+
+  /* ─── Next due date ─── */
+  const nextDueDate = nextInstallment?.due_date
+    ? new Date(nextInstallment.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" })
+    : reservation.next_due_date
+      ? new Date(reservation.next_due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" })
+      : null;
 
   /* ─── Next step message ─── */
   const getNextStep = (): { text: string; urgent: boolean } | null => {
@@ -181,7 +294,7 @@ const ReservationStatusCard = ({
       return { text: "El equipo está revisando tu solicitud. Te avisamos pronto.", urgent: false };
     if (reservation.payment_status === "pago_informado")
       return { text: "Estamos verificando tu pago. No necesitás hacer nada más por ahora.", urgent: false };
-    if (reservation.payment_status === "no_informado" && reservation.amount_total && reservation.amount_total > 0)
+    if (reservation.payment_status === "no_informado" && total > 0)
       return { text: "Realizá tu pago e informalo para asegurar tu lugar.", urgent: true };
     if (reservation.payment_status === "parcial") {
       if (nextInstallment) {
@@ -189,7 +302,7 @@ const ReservationStatusCard = ({
           ? new Date(nextInstallment.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })
           : null;
         return {
-          text: `Tu próxima cuota es de ${formatPrice(parseFloat(nextInstallment.amount), currency)}${dueDate ? ` — vence el ${dueDate}` : ""}. Informá tu pago.`,
+          text: `Próximo paso: informar tu siguiente pago de ${formatPrice(parseFloat(nextInstallment.amount), currency)}${dueDate ? ` antes del ${dueDate}` : ""}.`,
           urgent: true,
         };
       }
@@ -203,19 +316,28 @@ const ReservationStatusCard = ({
   };
   const nextStep = getNextStep();
 
-  /* ─── Primary CTA ─── */
+  /* ─── Checklist ─── */
+  const checklist = buildChecklist(reservation, eventMetadata);
+  const completedCount = checklist.filter(c => c.completed).length;
+  const checklistPercent = checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0;
+
+  /* ─── Primary & secondary CTAs ─── */
   const getPrimaryCTA = () => {
-    if (hasInformedPayment && !isPaymentValidated)
-      return { label: "Ver pago informado", icon: Eye, action: () => setShowPaymentDrawer(true) };
     if (reservation.payment_status === "pago_rechazado")
       return { label: "Actualizar comprobante", icon: Upload, action: () => setShowPaymentDrawer(true) };
-    if (isPayable && reservation.payment_status === "parcial")
-      return { label: "Informar próxima cuota", icon: Banknote, action: () => setShowPaymentDrawer(true) };
-    if (isPayable && reservation.payment_status === "no_informado")
+    if (isPayable && (reservation.payment_status === "no_informado" || reservation.payment_status === "parcial" || reservation.payment_status === "pago_pendiente"))
       return { label: "Informar pago", icon: Banknote, action: () => setShowPaymentDrawer(true) };
     return null;
   };
+
+  const getSecondaryCTA = () => {
+    if (hasInformedPayment && !isPaymentValidated)
+      return { label: "Ver último pago informado", icon: Eye, action: () => setShowPaymentDrawer(true) };
+    return null;
+  };
+
   const primaryCTA = getPrimaryCTA();
+  const secondaryCTA = getSecondaryCTA();
 
   /* ─── Load timeline ─── */
   const loadTimeline = async () => {
@@ -223,12 +345,10 @@ const ReservationStatusCard = ({
     setLoadingTimeline(true);
     const entries: TimelineEntry[] = [];
 
-    // Reservation created
     entries.push({ date: reservation.created_at, label: "Reserva creada", type: "reservation" });
     if (reservation.confirmed_at)
       entries.push({ date: reservation.confirmed_at, label: "Reserva confirmada", type: "status" });
 
-    // Payments
     const { data: payments } = await supabase
       .from("reservation_payments" as any)
       .select("id, amount, currency, payment_date, status, created_at")
@@ -237,16 +357,10 @@ const ReservationStatusCard = ({
     if (payments) {
       (payments as unknown as PaymentRecord[]).forEach(p => {
         const statusLabel = p.status === "validado" ? "Pago validado" : p.status === "rechazado" ? "Pago rechazado" : "Pago informado";
-        entries.push({
-          date: p.created_at,
-          label: statusLabel,
-          type: "payment",
-          detail: formatPrice(p.amount, p.currency || currency),
-        });
+        entries.push({ date: p.created_at, label: statusLabel, type: "payment", detail: formatPrice(p.amount, p.currency || currency) });
       });
     }
 
-    // Notifications
     const { data: notifs } = await supabase
       .from("reservation_notifications" as any)
       .select("id, tipo, canal, asunto, created_at")
@@ -261,12 +375,7 @@ const ReservationStatusCard = ({
           cuota_proxima: "Aviso de próximo vencimiento",
           novedad: "Novedad del equipo",
         };
-        entries.push({
-          date: n.created_at,
-          label: tipoLabel[n.tipo] || n.asunto,
-          type: "notification",
-          detail: n.canal === "email" ? "por email" : n.canal === "whatsapp" ? "por WhatsApp" : undefined,
-        });
+        entries.push({ date: n.created_at, label: tipoLabel[n.tipo] || n.asunto, type: "notification", detail: n.canal === "email" ? "por email" : n.canal === "whatsapp" ? "por WhatsApp" : undefined });
       });
     }
 
@@ -280,64 +389,26 @@ const ReservationStatusCard = ({
     <>
       <div className="space-y-4 animate-fade-in">
 
-        {/* ═══ MAIN STATUS BANNER ═══ */}
-        <div className={`rounded-xl border-2 p-4 ${isFullyDone
-          ? "border-emerald-500/40 bg-emerald-500/5"
-          : reservation.payment_status === "pago_rechazado"
-            ? "border-destructive/40 bg-destructive/5"
-            : "border-primary/30 bg-primary/5"
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              isFullyDone ? "bg-emerald-500/20" : "bg-primary/20"
-            }`}>
-              <resSt.icon className={`w-5 h-5 ${isFullyDone ? "text-emerald-400" : "text-primary"}`} />
+        {/* ═══ 1. STATUS BANNER — human-friendly ═══ */}
+        <div className={`rounded-xl border-2 p-5 ${tone.border} ${tone.bg}`}>
+          <div className="flex items-start gap-3">
+            <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${tone.iconBg}`}>
+              <StatusIcon className={`w-5 h-5 ${tone.icon}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-base font-heading font-bold ${isFullyDone ? "text-emerald-400" : "text-foreground"}`}>
-                {resSt.label}
+              <p className={`text-lg font-heading font-bold leading-snug ${tone.icon}`}>
+                {humanStatus.title}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {paymentStatusLabels[reservation.payment_status] || ""}
-              </p>
+              {humanStatus.subtitle && (
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  {humanStatus.subtitle}
+                </p>
+              )}
             </div>
           </div>
-
-          {isFullyDone && (
-            <p className="text-sm text-emerald-400/80 mt-3 pl-[52px]">
-              Tu lugar está asegurado. ¡Nos vemos ahí! 🎉
-            </p>
-          )}
         </div>
 
-        {/* ═══ PROGRESS STEPPER ═══ */}
-        {reservation.payment_status !== "no_aplica" && !["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status) && (
-          <div className="flex items-center gap-1 px-1">
-            {progressSteps.map((step, i) => (
-              <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5">
-                <div className="flex items-center w-full gap-1">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
-                    i < progressIndex
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {i < progressIndex ? "✓" : i + 1}
-                  </div>
-                  {i < progressSteps.length - 1 && (
-                    <div className={`h-0.5 flex-1 rounded-full ${i < progressIndex - 1 ? "bg-primary" : "bg-muted"}`} />
-                  )}
-                </div>
-                <span className={`text-[10px] leading-tight text-center ${
-                  i < progressIndex ? "text-primary font-semibold" : "text-muted-foreground"
-                }`}>
-                  {step.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ═══ NEXT STEP (PROMINENT) ═══ */}
+        {/* ═══ 2. NEXT STEP — prominent CTA area ═══ */}
         {nextStep && (
           <div className={`rounded-xl p-4 flex items-start gap-3 ${
             nextStep.urgent
@@ -347,89 +418,91 @@ const ReservationStatusCard = ({
             <ArrowRight className={`w-5 h-5 mt-0.5 shrink-0 ${nextStep.urgent ? "text-amber-400" : "text-muted-foreground"}`} />
             <div>
               <p className="text-xs font-heading font-semibold text-foreground uppercase tracking-wide mb-1">Próximo paso</p>
-              <p className={`text-sm ${nextStep.urgent ? "text-amber-200" : "text-muted-foreground"}`}>
+              <p className={`text-sm leading-relaxed ${nextStep.urgent ? "text-amber-200" : "text-muted-foreground"}`}>
                 {nextStep.text}
               </p>
             </div>
           </div>
         )}
 
-        {/* ═══ PRIMARY CTA ═══ */}
+        {/* ═══ 3. PRIMARY CTA ═══ */}
         {primaryCTA && (
           <Button variant="gold" className="w-full h-12 text-sm" onClick={primaryCTA.action}>
             <primaryCTA.icon className="w-4 h-4 mr-2" /> {primaryCTA.label}
           </Button>
         )}
 
-        {/* ═══ FINANCIAL SUMMARY ═══ */}
-        {reservation.amount_total != null && reservation.amount_total > 0 && (
-          <div className="glass-card rounded-xl p-5 space-y-3">
-            <div className="flex items-center gap-2 mb-1">
+        {/* Secondary CTA */}
+        {secondaryCTA && (
+          <Button variant="outline" size="sm" className="w-full text-xs" onClick={secondaryCTA.action}>
+            <secondaryCTA.icon className="w-3.5 h-3.5 mr-1.5" /> {secondaryCTA.label}
+          </Button>
+        )}
+
+        {/* ═══ 4. FINANCIAL SUMMARY ═══ */}
+        {total > 0 && (
+          <div className="glass-card rounded-xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-primary" />
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Resumen de pago</h3>
+            </div>
+
+            {/* Progress bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{paidPercent}% abonado</span>
+                <span className="text-muted-foreground font-medium">{formatPrice(paid, currency)} / {formatPrice(total, currency)}</span>
+              </div>
+              <Progress value={paidPercent} className="h-2.5" />
             </div>
 
             {/* Main amounts */}
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-muted/40 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Total</p>
-                <p className="text-base font-heading font-bold text-foreground">{formatPrice(reservation.amount_total, currency)}</p>
+                <p className="text-sm font-heading font-bold text-foreground">{formatPrice(total, currency)}</p>
               </div>
               <div className="bg-emerald-500/10 rounded-lg p-3">
                 <p className="text-[10px] text-emerald-400 uppercase tracking-wide mb-1">Abonado</p>
-                <p className="text-base font-heading font-bold text-emerald-400">{formatPrice(reservation.amount_paid || 0, currency)}</p>
+                <p className="text-sm font-heading font-bold text-emerald-400">{formatPrice(paid, currency)}</p>
               </div>
-              <div className={`rounded-lg p-3 ${reservation.balance_due && reservation.balance_due > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
-                <p className={`text-[10px] uppercase tracking-wide mb-1 ${reservation.balance_due && reservation.balance_due > 0 ? "text-amber-400" : "text-emerald-400"}`}>Saldo</p>
-                <p className={`text-base font-heading font-bold ${reservation.balance_due && reservation.balance_due > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+              <div className={`rounded-lg p-3 ${(reservation.balance_due ?? 0) > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
+                <p className={`text-[10px] uppercase tracking-wide mb-1 ${(reservation.balance_due ?? 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>Saldo</p>
+                <p className={`text-sm font-heading font-bold ${(reservation.balance_due ?? 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                   {formatPrice(reservation.balance_due ?? 0, currency)}
                 </p>
               </div>
             </div>
 
-            {/* Installments info */}
+            {/* Next due date */}
+            {nextDueDate && (reservation.balance_due ?? 0) > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/30">
+                <CalendarDays className="w-4 h-4 text-primary shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Próximo vencimiento: <span className="text-foreground font-semibold">{nextDueDate}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Installments detail */}
             {installments.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-border/50">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Cuotas pagadas</span>
                   <span className="font-semibold text-foreground">{paidInstallments} de {installments.length}</span>
                 </div>
-                {pendingInstallments > 0 && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Cuotas pendientes</span>
-                    <span className="font-semibold text-amber-400">{pendingInstallments}</span>
-                  </div>
-                )}
-                {nextInstallment && (
-                  <>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Próxima cuota</span>
-                      <span className="font-semibold text-foreground">{formatPrice(parseFloat(nextInstallment.amount), currency)}</span>
-                    </div>
-                    {nextInstallment.due_date && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Vencimiento</span>
-                        <span className="font-semibold text-foreground">
-                          {new Date(nextInstallment.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Installment detail list */}
-                <div className="space-y-1.5 pt-2">
+                <div className="space-y-1.5">
                   {installments.map((inst, idx) => {
                     const instAmount = parseFloat(inst.amount || "0");
                     const accBefore = installments.slice(0, idx).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-                    const isPaid = (reservation.amount_paid || 0) >= accBefore + instAmount;
-                    const isOverdue = inst.due_date && new Date(inst.due_date) < new Date() && !isPaid;
+                    const isPaidInst = (reservation.amount_paid || 0) >= accBefore + instAmount;
+                    const isOverdue = inst.due_date && new Date(inst.due_date) < new Date() && !isPaidInst;
                     return (
                       <div key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
-                        isPaid ? "bg-emerald-500/10 border border-emerald-500/20" : isOverdue ? "bg-destructive/10 border border-destructive/20" : "bg-muted/40 border border-border/30"
+                        isPaidInst ? "bg-emerald-500/10 border border-emerald-500/20" : isOverdue ? "bg-destructive/10 border border-destructive/20" : "bg-muted/40 border border-border/30"
                       }`}>
                         <div className="flex items-center gap-2">
-                          {isPaid ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
+                          {isPaidInst ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
                           <span className="font-medium">{inst.label || `Cuota ${idx + 1}`}</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -446,20 +519,99 @@ const ReservationStatusCard = ({
                 </div>
               </div>
             )}
+          </div>
+        )}
 
-            {/* Simple financial summary without installments */}
-            {installments.length === 0 && reservation.next_due_date && (
-              <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                <span>Próximo vencimiento</span>
-                <span className="text-foreground font-semibold">
-                  {new Date(reservation.next_due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
-                </span>
+        {/* ═══ 5. ONBOARDING STEPPER ═══ */}
+        {reservation.payment_status !== "no_aplica" && !["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status) && (
+          <div className="glass-card rounded-xl p-5 space-y-4">
+            <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Progreso de tu reserva</h3>
+
+            {/* Stepper */}
+            <div className="space-y-0">
+              {stepperSteps.map((step, i) => {
+                const isCompleted = i < stepperIndex;
+                const isCurrent = i === stepperIndex - 1 && stepperIndex < 3;
+                return (
+                  <div key={step.key} className="flex gap-3 relative">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 border-2 transition-all ${
+                        isCompleted
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : isCurrent
+                            ? "bg-primary/20 border-primary text-primary"
+                            : "bg-muted border-border text-muted-foreground"
+                      }`}>
+                        {isCompleted ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : isCurrent ? (
+                          <CircleDot className="w-4 h-4" />
+                        ) : (
+                          <span className="text-[10px] font-bold">{i + 1}</span>
+                        )}
+                      </div>
+                      {i < stepperSteps.length - 1 && (
+                        <div className={`w-0.5 h-8 ${isCompleted ? "bg-primary" : "bg-border"}`} />
+                      )}
+                    </div>
+                    <div className="pb-3 pt-0.5">
+                      <p className={`text-sm font-medium ${isCompleted ? "text-foreground" : isCurrent ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                        {step.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{step.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Current position label */}
+            {stepperIndex < 3 && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                <CircleDot className="w-4 h-4 text-primary shrink-0" />
+                <p className="text-xs text-primary font-medium">{getStepperLabel(stepperIndex)}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* ═══ ADMIN NOTES ═══ */}
+        {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
+        {checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
+          <div className="glass-card rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Preparación del viaje</h3>
+              <Badge variant="outline" className="text-[10px]">{completedCount} de {checklist.length}</Badge>
+            </div>
+
+            <Progress value={checklistPercent} className="h-2" />
+
+            <div className="space-y-2">
+              {checklist.map((item) => (
+                <div key={item.id} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  item.completed ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-muted/30 border border-border/30"
+                }`}>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    item.completed ? "bg-emerald-500/20" : "bg-muted"
+                  }`}>
+                    {item.completed ? (
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <item.icon className="w-3 h-3 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${item.completed ? "text-emerald-400 line-through" : "text-foreground font-medium"}`}>
+                      {item.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ 7. ADMIN NOTES ═══ */}
         {(reservation.admin_notes || reservation.notas) && (
           <div className="glass-card rounded-xl p-4">
             <p className="text-xs text-muted-foreground">
@@ -469,7 +621,7 @@ const ReservationStatusCard = ({
           </div>
         )}
 
-        {/* ═══ TIMELINE / HISTORY ═══ */}
+        {/* ═══ 8. TIMELINE / HISTORY ═══ */}
         <button
           onClick={loadTimeline}
           className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 transition-colors text-sm"
@@ -479,7 +631,7 @@ const ReservationStatusCard = ({
             <span className="font-medium">Historial de mi reserva</span>
           </span>
           {loadingTimeline ? (
-            <Clock className="w-4 h-4 animate-spin text-muted-foreground" />
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           ) : showTimeline ? (
             <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
@@ -517,30 +669,48 @@ const ReservationStatusCard = ({
             })}
           </div>
         )}
-
         {showTimeline && timeline.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-2">Sin actividad registrada aún.</p>
         )}
 
-        {/* ═══ QUICK LINKS ═══ */}
-        <div className="flex flex-wrap gap-2">
-          {reglamentoUrl && (
-            <a href={reglamentoUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-              <Button variant="outline" size="sm" className="w-full text-xs">
-                <FileText className="w-3.5 h-3.5 mr-1.5" /> Reglamento
-              </Button>
-            </a>
-          )}
-          {whatsappUrl && (
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-              <Button variant="outline" size="sm" className="w-full text-xs">
-                <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Chatear
-              </Button>
-            </a>
+        {/* ═══ 9. HELP SECTION ═══ */}
+        <div className="glass-card rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors text-sm"
+          >
+            <span className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-primary" />
+              <span className="font-heading font-semibold text-foreground">¿Necesitás ayuda?</span>
+            </span>
+            {showHelp ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </button>
+          {showHelp && (
+            <div className="px-4 pb-4 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {reglamentoUrl && (
+                  <a href={reglamentoUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      <FileText className="w-3.5 h-3.5 mr-1.5" /> Reglamento
+                    </Button>
+                  </a>
+                )}
+                {whatsappUrl && (
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Chatear por WhatsApp
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
-        {/* ═══ CANCEL ═══ */}
+        {/* ═══ 10. CANCEL ═══ */}
         {canCancel && (
           <Button
             variant="ghost"
