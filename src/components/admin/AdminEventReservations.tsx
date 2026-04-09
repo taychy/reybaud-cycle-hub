@@ -1111,10 +1111,10 @@ const AdminEventReservations = ({
       <Sheet open={!!selectedRes} onOpenChange={(open) => { if (!open) { setSelectedRes(null); setShowAdminPayment(false); } }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="pb-4">
-            <SheetTitle className="text-lg">
-              {selectedRes?.alumno?.nombre} {selectedRes?.alumno?.apellido || ""}
+            <SheetTitle className="text-lg flex items-center gap-2">
+              {selectedRes && (() => { const sp = getParticipant(selectedRes); return <>{sp.nombre} {sp.apellido || ""}{sp.isExternal && <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500">Externo</Badge>}</>; })()}
             </SheetTitle>
-            <SheetDescription>{selectedRes?.alumno?.email}</SheetDescription>
+            <SheetDescription>{selectedRes && getParticipant(selectedRes).email}</SheetDescription>
           </SheetHeader>
 
           {selectedRes && (
@@ -1122,7 +1122,8 @@ const AdminEventReservations = ({
               {/* Quick actions */}
               <div className="flex flex-wrap gap-2">
                 {(() => {
-                  const waUrl = getWhatsAppUrl(selectedRes.alumno?.telefono, selectedRes.alumno?.nombre || "");
+                  const sp = getParticipant(selectedRes);
+                  const waUrl = getWhatsAppUrl(sp.telefono, sp.nombre);
                   return waUrl ? (
                     <Button variant="outline" size="sm" asChild>
                       <a href={waUrl} target="_blank" rel="noopener noreferrer">
