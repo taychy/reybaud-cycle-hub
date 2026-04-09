@@ -107,18 +107,23 @@ Deno.serve(async (req) => {
     if (canal === 'email') {
       try {
         const messageId = crypto.randomUUID();
+        const emailPayload = {
+          message_id: messageId,
+          to: recipientEmail,
+          from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+          sender_domain: SENDER_DOMAIN,
+          subject: payload.asunto,
+          html: payload.contenido_html,
+          text: payload.contenido_texto || '',
+          purpose: 'transactional',
+          label: `reservation_${payload.tipo}`,
+          idempotency_key: payload.idempotency_key || messageId,
+          queued_at: new Date().toISOString(),
+        };
+
         const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
-          p_queue_name: 'transactional_emails',
-          p_message_id: messageId,
-          p_to_email: recipientEmail,
-          p_to_name: recipientName,
-          p_from_email: `notificaciones@${SENDER_DOMAIN}`,
-          p_from_name: FROM_NAME,
-          p_subject: payload.asunto,
-          p_html_body: payload.contenido_html,
-          p_text_body: payload.contenido_texto || '',
-          p_template_name: `reservation_${payload.tipo}`,
-          p_idempotency_key: payload.idempotency_key || messageId,
+          queue_name: 'transactional_emails',
+          payload: emailPayload,
         });
 
         if (enqueueErr) {
