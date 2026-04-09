@@ -17,6 +17,7 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [adminRedirect, setAdminRedirect] = useState<string | null>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
