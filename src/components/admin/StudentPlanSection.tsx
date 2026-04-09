@@ -462,6 +462,113 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Email Preview Dialog */}
+      <Dialog open={!!previewSub} onOpenChange={(open) => { if (!open) setPreviewSub(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-4 h-4" /> Vista previa del email
+            </DialogTitle>
+            <DialogDescription>
+              Revisá el contenido antes de enviar la notificación a {alumno.nombre} ({alumno.email})
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewSub && (() => {
+            const firstName = alumno.nombre?.split(" ")[0] || alumno.nombre;
+            const fechaText = previewSub.fecha_fin
+              ? new Date(previewSub.fecha_fin + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })
+              : null;
+            return (
+              <div className="space-y-4">
+                {/* Email metadata */}
+                <div className="rounded-md border border-border bg-secondary/30 p-3 space-y-1 text-xs">
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground font-medium w-16">Para:</span>
+                    <span className="text-foreground">{alumno.email}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground font-medium w-16">Asunto:</span>
+                    <span className="text-foreground">⚠️ Tu mensualidad está vencida</span>
+                  </div>
+                </div>
+
+                {/* Email body preview */}
+                <div className="rounded-md border border-border bg-white p-4 space-y-3">
+                  <h3 className="text-[#d4820a] font-semibold text-base">⚠️ Mensualidad vencida</h3>
+                  <p className="text-sm text-[#333]">
+                    Hola <strong>{firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud se encuentra vencida{fechaText ? <> desde el <strong>{fechaText}</strong></> : ""}.
+                  </p>
+                  <p className="text-sm text-[#333]">
+                    Para mantener tu acceso completo a la app y a tus entrenamientos, te pedimos que regularices tu pago lo antes posible.
+                  </p>
+                  <p className="text-sm text-[#333]">
+                    Podés hacerlo directamente desde la app o contactando a administración.
+                  </p>
+                  <div className="text-center pt-2">
+                    <span className="inline-block px-5 py-2 bg-[#d4820a] text-white rounded-lg text-sm font-semibold">
+                      Regularizar pago
+                    </span>
+                  </div>
+                  <p className="text-[#999] text-xs text-center pt-2">
+                    Ciclismo Reybaud — Escuela de ciclismo
+                  </p>
+                </div>
+
+                {/* Plan info */}
+                <div className="rounded-md border border-border bg-secondary/30 p-3 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Plan</span>
+                    <span className="text-foreground font-medium">{previewSub.planes?.nombre || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Vencimiento</span>
+                    <span className="text-foreground font-medium">{fechaText || "—"}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPreviewSub(null)}>Cancelar</Button>
+            <Button
+              variant="default"
+              disabled={sendingNotif}
+              onClick={async () => {
+                if (!previewSub) return;
+                setSendingNotif(true);
+                try {
+                  await supabase.functions.invoke("notify-student-update", {
+                    body: {
+                      alumno_id: alumno.id,
+                      type: "pago_vencido",
+                      fecha_vencimiento: previewSub.fecha_fin,
+                    },
+                  });
+                  toast.success("Notificación enviada al alumno");
+                  await logStudentActivity({
+                    alumnoId: alumno.id,
+                    eventType: "mail",
+                    title: "Aviso de pago vencido enviado",
+                    description: `Se notificó al alumno sobre pago pendiente del plan "${previewSub.planes?.nombre || "—"}"`,
+                    actorRole,
+                  });
+                  setPreviewSub(null);
+                } catch {
+                  toast.error("Error al enviar notificación");
+                } finally {
+                  setSendingNotif(false);
+                }
+              }}
+            >
+              <Bell className="w-4 h-4 mr-1" />
+              {sendingNotif ? "Enviando..." : "Confirmar y enviar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
