@@ -138,7 +138,16 @@ const Login = () => {
       .maybeSingle();
 
     if (fetchError || !data) {
-      setLoginError(t("login.userNotFound"));
+      // Check if email belongs to admin or coach
+      const { data: isAdminOrCoach } = await supabase.rpc("check_admin_or_coach_email" as any, {
+        _email: trimmedEmail,
+      });
+      if (isAdminOrCoach) {
+        setLoginError(null);
+        setAdminRedirect(trimmedEmail);
+      } else {
+        setLoginError(t("login.userNotFound"));
+      }
       setLoading(false);
       return;
     }
