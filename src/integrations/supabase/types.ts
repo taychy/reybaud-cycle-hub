@@ -2364,6 +2364,60 @@ export type Database = {
           },
         ]
       }
+      reservation_checklist_data: {
+        Row: {
+          alumno_id: string
+          completed: boolean
+          created_at: string
+          data: Json
+          file_url: string | null
+          id: string
+          needs_advice: boolean
+          reservation_id: string
+          step_key: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          completed?: boolean
+          created_at?: string
+          data?: Json
+          file_url?: string | null
+          id?: string
+          needs_advice?: boolean
+          reservation_id: string
+          step_key: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          completed?: boolean
+          created_at?: string
+          data?: Json
+          file_url?: string | null
+          id?: string
+          needs_advice?: boolean
+          reservation_id?: string
+          step_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_checklist_data_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_checklist_data_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_notifications: {
         Row: {
           alumno_id: string
