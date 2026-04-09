@@ -309,6 +309,24 @@ const Login = () => {
               />
             </div>
 
+            {adminRedirect && (
+              <div className="text-sm bg-primary/10 rounded-md p-3 space-y-2">
+                <p className="text-foreground">
+                  Este email corresponde a una cuenta de <strong>administrador o coach</strong>, no de alumno.
+                </p>
+                <Button
+                  type="button"
+                  variant="gold-outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => navigate("/admin/login")}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Ir al panel de Admin / Coach
+                </Button>
+              </div>
+            )}
+
             {loginError && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
                 {loginError}
