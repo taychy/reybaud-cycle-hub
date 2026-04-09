@@ -217,8 +217,18 @@ const AdminEventReservations = ({
   const [adminPayNotes, setAdminPayNotes] = useState("");
   const [submittingAdminPay, setSubmittingAdminPay] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [notifyOnPayment, setNotifyOnPayment] = useState(true);
 
-  const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
+  // Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifyDialog, setShowNotifyDialog] = useState(false);
+  const [notifyTemplate, setNotifyTemplate] = useState<NotifTemplateKey>("novedad");
+  const [notifySubject, setNotifySubject] = useState("");
+  const [notifyBody, setNotifyBody] = useState("");
+  const [notifyHtml, setNotifyHtml] = useState("");
+  const [sendingNotif, setSendingNotif] = useState(false);
+  const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
+  const [detailTab, setDetailTab] = useState("info");
 
   /* ─── Data loading ─── */
 
