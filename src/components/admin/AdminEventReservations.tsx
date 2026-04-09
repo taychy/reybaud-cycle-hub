@@ -290,9 +290,31 @@ const AdminEventReservations = ({
     setNotifyHtml(tpl.html(ctx));
   };
 
-  const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
+  const buildHtmlFromText = (text: string, tipo: string) => {
+    const colorMap: Record<string, string> = {
+      pago_registrado: "#059669",
+      cuota_pendiente: "#d97706",
+      cuota_proxima: "#2563eb",
+      novedad: "#1a1a2e",
+    };
+    const titleMap: Record<string, string> = {
+      pago_registrado: "Pago registrado",
+      cuota_pendiente: "Cuota pendiente",
+      cuota_proxima: "Próximo vencimiento",
+      novedad: "Novedad",
+    };
+    const color = colorMap[tipo] || "#1a1a2e";
+    const title = titleMap[tipo] || "Notificación";
+    const htmlBody = text.replace(/\n/g, "<br/>");
+    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
+  };
+
+  const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, _contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
     if (!selectedRes) return false;
     setSendingNotif(true);
+
+    // Always rebuild HTML from the (potentially edited) text to keep them in sync
+    const finalHtml = buildHtmlFromText(contenidoTexto, tipo);
 
     const { data: sessionData } = await supabase.auth.getSession();
     const adminEmail = sessionData?.session?.user?.email || "admin";
@@ -304,7 +326,7 @@ const AdminEventReservations = ({
         alumno_id: selectedRes.alumno_id,
         tipo,
         asunto,
-        contenido_html: contenidoHtml,
+        contenido_html: finalHtml,
         contenido_texto: contenidoTexto,
         enviado_por: adminId,
         enviado_por_email: adminEmail,
@@ -317,12 +339,21 @@ const AdminEventReservations = ({
     setSendingNotif(false);
 
     if (error) {
-      toast({ title: "Error al enviar notificación", description: error.message, variant: "destructive" });
+      toast({ title: "Error al enviar notificación", description: "No se pudo conectar con el servicio de notificaciones. Intentá de nuevo.", variant: "destructive" });
       return false;
     }
     if (data?.duplicate) {
       toast({ title: "Notificación ya enviada previamente", description: "Se evitó el duplicado." });
       return true;
+    }
+    if (data?.error_code === "email_send_failed") {
+      toast({
+        title: "Email no enviado",
+        description: `La notificación quedó registrada pero el email no pudo enviarse. ${data.notification_logged ? "Se guardó en el historial." : ""}`,
+        variant: "destructive",
+      });
+      loadNotifications(selectedRes.id);
+      return false;
     }
     toast({ title: "Notificación enviada", description: `Email enviado a ${selectedRes.alumno?.email}` });
     loadNotifications(selectedRes.id);
@@ -1279,6 +1310,9 @@ const AdminEventReservations = ({
                           <div className="flex items-center gap-1.5">
                             {n.canal === "email" ? <Mail className="w-3 h-3 text-muted-foreground" /> : <MessageCircle className="w-3 h-3 text-muted-foreground" />}
                             <span className="text-xs font-medium">{n.asunto}</span>
+                            {n.metadata?.email_sent === false && (
+                              <Badge variant="outline" className="text-[9px] border-destructive/30 text-destructive">No enviado</Badge>
+                            )}
                           </div>
                           <Badge variant="outline" className="text-[9px]">{n.tipo.replace(/_/g, " ")}</Badge>
                         </div>
@@ -1287,6 +1321,9 @@ const AdminEventReservations = ({
                           {n.enviado_por_email && ` · por ${n.enviado_por_email}`}
                           {" · "}{n.canal}
                         </p>
+                        {n.metadata?.email_error && (
+                          <p className="text-[10px] text-destructive">{n.metadata.email_error}</p>
+                        )}
                       </div>
                     ))}
                   </div>
