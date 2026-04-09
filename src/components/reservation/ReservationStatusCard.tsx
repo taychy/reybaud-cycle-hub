@@ -161,9 +161,10 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
+  actionType: "bike" | "pedals" | "document" | "payment" | "none";
 }
 
-const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] => {
+const buildChecklist = (reservation: Reservation, meta: any, checklistData: Record<string, any>): ChecklistItem[] => {
   const items: ChecklistItem[] = [
     {
       id: "reserva",
@@ -171,6 +172,7 @@ const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] =>
       description: "Tu lugar está separado",
       icon: CheckCircle,
       completed: true,
+      actionType: "none",
     },
     {
       id: "pago",
@@ -179,34 +181,39 @@ const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] =>
       icon: Banknote,
       completed: reservation.payment_status === "pago_validado" ||
         (reservation.amount_total != null && reservation.amount_paid >= reservation.amount_total),
+      actionType: "payment",
     },
     {
-      id: "talla_bici",
-      label: "Cargar talla de bicicleta",
-      description: "Para preparar alquiler o asesoramiento",
+      id: "bici",
+      label: "Bicicleta y posición",
+      description: "Cargá tu estatura, talle o fitting",
       icon: Bike,
-      completed: false,
+      completed: !!checklistData["bici"]?.completed,
+      actionType: "bike",
     },
     {
       id: "pedales",
-      label: "Indicar tipo de pedales",
-      description: "Para compatibilidad de equipamiento",
+      label: "Pedales y calas",
+      description: "Contanos qué usás o subí una foto",
       icon: Footprints,
-      completed: false,
+      completed: !!checklistData["pedales"]?.completed,
+      actionType: "pedals",
     },
     {
       id: "pasaje",
-      label: "Adjuntar pasaje",
-      description: "Tu pasaje de avión o transporte",
+      label: "Pasaje o transporte",
+      description: "Subí tu reserva de vuelo o transporte",
       icon: Plane,
-      completed: false,
+      completed: !!checklistData["pasaje"]?.completed,
+      actionType: "document",
     },
     {
       id: "seguro",
-      label: "Adjuntar seguro viajero",
-      description: "Requisito importante del viaje",
+      label: "Seguro viajero",
+      description: "Adjuntá tu póliza de seguro",
       icon: ShieldCheck,
-      completed: false,
+      completed: !!checklistData["seguro"]?.completed,
+      actionType: "document",
     },
     {
       id: "extras",
@@ -214,10 +221,10 @@ const buildChecklist = (reservation: Reservation, meta: any): ChecklistItem[] =>
       description: "Opciones adicionales disponibles",
       icon: Package,
       completed: false,
+      actionType: "none",
     },
   ];
 
-  // Filter based on metadata config if available
   const enabledSteps = meta?.checklist_steps;
   if (enabledSteps && Array.isArray(enabledSteps)) {
     return items.filter(item => enabledSteps.includes(item.id));
