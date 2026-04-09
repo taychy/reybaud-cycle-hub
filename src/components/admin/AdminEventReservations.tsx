@@ -1229,6 +1229,132 @@ const AdminEventReservations = ({
                   </div>
                 )}
               </div>
+              {/* Notifications section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5" /> Comunicaciones
+                  </h4>
+                  <div className="flex gap-1.5">
+                    {installments.length > 0 && (() => {
+                      const accPaid = selectedRes.amount_paid || 0;
+                      let acc = 0;
+                      const nextInst = installments.find((inst: any) => {
+                        acc += parseFloat(inst.amount || "0");
+                        return acc > accPaid;
+                      });
+                      if (nextInst) {
+                        const isOverdue = nextInst.due_date && new Date(nextInst.due_date) < new Date();
+                        return (
+                          <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => {
+                            prepareTemplate(isOverdue ? "cuota_pendiente" : "cuota_proxima", selectedRes, {
+                              monto_cuota: parseFloat(nextInst.amount || "0"),
+                              vencimiento: nextInst.due_date ? new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "N/A",
+                            });
+                            setShowNotifyDialog(true);
+                          }}>
+                            <Bell className="w-3 h-3 mr-1" /> {isOverdue ? "Recordar cuota vencida" : "Avisar próx. vencimiento"}
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => {
+                      prepareTemplate("novedad", selectedRes);
+                      setShowNotifyDialog(true);
+                    }}>
+                      <Send className="w-3 h-3 mr-1" /> Enviar novedad
+                    </Button>
+                  </div>
+                </div>
+
+                {notifications.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">Sin comunicaciones enviadas.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {notifications.map((n) => (
+                      <div key={n.id} className="rounded-lg border border-border p-2.5 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            {n.canal === "email" ? <Mail className="w-3 h-3 text-muted-foreground" /> : <MessageCircle className="w-3 h-3 text-muted-foreground" />}
+                            <span className="text-xs font-medium">{n.asunto}</span>
+                          </div>
+                          <Badge variant="outline" className="text-[9px]">{n.tipo.replace(/_/g, " ")}</Badge>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(n.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          {n.enviado_por_email && ` · por ${n.enviado_por_email}`}
+                          {" · "}{n.canal}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Send notification dialog */}
+              {showNotifyDialog && (
+                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                      <Send className="w-3.5 h-3.5" /> Enviar notificación por email
+                    </p>
+                    <Select value={notifyTemplate} onValueChange={(v) => {
+                      const key = v as NotifTemplateKey;
+                      prepareTemplate(key, selectedRes);
+                    }}>
+                      <SelectTrigger className="h-7 w-[180px] text-[10px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(notifTemplates).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Asunto</Label>
+                    <Input value={notifySubject} onChange={(e) => setNotifySubject(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Mensaje (texto plano, editable)</Label>
+                    <Textarea value={notifyBody} onChange={(e) => setNotifyBody(e.target.value)} rows={5} className="text-xs" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const waUrl = getWhatsAppUrl(selectedRes.alumno?.telefono, selectedRes.alumno?.nombre || "");
+                      if (!waUrl) return null;
+                      return (
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
+                          const msg = encodeURIComponent(notifyBody);
+                          let num = (selectedRes.alumno?.telefono || "").replace(/[\s\-\(\)\.]/g, "");
+                          if (num.startsWith("+")) num = num.slice(1);
+                          if (!num.startsWith("549")) { if (num.startsWith("0")) num = num.slice(1); if (num.startsWith("15")) num = num.slice(2); num = "549" + num; }
+                          window.open(`https://wa.me/${num}?text=${msg}`, "_blank");
+                          logWhatsAppAction(selectedRes, notifyTemplate, notifyBody);
+                        }}>
+                          <MessageCircle className="w-3.5 h-3.5 mr-1" /> Enviar por WhatsApp
+                        </Button>
+                      );
+                    })()}
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
+                      navigator.clipboard.writeText(notifyBody);
+                      toast({ title: "Mensaje copiado al portapapeles" });
+                    }}>
+                      <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="ghost" size="sm" onClick={() => setShowNotifyDialog(false)}>Cancelar</Button>
+                    <Button variant="default" size="sm" disabled={sendingNotif} onClick={async () => {
+                      const ok = await sendNotification(notifyTemplate, notifySubject, notifyBody, notifyHtml, {}, `notif-${selectedRes.id}-${notifyTemplate}-${Date.now()}`);
+                      if (ok) setShowNotifyDialog(false);
+                    }}>
+                      {sendingNotif ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                      Enviar email
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </SheetContent>
