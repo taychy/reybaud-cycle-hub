@@ -802,7 +802,7 @@ const AdminEventReservations = ({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar alumno por nombre o email..."
+            placeholder="Buscar por nombre o email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-10"
@@ -833,7 +833,7 @@ const AdminEventReservations = ({
         <Button variant="ghost" size="icon" onClick={loadReservations} className="h-10 w-10">
           <RefreshCw className="w-4 h-4" />
         </Button>
-        <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); }}>
+        <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
         </Button>
       </div>
