@@ -54,15 +54,44 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get student email
-    const { data: alumno } = await supabase
-      .from('alumnos')
-      .select('email, nombre, apellido')
-      .eq('id', payload.alumno_id)
-      .single();
+    // Get recipient email - check alumno first, then external participant
+    let recipientEmail = '';
+    let recipientName = '';
 
-    if (!alumno?.email) {
-      return new Response(JSON.stringify({ error: 'Student not found or no email', error_code: 'student_not_found' }), {
+    if (payload.alumno_id) {
+      const { data: alumno } = await supabase
+        .from('alumnos')
+        .select('email, nombre, apellido')
+        .eq('id', payload.alumno_id)
+        .single();
+      if (alumno?.email) {
+        recipientEmail = alumno.email;
+        recipientName = `${alumno.nombre} ${alumno.apellido || ''}`.trim();
+      }
+    }
+
+    // Fallback: check external participant via reservation
+    if (!recipientEmail && payload.reservation_id) {
+      const { data: res } = await supabase
+        .from('event_reservations')
+        .select('external_participant_id')
+        .eq('id', payload.reservation_id)
+        .single();
+      if (res?.external_participant_id) {
+        const { data: ext } = await supabase
+          .from('event_external_participants')
+          .select('email, nombre, apellido')
+          .eq('id', res.external_participant_id)
+          .single();
+        if (ext?.email) {
+          recipientEmail = ext.email;
+          recipientName = `${ext.nombre} ${ext.apellido || ''}`.trim();
+        }
+      }
+    }
+
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: 'Participant not found or no email', error_code: 'participant_not_found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -86,8 +115,8 @@ Deno.serve(async (req) => {
               'Authorization': `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
-              to: [alumno.email],
+          from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
+              to: [recipientEmail],
               subject: payload.asunto,
               html: payload.contenido_html,
               text: payload.contenido_texto,
@@ -153,7 +182,7 @@ Deno.serve(async (req) => {
       success: true,
       email_sent: emailSent,
       notification_id: notif?.id,
-      recipient: alumno.email,
+      recipient: recipientEmail,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

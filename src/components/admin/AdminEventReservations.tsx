@@ -34,7 +34,8 @@ import {
 interface EventReservation {
   id: string;
   event_id: string;
-  alumno_id: string;
+  alumno_id: string | null;
+  external_participant_id: string | null;
   reservation_status: string;
   payment_status: string;
   amount_total: number | null;
@@ -50,7 +51,8 @@ interface EventReservation {
   updated_at: string;
   confirmed_at: string | null;
   cancelled_at: string | null;
-  alumno?: { nombre: string; apellido: string | null; email: string; telefono: string | null };
+  alumno?: { nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
+  external_participant?: { id: string; nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
 }
 
 interface Payment {
@@ -207,6 +209,13 @@ const AdminEventReservations = ({
   const [studentResults, setStudentResults] = useState<AlumnoOption[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [addingStudent, setAddingStudent] = useState<string | null>(null);
+  const [addExternalMode, setAddExternalMode] = useState(false);
+  const [extName, setExtName] = useState("");
+  const [extLastName, setExtLastName] = useState("");
+  const [extEmail, setExtEmail] = useState("");
+  const [extPhone, setExtPhone] = useState("");
+  const [extDoc, setExtDoc] = useState("");
+  const [addingExternal, setAddingExternal] = useState(false);
 
   // Admin payment
   const [showAdminPayment, setShowAdminPayment] = useState(false);
@@ -232,13 +241,25 @@ const AdminEventReservations = ({
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
+  /* ─── Participant helper ─── */
+  const getParticipant = (r: EventReservation) => {
+    if (r.alumno) return { nombre: r.alumno.nombre, apellido: r.alumno.apellido, email: r.alumno.email, telefono: r.alumno.telefono, isExternal: false };
+    if (r.external_participant) return { nombre: r.external_participant.nombre, apellido: r.external_participant.apellido, email: r.external_participant.email, telefono: r.external_participant.telefono, isExternal: true };
+    return { nombre: "Sin datos", apellido: null, email: "", telefono: null, isExternal: false };
+  };
+
+  const participantName = (r: EventReservation) => {
+    const p = getParticipant(r);
+    return `${p.nombre} ${p.apellido || ""}`.trim();
+  };
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("event_reservations" as any)
-      .select("*, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email, telefono)")
+      .select("*, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email, telefono), external_participant:event_external_participants!event_reservations_external_participant_id_fkey(id, nombre, apellido, email, telefono)")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
     if (data) setReservations(data as unknown as EventReservation[]);
@@ -268,8 +289,9 @@ const AdminEventReservations = ({
   const getNotifContext = (res: EventReservation, extra: Record<string, any> = {}) => {
     const c = res.currency_snapshot || res.moneda || eventCurrency;
     const bal = res.balance_due ?? ((res.amount_total || 0) - (res.amount_paid || 0));
+    const p = getParticipant(res);
     return {
-      nombre: `${res.alumno?.nombre || ""} ${res.alumno?.apellido || ""}`.trim(),
+      nombre: `${p.nombre} ${p.apellido || ""}`.trim(),
       evento: eventTitle,
       monto: formatPrice(extra.monto || 0, c),
       abonado: formatPrice(res.amount_paid || 0, c),
@@ -355,7 +377,7 @@ const AdminEventReservations = ({
       loadNotifications(selectedRes.id);
       return false;
     }
-    toast({ title: "Notificación enviada", description: `Email enviado a ${selectedRes.alumno?.email}` });
+    toast({ title: "Notificación enviada", description: `Email enviado a ${getParticipant(selectedRes).email}` });
     loadNotifications(selectedRes.id);
     return true;
   };
@@ -371,7 +393,7 @@ const AdminEventReservations = ({
       contenido: mensaje,
       enviado_por: sessionData?.session?.user?.id || null,
       enviado_por_email: sessionData?.session?.user?.email || null,
-      metadata: {},
+      metadata: { external_participant_id: res.external_participant_id },
     } as any);
     if (selectedRes?.id === res.id) loadNotifications(res.id);
   };
@@ -403,8 +425,9 @@ const AdminEventReservations = ({
       if (filterPayStatus !== "all" && r.payment_status !== filterPayStatus) return false;
       if (search) {
         const s = search.toLowerCase();
-        const name = `${r.alumno?.nombre || ""} ${r.alumno?.apellido || ""}`.toLowerCase();
-        const email = (r.alumno?.email || "").toLowerCase();
+        const p = getParticipant(r);
+        const name = `${p.nombre} ${p.apellido || ""}`.toLowerCase();
+        const email = (p.email || "").toLowerCase();
         if (!name.includes(s) && !email.includes(s)) return false;
       }
       // Quick filters
@@ -424,7 +447,7 @@ const AdminEventReservations = ({
       let cmp = 0;
       switch (sortKey) {
         case "name":
-          cmp = `${a.alumno?.nombre || ""} ${a.alumno?.apellido || ""}`.localeCompare(`${b.alumno?.nombre || ""} ${b.alumno?.apellido || ""}`);
+          cmp = participantName(a).localeCompare(participantName(b));
           break;
         case "date":
           cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -455,7 +478,7 @@ const AdminEventReservations = ({
       .select("id, nombre, apellido, email")
       .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
       .limit(10);
-    const existingIds = new Set(reservations.map(r => r.alumno_id));
+    const existingIds = new Set(reservations.filter(r => r.alumno_id).map(r => r.alumno_id));
     setStudentResults((data || []).filter(a => !existingIds.has(a.id)) as AlumnoOption[]);
     setSearchingStudents(false);
   };
@@ -497,6 +520,57 @@ const AdminEventReservations = ({
       setStudentResults(prev => prev.filter(s => s.id !== alumno.id));
     }
     setAddingStudent(null);
+  };
+
+  const addExternalToEvent = async () => {
+    if (!extName || !extEmail) { toast({ title: "Nombre y email son obligatorios", variant: "destructive" }); return; }
+    setAddingExternal(true);
+
+    const { data: extP, error: extErr } = await supabase
+      .from("event_external_participants" as any)
+      .insert({ nombre: extName, apellido: extLastName || null, email: extEmail, telefono: extPhone || null, documento: extDoc || null } as any)
+      .select("id")
+      .single();
+
+    if (extErr || !extP) {
+      toast({ title: "Error al crear participante", description: extErr?.message, variant: "destructive" });
+      setAddingExternal(false);
+      return;
+    }
+
+    const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+    const isPaid = eventPrice != null && eventPrice > 0;
+    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
+
+    const { error } = await supabase
+      .from("event_reservations" as any)
+      .insert({
+        event_id: eventId,
+        alumno_id: null,
+        external_participant_id: (extP as any).id,
+        reservation_status: "reserva_confirmada",
+        payment_status: paymentStatus,
+        estado: "reserva_confirmada",
+        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
+        amount_total: eventPrice,
+        price_snapshot: eventPrice,
+        currency_snapshot: eventCurrency,
+        moneda: eventCurrency,
+        monto: eventPrice,
+        balance_due: isInscriptionOnly || !isPaid ? 0 : eventPrice,
+        created_by: "admin",
+        confirmed_at: new Date().toISOString(),
+      } as any);
+
+    if (error) {
+      toast({ title: "Error al agregar reserva", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: `${extName} ${extLastName} agregado como participante externo` });
+      loadReservations();
+      setShowAddStudent(false);
+      setExtName(""); setExtLastName(""); setExtEmail(""); setExtPhone(""); setExtDoc("");
+    }
+    setAddingExternal(false);
   };
 
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
@@ -786,7 +860,7 @@ const AdminEventReservations = ({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar alumno por nombre o email..."
+            placeholder="Buscar por nombre o email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-10"
@@ -817,45 +891,81 @@ const AdminEventReservations = ({
         <Button variant="ghost" size="icon" onClick={loadReservations} className="h-10 w-10">
           <RefreshCw className="w-4 h-4" />
         </Button>
-        <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); }}>
+        <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
         </Button>
       </div>
 
-      {/* ─── Add Student Dialog ─── */}
+      {/* ─── Add Participant Dialog ─── */}
       <Dialog open={showAddStudent} onOpenChange={setShowAddStudent}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Agregar alumno al evento</DialogTitle>
-            <DialogDescription>Buscá un alumno por nombre o email para inscribirlo.</DialogDescription>
+            <DialogTitle>Agregar participante</DialogTitle>
+            <DialogDescription>Inscribí un alumno existente o un participante externo.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              placeholder="Buscar por nombre o email..."
-              value={studentSearch}
-              onChange={(e) => { setStudentSearch(e.target.value); searchStudents(e.target.value); }}
-              autoFocus
-            />
-            {searchingStudents && <p className="text-xs text-muted-foreground animate-pulse">Buscando...</p>}
-            {studentResults.length > 0 && (
-              <div className="max-h-[250px] overflow-y-auto space-y-1">
-                {studentResults.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
-                      <p className="text-xs text-muted-foreground">{a.email}</p>
+          <Tabs value={addExternalMode ? "external" : "student"} onValueChange={(v) => setAddExternalMode(v === "external")}>
+            <TabsList className="w-full">
+              <TabsTrigger value="student" className="flex-1">Alumno</TabsTrigger>
+              <TabsTrigger value="external" className="flex-1">Participante externo</TabsTrigger>
+            </TabsList>
+            <TabsContent value="student" className="space-y-3 mt-3">
+              <Input
+                placeholder="Buscar por nombre o email..."
+                value={studentSearch}
+                onChange={(e) => { setStudentSearch(e.target.value); searchStudents(e.target.value); }}
+                autoFocus
+              />
+              {searchingStudents && <p className="text-xs text-muted-foreground animate-pulse">Buscando...</p>}
+              {studentResults.length > 0 && (
+                <div className="max-h-[250px] overflow-y-auto space-y-1">
+                  {studentResults.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50">
+                      <div>
+                        <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
+                        <p className="text-xs text-muted-foreground">{a.email}</p>
+                      </div>
+                      <Button size="sm" variant="outline" disabled={addingStudent === a.id} onClick={() => addStudentToEvent(a)}>
+                        {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                      </Button>
                     </div>
-                    <Button size="sm" variant="outline" disabled={addingStudent === a.id} onClick={() => addStudentToEvent(a)}>
-                      {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
-                    </Button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+              {studentSearch.length >= 2 && !searchingStudents && studentResults.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-3">No se encontraron alumnos.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="external" className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Nombre *</Label>
+                  <Input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nombre" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Apellido</Label>
+                  <Input value={extLastName} onChange={(e) => setExtLastName(e.target.value)} placeholder="Apellido" />
+                </div>
               </div>
-            )}
-            {studentSearch.length >= 2 && !searchingStudents && studentResults.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-3">No se encontraron alumnos.</p>
-            )}
-          </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Email *</Label>
+                <Input type="email" value={extEmail} onChange={(e) => setExtEmail(e.target.value)} placeholder="email@ejemplo.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Teléfono</Label>
+                  <Input value={extPhone} onChange={(e) => setExtPhone(e.target.value)} placeholder="+54 9 11..." />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Documento</Label>
+                  <Input value={extDoc} onChange={(e) => setExtDoc(e.target.value)} placeholder="DNI" />
+                </div>
+              </div>
+              <Button className="w-full" disabled={addingExternal || !extName || !extEmail} onClick={addExternalToEvent}>
+                {addingExternal ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <UserPlus className="w-4 h-4 mr-1.5" />}
+                Agregar participante externo
+              </Button>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -894,7 +1004,8 @@ const AdminEventReservations = ({
             {filtered.map((r) => {
               const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
               const c = curr(r);
-              const waUrl = getWhatsAppUrl(r.alumno?.telefono, r.alumno?.nombre || "");
+              const p = getParticipant(r);
+              const waUrl = getWhatsAppUrl(p.telefono, p.nombre);
               return (
                 <div
                   key={r.id}
@@ -903,10 +1014,13 @@ const AdminEventReservations = ({
                 >
                   {/* Desktop row */}
                   <div className="hidden md:grid md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px] gap-2 items-center">
-                    {/* Alumno */}
+                    {/* Participant */}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{r.alumno?.nombre} {r.alumno?.apellido || ""}</p>
-                      <p className="text-xs text-muted-foreground truncate">{r.alumno?.email}</p>
+                      <p className="text-sm font-medium truncate">
+                        {p.nombre} {p.apellido || ""}
+                        {p.isExternal && <Badge variant="outline" className="ml-1.5 text-[9px] border-violet-500/30 text-violet-500">Externo</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                     </div>
                     {/* Estado reserva */}
                     <div>
@@ -953,10 +1067,8 @@ const AdminEventReservations = ({
                               </a>
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem asChild>
-                            <a href={`mailto:${r.alumno?.email}`}>
+                          <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
-                            </a>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -967,8 +1079,11 @@ const AdminEventReservations = ({
                   <div className="md:hidden space-y-2">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{r.alumno?.nombre} {r.alumno?.apellido || ""}</p>
-                        <p className="text-xs text-muted-foreground truncate">{r.alumno?.email}</p>
+                        <p className="text-sm font-medium truncate">
+                          {p.nombre} {p.apellido || ""}
+                          {p.isExternal && <Badge variant="outline" className="ml-1 text-[9px] border-violet-500/30 text-violet-500">Ext</Badge>}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
@@ -996,10 +1111,10 @@ const AdminEventReservations = ({
       <Sheet open={!!selectedRes} onOpenChange={(open) => { if (!open) { setSelectedRes(null); setShowAdminPayment(false); } }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="pb-4">
-            <SheetTitle className="text-lg">
-              {selectedRes?.alumno?.nombre} {selectedRes?.alumno?.apellido || ""}
+            <SheetTitle className="text-lg flex items-center gap-2">
+              {selectedRes && (() => { const sp = getParticipant(selectedRes); return <>{sp.nombre} {sp.apellido || ""}{sp.isExternal && <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500">Externo</Badge>}</>; })()}
             </SheetTitle>
-            <SheetDescription>{selectedRes?.alumno?.email}</SheetDescription>
+            <SheetDescription>{selectedRes && getParticipant(selectedRes).email}</SheetDescription>
           </SheetHeader>
 
           {selectedRes && (
@@ -1007,7 +1122,8 @@ const AdminEventReservations = ({
               {/* Quick actions */}
               <div className="flex flex-wrap gap-2">
                 {(() => {
-                  const waUrl = getWhatsAppUrl(selectedRes.alumno?.telefono, selectedRes.alumno?.nombre || "");
+                  const sp = getParticipant(selectedRes);
+                  const waUrl = getWhatsAppUrl(sp.telefono, sp.nombre);
                   return waUrl ? (
                     <Button variant="outline" size="sm" asChild>
                       <a href={waUrl} target="_blank" rel="noopener noreferrer">
