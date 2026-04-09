@@ -370,7 +370,7 @@ const AdminEventReservations = ({
       loadNotifications(selectedRes.id);
       return false;
     }
-    toast({ title: "Notificación enviada", description: `Email enviado a ${selectedRes.alumno?.email}` });
+    toast({ title: "Notificación enviada", description: `Email enviado a ${getParticipant(selectedRes).email}` });
     loadNotifications(selectedRes.id);
     return true;
   };
@@ -386,7 +386,7 @@ const AdminEventReservations = ({
       contenido: mensaje,
       enviado_por: sessionData?.session?.user?.id || null,
       enviado_por_email: sessionData?.session?.user?.email || null,
-      metadata: {},
+      metadata: { external_participant_id: res.external_participant_id },
     } as any);
     if (selectedRes?.id === res.id) loadNotifications(res.id);
   };
@@ -418,8 +418,9 @@ const AdminEventReservations = ({
       if (filterPayStatus !== "all" && r.payment_status !== filterPayStatus) return false;
       if (search) {
         const s = search.toLowerCase();
-        const name = `${r.alumno?.nombre || ""} ${r.alumno?.apellido || ""}`.toLowerCase();
-        const email = (r.alumno?.email || "").toLowerCase();
+        const p = getParticipant(r);
+        const name = `${p.nombre} ${p.apellido || ""}`.toLowerCase();
+        const email = (p.email || "").toLowerCase();
         if (!name.includes(s) && !email.includes(s)) return false;
       }
       // Quick filters
@@ -439,7 +440,7 @@ const AdminEventReservations = ({
       let cmp = 0;
       switch (sortKey) {
         case "name":
-          cmp = `${a.alumno?.nombre || ""} ${a.alumno?.apellido || ""}`.localeCompare(`${b.alumno?.nombre || ""} ${b.alumno?.apellido || ""}`);
+          cmp = participantName(a).localeCompare(participantName(b));
           break;
         case "date":
           cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
