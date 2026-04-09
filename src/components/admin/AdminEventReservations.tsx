@@ -230,6 +230,8 @@ const AdminEventReservations = ({
   const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
   const [detailTab, setDetailTab] = useState("info");
 
+  const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
