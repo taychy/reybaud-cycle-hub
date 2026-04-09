@@ -20,7 +20,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
-import CancelReservationDrawer from "@/components/reservation/CancelReservationDrawer";
+// CancelReservationDrawer is now handled inside ReservationStatusCard
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
 import type { Tables } from "@/integrations/supabase/types";
 
