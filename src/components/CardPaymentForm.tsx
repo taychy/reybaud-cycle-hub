@@ -147,6 +147,11 @@ const CardPaymentForm = ({
               const formData = cardForm.getCardFormData();
 
               // Create subscription first
+              const now = new Date();
+              const fechaInicio = now.toISOString().split("T")[0];
+              const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+              const fechaFin = lastDay.toISOString().split("T")[0];
+
               const { data: sub, error: subError } = await supabase
                 .from("suscripciones")
                 .insert({
@@ -156,6 +161,8 @@ const CardPaymentForm = ({
                   descuento_id: descuentoId,
                   precio_base: precioBase,
                   precio_final: planPrice,
+                  fecha_inicio: fechaInicio,
+                  fecha_fin: fechaFin,
                 } as any)
                 .select("id")
                 .single();

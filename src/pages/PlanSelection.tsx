@@ -143,6 +143,11 @@ const PlanSelection = () => {
     await cancelPausedSubs();
 
     const disc = selectedDiscount;
+    const now = new Date();
+    const fechaInicio = now.toISOString().split("T")[0];
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fechaFin = lastDay.toISOString().split("T")[0];
+
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
@@ -152,6 +157,8 @@ const PlanSelection = () => {
         descuento_id: disc?.discount?.id ?? null,
         precio_base: disc?.original ?? plan.precio,
         precio_final: disc?.final ?? plan.precio,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
       } as any)
       .select("id")
       .single();
