@@ -108,7 +108,7 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [showReservationDrawer, setShowReservationDrawer] = useState(false);
-  const [showCancelDrawer, setShowCancelDrawer] = useState(false);
+  
 
   // Result state
   const [existingResult, setExistingResult] = useState<{ id: string; distance_km: number | null; avg_speed_kmh: number | null; notes: string | null } | null>(null);
