@@ -12,7 +12,10 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
+  Send, Bell, History, Copy,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -68,6 +71,46 @@ interface AlumnoOption {
   apellido: string | null;
   email: string;
 }
+
+interface Notification {
+  id: string;
+  tipo: string;
+  canal: string;
+  asunto: string;
+  contenido: string;
+  enviado_por_email: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad";
+
+const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; contenido: (ctx: any) => string; html: (ctx: any) => string }> = {
+  pago_registrado: {
+    label: "Pago registrado",
+    asunto: "Tu pago fue registrado — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe confirmamos que registramos tu pago de ${ctx.monto} para ${ctx.evento}.\n\nAbonado hasta ahora: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}\n\n¡Gracias!`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Pago registrado</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te confirmamos que registramos tu pago de <strong>${ctx.monto}</strong> para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table><p>¡Gracias!</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  cuota_pendiente: {
+    label: "Cuota pendiente",
+    asunto: "Tenés una cuota pendiente — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés una cuota pendiente de ${ctx.monto_cuota} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento}\n\nSaldo total pendiente: ${ctx.saldo}\n\nPodés realizar el pago por los medios habituales.`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Cuota pendiente</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés una cuota pendiente de <strong>${ctx.monto_cuota}</strong> para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento}</strong></p><p>Saldo total pendiente: <strong style="color:#d97706">${ctx.saldo}</strong></p><p>Podés realizar el pago por los medios habituales.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  cuota_proxima: {
+    label: "Cuota próxima a vencer",
+    asunto: "Tu cuota vence pronto — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe avisamos que tu próxima cuota de ${ctx.monto_cuota} para ${ctx.evento} vence el ${ctx.vencimiento}.\n\nSaldo actual: ${ctx.saldo}\n\nRecordá realizar el pago antes del vencimiento.`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#2563eb">Próximo vencimiento</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Tu próxima cuota de <strong>${ctx.monto_cuota}</strong> para <strong>${ctx.evento}</strong> vence el <strong>${ctx.vencimiento}</strong>.</p><p>Saldo actual: <strong>${ctx.saldo}</strong></p><p>Recordá realizar el pago antes del vencimiento.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  novedad: {
+    label: "Novedad / comunicado",
+    asunto: "Novedad sobre {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\n${ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + "."}\n\nSaludos,\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Novedad</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>${(ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + ".").replace(/\n/g, "<br/>")}</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+};
 
 /* ─── Status mappings ─── */
 
@@ -174,6 +217,18 @@ const AdminEventReservations = ({
   const [adminPayNotes, setAdminPayNotes] = useState("");
   const [submittingAdminPay, setSubmittingAdminPay] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [notifyOnPayment, setNotifyOnPayment] = useState(true);
+
+  // Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifyDialog, setShowNotifyDialog] = useState(false);
+  const [notifyTemplate, setNotifyTemplate] = useState<NotifTemplateKey>("novedad");
+  const [notifySubject, setNotifySubject] = useState("");
+  const [notifyBody, setNotifyBody] = useState("");
+  const [notifyHtml, setNotifyHtml] = useState("");
+  const [sendingNotif, setSendingNotif] = useState(false);
+  const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
+  const [detailTab, setDetailTab] = useState("info");
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
@@ -201,7 +256,101 @@ const AdminEventReservations = ({
     if (data) setPayments(data as unknown as Payment[]);
   };
 
-  /* ─── Stats ─── */
+  const loadNotifications = async (reservationId: string) => {
+    const { data } = await supabase
+      .from("reservation_notifications" as any)
+      .select("*")
+      .eq("reservation_id", reservationId)
+      .order("created_at", { ascending: false });
+    if (data) setNotifications(data as unknown as Notification[]);
+  };
+
+  const getNotifContext = (res: EventReservation, extra: Record<string, any> = {}) => {
+    const c = res.currency_snapshot || res.moneda || eventCurrency;
+    const bal = res.balance_due ?? ((res.amount_total || 0) - (res.amount_paid || 0));
+    return {
+      nombre: `${res.alumno?.nombre || ""} ${res.alumno?.apellido || ""}`.trim(),
+      evento: eventTitle,
+      monto: formatPrice(extra.monto || 0, c),
+      abonado: formatPrice(res.amount_paid || 0, c),
+      saldo: formatPrice(bal, c),
+      monto_cuota: extra.monto_cuota ? formatPrice(extra.monto_cuota, c) : "",
+      vencimiento: extra.vencimiento || "",
+      mensaje: extra.mensaje || "",
+      ...extra,
+    };
+  };
+
+  const prepareTemplate = (key: NotifTemplateKey, res: EventReservation, extra: Record<string, any> = {}) => {
+    const tpl = notifTemplates[key];
+    const ctx = getNotifContext(res, extra);
+    setNotifyTemplate(key);
+    setNotifySubject(tpl.asunto.replace("{{evento}}", eventTitle));
+    setNotifyBody(tpl.contenido(ctx));
+    setNotifyHtml(tpl.html(ctx));
+  };
+
+  const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
+    if (!selectedRes) return false;
+    setSendingNotif(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const adminEmail = sessionData?.session?.user?.email || "admin";
+    const adminId = sessionData?.session?.user?.id;
+
+    const { data, error } = await supabase.functions.invoke("notify-reservation", {
+      body: {
+        reservation_id: selectedRes.id,
+        alumno_id: selectedRes.alumno_id,
+        tipo,
+        asunto,
+        contenido_html: contenidoHtml,
+        contenido_texto: contenidoTexto,
+        enviado_por: adminId,
+        enviado_por_email: adminEmail,
+        metadata: meta,
+        idempotency_key: idempKey || undefined,
+        canal: "email",
+      },
+    });
+
+    setSendingNotif(false);
+
+    if (error) {
+      toast({ title: "Error al enviar notificación", description: error.message, variant: "destructive" });
+      return false;
+    }
+    if (data?.duplicate) {
+      toast({ title: "Notificación ya enviada previamente", description: "Se evitó el duplicado." });
+      return true;
+    }
+    toast({ title: "Notificación enviada", description: `Email enviado a ${selectedRes.alumno?.email}` });
+    loadNotifications(selectedRes.id);
+    return true;
+  };
+
+  const logWhatsAppAction = async (res: EventReservation, tipo: string, mensaje: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    await supabase.from("reservation_notifications" as any).insert({
+      reservation_id: res.id,
+      alumno_id: res.alumno_id,
+      tipo,
+      canal: "whatsapp_manual",
+      asunto: `WhatsApp: ${tipo}`,
+      contenido: mensaje,
+      enviado_por: sessionData?.session?.user?.id || null,
+      enviado_por_email: sessionData?.session?.user?.email || null,
+      metadata: {},
+    } as any);
+    if (selectedRes?.id === res.id) loadNotifications(res.id);
+  };
+
+  const getWhatsAppMsgForTemplate = (key: NotifTemplateKey, res: EventReservation, extra: Record<string, any> = {}) => {
+    const ctx = getNotifContext(res, extra);
+    return notifTemplates[key].contenido(ctx);
+  };
+
+
 
   const stats = useMemo(() => {
     const active = reservations.filter(r => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada");
@@ -441,6 +590,21 @@ const AdminEventReservations = ({
     toast({ title: "Pago registrado y validado" });
     loadPayments(selectedRes.id);
     loadReservations();
+
+    // Send notification if toggled on
+    if (notifyOnPayment) {
+      const ctx = getNotifContext(selectedRes, { monto: amt });
+      const tpl = notifTemplates.pago_registrado;
+      const updatedCtx = { ...ctx, abonado: formatPrice(newPaid, curr), saldo: formatPrice(newBalance, curr) };
+      await sendNotification(
+        "pago_registrado",
+        tpl.asunto.replace("{{evento}}", eventTitle),
+        tpl.contenido(updatedCtx),
+        tpl.html(updatedCtx),
+        { monto: amt, metodo: adminPayMethod, nuevo_abonado: newPaid, nuevo_saldo: newBalance },
+        `pago-${selectedRes.id}-${Date.now()}`
+      );
+    }
   };
 
   const validatePayment = async (paymentId: string, status: "validado" | "rechazado") => {
@@ -507,7 +671,10 @@ const AdminEventReservations = ({
   const openDetail = (r: EventReservation) => {
     setSelectedRes(r);
     setShowAdminPayment(false);
+    setShowNotifyDialog(false);
+    setDetailTab("info");
     loadPayments(r.id);
+    loadNotifications(r.id);
   };
 
   /* ─── Priority indicators ─── */
@@ -1010,11 +1177,17 @@ const AdminEventReservations = ({
                       <Label className="text-[11px] text-muted-foreground">Nota (opcional)</Label>
                       <Input value={adminPayNotes} onChange={(e) => setAdminPayNotes(e.target.value)} className="h-9" placeholder="Observaciones..." />
                     </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Switch checked={notifyOnPayment} onCheckedChange={setNotifyOnPayment} id="notify-pay" />
+                      <Label htmlFor="notify-pay" className="text-[11px] text-muted-foreground cursor-pointer">
+                        Notificar al alumno por email
+                      </Label>
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => setShowAdminPayment(false)}>Cancelar</Button>
                       <Button variant="default" size="sm" disabled={submittingAdminPay} onClick={registerAdminPayment}>
                         {submittingAdminPay ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <CheckCircle className="w-3.5 h-3.5 mr-1" />}
-                        Registrar y validar
+                        {notifyOnPayment ? "Registrar y notificar" : "Registrar sin notificar"}
                       </Button>
                     </div>
                   </div>
@@ -1056,6 +1229,132 @@ const AdminEventReservations = ({
                   </div>
                 )}
               </div>
+              {/* Notifications section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5" /> Comunicaciones
+                  </h4>
+                  <div className="flex gap-1.5">
+                    {installments.length > 0 && (() => {
+                      const accPaid = selectedRes.amount_paid || 0;
+                      let acc = 0;
+                      const nextInst = installments.find((inst: any) => {
+                        acc += parseFloat(inst.amount || "0");
+                        return acc > accPaid;
+                      });
+                      if (nextInst) {
+                        const isOverdue = nextInst.due_date && new Date(nextInst.due_date) < new Date();
+                        return (
+                          <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => {
+                            prepareTemplate(isOverdue ? "cuota_pendiente" : "cuota_proxima", selectedRes, {
+                              monto_cuota: parseFloat(nextInst.amount || "0"),
+                              vencimiento: nextInst.due_date ? new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "N/A",
+                            });
+                            setShowNotifyDialog(true);
+                          }}>
+                            <Bell className="w-3 h-3 mr-1" /> {isOverdue ? "Recordar cuota vencida" : "Avisar próx. vencimiento"}
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => {
+                      prepareTemplate("novedad", selectedRes);
+                      setShowNotifyDialog(true);
+                    }}>
+                      <Send className="w-3 h-3 mr-1" /> Enviar novedad
+                    </Button>
+                  </div>
+                </div>
+
+                {notifications.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">Sin comunicaciones enviadas.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {notifications.map((n) => (
+                      <div key={n.id} className="rounded-lg border border-border p-2.5 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            {n.canal === "email" ? <Mail className="w-3 h-3 text-muted-foreground" /> : <MessageCircle className="w-3 h-3 text-muted-foreground" />}
+                            <span className="text-xs font-medium">{n.asunto}</span>
+                          </div>
+                          <Badge variant="outline" className="text-[9px]">{n.tipo.replace(/_/g, " ")}</Badge>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(n.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          {n.enviado_por_email && ` · por ${n.enviado_por_email}`}
+                          {" · "}{n.canal}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Send notification dialog */}
+              {showNotifyDialog && (
+                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                      <Send className="w-3.5 h-3.5" /> Enviar notificación por email
+                    </p>
+                    <Select value={notifyTemplate} onValueChange={(v) => {
+                      const key = v as NotifTemplateKey;
+                      prepareTemplate(key, selectedRes);
+                    }}>
+                      <SelectTrigger className="h-7 w-[180px] text-[10px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(notifTemplates).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Asunto</Label>
+                    <Input value={notifySubject} onChange={(e) => setNotifySubject(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Mensaje (texto plano, editable)</Label>
+                    <Textarea value={notifyBody} onChange={(e) => setNotifyBody(e.target.value)} rows={5} className="text-xs" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const waUrl = getWhatsAppUrl(selectedRes.alumno?.telefono, selectedRes.alumno?.nombre || "");
+                      if (!waUrl) return null;
+                      return (
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
+                          const msg = encodeURIComponent(notifyBody);
+                          let num = (selectedRes.alumno?.telefono || "").replace(/[\s\-\(\)\.]/g, "");
+                          if (num.startsWith("+")) num = num.slice(1);
+                          if (!num.startsWith("549")) { if (num.startsWith("0")) num = num.slice(1); if (num.startsWith("15")) num = num.slice(2); num = "549" + num; }
+                          window.open(`https://wa.me/${num}?text=${msg}`, "_blank");
+                          logWhatsAppAction(selectedRes, notifyTemplate, notifyBody);
+                        }}>
+                          <MessageCircle className="w-3.5 h-3.5 mr-1" /> Enviar por WhatsApp
+                        </Button>
+                      );
+                    })()}
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
+                      navigator.clipboard.writeText(notifyBody);
+                      toast({ title: "Mensaje copiado al portapapeles" });
+                    }}>
+                      <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="ghost" size="sm" onClick={() => setShowNotifyDialog(false)}>Cancelar</Button>
+                    <Button variant="default" size="sm" disabled={sendingNotif} onClick={async () => {
+                      const ok = await sendNotification(notifyTemplate, notifySubject, notifyBody, notifyHtml, {}, `notif-${selectedRes.id}-${notifyTemplate}-${Date.now()}`);
+                      if (ok) setShowNotifyDialog(false);
+                    }}>
+                      {sendingNotif ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                      Enviar email
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </SheetContent>

@@ -2228,6 +2228,66 @@ export type Database = {
           },
         ]
       }
+      reservation_notifications: {
+        Row: {
+          alumno_id: string
+          asunto: string
+          canal: string
+          contenido: string
+          created_at: string
+          enviado_por: string | null
+          enviado_por_email: string | null
+          id: string
+          idempotency_key: string | null
+          metadata: Json | null
+          reservation_id: string
+          tipo: string
+        }
+        Insert: {
+          alumno_id: string
+          asunto: string
+          canal?: string
+          contenido: string
+          created_at?: string
+          enviado_por?: string | null
+          enviado_por_email?: string | null
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json | null
+          reservation_id: string
+          tipo?: string
+        }
+        Update: {
+          alumno_id?: string
+          asunto?: string
+          canal?: string
+          contenido?: string
+          created_at?: string
+          enviado_por?: string | null
+          enviado_por_email?: string | null
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json | null
+          reservation_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_notifications_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_notifications_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_payments: {
         Row: {
           alumno_id: string
