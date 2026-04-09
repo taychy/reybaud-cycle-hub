@@ -454,16 +454,17 @@ const EventsList = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Reservations Dialog */}
-      <Dialog open={!!reservationsEvent} onOpenChange={(open) => !open && setReservationsEvent(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-heading uppercase tracking-wider">
+      {/* Reservations Sheet – full-width drawer */}
+      <Sheet open={!!reservationsEvent} onOpenChange={(open) => !open && setReservationsEvent(null)}>
+        <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider text-xl">
               Reservas — {reservationsEvent?.title}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+            <SheetDescription className="sr-only">Panel de gestión de reservas del evento</SheetDescription>
+          </SheetHeader>
           {reservationsEvent && (
-            <div className="space-y-6">
+            <div className="space-y-6 pb-8">
               <AdminEventReservations
                 eventId={reservationsEvent.id}
                 eventTitle={reservationsEvent.title}
@@ -471,14 +472,18 @@ const EventsList = () => {
                 eventPrice={reservationsEvent.price}
                 eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
                 eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
+                eventDate={reservationsEvent.date}
+                eventLocation={reservationsEvent.location}
+                eventMaxCapacity={reservationsEvent.max_capacity}
+                eventStatus={reservationsEvent.status}
               />
               <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
