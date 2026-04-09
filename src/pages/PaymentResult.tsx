@@ -236,24 +236,24 @@ const PaymentResult = () => {
 
   const config = isApproved
     ? {
-        icon: <CheckCircle className="w-16 h-16 text-green-500" />,
+        icon: <CheckCircle className="w-16 h-16 text-primary" />,
         title: "¡Todo listo!",
-        message: "Tu suscripción fue activada y tu nivel fue registrado. Ya podés iniciar sesión.",
+        message: "Tu plan fue activado correctamente. Ya podés iniciar sesión y empezar a entrenar.",
         cta: "Ir al inicio de sesión",
         route: "/",
       }
     : isPending
     ? {
-        icon: <Clock className="w-16 h-16 text-yellow-500" />,
-        title: "Pago en proceso",
-        message: "Tu pago está siendo procesado. Te notificaremos cuando se confirme.",
+        icon: <Clock className="w-16 h-16 text-amber-400" />,
+        title: "Pago en camino",
+        message: "Tu pago está siendo procesado. Te avisamos por email cuando quede confirmado. ¡No te preocupes!",
         cta: "Ir al inicio de sesión",
         route: "/",
       }
     : {
         icon: <XCircle className="w-16 h-16 text-destructive" />,
-        title: "Pago no completado",
-        message: "Hubo un problema con tu pago. Podés intentar nuevamente.",
+        title: "No pudimos procesar tu pago",
+        message: "Algo salió mal, pero podés volver a intentarlo con otro medio de pago.",
         cta: "Volver a intentar",
         route: "/planes",
       };
