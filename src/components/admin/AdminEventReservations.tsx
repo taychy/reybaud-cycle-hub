@@ -590,6 +590,21 @@ const AdminEventReservations = ({
     toast({ title: "Pago registrado y validado" });
     loadPayments(selectedRes.id);
     loadReservations();
+
+    // Send notification if toggled on
+    if (notifyOnPayment) {
+      const ctx = getNotifContext(selectedRes, { monto: amt });
+      const tpl = notifTemplates.pago_registrado;
+      const updatedCtx = { ...ctx, abonado: formatPrice(newPaid, curr), saldo: formatPrice(newBalance, curr) };
+      await sendNotification(
+        "pago_registrado",
+        tpl.asunto.replace("{{evento}}", eventTitle),
+        tpl.contenido(updatedCtx),
+        tpl.html(updatedCtx),
+        { monto: amt, metodo: adminPayMethod, nuevo_abonado: newPaid, nuevo_saldo: newBalance },
+        `pago-${selectedRes.id}-${Date.now()}`
+      );
+    }
   };
 
   const validatePayment = async (paymentId: string, status: "validado" | "rechazado") => {
