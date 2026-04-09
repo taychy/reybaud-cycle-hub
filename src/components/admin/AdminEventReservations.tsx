@@ -34,7 +34,8 @@ import {
 interface EventReservation {
   id: string;
   event_id: string;
-  alumno_id: string;
+  alumno_id: string | null;
+  external_participant_id: string | null;
   reservation_status: string;
   payment_status: string;
   amount_total: number | null;
@@ -50,7 +51,8 @@ interface EventReservation {
   updated_at: string;
   confirmed_at: string | null;
   cancelled_at: string | null;
-  alumno?: { nombre: string; apellido: string | null; email: string; telefono: string | null };
+  alumno?: { nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
+  external_participant?: { id: string; nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
 }
 
 interface Payment {
