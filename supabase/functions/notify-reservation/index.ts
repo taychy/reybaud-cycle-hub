@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       success: true,
       email_sent: emailSent,
       notification_id: notif?.id,
-      recipient: alumno.email,
+      recipient: recipientEmail,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
