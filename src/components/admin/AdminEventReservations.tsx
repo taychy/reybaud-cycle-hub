@@ -1067,10 +1067,8 @@ const AdminEventReservations = ({
                               </a>
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem asChild>
-                            <a href={`mailto:${r.alumno?.email}`}>
+                          <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
-                            </a>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1081,8 +1079,11 @@ const AdminEventReservations = ({
                   <div className="md:hidden space-y-2">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{r.alumno?.nombre} {r.alumno?.apellido || ""}</p>
-                        <p className="text-xs text-muted-foreground truncate">{r.alumno?.email}</p>
+                        <p className="text-sm font-medium truncate">
+                          {p.nombre} {p.apellido || ""}
+                          {p.isExternal && <Badge variant="outline" className="ml-1 text-[9px] border-violet-500/30 text-violet-500">Ext</Badge>}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
