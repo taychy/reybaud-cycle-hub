@@ -820,6 +820,35 @@ const ReservationStatusCard = ({
         cancellationPolicy={cancellationPolicy}
         onCancelled={onPaymentReported}
       />
+
+      <TripBikeDrawer
+        open={showBikeDrawer}
+        onOpenChange={setShowBikeDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        onSaved={loadChecklistData}
+      />
+
+      <TripPedalsDrawer
+        open={showPedalsDrawer}
+        onOpenChange={setShowPedalsDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        onSaved={loadChecklistData}
+      />
+
+      <TripDocumentDrawer
+        open={docDrawer.open}
+        onOpenChange={(open) => setDocDrawer(prev => ({ ...prev, open }))}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        stepKey={docDrawer.stepKey}
+        title={docDrawer.title}
+        description={docDrawer.description}
+        icon={docDrawer.icon}
+        helpText={docDrawer.helpText}
+        onSaved={loadChecklistData}
+      />
     </>
   );
 };
