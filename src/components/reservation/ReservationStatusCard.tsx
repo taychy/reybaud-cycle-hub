@@ -349,7 +349,7 @@ const ReservationStatusCard = ({
   const nextStep = getNextStep();
 
   /* ─── Checklist ─── */
-  const checklist = buildChecklist(reservation, eventMetadata);
+  const checklist = buildChecklist(reservation, eventMetadata, checklistData);
   const completedCount = checklist.filter(c => c.completed).length;
   const checklistPercent = checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0;
 
