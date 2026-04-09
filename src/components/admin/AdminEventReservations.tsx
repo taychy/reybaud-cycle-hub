@@ -209,6 +209,13 @@ const AdminEventReservations = ({
   const [studentResults, setStudentResults] = useState<AlumnoOption[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [addingStudent, setAddingStudent] = useState<string | null>(null);
+  const [addExternalMode, setAddExternalMode] = useState(false);
+  const [extName, setExtName] = useState("");
+  const [extLastName, setExtLastName] = useState("");
+  const [extEmail, setExtEmail] = useState("");
+  const [extPhone, setExtPhone] = useState("");
+  const [extDoc, setExtDoc] = useState("");
+  const [addingExternal, setAddingExternal] = useState(false);
 
   // Admin payment
   const [showAdminPayment, setShowAdminPayment] = useState(false);
