@@ -72,6 +72,46 @@ interface AlumnoOption {
   email: string;
 }
 
+interface Notification {
+  id: string;
+  tipo: string;
+  canal: string;
+  asunto: string;
+  contenido: string;
+  enviado_por_email: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad";
+
+const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; contenido: (ctx: any) => string; html: (ctx: any) => string }> = {
+  pago_registrado: {
+    label: "Pago registrado",
+    asunto: "Tu pago fue registrado — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe confirmamos que registramos tu pago de ${ctx.monto} para ${ctx.evento}.\n\nAbonado hasta ahora: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}\n\n¡Gracias!`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Pago registrado</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te confirmamos que registramos tu pago de <strong>${ctx.monto}</strong> para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table><p>¡Gracias!</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  cuota_pendiente: {
+    label: "Cuota pendiente",
+    asunto: "Tenés una cuota pendiente — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés una cuota pendiente de ${ctx.monto_cuota} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento}\n\nSaldo total pendiente: ${ctx.saldo}\n\nPodés realizar el pago por los medios habituales.`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Cuota pendiente</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés una cuota pendiente de <strong>${ctx.monto_cuota}</strong> para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento}</strong></p><p>Saldo total pendiente: <strong style="color:#d97706">${ctx.saldo}</strong></p><p>Podés realizar el pago por los medios habituales.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  cuota_proxima: {
+    label: "Cuota próxima a vencer",
+    asunto: "Tu cuota vence pronto — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe avisamos que tu próxima cuota de ${ctx.monto_cuota} para ${ctx.evento} vence el ${ctx.vencimiento}.\n\nSaldo actual: ${ctx.saldo}\n\nRecordá realizar el pago antes del vencimiento.`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#2563eb">Próximo vencimiento</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Tu próxima cuota de <strong>${ctx.monto_cuota}</strong> para <strong>${ctx.evento}</strong> vence el <strong>${ctx.vencimiento}</strong>.</p><p>Saldo actual: <strong>${ctx.saldo}</strong></p><p>Recordá realizar el pago antes del vencimiento.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  novedad: {
+    label: "Novedad / comunicado",
+    asunto: "Novedad sobre {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\n${ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + "."}\n\nSaludos,\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Novedad</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>${(ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + ".").replace(/\n/g, "<br/>")}</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+};
+
 /* ─── Status mappings ─── */
 
 const reservationStatusLabels: Record<string, string> = {
