@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, Shield, Download, MailCheck, ArrowLeft } from "lucide-react";
+import { ChevronRight, Shield, Download, MailCheck, ArrowLeft, Loader2 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
+import { lovable } from "@/integrations/lovable/index";
 
 const Login = () => {
   const [email, setEmail] = useState("");
