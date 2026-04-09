@@ -471,7 +471,7 @@ const AdminEventReservations = ({
       .select("id, nombre, apellido, email")
       .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
       .limit(10);
-    const existingIds = new Set(reservations.map(r => r.alumno_id));
+    const existingIds = new Set(reservations.filter(r => r.alumno_id).map(r => r.alumno_id));
     setStudentResults((data || []).filter(a => !existingIds.has(a.id)) as AlumnoOption[]);
     setSearchingStudents(false);
   };
