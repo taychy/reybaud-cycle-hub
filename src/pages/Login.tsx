@@ -192,6 +192,27 @@ const Login = () => {
     toast.success(t("login.magicLinkSuccess"));
   };
 
+  const handleGoogleLogin = async () => {
+    setLoginError(null);
+    setGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        setLoginError(result.error.message || "Error al iniciar sesión con Google");
+        setGoogleLoading(false);
+        return;
+      }
+      if (result.redirected) {
+        return;
+      }
+    } catch (err: any) {
+      setLoginError(err.message || "Error al iniciar sesión con Google");
+      setGoogleLoading(false);
+    }
+  };
+
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
