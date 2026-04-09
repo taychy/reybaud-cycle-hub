@@ -115,8 +115,8 @@ Deno.serve(async (req) => {
               'Authorization': `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
-              to: [alumno.email],
+          from: 'Reybaud Ciclismo <notificaciones@reybaud-app.com>',
+              to: [recipientEmail],
               subject: payload.asunto,
               html: payload.contenido_html,
               text: payload.contenido_texto,
