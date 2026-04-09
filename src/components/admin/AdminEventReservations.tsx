@@ -1004,7 +1004,8 @@ const AdminEventReservations = ({
             {filtered.map((r) => {
               const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
               const c = curr(r);
-              const waUrl = getWhatsAppUrl(r.alumno?.telefono, r.alumno?.nombre || "");
+              const p = getParticipant(r);
+              const waUrl = getWhatsAppUrl(p.telefono, p.nombre);
               return (
                 <div
                   key={r.id}
@@ -1013,10 +1014,13 @@ const AdminEventReservations = ({
                 >
                   {/* Desktop row */}
                   <div className="hidden md:grid md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px] gap-2 items-center">
-                    {/* Alumno */}
+                    {/* Participant */}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{r.alumno?.nombre} {r.alumno?.apellido || ""}</p>
-                      <p className="text-xs text-muted-foreground truncate">{r.alumno?.email}</p>
+                      <p className="text-sm font-medium truncate">
+                        {p.nombre} {p.apellido || ""}
+                        {p.isExternal && <Badge variant="outline" className="ml-1.5 text-[9px] border-violet-500/30 text-violet-500">Externo</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                     </div>
                     {/* Estado reserva */}
                     <div>
