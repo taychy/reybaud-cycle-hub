@@ -618,27 +618,69 @@ const ReservationStatusCard = ({
             <Progress value={checklistPercent} className="h-2" />
 
             <div className="space-y-2">
-              {checklist.map((item) => (
-                <div key={item.id} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  item.completed ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-muted/30 border border-border/30"
-                }`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                    item.completed ? "bg-emerald-500/20" : "bg-muted"
-                  }`}>
+              {checklist.map((item) => {
+                const isClickable = item.actionType !== "none" && !item.completed;
+                const handleClick = () => {
+                  if (item.actionType === "bike") setShowBikeDrawer(true);
+                  else if (item.actionType === "pedals") setShowPedalsDrawer(true);
+                  else if (item.actionType === "payment") setShowPaymentDrawer(true);
+                  else if (item.actionType === "document") {
+                    const configs: Record<string, { title: string; description: string; helpText: string; icon: React.ReactNode }> = {
+                      pasaje: {
+                        title: "Pasaje o transporte",
+                        description: "Subí tu reserva de vuelo o transporte",
+                        helpText: "Adjuntá tu pasaje de avión, bus o cualquier documento de transporte. Puede ser PDF, foto o captura de pantalla.",
+                        icon: <Plane className="w-5 h-5 text-primary" />,
+                      },
+                      seguro: {
+                        title: "Seguro viajero",
+                        description: "Adjuntá tu póliza de seguro",
+                        helpText: "Subí tu póliza de seguro de viaje. Es un requisito importante para tu seguridad.",
+                        icon: <ShieldCheck className="w-5 h-5 text-primary" />,
+                      },
+                    };
+                    const cfg = configs[item.id] || { title: item.label, description: item.description, helpText: "", icon: <FileText className="w-5 h-5 text-primary" /> };
+                    setDocDrawer({ open: true, stepKey: item.id, ...cfg });
+                  }
+                };
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={item.actionType !== "none" ? handleClick : undefined}
+                    disabled={item.actionType === "none"}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-left ${
+                      item.completed
+                        ? "bg-emerald-500/5 border border-emerald-500/20"
+                        : item.actionType !== "none"
+                          ? "bg-muted/30 border border-border/30 hover:bg-muted/50 hover:border-primary/30 active:scale-[0.98] cursor-pointer"
+                          : "bg-muted/20 border border-border/20 opacity-60"
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                      item.completed ? "bg-emerald-500/20" : "bg-muted"
+                    }`}>
+                      {item.completed ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <item.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${item.completed ? "text-emerald-400" : "text-foreground font-medium"}`}>
+                        {item.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{item.description}</p>
+                    </div>
                     {item.completed ? (
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <item.icon className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${item.completed ? "text-emerald-400 line-through" : "text-foreground font-medium"}`}>
-                      {item.label}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">{item.description}</p>
-                  </div>
-                </div>
-              ))}
+                      <span className="text-[10px] text-emerald-400 font-medium shrink-0">Listo</span>
+                    ) : item.actionType !== "none" ? (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
