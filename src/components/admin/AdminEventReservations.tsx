@@ -1177,11 +1177,17 @@ const AdminEventReservations = ({
                       <Label className="text-[11px] text-muted-foreground">Nota (opcional)</Label>
                       <Input value={adminPayNotes} onChange={(e) => setAdminPayNotes(e.target.value)} className="h-9" placeholder="Observaciones..." />
                     </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Switch checked={notifyOnPayment} onCheckedChange={setNotifyOnPayment} id="notify-pay" />
+                      <Label htmlFor="notify-pay" className="text-[11px] text-muted-foreground cursor-pointer">
+                        Notificar al alumno por email
+                      </Label>
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => setShowAdminPayment(false)}>Cancelar</Button>
                       <Button variant="default" size="sm" disabled={submittingAdminPay} onClick={registerAdminPayment}>
                         {submittingAdminPay ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <CheckCircle className="w-3.5 h-3.5 mr-1" />}
-                        Registrar y validar
+                        {notifyOnPayment ? "Registrar y notificar" : "Registrar sin notificar"}
                       </Button>
                     </div>
                   </div>
