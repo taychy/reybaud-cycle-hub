@@ -234,13 +234,25 @@ const AdminEventReservations = ({
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
+  /* ─── Participant helper ─── */
+  const getParticipant = (r: EventReservation) => {
+    if (r.alumno) return { nombre: r.alumno.nombre, apellido: r.alumno.apellido, email: r.alumno.email, telefono: r.alumno.telefono, isExternal: false };
+    if (r.external_participant) return { nombre: r.external_participant.nombre, apellido: r.external_participant.apellido, email: r.external_participant.email, telefono: r.external_participant.telefono, isExternal: true };
+    return { nombre: "Sin datos", apellido: null, email: "", telefono: null, isExternal: false };
+  };
+
+  const participantName = (r: EventReservation) => {
+    const p = getParticipant(r);
+    return `${p.nombre} ${p.apellido || ""}`.trim();
+  };
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("event_reservations" as any)
-      .select("*, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email, telefono)")
+      .select("*, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email, telefono), external_participant:event_external_participants!event_reservations_external_participant_id_fkey(id, nombre, apellido, email, telefono)")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
     if (data) setReservations(data as unknown as EventReservation[]);
