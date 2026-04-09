@@ -82,6 +82,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [showRemovePlan, setShowRemovePlan] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
 
+  // Email preview state
+  const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
+  const [sendingNotif, setSendingNotif] = useState(false);
+
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
 
   const fetchData = async () => {
