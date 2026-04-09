@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,18 +18,17 @@ interface ManualPaymentConfirmProps {
 
 const ManualPaymentConfirm = ({
   planId,
-  planName,
   alumnoId,
   precioBase,
   precioFinal,
   descuentoId,
-  moneda,
   paymentType,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const triggered = useRef(false);
 
   const handleConfirm = async () => {
     onProcessing(true);
@@ -84,6 +83,13 @@ const ManualPaymentConfirm = ({
     setDone(true);
   };
 
+  useEffect(() => {
+    if (!triggered.current) {
+      triggered.current = true;
+      handleConfirm();
+    }
+  }, []);
+
   if (done) {
     return (
       <div className="max-w-md mx-auto text-center space-y-6 animate-fade-in">
@@ -125,12 +131,6 @@ const ManualPaymentConfirm = ({
         </Button>
       </div>
     );
-  }
-
-  // Auto-trigger on mount - the confirm step already showed the summary
-  // We call handleConfirm immediately
-  if (!done && !error) {
-    handleConfirm();
   }
 
   return (
