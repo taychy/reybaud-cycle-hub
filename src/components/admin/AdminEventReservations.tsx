@@ -1151,6 +1151,15 @@ const AdminEventReservations = ({
                 }}>
                   <Mail className="w-3.5 h-3.5 mr-1.5" /> Email
                 </Button>
+                {selectedRes.external_participant_id && selectedRes.access_token && (
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const url = `${window.location.origin}/viaje/mi-reserva?token=${selectedRes.access_token}`;
+                    navigator.clipboard.writeText(url);
+                    toast({ title: "Link copiado", description: "Se copió el enlace de acceso al portapapeles" });
+                  }}>
+                    <Copy className="w-3.5 h-3.5 mr-1.5" /> Link de acceso
+                  </Button>
+                )}
               </div>
 
               {/* Status controls */}
