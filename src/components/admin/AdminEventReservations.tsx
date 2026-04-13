@@ -51,6 +51,7 @@ interface EventReservation {
   updated_at: string;
   confirmed_at: string | null;
   cancelled_at: string | null;
+  access_token?: string;
   alumno?: { nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
   external_participant?: { id: string; nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
 }
