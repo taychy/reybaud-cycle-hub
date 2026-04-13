@@ -1119,6 +1119,7 @@ export type Database = {
       event_reservations: {
         Row: {
           accepted_terms: boolean
+          access_token: string
           admin_notes: string | null
           alumno_id: string | null
           amount_paid: number
@@ -1148,6 +1149,7 @@ export type Database = {
         }
         Insert: {
           accepted_terms?: boolean
+          access_token?: string
           admin_notes?: string | null
           alumno_id?: string | null
           amount_paid?: number
@@ -1177,6 +1179,7 @@ export type Database = {
         }
         Update: {
           accepted_terms?: boolean
+          access_token?: string
           admin_notes?: string | null
           alumno_id?: string | null
           amount_paid?: number
