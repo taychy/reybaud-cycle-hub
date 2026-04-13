@@ -1,4 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SENDER_DOMAIN = "notify.reybaud-app.com";
+const FROM_NAME = "Ciclismo Reybaud";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,8 +17,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -68,7 +69,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build email
     const appUrl = Deno.env.get("APP_URL") || "https://reybaud-cycle-hub.lovable.app";
     const dashboardLink = `${appUrl}/alumno?section=apto-fisico`;
 
@@ -90,30 +90,29 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    // Send email via Resend API directly
-    if (!resendApiKey) {
-      console.warn("No RESEND_API_KEY configured, skipping email");
-      throw new Error("RESEND_API_KEY no configurada");
-    }
+    const messageId = crypto.randomUUID();
+    const emailPayload = {
+      message_id: messageId,
+      to: alumno.email,
+      from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject: "Solicitud de Apto Físico - Ciclismo Reybaud",
+      html,
+      text: '',
+      purpose: 'transactional',
+      label: 'medical_certificate_request',
+      idempotency_key: messageId,
+      queued_at: new Date().toISOString(),
+    };
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: "Ciclismo Reybaud <noreply@notify.reybaud-app.com>",
-        to: [alumno.email],
-        subject: "Solicitud de Apto Físico - Ciclismo Reybaud",
-        html,
-      }),
+    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+      queue_name: 'transactional_emails',
+      payload: emailPayload,
     });
 
-    if (!emailResponse.ok) {
-      const errText = await emailResponse.text();
-      console.error("Email send error:", errText);
-      throw new Error("Error al enviar email");
+    if (enqueueErr) {
+      console.error("Queue error:", enqueueErr.message);
+      throw new Error("Error al encolar email");
     }
 
     // Update requested_at
