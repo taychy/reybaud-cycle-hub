@@ -2483,7 +2483,7 @@ export type Database = {
       }
       reservation_payments: {
         Row: {
-          alumno_id: string
+          alumno_id: string | null
           amount: number
           created_at: string
           currency: string
@@ -2499,7 +2499,7 @@ export type Database = {
           status: string
         }
         Insert: {
-          alumno_id: string
+          alumno_id?: string | null
           amount: number
           created_at?: string
           currency?: string
@@ -2515,7 +2515,7 @@ export type Database = {
           status?: string
         }
         Update: {
-          alumno_id?: string
+          alumno_id?: string | null
           amount?: number
           created_at?: string
           currency?: string
