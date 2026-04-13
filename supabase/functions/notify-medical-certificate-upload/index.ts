@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const SENDER_DOMAIN = "notify.reybaud-app.com";
+const FROM_NAME = "Ciclismo Reybaud";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -19,13 +22,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    // Get student info
     const { data: alumno, error: alumnoError } = await supabase
       .from("alumnos")
       .select("id, nombre, apellido, email, medical_certificate_signature_date, medical_certificate_expiration_date, medical_certificate_uploaded_at")
@@ -39,7 +40,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get all active admin/super_admin emails
     const { data: admins } = await supabase
       .from("admin_profiles")
       .select("email, first_name, role")
@@ -108,32 +108,32 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    if (resendApiKey) {
-      const emailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from: "Ciclismo Reybaud <onboarding@resend.dev>",
-          to: adminEmails,
-          subject: `🔔 Apto Físico cargado — ${alumnoName} — Requiere auditoría`,
-          html,
-        }),
+    const messageId = crypto.randomUUID();
+    const emailPayload = {
+      message_id: messageId,
+      to: adminEmails.join(", "),
+      from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject: `🔔 Apto Físico cargado — ${alumnoName} — Requiere auditoría`,
+      html,
+      text: '',
+      purpose: 'transactional',
+      label: 'medical_certificate_upload_notification',
+      idempotency_key: messageId,
+      queued_at: new Date().toISOString(),
+    };
+
+    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+      queue_name: 'transactional_emails',
+      payload: emailPayload,
+    });
+
+    if (enqueueErr) {
+      console.error("Queue error:", enqueueErr.message);
+      return new Response(JSON.stringify({ error: "Error al enviar email", details: enqueueErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-
-      const emailResult = await emailResponse.json();
-
-      if (!emailResponse.ok) {
-        console.error("Error sending email:", emailResult);
-        return new Response(JSON.stringify({ error: "Error al enviar email", details: emailResult }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } else {
-      console.warn("RESEND_API_KEY not configured, skipping email notification");
     }
 
     return new Response(JSON.stringify({ ok: true }), {

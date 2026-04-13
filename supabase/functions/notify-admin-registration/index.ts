@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const SENDER_DOMAIN = "notify.reybaud-app.com";
+const FROM_NAME = "Ciclismo Reybaud";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -14,13 +17,12 @@ Deno.serve(async (req) => {
   try {
     const { alumno_id, grupo_preferido } = await req.json();
 
-    const supabaseAdmin = createClient(
+    const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch alumno
-    const { data: alumno } = await supabaseAdmin
+    const { data: alumno } = await supabase
       .from("alumnos")
       .select("nombre, email")
       .eq("id", alumno_id)
@@ -33,19 +35,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Testing mode: only send to verified Resend account
-    // TODO: Once domain is verified in Resend, restore dynamic admin recipients
-    const adminEmails: string[] = ["scarlettbonatto@gmail.com"];
-
-    // Send email via Resend
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      console.warn("RESEND_API_KEY not configured, skipping email notification");
-      return new Response(JSON.stringify({ ok: true, message: "Email not configured" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const adminEmails = ["scarlettbonatto@gmail.com"];
 
     const emailHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
@@ -61,22 +51,29 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "Ciclismo Reybaud <onboarding@resend.dev>",
-        to: adminEmails,
-        subject: `Nuevo alumno: ${alumno.nombre} (${grupo_preferido})`,
-        html: emailHtml,
-      }),
+    const messageId = crypto.randomUUID();
+    const emailPayload = {
+      message_id: messageId,
+      to: adminEmails.join(", "),
+      from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject: `Nuevo alumno: ${alumno.nombre} (${grupo_preferido})`,
+      html: emailHtml,
+      text: '',
+      purpose: 'transactional',
+      label: 'admin_registration_notification',
+      idempotency_key: messageId,
+      queued_at: new Date().toISOString(),
+    };
+
+    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+      queue_name: 'transactional_emails',
+      payload: emailPayload,
     });
 
-    const resendData = await resendResponse.json();
-    console.log("Resend response:", JSON.stringify(resendData));
+    if (enqueueErr) {
+      console.error("Queue error:", enqueueErr.message);
+    }
 
     return new Response(JSON.stringify({ ok: true, emailsSent: adminEmails.length }), {
       status: 200,

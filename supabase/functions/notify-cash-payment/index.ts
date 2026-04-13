@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const SENDER_DOMAIN = "notify.reybaud-app.com";
+const FROM_NAME = "Ciclismo Reybaud";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -14,20 +17,18 @@ Deno.serve(async (req) => {
   try {
     const { alumno_id, plan_id, suscripcion_id } = await req.json();
 
-    const supabaseAdmin = createClient(
+    const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch alumno
-    const { data: alumno } = await supabaseAdmin
+    const { data: alumno } = await supabase
       .from("alumnos")
       .select("nombre, email")
       .eq("id", alumno_id)
       .single();
 
-    // Fetch plan
-    const { data: plan } = await supabaseAdmin
+    const { data: plan } = await supabase
       .from("planes")
       .select("nombre, precio")
       .eq("id", plan_id)
@@ -36,16 +37,6 @@ Deno.serve(async (req) => {
     if (!alumno || !plan) {
       return new Response(JSON.stringify({ error: "Datos no encontrados" }), {
         status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Send email via Resend
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      console.warn("RESEND_API_KEY not configured, skipping email");
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -68,19 +59,29 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "Ciclismo Reybaud <onboarding@resend.dev>",
-        to: adminEmails,
-        subject: `💵 Pago en efectivo: ${alumno.nombre} — ${plan.nombre}`,
-        html: emailHtml,
-      }),
+    const messageId = crypto.randomUUID();
+    const emailPayload = {
+      message_id: messageId,
+      to: adminEmails.join(", "),
+      from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject: `💵 Pago en efectivo: ${alumno.nombre} — ${plan.nombre}`,
+      html: emailHtml,
+      text: '',
+      purpose: 'transactional',
+      label: 'cash_payment_notification',
+      idempotency_key: messageId,
+      queued_at: new Date().toISOString(),
+    };
+
+    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+      queue_name: 'transactional_emails',
+      payload: emailPayload,
     });
+
+    if (enqueueErr) {
+      console.error("Queue error:", enqueueErr.message);
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
