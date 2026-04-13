@@ -12,7 +12,7 @@ const FROM_NAME = 'Reybaud Ciclismo';
 
 interface NotifyPayload {
   reservation_id: string;
-  alumno_id: string;
+  alumno_id?: string | null;
   tipo: 'pago_registrado' | 'cuota_pendiente' | 'cuota_proxima' | 'novedad' | 'recordatorio_manual';
   asunto: string;
   contenido_html: string;
@@ -24,6 +24,44 @@ interface NotifyPayload {
   canal?: 'email' | 'whatsapp_manual';
 }
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const getOrCreateUnsubscribeToken = async (supabase: any, email: string) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  const { data: existingToken, error: existingError } = await supabase
+    .from('email_unsubscribe_tokens')
+    .select('token')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (existingToken?.token) return existingToken.token;
+
+  const newToken = crypto.randomUUID();
+
+  const { data: insertedToken, error: insertError } = await supabase
+    .from('email_unsubscribe_tokens')
+    .insert({ email: normalizedEmail, token: newToken })
+    .select('token')
+    .single();
+
+  if (!insertError && insertedToken?.token) {
+    return insertedToken.token;
+  }
+
+  const { data: fallbackToken, error: fallbackError } = await supabase
+    .from('email_unsubscribe_tokens')
+    .select('token')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (fallbackError) throw fallbackError;
+  if (fallbackToken?.token) return fallbackToken.token;
+
+  throw insertError ?? new Error('Could not create unsubscribe token');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -32,7 +70,7 @@ Deno.serve(async (req) => {
   try {
     const payload: NotifyPayload = await req.json();
 
-    if (!payload.reservation_id || !payload.alumno_id || !payload.tipo || !payload.asunto || !payload.contenido_html) {
+    if (!payload.reservation_id || !payload.tipo || !payload.asunto || !payload.contenido_html) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -107,6 +145,7 @@ Deno.serve(async (req) => {
     if (canal === 'email') {
       try {
         const messageId = crypto.randomUUID();
+        const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipientEmail);
         const emailPayload = {
           message_id: messageId,
           to: recipientEmail,
@@ -118,6 +157,7 @@ Deno.serve(async (req) => {
           purpose: 'transactional',
           label: `reservation_${payload.tipo}`,
           idempotency_key: payload.idempotency_key || messageId,
+          unsubscribe_token: unsubscribeToken,
           queued_at: new Date().toISOString(),
         };
 
