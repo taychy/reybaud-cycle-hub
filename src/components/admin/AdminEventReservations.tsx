@@ -260,7 +260,7 @@ const AdminEventReservations = ({
     setLoading(true);
     const { data } = await supabase
       .from("event_reservations" as any)
-      .select("*, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email, telefono), external_participant:event_external_participants!event_reservations_external_participant_id_fkey(id, nombre, apellido, email, telefono)")
+      .select("*, access_token, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email, telefono), external_participant:event_external_participants!event_reservations_external_participant_id_fkey(id, nombre, apellido, email, telefono)")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
     if (data) setReservations(data as unknown as EventReservation[]);
@@ -1071,6 +1071,18 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
                           </DropdownMenuItem>
+                          {r.external_participant_id && r.access_token && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => {
+                                const url = `${window.location.origin}/viaje/mi-reserva?token=${r.access_token}`;
+                                navigator.clipboard.writeText(url);
+                                toast({ title: "Link copiado", description: "Se copió el enlace de acceso al portapapeles" });
+                              }}>
+                                <Copy className="w-3.5 h-3.5 mr-2" /> Copiar link de acceso
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
