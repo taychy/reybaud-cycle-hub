@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       .from('reservation_notifications')
       .insert({
         reservation_id: payload.reservation_id,
-        alumno_id: payload.alumno_id,
+        alumno_id: payload.alumno_id || null,
         tipo: payload.tipo,
         canal,
         asunto: payload.asunto,
