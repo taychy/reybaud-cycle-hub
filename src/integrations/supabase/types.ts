@@ -2423,7 +2423,7 @@ export type Database = {
       }
       reservation_notifications: {
         Row: {
-          alumno_id: string
+          alumno_id: string | null
           asunto: string
           canal: string
           contenido: string
@@ -2437,7 +2437,7 @@ export type Database = {
           tipo: string
         }
         Insert: {
-          alumno_id: string
+          alumno_id?: string | null
           asunto: string
           canal?: string
           contenido: string
@@ -2451,7 +2451,7 @@ export type Database = {
           tipo?: string
         }
         Update: {
-          alumno_id?: string
+          alumno_id?: string | null
           asunto?: string
           canal?: string
           contenido?: string
