@@ -57,8 +57,8 @@ const UpdatePrompt = () => {
   if (!showUpdate) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-[100] flex justify-center">
-      <div className="bg-card border border-border rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-sm w-full">
+    <div className="fixed bottom-4 left-4 right-4 z-[100] flex justify-center pointer-events-none">
+      <div className="bg-card border border-border rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-sm w-full pointer-events-auto">
         <RefreshCw className="w-5 h-5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">Nueva versión disponible</p>
