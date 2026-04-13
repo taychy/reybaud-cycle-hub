@@ -63,6 +63,7 @@ import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ExternalTripView from "./pages/ExternalTripView";
 import UpdatePrompt from "./components/UpdatePrompt";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
@@ -153,6 +154,7 @@ const App = () => (
             <Route path="alertas" element={<DepositoAlertas />} />
           </Route>
           <Route path="/reservar/:slug" element={<BookingFlow />} />
+          <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
