@@ -4,7 +4,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle } from "lucide-react";
+import { Check, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
 import logo from "@/assets/logo.png";
 import CardPaymentForm from "@/components/CardPaymentForm";
 import CheckoutProgress from "@/components/checkout/CheckoutProgress";
@@ -410,6 +410,21 @@ const PlanSelection = () => {
                 {notifyProcessing ? "Enviando..." : "Contactar administración"}
               </Button>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground hover:text-foreground"
+              onClick={async () => {
+                localStorage.removeItem("registro_alumno_id");
+                localStorage.removeItem("alumno_renewal");
+                localStorage.removeItem("alumno_from_vacation");
+                await supabase.auth.signOut();
+                navigate("/");
+              }}
+            >
+              <LogOut className="w-4 h-4 mr-1.5" />
+              Cerrar sesión
+            </Button>
           </div>
         )}
 
@@ -448,6 +463,21 @@ const PlanSelection = () => {
                 {notifyProcessing ? "Enviando..." : "Ya hice el pago"}
               </Button>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground hover:text-foreground"
+              onClick={async () => {
+                localStorage.removeItem("registro_alumno_id");
+                localStorage.removeItem("alumno_renewal");
+                localStorage.removeItem("alumno_from_vacation");
+                await supabase.auth.signOut();
+                navigate("/");
+              }}
+            >
+              <LogOut className="w-4 h-4 mr-1.5" />
+              Cerrar sesión
+            </Button>
           </div>
         )}
 
