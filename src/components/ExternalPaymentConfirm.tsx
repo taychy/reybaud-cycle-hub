@@ -50,6 +50,8 @@ const ExternalPaymentConfirm = ({
         precio_final: precioFinal,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        metodo_pago: "plataforma_externa",
+        origen_registro: "informado_alumno",
       } as any)
       .select("id")
       .single();

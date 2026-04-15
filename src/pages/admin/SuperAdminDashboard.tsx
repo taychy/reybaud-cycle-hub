@@ -77,7 +77,7 @@ const SuperAdminDashboard = () => {
         .filter(s => {
           if (!s.fecha_inicio) return false;
           return s.fecha_inicio >= startOfLastMonth && s.fecha_inicio <= endOfLastMonth &&
-            (s.estado === "activa" || s.mp_status === "conciliado");
+            (s.estado === "activa" || s.estado === "conciliado");
         })
         .reduce((sum, s) => sum + (planesMap.get(s.plan_id)?.precio || 0), 0);
 
@@ -143,7 +143,7 @@ const SuperAdminDashboard = () => {
         const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
         const ing = subs
-          .filter(s => s.fecha_inicio && s.fecha_inicio >= mStart && s.fecha_inicio <= mEnd && (s.estado === "activa" || s.mp_status === "conciliado"))
+          .filter(s => s.fecha_inicio && s.fecha_inicio >= mStart && s.fecha_inicio <= mEnd && (s.estado === "activa" || s.estado === "conciliado"))
           .reduce((sum, s) => sum + (planesMap.get(s.plan_id)?.precio || 0), 0)
           + orders.filter((o: any) => o.created_at >= mStart && o.created_at <= mEnd + "T23:59:59")
             .reduce((sum: number, o: any) => sum + (o.total || 0), 0);
