@@ -18,6 +18,7 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
 import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
+import HomeNewsCarousel from "@/components/HomeNewsCarousel";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -51,6 +52,7 @@ const StudentDashboard = () => {
   const [pendingPayments, setPendingPayments] = useState<PendingPaymentInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">(initialTab);
   const [accessPerms, setAccessPerms] = useState<AccessPermissions | null>(null);
+  const [bestFechaFin, setBestFechaFin] = useState<string | null>(null);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
@@ -116,6 +118,10 @@ const StudentDashboard = () => {
           cancelada_at: s.cancelada_at,
         }));
         setAccessPerms(getAccessPermissions(subInputs));
+
+        // Store best fecha_fin for news carousel
+        const activeSub = allSubs.find((s: any) => s.estado === "activa" && s.fecha_fin);
+        setBestFechaFin(activeSub ? (activeSub as any).fecha_fin : null);
 
         // Also set pending payment cards
         const pending = allSubs.filter((s: any) => s.estado === "pendiente_verificacion" || s.estado === "rechazada");
@@ -433,6 +439,16 @@ const StudentDashboard = () => {
 
             {/* Weather */}
             <WeatherBar />
+
+            {/* News carousel */}
+            {alumno && (
+              <HomeNewsCarousel
+                alumnoId={alumno.id}
+                subscriptionStatus={accessPerms?.status}
+                subscriptionDaysLeft={accessPerms?.status === "pago_pendiente" ? 5 - new Date().getDate() : undefined}
+                fechaFin={bestFechaFin}
+              />
+            )}
 
             {/* Payment status - show all pending */}
             {pendingPayments.map((pp) => (
