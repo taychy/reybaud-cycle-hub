@@ -481,12 +481,20 @@ const StudentDashboard = () => {
                     onClick={async () => {
                       if (!alumno || !entrenamiento) return;
                       setMarkingDone(true);
-                      const { error } = await supabase.from("entrenamientos_realizados").insert({
-                        alumno_id: alumno.id,
-                        entrenamiento_id: entrenamiento.id,
-                      });
+                      // Insert into both tables so progress tracking picks it up
+                      const [res1, res2] = await Promise.all([
+                        supabase.from("entrenamientos_realizados").insert({
+                          alumno_id: alumno.id,
+                          entrenamiento_id: entrenamiento.id,
+                        }),
+                        supabase.from("registro_sesiones").insert({
+                          alumno_id: alumno.id,
+                          entrenamiento_id: entrenamiento.id,
+                          estado: "realizada",
+                        }),
+                      ]);
                       setMarkingDone(false);
-                      if (error) {
+                      if (res1.error && res2.error) {
                         toast({ title: t("dashboard.errorTitle"), description: t("dashboard.errorDesc"), variant: "destructive" });
                         return;
                       }
