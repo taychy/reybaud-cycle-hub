@@ -68,6 +68,7 @@ import ExternalTripView from "./pages/ExternalTripView";
 import UpdatePrompt from "./components/UpdatePrompt";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
+import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
