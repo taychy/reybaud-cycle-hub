@@ -30,6 +30,8 @@ type Suscripcion = {
   fecha_fin: string | null;
   mp_status: string | null;
   mp_payment_id: string | null;
+  metodo_pago: string;
+  origen_registro: string;
   created_at: string;
   updated_at: string;
   auto_renovacion: boolean;
