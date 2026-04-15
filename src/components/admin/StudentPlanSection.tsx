@@ -197,10 +197,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
       if (dialogMode === "add") {
         // Add a NEW subscription without touching existing ones
-        const endDate = new Date(changeFechaInicio);
-        endDate.setMonth(endDate.getMonth() + 1);
-        endDate.setDate(0);
-        const endStr = endDate.toISOString().split("T")[0];
+        // Parse date parts to avoid UTC/timezone drift
+        const [startY, startM, startD] = changeFechaInicio.split("-").map(Number);
+        const freq = selectedPlan?.frecuencia || "mensual";
+        let monthsToAdd = 1;
+        if (freq === "trimestral") monthsToAdd = 3;
+        else if (freq === "anual") monthsToAdd = 12;
+        // Last day of the target month
+        const endDate = new Date(startY, startM - 1 + monthsToAdd, 0);
+        const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
 
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
