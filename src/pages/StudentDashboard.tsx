@@ -504,11 +504,6 @@ const StudentDashboard = () => {
                           alumno_id: alumno.id,
                           entrenamiento_id: entrenamiento.id,
                         }),
-                        supabase.from("registro_sesiones").insert({
-                          alumno_id: alumno.id,
-                          entrenamiento_id: entrenamiento.id,
-                          estado: "realizada",
-                        }),
                         supabase.from("registro_sesiones").upsert({
                           alumno_id: alumno.id,
                           entrenamiento_id: entrenamiento.id,
