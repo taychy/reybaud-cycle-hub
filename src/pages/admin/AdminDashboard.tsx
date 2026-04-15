@@ -386,7 +386,7 @@ const AdminDashboard = () => {
                 {expirations.map((e) => (
                   <div key={e.suscripcion_id} className="rounded-md border border-border p-3 space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{e.alumno_nombre}</span>
+                      <span className="font-medium text-sm cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(e.alumno_nombre)}`)}>{e.alumno_nombre}</span>
                       <Badge variant={e.estado === "Por vencer" ? "destructive" : "secondary"} className="text-xs">{e.estado}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{e.plan_nombre} · ${e.monto.toLocaleString("es-AR")}</p>
@@ -414,7 +414,11 @@ const AdminDashboard = () => {
                 <TableBody>
                   {expirations.map((e) => (
                     <TableRow key={e.suscripcion_id}>
-                      <TableCell className="font-medium">{e.alumno_nombre}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(e.alumno_nombre)}`)}>
+                          {e.alumno_nombre}
+                        </span>
+                      </TableCell>
                       <TableCell>{e.plan_nombre}</TableCell>
                       <TableCell>{new Date(e.fecha_fin).toLocaleDateString("es-AR")}</TableCell>
                       <TableCell>${e.monto.toLocaleString("es-AR")}</TableCell>
@@ -453,7 +457,7 @@ const AdminDashboard = () => {
                 {pendingPayments.map((p) => (
                   <div key={p.suscripcion_id} className="rounded-md border border-border p-3 space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{p.alumno_nombre}</span>
+                      <span className="font-medium text-sm cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(p.alumno_nombre)}`)}>{p.alumno_nombre}</span>
                       <PaymentBadgeComponent mpStatus={p.mp_status} />
                     </div>
                     <p className="text-xs text-muted-foreground">{p.plan_nombre} · ${p.monto.toLocaleString("es-AR")}</p>
@@ -483,7 +487,11 @@ const AdminDashboard = () => {
                 <TableBody>
                   {pendingPayments.map((p) => (
                     <TableRow key={p.suscripcion_id}>
-                      <TableCell className="font-medium">{p.alumno_nombre}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(p.alumno_nombre)}`)}>
+                          {p.alumno_nombre}
+                        </span>
+                      </TableCell>
                       <TableCell>{p.plan_nombre}</TableCell>
                       <TableCell>${p.monto.toLocaleString("es-AR")}</TableCell>
                       <TableCell>{new Date(p.fecha_inicio).toLocaleDateString("es-AR")}</TableCell>
