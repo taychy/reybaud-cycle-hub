@@ -119,6 +119,10 @@ const StudentDashboard = () => {
         }));
         setAccessPerms(getAccessPermissions(subInputs));
 
+        // Store best fecha_fin for news carousel
+        const activeSub = allSubs.find((s: any) => s.estado === "activa" && s.fecha_fin);
+        setBestFechaFin(activeSub ? (activeSub as any).fecha_fin : null);
+
         // Also set pending payment cards
         const pending = allSubs.filter((s: any) => s.estado === "pendiente_verificacion" || s.estado === "rechazada");
         if (pending.length > 0) {
