@@ -56,7 +56,12 @@ const getSubBadge = (estado: string) => {
   }
 };
 
-const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const formatDate = (d: string | null) => {
+  if (!d) return "—";
+  const parts = d.substring(0, 10).split("-");
+  const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 const getPaymentMethodLabel = (method: string | null) => {
   if (!method) return "—";
