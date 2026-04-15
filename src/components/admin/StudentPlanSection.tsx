@@ -480,6 +480,42 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <Label className="text-xs">Nota interna (opcional)</Label>
               <Textarea value={changeNote} onChange={(e) => setChangeNote(e.target.value)} placeholder="Ej: Segunda actividad, solicitud del alumno..." className="bg-secondary border-border text-sm min-h-[50px]" />
             </div>
+
+            {/* Second activity discount toggle - only when adding and there's already an active plan */}
+            {dialogMode === "add" && activeSubs.length > 0 && availableDiscounts.length > 0 && newPlanId && (() => {
+              const selectedPlan = planes.find(p => p.id === newPlanId);
+              const discount = availableDiscounts[0];
+              const precioBase = selectedPlan?.precio || 0;
+              const precioFinal = discount.tipo === "porcentaje"
+                ? Math.round(precioBase * (1 - discount.valor / 100))
+                : Math.max(0, precioBase - discount.valor);
+              return (
+                <div className="rounded-md bg-purple-500/10 border border-purple-500/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="text-xs font-medium text-purple-300">{discount.nombre}</span>
+                      <Badge variant="outline" className="text-[10px] bg-purple-500/20 text-purple-400 border-purple-500/30">
+                        {discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`}
+                      </Badge>
+                    </div>
+                    <Switch
+                      checked={applySecondActivityDiscount}
+                      onCheckedChange={setApplySecondActivityDiscount}
+                    />
+                  </div>
+                  {applySecondActivityDiscount && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Precio con descuento:</span>
+                      <span className="text-purple-300 font-semibold">
+                        <span className="line-through text-muted-foreground mr-2">{selectedPlan?.moneda} {precioBase.toLocaleString()}</span>
+                        {selectedPlan?.moneda} {precioFinal.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <DialogFooter>
