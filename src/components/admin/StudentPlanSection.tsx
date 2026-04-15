@@ -60,7 +60,7 @@ const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-
 
 const getPaymentMethodLabel = (method: string | null) => {
   if (!method) return "—";
-  const map: Record<string, string> = { manual: "Manual (admin)", efectivo: "Efectivo", transferencia: "Transferencia", mercadopago: "Mercado Pago", tarjeta: "Tarjeta" };
+  const map: Record<string, string> = { manual: "Manual (admin)", efectivo: "Efectivo", transferencia: "Transferencia", mercadopago: "Mercado Pago", tarjeta: "Tarjeta", approved: "Mercado Pago", "400": "Mercado Pago", cancelled: "Mercado Pago", conciliado: "—", pendiente_verificacion: "—" };
   return map[method] || method;
 };
 
