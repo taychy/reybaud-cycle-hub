@@ -413,7 +413,7 @@ const AdminPayments = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="pagado">Pagado</SelectItem>
-                  <SelectItem value="pendiente">Pendiente</SelectItem>
+                  <SelectItem value="por_cobrar">Por cobrar</SelectItem>
                   <SelectItem value="informado">Informado</SelectItem>
                   <SelectItem value="conciliado">Conciliado</SelectItem>
                   <SelectItem value="vencido">Vencido</SelectItem>
