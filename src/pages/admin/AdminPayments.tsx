@@ -336,7 +336,7 @@ const AdminPayments = () => {
 
   // Summary counts
   const summary = useMemo(() => {
-    const counts = { pagado: 0, pendiente: 0, informado: 0, conciliado: 0, vencido: 0 };
+    const counts = { pagado: 0, por_cobrar: 0, informado: 0, conciliado: 0, vencido: 0 };
     suscripciones.forEach((s) => {
       const st = getPaymentStatus(s);
       if (st in counts) counts[st as keyof typeof counts]++;
