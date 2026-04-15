@@ -587,7 +587,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                 <div className="rounded-md border border-border bg-white p-4 space-y-3">
                   <h3 className="text-[#d4820a] font-semibold text-base">⚠️ Mensualidad vencida</h3>
                   <p className="text-sm text-[#333]">
-                    Hola <strong>{firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud se encuentra vencida{fechaText ? <> desde el <strong>{fechaText}</strong></> : ""}.
+                    Hola <strong>{firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud venció{fechaText ? <> el <strong>{fechaText}</strong></> : ""}.
                   </p>
                   <p className="text-sm text-[#333]">
                     Para mantener tu acceso completo a la app y a tus entrenamientos, te pedimos que regularices tu pago lo antes posible.

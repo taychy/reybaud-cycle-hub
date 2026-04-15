@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #d4820a; margin-bottom: 16px;">⚠️ Mensualidad vencida</h2>
           <p style="color: #333; margin-bottom: 16px;">
-            Hola <strong>${firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud se encuentra vencida${fechaText ? ` desde el <strong>${fechaText}</strong>` : ""}.
+            Hola <strong>${firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud venció${fechaText ? ` el <strong>${fechaText}</strong>` : ""}.
           </p>
           <p style="color: #333; margin-bottom: 16px;">
             Para mantener tu acceso completo a la app y a tus entrenamientos, te pedimos que regularices tu pago lo antes posible.
