@@ -38,7 +38,12 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const fin = new Date(sub.fecha_fin + "T23:59:59");
+  // Parse fecha_fin robustly — extract YYYY-MM-DD parts to avoid timezone drift
+  const finParts = sub.fecha_fin.substring(0, 10).split("-");
+  const finYear = parseInt(finParts[0], 10);
+  const finMonth = parseInt(finParts[1], 10) - 1;
+  const finDay = parseInt(finParts[2], 10);
+  const fin = new Date(finYear, finMonth, finDay, 23, 59, 59);
 
   // Still within the plan period
   if (today <= fin) return "activa";

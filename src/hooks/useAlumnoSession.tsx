@@ -88,19 +88,38 @@ export function useAlumnoSession() {
       return;
     }
 
-    // Check active subscription
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-    const { data: activeSub } = await supabase
+    // Check for any subscription that grants access (active, grace period, or pending verification)
+    const { data: recentSubs } = await supabase
       .from("suscripciones")
-      .select("id")
+      .select("id, estado, fecha_fin, cancelada_at")
       .eq("alumno_id", alumnoData.id)
-      .eq("estado", "activa")
-      .gte("fecha_fin", todayStr)
-      .limit(1);
+      .in("estado", ["activa", "pendiente_verificacion"])
+      .is("cancelada_at", null)
+      .order("fecha_fin", { ascending: false })
+      .limit(10);
 
-    if (!activeSub || activeSub.length === 0) {
+    const hasAccess = (recentSubs || []).some((sub: any) => {
+      if (sub.estado === "pendiente_verificacion") return true;
+      if (sub.estado !== "activa") return false;
+      if (!sub.fecha_fin) return true;
+      // Parse date parts to avoid timezone drift
+      const parts = sub.fecha_fin.substring(0, 10).split("-");
+      const finDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      if (now <= finDate) return true;
+      // Grace period: allow up to day 5 of the month after expiry
+      const expMonth = finDate.getMonth();
+      const expYear = finDate.getFullYear();
+      const curMonth = now.getMonth();
+      const curYear = now.getFullYear();
+      const isNextMonth =
+        (curYear === expYear && curMonth === expMonth + 1) ||
+        (curYear === expYear + 1 && expMonth === 11 && curMonth === 0);
+      return isNextMonth && now.getDate() <= 5;
+    });
+
+    if (!hasAccess) {
       setState({ alumno: alumnoData, loading: false, error: null, needsSubscription: true });
       return;
     }
