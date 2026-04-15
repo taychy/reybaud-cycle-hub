@@ -108,6 +108,7 @@ const formatDate = (d: string | null) => {
 
 const AdminPayments = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [suscripciones, setSuscripciones] = useState<Suscripcion[]>([]);
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
   const [planes, setPlanes] = useState<{ id: string; nombre: string }[]>([]);
