@@ -52,6 +52,7 @@ const StudentDashboard = () => {
   const [pendingPayments, setPendingPayments] = useState<PendingPaymentInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"hoy" | "eventos" | "tienda" | "progreso" | "mas">(initialTab);
   const [accessPerms, setAccessPerms] = useState<AccessPermissions | null>(null);
+  const [bestFechaFin, setBestFechaFin] = useState<string | null>(null);
   const { toast } = useToast();
   const [showInstallBanner, setShowInstallBanner] = useState(
     () => localStorage.getItem("hide_install_banner") !== "1"
