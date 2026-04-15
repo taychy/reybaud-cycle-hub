@@ -427,7 +427,7 @@ const AdminDashboard = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" title="Ver detalle"><Eye className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" title="Ver ficha" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(e.alumno_nombre)}`)}><Eye className="w-4 h-4" /></Button>
                           <Button variant="ghost" size="icon" title="Contactar por WhatsApp" onClick={() => openWhatsApp(e.alumno_telefono, e.alumno_nombre)}>
                             <MessageCircle className="w-4 h-4" />
                           </Button>
