@@ -1155,10 +1155,10 @@ const ManageStudents = () => {
                               }
                             }}
                           >
-                            <SelectTrigger className="w-28 h-7 bg-secondary border-border text-xs">
+                            <SelectTrigger className="w-36 h-7 bg-secondary border-border text-xs">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="z-[100]">
+                            <SelectContent className="z-[200]" position="popper" sideOffset={4}>
                               {GRUPOS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                             </SelectContent>
                           </Select>
