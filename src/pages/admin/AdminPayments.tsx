@@ -159,8 +159,8 @@ const AdminPayments = () => {
       if (filterSede !== "todos" && s.alumnos?.sede_id !== filterSede) return false;
       if (filterAlumno && ![s.alumnos?.nombre, s.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase().includes(filterAlumno.toLowerCase())) return false;
       if (filterMetodo !== "todos") {
-        const normalized = s.mp_payment_id && !s.mp_status ? "mercadopago" : normalizePaymentMethod(s.mp_status);
-        if (normalized !== filterMetodo) return false;
+        const resolved = resolvePaymentDisplay(s);
+        if (resolved.methodKey !== filterMetodo) return false;
       }
       if (filterFechaDesde && s.created_at < filterFechaDesde) return false;
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
@@ -504,7 +504,19 @@ const AdminPayments = () => {
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
                           <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-xs">{getMetodoPago(sub)}</Badge></TableCell>
+                          <TableCell>
+                            {(() => {
+                              const rp = getResolvedPayment(sub);
+                              return (
+                                <div className="leading-tight">
+                                  <span className="text-sm font-medium">{rp.method}</span>
+                                  {rp.origin !== "—" && (
+                                    <span className="block text-[11px] text-muted-foreground">{rp.origin}</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1 flex-wrap">
                               {(status === "pendiente" || status === "vencido") && (
