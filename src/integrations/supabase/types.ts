@@ -3175,9 +3175,11 @@ export type Database = {
           fecha_fin: string | null
           fecha_inicio: string | null
           id: string
+          metodo_pago: string
           mp_payment_id: string | null
           mp_preference_id: string | null
           mp_status: string | null
+          origen_registro: string
           plan_id: string
           precio_base: number | null
           precio_final: number | null
@@ -3194,9 +3196,11 @@ export type Database = {
           fecha_fin?: string | null
           fecha_inicio?: string | null
           id?: string
+          metodo_pago?: string
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          origen_registro?: string
           plan_id: string
           precio_base?: number | null
           precio_final?: number | null
@@ -3213,9 +3217,11 @@ export type Database = {
           fecha_fin?: string | null
           fecha_inicio?: string | null
           id?: string
+          metodo_pago?: string
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          origen_registro?: string
           plan_id?: string
           precio_base?: number | null
           precio_final?: number | null
