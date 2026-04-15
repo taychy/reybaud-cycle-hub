@@ -136,18 +136,14 @@ const AdminDashboard = () => {
       const pendientes = allSubs.filter(s => s.estado === "pendiente");
       const pagosPendientes = pendientes.length;
 
-      // Only count as "vencido" subscriptions that are truly unpaid:
-      // - fecha_fin expired
-      // - estado is pendiente or vencida
-      // - mp_status indicates no payment was made (not manual/conciliado/approved)
-      const PAID_STATUSES = ["manual", "conciliado", "approved", "efectivo_informado", "externo_informado", "informado"];
+      // Only count as "vencido" subscriptions that are truly unpaid
       const vencidas = allSubs.filter(s => {
         if (!s.fecha_fin) return false;
         return s.fecha_fin < today && s.estado !== "cancelada";
       });
       const pagosVencidos = vencidas.filter(s =>
         (s.estado === "pendiente" || s.estado === "vencida") &&
-        !PAID_STATUSES.includes(s.mp_status || "")
+        s.origen_registro !== "automatico" && s.origen_registro !== "cargado_admin"
       ).length;
 
       const cobradoEsteMes = allSubs
@@ -199,7 +195,7 @@ const AdminDashboard = () => {
         .map(s => {
           const alumno = s.alumnos as any;
           const plan = s.planes as any;
-          const badge = getPaymentBadge(s.estado, s.mp_status);
+          const badge = getPaymentBadge(s.estado, s.metodo_pago);
           return {
             alumno_id: s.alumno_id,
             alumno_nombre: alumno?.nombre || "—",
@@ -208,7 +204,7 @@ const AdminDashboard = () => {
             monto: plan?.precio || 0,
             fecha_inicio: s.created_at,
             estado: badge.label,
-            estado_detalle: s.mp_status || "sin_pago",
+            estado_detalle: s.metodo_pago || "sin_pago",
             mp_status: s.mp_status,
             suscripcion_id: s.id,
           };
@@ -229,7 +225,7 @@ const AdminDashboard = () => {
       if (sinPlan > 0) {
         alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos" });
       }
-      const informados = allSubs.filter(s => (s.mp_status === "informado" || s.mp_status === "efectivo_informado" || s.mp_status === "externo_informado") && s.estado === "pendiente").length;
+      const informados = allSubs.filter(s => s.origen_registro === "informado_alumno" && s.estado === "pendiente").length;
       if (informados > 0) {
         alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
       }
@@ -267,7 +263,7 @@ const AdminDashboard = () => {
       onConfirm: async () => {
         const { error } = await supabase
           .from("suscripciones")
-          .update({ estado: "activa", mp_status: "conciliado" } as any)
+          .update({ estado: "activa", mp_status: "conciliado", origen_registro: "cargado_admin" } as any)
           .eq("id", suscripcionId);
         if (error) {
           toast({ title: "Error", description: error.message, variant: "destructive" });
