@@ -201,18 +201,43 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         endDate.setMonth(endDate.getMonth() + 1);
         endDate.setDate(0);
         const endStr = endDate.toISOString().split("T")[0];
-        await supabase.from("suscripciones").insert({
+
+        const precioBase = selectedPlan?.precio || 0;
+        const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
+        let precioFinal = precioBase;
+        if (discount) {
+          precioFinal = discount.tipo === "porcentaje"
+            ? Math.round(precioBase * (1 - discount.valor / 100))
+            : Math.max(0, precioBase - discount.valor);
+        }
+
+        const { data: newSub } = await supabase.from("suscripciones").insert({
           alumno_id: alumno.id,
           plan_id: newPlanId,
           estado: "activa",
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
           mp_status: "manual",
-        });
-        toast.success(`Plan "${selectedPlan?.nombre}" agregado`);
+          descuento_id: discount?.id || null,
+          precio_base: precioBase,
+          precio_final: precioFinal,
+        }).select("id").single();
+
+        // Also assign discount to descuentos_alumno for tracking
+        if (discount && newSub) {
+          await supabase.from("descuentos_alumno").insert({
+            alumno_id: alumno.id,
+            descuento_id: discount.id,
+            nota: `Aplicado automáticamente al agregar segunda actividad: ${selectedPlan?.nombre || "—"}`,
+            asignado_por: (await supabase.auth.getUser()).data.user?.id || null,
+          });
+        }
+
+        const discountText = discount ? ` (con dto. ${discount.nombre}: ${discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`})` : "";
+        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
