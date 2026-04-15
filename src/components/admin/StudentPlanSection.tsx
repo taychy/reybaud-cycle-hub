@@ -174,6 +174,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setNewPlanId("");
     setChangeFechaInicio(todayStr);
     setChangeNote("");
+    setApplySecondActivityDiscount(false);
     setShowPlanDialog(true);
   };
 
