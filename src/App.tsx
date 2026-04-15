@@ -24,6 +24,7 @@ import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
 import CoachLiquidaciones from "./pages/coach/CoachLiquidaciones";
 import CoachEntrenamientos from "./pages/coach/CoachEntrenamientos";
+import CoachAsesoria from "./pages/coach/CoachAsesoria";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
@@ -67,6 +68,7 @@ import ExternalTripView from "./pages/ExternalTripView";
 import UpdatePrompt from "./components/UpdatePrompt";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
+import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
@@ -106,6 +108,7 @@ const App = () => (
           <Route path="/coach/asistencia" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAttendance /></ProtectedRoute>} />
           <Route path="/coach/feedback" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachFeedback /></ProtectedRoute>} />
           <Route path="/coach/liquidaciones" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachLiquidaciones /></ProtectedRoute>} />
+          <Route path="/coach/asesoria" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAsesoria /></ProtectedRoute>} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
@@ -119,6 +122,7 @@ const App = () => (
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
+            <Route path="asesoria" element={<AdminAsesoria />} />
             <Route path="planes" element={<ManagePlanes />} />
             <Route path="precios" element={<ManagePrecios />} />
             <Route path="descuentos" element={<ManageDescuentos />} />
