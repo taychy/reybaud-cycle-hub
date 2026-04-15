@@ -40,14 +40,22 @@ export function useMonthlyProgress(alumnoId: string | null, grupo: string | null
       const toDate = lastDay.toISOString().split("T")[0];
       const todayStr = now.toISOString().split("T")[0];
 
-      // 1. Get planned trainings for this month (visible, same group)
-      const { data: entrenamientos } = await supabase
+      // 1. Get planned trainings for this month
+      // For "Personalizado" students, fetch by alumno_id; for group students, fetch by grupo
+      let query = supabase
         .from("entrenamientos")
         .select("id, fecha, tipo")
-        .eq("grupo", grupo as any)
         .eq("visible", true)
         .gte("fecha", fromDate)
         .lte("fecha", toDate);
+
+      if (grupo === "Personalizado") {
+        query = query.eq("alumno_id", alumnoId);
+      } else {
+        query = query.eq("grupo", grupo as any).is("alumno_id", null);
+      }
+
+      const { data: entrenamientos } = await query;
 
       const allEntrenamientos = entrenamientos || [];
       // Only past or today count for progress tracking
@@ -96,10 +104,8 @@ export function useMonthlyProgress(alumnoId: string | null, grupo: string | null
         } else if (regEstado === "no_realizada") {
           noRealizadas++;
         } else if (asistEstado === "asistio") {
-          // Fallback: if no registro but has attendance marked as present
           presenciales++;
         }
-        // If neither registro nor asistencia → still pending, not counted yet
       }
 
       const totalPlanificadas = allEntrenamientos.length;
