@@ -14,6 +14,7 @@ const mainItems: NavItem[] = [
   { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
   { to: "/admin/alumnos", label: "Alumnos", icon: Users },
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
+  { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
   { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
 ];

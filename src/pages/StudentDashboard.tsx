@@ -144,13 +144,22 @@ const StudentDashboard = () => {
         weekDates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       }
 
-      const { data: trainings, error } = await supabase
+      // For "Personalizado" students, fetch personal trainings by alumno_id
+      // For group students, fetch by grupo
+      let trainingsQuery = supabase
         .from("entrenamientos")
         .select("*")
         .in("fecha", weekDates)
-        .eq("grupo", alumnoData.grupo)
         .eq("visible", true)
         .order("fecha", { ascending: true });
+
+      if (alumnoData.grupo === "Personalizado") {
+        trainingsQuery = trainingsQuery.eq("alumno_id", alumnoData.id);
+      } else {
+        trainingsQuery = trainingsQuery.eq("grupo", alumnoData.grupo).is("alumno_id", null);
+      }
+
+      const { data: trainings, error } = await trainingsQuery;
 
       if (error) {
         setLoading(false);
