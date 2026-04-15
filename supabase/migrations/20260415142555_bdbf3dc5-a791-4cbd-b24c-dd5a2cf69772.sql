@@ -1,0 +1,3 @@
+ALTER TABLE public.registro_sesiones
+ADD CONSTRAINT registro_sesiones_alumno_entrenamiento_unique
+UNIQUE (alumno_id, entrenamiento_id);

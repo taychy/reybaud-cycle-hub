@@ -45,6 +45,7 @@ export const StudentProgressContent = () => {
       trainingsQuery = trainingsQuery.eq("grupo", grp as any).is("alumno_id", null);
     }
 
+
     const { data: entrenamientos } = await trainingsQuery;
 
     const entIds = (entrenamientos || []).map(e => e.id);
