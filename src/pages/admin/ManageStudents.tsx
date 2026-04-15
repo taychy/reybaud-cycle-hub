@@ -687,7 +687,7 @@ const ManageStudents = () => {
     if (!planId) { toast.error("No hay planes activos."); setSavingManual(false); return; }
     const { data: pendingSubs } = await supabase.from("suscripciones").select("id").eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
     const hasPendingPayment = pendingSubs && pendingSubs.length > 0;
-    await supabase.from("suscripciones").update({ estado: "vencida" }).eq("alumno_id", manualSubAlumno.id).eq("estado", "activa");
+    await supabase.from("suscripciones").update({ estado: "vencida" }).eq("alumno_id", manualSubAlumno.id).eq("estado", "activa").lt("fecha_fin", todayStr);
     if (hasPendingPayment) {
       await supabase.from("suscripciones").update({ estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin }).eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
     } else {
