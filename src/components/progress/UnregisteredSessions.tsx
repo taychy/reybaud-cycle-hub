@@ -29,15 +29,22 @@ export function UnregisteredSessions({ alumnoId, grupo, onUpdate }: Props) {
     const todayStr = now.toISOString().split("T")[0];
     const fromDate = firstDay.toISOString().split("T")[0];
 
-    // Past visible trainings for this group this month
-    const { data: entrenamientos } = await supabase
+    // Past visible trainings for this month
+    let trainingsQuery = supabase
       .from("entrenamientos")
       .select("id, fecha, titulo, tipo")
-      .eq("grupo", grupo as any)
       .eq("visible", true)
       .gte("fecha", fromDate)
       .lte("fecha", todayStr)
       .order("fecha", { ascending: false });
+
+    if (grupo === "Personalizado") {
+      trainingsQuery = trainingsQuery.eq("alumno_id", alumnoId);
+    } else {
+      trainingsQuery = trainingsQuery.eq("grupo", grupo as any).is("alumno_id", null);
+    }
+
+    const { data: entrenamientos } = await trainingsQuery;
 
     if (!entrenamientos?.length) {
       setSessions([]);
