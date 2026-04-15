@@ -57,7 +57,7 @@ type ManualPaymentData = {
 
 const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   activa: { label: "Pagado", variant: "default" },
-  pendiente: { label: "Pendiente", variant: "secondary" },
+  pendiente: { label: "Por cobrar", variant: "secondary" },
   pendiente_verificacion: { label: "Informado", variant: "outline" },
   conciliado: { label: "Conciliado", variant: "default" },
   vencida: { label: "Vencido", variant: "destructive" },
@@ -69,16 +69,24 @@ const getPaymentStatus = (sub: Suscripcion): string => {
   if (sub.estado === "conciliado") return "conciliado";
   if (sub.estado === "activa") return "pagado";
   if (sub.estado === "cancelada") return "cancelado";
-  // Check if overdue
+  // Check if overdue: fecha_fin already passed
+  if (sub.estado === "pendiente" && sub.fecha_fin) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const fin = new Date(sub.fecha_fin + "T23:59:59");
+    if (today > fin) return "vencido";
+    return "por_cobrar";
+  }
+  if (sub.estado === "pendiente") return "por_cobrar";
+  // Any other vencida state
   if (sub.fecha_fin && new Date(sub.fecha_fin) < new Date() && sub.estado !== "activa") return "vencido";
-  if (sub.estado === "pendiente") return "pendiente";
   return sub.estado;
 };
 
 const getStatusBadge = (status: string) => {
   const map: Record<string, { label: string; className: string }> = {
     pagado: { label: "Pagado", className: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" },
-    pendiente: { label: "Pendiente", className: "bg-amber-500/15 text-amber-700 border-amber-500/30" },
+    por_cobrar: { label: "Por cobrar", className: "bg-amber-500/15 text-amber-700 border-amber-500/30" },
     informado: { label: "Informado", className: "bg-blue-500/15 text-blue-700 border-blue-500/30" },
     conciliado: { label: "Conciliado", className: "bg-teal-500/15 text-teal-700 border-teal-500/30" },
     vencido: { label: "Vencido", className: "bg-red-500/15 text-red-700 border-red-500/30" },
@@ -328,7 +336,7 @@ const AdminPayments = () => {
 
   // Summary counts
   const summary = useMemo(() => {
-    const counts = { pagado: 0, pendiente: 0, informado: 0, conciliado: 0, vencido: 0 };
+    const counts = { pagado: 0, por_cobrar: 0, informado: 0, conciliado: 0, vencido: 0 };
     suscripciones.forEach((s) => {
       const st = getPaymentStatus(s);
       if (st in counts) counts[st as keyof typeof counts]++;
@@ -355,10 +363,10 @@ const AdminPayments = () => {
             <p className="text-2xl font-bold mt-1">{summary.pagado}</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("pendiente")}>
+        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("por_cobrar")}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Pendientes</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.pendiente}</p>
+            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Por cobrar</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.por_cobrar}</p>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover:border-blue-500/50 transition-colors" onClick={() => setFilterEstado("informado")}>
@@ -405,7 +413,7 @@ const AdminPayments = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="pagado">Pagado</SelectItem>
-                  <SelectItem value="pendiente">Pendiente</SelectItem>
+                  <SelectItem value="por_cobrar">Por cobrar</SelectItem>
                   <SelectItem value="informado">Informado</SelectItem>
                   <SelectItem value="conciliado">Conciliado</SelectItem>
                   <SelectItem value="vencido">Vencido</SelectItem>

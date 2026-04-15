@@ -214,7 +214,7 @@ const AdminDashboard = () => {
       }
       const porVencer = subsActivas.filter(s => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= in7Days).length;
       if (porVencer > 0) {
-        alertsList.push({ type: "warning", icon: Clock, message: `${porVencer} suscripción(es) vence(n) en los próximos 7 días`, count: porVencer, link: "/admin/pagos?estado=pendiente" });
+        alertsList.push({ type: "warning", icon: Clock, message: `${porVencer} suscripción(es) vence(n) en los próximos 7 días`, count: porVencer, link: "/admin/pagos?estado=por_cobrar" });
       }
       const alumnoIdsConSub = new Set(subsActivas.map(s => s.alumno_id));
       const sinPlan = alumnos.filter(a => !alumnoIdsConSub.has(a.id)).length;
