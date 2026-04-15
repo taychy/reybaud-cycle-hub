@@ -154,7 +154,7 @@ const StudentPayments = () => {
         const { data } = await supabase
           .from("alumnos")
           .select("*")
-          .eq("email", session.user.email.toLowerCase().trim())
+          .eq("email", (session.user.email || "").toLowerCase().trim())
           .maybeSingle();
         if (!data) { navigate("/"); return; }
         alumnoData = data;

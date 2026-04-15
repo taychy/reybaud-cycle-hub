@@ -31,14 +31,21 @@ export const StudentProgressContent = () => {
     const fromDate = firstDay.toISOString().split("T")[0];
     const toDate = lastDay.toISOString().split("T")[0];
 
-    const { data: entrenamientos } = await supabase
+    let trainingsQuery = supabase
       .from("entrenamientos")
       .select("id, fecha, titulo, tipo")
-      .eq("grupo", grp as any)
       .eq("visible", true)
       .gte("fecha", fromDate)
       .lte("fecha", toDate)
       .order("fecha", { ascending: false });
+
+    if (grp === "Personalizado") {
+      trainingsQuery = trainingsQuery.eq("alumno_id", aId);
+    } else {
+      trainingsQuery = trainingsQuery.eq("grupo", grp as any).is("alumno_id", null);
+    }
+
+    const { data: entrenamientos } = await trainingsQuery;
 
     const entIds = (entrenamientos || []).map(e => e.id);
 
