@@ -183,13 +183,22 @@ const StudentDashboard = () => {
       setLoading(false);
 
       if (todayTraining) {
-        const { data: done } = await supabase
-          .from("entrenamientos_realizados")
-          .select("id")
-          .eq("alumno_id", alumnoData.id)
-          .eq("entrenamiento_id", todayTraining.id)
-          .maybeSingle();
-        if (done) setRealizado(true);
+        const [{ data: done1 }, { data: done2 }] = await Promise.all([
+          supabase
+            .from("entrenamientos_realizados")
+            .select("id")
+            .eq("alumno_id", alumnoData.id)
+            .eq("entrenamiento_id", todayTraining.id)
+            .maybeSingle(),
+          supabase
+            .from("registro_sesiones")
+            .select("id")
+            .eq("alumno_id", alumnoData.id)
+            .eq("entrenamiento_id", todayTraining.id)
+            .eq("estado", "realizada")
+            .maybeSingle(),
+        ]);
+        if (done1 || done2) setRealizado(true);
       }
     };
 
@@ -224,15 +233,23 @@ const StudentDashboard = () => {
     setEntrenamiento(training);
     setRealizado(false);
     if (training && alumno) {
-      supabase
-        .from("entrenamientos_realizados")
-        .select("id")
-        .eq("alumno_id", alumno.id)
-        .eq("entrenamiento_id", training.id)
-        .maybeSingle()
-        .then(({ data: done }) => {
-          if (done) setRealizado(true);
-        });
+      Promise.all([
+        supabase
+          .from("entrenamientos_realizados")
+          .select("id")
+          .eq("alumno_id", alumno.id)
+          .eq("entrenamiento_id", training.id)
+          .maybeSingle(),
+        supabase
+          .from("registro_sesiones")
+          .select("id")
+          .eq("alumno_id", alumno.id)
+          .eq("entrenamiento_id", training.id)
+          .eq("estado", "realizada")
+          .maybeSingle(),
+      ]).then(([{ data: done1 }, { data: done2 }]) => {
+        if (done1 || done2) setRealizado(true);
+      });
     }
   }, [selectedDay, weekTrainings, alumno]);
 
@@ -481,12 +498,20 @@ const StudentDashboard = () => {
                     onClick={async () => {
                       if (!alumno || !entrenamiento) return;
                       setMarkingDone(true);
-                      const { error } = await supabase.from("entrenamientos_realizados").insert({
-                        alumno_id: alumno.id,
-                        entrenamiento_id: entrenamiento.id,
-                      });
+                      // Insert into both tables so progress tracking picks it up
+                      const [res1, res2] = await Promise.all([
+                        supabase.from("entrenamientos_realizados").insert({
+                          alumno_id: alumno.id,
+                          entrenamiento_id: entrenamiento.id,
+                        }),
+                        supabase.from("registro_sesiones").insert({
+                          alumno_id: alumno.id,
+                          entrenamiento_id: entrenamiento.id,
+                          estado: "realizada",
+                        }),
+                      ]);
                       setMarkingDone(false);
-                      if (error) {
+                      if (res1.error && res2.error) {
                         toast({ title: t("dashboard.errorTitle"), description: t("dashboard.errorDesc"), variant: "destructive" });
                         return;
                       }
