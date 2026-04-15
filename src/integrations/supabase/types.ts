@@ -3354,7 +3354,14 @@ export type Database = {
       app_role: "admin" | "alumno" | "coach" | "deposito"
       estado_plan: "borrador" | "publicado"
       event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
-      grupo_ciclismo: "G1" | "G2" | "G3" | "G4" | "Sin grupo" | "Principiante"
+      grupo_ciclismo:
+        | "G1"
+        | "G2"
+        | "G3"
+        | "G4"
+        | "Sin grupo"
+        | "Principiante"
+        | "Personalizado"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
     }
     CompositeTypes: {
@@ -3487,7 +3494,15 @@ export const Constants = {
       app_role: ["admin", "alumno", "coach", "deposito"],
       estado_plan: ["borrador", "publicado"],
       event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],
-      grupo_ciclismo: ["G1", "G2", "G3", "G4", "Sin grupo", "Principiante"],
+      grupo_ciclismo: [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "Sin grupo",
+        "Principiante",
+        "Personalizado",
+      ],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
     },
   },
