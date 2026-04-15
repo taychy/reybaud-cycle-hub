@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { formatPrice } from "@/lib/currency";
 import { PAYMENT_METHODS, normalizePaymentMethod, resolvePaymentDisplay } from "@/lib/paymentMethods";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,7 @@ const formatDate = (d: string | null) => {
 
 const AdminPayments = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [suscripciones, setSuscripciones] = useState<Suscripcion[]>([]);
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
   const [planes, setPlanes] = useState<{ id: string; nombre: string }[]>([]);
@@ -501,7 +502,14 @@ const AdminPayments = () => {
                           <TableCell className="px-2">
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                           </TableCell>
-                          <TableCell className="font-medium text-sm">{[sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" ") || "—"}</TableCell>
+                          <TableCell className="font-medium text-sm">
+                            <span
+                              className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/admin/alumnos?buscar=${encodeURIComponent([sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" "))}`) }}
+                            >
+                              {[sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" ") || "—"}
+                            </span>
+                          </TableCell>
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
                           <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>
