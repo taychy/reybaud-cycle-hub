@@ -289,8 +289,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const effectiveBadge = getSubBadge(effectiveEstado);
     const isActive = effectiveEstado === "activa" || effectiveEstado === "pendiente_verificacion" || effectiveEstado === "pausa" || effectiveEstado === "pago_pendiente";
 
-    // Discount logic
-    const isSecondary = index > 0;
+    // Discount logic — subs are ordered by created_at DESC, so index 0 is the newest.
+    // The "segunda_actividad" discount applies to the most recently added plan (index 0) when there's more than one active sub.
+    const totalActive = activeSubs.length;
+    const isSecondary = totalActive > 1 && index === 0;
     const planPrice = sub.planes?.precio || 0;
     const moneda = sub.planes?.moneda || "ARS";
     const hasSavedDiscount = sub.descuento_id && sub.descuentos;
