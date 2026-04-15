@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
@@ -86,7 +87,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [changeFechaInicio, setChangeFechaInicio] = useState("");
   const [changeNote, setChangeNote] = useState("");
   const [saving, setSaving] = useState(false);
-
+  const [applySecondActivityDiscount, setApplySecondActivityDiscount] = useState(false);
+  const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
@@ -100,14 +102,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   const fetchData = async () => {
     setLoading(true);
-    const [subsRes, planesRes] = await Promise.all([
+    const [subsRes, planesRes, discountsRes] = await Promise.all([
       supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
+      supabase.from("descuentos").select("id, nombre, valor, tipo, categoria").eq("activo", true).eq("categoria", "segunda_actividad"),
     ]);
     setSubs((subsRes.data as any) || []);
     setPlanes(planesRes.data || []);
+    setAvailableDiscounts((discountsRes.data as any) || []);
     setLoading(false);
   };
 
@@ -170,6 +174,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setNewPlanId("");
     setChangeFechaInicio(todayStr);
     setChangeNote("");
+    setApplySecondActivityDiscount(false);
     setShowPlanDialog(true);
   };
 
@@ -196,18 +201,43 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         endDate.setMonth(endDate.getMonth() + 1);
         endDate.setDate(0);
         const endStr = endDate.toISOString().split("T")[0];
-        await supabase.from("suscripciones").insert({
+
+        const precioBase = selectedPlan?.precio || 0;
+        const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
+        let precioFinal = precioBase;
+        if (discount) {
+          precioFinal = discount.tipo === "porcentaje"
+            ? Math.round(precioBase * (1 - discount.valor / 100))
+            : Math.max(0, precioBase - discount.valor);
+        }
+
+        const { data: newSub } = await supabase.from("suscripciones").insert({
           alumno_id: alumno.id,
           plan_id: newPlanId,
           estado: "activa",
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
           mp_status: "manual",
-        });
-        toast.success(`Plan "${selectedPlan?.nombre}" agregado`);
+          descuento_id: discount?.id || null,
+          precio_base: precioBase,
+          precio_final: precioFinal,
+        }).select("id").single();
+
+        // Also assign discount to descuentos_alumno for tracking
+        if (discount && newSub) {
+          await supabase.from("descuentos_alumno").insert({
+            alumno_id: alumno.id,
+            descuento_id: discount.id,
+            nota: `Aplicado automáticamente al agregar segunda actividad: ${selectedPlan?.nombre || "—"}`,
+            asignado_por: (await supabase.auth.getUser()).data.user?.id || null,
+          });
+        }
+
+        const discountText = discount ? ` (con dto. ${discount.nombre}: ${discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`})` : "";
+        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
@@ -450,6 +480,42 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <Label className="text-xs">Nota interna (opcional)</Label>
               <Textarea value={changeNote} onChange={(e) => setChangeNote(e.target.value)} placeholder="Ej: Segunda actividad, solicitud del alumno..." className="bg-secondary border-border text-sm min-h-[50px]" />
             </div>
+
+            {/* Second activity discount toggle - only when adding and there's already an active plan */}
+            {dialogMode === "add" && activeSubs.length > 0 && availableDiscounts.length > 0 && newPlanId && (() => {
+              const selectedPlan = planes.find(p => p.id === newPlanId);
+              const discount = availableDiscounts[0];
+              const precioBase = selectedPlan?.precio || 0;
+              const precioFinal = discount.tipo === "porcentaje"
+                ? Math.round(precioBase * (1 - discount.valor / 100))
+                : Math.max(0, precioBase - discount.valor);
+              return (
+                <div className="rounded-md bg-purple-500/10 border border-purple-500/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="text-xs font-medium text-purple-300">{discount.nombre}</span>
+                      <Badge variant="outline" className="text-[10px] bg-purple-500/20 text-purple-400 border-purple-500/30">
+                        {discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`}
+                      </Badge>
+                    </div>
+                    <Switch
+                      checked={applySecondActivityDiscount}
+                      onCheckedChange={setApplySecondActivityDiscount}
+                    />
+                  </div>
+                  {applySecondActivityDiscount && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Precio con descuento:</span>
+                      <span className="text-purple-300 font-semibold">
+                        <span className="line-through text-muted-foreground mr-2">{selectedPlan?.moneda} {precioBase.toLocaleString()}</span>
+                        {selectedPlan?.moneda} {precioFinal.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <DialogFooter>
