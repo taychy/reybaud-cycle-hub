@@ -102,14 +102,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   const fetchData = async () => {
     setLoading(true);
-    const [subsRes, planesRes] = await Promise.all([
+    const [subsRes, planesRes, discountsRes] = await Promise.all([
       supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
+      supabase.from("descuentos").select("id, nombre, valor, tipo, categoria").eq("activo", true).eq("categoria", "segunda_actividad"),
     ]);
     setSubs((subsRes.data as any) || []);
     setPlanes(planesRes.data || []);
+    setAvailableDiscounts((discountsRes.data as any) || []);
     setLoading(false);
   };
 
