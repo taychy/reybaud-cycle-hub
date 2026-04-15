@@ -363,10 +363,10 @@ const AdminPayments = () => {
             <p className="text-2xl font-bold mt-1">{summary.pagado}</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("pendiente")}>
+        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("por_cobrar")}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Pendientes</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.pendiente}</p>
+            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Por cobrar</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.por_cobrar}</p>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover:border-blue-500/50 transition-colors" onClick={() => setFilterEstado("informado")}>
