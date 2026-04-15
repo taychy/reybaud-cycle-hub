@@ -95,6 +95,8 @@ Deno.serve(async (req) => {
           estado: "activa",
           mp_payment_id: String(mpData.id),
           mp_status: mpData.status,
+          metodo_pago: "mercadopago",
+          origen_registro: "automatico",
           fecha_inicio: now,
           fecha_fin: endOfMonth,
         })
@@ -112,6 +114,8 @@ Deno.serve(async (req) => {
           estado: "pendiente",
           mp_payment_id: String(mpData.id),
           mp_status: mpData.status,
+          metodo_pago: "mercadopago",
+          origen_registro: "automatico",
         })
         .eq("id", suscripcion_id);
     } else {
@@ -121,6 +125,8 @@ Deno.serve(async (req) => {
           estado: "cancelada",
           mp_payment_id: mpData.id ? String(mpData.id) : null,
           mp_status: mpData.status || "rejected",
+          metodo_pago: "mercadopago",
+          origen_registro: "automatico",
         })
         .eq("id", suscripcion_id);
     }

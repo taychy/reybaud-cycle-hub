@@ -28,6 +28,8 @@ interface SuscripcionData {
   fecha_inicio: string | null;
   fecha_fin: string | null;
   mp_status: string | null;
+  metodo_pago: string;
+  origen_registro: string;
   created_at: string;
   descuento_id: string | null;
   precio_base: number | null;
@@ -66,7 +68,7 @@ const formatDate = (d: string | null) => {
 
 const getPaymentMethodLabel = (method: string | null) => {
   if (!method) return "—";
-  const map: Record<string, string> = { manual: "Manual (admin)", efectivo: "Efectivo", transferencia: "Transferencia", mercadopago: "Mercado Pago", tarjeta: "Tarjeta", approved: "Mercado Pago", "400": "Mercado Pago", cancelled: "Mercado Pago", conciliado: "—", pendiente_verificacion: "—" };
+  const map: Record<string, string> = { efectivo: "Efectivo", transferencia: "Transferencia", mercadopago: "Mercado Pago", tarjeta: "Tarjeta", plataforma_externa: "Otro" };
   return map[method] || method;
 };
 
@@ -103,7 +105,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes, discountsRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
@@ -223,10 +225,12 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
           mp_status: "manual",
+          metodo_pago: "efectivo",
+          origen_registro: "cargado_admin",
           descuento_id: discount?.id || null,
           precio_base: precioBase,
           precio_final: precioFinal,
-        }).select("id").single();
+        } as any).select("id").single();
 
         // Also assign discount to descuentos_alumno for tracking
         if (discount && newSub) {
@@ -333,10 +337,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </span>
             </div>
           )}
-          {sub.mp_status && (
+          {sub.metodo_pago && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Medio de pago</span>
-              <span className="text-foreground">{getPaymentMethodLabel(sub.mp_status)}</span>
+              <span className="text-foreground">{getPaymentMethodLabel(sub.metodo_pago)}</span>
             </div>
           )}
 

@@ -99,6 +99,8 @@ Deno.serve(async (req) => {
       estado,
       mp_payment_id: String(payment.id),
       mp_status: payment.status,
+      metodo_pago: "mercadopago",
+      origen_registro: "automatico",
     };
 
     if (payment.status === "approved") {

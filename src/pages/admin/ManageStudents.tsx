@@ -692,7 +692,7 @@ const ManageStudents = () => {
     if (hasPendingPayment) {
       await supabase.from("suscripciones").update({ estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin }).eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
     } else {
-      const { error } = await supabase.from("suscripciones").insert({ alumno_id: manualSubAlumno.id, plan_id: planId, estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin, mp_status: "manual" });
+      const { error } = await supabase.from("suscripciones").insert({ alumno_id: manualSubAlumno.id, plan_id: planId, estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
       if (error) { toast.error("Error al crear la suscripción."); setSavingManual(false); return; }
     }
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
@@ -751,7 +751,7 @@ const ManageStudents = () => {
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         const endStr = lastDay.toISOString().split("T")[0];
-        const { error } = await supabase.from("suscripciones").insert({ alumno_id: changePlanAlumno.id, plan_id: newPlanId, estado: "activa", fecha_inicio: todayStr, fecha_fin: endStr, mp_status: "manual" });
+        const { error } = await supabase.from("suscripciones").insert({ alumno_id: changePlanAlumno.id, plan_id: newPlanId, estado: "activa", fecha_inicio: todayStr, fecha_fin: endStr, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
         if (error) throw error;
       }
       supabase.functions.invoke("notify-student-update", {
