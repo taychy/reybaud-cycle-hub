@@ -447,7 +447,7 @@ const AdminPayments = () => {
                   {PAYMENT_METHODS.map((m) => (
                     <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
                   ))}
-                  <SelectItem value="manual">Manual</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>
