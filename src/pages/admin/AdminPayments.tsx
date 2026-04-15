@@ -501,7 +501,14 @@ const AdminPayments = () => {
                           <TableCell className="px-2">
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                           </TableCell>
-                          <TableCell className="font-medium text-sm">{[sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" ") || "—"}</TableCell>
+                          <TableCell className="font-medium text-sm">
+                            <span
+                              className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/admin/alumnos?buscar=${encodeURIComponent([sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" "))}`) }}
+                            >
+                              {[sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" ") || "—"}
+                            </span>
+                          </TableCell>
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
                           <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>

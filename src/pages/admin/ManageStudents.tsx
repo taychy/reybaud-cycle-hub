@@ -100,9 +100,10 @@ const isProfileIncomplete = (alumno: Alumno, subEstado: string) => getProfileMis
 
 const ManageStudents = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("buscar") || "");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
