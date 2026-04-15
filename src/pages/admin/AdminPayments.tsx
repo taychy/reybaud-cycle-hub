@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { formatPrice } from "@/lib/currency";
-import { PAYMENT_METHODS, normalizePaymentMethod, resolvePaymentDisplay } from "@/lib/paymentMethods";
+import { PAYMENT_METHODS, getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,14 +67,13 @@ const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelada: { label: "Cancelado", variant: "destructive" },
 };
 
-const PAID_MP_STATUSES = ["manual", "conciliado", "approved", "efectivo_informado", "externo_informado", "informado"];
+const PAID_ORIGEN = ["automatico", "cargado_admin"];
 
 const getPaymentStatus = (sub: Suscripcion): string => {
   if (sub.estado === "pendiente_verificacion") return "informado";
   if (sub.estado === "conciliado") return "conciliado";
   if (sub.estado === "activa") return "pagado";
   if (sub.estado === "cancelada") return "cancelado";
-  // Check if overdue: fecha_fin already passed
   if (sub.estado === "pendiente" && sub.fecha_fin) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -83,9 +82,7 @@ const getPaymentStatus = (sub: Suscripcion): string => {
     return "por_cobrar";
   }
   if (sub.estado === "pendiente") return "por_cobrar";
-  // "vencida" state — if already paid (mp_status indicates payment), show as "pagado"
-  if (sub.estado === "vencida" && PAID_MP_STATUSES.includes(sub.mp_status || "")) return "pagado";
-  // Any other vencida state with no payment
+  if (sub.estado === "vencida" && PAID_ORIGEN.includes(sub.origen_registro)) return "pagado";
   if (sub.fecha_fin && new Date(sub.fecha_fin) < new Date() && sub.estado !== "activa") return "vencido";
   return sub.estado;
 };
@@ -103,7 +100,16 @@ const getStatusBadge = (status: string) => {
   return <Badge variant="outline" className={info.className}>{info.label}</Badge>;
 };
 
-const getResolvedPayment = (sub: Suscripcion) => resolvePaymentDisplay(sub);
+const getMethodDisplay = (sub: Suscripcion) => {
+  const label = getPaymentMethodLabel(sub.metodo_pago);
+  const originMap: Record<string, string> = {
+    automatico: "Automático",
+    informado_alumno: "Informado por alumno",
+    cargado_admin: "Cargado por admin",
+  };
+  const origin = originMap[sub.origen_registro] || "—";
+  return { method: label, origin };
+};
 
 // formatPrice imported from @/lib/currency
 
@@ -167,8 +173,7 @@ const AdminPayments = () => {
       if (filterSede !== "todos" && s.alumnos?.sede_id !== filterSede) return false;
       if (filterAlumno && ![s.alumnos?.nombre, s.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase().includes(filterAlumno.toLowerCase())) return false;
       if (filterMetodo !== "todos") {
-        const resolved = resolvePaymentDisplay(s);
-        if (resolved.methodKey !== filterMetodo) return false;
+        if (s.metodo_pago !== filterMetodo) return false;
       }
       if (filterFechaDesde && s.created_at < filterFechaDesde) return false;
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
@@ -200,7 +205,8 @@ const AdminPayments = () => {
       fecha_inicio: now.toISOString().split("T")[0],
       fecha_fin: fechaFin.toISOString().split("T")[0],
       mp_status: sub.mp_status || "manual",
-    }).eq("id", sub.id);
+      origen_registro: "cargado_admin",
+    } as any).eq("id", sub.id);
     if (!error) {
       await supabase.from("alumnos").update({ estado: "activo" }).eq("id", sub.alumno_id);
       await logAudit("marcar_pagado", sub.id, { alumno: sub.alumnos?.nombre });
@@ -273,7 +279,9 @@ const AdminPayments = () => {
       fecha_inicio: manualPayData.fecha_pago,
       fecha_fin: fechaFin.toISOString().split("T")[0],
       mp_status: manualPayData.metodo,
-    }).eq("id", manualPayDialog.id);
+      metodo_pago: manualPayData.metodo,
+      origen_registro: "cargado_admin",
+    } as any).eq("id", manualPayDialog.id);
     if (!error) {
       await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualPayDialog.alumno_id);
       await logAudit("pago_manual", manualPayDialog.id, {
@@ -521,7 +529,7 @@ const AdminPayments = () => {
                           <TableCell>{getStatusBadge(status)}</TableCell>
                           <TableCell>
                             {(() => {
-                              const rp = getResolvedPayment(sub);
+                              const rp = getMethodDisplay(sub);
                               return (
                                 <div className="leading-tight">
                                   <span className="text-sm font-medium">{rp.method}</span>
