@@ -24,6 +24,7 @@ import CoachAlumnos from "./pages/coach/CoachAlumnos";
 import CoachFeedback from "./pages/coach/CoachFeedback";
 import CoachLiquidaciones from "./pages/coach/CoachLiquidaciones";
 import CoachEntrenamientos from "./pages/coach/CoachEntrenamientos";
+import CoachAsesoria from "./pages/coach/CoachAsesoria";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
@@ -106,6 +107,7 @@ const App = () => (
           <Route path="/coach/asistencia" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAttendance /></ProtectedRoute>} />
           <Route path="/coach/feedback" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachFeedback /></ProtectedRoute>} />
           <Route path="/coach/liquidaciones" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachLiquidaciones /></ProtectedRoute>} />
+          <Route path="/coach/asesoria" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAsesoria /></ProtectedRoute>} />
           <Route path="/eventos" element={<Eventos />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
