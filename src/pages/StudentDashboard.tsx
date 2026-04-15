@@ -440,6 +440,16 @@ const StudentDashboard = () => {
             {/* Weather */}
             <WeatherBar />
 
+            {/* News carousel */}
+            {alumno && (
+              <HomeNewsCarousel
+                alumnoId={alumno.id}
+                subscriptionStatus={accessPerms?.status}
+                subscriptionDaysLeft={accessPerms?.status === "pago_pendiente" ? 5 - new Date().getDate() : undefined}
+                fechaFin={bestFechaFin}
+              />
+            )}
+
             {/* Payment status - show all pending */}
             {pendingPayments.map((pp) => (
               <PaymentStatusCard
