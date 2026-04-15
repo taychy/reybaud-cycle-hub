@@ -248,6 +248,57 @@ export type Database = {
           },
         ]
       }
+      asesoria_asignaciones: {
+        Row: {
+          activa: boolean
+          alumno_id: string
+          coach_id: string
+          created_at: string
+          fecha_fin: string | null
+          fecha_inicio: string
+          id: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          alumno_id: string
+          coach_id: string
+          created_at?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          alumno_id?: string
+          coach_id?: string
+          created_at?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asesoria_asignaciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asesoria_asignaciones_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asistencias: {
         Row: {
           alumno_id: string
@@ -814,6 +865,7 @@ export type Database = {
       }
       entrenamientos: {
         Row: {
+          alumno_id: string | null
           created_at: string
           descripcion: string | null
           fecha: string
@@ -830,6 +882,7 @@ export type Database = {
           visible: boolean
         }
         Insert: {
+          alumno_id?: string | null
           created_at?: string
           descripcion?: string | null
           fecha: string
@@ -846,6 +899,7 @@ export type Database = {
           visible?: boolean
         }
         Update: {
+          alumno_id?: string | null
           created_at?: string
           descripcion?: string | null
           fecha?: string
@@ -862,6 +916,13 @@ export type Database = {
           visible?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "entrenamientos_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "entrenamientos_origen_importacion_id_fkey"
             columns: ["origen_importacion_id"]
