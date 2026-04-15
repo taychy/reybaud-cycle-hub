@@ -504,11 +504,11 @@ const StudentDashboard = () => {
                           alumno_id: alumno.id,
                           entrenamiento_id: entrenamiento.id,
                         }),
-                        supabase.from("registro_sesiones").insert({
+                        supabase.from("registro_sesiones").upsert({
                           alumno_id: alumno.id,
                           entrenamiento_id: entrenamiento.id,
                           estado: "realizada",
-                        }),
+                        }, { onConflict: "alumno_id,entrenamiento_id" }),
                       ]);
                       setMarkingDone(false);
                       if (res1.error && res2.error) {

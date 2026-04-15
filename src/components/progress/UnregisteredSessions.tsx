@@ -93,11 +93,11 @@ export function UnregisteredSessions({ alumnoId, grupo, onUpdate }: Props) {
   const handleRegister = async (entId: string, estado: "realizada" | "no_realizada") => {
     setSubmitting(entId);
     try {
-      const { error } = await supabase.from("registro_sesiones").insert({
+      const { error } = await supabase.from("registro_sesiones").upsert({
         alumno_id: alumnoId,
         entrenamiento_id: entId,
         estado,
-      });
+      }, { onConflict: "alumno_id,entrenamiento_id" });
 
       if (error) throw error;
 
