@@ -14,9 +14,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Search, Filter, CheckCircle, Eye, Edit, Send, CreditCard, BanIcon,
-  FileText, MessageSquare, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
+  Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard, BanIcon,
+  FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
   ChevronDown, ChevronUp
 } from "lucide-react";
 
@@ -446,7 +447,7 @@ const AdminPayments = () => {
                   {PAYMENT_METHODS.map((m) => (
                     <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
                   ))}
-                  <SelectItem value="manual">Manual</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>
@@ -518,32 +519,64 @@ const AdminPayments = () => {
                             })()}
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {(status === "pendiente" || status === "vencido") && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Marcar como pagado" onClick={() => setConfirmAction({ type: "pagar", sub })}>
-                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                </Button>
-                              )}
-                              {status === "informado" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Conciliar pago" onClick={() => setConfirmAction({ type: "conciliar", sub })}>
-                                  <CheckCheck className="w-3.5 h-3.5 text-teal-600" />
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar vencimiento" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
-                                <Edit className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Registrar pago manual" onClick={() => setManualPayDialog(sub)}>
-                                <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Enviar recordatorio" onClick={() => setRecordatorioDialog(sub)}>
-                                <MessageSquare className="w-3.5 h-3.5 text-green-600" />
-                              </Button>
-                              {status !== "cancelado" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Suspender acceso" onClick={() => setConfirmAction({ type: "suspender", sub })}>
-                                  <BanIcon className="w-3.5 h-3.5 text-red-500" />
-                                </Button>
-                              )}
-                            </div>
+                            <TooltipProvider delayDuration={200}>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {(status === "pendiente" || status === "vencido") && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "pagar", sub })}>
+                                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Marcar como pagado</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {status === "informado" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "conciliar", sub })}>
+                                        <CheckCheck className="w-3.5 h-3.5 text-teal-600" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Conciliar pago</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
+                                      <Pencil className="w-3.5 h-3.5 text-foreground/70" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Editar vencimiento</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setManualPayDialog(sub)}>
+                                      <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Registrar pago manual</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRecordatorioDialog(sub)}>
+                                      <Bell className="w-3.5 h-3.5 text-amber-600" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Enviar recordatorio</TooltipContent>
+                                </Tooltip>
+                                {status !== "cancelado" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "suspender", sub })}>
+                                        <BanIcon className="w-3.5 h-3.5 text-red-500" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Suspender acceso</TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            </TooltipProvider>
                           </TableCell>
                         </TableRow>
                         {isExpanded && (
