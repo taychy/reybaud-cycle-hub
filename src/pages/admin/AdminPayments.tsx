@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { formatPrice } from "@/lib/currency";
-import { PAYMENT_METHODS, getPaymentMethodLabel, normalizePaymentMethod } from "@/lib/paymentMethods";
+import { PAYMENT_METHODS, normalizePaymentMethod, resolvePaymentDisplay } from "@/lib/paymentMethods";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,10 +96,7 @@ const getStatusBadge = (status: string) => {
   return <Badge variant="outline" className={info.className}>{info.label}</Badge>;
 };
 
-const getMetodoPago = (sub: Suscripcion): string => {
-  if (sub.mp_payment_id && !sub.mp_status) return getPaymentMethodLabel("mercadopago");
-  return getPaymentMethodLabel(sub.mp_status);
-};
+const getResolvedPayment = (sub: Suscripcion) => resolvePaymentDisplay(sub);
 
 // formatPrice imported from @/lib/currency
 
