@@ -64,23 +64,26 @@ Deno.serve(async (req) => {
         const newStart = new Date(currentEnd);
         newStart.setDate(newStart.getDate() + 1);
 
+        // fecha_fin MUST always be the last day of the target month
         let newEnd: Date;
         switch (plan.frecuencia) {
-          case "trimestral":
-            newEnd = new Date(newStart);
-            newEnd.setMonth(newEnd.getMonth() + 3);
-            newEnd.setDate(newEnd.getDate() - 1);
+          case "trimestral": {
+            // Last day of the month 3 months from newStart
+            const targetMonth = newStart.getMonth() + 3;
+            newEnd = new Date(newStart.getFullYear(), targetMonth + 1, 0);
             break;
-          case "anual":
-            newEnd = new Date(newStart);
-            newEnd.setFullYear(newEnd.getFullYear() + 1);
-            newEnd.setDate(newEnd.getDate() - 1);
+          }
+          case "anual": {
+            // Last day of the month 12 months from newStart
+            const targetMonth = newStart.getMonth() + 12;
+            newEnd = new Date(newStart.getFullYear(), targetMonth + 1, 0);
             break;
-          default: // mensual and variants
-            newEnd = new Date(newStart);
-            newEnd.setMonth(newEnd.getMonth() + 1);
-            newEnd.setDate(newEnd.getDate() - 1);
+          }
+          default: {
+            // mensual: last day of newStart's month
+            newEnd = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
             break;
+          }
         }
 
         // Check if alumno has saldo_a_favor
