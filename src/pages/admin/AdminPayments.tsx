@@ -65,6 +65,8 @@ const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelada: { label: "Cancelado", variant: "destructive" },
 };
 
+const PAID_MP_STATUSES = ["manual", "conciliado", "approved", "efectivo_informado", "externo_informado", "informado"];
+
 const getPaymentStatus = (sub: Suscripcion): string => {
   if (sub.estado === "pendiente_verificacion") return "informado";
   if (sub.estado === "conciliado") return "conciliado";
@@ -79,7 +81,9 @@ const getPaymentStatus = (sub: Suscripcion): string => {
     return "por_cobrar";
   }
   if (sub.estado === "pendiente") return "por_cobrar";
-  // Any other vencida state
+  // "vencida" state — if already paid (mp_status indicates payment), show as "pagado"
+  if (sub.estado === "vencida" && PAID_MP_STATUSES.includes(sub.mp_status || "")) return "pagado";
+  // Any other vencida state with no payment
   if (sub.fecha_fin && new Date(sub.fecha_fin) < new Date() && sub.estado !== "activa") return "vencido";
   return sub.estado;
 };
