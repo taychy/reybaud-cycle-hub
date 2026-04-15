@@ -136,11 +136,19 @@ const AdminDashboard = () => {
       const pendientes = allSubs.filter(s => s.estado === "pendiente");
       const pagosPendientes = pendientes.length;
 
+      // Only count as "vencido" subscriptions that are truly unpaid:
+      // - fecha_fin expired
+      // - estado is pendiente or vencida
+      // - mp_status indicates no payment was made (not manual/conciliado/approved)
+      const PAID_STATUSES = ["manual", "conciliado", "approved", "efectivo_informado", "externo_informado", "informado"];
       const vencidas = allSubs.filter(s => {
         if (!s.fecha_fin) return false;
         return s.fecha_fin < today && s.estado !== "cancelada";
       });
-      const pagosVencidos = vencidas.filter(s => s.estado === "pendiente" || s.estado === "vencida").length;
+      const pagosVencidos = vencidas.filter(s =>
+        (s.estado === "pendiente" || s.estado === "vencida") &&
+        !PAID_STATUSES.includes(s.mp_status || "")
+      ).length;
 
       const cobradoEsteMes = allSubs
         .filter(s => s.estado === "activa" && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
