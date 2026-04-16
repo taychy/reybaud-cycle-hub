@@ -166,6 +166,7 @@ const EventDetail = () => {
   };
 
   const loadParticipantResult = async (email: string) => {
+    if (!event || event.type !== "record_hora") return;
     const { data } = await supabase
       .from("event_participants")
       .select("id, time_value, participant_comment")

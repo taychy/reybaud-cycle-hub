@@ -161,6 +161,14 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       note: isInscriptionOnly ? "Inscripción confirmada automáticamente" : "Reserva iniciada por el alumno",
     } as any);
 
+    // Increment spots_taken (only for new reservations, not reactivations of cancelled ones)
+    if (!existing || (existing as any).reservation_status === "cancelada") {
+      await supabase.rpc("increment_spots_taken" as any, { p_event_id: event.id } as any).catch(() => {
+        // Fallback: direct update
+        supabase.from("events").update({ spots_taken: event.spots_taken + 1 } as any).eq("id", event.id).then(() => {});
+      });
+    }
+
     // Notify admin (fire and forget)
     if (!isInscriptionOnly) {
       try {
