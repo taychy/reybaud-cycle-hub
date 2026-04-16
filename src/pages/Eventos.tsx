@@ -327,6 +327,7 @@ export const EventosContent = () => {
       .from("events")
       .select("*")
       .eq("is_active", true)
+      .eq("visible_to_students", true)
       .order("date", { ascending: true })
       .then(({ data }) => {
         if (data) setEvents(data as unknown as Event[]);

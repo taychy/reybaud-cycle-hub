@@ -147,8 +147,13 @@ const EventDetail = () => {
     if (!id || !alumno) return;
     loadReservation();
     loadResult(id, alumno.id);
-    loadParticipantResult(alumno.email);
   }, [id, alumno, loadReservation]);
+
+  // Load participant result only after event is loaded
+  useEffect(() => {
+    if (!event || !alumno) return;
+    loadParticipantResult(alumno.email);
+  }, [event, alumno]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
     const { data } = await supabase
@@ -166,6 +171,7 @@ const EventDetail = () => {
   };
 
   const loadParticipantResult = async (email: string) => {
+    if (!event || event.type !== "record_hora") return;
     const { data } = await supabase
       .from("event_participants")
       .select("id, time_value, participant_comment")

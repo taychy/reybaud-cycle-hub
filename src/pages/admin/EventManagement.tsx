@@ -101,11 +101,15 @@ const EventManagement = () => {
     if (!editingId) return;
     setSaving(true);
 
+    // Sync time_value from score (km recorridos) for rankings
+    const scoreVal = editForm.score ? parseFloat(editForm.score) : null;
+
     const { error } = await supabase
       .from("event_participants")
       .update({
-        score: editForm.score ? parseFloat(editForm.score) : null,
+        score: scoreVal,
         time_result: editForm.time_result || null,
+        time_value: scoreVal, // Keep time_value synced for rankings
         position: editForm.position ? parseInt(editForm.position) : null,
         staff_feedback: editForm.staff_feedback || null,
         results_updated_at: new Date().toISOString(),
