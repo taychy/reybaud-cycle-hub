@@ -1,0 +1,1 @@
+UPDATE public.events SET type = 'record_hora' WHERE id = '62a29493-7c8a-474a-a509-7224a8fb0cd7' AND title ILIKE '%record%';
