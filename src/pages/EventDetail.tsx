@@ -244,6 +244,7 @@ const EventDetail = () => {
   const isInformativeOnly = eventNature === "propio_informativo" || eventNature === "externo_informativo";
   const isExternal = eventNature === "externo_informativo";
   const allowsParticipation = isReservable || isInscriptionOnly;
+  const isTripLike = event.type === "camp" || event.type === "viaje";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -296,8 +297,8 @@ const EventDetail = () => {
                 <span>{event.location}</span>
               </div>
             )}
-            {/* Quick event details inline when reserved */}
-            {isActiveReservation && (
+            {/* Quick event details inline when reserved (trips only) */}
+            {isActiveReservation && isTripLike && (
               <div className="flex flex-wrap gap-2 pt-1">
                 {event.duration_days && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
@@ -489,7 +490,7 @@ const EventDetail = () => {
           {(event.description || event.short_description) && (
             <div className="glass-card rounded-xl p-5 space-y-2">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">
-                {isActiveReservation ? "Sobre el viaje" : "Descripción"}
+                {isActiveReservation && isTripLike ? "Sobre el viaje" : "Descripción"}
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                 {event.description || event.short_description}
