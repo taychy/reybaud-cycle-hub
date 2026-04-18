@@ -485,7 +485,7 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 4. FINANCIAL SUMMARY ═══ */}
-        {total > 0 && (
+        {isTripLike && total > 0 && (
           <div className="glass-card rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-primary" />
@@ -568,7 +568,7 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 5. ONBOARDING STEPPER ═══ */}
-        {reservation.payment_status !== "no_aplica" && !["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status) && (
+        {isTripLike && reservation.payment_status !== "no_aplica" && !["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status) && (
           <div className="glass-card rounded-xl p-5 space-y-4">
             <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Progreso de tu reserva</h3>
 
@@ -621,7 +621,7 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
-        {checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
+        {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="glass-card rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Preparación del viaje</h3>

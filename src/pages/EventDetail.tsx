@@ -328,6 +328,7 @@ const EventDetail = () => {
               eventCurrency={event.currency}
               eventDate={event.date}
               eventTitle={event.title}
+              eventType={event.type}
               eventMetadata={event.metadata}
               reglamentoUrl={event.metadata?.reglamento}
               whatsappUrl={event.metadata?.whatsapp_url}
