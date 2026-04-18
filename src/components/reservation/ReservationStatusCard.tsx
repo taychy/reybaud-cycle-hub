@@ -53,6 +53,7 @@ interface ReservationStatusCardProps {
   eventCurrency: string;
   eventDate: string;
   eventTitle: string;
+  eventType?: string;
   eventMetadata?: any;
   reglamentoUrl?: string;
   whatsappUrl?: string;
@@ -89,9 +90,18 @@ const installmentFromMetadata = (meta: any) => {
 };
 
 /* ─── Human-friendly status messages ─── */
-const getHumanStatus = (reservation: Reservation): { title: string; subtitle: string; tone: "success" | "info" | "warning" | "error" | "neutral" } => {
+const getHumanStatus = (reservation: Reservation, isTripLike: boolean = true): { title: string; subtitle: string; tone: "success" | "info" | "warning" | "error" | "neutral" } => {
   const rs = reservation.reservation_status;
   const ps = reservation.payment_status;
+
+  // Non-trip events (record_hora, carrera, otro): simple school-event experience
+  if (!isTripLike) {
+    if (["cancelada", "rechazada"].includes(rs))
+      return { title: "Inscripción cancelada", subtitle: "", tone: "neutral" };
+    if (rs === "reserva_confirmada")
+      return { title: "¡Inscripción confirmada! 🎉", subtitle: "Te esperamos el día del evento.", tone: "success" };
+    return { title: "Inscripción recibida", subtitle: "El equipo está revisando tu inscripción.", tone: "info" };
+  }
 
   if (rs === "reserva_confirmada" && ps === "pago_validado")
     return { title: "¡Tu lugar está confirmado! 🎉", subtitle: "Todo en orden. Ahora a preparar el viaje.", tone: "success" };
@@ -234,9 +244,12 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 };
 
 const ReservationStatusCard = ({
-  reservation, alumnoId, eventCurrency, eventDate, eventTitle, eventMetadata,
+  reservation, alumnoId, eventCurrency, eventDate, eventTitle, eventType, eventMetadata,
   reglamentoUrl, whatsappUrl, onPaymentReported,
 }: ReservationStatusCardProps) => {
+  // Trip-like events show full onboarding (checklist + stepper + payment plan).
+  // School events (record_hora, carrera, otro) show only the confirmation banner.
+  const isTripLike = eventType === "camp" || eventType === "viaje";
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -268,7 +281,7 @@ const ReservationStatusCard = ({
 
   const installments = installmentFromMetadata(eventMetadata);
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
-  const humanStatus = getHumanStatus(reservation);
+  const humanStatus = getHumanStatus(reservation, isTripLike);
   const tone = toneStyles[humanStatus.tone];
   const StatusIcon = toneIcon[humanStatus.tone];
 
