@@ -1258,6 +1258,12 @@ const AdminEventReservations = ({
                 />
               </div>
 
+              {/* Trip preparation checklist */}
+              <ReservationChecklistViewer
+                reservationId={selectedRes.id}
+                alumnoId={selectedRes.alumno_id}
+              />
+
               {/* Installments */}
               {installments.length > 0 && (
                 <div className="space-y-2">
