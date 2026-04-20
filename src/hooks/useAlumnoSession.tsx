@@ -49,13 +49,16 @@ export function useAlumnoSession() {
       return;
     }
 
-    // Link user_id if not set
-    if (!alumnoData.user_id) {
-      await supabase
+    // Self-heal: link user_id if missing OR if it differs from current session
+    // (happens when a user re-activates their account and gets a new auth.users id)
+    if (!alumnoData.user_id || alumnoData.user_id !== session.user.id) {
+      const { error: healError } = await supabase
         .from("alumnos")
         .update({ user_id: session.user.id })
         .eq("id", alumnoData.id);
-      alumnoData.user_id = session.user.id;
+      if (!healError) {
+        alumnoData.user_id = session.user.id;
+      }
     }
 
     // Bloqueado
