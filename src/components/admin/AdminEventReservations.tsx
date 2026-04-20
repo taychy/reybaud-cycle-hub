@@ -28,6 +28,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
 
 /* ─── Types ─── */
 
@@ -1256,6 +1257,12 @@ const AdminEventReservations = ({
                   onBlur={(e) => updateAdminNotes(selectedRes.id, e.target.value)}
                 />
               </div>
+
+              {/* Trip preparation checklist */}
+              <ReservationChecklistViewer
+                reservationId={selectedRes.id}
+                alumnoId={selectedRes.alumno_id}
+              />
 
               {/* Installments */}
               {installments.length > 0 && (
