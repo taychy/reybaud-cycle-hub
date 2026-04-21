@@ -601,8 +601,16 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Registrar pago manual</TooltipContent>
                                 </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
+                                {sub.origen_registro === "informado_alumno" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCorrectMethodDialog(sub); setCorrectMethodValue(sub.metodo_pago || "efectivo"); }}>
+                                        <Pencil className="w-3.5 h-3.5 text-blue-500" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Corregir método informado</TooltipContent>
+                                  </Tooltip>
+                                )}
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRecordatorioDialog(sub)}>
                                       <Bell className="w-3.5 h-3.5 text-amber-600" />
                                     </Button>
@@ -782,6 +790,37 @@ const AdminPayments = () => {
             <Button onClick={() => recordatorioDialog && handleRecordatorio(recordatorioDialog)}>
               <Send className="w-4 h-4 mr-1" />Enviar por WhatsApp
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Correct method dialog (for student-reported payments) */}
+      <Dialog open={!!correctMethodDialog} onOpenChange={(open) => !open && setCorrectMethodDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Corregir método de pago</DialogTitle>
+            <DialogDescription>
+              {correctMethodDialog?.alumnos?.nombre} informó este pago como{" "}
+              <strong>{getPaymentMethodLabel(correctMethodDialog?.metodo_pago)}</strong>.
+              Si el medio real fue otro, corregilo acá.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Método real</Label>
+              <Select value={correctMethodValue} onValueChange={setCorrectMethodValue}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorrectMethodDialog(null)}>Cancelar</Button>
+            <Button onClick={handleCorrectMethod}>Guardar corrección</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
