@@ -611,6 +611,8 @@ const AdminPayments = () => {
                                     <TooltipContent>Corregir método informado</TooltipContent>
                                   </Tooltip>
                                 )}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRecordatorioDialog(sub)}>
                                       <Bell className="w-3.5 h-3.5 text-amber-600" />
                                     </Button>
