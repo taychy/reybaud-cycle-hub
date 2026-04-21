@@ -117,7 +117,7 @@ const EventDetail = () => {
   const [resultSpeed, setResultSpeed] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
-  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null } | null>(null);
+  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; public_access_token?: string } | null>(null);
 
   useEffect(() => {
     if (!id) return;
