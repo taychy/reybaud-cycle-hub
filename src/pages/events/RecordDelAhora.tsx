@@ -121,11 +121,12 @@ const RecordDelAhora = () => {
         .from("event_participants")
         .insert({
           event_slug: "record-de-la-hora",
+          event_id: activeEvent.id,
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           email: normalizedEmail,
           team_name: form.team_name.trim() || "Sin equipo",
-        })
+        } as any)
         .select("public_access_token")
         .single();
 
