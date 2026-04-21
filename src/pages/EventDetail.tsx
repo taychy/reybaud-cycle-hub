@@ -593,6 +593,11 @@ const EventDetail = () => {
                     {participantResult.participant_comment && (
                       <p className="text-sm text-muted-foreground">{participantResult.participant_comment}</p>
                     )}
+                    {participantResult.results_updated_at && (
+                      <p className="text-xs text-muted-foreground">
+                        Última actualización: {new Date(participantResult.results_updated_at).toLocaleString("es-AR")}
+                      </p>
+                    )}
                     {participantResult.public_access_token && (
                       <Button
                         variant="gold-outline"
