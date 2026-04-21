@@ -10,6 +10,7 @@ import logo from "@/assets/logo.png";
 import { Trophy, User, Medal, MessageSquare, Clock, CalendarDays, MapPin, Upload, Ruler, X, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 
 interface Participant {
   id: string;
@@ -137,6 +138,17 @@ const EventResults = () => {
     } else {
       toast({ title: "¡Distancia cargada!", description: "Tu resultado fue enviado para revisión." });
       setShowDistanceForm(false);
+      // Audit log: registra cada submit/edición vía token público
+      const wasEdit = participant.status === "rejected" || participant.status === "result_submitted" || participant.status === "approved";
+      logEventResultSubmission({
+        eventId: participant.event_id || "",
+        alumnoEmail: participant.email,
+        participantId: participant.id,
+        source: "public_token",
+        distanceKm: km,
+        comment: comment.trim() || null,
+        isEdit: wasEdit,
+      });
       await load();
     }
     setSubmitting(false);

@@ -23,6 +23,7 @@ import ReservationStatusCard from "@/components/reservation/ReservationStatusCar
 // CancelReservationDrawer is now handled inside ReservationStatusCard
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
 import type { Tables } from "@/integrations/supabase/types";
+import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 
 type Alumno = Tables<"alumnos">;
 
@@ -117,7 +118,7 @@ const EventDetail = () => {
   const [resultSpeed, setResultSpeed] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
-  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; public_access_token?: string } | null>(null);
+  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; public_access_token?: string; results_updated_at?: string | null } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -174,7 +175,7 @@ const EventDetail = () => {
     if (!event || event.type !== "record_hora") return;
     const { data } = await supabase
       .from("event_participants")
-      .select("id, time_value, participant_comment, public_access_token")
+      .select("id, time_value, participant_comment, public_access_token, results_updated_at")
       .eq("event_id", event.id as any)
       .eq("email", email)
       .maybeSingle();
@@ -203,6 +204,17 @@ const EventDetail = () => {
       toast({ title: "Resultado cargado correctamente." });
       setShowResultForm(false);
       await loadResult(id, alumno.id);
+      // Audit log: registra cada submit/edición
+      logEventResultSubmission({
+        eventId: id,
+        eventTitle: event?.title,
+        alumnoId: alumno.id,
+        alumnoEmail: alumno.email,
+        source: "event_detail",
+        distanceKm: payload.distance_km,
+        comment: payload.notes,
+        isEdit: !!existingResult,
+      });
     }
   };
 
@@ -580,6 +592,11 @@ const EventDetail = () => {
                     )}
                     {participantResult.participant_comment && (
                       <p className="text-sm text-muted-foreground">{participantResult.participant_comment}</p>
+                    )}
+                    {participantResult.results_updated_at && (
+                      <p className="text-xs text-muted-foreground">
+                        Última actualización: {new Date(participantResult.results_updated_at).toLocaleString("es-AR")}
+                      </p>
                     )}
                     {participantResult.public_access_token && (
                       <Button
