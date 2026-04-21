@@ -10,6 +10,7 @@ import logo from "@/assets/logo.png";
 import { Trophy, User, Medal, MessageSquare, Clock, CalendarDays, MapPin, Upload, Ruler, X, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 
 interface Participant {
   id: string;
