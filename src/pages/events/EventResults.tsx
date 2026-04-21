@@ -82,11 +82,11 @@ const EventResults = () => {
 
     setParticipant(p as unknown as Participant);
 
-    // Fetch all approved participants for team ranking
+    // Fetch all approved participants for this specific event (by event_id)
     const { data: rankData } = await supabase
       .from("event_participants")
       .select("first_name, last_name, team_name, time_value")
-      .eq("event_slug", "record-de-la-hora")
+      .eq("event_id", (p as any).event_id)
       .eq("status", "approved" as any)
       .not("time_value", "is", null);
 
