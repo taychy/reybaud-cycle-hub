@@ -1100,6 +1100,7 @@ export type Database = {
           checked_in_at: string
           created_at: string
           email: string
+          event_id: string | null
           event_slug: string
           evidence_url: string | null
           first_name: string
@@ -1127,6 +1128,7 @@ export type Database = {
           checked_in_at?: string
           created_at?: string
           email: string
+          event_id?: string | null
           event_slug?: string
           evidence_url?: string | null
           first_name: string
@@ -1154,6 +1156,7 @@ export type Database = {
           checked_in_at?: string
           created_at?: string
           email?: string
+          event_id?: string | null
           event_slug?: string
           evidence_url?: string | null
           first_name?: string
@@ -1175,7 +1178,15 @@ export type Database = {
           token_expires_at?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_reservations: {
         Row: {
