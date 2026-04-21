@@ -77,11 +77,50 @@ const UpdatePrompt = () => {
     };
   }, [setNeedRefresh]);
 
-  const handleUpdate = () => {
-    updateServiceWorker(true).finally(() => {
-      // Hard reload to guarantee the new bundle is loaded everywhere.
-      window.location.reload();
-    });
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const hardReload = async () => {
+    try {
+      // 1) Clear all Cache Storage entries (Workbox precache, runtime caches, etc.)
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (err) {
+      console.warn("Cache cleanup failed", err);
+    }
+
+    try {
+      // 2) Unregister all service workers as a safety net — guarantees the
+      // next navigation fetches a fresh bundle from the network on every
+      // browser, including iOS Safari where SW updates are flaky.
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+      }
+    } catch (err) {
+      console.warn("SW unregister failed", err);
+    }
+
+    // 3) Force a network-fresh navigation. Appending a cache-busting query
+    // param ensures even aggressive HTTP caches are bypassed.
+    const url = new URL(window.location.href);
+    url.searchParams.set("_v", Date.now().toString());
+    window.location.replace(url.toString());
+  };
+
+  const handleUpdate = async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    try {
+      // Activate the waiting service worker (skipWaiting + clients.claim).
+      await updateServiceWorker(true);
+    } catch (err) {
+      console.warn("updateServiceWorker failed, forcing reload anyway", err);
+    } finally {
+      // Always perform the hard reload, even if SW activation failed.
+      await hardReload();
+    }
   };
 
   if (!needRefresh) return null;
