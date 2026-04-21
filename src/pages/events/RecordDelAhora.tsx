@@ -15,6 +15,7 @@ const RecordDelAhora = () => {
   const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -22,6 +23,35 @@ const RecordDelAhora = () => {
     team_name: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pick the next upcoming record_hora event (or the most recent if none upcoming)
+  useEffect(() => {
+    (async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: upcoming } = await supabase
+        .from("events")
+        .select("id, date, title")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .gte("date", today)
+        .order("date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (upcoming) {
+        setActiveEvent(upcoming as any);
+        return;
+      }
+      const { data: past } = await supabase
+        .from("events")
+        .select("id, date, title")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (past) setActiveEvent(past as any);
+    })();
+  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
