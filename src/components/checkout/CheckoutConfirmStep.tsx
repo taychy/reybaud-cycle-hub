@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Clock, Zap, CheckCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Zap } from "lucide-react";
 import CheckoutSummaryCard from "./CheckoutSummaryCard";
-
-type PaymentMethod = "mercadopago" | "card" | "cash" | "external_platform";
+import type { DeclaredPaymentMethod } from "./CheckoutMethodStep";
 
 interface CheckoutConfirmStepProps {
   planName: string;
@@ -13,7 +12,7 @@ interface CheckoutConfirmStepProps {
   modality: "total" | "cuotas" | null;
   cuotasCantidad?: number | null;
   cuotaValor?: number | null;
-  paymentMethod: PaymentMethod;
+  paymentMethod: DeclaredPaymentMethod;
   discountName?: string | null;
   discountValue?: number | null;
   discountType?: string | null;
@@ -22,7 +21,7 @@ interface CheckoutConfirmStepProps {
   onBack: () => void;
 }
 
-const activationInfo: Record<PaymentMethod, { icon: React.ReactNode; text: string; detail: string }> = {
+const activationInfo: Record<DeclaredPaymentMethod, { icon: React.ReactNode; text: string; detail: string }> = {
   mercadopago: {
     icon: <Zap className="w-4 h-4 text-primary" />,
     text: "Activación inmediata",
@@ -33,23 +32,41 @@ const activationInfo: Record<PaymentMethod, { icon: React.ReactNode; text: strin
     text: "Activación inmediata",
     detail: "Tu plan se activa automáticamente al confirmar el pago.",
   },
-  cash: {
+  efectivo: {
     icon: <Clock className="w-4 h-4 text-amber-400" />,
     text: "Pendiente de validación",
     detail: "Lo revisamos después de tu clase y te avisamos cuando quede acreditado.",
   },
-  external_platform: {
+  transferencia: {
+    icon: <Clock className="w-4 h-4 text-amber-400" />,
+    text: "Pendiente de revisión",
+    detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
+  },
+  mp_externo: {
+    icon: <Clock className="w-4 h-4 text-amber-400" />,
+    text: "Pendiente de revisión",
+    detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
+  },
+  tarjeta_externa: {
+    icon: <Clock className="w-4 h-4 text-amber-400" />,
+    text: "Pendiente de revisión",
+    detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
+  },
+  plataforma_externa: {
     icon: <Clock className="w-4 h-4 text-amber-400" />,
     text: "Pendiente de revisión",
     detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
   },
 };
 
-const confirmLabels: Record<PaymentMethod, string> = {
+const confirmLabels: Record<DeclaredPaymentMethod, string> = {
   mercadopago: "Ir a Mercado Pago",
   card: "Continuar con tarjeta",
-  cash: "Confirmar que ya pagué en efectivo",
-  external_platform: "Confirmar que ya hice el pago",
+  efectivo: "Confirmar que ya pagué en efectivo",
+  transferencia: "Confirmar pago por transferencia",
+  mp_externo: "Confirmar pago por MercadoPago",
+  tarjeta_externa: "Confirmar pago con tarjeta",
+  plataforma_externa: "Confirmar pago por plataforma externa",
 };
 
 const CheckoutConfirmStep = ({

@@ -27,8 +27,14 @@ const frecuenciaLabels: Record<string, string> = {
 const methodLabels: Record<string, string> = {
   mercadopago: "Mercado Pago",
   card: "Tarjeta de crédito/débito",
+  efectivo: "Efectivo al profesor",
+  transferencia: "Transferencia bancaria",
+  mp_externo: "MercadoPago (por fuera)",
+  tarjeta_externa: "Tarjeta (por fuera)",
+  plataforma_externa: "Plataforma de pago externa",
+  // Legacy aliases
   cash: "Efectivo al profesor",
-  external_platform: "Transferencia u otro medio",
+  external_platform: "Plataforma de pago externa",
 };
 
 const CheckoutSummaryCard = ({

@@ -146,6 +146,9 @@ const AdminPayments = () => {
   const [manualPayData, setManualPayData] = useState<ManualPaymentData>({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0] });
   const [recordatorioDialog, setRecordatorioDialog] = useState<Suscripcion | null>(null);
   const [recordatorioMsg, setRecordatorioMsg] = useState("");
+  // Correct method dialog (for student-reported payments)
+  const [correctMethodDialog, setCorrectMethodDialog] = useState<Suscripcion | null>(null);
+  const [correctMethodValue, setCorrectMethodValue] = useState("efectivo");
 
   const fetchData = async () => {
     setLoading(true);
@@ -311,8 +314,27 @@ const AdminPayments = () => {
       toast({ title: "Pago manual registrado" });
       fetchData();
     }
-    setManualPayDialog(null);
-    setManualPayData({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0] });
+  };
+
+  const handleCorrectMethod = async () => {
+    if (!correctMethodDialog) return;
+    const oldMethod = correctMethodDialog.metodo_pago;
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({ metodo_pago: correctMethodValue } as any)
+      .eq("id", correctMethodDialog.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    await logAudit("corregir_metodo_pago", correctMethodDialog.id, {
+      alumno: correctMethodDialog.alumnos?.nombre,
+      metodo_anterior: oldMethod,
+      metodo_nuevo: correctMethodValue,
+    });
+    toast({ title: "Método corregido", description: `Se actualizó el método de pago a ${getPaymentMethodLabel(correctMethodValue)}.` });
+    setCorrectMethodDialog(null);
+    fetchData();
   };
 
   const handleRecordatorio = (sub: Suscripcion) => {
@@ -579,6 +601,16 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Registrar pago manual</TooltipContent>
                                 </Tooltip>
+                                {sub.origen_registro === "informado_alumno" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCorrectMethodDialog(sub); setCorrectMethodValue(sub.metodo_pago || "efectivo"); }}>
+                                        <Pencil className="w-3.5 h-3.5 text-blue-500" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Corregir método informado</TooltipContent>
+                                  </Tooltip>
+                                )}
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRecordatorioDialog(sub)}>
@@ -760,6 +792,37 @@ const AdminPayments = () => {
             <Button onClick={() => recordatorioDialog && handleRecordatorio(recordatorioDialog)}>
               <Send className="w-4 h-4 mr-1" />Enviar por WhatsApp
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Correct method dialog (for student-reported payments) */}
+      <Dialog open={!!correctMethodDialog} onOpenChange={(open) => !open && setCorrectMethodDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Corregir método de pago</DialogTitle>
+            <DialogDescription>
+              {correctMethodDialog?.alumnos?.nombre} informó este pago como{" "}
+              <strong>{getPaymentMethodLabel(correctMethodDialog?.metodo_pago)}</strong>.
+              Si el medio real fue otro, corregilo acá.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Método real</Label>
+              <Select value={correctMethodValue} onValueChange={setCorrectMethodValue}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorrectMethodDialog(null)}>Cancelar</Button>
+            <Button onClick={handleCorrectMethod}>Guardar corrección</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
