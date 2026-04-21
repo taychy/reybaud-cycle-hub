@@ -26,6 +26,7 @@ interface Participant {
   results_updated_at: string | null;
   participant_comment: string | null;
   rejection_reason: string | null;
+  event_id: string | null;
 }
 
 interface TeamRanking {
