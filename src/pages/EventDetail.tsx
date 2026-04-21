@@ -204,6 +204,17 @@ const EventDetail = () => {
       toast({ title: "Resultado cargado correctamente." });
       setShowResultForm(false);
       await loadResult(id, alumno.id);
+      // Audit log: registra cada submit/edición
+      logEventResultSubmission({
+        eventId: id,
+        eventTitle: event?.title,
+        alumnoId: alumno.id,
+        alumnoEmail: alumno.email,
+        source: "event_detail",
+        distanceKm: payload.distance_km,
+        comment: payload.notes,
+        isEdit: !!existingResult,
+      });
     }
   };
 
