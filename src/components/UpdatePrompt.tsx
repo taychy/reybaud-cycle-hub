@@ -133,8 +133,8 @@ const UpdatePrompt = () => {
           <p className="text-sm font-medium text-foreground">Nueva versión disponible</p>
           <p className="text-xs text-muted-foreground">Actualizá para ver los últimos cambios</p>
         </div>
-        <Button onClick={handleUpdate} size="sm" variant="gold" className="shrink-0">
-          Actualizar
+        <Button onClick={handleUpdate} size="sm" variant="gold" className="shrink-0" disabled={isUpdating}>
+          {isUpdating ? "Actualizando…" : "Actualizar"}
         </Button>
       </div>
     </div>
