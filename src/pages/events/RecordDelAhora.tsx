@@ -71,10 +71,15 @@ const RecordDelAhora = () => {
       return;
     }
     setLoading(true);
+    if (!activeEvent) {
+      setLoginError("No hay eventos activos.");
+      setLoading(false);
+      return;
+    }
     const { data: existing } = await supabase
       .from("event_participants")
       .select("public_access_token")
-      .eq("event_slug", "record-de-la-hora")
+      .eq("event_id", activeEvent.id as any)
       .eq("email", email)
       .maybeSingle();
 
@@ -89,16 +94,20 @@ const RecordDelAhora = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    if (!activeEvent) {
+      toast({ title: "Error", description: "No hay eventos activos.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     try {
       const normalizedEmail = form.email.trim().toLowerCase();
 
-      // Check if already registered
+      // Check if already registered for this event
       const { data: existing } = await supabase
         .from("event_participants")
         .select("public_access_token")
-        .eq("event_slug", "record-de-la-hora")
+        .eq("event_id", activeEvent.id as any)
         .eq("email", normalizedEmail)
         .maybeSingle();
 
