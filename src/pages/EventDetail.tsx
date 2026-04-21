@@ -174,7 +174,7 @@ const EventDetail = () => {
     if (!event || event.type !== "record_hora") return;
     const { data } = await supabase
       .from("event_participants")
-      .select("id, time_value, participant_comment, public_access_token")
+      .select("id, time_value, participant_comment, public_access_token, results_updated_at")
       .eq("event_id", event.id as any)
       .eq("email", email)
       .maybeSingle();
