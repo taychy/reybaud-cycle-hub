@@ -4,6 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowRight } from "lucide-react";
 
+type DeclaredManualMethod =
+  | "efectivo"
+  | "transferencia"
+  | "mp_externo"
+  | "tarjeta_externa"
+  | "plataforma_externa";
+
 interface ManualPaymentConfirmProps {
   planId: string;
   planName: string;
@@ -12,9 +19,25 @@ interface ManualPaymentConfirmProps {
   precioFinal: number;
   descuentoId: string | null;
   moneda: string;
-  paymentType: "cash" | "external_platform";
+  /** Specific method the student declared (efectivo, transferencia, mp_externo, ...) */
+  metodoPago: DeclaredManualMethod;
   onProcessing: (v: boolean) => void;
 }
+
+const METHOD_LABELS: Record<DeclaredManualMethod, string> = {
+  efectivo: "en efectivo al profesor",
+  transferencia: "por transferencia bancaria",
+  mp_externo: "con MercadoPago (por fuera de la app)",
+  tarjeta_externa: "con tarjeta (por fuera de la app)",
+  plataforma_externa: "por una plataforma externa",
+};
+
+/** Map declared method → canonical metodo_pago value persisted in DB */
+const toCanonicalMethod = (m: DeclaredManualMethod): string => {
+  if (m === "mp_externo") return "mercadopago";
+  if (m === "tarjeta_externa") return "tarjeta";
+  return m; // efectivo, transferencia, plataforma_externa
+};
 
 const ManualPaymentConfirm = ({
   planId,
@@ -22,7 +45,7 @@ const ManualPaymentConfirm = ({
   precioBase,
   precioFinal,
   descuentoId,
-  paymentType,
+  metodoPago,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
