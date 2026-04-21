@@ -314,8 +314,27 @@ const AdminPayments = () => {
       toast({ title: "Pago manual registrado" });
       fetchData();
     }
-    setManualPayDialog(null);
-    setManualPayData({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0] });
+  };
+
+  const handleCorrectMethod = async () => {
+    if (!correctMethodDialog) return;
+    const oldMethod = correctMethodDialog.metodo_pago;
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({ metodo_pago: correctMethodValue } as any)
+      .eq("id", correctMethodDialog.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    await logAudit("corregir_metodo_pago", correctMethodDialog.id, {
+      alumno: correctMethodDialog.alumnos?.nombre,
+      metodo_anterior: oldMethod,
+      metodo_nuevo: correctMethodValue,
+    });
+    toast({ title: "Método corregido", description: `Se actualizó el método de pago a ${getPaymentMethodLabel(correctMethodValue)}.` });
+    setCorrectMethodDialog(null);
+    fetchData();
   };
 
   const handleRecordatorio = (sub: Suscripcion) => {
