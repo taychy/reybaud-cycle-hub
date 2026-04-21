@@ -62,6 +62,8 @@ const ManualPaymentConfirm = ({
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const fechaFin = lastDay.toISOString().split("T")[0];
 
+    const canonicalMethod = toCanonicalMethod(metodoPago);
+
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
@@ -73,6 +75,8 @@ const ManualPaymentConfirm = ({
         precio_final: precioFinal,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        metodo_pago: canonicalMethod,
+        origen_registro: "informado_alumno",
       } as any)
       .select("id")
       .single();
@@ -95,7 +99,8 @@ const ManualPaymentConfirm = ({
           alumno_id: alumnoId,
           plan_id: planId,
           suscripcion_id: sub.id,
-          payment_type: paymentType === "external_platform" ? "plataforma_externa" : "efectivo",
+          payment_type: canonicalMethod,
+          declared_method: metodoPago,
         }),
       }).catch(() => {});
     } catch {
@@ -123,9 +128,8 @@ const ManualPaymentConfirm = ({
           ¡Listo, recibimos tu aviso!
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          {paymentType === "cash"
-            ? "Registramos tu pago en efectivo. Lo validamos después de tu clase y te avisamos cuando quede acreditado."
-            : "Registramos tu pago. Lo revisamos y te avisamos por email cuando quede acreditado."}
+          Registramos tu pago {METHOD_LABELS[metodoPago]}. Lo revisamos y te avisamos
+          {metodoPago === "efectivo" ? " después de tu clase" : " por email"} cuando quede acreditado.
         </p>
         <Button
           variant="gold"
