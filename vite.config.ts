@@ -17,12 +17,15 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
+      injectRegister: "auto",
       includeAssets: ["favicon.png", "favicon.ico"],
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        clientsClaim: true,
+        skipWaiting: false,
       },
       manifest: {
         name: "Ciclismo Reybaud",
