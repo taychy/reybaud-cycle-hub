@@ -38,7 +38,7 @@ export default function EventRankings({ eventId, eventType }: Props) {
     const { data } = await supabase
       .from("event_participants")
       .select("id, first_name, last_name, team_name, time_value")
-      .eq("event_slug", "record-de-la-hora")
+      .eq("event_id", eventId as any)
       .not("time_value", "is", null)
       .order("time_value", { ascending: false });
 

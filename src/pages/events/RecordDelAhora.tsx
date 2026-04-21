@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ const RecordDelAhora = () => {
   const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -22,6 +23,35 @@ const RecordDelAhora = () => {
     team_name: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pick the next upcoming record_hora event (or the most recent if none upcoming)
+  useEffect(() => {
+    (async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: upcoming } = await supabase
+        .from("events")
+        .select("id, date, title")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .gte("date", today)
+        .order("date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (upcoming) {
+        setActiveEvent(upcoming as any);
+        return;
+      }
+      const { data: past } = await supabase
+        .from("events")
+        .select("id, date, title")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (past) setActiveEvent(past as any);
+    })();
+  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -41,10 +71,15 @@ const RecordDelAhora = () => {
       return;
     }
     setLoading(true);
+    if (!activeEvent) {
+      setLoginError("No hay eventos activos.");
+      setLoading(false);
+      return;
+    }
     const { data: existing } = await supabase
       .from("event_participants")
       .select("public_access_token")
-      .eq("event_slug", "record-de-la-hora")
+      .eq("event_id", activeEvent.id as any)
       .eq("email", email)
       .maybeSingle();
 
@@ -59,16 +94,20 @@ const RecordDelAhora = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    if (!activeEvent) {
+      toast({ title: "Error", description: "No hay eventos activos.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     try {
       const normalizedEmail = form.email.trim().toLowerCase();
 
-      // Check if already registered
+      // Check if already registered for this event
       const { data: existing } = await supabase
         .from("event_participants")
         .select("public_access_token")
-        .eq("event_slug", "record-de-la-hora")
+        .eq("event_id", activeEvent.id as any)
         .eq("email", normalizedEmail)
         .maybeSingle();
 
@@ -82,11 +121,12 @@ const RecordDelAhora = () => {
         .from("event_participants")
         .insert({
           event_slug: "record-de-la-hora",
+          event_id: activeEvent.id,
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           email: normalizedEmail,
           team_name: form.team_name.trim() || "Sin equipo",
-        })
+        } as any)
         .select("public_access_token")
         .single();
 
