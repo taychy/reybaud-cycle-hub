@@ -65,7 +65,6 @@ const EventResults = () => {
       .from("event_participants")
       .select("*")
       .eq("public_access_token", token)
-      .eq("event_slug", "record-de-la-hora")
       .maybeSingle();
 
     if (pErr || !p) {
