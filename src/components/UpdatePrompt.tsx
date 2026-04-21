@@ -1,60 +1,90 @@
 import { useEffect, useState } from "react";
+import { useRegisterSW } from "virtual:pwa-register/react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const POLL_INTERVAL_MS = 30 * 1000; // 30s
+const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
+
 const UpdatePrompt = () => {
-  const [showUpdate, setShowUpdate] = useState(false);
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    immediate: true,
+    onRegisteredSW(swUrl, registration) {
+      if (!registration) return;
+      // Periodic check: ask the browser to re-fetch the SW from the server.
+      // This is what surfaces the "needRefresh" state across all devices.
+      setInterval(() => {
+        registration.update().catch(() => {});
+      }, POLL_INTERVAL_MS);
+    },
+    onRegisterError(error) {
+      console.error("SW registration error", error);
+    },
+  });
+
+  // Fallback: some devices/browsers don't fire the SW "waiting" event reliably.
+  // We additionally poll index.html and compare its content hash to detect new
+  // deployments — if the HTML changed, we surface the update prompt too.
+  const [initialHtmlHash, setInitialHtmlHash] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleSWUpdate = (reg: ServiceWorkerRegistration) => {
-      setRegistration(reg);
-      setShowUpdate(true);
+    const computeHash = async (text: string) => {
+      const buf = new TextEncoder().encode(text);
+      const digest = await crypto.subtle.digest("SHA-1", buf);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
     };
 
-    // Listen for the custom event dispatched by vite-plugin-pwa
-    const onNeedRefresh = () => {
-      if (navigator.serviceWorker?.controller) {
-        navigator.serviceWorker.getRegistration().then((reg) => {
-          if (reg?.waiting) {
-            handleSWUpdate(reg);
-          }
+    let cancelled = false;
+
+    const fetchHash = async () => {
+      try {
+        const res = await fetch(`/?_t=${Date.now()}`, {
+          cache: "no-store",
+          credentials: "same-origin",
         });
+        if (!res.ok) return null;
+        const text = await res.text();
+        return await computeHash(text);
+      } catch {
+        return null;
       }
     };
 
-    // Check on mount if there's already a waiting SW
-    navigator.serviceWorker?.getRegistration().then((reg) => {
-      if (reg?.waiting) {
-        handleSWUpdate(reg);
-      }
-      // Also listen for future updates
-      reg?.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        newWorker?.addEventListener("statechange", () => {
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            handleSWUpdate(reg);
-          }
-        });
+    (async () => {
+      const hash = await fetchHash();
+      if (!cancelled) setInitialHtmlHash(hash);
+    })();
+
+    const interval = setInterval(async () => {
+      const hash = await fetchHash();
+      if (cancelled || !hash) return;
+      setInitialHtmlHash((prev) => {
+        if (prev && hash !== prev) {
+          setNeedRefresh(true);
+        }
+        return prev ?? hash;
       });
-    });
+    }, HTML_CHECK_INTERVAL_MS);
 
-    // Poll for updates every 60s
-    const interval = setInterval(() => {
-      navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
-    }, 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [setNeedRefresh]);
 
   const handleUpdate = () => {
-    if (registration?.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    }
-    window.location.reload();
+    updateServiceWorker(true).finally(() => {
+      // Hard reload to guarantee the new bundle is loaded everywhere.
+      window.location.reload();
+    });
   };
 
-  if (!showUpdate) return null;
+  if (!needRefresh) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-[100] flex justify-center pointer-events-none">
