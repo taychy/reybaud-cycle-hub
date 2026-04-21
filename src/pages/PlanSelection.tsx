@@ -42,7 +42,9 @@ const frecuenciaLabels: Record<string, string> = {
   "1x_semana": "1 vez por semana",
 };
 
-type PaymentMethod = "mercadopago" | "card" | "cash" | "external_platform";
+import type { DeclaredPaymentMethod } from "@/components/checkout/CheckoutMethodStep";
+
+type PaymentMethod = DeclaredPaymentMethod;
 type CheckoutStep = "select-plan" | "select-modality" | "select-method" | "confirm" | "processing" | "card-form";
 
 const PlanSelection = () => {
@@ -189,7 +191,8 @@ const PlanSelection = () => {
     } else if (paymentMethod === "card") {
       setStep("card-form");
     } else {
-      // cash or external_platform → auto-process via ManualPaymentConfirm
+      // efectivo / transferencia / mp_externo / tarjeta_externa / plataforma_externa
+      // → auto-process via ManualPaymentConfirm
       setStep("processing");
     }
   };
@@ -342,8 +345,15 @@ const PlanSelection = () => {
     );
   }
 
-  // Manual payment processing (cash / external)
-  if (step === "processing" && selectedPlan && alumnoId && paymentMethod && (paymentMethod === "cash" || paymentMethod === "external_platform")) {
+  // Manual payment processing (any non-gateway method declared by student)
+  const isManualMethod =
+    paymentMethod === "efectivo" ||
+    paymentMethod === "transferencia" ||
+    paymentMethod === "mp_externo" ||
+    paymentMethod === "tarjeta_externa" ||
+    paymentMethod === "plataforma_externa";
+
+  if (step === "processing" && selectedPlan && alumnoId && paymentMethod && isManualMethod) {
     return (
       <div className="min-h-screen bg-background px-4 py-8 flex items-center justify-center">
         <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -358,7 +368,7 @@ const PlanSelection = () => {
             precioFinal={selectedDiscount?.final ?? selectedPlan.precio}
             descuentoId={selectedDiscount?.discount?.id ?? null}
             moneda={selectedPlan.moneda || "ARS"}
-            paymentType={paymentMethod}
+            metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "tarjeta_externa" | "plataforma_externa"}
             onProcessing={setProcessing}
           />
         </div>
