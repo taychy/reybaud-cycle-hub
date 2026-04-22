@@ -275,27 +275,10 @@ const AdminPayments = () => {
     setConfirmAction(null);
   };
 
-  const handleConciliar = async (sub: Suscripcion) => {
-    const { error } = await supabase.from("suscripciones").update({ estado: "conciliado" as string }).eq("id", sub.id);
-    if (!error) {
-      await supabase.from("alumnos").update({ estado: "activo" }).eq("id", sub.alumno_id);
-      await logAudit("conciliar_pago", sub.id, { alumno: sub.alumnos?.nombre });
-      toast({ title: "Pago conciliado", description: `Se concilió el pago de ${sub.alumnos?.nombre}` });
-      fetchData();
-    }
-    setConfirmAction(null);
-  };
+  // Nota: las acciones "Conciliar" y "Suspender acceso" se removieron de esta vista
+  // para simplificar la operatoria diaria y evitar ruido visual.
 
-  const handleSuspender = async (sub: Suscripcion) => {
-    const { error } = await supabase.from("suscripciones").update({ estado: "cancelada", cancelada_at: new Date().toISOString(), cancelada_motivo: "Suspensión por falta de pago" }).eq("id", sub.id);
-    if (!error) {
-      await supabase.from("alumnos").update({ estado: "inactivo" }).eq("id", sub.alumno_id);
-      await logAudit("suspender_acceso", sub.id, { alumno: sub.alumnos?.nombre });
-      toast({ title: "Acceso suspendido", description: `Se suspendió el acceso de ${sub.alumnos?.nombre}` });
-      fetchData();
-    }
-    setConfirmAction(null);
-  };
+
 
   const handleEditFecha = async () => {
     if (!editFechaDialog || !editFechaValue) return;
