@@ -108,7 +108,8 @@ const Login = () => {
         const isNextMonth =
           (curYear === expYear && curMonth === expMonth + 1) ||
           (curYear === expYear + 1 && expMonth === 11 && curMonth === 0);
-        return isNextMonth && now2.getDate() <= 5;
+        // Grace period sólo aplica a activas, no a canceladas
+        return sub.estado === "activa" && isNextMonth && now2.getDate() <= 5;
       });
 
       if (!hasAccess) {
