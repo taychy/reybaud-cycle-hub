@@ -392,8 +392,8 @@ const StudentPayments = () => {
                         />
                       </div>
 
-                      {/* Change plan */}
-                      {effectiveStatus === "activa" && sub.fecha_inicio && sub.fecha_fin && (
+                      {/* Change plan — disponible para planes activos o con pago pendiente de validación */}
+                      {(effectiveStatus === "activa" || effectiveStatus === "pendiente_verificacion") && sub.fecha_inicio && sub.fecha_fin && (
                         <button
                           className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left border-b border-border/50"
                           onClick={() => setChangePlanSub(sub)}
