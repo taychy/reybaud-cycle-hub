@@ -66,6 +66,7 @@ import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import UpdatePrompt from "./components/UpdatePrompt";
+import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
 import AdminAsesoria from "./pages/admin/AdminAsesoria";
@@ -82,6 +83,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <UpdatePrompt />
+      <VersionBadge />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
