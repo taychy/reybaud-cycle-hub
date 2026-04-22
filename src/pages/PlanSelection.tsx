@@ -34,6 +34,8 @@ interface Plan {
 interface PreviousSubInfo {
   planName: string;
   fechaFin: string;
+  canceladaAt?: string | null;
+  estado?: string;
 }
 
 const frecuenciaLabels: Record<string, string> = {
@@ -98,7 +100,7 @@ const PlanSelection = () => {
     if (isRenewal && alumnoId) {
       supabase
         .from("suscripciones")
-        .select("fecha_fin, plan_id, planes(nombre)")
+        .select("fecha_fin, plan_id, estado, cancelada_at, planes(nombre)")
         .eq("alumno_id", alumnoId)
         .order("fecha_fin", { ascending: false })
         .limit(1)
@@ -108,6 +110,8 @@ const PlanSelection = () => {
             setPreviousSub({
               planName: sub.planes?.nombre || "Plan anterior",
               fechaFin: sub.fecha_fin || "",
+              canceladaAt: sub.cancelada_at,
+              estado: sub.estado,
             });
           }
         });
