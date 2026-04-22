@@ -4,8 +4,9 @@ import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
-const POLL_INTERVAL_MS = 30 * 1000; // 30s
+const POLL_INTERVAL_MS = 60 * 1000; // 60s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
+const FOREGROUND_DEBOUNCE_MS = 3 * 1000; // evitar tormenta de checks
 const UPDATE_CHANNEL_NAME = "app-update-sync";
 const UPDATE_BROADCAST_MSG = "perform-hard-reload";
 
