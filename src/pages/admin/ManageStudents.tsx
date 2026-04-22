@@ -708,6 +708,7 @@ const ManageStudents = () => {
           concepto: `Suscripción ${selectedPlan.nombre} — ${manualFechaFin}`,
           monto: selectedPlan.precio,
           referencia_tipo: "suscripcion",
+          segmento: "escuela",
         },
       }).then(({ data }) => {
         if (data?.emitted) {
