@@ -64,6 +64,9 @@ const PlanSelection = () => {
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
+  const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
+  const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
+  const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
   useEffect(() => {
