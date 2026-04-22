@@ -175,6 +175,25 @@ const UpdatePrompt = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // When a brand-new service worker takes control (skipWaiting + clientsClaim),
+  // do a soft reload so this tab picks up the freshest assets without the user
+  // having to interact with the prompt. Guarded against double-reload loops.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    let reloaded = false;
+    const onControllerChange = () => {
+      if (reloaded || isReloadingRef.current) return;
+      reloaded = true;
+      const url = new URL(window.location.href);
+      url.searchParams.set("_v", Date.now().toString());
+      window.location.replace(url.toString());
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
+  }, []);
+
   const hardReload = async () => {
     setStage("clearing-cache");
     try {
