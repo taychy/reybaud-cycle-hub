@@ -228,15 +228,21 @@ const StudentPayments = () => {
   const handleCancelSubscription = async (sub: SubscriptionRecord) => {
     if (readOnly) return;
     setCancellingId(sub.id);
+    const cancelledAt = new Date().toISOString();
     const { error } = await supabase
       .from("suscripciones")
-      .update({ cancelada_at: new Date().toISOString(), auto_renovacion: false } as any)
+      .update({
+        estado: "cancelada",
+        cancelada_at: cancelledAt,
+        cancelada_motivo: "Cancelada por el alumno",
+        auto_renovacion: false,
+      } as any)
       .eq("id", sub.id);
     setCancellingId(null);
     if (error) {
       toast({ title: "Error", description: "No se pudo cancelar.", variant: "destructive" });
     } else {
-      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, cancelada_at: new Date().toISOString(), auto_renovacion: false } : s));
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "cancelada", cancelada_at: cancelledAt, auto_renovacion: false } : s));
       toast({
         title: "Suscripción cancelada",
         description: `${sub.plan?.nombre || "Plan"}: acceso disponible hasta ${formatDate(sub.fecha_fin)}.`,
