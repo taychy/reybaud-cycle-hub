@@ -86,6 +86,8 @@ const PaymentResult = () => {
     localStorage.removeItem("registro_alumno_id");
     localStorage.removeItem("alumno_renewal");
     localStorage.removeItem("alumno_from_vacation");
+            localStorage.removeItem("upgrade_from_sub_id");
+            localStorage.removeItem("upgrade_preselect_plan_id");
     setSaving(false);
 
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
@@ -102,6 +104,8 @@ const PaymentResult = () => {
       localStorage.removeItem("registro_alumno_id");
       localStorage.removeItem("alumno_renewal");
       localStorage.removeItem("alumno_from_vacation");
+            localStorage.removeItem("upgrade_from_sub_id");
+            localStorage.removeItem("upgrade_preselect_plan_id");
       navigate(path);
     };
 

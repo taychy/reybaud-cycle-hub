@@ -64,6 +64,9 @@ const PlanSelection = () => {
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
+  const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
+  const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
+  const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
   useEffect(() => {
@@ -110,6 +113,23 @@ const PlanSelection = () => {
         });
     }
   }, [alumnoId, navigate, isRenewal]);
+
+  // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
+  useEffect(() => {
+    if (!loading && isUpgradeFlow && upgradePreselectPlanId && !selected) {
+      const planExists = planes.find((p) => p.id === upgradePreselectPlanId);
+      if (planExists) {
+        setSelected(upgradePreselectPlanId);
+        // Saltar al paso de método de pago directamente
+        if (planExists.tipo === "programa" && planExists.cuotas_cantidad && planExists.cuota_valor) {
+          setStep("select-modality");
+        } else {
+          setModality("total");
+          setStep("select-method");
+        }
+      }
+    }
+  }, [loading, isUpgradeFlow, upgradePreselectPlanId, planes, selected]);
 
   const selectedPlan = planes.find((p) => p.id === selected);
   const isSecondary = subscriptionCount > 0;
@@ -215,6 +235,8 @@ const PlanSelection = () => {
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const fechaFin = lastDay.toISOString().split("T")[0];
 
+    const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
@@ -226,6 +248,7 @@ const PlanSelection = () => {
         precio_final: disc?.final ?? plan.precio,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        notas: upgradeMarker,
       } as any)
       .select("id")
       .single();
@@ -371,6 +394,7 @@ const PlanSelection = () => {
             moneda={selectedPlan.moneda || "ARS"}
             metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "otro"}
             otherDetail={otherMethodDetail}
+            upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
             onProcessing={setProcessing}
           />
         </div>
@@ -430,6 +454,8 @@ const PlanSelection = () => {
                 localStorage.removeItem("registro_alumno_id");
                 localStorage.removeItem("alumno_renewal");
                 localStorage.removeItem("alumno_from_vacation");
+            localStorage.removeItem("upgrade_from_sub_id");
+            localStorage.removeItem("upgrade_preselect_plan_id");
                 await supabase.auth.signOut();
                 navigate("/");
               }}
@@ -483,6 +509,8 @@ const PlanSelection = () => {
                 localStorage.removeItem("registro_alumno_id");
                 localStorage.removeItem("alumno_renewal");
                 localStorage.removeItem("alumno_from_vacation");
+            localStorage.removeItem("upgrade_from_sub_id");
+            localStorage.removeItem("upgrade_preselect_plan_id");
                 await supabase.auth.signOut();
                 navigate("/");
               }}
