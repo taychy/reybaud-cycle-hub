@@ -13,6 +13,7 @@ import CheckoutModalityStep from "@/components/checkout/CheckoutModalityStep";
 import CheckoutMethodStep from "@/components/checkout/CheckoutMethodStep";
 import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 interface Plan {
   id: string;
@@ -51,6 +52,11 @@ type CheckoutStep = "select-plan" | "select-modality" | "select-method" | "confi
 
 const PlanSelection = () => {
   const navigate = useNavigate();
+  const alumnoId = localStorage.getItem("registro_alumno_id");
+  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
+  const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
+  const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
+  const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,13 +67,9 @@ const PlanSelection = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [otherMethodDetail, setOtherMethodDetail] = useState<string | null>(null);
   const [previousSub, setPreviousSub] = useState<PreviousSubInfo | null>(null);
+  const [renewalContextLoaded, setRenewalContextLoaded] = useState(!isRenewal);
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
-  const alumnoId = localStorage.getItem("registro_alumno_id");
-  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
-  const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
-  const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
-  const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
@@ -97,46 +99,81 @@ const PlanSelection = () => {
         setLoading(false);
       });
 
-    if (isRenewal && alumnoId) {
+    if (!isRenewal || !alumnoId) {
+      setRenewalContextLoaded(true);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRenewalContext = async () => {
+      setRenewalContextLoaded(false);
+
+      const { data: accessSubs } = await supabase
+        .from("suscripciones")
+        .select("estado, fecha_fin, cancelada_at")
+        .eq("alumno_id", alumnoId)
+        .in("estado", ["activa", "pendiente_verificacion", "cancelada"])
+        .order("fecha_fin", { ascending: false })
+        .limit(10);
+
+      const hasCurrentAccess = (accessSubs || []).some((sub: any) => {
+        const effectiveStatus = getEffectiveSubStatus({
+          estado: sub.estado,
+          fecha_fin: sub.fecha_fin,
+          cancelada_at: sub.cancelada_at,
+        });
+
+        return (
+          effectiveStatus === "activa" ||
+          effectiveStatus === "pendiente_verificacion" ||
+          effectiveStatus === "pago_pendiente"
+        );
+      });
+
+      if (hasCurrentAccess) {
+        localStorage.removeItem("alumno_renewal");
+        localStorage.removeItem("alumno_from_vacation");
+        localStorage.removeItem("upgrade_from_sub_id");
+        localStorage.removeItem("upgrade_preselect_plan_id");
+        navigate("/alumno", { replace: true });
+        return;
+      }
+
       // Solo nos interesan suscripciones que efectivamente representan un período pagado
       // o cancelado. Las "pendiente" / "pendiente_verificacion" son intentos de pago abandonados
       // y NO deben aparecer como "plan anterior vencido".
-      supabase
+      const { data } = await supabase
         .from("suscripciones")
         .select("fecha_fin, plan_id, estado, cancelada_at, planes(nombre)")
         .eq("alumno_id", alumnoId)
         .in("estado", ["activa", "cancelada", "vencida"])
         .order("fecha_fin", { ascending: false })
-        .limit(1)
-        .then(({ data }) => {
-          if (data && data.length > 0) {
-            const sub = data[0] as any;
-            // Si la sub tiene fecha_fin futura y NO está cancelada, no es "vencida":
-            // probablemente el flag de renewal quedó stuck. No mostramos banner.
-            const finStr = (sub.fecha_fin || "").substring(0, 10);
-            let finIsFuture = false;
-            if (finStr) {
-              const [y, m, d] = finStr.split("-").map(Number);
-              const fin = new Date(y, m - 1, d, 23, 59, 59);
-              const today = new Date(); today.setHours(0, 0, 0, 0);
-              finIsFuture = today <= fin;
-            }
-            const isStuckRenewalFlag = finIsFuture && !sub.cancelada_at && sub.estado !== "vencida";
-            if (isStuckRenewalFlag) {
-              // Limpiar flag y volver al dashboard: el alumno tiene plan vigente
-              localStorage.removeItem("alumno_renewal");
-              navigate("/alumno", { replace: true });
-              return;
-            }
-            setPreviousSub({
-              planName: sub.planes?.nombre || "Plan anterior",
-              fechaFin: sub.fecha_fin || "",
-              canceladaAt: sub.cancelada_at,
-              estado: sub.estado,
-            });
-          }
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!isMounted) return;
+
+      if (data && data.length > 0) {
+        const sub = data[0] as any;
+        setPreviousSub({
+          planName: sub.planes?.nombre || "Plan anterior",
+          fechaFin: sub.fecha_fin || "",
+          canceladaAt: sub.cancelada_at,
+          estado: sub.estado,
         });
-    }
+      } else {
+        setPreviousSub(null);
+      }
+
+      setRenewalContextLoaded(true);
+    };
+
+    void loadRenewalContext();
+
+    return () => {
+      isMounted = false;
+    };
   }, [alumnoId, navigate, isRenewal]);
 
   // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
@@ -492,7 +529,7 @@ const PlanSelection = () => {
         )}
 
         {/* Renewal banner (non-vacation) */}
-        {step === "select-plan" && isRenewal && !isFromVacation && (() => {
+        {step === "select-plan" && isRenewal && !isFromVacation && renewalContextLoaded && (() => {
           const wasCancelled = !!previousSub?.canceladaAt;
           const finStr = previousSub?.fechaFin?.substring(0, 10);
           let finIsFuture = false;
