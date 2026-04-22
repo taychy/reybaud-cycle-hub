@@ -1,0 +1,1 @@
+ALTER TABLE public.suscripciones ADD COLUMN IF NOT EXISTS notas text;

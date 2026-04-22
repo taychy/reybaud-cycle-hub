@@ -3190,6 +3190,7 @@ export type Database = {
           mp_payment_id: string | null
           mp_preference_id: string | null
           mp_status: string | null
+          notas: string | null
           origen_registro: string
           plan_id: string
           precio_base: number | null
@@ -3211,6 +3212,7 @@ export type Database = {
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          notas?: string | null
           origen_registro?: string
           plan_id: string
           precio_base?: number | null
@@ -3232,6 +3234,7 @@ export type Database = {
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          notas?: string | null
           origen_registro?: string
           plan_id?: string
           precio_base?: number | null
