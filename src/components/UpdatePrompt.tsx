@@ -4,8 +4,9 @@ import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
-const POLL_INTERVAL_MS = 30 * 1000; // 30s
+const POLL_INTERVAL_MS = 60 * 1000; // 60s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
+const FOREGROUND_DEBOUNCE_MS = 3 * 1000; // evitar tormenta de checks
 const UPDATE_CHANNEL_NAME = "app-update-sync";
 const UPDATE_BROADCAST_MSG = "perform-hard-reload";
 
@@ -36,6 +37,9 @@ const STAGE_PROGRESS: Record<UpdateStage, number> = {
 };
 
 const UpdatePrompt = () => {
+  const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const lastForegroundCheckRef = useRef<number>(0);
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -43,6 +47,7 @@ const UpdatePrompt = () => {
     immediate: true,
     onRegisteredSW(swUrl, registration) {
       if (!registration) return;
+      swRegistrationRef.current = registration;
       setInterval(() => {
         registration.update().catch(() => {});
       }, POLL_INTERVAL_MS);
@@ -52,10 +57,11 @@ const UpdatePrompt = () => {
     },
   });
 
-  // Fallback: some devices/browsers don't fire the SW "waiting" event reliably.
-  // We additionally poll index.html and compare its content hash to detect new
-  // deployments — if the HTML changed, we surface the update prompt too.
-  const [initialHtmlHash, setInitialHtmlHash] = useState<string | null>(null);
+  // Fallback: en algunos dispositivos (especialmente iOS PWA), el evento
+  // "waiting" del SW no se dispara de forma confiable. Hacemos polling del
+  // index.html con una URL que NO pasa por el SW (denylist) y comparamos
+  // su hash. Si cambió → hay una nueva versión deployada.
+  const initialHtmlHashRef = useRef<string | null>(null);
 
   useEffect(() => {
     const computeHash = async (text: string) => {
@@ -70,9 +76,13 @@ const UpdatePrompt = () => {
 
     const fetchHash = async () => {
       try {
-        const res = await fetch(`/?_t=${Date.now()}`, {
+        // Usamos /__update_check (en denylist del SW) para forzar que la
+        // request vaya a la red real, no al SW cacheado. El servidor de
+        // Lovable hace fallback SPA y devuelve el index.html actual.
+        const res = await fetch(`/__update_check?_t=${Date.now()}`, {
           cache: "no-store",
           credentials: "same-origin",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
         });
         if (!res.ok) return null;
         const text = await res.text();
@@ -82,25 +92,60 @@ const UpdatePrompt = () => {
       }
     };
 
-    (async () => {
-      const hash = await fetchHash();
-      if (!cancelled) setInitialHtmlHash(hash);
-    })();
+    const checkForUpdate = async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastForegroundCheckRef.current < FOREGROUND_DEBOUNCE_MS) {
+        return;
+      }
+      lastForegroundCheckRef.current = now;
 
-    const interval = setInterval(async () => {
+      // 1) Pedimos al SW que se actualice (dispara "waiting" si hay nueva versión)
+      try {
+        await swRegistrationRef.current?.update();
+      } catch {
+        /* noop */
+      }
+
+      // 2) Fallback por hash del HTML
       const hash = await fetchHash();
       if (cancelled || !hash) return;
-      setInitialHtmlHash((prev) => {
-        if (prev && hash !== prev) {
-          setNeedRefresh(true);
-        }
-        return prev ?? hash;
-      });
+      if (initialHtmlHashRef.current && hash !== initialHtmlHashRef.current) {
+        setNeedRefresh(true);
+      } else if (!initialHtmlHashRef.current) {
+        initialHtmlHashRef.current = hash;
+      }
+    };
+
+    // Primer hash de referencia
+    (async () => {
+      const hash = await fetchHash();
+      if (!cancelled && hash) initialHtmlHashRef.current = hash;
+    })();
+
+    // Polling mientras la pestaña está activa
+    const interval = setInterval(() => {
+      checkForUpdate(true);
     }, HTML_CHECK_INTERVAL_MS);
+
+    // Disparar check inmediato al volver de background / recuperar foco / red
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkForUpdate();
+    };
+    const onFocus = () => checkForUpdate();
+    const onOnline = () => checkForUpdate();
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onFocus);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pageshow", onFocus);
     };
   }, [setNeedRefresh]);
 
