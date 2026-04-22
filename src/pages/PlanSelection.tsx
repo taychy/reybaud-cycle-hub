@@ -98,15 +98,36 @@ const PlanSelection = () => {
       });
 
     if (isRenewal && alumnoId) {
+      // Solo nos interesan suscripciones que efectivamente representan un período pagado
+      // o cancelado. Las "pendiente" / "pendiente_verificacion" son intentos de pago abandonados
+      // y NO deben aparecer como "plan anterior vencido".
       supabase
         .from("suscripciones")
         .select("fecha_fin, plan_id, estado, cancelada_at, planes(nombre)")
         .eq("alumno_id", alumnoId)
+        .in("estado", ["activa", "cancelada", "vencida"])
         .order("fecha_fin", { ascending: false })
         .limit(1)
         .then(({ data }) => {
           if (data && data.length > 0) {
             const sub = data[0] as any;
+            // Si la sub tiene fecha_fin futura y NO está cancelada, no es "vencida":
+            // probablemente el flag de renewal quedó stuck. No mostramos banner.
+            const finStr = (sub.fecha_fin || "").substring(0, 10);
+            let finIsFuture = false;
+            if (finStr) {
+              const [y, m, d] = finStr.split("-").map(Number);
+              const fin = new Date(y, m - 1, d, 23, 59, 59);
+              const today = new Date(); today.setHours(0, 0, 0, 0);
+              finIsFuture = today <= fin;
+            }
+            const isStuckRenewalFlag = finIsFuture && !sub.cancelada_at && sub.estado !== "vencida";
+            if (isStuckRenewalFlag) {
+              // Limpiar flag y volver al dashboard: el alumno tiene plan vigente
+              localStorage.removeItem("alumno_renewal");
+              navigate("/alumno", { replace: true });
+              return;
+            }
             setPreviousSub({
               planName: sub.planes?.nombre || "Plan anterior",
               fechaFin: sub.fecha_fin || "",
