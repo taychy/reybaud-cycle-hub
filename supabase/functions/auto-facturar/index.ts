@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2/cors";
 
+type Segmento = "escuela" | "viajes" | "tienda";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -15,7 +17,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate caller is admin
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -35,8 +36,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check admin role
-    const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    const { data: isAdmin } = await adminClient.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin",
+    });
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
@@ -45,7 +48,21 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { alumno_id, concepto, monto, referencia_tipo, referencia_id } = body;
+    const {
+      alumno_id,
+      concepto,
+      monto,
+      referencia_tipo,
+      referencia_id,
+      segmento,
+    }: {
+      alumno_id: string;
+      concepto: string;
+      monto: number;
+      referencia_tipo?: string;
+      referencia_id?: string;
+      segmento: Segmento;
+    } = body;
 
     if (!alumno_id || !concepto || !monto) {
       return new Response(
@@ -54,31 +71,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get default emisor with facturacion_automatica enabled
-    const { data: emisor } = await adminClient
-      .from("emisores_fiscales")
-      .select("*")
-      .eq("es_predeterminado", true)
-      .eq("activo", true)
+    if (!segmento || !["escuela", "viajes", "tienda"].includes(segmento)) {
+      return new Response(
+        JSON.stringify({ error: "segmento inválido (escuela | viajes | tienda)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Datos del alumno
+    const { data: alumno } = await adminClient
+      .from("alumnos")
+      .select("nombre, apellido, documento")
+      .eq("id", alumno_id)
       .single();
 
-    if (!emisor) {
-      // No default emisor - just create factura record for manual processing
-      const { data: alumno } = await adminClient
-        .from("alumnos")
-        .select("nombre, apellido")
-        .eq("id", alumno_id)
-        .single();
+    const clienteNombre = alumno
+      ? `${alumno.nombre}${alumno.apellido ? ` ${alumno.apellido}` : ""}`
+      : "Sin nombre";
 
-      const clienteNombre = alumno ? `${alumno.nombre}${alumno.apellido ? ` ${alumno.apellido}` : ""}` : "Sin nombre";
+    // ============================================================
+    // RUTEO: elegir el mejor emisor para este segmento
+    // ============================================================
+    const emisorElegido = await elegirEmisor(adminClient, segmento, monto);
 
+    if (!emisorElegido) {
+      // No hay emisor disponible -> crear factura sin emitir
       const { error: insertErr } = await adminClient.from("facturas").insert({
         alumno_id,
         cliente_nombre: clienteNombre,
+        cliente_cuit: alumno?.documento || null,
         concepto,
         monto,
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
+        segmento,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
       });
@@ -86,47 +112,40 @@ Deno.serve(async (req) => {
       if (insertErr) {
         console.error("Error creating factura record:", insertErr);
         return new Response(
-          JSON.stringify({ error: "Error al crear registro de factura", created: false }),
+          JSON.stringify({ error: "Error al crear registro de factura" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          created: true, 
-          emitted: false, 
-          message: "Registro de factura creado. No hay emisor predeterminado para facturación automática." 
+        JSON.stringify({
+          success: true,
+          created: true,
+          emitted: false,
+          message: `Sin emisor disponible para "${segmento}". Configurá uno habilitado con cupo y certificado en /admin/facturacion.`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Has default emisor - check if auto-invoicing is enabled and certs exist
-    const canAutoEmit = emisor.facturacion_automatica && emisor.cert_pem && emisor.key_pem;
-
-    // Get alumno info
-    const { data: alumno } = await adminClient
-      .from("alumnos")
-      .select("nombre, apellido, documento")
-      .eq("id", alumno_id)
+    // Crear factura asociada al emisor elegido
+    const { data: factura, error: insertErr } = await adminClient
+      .from("facturas")
+      .insert({
+        alumno_id,
+        cliente_nombre: clienteNombre,
+        cliente_cuit: alumno?.documento || null,
+        concepto,
+        monto,
+        referencia_tipo: referencia_tipo || "suscripcion",
+        referencia_id: referencia_id || null,
+        segmento,
+        emisor_id: emisorElegido.id,
+        estado: "sin_factura",
+        condicion_fiscal: "consumidor_final",
+      })
+      .select("id")
       .single();
-
-    const clienteNombre = alumno ? `${alumno.nombre}${alumno.apellido ? ` ${alumno.apellido}` : ""}` : "Sin nombre";
-
-    // Create factura record
-    const { data: factura, error: insertErr } = await adminClient.from("facturas").insert({
-      alumno_id,
-      cliente_nombre: clienteNombre,
-      cliente_cuit: alumno?.documento || null,
-      concepto,
-      monto,
-      referencia_tipo: referencia_tipo || "suscripcion",
-      referencia_id: referencia_id || null,
-      emisor_id: emisor.id,
-      estado: canAutoEmit ? "sin_factura" : "sin_factura",
-      condicion_fiscal: "consumidor_final",
-    }).select("id").single();
 
     if (insertErr || !factura) {
       console.error("Error creating factura:", insertErr);
@@ -136,19 +155,25 @@ Deno.serve(async (req) => {
       );
     }
 
+    const canAutoEmit =
+      emisorElegido.facturacion_automatica &&
+      emisorElegido.cert_pem &&
+      emisorElegido.key_pem;
+
     if (!canAutoEmit) {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          created: true, 
-          emitted: false, 
-          message: "Registro creado. Facturación automática desactivada o sin certificado AFIP." 
+        JSON.stringify({
+          success: true,
+          created: true,
+          emitted: false,
+          emisor: emisorElegido.nombre_fiscal,
+          message: "Factura creada. Emisión automática desactivada o sin certificado.",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Auto-emit via AFIP - call the existing emit function internally
+    // Emitir contra AFIP
     const emitUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/emit-factura-afip`;
     const emitResp = await fetch(emitUrl, {
       method: "POST",
@@ -158,7 +183,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         factura_id: factura.id,
-        emisor_id: emisor.id,
+        emisor_id: emisorElegido.id,
         cliente_cuit: alumno?.documento || null,
         condicion_fiscal: "consumidor_final",
       }),
@@ -169,22 +194,24 @@ Deno.serve(async (req) => {
     if (!emitResp.ok || emitData.error) {
       console.error("Auto-emit failed:", emitData);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          created: true, 
-          emitted: false, 
+        JSON.stringify({
+          success: true,
+          created: true,
+          emitted: false,
+          emisor: emisorElegido.nombre_fiscal,
           error_afip: emitData.error || "Error al emitir contra AFIP",
-          message: "Registro creado pero falló la emisión automática. Podés reintentarlo manualmente." 
+          message: "Registro creado pero falló la emisión. Reintentá manualmente.",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        created: true, 
-        emitted: true, 
+      JSON.stringify({
+        success: true,
+        created: true,
+        emitted: true,
+        emisor: emisorElegido.nombre_fiscal,
         numero_comprobante: emitData.numero_comprobante,
         cae: emitData.cae,
       }),
@@ -198,3 +225,71 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+/**
+ * Selecciona el mejor emisor para un segmento dado, balanceando por cupo disponible.
+ * Reglas:
+ *  1. Debe estar activo y habilitado para el segmento.
+ *  2. Si tiene `limite_anual_ars`, el monto a facturar no debe hacer que se pase del tope.
+ *  3. Entre los candidatos, gana el de mayor cupo disponible (o el primero si nadie tiene límite).
+ */
+async function elegirEmisor(
+  adminClient: ReturnType<typeof createClient>,
+  segmento: Segmento,
+  monto: number
+) {
+  // Emisores habilitados para el segmento
+  const { data: configs } = await adminClient
+    .from("emisor_segmento_config")
+    .select("emisor_id, emisores_fiscales!inner(*)")
+    .eq("segmento", segmento)
+    .eq("habilitado", true);
+
+  if (!configs || configs.length === 0) return null;
+
+  // Aplanar a array de emisores activos
+  // deno-lint-ignore no-explicit-any
+  const emisores = (configs as any[])
+    .map((c) => c.emisores_fiscales)
+    .filter((e) => e && e.activo);
+
+  if (emisores.length === 0) return null;
+
+  // Facturado anual por emisor
+  const { data: facturados } = await adminClient
+    .from("emisor_facturado_anual")
+    .select("emisor_id, facturado_anual, cupo_disponible, limite_anual_ars");
+
+  const facturadoMap = new Map<
+    string,
+    { facturado: number; cupo: number | null; limite: number | null }
+  >();
+  // deno-lint-ignore no-explicit-any
+  (facturados as any[] | null)?.forEach((f) => {
+    facturadoMap.set(f.emisor_id, {
+      facturado: Number(f.facturado_anual) || 0,
+      cupo: f.cupo_disponible !== null ? Number(f.cupo_disponible) : null,
+      limite: f.limite_anual_ars !== null ? Number(f.limite_anual_ars) : null,
+    });
+  });
+
+  // Filtrar candidatos con cupo
+  const candidatos = emisores.filter((e) => {
+    const info = facturadoMap.get(e.id);
+    if (!info || info.limite === null) return true; // sin límite => siempre elegible
+    return info.cupo !== null && info.cupo >= monto;
+  });
+
+  if (candidatos.length === 0) return null;
+
+  // Balanceo: el de mayor cupo disponible primero (los sin límite van al final con cupo "infinito")
+  candidatos.sort((a, b) => {
+    const ia = facturadoMap.get(a.id);
+    const ib = facturadoMap.get(b.id);
+    const cupoA = ia?.cupo ?? Number.POSITIVE_INFINITY;
+    const cupoB = ib?.cupo ?? Number.POSITIVE_INFINITY;
+    return cupoB - cupoA;
+  });
+
+  return candidatos[0];
+}
