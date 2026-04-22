@@ -394,6 +394,7 @@ const PlanSelection = () => {
             moneda={selectedPlan.moneda || "ARS"}
             metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "otro"}
             otherDetail={otherMethodDetail}
+            upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
             onProcessing={setProcessing}
           />
         </div>

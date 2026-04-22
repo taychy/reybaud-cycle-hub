@@ -22,6 +22,8 @@ interface ManualPaymentConfirmProps {
   metodoPago: DeclaredManualMethod;
   /** Free-text detail when metodoPago is "otro" */
   otherDetail?: string | null;
+  /** If this is an upgrade flow, the id of the subscription being replaced */
+  upgradeFromSubId?: string | null;
   onProcessing: (v: boolean) => void;
 }
 
@@ -47,6 +49,7 @@ const ManualPaymentConfirm = ({
   descuentoId,
   metodoPago,
   otherDetail,
+  upgradeFromSubId,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
@@ -64,10 +67,18 @@ const ManualPaymentConfirm = ({
     const fechaFin = lastDay.toISOString().split("T")[0];
 
     const canonicalMethod = toCanonicalMethod(metodoPago);
-    const notas =
+    const upgradeMarker = upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+    const userNotas =
       metodoPago === "otro" && otherDetail && otherDetail.trim().length > 0
         ? `Otro medio informado por alumno: ${otherDetail.trim()}`
         : null;
+    // Prioridad al marcador de upgrade en notas (lo necesita el trigger).
+    // El detalle del medio se guarda igual concatenado.
+    const notas = upgradeMarker
+      ? userNotas
+        ? `${upgradeMarker} | ${userNotas}`
+        : upgradeMarker
+      : userNotas;
 
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
