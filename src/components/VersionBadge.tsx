@@ -1,0 +1,77 @@
+import { useEffect, useState } from "react";
+
+/**
+ * Indicador discreto de versión y entorno (preview vs publicada).
+ *
+ * - Detecta el entorno por hostname:
+ *   · *.lovableproject.com / id-preview-- → PREVIEW
+ *   · localhost                          → DEV
+ *   · resto (reybaud-app.com, *.lovable.app publicado) → LIVE
+ * - Muestra la versión de build (timestamp inyectado por Vite en `__APP_VERSION__`).
+ * - Tap/click sobre el badge lo expande para ver fecha completa de build.
+ */
+const VersionBadge = () => {
+  const [expanded, setExpanded] = useState(false);
+
+  const env = (() => {
+    if (typeof window === "undefined") return "live" as const;
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return "dev" as const;
+    if (host.includes("id-preview--") || host.includes("lovableproject.com"))
+      return "preview" as const;
+    return "live" as const;
+  })();
+
+  useEffect(() => {
+    if (!expanded) return;
+    const t = setTimeout(() => setExpanded(false), 4000);
+    return () => clearTimeout(t);
+  }, [expanded]);
+
+  const envLabel =
+    env === "preview" ? "PREVIEW" : env === "dev" ? "DEV" : "PUBLICADA";
+  const envColor =
+    env === "preview"
+      ? "bg-amber-500/90 text-black"
+      : env === "dev"
+      ? "bg-sky-500/90 text-white"
+      : "bg-emerald-600/90 text-white";
+
+  const buildTime = (() => {
+    try {
+      return new Date(__BUILD_TIME__).toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return __BUILD_TIME__;
+    }
+  })();
+
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      aria-label={`Versión ${__APP_VERSION__} - entorno ${envLabel}`}
+      className="fixed bottom-2 left-2 z-[60] flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold opacity-50 hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm pointer-events-auto"
+      style={{ lineHeight: 1.2 }}
+    >
+      <span className={`px-1.5 py-0.5 rounded-full ${envColor}`}>
+        {envLabel}
+      </span>
+      <span className="px-1.5 py-0.5 rounded-full bg-background/80 text-foreground border border-border">
+        v{__APP_VERSION__}
+      </span>
+      {expanded && (
+        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-background/80 text-muted-foreground border border-border">
+          {buildTime}
+        </span>
+      )}
+    </button>
+  );
+};
+
+export default VersionBadge;
