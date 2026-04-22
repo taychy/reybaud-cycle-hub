@@ -81,19 +81,19 @@ const Login = () => {
       }
 
       // Check for any subscription that grants access (active, grace period, or pending verification)
+      // Importante: incluimos canceladas porque la política es "acceso hasta fin de período".
       const { data: recentSubs } = await supabase
         .from("suscripciones")
         .select("id, estado, fecha_fin, cancelada_at")
         .eq("alumno_id", alumno.id)
-        .in("estado", ["activa", "pendiente_verificacion"])
-        .is("cancelada_at", null)
+        .in("estado", ["activa", "pendiente_verificacion", "cancelada"])
         .order("fecha_fin", { ascending: false })
         .limit(10);
 
       const hasAccess = (recentSubs || []).some((sub: any) => {
         if (sub.estado === "pendiente_verificacion") return true;
-        if (sub.estado !== "activa") return false;
-        if (!sub.fecha_fin) return true;
+        if (sub.estado !== "activa" && sub.estado !== "cancelada") return false;
+        if (!sub.fecha_fin) return sub.estado === "activa";
         // Parse date parts to avoid timezone drift
         const parts = sub.fecha_fin.substring(0, 10).split("-");
         const finDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59);
