@@ -414,9 +414,23 @@ const StudentPayments = () => {
                         <AlertDialogContent className="bg-card border-border">
                           <AlertDialogHeader>
                             <AlertDialogTitle className="text-foreground">¿Cancelar "{sub.plan?.nombre}"?</AlertDialogTitle>
-                            <AlertDialogDescription className="space-y-2">
-                              <p>Tu acceso a este plan seguirá disponible hasta el {formatDate(sub.fecha_fin)}.</p>
-                              <p>Tus otros planes no se verán afectados.</p>
+                            <AlertDialogDescription asChild>
+                              <div className="space-y-3 text-sm">
+                                <p className="text-foreground">
+                                  Tu acceso a este plan continuará disponible hasta el <span className="font-semibold">{formatDate(sub.fecha_fin)}</span>.
+                                </p>
+                                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
+                                  <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider">Importante</p>
+                                  <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                                    <li>El pago realizado no se reintegra ni se acredita como saldo.</li>
+                                    <li>Se desactiva la renovación automática.</li>
+                                    <li>Podés volver a contratar este u otro plan cuando quieras.</li>
+                                  </ul>
+                                </div>
+                                {activeSubs.length > 1 && (
+                                  <p className="text-xs text-muted-foreground">Tus otros planes activos no se verán afectados.</p>
+                                )}
+                              </div>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
