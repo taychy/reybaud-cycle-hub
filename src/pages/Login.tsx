@@ -118,6 +118,11 @@ const Login = () => {
         navigate("/planes", { replace: true });
         return;
       }
+      // Limpiar flags residuales que podrían disparar pantalla de "renovar" indebidamente
+      localStorage.removeItem("alumno_renewal");
+      localStorage.removeItem("alumno_from_vacation");
+      localStorage.removeItem("upgrade_from_sub_id");
+      localStorage.removeItem("upgrade_preselect_plan_id");
       navigate("/alumno", { replace: true });
     };
 
