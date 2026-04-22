@@ -33,6 +33,7 @@ interface Plan {
 }
 
 interface PreviousSubInfo {
+  planId: string;
   planName: string;
   fechaFin: string;
   canceladaAt?: string | null;
@@ -157,6 +158,7 @@ const PlanSelection = () => {
       if (data && data.length > 0) {
         const sub = data[0] as any;
         setPreviousSub({
+          planId: sub.plan_id,
           planName: sub.planes?.nombre || "Plan anterior",
           fechaFin: sub.fecha_fin || "",
           canceladaAt: sub.cancelada_at,
@@ -360,19 +362,34 @@ const PlanSelection = () => {
   const handleNotifyAdmin = async () => {
     if (!alumnoId) return;
     setNotifyProcessing(true);
+    setError(null);
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cash-payment`;
-      await fetch(functionUrl, {
+      const response = await fetch(functionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ alumno_id: alumnoId, tipo: "pago_externo" }),
+        body: JSON.stringify({
+          alumno_id: alumnoId,
+          plan_id: previousSub?.planId ?? null,
+          payment_type: "plataforma_externa",
+          tipo: "pago_externo",
+        }),
       });
-    } catch {}
-    setNotifyProcessing(false);
-    setNotifyDone(true);
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "No pudimos registrar el pago informado.");
+      }
+
+      setNotifyDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos registrar el pago informado.");
+    } finally {
+      setNotifyProcessing(false);
+    }
   };
 
   if (loading) {
