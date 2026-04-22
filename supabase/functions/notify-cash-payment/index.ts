@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { alumno_id, plan_id, suscripcion_id } = await req.json();
+    const { alumno_id, plan_id, suscripcion_id, payment_type, tipo } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -28,17 +28,82 @@ Deno.serve(async (req) => {
       .eq("id", alumno_id)
       .single();
 
-    const { data: plan } = await supabase
-      .from("planes")
-      .select("nombre, precio")
-      .eq("id", plan_id)
-      .single();
+    let resolvedPlanId = plan_id ?? null;
 
-    if (!alumno || !plan) {
+    if (!resolvedPlanId) {
+      const { data: latestSub } = await supabase
+        .from("suscripciones")
+        .select("id, plan_id")
+        .eq("alumno_id", alumno_id)
+        .in("estado", ["activa", "cancelada", "vencida"])
+        .order("fecha_fin", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      resolvedPlanId = latestSub?.plan_id ?? null;
+    }
+
+    const { data: plan } = resolvedPlanId
+      ? await supabase
+          .from("planes")
+          .select("nombre, precio")
+          .eq("id", resolvedPlanId)
+          .single()
+      : { data: null };
+
+    if (!alumno || !plan || !resolvedPlanId) {
       return new Response(JSON.stringify({ error: "Datos no encontrados" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const now = new Date();
+    const fechaInicio = now.toISOString().split("T")[0];
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fechaFin = lastDay.toISOString().split("T")[0];
+    const metodoPago = payment_type === "plataforma_externa" || tipo === "pago_externo"
+      ? "plataforma_externa"
+      : payment_type || "efectivo";
+
+    if (suscripcion_id) {
+      await supabase
+        .from("suscripciones")
+        .update({
+          estado: "pendiente_verificacion",
+          plan_id: resolvedPlanId,
+          metodo_pago: metodoPago,
+          origen_registro: "informado_alumno",
+        })
+        .eq("id", suscripcion_id)
+        .eq("alumno_id", alumno_id);
+    } else {
+      const { data: existingPending } = await supabase
+        .from("suscripciones")
+        .select("id")
+        .eq("alumno_id", alumno_id)
+        .eq("plan_id", resolvedPlanId)
+        .eq("estado", "pendiente_verificacion")
+        .eq("origen_registro", "informado_alumno")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!existingPending) {
+        await supabase.from("suscripciones").insert({
+          alumno_id,
+          plan_id: resolvedPlanId,
+          estado: "pendiente_verificacion",
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          metodo_pago: metodoPago,
+          origen_registro: "informado_alumno",
+          notas: "Pago informado desde botón de renovación",
+          precio_base: plan.precio,
+          precio_final: plan.precio,
+        });
+      }
     }
 
     const adminEmails = ["scarlettbonatto@gmail.com"];
