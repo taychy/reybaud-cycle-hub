@@ -27,7 +27,24 @@ export interface SubStatusInput {
  * Computes the effective subscription status based on current date and grace period rules.
  */
 export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
-  if (sub.cancelada_at) return "cancelada";
+  // Si está cancelada pero la fecha_fin todavía no llegó, conserva el acceso
+  // (política: sin reembolso, acceso hasta fin de período).
+  // Recién cuando expire la fecha_fin la marcamos como "cancelada".
+  if (sub.cancelada_at) {
+    if (!sub.fecha_fin) return "cancelada";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const finParts = sub.fecha_fin.substring(0, 10).split("-");
+    const fin = new Date(
+      parseInt(finParts[0], 10),
+      parseInt(finParts[1], 10) - 1,
+      parseInt(finParts[2], 10),
+      23, 59, 59
+    );
+    if (today > fin) return "cancelada";
+    // Sigue vigente hasta fecha_fin: tratar como "activa" para acceso completo
+    return "activa";
+  }
 
   // If the subscription isn't "activa" in the DB, return the raw state
   if (sub.estado !== "activa") return sub.estado as EffectiveSubStatus;
