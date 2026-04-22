@@ -637,16 +637,6 @@ const AdminPayments = () => {
                                     <TooltipContent>Marcar como pagado</TooltipContent>
                                   </Tooltip>
                                 )}
-                                {status === "informado" && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "conciliar", sub })}>
-                                        <CheckCheck className="w-3.5 h-3.5 text-teal-600" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Conciliar pago</TooltipContent>
-                                  </Tooltip>
-                                )}
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
@@ -681,16 +671,6 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Enviar recordatorio</TooltipContent>
                                 </Tooltip>
-                                {status !== "cancelado" && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "suspender", sub })}>
-                                        <BanIcon className="w-3.5 h-3.5 text-red-500" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Suspender acceso</TooltipContent>
-                                  </Tooltip>
-                                )}
                               </div>
                             </TooltipProvider>
                           </TableCell>
