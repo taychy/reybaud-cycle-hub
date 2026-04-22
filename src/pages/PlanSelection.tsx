@@ -114,6 +114,23 @@ const PlanSelection = () => {
     }
   }, [alumnoId, navigate, isRenewal]);
 
+  // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
+  useEffect(() => {
+    if (!loading && isUpgradeFlow && upgradePreselectPlanId && !selected) {
+      const planExists = planes.find((p) => p.id === upgradePreselectPlanId);
+      if (planExists) {
+        setSelected(upgradePreselectPlanId);
+        // Saltar al paso de método de pago directamente
+        if (planExists.tipo === "programa" && planExists.cuotas_cantidad && planExists.cuota_valor) {
+          setStep("select-modality");
+        } else {
+          setModality("total");
+          setStep("select-method");
+        }
+      }
+    }
+  }, [loading, isUpgradeFlow, upgradePreselectPlanId, planes, selected]);
+
   const selectedPlan = planes.find((p) => p.id === selected);
   const isSecondary = subscriptionCount > 0;
   const selectedDiscount = selectedPlan
