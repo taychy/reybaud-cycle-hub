@@ -57,6 +57,7 @@ type ManualPaymentData = {
   observaciones: string;
   metodo: string;
   fecha_pago: string;
+  fecha_fin: string;
 };
 
 const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -165,7 +166,7 @@ const AdminPayments = () => {
   const [editFechaDialog, setEditFechaDialog] = useState<Suscripcion | null>(null);
   const [editFechaValue, setEditFechaValue] = useState("");
   const [manualPayDialog, setManualPayDialog] = useState<Suscripcion | null>(null);
-  const [manualPayData, setManualPayData] = useState<ManualPaymentData>({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0] });
+  const [manualPayData, setManualPayData] = useState<ManualPaymentData>({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0], fecha_fin: "" });
   const [recordatorioDialog, setRecordatorioDialog] = useState<Suscripcion | null>(null);
   const [recordatorioMsg, setRecordatorioMsg] = useState("");
   // Correct method dialog (for student-reported payments)
@@ -297,16 +298,37 @@ const AdminPayments = () => {
 
   const handleRegistrarManual = async () => {
     if (!manualPayDialog) return;
-    const now = new Date();
-    const fechaFin = new Date(now);
-    fechaFin.setMonth(fechaFin.getMonth() + 1);
+
+    // Validaciones
+    if (!manualPayData.metodo) {
+      toast({ title: "Falta método de pago", variant: "destructive" });
+      return;
+    }
+    if (!manualPayData.fecha_pago) {
+      toast({ title: "Falta fecha de pago", variant: "destructive" });
+      return;
+    }
+    if (!manualPayData.fecha_fin) {
+      toast({ title: "Falta fecha de vencimiento", variant: "destructive" });
+      return;
+    }
+    if (manualPayData.fecha_fin < manualPayData.fecha_pago) {
+      toast({
+        title: "Fechas inválidas",
+        description: "La fecha de vencimiento no puede ser anterior a la fecha de pago.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
       fecha_inicio: manualPayData.fecha_pago,
-      fecha_fin: fechaFin.toISOString().split("T")[0],
+      fecha_fin: manualPayData.fecha_fin,
       mp_status: manualPayData.metodo,
       metodo_pago: manualPayData.metodo,
       origen_registro: "cargado_admin",
+      notas: manualPayData.observaciones || null,
     } as any).eq("id", manualPayDialog.id);
     if (!error) {
       await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualPayDialog.alumno_id);
@@ -314,6 +336,7 @@ const AdminPayments = () => {
         alumno: manualPayDialog.alumnos?.nombre,
         metodo: manualPayData.metodo,
         fecha_pago: manualPayData.fecha_pago,
+        fecha_fin: manualPayData.fecha_fin,
         observaciones: manualPayData.observaciones,
       });
 
@@ -336,7 +359,10 @@ const AdminPayments = () => {
       }
 
       toast({ title: "Pago manual registrado" });
+      setManualPayDialog(null);
       fetchData();
+    } else {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
