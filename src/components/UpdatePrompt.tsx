@@ -1,10 +1,39 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 const POLL_INTERVAL_MS = 30 * 1000; // 30s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
+const UPDATE_CHANNEL_NAME = "app-update-sync";
+const UPDATE_BROADCAST_MSG = "perform-hard-reload";
+
+type UpdateStage =
+  | "idle"
+  | "syncing"
+  | "activating"
+  | "clearing-cache"
+  | "unregistering"
+  | "reloading";
+
+const STAGE_LABELS: Record<UpdateStage, string> = {
+  idle: "",
+  syncing: "Sincronizando pestañas abiertas…",
+  activating: "Activando nueva versión…",
+  "clearing-cache": "Limpiando caché…",
+  unregistering: "Preparando recarga…",
+  reloading: "Recargando…",
+};
+
+const STAGE_PROGRESS: Record<UpdateStage, number> = {
+  idle: 0,
+  syncing: 15,
+  activating: 35,
+  "clearing-cache": 60,
+  unregistering: 80,
+  reloading: 100,
+};
 
 const UpdatePrompt = () => {
   const {
@@ -14,8 +43,6 @@ const UpdatePrompt = () => {
     immediate: true,
     onRegisteredSW(swUrl, registration) {
       if (!registration) return;
-      // Periodic check: ask the browser to re-fetch the SW from the server.
-      // This is what surfaces the "needRefresh" state across all devices.
       setInterval(() => {
         registration.update().catch(() => {});
       }, POLL_INTERVAL_MS);
@@ -77,11 +104,35 @@ const UpdatePrompt = () => {
     };
   }, [setNeedRefresh]);
 
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [stage, setStage] = useState<UpdateStage>("idle");
+  const isUpdating = stage !== "idle";
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  const isReloadingRef = useRef(false);
+
+  // Set up a BroadcastChannel so when one tab confirms the update, every other
+  // open tab on the same origin receives the order and reloads in sync.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(UPDATE_CHANNEL_NAME);
+    channelRef.current = channel;
+
+    channel.onmessage = (event) => {
+      if (event?.data?.type === UPDATE_BROADCAST_MSG && !isReloadingRef.current) {
+        // Another tab triggered the update — follow along.
+        runUpdateSequence({ broadcast: false }).catch(() => {});
+      }
+    };
+
+    return () => {
+      channel.close();
+      channelRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hardReload = async () => {
+    setStage("clearing-cache");
     try {
-      // 1) Clear all Cache Storage entries (Workbox precache, runtime caches, etc.)
       if ("caches" in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
@@ -90,10 +141,8 @@ const UpdatePrompt = () => {
       console.warn("Cache cleanup failed", err);
     }
 
+    setStage("unregistering");
     try {
-      // 2) Unregister all service workers as a safety net — guarantees the
-      // next navigation fetches a fresh bundle from the network on every
-      // browser, including iOS Safari where SW updates are flaky.
       if ("serviceWorker" in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
@@ -102,28 +151,84 @@ const UpdatePrompt = () => {
       console.warn("SW unregister failed", err);
     }
 
-    // 3) Force a network-fresh navigation. Appending a cache-busting query
-    // param ensures even aggressive HTTP caches are bypassed.
+    setStage("reloading");
     const url = new URL(window.location.href);
     url.searchParams.set("_v", Date.now().toString());
+    // Small delay so users see the 100% state before the navigation kicks in.
+    await new Promise((r) => setTimeout(r, 250));
     window.location.replace(url.toString());
   };
 
-  const handleUpdate = async () => {
-    if (isUpdating) return;
-    setIsUpdating(true);
+  const runUpdateSequence = async ({ broadcast }: { broadcast: boolean }) => {
+    if (isReloadingRef.current) return;
+    isReloadingRef.current = true;
+
+    if (broadcast && channelRef.current) {
+      setStage("syncing");
+      try {
+        channelRef.current.postMessage({ type: UPDATE_BROADCAST_MSG });
+      } catch (err) {
+        console.warn("Broadcast failed", err);
+      }
+      // Brief pause so other tabs can pick up the message before we tear down
+      // the service worker (which they may still depend on momentarily).
+      await new Promise((r) => setTimeout(r, 200));
+    } else {
+      setStage("syncing");
+    }
+
+    setStage("activating");
     try {
-      // Activate the waiting service worker (skipWaiting + clients.claim).
       await updateServiceWorker(true);
     } catch (err) {
       console.warn("updateServiceWorker failed, forcing reload anyway", err);
-    } finally {
-      // Always perform the hard reload, even if SW activation failed.
-      await hardReload();
     }
+
+    await hardReload();
   };
 
-  if (!needRefresh) return null;
+  const handleUpdate = () => {
+    if (isUpdating) return;
+    runUpdateSequence({ broadcast: true }).catch((err) => {
+      console.error("Update sequence failed", err);
+    });
+  };
+
+  if (!needRefresh && !isUpdating) return null;
+
+  // Full-screen blocking overlay while the update sequence is running.
+  if (isUpdating) {
+    const progress = STAGE_PROGRESS[stage];
+    const label = STAGE_LABELS[stage];
+    return (
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 backdrop-blur-sm"
+        role="alertdialog"
+        aria-modal="true"
+        aria-busy="true"
+        aria-label="Actualizando aplicación"
+        // Block all pointer + keyboard interaction with anything underneath.
+        onClickCapture={(e) => e.stopPropagation()}
+        onKeyDownCapture={(e) => e.stopPropagation()}
+      >
+        <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-[90%] flex flex-col items-center gap-4">
+          <div className="relative">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-base font-semibold text-foreground">
+              Actualizando aplicación
+            </p>
+            <p className="text-sm text-muted-foreground min-h-[20px]">{label}</p>
+          </div>
+          <Progress value={progress} className="w-full" />
+          <p className="text-xs text-muted-foreground text-center">
+            No cierres esta ventana. Las pestañas abiertas se recargarán juntas.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-[100] flex justify-center pointer-events-none">
@@ -134,7 +239,7 @@ const UpdatePrompt = () => {
           <p className="text-xs text-muted-foreground">Actualizá para ver los últimos cambios</p>
         </div>
         <Button onClick={handleUpdate} size="sm" variant="gold" className="shrink-0" disabled={isUpdating}>
-          {isUpdating ? "Actualizando…" : "Actualizar"}
+          Actualizar
         </Button>
       </div>
     </div>
