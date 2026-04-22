@@ -30,9 +30,10 @@ const methodLabels: Record<string, string> = {
   efectivo: "Efectivo al profesor",
   transferencia: "Transferencia bancaria",
   mp_externo: "MercadoPago (por fuera)",
+  otro: "Otro medio",
+  // Legacy aliases
   tarjeta_externa: "Tarjeta (por fuera)",
   plataforma_externa: "Plataforma de pago externa",
-  // Legacy aliases
   cash: "Efectivo al profesor",
   external_platform: "Plataforma de pago externa",
 };

@@ -8,8 +8,7 @@ type DeclaredManualMethod =
   | "efectivo"
   | "transferencia"
   | "mp_externo"
-  | "tarjeta_externa"
-  | "plataforma_externa";
+  | "otro";
 
 interface ManualPaymentConfirmProps {
   planId: string;
@@ -19,8 +18,10 @@ interface ManualPaymentConfirmProps {
   precioFinal: number;
   descuentoId: string | null;
   moneda: string;
-  /** Specific method the student declared (efectivo, transferencia, mp_externo, ...) */
+  /** Specific method the student declared (efectivo, transferencia, mp_externo, otro) */
   metodoPago: DeclaredManualMethod;
+  /** Free-text detail when metodoPago is "otro" */
+  otherDetail?: string | null;
   onProcessing: (v: boolean) => void;
 }
 
@@ -28,15 +29,14 @@ const METHOD_LABELS: Record<DeclaredManualMethod, string> = {
   efectivo: "en efectivo al profesor",
   transferencia: "por transferencia bancaria",
   mp_externo: "con MercadoPago (por fuera de la app)",
-  tarjeta_externa: "con tarjeta (por fuera de la app)",
-  plataforma_externa: "por una plataforma externa",
+  otro: "por otro medio",
 };
 
 /** Map declared method → canonical metodo_pago value persisted in DB */
 const toCanonicalMethod = (m: DeclaredManualMethod): string => {
   if (m === "mp_externo") return "mercadopago";
-  if (m === "tarjeta_externa") return "tarjeta";
-  return m; // efectivo, transferencia, plataforma_externa
+  if (m === "otro") return "otro";
+  return m; // efectivo, transferencia
 };
 
 const ManualPaymentConfirm = ({
@@ -46,6 +46,7 @@ const ManualPaymentConfirm = ({
   precioFinal,
   descuentoId,
   metodoPago,
+  otherDetail,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
@@ -63,6 +64,10 @@ const ManualPaymentConfirm = ({
     const fechaFin = lastDay.toISOString().split("T")[0];
 
     const canonicalMethod = toCanonicalMethod(metodoPago);
+    const notas =
+      metodoPago === "otro" && otherDetail && otherDetail.trim().length > 0
+        ? `Otro medio informado por alumno: ${otherDetail.trim()}`
+        : null;
 
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
@@ -77,6 +82,7 @@ const ManualPaymentConfirm = ({
         fecha_fin: fechaFin,
         metodo_pago: canonicalMethod,
         origen_registro: "informado_alumno",
+        notas,
       } as any)
       .select("id")
       .single();
@@ -101,6 +107,7 @@ const ManualPaymentConfirm = ({
           suscripcion_id: sub.id,
           payment_type: canonicalMethod,
           declared_method: metodoPago,
+          other_detail: otherDetail ?? null,
         }),
       }).catch(() => {});
     } catch {

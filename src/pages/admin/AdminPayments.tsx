@@ -32,6 +32,7 @@ type Suscripcion = {
   mp_payment_id: string | null;
   metodo_pago: string;
   origen_registro: string;
+  notas: string | null;
   created_at: string;
   updated_at: string;
   auto_renovacion: boolean;
@@ -101,14 +102,35 @@ const getStatusBadge = (status: string) => {
 };
 
 const getMethodDisplay = (sub: Suscripcion) => {
-  const label = getPaymentMethodLabel(sub.metodo_pago);
-  const originMap: Record<string, string> = {
-    automatico: "Automático",
+  const methodLabel = getPaymentMethodLabel(sub.metodo_pago);
+
+  // "Otro" detail: extract free text from notas if present
+  const isOtro = (sub.metodo_pago || "").toLowerCase() === "otro";
+  const otherDetail = (() => {
+    if (!isOtro || !sub.notas) return null;
+    const m = sub.notas.match(/Otro medio informado por alumno:\s*(.+)/i);
+    return m ? m[1].trim() : sub.notas.trim();
+  })();
+
+  // Primary line: WHO reported the payment (= origin)
+  const originPrimaryMap: Record<string, string> = {
+    automatico: "Mercado Pago (automático)",
     informado_alumno: "Informado por alumno",
     cargado_admin: "Cargado por admin",
   };
-  const origin = originMap[sub.origen_registro] || "—";
-  return { method: label, origin };
+  const primary = originPrimaryMap[sub.origen_registro] || methodLabel;
+
+  // Secondary line: HOW (the actual medium)
+  let secondary: string;
+  if (sub.origen_registro === "automatico") {
+    secondary = "Pasarela MP";
+  } else if (isOtro && otherDetail) {
+    secondary = `Otro: ${otherDetail}`;
+  } else {
+    secondary = methodLabel;
+  }
+
+  return { method: primary, origin: secondary };
 };
 
 // formatPrice imported from @/lib/currency

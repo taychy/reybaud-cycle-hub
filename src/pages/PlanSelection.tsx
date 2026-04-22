@@ -57,6 +57,7 @@ const PlanSelection = () => {
   const [step, setStep] = useState<CheckoutStep>("select-plan");
   const [modality, setModality] = useState<"total" | "cuotas" | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [otherMethodDetail, setOtherMethodDetail] = useState<string | null>(null);
   const [previousSub, setPreviousSub] = useState<PreviousSubInfo | null>(null);
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
@@ -177,8 +178,9 @@ const PlanSelection = () => {
     setStep("select-method");
   };
 
-  const handleSelectMethod = (method: PaymentMethod) => {
+  const handleSelectMethod = (method: PaymentMethod, otherDetail?: string) => {
     setPaymentMethod(method);
+    setOtherMethodDetail(otherDetail ?? null);
     setError(null);
     setStep("confirm");
   };
@@ -350,8 +352,7 @@ const PlanSelection = () => {
     paymentMethod === "efectivo" ||
     paymentMethod === "transferencia" ||
     paymentMethod === "mp_externo" ||
-    paymentMethod === "tarjeta_externa" ||
-    paymentMethod === "plataforma_externa";
+    paymentMethod === "otro";
 
   if (step === "processing" && selectedPlan && alumnoId && paymentMethod && isManualMethod) {
     return (
@@ -368,7 +369,8 @@ const PlanSelection = () => {
             precioFinal={selectedDiscount?.final ?? selectedPlan.precio}
             descuentoId={selectedDiscount?.discount?.id ?? null}
             moneda={selectedPlan.moneda || "ARS"}
-            metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "tarjeta_externa" | "plataforma_externa"}
+            metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "otro"}
+            otherDetail={otherMethodDetail}
             onProcessing={setProcessing}
           />
         </div>

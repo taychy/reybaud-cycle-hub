@@ -1,5 +1,8 @@
-import { CreditCard, Banknote, ArrowLeft, ArrowLeftRight, Globe, ChevronRight } from "lucide-react";
+import { CreditCard, ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 
 // Specific payment method the student declares
@@ -9,21 +12,43 @@ export type DeclaredPaymentMethod =
   | "efectivo"         // Already paid in cash to coach
   | "transferencia"    // Already paid by bank transfer
   | "mp_externo"       // Already paid through MercadoPago (outside our checkout)
-  | "tarjeta_externa"  // Already paid with card outside our checkout
-  | "plataforma_externa"; // Already paid through another platform
+  | "otro";            // Other (free-text detail)
 
 interface CheckoutMethodStepProps {
-  onSelect: (method: DeclaredPaymentMethod) => void;
+  onSelect: (method: DeclaredPaymentMethod, otherDetail?: string) => void;
   processing: boolean;
   onBack: () => void;
 }
 
+type AlreadyPaidOption = "mercadopago" | "transferencia" | "efectivo" | "otro";
+
+const ALREADY_PAID_LABELS: Record<AlreadyPaidOption, string> = {
+  mercadopago: "Mercado Pago",
+  transferencia: "Transferencia bancaria",
+  efectivo: "Efectivo al profesor",
+  otro: "Otro",
+};
+
 const CheckoutMethodStep = ({ onSelect, processing, onBack }: CheckoutMethodStepProps) => {
   const [showAlreadyPaid, setShowAlreadyPaid] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<AlreadyPaidOption | "">("");
+  const [otherDetail, setOtherDetail] = useState("");
+
+  const canConfirm =
+    selectedOption !== "" &&
+    (selectedOption !== "otro" || otherDetail.trim().length >= 2);
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    if (selectedOption === "mercadopago") return onSelect("mp_externo");
+    if (selectedOption === "transferencia") return onSelect("transferencia");
+    if (selectedOption === "efectivo") return onSelect("efectivo");
+    if (selectedOption === "otro") return onSelect("otro", otherDetail.trim());
+  };
 
   if (showAlreadyPaid) {
     return (
-      <div className="space-y-3 w-full max-w-md mx-auto animate-fade-in">
+      <div className="space-y-5 w-full max-w-md mx-auto animate-fade-in">
         <div className="text-center space-y-2">
           <h2 className="text-xl font-heading font-bold uppercase tracking-wider text-foreground">
             ¿Cómo pagaste?
@@ -33,74 +58,61 @@ const CheckoutMethodStep = ({ onSelect, processing, onBack }: CheckoutMethodStep
           </p>
         </div>
 
-        <button
-          disabled={processing}
-          onClick={() => onSelect("efectivo")}
-          className="w-full flex items-center gap-3 rounded-lg p-4 glass-card hover:ring-1 hover:ring-border transition-all text-left disabled:opacity-50"
-        >
-          <Banknote className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Efectivo</p>
-            <p className="text-xs text-muted-foreground">En efectivo al profesor</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </button>
+        <div className="space-y-2">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Forma de pago
+          </Label>
+          <Select
+            value={selectedOption}
+            onValueChange={(v) => setSelectedOption(v as AlreadyPaidOption)}
+            disabled={processing}
+          >
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder="Elegí una opción" />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ALREADY_PAID_LABELS) as AlreadyPaidOption[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {ALREADY_PAID_LABELS[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <button
-          disabled={processing}
-          onClick={() => onSelect("transferencia")}
-          className="w-full flex items-center gap-3 rounded-lg p-4 glass-card hover:ring-1 hover:ring-border transition-all text-left disabled:opacity-50"
-        >
-          <ArrowLeftRight className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Transferencia bancaria</p>
-            <p className="text-xs text-muted-foreground">CBU / alias</p>
+        {selectedOption === "otro" && (
+          <div className="space-y-2 animate-fade-in">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Contanos cómo pagaste
+            </Label>
+            <Textarea
+              value={otherDetail}
+              onChange={(e) => setOtherDetail(e.target.value)}
+              placeholder="Ej: Pagué con Ualá / depósito en sucursal / etc."
+              rows={3}
+              maxLength={300}
+              disabled={processing}
+            />
+            <p className="text-[11px] text-muted-foreground text-right">
+              {otherDetail.length}/300
+            </p>
           </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </button>
+        )}
 
-        <button
-          disabled={processing}
-          onClick={() => onSelect("mp_externo")}
-          className="w-full flex items-center gap-3 rounded-lg p-4 glass-card hover:ring-1 hover:ring-border transition-all text-left disabled:opacity-50"
+        <Button
+          variant="gold"
+          size="lg"
+          className="w-full gap-2"
+          disabled={processing || !canConfirm}
+          onClick={handleConfirm}
         >
-          <CreditCard className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">MercadoPago</p>
-            <p className="text-xs text-muted-foreground">Lo pagaste por fuera con MP</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </button>
-
-        <button
-          disabled={processing}
-          onClick={() => onSelect("tarjeta_externa")}
-          className="w-full flex items-center gap-3 rounded-lg p-4 glass-card hover:ring-1 hover:ring-border transition-all text-left disabled:opacity-50"
-        >
-          <CreditCard className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Tarjeta de crédito/débito</p>
-            <p className="text-xs text-muted-foreground">Por fuera de la app</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </button>
-
-        <button
-          disabled={processing}
-          onClick={() => onSelect("plataforma_externa")}
-          className="w-full flex items-center gap-3 rounded-lg p-4 glass-card hover:ring-1 hover:ring-border transition-all text-left disabled:opacity-50"
-        >
-          <Globe className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Plataforma de pago externa</p>
-            <p className="text-xs text-muted-foreground">Otra app o pasarela</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </button>
+          {processing ? "Procesando..." : "Continuar"}
+          <ChevronRight className="w-4 h-4" />
+        </Button>
 
         <button
           onClick={() => setShowAlreadyPaid(false)}
-          className="flex items-center gap-1.5 mx-auto text-xs text-muted-foreground hover:text-primary transition-colors mt-2"
+          className="flex items-center gap-1.5 mx-auto text-xs text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
           Volver
