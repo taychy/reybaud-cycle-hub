@@ -22,7 +22,9 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.png", "favicon.ico"],
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        navigateFallbackDenylist: [/^\/~oauth/],
+        // Excluimos /~oauth y la ruta de chequeo de actualización para que
+        // SIEMPRE pasen por la red (sin pasar por el SW cacheado).
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/__update_check/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         clientsClaim: true,
         skipWaiting: false,
