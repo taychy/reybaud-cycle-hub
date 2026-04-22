@@ -47,12 +47,7 @@ const activationInfo: Record<DeclaredPaymentMethod, { icon: React.ReactNode; tex
     text: "Pendiente de revisión",
     detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
   },
-  tarjeta_externa: {
-    icon: <Clock className="w-4 h-4 text-amber-400" />,
-    text: "Pendiente de revisión",
-    detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
-  },
-  plataforma_externa: {
+  otro: {
     icon: <Clock className="w-4 h-4 text-amber-400" />,
     text: "Pendiente de revisión",
     detail: "Lo revisamos y te avisamos por email cuando quede acreditado.",
@@ -65,8 +60,7 @@ const confirmLabels: Record<DeclaredPaymentMethod, string> = {
   efectivo: "Confirmar que ya pagué en efectivo",
   transferencia: "Confirmar pago por transferencia",
   mp_externo: "Confirmar pago por MercadoPago",
-  tarjeta_externa: "Confirmar pago con tarjeta",
-  plataforma_externa: "Confirmar pago por plataforma externa",
+  otro: "Confirmar pago",
 };
 
 const CheckoutConfirmStep = ({
