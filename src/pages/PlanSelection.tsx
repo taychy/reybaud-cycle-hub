@@ -235,6 +235,8 @@ const PlanSelection = () => {
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const fechaFin = lastDay.toISOString().split("T")[0];
 
+    const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
       .insert({
@@ -246,6 +248,7 @@ const PlanSelection = () => {
         precio_final: disc?.final ?? plan.precio,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        notas: upgradeMarker,
       } as any)
       .select("id")
       .single();
