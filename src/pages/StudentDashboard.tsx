@@ -123,8 +123,11 @@ const StudentDashboard = () => {
         const activeSub = allSubs.find((s: any) => s.estado === "activa" && s.fecha_fin);
         setBestFechaFin(activeSub ? (activeSub as any).fecha_fin : null);
 
-        // Also set pending payment cards
-        const pending = allSubs.filter((s: any) => s.estado === "pendiente_verificacion" || s.estado === "rechazada");
+        // Also set pending payment cards (excluding cancelled subs)
+        const pending = allSubs.filter((s: any) =>
+          !s.cancelada_at &&
+          (s.estado === "pendiente_verificacion" || s.estado === "rechazada")
+        );
         if (pending.length > 0) {
           setPendingPayments(pending.map((sub: any) => ({
             id: sub.id,
@@ -134,6 +137,8 @@ const StudentDashboard = () => {
             fechaPago: sub.created_at,
             medioPago: "pendiente_verificacion",
           })));
+        } else {
+          setPendingPayments([]);
         }
       }
 
