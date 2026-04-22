@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard, BanIcon,
+  Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard,
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
   ChevronDown, ChevronUp
 } from "lucide-react";
