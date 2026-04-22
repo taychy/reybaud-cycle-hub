@@ -4,8 +4,16 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Build-time constants exposed to the app (version + build timestamp)
+const BUILD_TIME = new Date().toISOString();
+const APP_VERSION = `${BUILD_TIME.slice(0, 10).replace(/-/g, "")}.${BUILD_TIME.slice(11, 16).replace(":", "")}`;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -27,7 +35,8 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/, /^\/__update_check/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         clientsClaim: true,
-        skipWaiting: false,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
       },
       manifest: {
         name: "Ciclismo Reybaud",
