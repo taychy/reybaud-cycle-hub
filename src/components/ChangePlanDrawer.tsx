@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRightLeft, ArrowRight, Check, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, ArrowRight, Check, AlertTriangle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -73,6 +74,7 @@ export default function ChangePlanDrawer({
   onPlanChanged,
 }: ChangePlanDrawerProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -112,30 +114,54 @@ export default function ChangePlanDrawer({
         )
       : null;
 
-  const handleConfirm = async () => {
+  const isUpgrade = !!prorate && prorate.diferencia > 0;
+  const isDowngradeOrEqual = !!prorate && prorate.diferencia <= 0;
+
+  /**
+   * UPGRADE: redirige al checkout normal con el plan preseleccionado.
+   * No cancela el plan viejo todavía: eso ocurre cuando se confirma el pago.
+   */
+  const handleGoToCheckout = () => {
+    if (!selectedPlan) return;
+    localStorage.setItem("registro_alumno_id", alumnoId);
+    localStorage.setItem("alumno_renewal", "1");
+    localStorage.setItem("upgrade_from_sub_id", currentSubscription.id);
+    localStorage.setItem("upgrade_preselect_plan_id", selectedPlan.id);
+    onOpenChange(false);
+    navigate("/planes");
+  };
+
+  /**
+   * DOWNGRADE / SIN DIFERENCIA: switch directo, acreditando saldo a favor.
+   */
+  const handleDirectSwitch = async () => {
     if (!selectedPlan || !prorate) return;
     setProcessing(true);
 
     try {
-      // 1. Cancel old subscription
+      const cancelledAt = new Date().toISOString();
+
+      // 1. Cancelar suscripción anterior (estado completo)
       const { error: cancelErr } = await supabase
         .from("suscripciones")
         .update({
-          cancelada_at: new Date().toISOString(),
+          estado: "cancelada",
+          cancelada_at: cancelledAt,
+          cancelada_motivo: `Cambio a "${selectedPlan.nombre}"`,
           auto_renovacion: false,
         } as any)
         .eq("id", currentSubscription.id);
 
       if (cancelErr) throw cancelErr;
 
-      // 2. Create new subscription with same period dates
+      // 2. Crear suscripción nueva activa, manteniendo el período actual
       const { data: newSub, error: insertErr } = await supabase
         .from("suscripciones")
         .insert({
           alumno_id: alumnoId,
           plan_id: selectedPlan.id,
-          estado: prorate.diferencia > 0 ? "pendiente" : "activa",
-          fecha_inicio: new Date().toISOString().split("T")[0],
+          estado: "activa",
+          fecha_inicio: currentSubscription.fecha_inicio || new Date().toISOString().split("T")[0],
           fecha_fin: currentSubscription.fecha_fin,
           auto_renovacion: true,
           precio_base: selectedPlan.precio,
@@ -144,12 +170,22 @@ export default function ChangePlanDrawer({
         .select("id")
         .single();
 
-      if (insertErr) throw insertErr;
+      if (insertErr) {
+        // Rollback manual de la cancelación
+        await supabase
+          .from("suscripciones")
+          .update({
+            estado: "activa",
+            cancelada_at: null,
+            cancelada_motivo: null,
+          } as any)
+          .eq("id", currentSubscription.id);
+        throw insertErr;
+      }
 
-      // 3. Update saldo_a_favor if there's a credit
+      // 3. Acreditar saldo a favor por días no usados (solo si hay diferencia negativa)
       if (prorate.diferencia < 0) {
         const creditToAdd = Math.abs(prorate.diferencia);
-        // Get current saldo
         const { data: alumnoData } = await supabase
           .from("alumnos")
           .select("saldo_a_favor")
@@ -163,7 +199,8 @@ export default function ChangePlanDrawer({
           .eq("id", alumnoId);
       }
 
-      // 4. Log the change
+      // 4. Loguear el cambio
+      const { data: { user } } = await supabase.auth.getUser();
       await supabase.from("cambios_plan").insert({
         alumno_id: alumnoId,
         suscripcion_anterior_id: currentSubscription.id,
@@ -178,11 +215,18 @@ export default function ChangePlanDrawer({
         costo_nuevo_prorrateado: prorate.costoNuevo,
         diferencia: prorate.diferencia,
         saldo_aplicado: prorate.diferencia < 0 ? Math.abs(prorate.diferencia) : 0,
+        realizado_por: user?.id ?? null,
+        notas: prorate.diferencia < 0
+          ? `Saldo a favor acreditado: ${formatPrice(Math.abs(prorate.diferencia))}`
+          : "Cambio sin diferencia",
       } as any);
 
       toast({
         title: "Plan cambiado exitosamente",
-        description: `Ahora tenés ${selectedPlan.nombre}${prorate.diferencia < 0 ? `. Saldo a favor: ${formatPrice(Math.abs(prorate.diferencia))}` : prorate.diferencia > 0 ? `. Diferencia a pagar: ${formatPrice(prorate.diferencia)}` : ""}`,
+        description:
+          prorate.diferencia < 0
+            ? `Ahora tenés ${selectedPlan.nombre}. Saldo a favor acreditado: ${formatPrice(Math.abs(prorate.diferencia))}.`
+            : `Ahora tenés ${selectedPlan.nombre}.`,
       });
 
       onPlanChanged();
@@ -280,7 +324,7 @@ export default function ChangePlanDrawer({
                     <div className="border-t border-border pt-2 mt-2">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-foreground">
-                          {prorate.diferencia > 0
+                          {isUpgrade
                             ? "Diferencia a pagar"
                             : prorate.diferencia < 0
                             ? "Saldo a tu favor"
@@ -288,14 +332,14 @@ export default function ChangePlanDrawer({
                         </span>
                         <span
                           className={`font-bold text-lg ${
-                            prorate.diferencia > 0
+                            isUpgrade
                               ? "text-amber-400"
                               : prorate.diferencia < 0
                               ? "text-emerald-400"
                               : "text-foreground"
                           }`}
                         >
-                          {prorate.diferencia > 0
+                          {isUpgrade
                             ? formatPrice(prorate.diferencia)
                             : prorate.diferencia < 0
                             ? formatPrice(Math.abs(prorate.diferencia))
@@ -305,13 +349,17 @@ export default function ChangePlanDrawer({
                     </div>
                   </div>
 
-                  {prorate.diferencia > 0 && (
+                  {isUpgrade && (
                     <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-300">
-                        Deberás abonar la diferencia de {formatPrice(prorate.diferencia)} para activar tu nuevo plan.
-                        Se creará con estado pendiente hasta confirmar el pago.
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-amber-300">
+                          Este cambio requiere abonar la diferencia.
+                        </p>
+                        <p className="text-xs text-amber-300/80">
+                          Te llevamos al checkout para que elijas el método de pago. Tu plan actual sigue activo hasta que confirmes el pago del nuevo.
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -331,21 +379,34 @@ export default function ChangePlanDrawer({
         </div>
 
         <DrawerFooter className="border-t border-border">
-          <Button
-            variant="gold"
-            disabled={!selectedPlan || processing}
-            onClick={handleConfirm}
-            className="w-full"
-          >
-            {processing ? (
-              "Procesando..."
-            ) : (
-              <>
-                Confirmar cambio
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
+          {isUpgrade ? (
+            <Button
+              variant="gold"
+              disabled={!selectedPlan || processing}
+              onClick={handleGoToCheckout}
+              className="w-full"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              Ir a pagar la diferencia
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              variant="gold"
+              disabled={!selectedPlan || processing || !isDowngradeOrEqual}
+              onClick={handleDirectSwitch}
+              className="w-full"
+            >
+              {processing ? (
+                "Procesando..."
+              ) : (
+                <>
+                  Confirmar cambio
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
           <DrawerClose asChild>
             <Button variant="outline" className="w-full border-border">
               Cancelar
