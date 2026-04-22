@@ -471,16 +471,44 @@ const PlanSelection = () => {
         )}
 
         {/* Renewal banner (non-vacation) */}
-        {step === "select-plan" && isRenewal && !isFromVacation && (
+        {step === "select-plan" && isRenewal && !isFromVacation && (() => {
+          const wasCancelled = !!previousSub?.canceladaAt;
+          const finStr = previousSub?.fechaFin?.substring(0, 10);
+          let finIsFuture = false;
+          if (finStr) {
+            const [y, m, d] = finStr.split("-").map(Number);
+            const fin = new Date(y, m - 1, d, 23, 59, 59);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            finIsFuture = today <= fin;
+          }
+          // Tres escenarios:
+          // 1. Cancelada con fecha futura → "Plan cancelado, vigente hasta..."
+          // 2. Cancelada con fecha pasada → "Plan cancelado el..."
+          // 3. Sin cancelar (vencido por falta de pago) → "Plan vencido"
+          const isCancelledActive = wasCancelled && finIsFuture;
+          const isCancelledExpired = wasCancelled && !finIsFuture;
+
+          const heading = isCancelledActive
+            ? "Tu plan está cancelado"
+            : isCancelledExpired
+              ? "Tu plan fue cancelado"
+              : "Tu plan está vencido";
+          const subtext = isCancelledActive
+            ? "Cancelaste tu suscripción pero seguís con acceso hasta la fecha de fin del período. Si querés volver a entrenar después de esa fecha, contratá un plan nuevo."
+            : isCancelledExpired
+              ? "Tu plan fue cancelado y ya no tenés acceso. Para volver a entrenar, contratá un plan nuevo."
+              : "Para continuar usando la app y acceder a tus entrenamientos, necesitás renovar tu plan.";
+
+          return (
           <div className="max-w-lg mx-auto rounded-lg border border-destructive/30 bg-destructive/5 p-6 space-y-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-foreground">
-                  Tu plan está vencido
+                  {heading}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Para continuar usando la app y acceder a tus entrenamientos, necesitás renovar tu plan.
+                  {subtext}
                 </p>
               </div>
             </div>
@@ -490,20 +518,41 @@ const PlanSelection = () => {
                   <span className="text-muted-foreground">Plan anterior</span>
                   <span className="font-medium text-foreground">{previousSub.planName}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Venció el</span>
-                  <span className="font-medium text-destructive">{formatDate(previousSub.fechaFin)}</span>
-                </div>
+                {isCancelledActive ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Acceso hasta</span>
+                    <span className="font-medium text-foreground">{formatDate(previousSub.fechaFin)}</span>
+                  </div>
+                ) : isCancelledExpired ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Cancelado el</span>
+                    <span className="font-medium text-destructive">{formatDate(previousSub.canceladaAt!)}</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Venció el</span>
+                    <span className="font-medium text-destructive">{formatDate(previousSub.fechaFin)}</span>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button variant="gold" size="lg" className="flex-1" onClick={() => document.getElementById("planes-grid")?.scrollIntoView({ behavior: "smooth" })}>
-                Renovar plan
+              <Button variant="gold" size="lg" className="flex-1" onClick={() => {
+                if (isCancelledActive) {
+                  // Tiene acceso vigente: lo mandamos al dashboard
+                  navigate("/alumno");
+                } else {
+                  document.getElementById("planes-grid")?.scrollIntoView({ behavior: "smooth" });
+                }
+              }}>
+                {isCancelledActive ? "Volver a mi cuenta" : isCancelledExpired ? "Contratar plan" : "Renovar plan"}
               </Button>
-              <Button variant="gold-outline" size="lg" className="flex-1" onClick={handleNotifyAdmin} disabled={notifyProcessing}>
-                <MessageSquare className="w-4 h-4" />
-                {notifyProcessing ? "Enviando..." : "Ya hice el pago"}
-              </Button>
+              {!isCancelledActive && (
+                <Button variant="gold-outline" size="lg" className="flex-1" onClick={handleNotifyAdmin} disabled={notifyProcessing}>
+                  <MessageSquare className="w-4 h-4" />
+                  {notifyProcessing ? "Enviando..." : "Ya hice el pago"}
+                </Button>
+              )}
             </div>
             <Button
               variant="ghost"
@@ -523,7 +572,8 @@ const PlanSelection = () => {
               Cerrar sesión
             </Button>
           </div>
-        )}
+          );
+        })()}
 
         {/* STEP 1: Select Plan */}
         {step === "select-plan" && (
