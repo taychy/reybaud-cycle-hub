@@ -714,24 +714,17 @@ const AdminPayments = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmAction?.type === "pagar" && "¿Marcar como pagado?"}
-              {confirmAction?.type === "conciliar" && "¿Conciliar pago?"}
-              {confirmAction?.type === "suspender" && "¿Suspender acceso?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "pagar" && `Se marcará como pagado el plan ${confirmAction.sub.planes?.nombre} de ${confirmAction.sub.alumnos?.nombre}. Se activará el acceso del alumno.`}
-              {confirmAction?.type === "conciliar" && `Se validará el pago informado por ${confirmAction.sub.alumnos?.nombre} para el plan ${confirmAction.sub.planes?.nombre}.`}
-              {confirmAction?.type === "suspender" && `Se suspenderá el acceso de ${confirmAction.sub.alumnos?.nombre}. El alumno no podrá acceder a entrenamientos ni eventos.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className={confirmAction?.type === "suspender" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
               onClick={() => {
                 if (!confirmAction) return;
                 if (confirmAction.type === "pagar") handleMarcarPagado(confirmAction.sub);
-                if (confirmAction.type === "conciliar") handleConciliar(confirmAction.sub);
-                if (confirmAction.type === "suspender") handleSuspender(confirmAction.sub);
               }}
             >
               Confirmar
