@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard, BanIcon,
+  Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard,
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
   ChevronDown, ChevronUp
 } from "lucide-react";
@@ -275,27 +275,10 @@ const AdminPayments = () => {
     setConfirmAction(null);
   };
 
-  const handleConciliar = async (sub: Suscripcion) => {
-    const { error } = await supabase.from("suscripciones").update({ estado: "conciliado" as string }).eq("id", sub.id);
-    if (!error) {
-      await supabase.from("alumnos").update({ estado: "activo" }).eq("id", sub.alumno_id);
-      await logAudit("conciliar_pago", sub.id, { alumno: sub.alumnos?.nombre });
-      toast({ title: "Pago conciliado", description: `Se concilió el pago de ${sub.alumnos?.nombre}` });
-      fetchData();
-    }
-    setConfirmAction(null);
-  };
+  // Nota: las acciones "Conciliar" y "Suspender acceso" se removieron de esta vista
+  // para simplificar la operatoria diaria y evitar ruido visual.
 
-  const handleSuspender = async (sub: Suscripcion) => {
-    const { error } = await supabase.from("suscripciones").update({ estado: "cancelada", cancelada_at: new Date().toISOString(), cancelada_motivo: "Suspensión por falta de pago" }).eq("id", sub.id);
-    if (!error) {
-      await supabase.from("alumnos").update({ estado: "inactivo" }).eq("id", sub.alumno_id);
-      await logAudit("suspender_acceso", sub.id, { alumno: sub.alumnos?.nombre });
-      toast({ title: "Acceso suspendido", description: `Se suspendió el acceso de ${sub.alumnos?.nombre}` });
-      fetchData();
-    }
-    setConfirmAction(null);
-  };
+
 
   const handleEditFecha = async () => {
     if (!editFechaDialog || !editFechaValue) return;
@@ -637,16 +620,6 @@ const AdminPayments = () => {
                                     <TooltipContent>Marcar como pagado</TooltipContent>
                                   </Tooltip>
                                 )}
-                                {status === "informado" && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "conciliar", sub })}>
-                                        <CheckCheck className="w-3.5 h-3.5 text-teal-600" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Conciliar pago</TooltipContent>
-                                  </Tooltip>
-                                )}
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
@@ -681,16 +654,6 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Enviar recordatorio</TooltipContent>
                                 </Tooltip>
-                                {status !== "cancelado" && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmAction({ type: "suspender", sub })}>
-                                        <BanIcon className="w-3.5 h-3.5 text-red-500" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Suspender acceso</TooltipContent>
-                                  </Tooltip>
-                                )}
                               </div>
                             </TooltipProvider>
                           </TableCell>
@@ -751,24 +714,17 @@ const AdminPayments = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmAction?.type === "pagar" && "¿Marcar como pagado?"}
-              {confirmAction?.type === "conciliar" && "¿Conciliar pago?"}
-              {confirmAction?.type === "suspender" && "¿Suspender acceso?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "pagar" && `Se marcará como pagado el plan ${confirmAction.sub.planes?.nombre} de ${confirmAction.sub.alumnos?.nombre}. Se activará el acceso del alumno.`}
-              {confirmAction?.type === "conciliar" && `Se validará el pago informado por ${confirmAction.sub.alumnos?.nombre} para el plan ${confirmAction.sub.planes?.nombre}.`}
-              {confirmAction?.type === "suspender" && `Se suspenderá el acceso de ${confirmAction.sub.alumnos?.nombre}. El alumno no podrá acceder a entrenamientos ni eventos.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className={confirmAction?.type === "suspender" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
               onClick={() => {
                 if (!confirmAction) return;
                 if (confirmAction.type === "pagar") handleMarcarPagado(confirmAction.sub);
-                if (confirmAction.type === "conciliar") handleConciliar(confirmAction.sub);
-                if (confirmAction.type === "suspender") handleSuspender(confirmAction.sub);
               }}
             >
               Confirmar
