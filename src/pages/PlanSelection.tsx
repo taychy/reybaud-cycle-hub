@@ -52,6 +52,11 @@ type CheckoutStep = "select-plan" | "select-modality" | "select-method" | "confi
 
 const PlanSelection = () => {
   const navigate = useNavigate();
+  const alumnoId = localStorage.getItem("registro_alumno_id");
+  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
+  const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
+  const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
+  const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,11 +70,6 @@ const PlanSelection = () => {
   const [renewalContextLoaded, setRenewalContextLoaded] = useState(!isRenewal);
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
-  const alumnoId = localStorage.getItem("registro_alumno_id");
-  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
-  const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
-  const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
-  const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
