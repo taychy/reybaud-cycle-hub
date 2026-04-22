@@ -245,6 +245,7 @@ const AdminPayments = () => {
             monto: sub.planes.precio,
             referencia_tipo: "suscripcion",
             referencia_id: sub.id,
+            segmento: "escuela",
           },
         }).then(({ data }) => {
           if (data?.emitted) {
@@ -325,6 +326,7 @@ const AdminPayments = () => {
             monto: manualPayDialog.planes.precio,
             referencia_tipo: "suscripcion",
             referencia_id: manualPayDialog.id,
+            segmento: "escuela",
           },
         }).then(({ data }) => {
           if (data?.emitted) {

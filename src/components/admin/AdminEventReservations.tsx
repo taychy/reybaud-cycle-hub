@@ -698,6 +698,24 @@ const AdminEventReservations = ({
     loadPayments(selectedRes.id);
     loadReservations();
 
+    // Auto-facturar (segmento viajes) — solo si hay alumno_id
+    if (selectedRes.alumno_id) {
+      supabase.functions.invoke("auto-facturar", {
+        body: {
+          alumno_id: selectedRes.alumno_id,
+          concepto: `Reserva ${eventTitle} — pago ${formatPrice(amt, curr)}`,
+          monto: amt,
+          referencia_tipo: "evento",
+          referencia_id: selectedRes.id,
+          segmento: "viajes",
+        },
+      }).then(({ data }) => {
+        if (data?.emitted) {
+          toast({ title: "Factura AFIP emitida", description: `N° ${data.numero_comprobante}` });
+        }
+      }).catch(() => {});
+    }
+
     // Send notification if toggled on
     if (notifyOnPayment) {
       const ctx = getNotifContext(selectedRes, { monto: amt });

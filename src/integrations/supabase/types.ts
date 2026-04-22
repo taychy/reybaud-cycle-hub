@@ -821,6 +821,48 @@ export type Database = {
         }
         Relationships: []
       }
+      emisor_segmento_config: {
+        Row: {
+          created_at: string
+          emisor_id: string
+          habilitado: boolean
+          id: string
+          segmento: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          emisor_id: string
+          habilitado?: boolean
+          id?: string
+          segmento: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          emisor_id?: string
+          habilitado?: boolean
+          id?: string
+          segmento?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emisor_segmento_config_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "emisor_segmento_config_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emisores_fiscales: {
         Row: {
           activo: boolean
@@ -831,6 +873,7 @@ export type Database = {
           facturacion_automatica: boolean
           id: string
           key_pem: string | null
+          limite_anual_ars: number | null
           nombre_fiscal: string
           punto_venta: number
           updated_at: string
@@ -844,6 +887,7 @@ export type Database = {
           facturacion_automatica?: boolean
           id?: string
           key_pem?: string | null
+          limite_anual_ars?: number | null
           nombre_fiscal: string
           punto_venta?: number
           updated_at?: string
@@ -857,6 +901,7 @@ export type Database = {
           facturacion_automatica?: boolean
           id?: string
           key_pem?: string | null
+          limite_anual_ars?: number | null
           nombre_fiscal?: string
           punto_venta?: number
           updated_at?: string
@@ -1460,6 +1505,7 @@ export type Database = {
           numero_comprobante: string | null
           referencia_id: string | null
           referencia_tipo: string
+          segmento: string | null
           updated_at: string
         }
         Insert: {
@@ -1480,6 +1526,7 @@ export type Database = {
           numero_comprobante?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
+          segmento?: string | null
           updated_at?: string
         }
         Update: {
@@ -1500,6 +1547,7 @@ export type Database = {
           numero_comprobante?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
+          segmento?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1509,6 +1557,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
           },
           {
             foreignKeyName: "facturas_emisor_id_fkey"
@@ -3318,7 +3373,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      emisor_facturado_anual: {
+        Row: {
+          cuit: string | null
+          cupo_disponible: number | null
+          emisor_id: string | null
+          facturado_anual: number | null
+          limite_anual_ars: number | null
+          nombre_fiscal: string | null
+          porcentaje_uso: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
