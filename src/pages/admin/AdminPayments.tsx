@@ -191,6 +191,18 @@ const AdminPayments = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Precarga datos al abrir el modal de pago manual: fecha de pago = hoy,
+  // fecha de vencimiento = vencimiento actual de la suscripción (si existe).
+  useEffect(() => {
+    if (!manualPayDialog) return;
+    setManualPayData({
+      observaciones: manualPayDialog.notas || "",
+      metodo: manualPayDialog.metodo_pago || "efectivo",
+      fecha_pago: new Date().toISOString().split("T")[0],
+      fecha_fin: manualPayDialog.fecha_fin || "",
+    });
+  }, [manualPayDialog]);
+
   const filtered = useMemo(() => {
     return suscripciones.filter((s) => {
       const status = getPaymentStatus(s);
@@ -807,6 +819,18 @@ const AdminPayments = () => {
             <div>
               <Label>Fecha de pago</Label>
               <Input type="date" value={manualPayData.fecha_pago} onChange={(e) => setManualPayData((p) => ({ ...p, fecha_pago: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Fecha de vencimiento</Label>
+              <Input
+                type="date"
+                value={manualPayData.fecha_fin}
+                min={manualPayData.fecha_pago || undefined}
+                onChange={(e) => setManualPayData((p) => ({ ...p, fecha_fin: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Define hasta qué fecha queda activo este pago.
+              </p>
             </div>
             <div>
               <Label>Observaciones</Label>
