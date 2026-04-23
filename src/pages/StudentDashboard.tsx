@@ -19,6 +19,7 @@ import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
 import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
 import HomeNewsCarousel from "@/components/HomeNewsCarousel";
+import HomePendingResultBanner from "@/components/HomePendingResultBanner";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -471,6 +472,9 @@ const StudentDashboard = () => {
                 fechaFin={bestFechaFin}
               />
             )}
+
+            {/* CTA: resultado pendiente de eventos tipo Record */}
+            {alumno && <HomePendingResultBanner alumnoEmail={alumno.email} />}
 
             {/* Payment status - show all pending */}
             {pendingPayments.map((pp) => (

@@ -322,6 +322,7 @@ export const EventosContent = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("todos");
   const [reservations, setReservations] = useState<Record<string, string>>({});
+  const [participantEventIds, setParticipantEventIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     supabase
@@ -352,18 +353,35 @@ export const EventosContent = () => {
           setReservations(map);
         }
       });
+
+    // Vínculo adicional: participación en eventos tipo Record (event_participants por email)
+    if (alumno.email) {
+      supabase
+        .from("event_participants")
+        .select("event_id")
+        .eq("email", alumno.email.toLowerCase().trim())
+        .then(({ data }) => {
+          if (data) {
+            const ids = new Set<string>();
+            data.forEach((p: any) => { if (p.event_id) ids.add(p.event_id); });
+            setParticipantEventIds(ids);
+          }
+        });
+    }
   }, [alumno]);
 
   const today = new Date().toISOString().slice(0, 10);
   // Un evento sigue "vigente" mientras no haya pasado su fecha de fin (o su fecha única si no tiene end_date)
   const upcoming = events.filter((e) => (e.end_date || e.date) >= today);
   const reservedEventIds = new Set(Object.keys(reservations));
+  // "Mis eventos" incluye reservas + participaciones (Record), incluso si ya pasaron
+  const myEventIds = new Set<string>([...reservedEventIds, ...participantEventIds]);
 
-  const filtered = upcoming.filter((e) => {
+  const filtered = (tab === "mis_eventos" ? events : upcoming).filter((e) => {
     if (tab === "escuela" && !escuelaTypes.includes(e.type)) return false;
     if (tab === "carreras" && !carreraTypes.includes(e.type)) return false;
     if (tab === "viajes" && !viajesTypes.includes(e.type)) return false;
-    if (tab === "mis_eventos" && !reservedEventIds.has(e.id)) return false;
+    if (tab === "mis_eventos" && !myEventIds.has(e.id)) return false;
     if (tab === "favoritos" && !favoriteIds.has(e.id)) return false;
     return true;
   });
