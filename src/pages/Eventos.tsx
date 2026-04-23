@@ -354,7 +354,9 @@ export const EventosContent = () => {
         }
       });
 
-    // Vínculo adicional: participación en eventos tipo Record (event_participants por email)
+    // Vínculo adicional vía event_participants (check-in / participación directa, ej: Record).
+    // Sirve para incluir en "Mis eventos" cualquier evento donde el alumno participó
+    // aunque no haya pasado por el flujo de reserva.
     if (alumno.email) {
       supabase
         .from("event_participants")
@@ -374,7 +376,8 @@ export const EventosContent = () => {
   // Un evento sigue "vigente" mientras no haya pasado su fecha de fin (o su fecha única si no tiene end_date)
   const upcoming = events.filter((e) => (e.end_date || e.date) >= today);
   const reservedEventIds = new Set(Object.keys(reservations));
-  // "Mis eventos" incluye reservas + participaciones (Record), incluso si ya pasaron
+  // "Mis eventos" = todo evento donde el alumno tiene vínculo real (reserva o participación),
+  // sin filtrar por fecha. Aplica a TODOS los tipos: carreras, viajes, camps, Record, etc.
   const myEventIds = new Set<string>([...reservedEventIds, ...participantEventIds]);
 
   const filtered = (tab === "mis_eventos" ? events : upcoming).filter((e) => {
