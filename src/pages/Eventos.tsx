@@ -19,6 +19,7 @@ interface Event {
   title: string;
   description: string | null;
   date: string;
+  end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   type: string;
@@ -354,7 +355,8 @@ export const EventosContent = () => {
   }, [alumno]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = events.filter((e) => e.date >= today);
+  // Un evento sigue "vigente" mientras no haya pasado su fecha de fin (o su fecha única si no tiene end_date)
+  const upcoming = events.filter((e) => (e.end_date || e.date) >= today);
   const reservedEventIds = new Set(Object.keys(reservations));
 
   const filtered = upcoming.filter((e) => {
