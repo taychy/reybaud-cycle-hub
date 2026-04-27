@@ -113,6 +113,18 @@ const getMethodDisplay = (sub: Suscripcion) => {
     return m ? m[1].trim() : sub.notas.trim();
   })();
 
+  // Detect auto-renewal pending charge (created by cron, no payment yet)
+  const isAutoRenewalPending =
+    sub.origen_registro === "automatico" &&
+    sub.estado === "pendiente" &&
+    !(sub as any).mp_payment_id &&
+    ((sub.metodo_pago || "").toLowerCase() === "pendiente" ||
+      (sub.metodo_pago || "").toLowerCase() === "efectivo");
+
+  if (isAutoRenewalPending) {
+    return { method: "Renovación automática", origin: "Pendiente de cobro" };
+  }
+
   // Primary line: WHO reported the payment (= origin)
   const originPrimaryMap: Record<string, string> = {
     automatico: "Mercado Pago (automático)",
