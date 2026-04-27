@@ -122,10 +122,10 @@ const getReservationBadge = (estado: string | undefined) => {
 
 /* ─── Event Card ─── */
 const EventCard = ({
-  event, onClick, isFavorite, onToggleFavorite, reservationStatus,
+  event, onClick, isFavorite, onToggleFavorite, reservationStatus, isParticipant,
 }: {
   event: Event; onClick: () => void; isFavorite: boolean;
-  onToggleFavorite: () => void; reservationStatus?: string;
+  onToggleFavorite: () => void; reservationStatus?: string; isParticipant?: boolean;
 }) => {
   const priceDisplay = getEventPriceDisplay(event);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -136,6 +136,11 @@ const EventCard = ({
   const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";
   const isInformative = eventNature === "propio_informativo" || eventNature === "externo_informativo";
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+  // Vínculo real del alumno con el evento (reserva o participación registrada)
+  const hasUserLink = hasReservation || !!isParticipant;
+  // Evento pasado: ya pasó la fecha de fin (o la fecha única si no hay end_date)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isPast = (event.end_date || event.date) < todayStr;
 
   return (
     <div
