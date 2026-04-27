@@ -5,6 +5,8 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.create-mp-preference]
     verify_jwt = false
+  [functions.create-event-mp-preference]
+    verify_jwt = false
   [functions.dev-login]
     verify_jwt = false
   [functions.get-mp-public-key]
