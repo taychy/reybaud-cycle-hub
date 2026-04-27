@@ -245,7 +245,7 @@ const EventDetail = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <p className="text-muted-foreground">Evento no encontrado.</p>
-        <Button variant="outline" onClick={() => navigate("/eventos")}>Volver</Button>
+        <Button variant="outline" onClick={handleBack}>Volver</Button>
       </div>
     );
   }
