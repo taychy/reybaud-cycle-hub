@@ -105,6 +105,17 @@ const EventDetail = () => {
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
 
+  // Smart back: respect history when available, fallback to events list.
+  const handleBack = () => {
+    // If user navigated within the app (history > 1 entry), go back so the
+    // events tab/filter (Mis eventos, Favoritos, etc.) is preserved.
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(alumno ? "/alumno/eventos" : "/eventos");
+    }
+  };
+
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
