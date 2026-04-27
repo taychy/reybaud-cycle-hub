@@ -316,7 +316,15 @@ const StudentDashboard = () => {
     month: "long",
   });
 
-  // Restricted tab handler
+  // Restricted tab handler — also pushes to URL so back button + refresh work
+  const tabToPath: Record<"hoy" | "eventos" | "tienda" | "progreso" | "mas", string> = {
+    hoy: "/alumno",
+    eventos: "/alumno/eventos",
+    tienda: "/alumno/tienda",
+    progreso: "/alumno/progreso",
+    mas: "/alumno/mas",
+  };
+
   const handleTabChange = (tab: "hoy" | "eventos" | "tienda" | "progreso" | "mas") => {
     if (accessPerms) {
       if (tab === "progreso" && !accessPerms.canViewProgress) {
@@ -328,7 +336,12 @@ const StudentDashboard = () => {
         return;
       }
     }
-    setActiveTab(tab);
+    const target = tabToPath[tab];
+    if (location.pathname !== target) {
+      navigate(target);
+    } else {
+      setActiveTab(tab);
+    }
   };
 
   const renderAccessBanner = () => {
