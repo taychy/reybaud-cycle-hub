@@ -178,6 +178,14 @@ const EventCard = ({
             </Badge>
           </div>
         )}
+        {/* Participación sin reserva (ej: Record con check-in) */}
+        {!hasReservation && isParticipant && (
+          <div className="absolute bottom-2.5 left-2.5">
+            <Badge className={`text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 shadow-lg ${isPast ? "bg-muted text-muted-foreground" : "bg-emerald-500 text-white"}`}>
+              {isPast ? "Participaste" : "Inscripto"}
+            </Badge>
+          </div>
+        )}
 
         {/* Duration pill bottom-right */}
         {event.duration_days && (
