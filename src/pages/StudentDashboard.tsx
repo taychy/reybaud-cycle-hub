@@ -250,6 +250,13 @@ const StudentDashboard = () => {
     }
   }, [sectionParam, activeTab, loading]);
 
+  // Sync activeTab with URL pathname (browser back/forward, deep links, refresh)
+  useEffect(() => {
+    const tabFromPath = pathToTab(location.pathname);
+    setActiveTab((prev) => (prev !== tabFromPath ? tabFromPath : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   // When user selects a different day
   useEffect(() => {
     const training = weekTrainings[selectedDay] ?? null;
