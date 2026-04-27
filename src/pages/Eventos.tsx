@@ -459,6 +459,7 @@ export const EventosContent = () => {
                   isFavorite={isFavorite(e.id)}
                   onToggleFavorite={() => toggleFavorite(e.id)}
                   reservationStatus={reservations[e.id]}
+                  isParticipant={participantEventIds.has(e.id)}
                 />
               ))}
             </div>
