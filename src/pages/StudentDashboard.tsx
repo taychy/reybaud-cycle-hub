@@ -43,7 +43,24 @@ const StudentDashboard = () => {
   const readOnly = isImpersonating;
   const searchParams = new URLSearchParams(location.search);
   const sectionParam = searchParams.get("section");
-  const initialTab = sectionParam === "apto-fisico" ? "mas" : ((location.state as any)?.tab || "hoy");
+
+  // Map URL pathname → tab. Keeps deep links + back button + refresh in sync.
+  const pathToTab = (pathname: string): "hoy" | "eventos" | "tienda" | "progreso" | "mas" => {
+    if (pathname.startsWith("/alumno/eventos")) return "eventos";
+    if (pathname.startsWith("/alumno/tienda")) return "tienda";
+    if (pathname.startsWith("/alumno/progreso")) return "progreso";
+    if (pathname.startsWith("/alumno/mas")) return "mas";
+    return "hoy";
+  };
+
+  // Fallback to legacy state.tab or section query param for backward compatibility
+  const initialTab = (() => {
+    const fromPath = pathToTab(location.pathname);
+    if (fromPath !== "hoy") return fromPath;
+    if (sectionParam === "apto-fisico") return "mas" as const;
+    return ((location.state as any)?.tab || "hoy") as "hoy" | "eventos" | "tienda" | "progreso" | "mas";
+  })();
+
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [weekTrainings, setWeekTrainings] = useState<(Entrenamiento | null)[]>([null, null, null, null, null, null, null]);
@@ -233,6 +250,13 @@ const StudentDashboard = () => {
     }
   }, [sectionParam, activeTab, loading]);
 
+  // Sync activeTab with URL pathname (browser back/forward, deep links, refresh)
+  useEffect(() => {
+    const tabFromPath = pathToTab(location.pathname);
+    setActiveTab((prev) => (prev !== tabFromPath ? tabFromPath : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   // When user selects a different day
   useEffect(() => {
     const training = weekTrainings[selectedDay] ?? null;
@@ -292,7 +316,15 @@ const StudentDashboard = () => {
     month: "long",
   });
 
-  // Restricted tab handler
+  // Restricted tab handler — also pushes to URL so back button + refresh work
+  const tabToPath: Record<"hoy" | "eventos" | "tienda" | "progreso" | "mas", string> = {
+    hoy: "/alumno",
+    eventos: "/alumno/eventos",
+    tienda: "/alumno/tienda",
+    progreso: "/alumno/progreso",
+    mas: "/alumno/mas",
+  };
+
   const handleTabChange = (tab: "hoy" | "eventos" | "tienda" | "progreso" | "mas") => {
     if (accessPerms) {
       if (tab === "progreso" && !accessPerms.canViewProgress) {
@@ -304,7 +336,12 @@ const StudentDashboard = () => {
         return;
       }
     }
-    setActiveTab(tab);
+    const target = tabToPath[tab];
+    if (location.pathname !== target) {
+      navigate(target);
+    } else {
+      setActiveTab(tab);
+    }
   };
 
   const renderAccessBanner = () => {
