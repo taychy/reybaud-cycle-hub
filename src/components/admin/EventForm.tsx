@@ -18,7 +18,11 @@ import {
   Trophy,
   Mountain,
   ArrowLeft,
+  Link2,
+  Copy as CopyIcon,
+  ExternalLink,
 } from "lucide-react";
+import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/eventLinks";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
