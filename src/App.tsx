@@ -99,7 +99,8 @@ const App = () => (
           <Route path="/alumno/tienda" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/mas" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/pagos" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentPayments /></ProtectedRoute>} />
-          <Route path="/alumno/progreso" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentProgress /></ProtectedRoute>} />
+          <Route path="/alumno/progreso" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/progreso/full" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentProgress /></ProtectedRoute>} />
           <Route path="/crear-clave" element={<SetPassword />} />
           <Route path="/activar-cuenta" element={<SetPassword />} />
           <Route path="/asesoria" element={<Asesoria />} />
