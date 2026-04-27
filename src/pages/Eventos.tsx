@@ -247,11 +247,13 @@ const EventCard = ({
           )}
           <Button
             size="sm"
-            variant={hasReservation ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
+            variant={hasUserLink ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
           >
-            {hasReservation ? "Ver estado"
+            {hasUserLink
+              ? (isPast ? "Ver resultado" : "Ver estado")
+              : isPast ? "Finalizado"
               : isInformative ? "Ver info"
               : isInscriptionOnly ? "Inscribirme"
               : priceDisplay.mode === "con_valor" ? "Reservar"
