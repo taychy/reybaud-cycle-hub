@@ -12,6 +12,7 @@ import {
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
   CircleDot, Loader2,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
@@ -250,7 +251,9 @@ const ReservationStatusCard = ({
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
   // School events (record_hora, carrera, otro) show only the confirmation banner.
   const isTripLike = eventType === "camp" || eventType === "viaje";
+  const { toast } = useToast();
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
+  const [mpLoading, setMpLoading] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
@@ -384,6 +387,53 @@ const ReservationStatusCard = ({
   const primaryCTA = getPrimaryCTA();
   const secondaryCTA = getSecondaryCTA();
 
+  /* ─── Pay with Mercado Pago ─── */
+  // Mostramos el botón siempre que la reserva permita pagar y haya saldo > 0,
+  // tanto en "solicitud_enviada" (Inscripción recibida) como en confirmada con saldo.
+  const pendingForMP = Number(
+    reservation.balance_due ?? reservation.amount_total ?? 0
+  );
+  const canPayWithMP =
+    isPayable &&
+    pendingForMP > 0 &&
+    ["no_informado", "parcial", "pago_pendiente", "pago_rechazado"].includes(
+      reservation.payment_status
+    );
+
+  const handlePayWithMP = async () => {
+    if (mpLoading) return;
+    setMpLoading(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-event-mp-preference`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ reservation_id: reservation.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.init_point) {
+        toast({
+          title: "No pudimos abrir Mercado Pago",
+          description: data?.error || "Intentá nuevamente en unos segundos.",
+          variant: "destructive",
+        });
+        setMpLoading(false);
+        return;
+      }
+      window.location.href = data.init_point;
+    } catch {
+      toast({
+        title: "Error de conexión con Mercado Pago",
+        description: "Revisá tu conexión a internet e intentá nuevamente.",
+        variant: "destructive",
+      });
+      setMpLoading(false);
+    }
+  };
+
   /* ─── Load timeline ─── */
   const loadTimeline = async () => {
     if (timeline.length > 0) { setShowTimeline(!showTimeline); return; }
@@ -471,9 +521,28 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 3. PRIMARY CTA ═══ */}
+        {canPayWithMP && (
+          <Button
+            variant="gold"
+            className="w-full h-12 text-sm"
+            onClick={handlePayWithMP}
+            disabled={mpLoading}
+          >
+            {mpLoading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo Mercado Pago...</>
+            ) : (
+              <><CreditCard className="w-4 h-4 mr-2" /> Pagar con Mercado Pago</>
+            )}
+          </Button>
+        )}
         {primaryCTA && (
-          <Button variant="gold" className="w-full h-12 text-sm" onClick={primaryCTA.action}>
-            <primaryCTA.icon className="w-4 h-4 mr-2" /> {primaryCTA.label}
+          <Button
+            variant={canPayWithMP ? "outline" : "gold"}
+            className="w-full h-12 text-sm"
+            onClick={primaryCTA.action}
+          >
+            <primaryCTA.icon className="w-4 h-4 mr-2" />
+            {canPayWithMP ? "O informar otro medio de pago" : primaryCTA.label}
           </Button>
         )}
 
