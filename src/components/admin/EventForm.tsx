@@ -952,6 +952,33 @@ const EventForm = ({
         </fieldset>
       )}
 
+      {/* COMPARTIR LINKS */}
+      {isEditing && eventId && (
+        <fieldset className="space-y-3 p-4 rounded-lg border border-border/50 bg-card/30">
+          <legend className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Link2 className="w-3.5 h-3.5" /> Compartir evento
+          </legend>
+          {[
+            { label: "Link público (landing / WhatsApp)", hint: "Abre el detalle del evento sin necesidad de iniciar sesión.", url: getPublicEventLink(eventId) },
+            { label: "Link interno para alumnos", hint: "Lleva al alumno logueado al detalle dentro del dashboard.", url: getStudentEventLink(eventId) },
+          ].map((item) => (
+            <div key={item.label} className="space-y-1">
+              <Label className="text-xs">{item.label}</Label>
+              <div className="flex gap-2">
+                <Input value={item.url} readOnly onFocus={(e) => e.currentTarget.select()} className="text-xs font-mono" />
+                <Button type="button" variant="outline" size="icon" onClick={async () => { const ok = await copyToClipboard(item.url); if (ok) toast.success("Link copiado"); else toast.error("No se pudo copiar"); }} title="Copiar">
+                  <CopyIcon className="w-4 h-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" onClick={() => window.open(item.url, "_blank", "noopener")} title="Abrir">
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{item.hint}</p>
+            </div>
+          ))}
+        </fieldset>
+      )}
+
       {/* ─── ACTION BUTTONS ─── */}
       <div className="flex flex-wrap gap-2 pt-2">
         {isEditing ? (
