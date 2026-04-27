@@ -115,6 +115,7 @@ interface EventFormProps {
   onCancel: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  eventId?: string;
 }
 
 export const eventFormFromRow = (ev: any): EventFormData => ({
@@ -172,6 +173,7 @@ const EventForm = ({
   onCancel,
   onDuplicate,
   onDelete,
+  eventId,
 }: EventFormProps) => {
   const [form, setForm] = useState<EventFormData>(initialData || emptyForm);
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(
