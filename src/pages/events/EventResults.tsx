@@ -122,7 +122,7 @@ const EventResults = () => {
     setSubmitting(true);
     const distanceDisplay = `${km.toFixed(2)} km`;
 
-    const { error: updateErr } = await supabase
+    const { data: updated, error: updateErr } = await supabase
       .from("event_participants")
       .update({
         time_value: km,
@@ -131,10 +131,15 @@ const EventResults = () => {
         status: "result_submitted",
         results_updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", participant.id);
+      .eq("id", participant.id)
+      .select("id");
 
-    if (updateErr) {
-      toast({ title: "Error", description: "No se pudo guardar. Intentá de nuevo.", variant: "destructive" });
+    if (updateErr || !updated || updated.length === 0) {
+      toast({
+        title: "No se pudo guardar",
+        description: updateErr?.message || "Tu link puede haber expirado. Pedile al staff un link nuevo.",
+        variant: "destructive",
+      });
     } else {
       toast({ title: "¡Distancia cargada!", description: "Tu resultado fue enviado para revisión." });
       setShowDistanceForm(false);
