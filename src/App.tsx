@@ -94,6 +94,10 @@ const App = () => (
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/alumno" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/dashboard" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/inicio" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/eventos" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/tienda" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/alumno/mas" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/pagos" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentPayments /></ProtectedRoute>} />
           <Route path="/alumno/progreso" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentProgress /></ProtectedRoute>} />
           <Route path="/crear-clave" element={<SetPassword />} />
