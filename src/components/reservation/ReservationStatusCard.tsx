@@ -387,6 +387,53 @@ const ReservationStatusCard = ({
   const primaryCTA = getPrimaryCTA();
   const secondaryCTA = getSecondaryCTA();
 
+  /* ─── Pay with Mercado Pago ─── */
+  // Mostramos el botón siempre que la reserva permita pagar y haya saldo > 0,
+  // tanto en "solicitud_enviada" (Inscripción recibida) como en confirmada con saldo.
+  const pendingForMP = Number(
+    reservation.balance_due ?? reservation.amount_total ?? 0
+  );
+  const canPayWithMP =
+    isPayable &&
+    pendingForMP > 0 &&
+    ["no_informado", "parcial", "pago_pendiente", "pago_rechazado"].includes(
+      reservation.payment_status
+    );
+
+  const handlePayWithMP = async () => {
+    if (mpLoading) return;
+    setMpLoading(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-event-mp-preference`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ reservation_id: reservation.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.init_point) {
+        toast({
+          title: "No pudimos abrir Mercado Pago",
+          description: data?.error || "Intentá nuevamente en unos segundos.",
+          variant: "destructive",
+        });
+        setMpLoading(false);
+        return;
+      }
+      window.location.href = data.init_point;
+    } catch {
+      toast({
+        title: "Error de conexión con Mercado Pago",
+        description: "Revisá tu conexión a internet e intentá nuevamente.",
+        variant: "destructive",
+      });
+      setMpLoading(false);
+    }
+  };
+
   /* ─── Load timeline ─── */
   const loadTimeline = async () => {
     if (timeline.length > 0) { setShowTimeline(!showTimeline); return; }
