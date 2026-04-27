@@ -55,31 +55,31 @@ const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
         <NavItem
           icon={<Home className="w-5 h-5" />}
           label={t("nav.home")}
-          active={activeTab === "hoy"}
+          active={currentTab === "hoy"}
           onClick={() => handleTab("hoy")}
         />
         <NavItem
           icon={<Trophy className="w-5 h-5" />}
           label={t("nav.events")}
-          active={activeTab === "eventos"}
+          active={currentTab === "eventos"}
           onClick={() => handleTab("eventos")}
         />
         <NavItem
           icon={<ShoppingCart className="w-5 h-5" />}
           label={t("nav.store", "Tienda")}
-          active={activeTab === "tienda"}
+          active={currentTab === "tienda"}
           onClick={() => handleTab("tienda")}
         />
         <NavItem
           icon={<TrendingUp className="w-5 h-5" />}
           label={t("nav.progress")}
-          active={activeTab === "progreso"}
+          active={currentTab === "progreso"}
           onClick={() => handleTab("progreso")}
         />
         <NavItem
           icon={<MoreHorizontal className="w-5 h-5" />}
           label={t("nav.more")}
-          active={activeTab === "mas"}
+          active={currentTab === "mas"}
           onClick={() => handleTab("mas")}
         />
       </div>
