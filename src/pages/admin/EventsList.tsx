@@ -469,6 +469,7 @@ const EventsList = () => {
             key={editingEvent?.id || "new"}
             initialData={editingEvent ? eventFormFromRow(editingEvent) : undefined}
             isEditing={!!editingEvent}
+            eventId={editingEvent?.id}
             saving={saving}
             onSave={saveEvent}
             onCancel={() => setFormOpen(false)}
