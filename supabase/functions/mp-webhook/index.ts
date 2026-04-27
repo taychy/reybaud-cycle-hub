@@ -63,12 +63,115 @@ Deno.serve(async (req) => {
       });
     }
 
-    const suscripcionId = payment.external_reference;
+    const externalRef: string = String(payment.external_reference);
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // ─── EVENT RESERVATION FLOW ───
+    // external_reference: "event:<reservation_id>"
+    if (externalRef.startsWith("event:")) {
+      const reservationId = externalRef.slice("event:".length);
+      const paidAmount = Number(payment.transaction_amount ?? 0);
+
+      // Cargar reserva actual
+      const { data: reservation, error: resErr } = await supabaseAdmin
+        .from("event_reservations")
+        .select("id, alumno_id, amount_total, amount_paid, balance_due, payment_status, reservation_status, currency_snapshot, moneda")
+        .eq("id", reservationId)
+        .single();
+
+      if (resErr || !reservation) {
+        console.error("Reserva no encontrada:", reservationId, resErr);
+        return new Response(JSON.stringify({ ok: true, missing: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Idempotencia: si ya registramos este pago, salir
+      const { data: existing } = await supabaseAdmin
+        .from("reservation_payments")
+        .select("id")
+        .eq("reservation_id", reservationId)
+        .eq("payment_reference", String(payment.id))
+        .maybeSingle();
+
+      if (existing) {
+        console.log("Pago ya registrado, ignorando:", payment.id);
+        return new Response(JSON.stringify({ ok: true, duplicate: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const currency = reservation.currency_snapshot || reservation.moneda || "ARS";
+      const today = new Date().toISOString().split("T")[0];
+
+      // Mapear status MP → status interno del pago informado
+      let payStatus = "informado";
+      if (payment.status === "approved") payStatus = "validado";
+      else if (payment.status === "rejected" || payment.status === "cancelled") payStatus = "rechazado";
+
+      // Insertar siempre el registro del pago (trazabilidad)
+      await supabaseAdmin.from("reservation_payments").insert({
+        reservation_id: reservationId,
+        alumno_id: reservation.alumno_id,
+        amount: paidAmount,
+        currency,
+        payment_date: today,
+        payment_method: "mercadopago",
+        payment_reference: String(payment.id),
+        notes: `Pago Mercado Pago (${payment.status})`,
+        status: payStatus,
+      } as any);
+
+      // Sólo movemos saldos cuando MP aprobó
+      if (payment.status === "approved") {
+        const newPaid = Number(reservation.amount_paid || 0) + paidAmount;
+        const total = Number(reservation.amount_total || 0);
+        const newBalance = total > 0 ? Math.max(0, total - newPaid) : 0;
+        const isFullyPaid = total > 0 && newBalance <= 0;
+
+        const update: Record<string, unknown> = {
+          amount_paid: newPaid,
+          balance_due: newBalance,
+          payment_status: isFullyPaid ? "pago_validado" : "parcial",
+          metodo_pago: "mercadopago",
+        };
+
+        // Si la reserva todavía no estaba confirmada y se terminó de pagar, confirmarla
+        if (isFullyPaid && reservation.reservation_status !== "reserva_confirmada") {
+          update.reservation_status = "reserva_confirmada";
+          update.estado = "confirmada";
+          update.confirmed_at = new Date().toISOString();
+        } else if (!isFullyPaid && reservation.reservation_status === "solicitud_enviada") {
+          // Pago parcial mantiene la solicitud, pero blanqueamos el estado
+          update.estado = "pendiente_verificacion";
+        }
+
+        await supabaseAdmin
+          .from("event_reservations")
+          .update(update)
+          .eq("id", reservationId);
+      } else if (payment.status === "rejected" || payment.status === "cancelled") {
+        await supabaseAdmin
+          .from("event_reservations")
+          .update({ payment_status: "pago_rechazado" })
+          .eq("id", reservationId);
+      }
+
+      console.log("Event reservation updated:", { reservationId, mpStatus: payment.status });
+      return new Response(JSON.stringify({ ok: true, kind: "event", status: payment.status }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── DEFAULT: SUSCRIPCION FLOW ───
+    const suscripcionId = externalRef;
 
     // Map MP status to our status
     let estado: string;
