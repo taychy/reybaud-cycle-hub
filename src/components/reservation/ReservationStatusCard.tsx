@@ -521,9 +521,28 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 3. PRIMARY CTA ═══ */}
+        {canPayWithMP && (
+          <Button
+            variant="gold"
+            className="w-full h-12 text-sm"
+            onClick={handlePayWithMP}
+            disabled={mpLoading}
+          >
+            {mpLoading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo Mercado Pago...</>
+            ) : (
+              <><CreditCard className="w-4 h-4 mr-2" /> Pagar con Mercado Pago</>
+            )}
+          </Button>
+        )}
         {primaryCTA && (
-          <Button variant="gold" className="w-full h-12 text-sm" onClick={primaryCTA.action}>
-            <primaryCTA.icon className="w-4 h-4 mr-2" /> {primaryCTA.label}
+          <Button
+            variant={canPayWithMP ? "outline" : "gold"}
+            className="w-full h-12 text-sm"
+            onClick={primaryCTA.action}
+          >
+            <primaryCTA.icon className="w-4 h-4 mr-2" />
+            {canPayWithMP ? "O informar otro medio de pago" : primaryCTA.label}
           </Button>
         )}
 
