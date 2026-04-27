@@ -278,7 +278,7 @@ const EventDetail = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         </div>
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="absolute top-4 left-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
