@@ -16,7 +16,9 @@ import {
   SlidersHorizontal,
   X,
   Users,
+  Link2,
 } from "lucide-react";
+import { getPublicEventLink, copyToClipboard } from "@/lib/eventLinks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -406,6 +408,21 @@ const EventsList = () => {
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
                     <Users className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      const url = getPublicEventLink(ev.id);
+                      const ok = await copyToClipboard(url);
+                      toast({
+                        title: ok ? "Link copiado" : "No se pudo copiar",
+                        description: ok ? url : "Copialo manualmente desde el detalle del evento.",
+                      });
+                    }}
+                    title="Copiar link público"
+                  >
+                    <Link2 className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(ev)} title="Editar">
                     <Pencil className="w-4 h-4" />
