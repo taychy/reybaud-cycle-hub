@@ -43,7 +43,24 @@ const StudentDashboard = () => {
   const readOnly = isImpersonating;
   const searchParams = new URLSearchParams(location.search);
   const sectionParam = searchParams.get("section");
-  const initialTab = sectionParam === "apto-fisico" ? "mas" : ((location.state as any)?.tab || "hoy");
+
+  // Map URL pathname → tab. Keeps deep links + back button + refresh in sync.
+  const pathToTab = (pathname: string): "hoy" | "eventos" | "tienda" | "progreso" | "mas" => {
+    if (pathname.startsWith("/alumno/eventos")) return "eventos";
+    if (pathname.startsWith("/alumno/tienda")) return "tienda";
+    if (pathname.startsWith("/alumno/progreso")) return "progreso";
+    if (pathname.startsWith("/alumno/mas")) return "mas";
+    return "hoy";
+  };
+
+  // Fallback to legacy state.tab or section query param for backward compatibility
+  const initialTab = (() => {
+    const fromPath = pathToTab(location.pathname);
+    if (fromPath !== "hoy") return fromPath;
+    if (sectionParam === "apto-fisico") return "mas" as const;
+    return ((location.state as any)?.tab || "hoy") as "hoy" | "eventos" | "tienda" | "progreso" | "mas";
+  })();
+
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [entrenamiento, setEntrenamiento] = useState<Entrenamiento | null>(null);
   const [weekTrainings, setWeekTrainings] = useState<(Entrenamiento | null)[]>([null, null, null, null, null, null, null]);
