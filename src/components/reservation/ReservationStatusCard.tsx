@@ -12,6 +12,7 @@ import {
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
   CircleDot, Loader2,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
@@ -250,7 +251,9 @@ const ReservationStatusCard = ({
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
   // School events (record_hora, carrera, otro) show only the confirmation banner.
   const isTripLike = eventType === "camp" || eventType === "viaje";
+  const { toast } = useToast();
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
+  const [mpLoading, setMpLoading] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
