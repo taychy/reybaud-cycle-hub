@@ -110,6 +110,9 @@ Deno.serve(async (req) => {
             auto_renovacion: true,
             precio_base: precioBase,
             precio_final: precioFinal,
+            // Etiquetado correcto: renovación generada por el cron, aún sin cobro
+            origen_registro: "automatico",
+            metodo_pago: "pendiente",
           });
 
         if (insertError) {
