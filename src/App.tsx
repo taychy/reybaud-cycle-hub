@@ -140,6 +140,7 @@ const App = () => (
             <Route path="eventos" element={<EventsList />} />
             <Route path="eventos/record-de-la-hora" element={<Navigate to="/admin/eventos" replace />} />
             <Route path="eventos/record-de-la-hora/participantes" element={<EventManagement />} />
+            <Route path="eventos/participantes" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="metricas" element={<SuperAdminDashboard />} />
