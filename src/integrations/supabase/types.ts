@@ -1142,10 +1142,11 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
-          checked_in_at: string
+          checked_in_at: string | null
           created_at: string
           email: string
           event_id: string | null
+          event_reservation_id: string | null
           event_slug: string
           evidence_url: string | null
           first_name: string
@@ -1170,10 +1171,11 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
-          checked_in_at?: string
+          checked_in_at?: string | null
           created_at?: string
           email: string
           event_id?: string | null
+          event_reservation_id?: string | null
           event_slug?: string
           evidence_url?: string | null
           first_name: string
@@ -1198,10 +1200,11 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
-          checked_in_at?: string
+          checked_in_at?: string | null
           created_at?: string
           email?: string
           event_id?: string | null
+          event_reservation_id?: string | null
           event_slug?: string
           evidence_url?: string | null
           first_name?: string
@@ -1231,6 +1234,13 @@ export type Database = {
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "event_participants_event_reservation_id_fkey"
+            columns: ["event_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       event_reservations: {
@@ -1245,19 +1255,26 @@ export type Database = {
           cancellation_reason: string | null
           cancellation_requested_at: string | null
           cancelled_at: string | null
+          checkin_at: string | null
           confirmed_at: string | null
           created_at: string
           created_by: string
           currency_snapshot: string | null
           estado: string
           event_id: string
+          event_participant_id: string | null
+          external_email: string | null
+          external_first_name: string | null
+          external_last_name: string | null
           external_participant_id: string | null
+          external_team_name: string | null
           id: string
           metodo_pago: string
           moneda: string
           monto: number | null
           next_due_date: string | null
           notas: string | null
+          origin: string | null
           participant_notes: string | null
           payment_status: string
           price_snapshot: number | null
@@ -1275,19 +1292,26 @@ export type Database = {
           cancellation_reason?: string | null
           cancellation_requested_at?: string | null
           cancelled_at?: string | null
+          checkin_at?: string | null
           confirmed_at?: string | null
           created_at?: string
           created_by?: string
           currency_snapshot?: string | null
           estado?: string
           event_id: string
+          event_participant_id?: string | null
+          external_email?: string | null
+          external_first_name?: string | null
+          external_last_name?: string | null
           external_participant_id?: string | null
+          external_team_name?: string | null
           id?: string
           metodo_pago?: string
           moneda?: string
           monto?: number | null
           next_due_date?: string | null
           notas?: string | null
+          origin?: string | null
           participant_notes?: string | null
           payment_status?: string
           price_snapshot?: number | null
@@ -1305,19 +1329,26 @@ export type Database = {
           cancellation_reason?: string | null
           cancellation_requested_at?: string | null
           cancelled_at?: string | null
+          checkin_at?: string | null
           confirmed_at?: string | null
           created_at?: string
           created_by?: string
           currency_snapshot?: string | null
           estado?: string
           event_id?: string
+          event_participant_id?: string | null
+          external_email?: string | null
+          external_first_name?: string | null
+          external_last_name?: string | null
           external_participant_id?: string | null
+          external_team_name?: string | null
           id?: string
           metodo_pago?: string
           moneda?: string
           monto?: number | null
           next_due_date?: string | null
           notas?: string | null
+          origin?: string | null
           participant_notes?: string | null
           payment_status?: string
           price_snapshot?: number | null
@@ -1337,6 +1368,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reservations_event_participant_id_fkey"
+            columns: ["event_participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_participants"
             referencedColumns: ["id"]
           },
           {
