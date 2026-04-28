@@ -116,10 +116,44 @@ const UpdatePrompt = () => {
       }
     };
 
-    // Primer hash de referencia
+    // Primer hash de referencia + chequeo inmediato contra el servidor
+    // de actualizaciones almacenado previamente en sessionStorage. Esto
+    // permite detectar una nueva versión apenas se abre la app, sin
+    // tener que esperar al primer ciclo de polling (60s).
     (async () => {
+      const STORAGE_KEY = "app:last-html-hash";
+      let storedHash: string | null = null;
+      try {
+        storedHash = sessionStorage.getItem(STORAGE_KEY);
+      } catch {
+        /* noop */
+      }
+
       const hash = await fetchHash();
-      if (!cancelled && hash) initialHtmlHashRef.current = hash;
+      if (cancelled || !hash) return;
+
+      if (storedHash && storedHash !== hash) {
+        // Detección inmediata: ya teníamos un hash de una sesión anterior
+        // y no coincide con el actual → hay versión nueva deployada.
+        initialHtmlHashRef.current = hash;
+        setNeedRefresh(true);
+      } else {
+        initialHtmlHashRef.current = hash;
+      }
+
+      try {
+        sessionStorage.setItem(STORAGE_KEY, hash);
+      } catch {
+        /* noop */
+      }
+
+      // Además, forzamos un update() del SW al arrancar para que dispare
+      // "waiting" si ya hay una versión nueva esperando.
+      try {
+        await swRegistrationRef.current?.update();
+      } catch {
+        /* noop */
+      }
     })();
 
     // Polling mientras la pestaña está activa
@@ -295,16 +329,31 @@ const UpdatePrompt = () => {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-[100] flex justify-center pointer-events-none">
-      <div className="bg-card border border-border rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-sm w-full pointer-events-auto">
-        <RefreshCw className="w-5 h-5 text-primary shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">Nueva versión disponible</p>
-          <p className="text-xs text-muted-foreground">Actualizá para ver los últimos cambios</p>
+    <div
+      className="fixed top-0 inset-x-0 z-[150] pointer-events-none"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
+      <div className="pointer-events-auto bg-primary text-primary-foreground shadow-lg border-b border-primary/40">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+          <RefreshCw className="w-5 h-5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-tight">
+              Hay una nueva versión disponible
+            </p>
+            <p className="text-xs opacity-90 leading-snug">
+              Para evitar errores de carga, actualizá la app.
+            </p>
+          </div>
+          <Button
+            onClick={handleUpdate}
+            size="sm"
+            variant="secondary"
+            className="shrink-0 font-semibold"
+            disabled={isUpdating}
+          >
+            Actualizar ahora
+          </Button>
         </div>
-        <Button onClick={handleUpdate} size="sm" variant="gold" className="shrink-0" disabled={isUpdating}>
-          Actualizar
-        </Button>
       </div>
     </div>
   );
