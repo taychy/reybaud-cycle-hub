@@ -164,6 +164,7 @@ interface AdminEventReservationsProps {
   eventCurrency: string;
   eventPrice?: number | null;
   eventNature?: string;
+  eventType?: string;
   eventMetadata?: Record<string, any>;
   eventDate?: string;
   eventLocation?: string | null;
@@ -188,9 +189,12 @@ const quickFilters: { key: QuickFilter; label: string }[] = [
 /* ─── Component ─── */
 
 const AdminEventReservations = ({
-  eventId, eventTitle, eventCurrency, eventPrice, eventNature, eventMetadata,
+  eventId, eventTitle, eventCurrency, eventPrice, eventNature, eventType, eventMetadata,
   eventDate, eventLocation, eventMaxCapacity, eventStatus,
 }: AdminEventReservationsProps) => {
+  // Trip-like events show full onboarding (checklist + installments).
+  // School events (record_hora, carrera, otro) show simplified flow.
+  const isTripLike = eventType === "camp" || eventType === "viaje";
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);

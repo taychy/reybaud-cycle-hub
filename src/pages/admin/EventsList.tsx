@@ -496,6 +496,7 @@ const EventsList = () => {
                 eventCurrency={reservationsEvent.currency}
                 eventPrice={reservationsEvent.price}
                 eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
+                eventType={(reservationsEvent as any).type as string | undefined}
                 eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
                 eventDate={reservationsEvent.date}
                 eventLocation={reservationsEvent.location}
