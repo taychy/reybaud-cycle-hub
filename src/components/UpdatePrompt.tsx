@@ -3,6 +3,7 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { forceAppHardReload, getCacheBustedUrl } from "@/lib/appUpdate";
 
 const POLL_INTERVAL_MS = 60 * 1000; // 60s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
