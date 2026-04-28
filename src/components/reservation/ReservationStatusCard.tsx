@@ -99,9 +99,17 @@ const getHumanStatus = (reservation: Reservation, isTripLike: boolean = true): {
   if (!isTripLike) {
     if (["cancelada", "rechazada"].includes(rs))
       return { title: "Inscripción cancelada", subtitle: "", tone: "neutral" };
+    if (rs === "reserva_confirmada" && ps === "pago_validado")
+      return { title: "Inscripción y pago confirmados 🎉", subtitle: "Te esperamos el día del evento.", tone: "success" };
+    if (rs === "reserva_confirmada" && ps === "pago_informado")
+      return { title: "Pago informado, en revisión", subtitle: "Estamos verificando tu pago. Te avisamos cuando esté confirmado.", tone: "info" };
+    if (rs === "reserva_confirmada" && ps === "no_aplica")
+      return { title: "Inscripción confirmada 🎉", subtitle: "Te esperamos el día del evento.", tone: "success" };
     if (rs === "reserva_confirmada")
-      return { title: "¡Inscripción confirmada! 🎉", subtitle: "Te esperamos el día del evento.", tone: "success" };
-    return { title: "Inscripción recibida", subtitle: "El equipo está revisando tu inscripción.", tone: "info" };
+      return { title: "Inscripción confirmada", subtitle: "Realizá tu pago e informalo para asegurar tu lugar.", tone: "warning" };
+    if (ps === "pago_informado")
+      return { title: "Pago informado, en revisión", subtitle: "Estamos verificando tu pago. Te avisamos cuando esté confirmado.", tone: "info" };
+    return { title: "Inscripción recibida", subtitle: "El equipo está revisando tu inscripción. Te avisamos pronto.", tone: "info" };
   }
 
   if (rs === "reserva_confirmada" && ps === "pago_validado")
