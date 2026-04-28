@@ -41,3 +41,7 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = true
   [functions.notify-reservation]
     verify_jwt = false
+  [functions.register-record-participant]
+    verify_jwt = false
+  [functions.lookup-record-participant]
+    verify_jwt = false
