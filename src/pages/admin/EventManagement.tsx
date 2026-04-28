@@ -218,10 +218,13 @@ const EventManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">
-            Record de la Hora
+            {eventInfo?.title || "Record de la Hora"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            01/03/2026 – 08:00 – KDT, Palermo • {participants.length} participantes
+            {eventInfo
+              ? `${new Date(eventInfo.date + "T00:00:00").toLocaleDateString("es-AR")}${eventInfo.start_time ? ` – ${eventInfo.start_time.slice(0, 5)}` : ""}${eventInfo.location ? ` – ${eventInfo.location}` : ""}`
+              : "01/03/2026 – 08:00 – KDT, Palermo"}
+            {" "}• {participants.length} participantes
           </p>
         </div>
         <div className="flex gap-2">
