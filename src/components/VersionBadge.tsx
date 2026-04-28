@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
+import { forceAppHardReload } from "@/lib/appUpdate";
 
 /**
  * Indicador discreto de versión y entorno (preview vs publicada).
@@ -12,6 +14,7 @@ import { useEffect, useState } from "react";
  */
 const VersionBadge = () => {
   const [expanded, setExpanded] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const env = (() => {
     if (typeof window === "undefined") return "live" as const;
@@ -32,10 +35,10 @@ const VersionBadge = () => {
     env === "preview" ? "PREVIEW" : env === "dev" ? "DEV" : "PUBLICADA";
   const envColor =
     env === "preview"
-      ? "bg-amber-500/90 text-black"
+      ? "bg-primary text-primary-foreground"
       : env === "dev"
-      ? "bg-sky-500/90 text-white"
-      : "bg-emerald-600/90 text-white";
+      ? "bg-accent text-accent-foreground"
+      : "bg-secondary text-secondary-foreground border border-border";
 
   const buildTime = (() => {
     try {
@@ -51,26 +54,47 @@ const VersionBadge = () => {
     }
   })();
 
+  const handleManualUpdate = async () => {
+    if (updating) return;
+    setUpdating(true);
+    await forceAppHardReload(150);
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => setExpanded((v) => !v)}
-      aria-label={`Versión ${__APP_VERSION__} - entorno ${envLabel}`}
-      className="fixed bottom-2 left-2 z-[60] flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold opacity-50 hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm pointer-events-auto"
+    <div
+      className="fixed bottom-2 left-2 z-[60] flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold opacity-70 hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm pointer-events-auto"
       style={{ lineHeight: 1.2 }}
     >
-      <span className={`px-1.5 py-0.5 rounded-full ${envColor}`}>
-        {envLabel}
-      </span>
-      <span className="px-1.5 py-0.5 rounded-full bg-background/80 text-foreground border border-border">
-        v{__APP_VERSION__}
-      </span>
-      {expanded && (
-        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-background/80 text-muted-foreground border border-border">
-          {buildTime}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-label={`Versión ${__APP_VERSION__} - entorno ${envLabel}`}
+        className="flex items-center gap-1"
+      >
+        <span className={`px-1.5 py-0.5 rounded-full ${envColor}`}>
+          {envLabel}
         </span>
+        <span className="px-1.5 py-0.5 rounded-full bg-background/80 text-foreground border border-border">
+          v{__APP_VERSION__}
+        </span>
+      </button>
+      {expanded && (
+        <>
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-background/80 text-muted-foreground border border-border">
+            {buildTime}
+          </span>
+          <button
+            type="button"
+            onClick={handleManualUpdate}
+            disabled={updating}
+            className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground border border-primary/50 disabled:opacity-70"
+          >
+            <RefreshCw className={`h-3 w-3 ${updating ? "animate-spin" : ""}`} />
+            Actualizar
+          </button>
+        </>
       )}
-    </button>
+    </div>
   );
 };
 

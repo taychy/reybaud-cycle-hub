@@ -3,6 +3,7 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { clearBrowserCaches, getCacheBustedUrl, unregisterServiceWorkers } from "@/lib/appUpdate";
 
 const POLL_INTERVAL_MS = 60 * 1000; // 60s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
@@ -218,9 +219,7 @@ const UpdatePrompt = () => {
     const onControllerChange = () => {
       if (reloaded || isReloadingRef.current) return;
       reloaded = true;
-      const url = new URL(window.location.href);
-      url.searchParams.set("_v", Date.now().toString());
-      window.location.replace(url.toString());
+      window.location.replace(getCacheBustedUrl());
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     return () => {
@@ -231,30 +230,22 @@ const UpdatePrompt = () => {
   const hardReload = async () => {
     setStage("clearing-cache");
     try {
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
+      await clearBrowserCaches();
     } catch (err) {
       console.warn("Cache cleanup failed", err);
     }
 
     setStage("unregistering");
     try {
-      if ("serviceWorker" in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
-      }
+      await unregisterServiceWorkers();
     } catch (err) {
       console.warn("SW unregister failed", err);
     }
 
     setStage("reloading");
-    const url = new URL(window.location.href);
-    url.searchParams.set("_v", Date.now().toString());
     // Small delay so users see the 100% state before the navigation kicks in.
     await new Promise((r) => setTimeout(r, 250));
-    window.location.replace(url.toString());
+    window.location.replace(getCacheBustedUrl());
   };
 
   const runUpdateSequence = async ({ broadcast }: { broadcast: boolean }) => {
