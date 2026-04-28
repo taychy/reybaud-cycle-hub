@@ -412,6 +412,16 @@ const EventsList = () => {
                   <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
                     <Users className="w-4 h-4" />
                   </Button>
+                  {ev.type === "record_hora" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/admin/eventos/participantes?eventId=${ev.id}`)}
+                      title="Participantes y resultados"
+                    >
+                      <Trophy className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
