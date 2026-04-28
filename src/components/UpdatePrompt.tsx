@@ -116,10 +116,44 @@ const UpdatePrompt = () => {
       }
     };
 
-    // Primer hash de referencia
+    // Primer hash de referencia + chequeo inmediato contra el servidor
+    // de actualizaciones almacenado previamente en sessionStorage. Esto
+    // permite detectar una nueva versión apenas se abre la app, sin
+    // tener que esperar al primer ciclo de polling (60s).
     (async () => {
+      const STORAGE_KEY = "app:last-html-hash";
+      let storedHash: string | null = null;
+      try {
+        storedHash = sessionStorage.getItem(STORAGE_KEY);
+      } catch {
+        /* noop */
+      }
+
       const hash = await fetchHash();
-      if (!cancelled && hash) initialHtmlHashRef.current = hash;
+      if (cancelled || !hash) return;
+
+      if (storedHash && storedHash !== hash) {
+        // Detección inmediata: ya teníamos un hash de una sesión anterior
+        // y no coincide con el actual → hay versión nueva deployada.
+        initialHtmlHashRef.current = hash;
+        setNeedRefresh(true);
+      } else {
+        initialHtmlHashRef.current = hash;
+      }
+
+      try {
+        sessionStorage.setItem(STORAGE_KEY, hash);
+      } catch {
+        /* noop */
+      }
+
+      // Además, forzamos un update() del SW al arrancar para que dispare
+      // "waiting" si ya hay una versión nueva esperando.
+      try {
+        await swRegistrationRef.current?.update();
+      } catch {
+        /* noop */
+      }
     })();
 
     // Polling mientras la pestaña está activa
