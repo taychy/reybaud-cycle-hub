@@ -19,8 +19,18 @@ export const unregisterServiceWorkers = async () => {
 };
 
 export const forceAppHardReload = async (delayMs = 150) => {
-  await clearBrowserCaches();
-  await unregisterServiceWorkers();
+  try {
+    await clearBrowserCaches();
+  } catch (error) {
+    console.warn("Cache cleanup failed", error);
+  }
+
+  try {
+    await unregisterServiceWorkers();
+  } catch (error) {
+    console.warn("Service worker unregister failed", error);
+  }
+
   await new Promise((resolve) => setTimeout(resolve, delayMs));
   window.location.replace(getCacheBustedUrl());
 };
