@@ -3,7 +3,7 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { forceAppHardReload, getCacheBustedUrl } from "@/lib/appUpdate";
+import { clearBrowserCaches, getCacheBustedUrl, unregisterServiceWorkers } from "@/lib/appUpdate";
 
 const POLL_INTERVAL_MS = 60 * 1000; // 60s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
@@ -230,12 +230,22 @@ const UpdatePrompt = () => {
   const hardReload = async () => {
     setStage("clearing-cache");
     try {
-      await forceAppHardReload(250);
+      await clearBrowserCaches();
     } catch (err) {
-      console.warn("Hard reload cleanup failed, forcing navigation anyway", err);
-      setStage("reloading");
-      window.location.replace(getCacheBustedUrl());
+      console.warn("Cache cleanup failed", err);
     }
+
+    setStage("unregistering");
+    try {
+      await unregisterServiceWorkers();
+    } catch (err) {
+      console.warn("SW unregister failed", err);
+    }
+
+    setStage("reloading");
+    // Small delay so users see the 100% state before the navigation kicks in.
+    await new Promise((r) => setTimeout(r, 250));
+    window.location.replace(getCacheBustedUrl());
   };
 
   const runUpdateSequence = async ({ broadcast }: { broadcast: boolean }) => {
