@@ -7,6 +7,25 @@ import { VitePWA } from "vite-plugin-pwa";
 // Build-time constants exposed to the app (version + build timestamp)
 const BUILD_TIME = new Date().toISOString();
 const APP_VERSION = `${BUILD_TIME.slice(0, 10).replace(/-/g, "")}.${BUILD_TIME.slice(11, 16).replace(":", "")}`;
+const APP_VERSION_PAYLOAD = JSON.stringify({ version: APP_VERSION, buildTime: BUILD_TIME });
+
+const appVersionEndpoint = () => ({
+  name: "app-version-endpoint",
+  configureServer(server) {
+    server.middlewares.use("/app-version.json", (_req, res) => {
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.end(APP_VERSION_PAYLOAD);
+    });
+  },
+  generateBundle() {
+    this.emitFile({
+      type: "asset",
+      fileName: "app-version.json",
+      source: APP_VERSION_PAYLOAD,
+    });
+  },
+});
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -24,6 +43,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    appVersionEndpoint(),
     VitePWA({
       registerType: "prompt",
       injectRegister: "auto",
