@@ -561,7 +561,33 @@ const ReservationStatusCard = ({
           </Button>
         )}
 
-        {/* ═══ 4. FINANCIAL SUMMARY ═══ */}
+        {/* ═══ 4a. SIMPLE FINANCIAL SUMMARY (school events) ═══ */}
+        {!isTripLike && total > 0 && (
+          <div className="glass-card rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-primary" />
+              <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Pago del evento</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-muted/40 rounded-lg p-2.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Total</p>
+                <p className="text-sm font-heading font-bold text-foreground">{formatPrice(total, currency)}</p>
+              </div>
+              <div className="bg-emerald-500/10 rounded-lg p-2.5">
+                <p className="text-[10px] text-emerald-400 uppercase tracking-wide mb-0.5">Abonado</p>
+                <p className="text-sm font-heading font-bold text-emerald-400">{formatPrice(paid, currency)}</p>
+              </div>
+              <div className={`rounded-lg p-2.5 ${(reservation.balance_due ?? total - paid) > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
+                <p className={`text-[10px] uppercase tracking-wide mb-0.5 ${(reservation.balance_due ?? total - paid) > 0 ? "text-amber-400" : "text-emerald-400"}`}>Saldo</p>
+                <p className={`text-sm font-heading font-bold ${(reservation.balance_due ?? total - paid) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                  {formatPrice(reservation.balance_due ?? Math.max(total - paid, 0), currency)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ 4. FINANCIAL SUMMARY (trip-like) ═══ */}
         {isTripLike && total > 0 && (
           <div className="glass-card rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
