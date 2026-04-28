@@ -36,6 +36,8 @@ interface Participant {
 
 const EventManagement = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const eventIdParam = searchParams.get("eventId");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -49,23 +51,41 @@ const EventManagement = () => {
   const [saving, setSaving] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
+  const [eventInfo, setEventInfo] = useState<{ id: string; title: string; date: string; location: string | null; start_time: string | null } | null>(null);
 
-  const eventUrl = "https://reybaud-app.com/eventos/record-de-la-hora";
+  // URL pública: si tenemos eventId real, usar la landing genérica del evento.
+  // Fallback al landing legacy del Record de la Hora.
+  const eventUrl = eventInfo
+    ? getPublicEventLink(eventInfo.id)
+    : "https://reybaud-app.com/eventos/record-de-la-hora";
 
   const fetchParticipants = async () => {
-    const { data, error } = await supabase
-      .from("event_participants")
-      .select("*")
-      .eq("event_slug", "record-de-la-hora")
-      .order("checked_in_at", { ascending: true });
-
+    let query = supabase.from("event_participants").select("*");
+    if (eventIdParam) {
+      query = query.eq("event_id", eventIdParam);
+    } else {
+      // Legacy: filtrar por slug del Record de la Hora
+      query = query.eq("event_slug", "record-de-la-hora");
+    }
+    const { data, error } = await query.order("checked_in_at", { ascending: true });
     if (!error && data) setParticipants(data as Participant[]);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchParticipants();
-  }, []);
+    (async () => {
+      if (eventIdParam) {
+        const { data } = await supabase
+          .from("events")
+          .select("id, title, date, location, start_time")
+          .eq("id", eventIdParam)
+          .maybeSingle();
+        if (data) setEventInfo(data as any);
+      }
+      fetchParticipants();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventIdParam]);
 
   const filtered = participants
     .filter((p) => {
