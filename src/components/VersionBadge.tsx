@@ -35,10 +35,10 @@ const VersionBadge = () => {
     env === "preview" ? "PREVIEW" : env === "dev" ? "DEV" : "PUBLICADA";
   const envColor =
     env === "preview"
-      ? "bg-amber-500/90 text-black"
+      ? "bg-primary text-primary-foreground"
       : env === "dev"
-      ? "bg-sky-500/90 text-white"
-      : "bg-emerald-600/90 text-white";
+      ? "bg-accent text-accent-foreground"
+      : "bg-secondary text-secondary-foreground border border-border";
 
   const buildTime = (() => {
     try {
