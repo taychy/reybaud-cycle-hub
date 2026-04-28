@@ -17,7 +17,9 @@ import {
   X,
   Users,
   Link2,
+  Trophy,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getPublicEventLink, copyToClipboard } from "@/lib/eventLinks";
 import {
   AlertDialog,
@@ -128,6 +130,7 @@ interface Event {
 
 const EventsList = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("todos");
@@ -409,6 +412,16 @@ const EventsList = () => {
                   <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
                     <Users className="w-4 h-4" />
                   </Button>
+                  {ev.type === "record_hora" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/admin/eventos/participantes?eventId=${ev.id}`)}
+                      title="Participantes y resultados"
+                    >
+                      <Trophy className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

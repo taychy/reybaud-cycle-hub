@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { getPublicEventLink } from "@/lib/eventLinks";
 import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X, Download, Trash2, Ruler } from "lucide-react";
 import {
   AlertDialog,
@@ -34,6 +36,8 @@ interface Participant {
 
 const EventManagement = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const eventIdParam = searchParams.get("eventId");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -47,23 +51,41 @@ const EventManagement = () => {
   const [saving, setSaving] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
+  const [eventInfo, setEventInfo] = useState<{ id: string; title: string; date: string; location: string | null; start_time: string | null } | null>(null);
 
-  const eventUrl = "https://reybaud-app.com/eventos/record-de-la-hora";
+  // URL pública: si tenemos eventId real, usar la landing genérica del evento.
+  // Fallback al landing legacy del Record de la Hora.
+  const eventUrl = eventInfo
+    ? getPublicEventLink(eventInfo.id)
+    : "https://reybaud-app.com/eventos/record-de-la-hora";
 
   const fetchParticipants = async () => {
-    const { data, error } = await supabase
-      .from("event_participants")
-      .select("*")
-      .eq("event_slug", "record-de-la-hora")
-      .order("checked_in_at", { ascending: true });
-
+    let query = supabase.from("event_participants").select("*");
+    if (eventIdParam) {
+      query = query.eq("event_id", eventIdParam);
+    } else {
+      // Legacy: filtrar por slug del Record de la Hora
+      query = query.eq("event_slug", "record-de-la-hora");
+    }
+    const { data, error } = await query.order("checked_in_at", { ascending: true });
     if (!error && data) setParticipants(data as Participant[]);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchParticipants();
-  }, []);
+    (async () => {
+      if (eventIdParam) {
+        const { data } = await supabase
+          .from("events")
+          .select("id, title, date, location, start_time")
+          .eq("id", eventIdParam)
+          .maybeSingle();
+        if (data) setEventInfo(data as any);
+      }
+      fetchParticipants();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventIdParam]);
 
   const filtered = participants
     .filter((p) => {
@@ -196,10 +218,13 @@ const EventManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">
-            Record de la Hora
+            {eventInfo?.title || "Record de la Hora"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            01/03/2026 – 08:00 – KDT, Palermo • {participants.length} participantes
+            {eventInfo
+              ? `${new Date(eventInfo.date + "T00:00:00").toLocaleDateString("es-AR")}${eventInfo.start_time ? ` – ${eventInfo.start_time.slice(0, 5)}` : ""}${eventInfo.location ? ` – ${eventInfo.location}` : ""}`
+              : "01/03/2026 – 08:00 – KDT, Palermo"}
+            {" "}• {participants.length} participantes
           </p>
         </div>
         <div className="flex gap-2">
