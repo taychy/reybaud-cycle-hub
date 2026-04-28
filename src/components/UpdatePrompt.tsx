@@ -76,22 +76,10 @@ const UpdatePrompt = () => {
     let cancelled = false;
 
     const fetchHash = async () => {
-      // Estrategia preferida: /app-version.json (generado en build, estable y liviano).
-      // Fallback: /__update_check (HTML completo, en denylist del SW).
       try {
-        const versionRes = await fetch(`/app-version.json?_t=${Date.now()}`, {
-          cache: "no-store",
-          credentials: "same-origin",
-          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-        });
-        if (versionRes.ok) {
-          const data = await versionRes.json();
-          if (data?.version) return await computeHash(String(data.version));
-        }
-      } catch {
-        /* fallback abajo */
-      }
-      try {
+        // Usamos /__update_check (en denylist del SW) para forzar que la
+        // request vaya a la red real, no al SW cacheado. El servidor de
+        // Lovable hace fallback SPA y devuelve el index.html actual.
         const res = await fetch(`/__update_check?_t=${Date.now()}`, {
           cache: "no-store",
           credentials: "same-origin",
