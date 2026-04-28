@@ -76,19 +76,18 @@ const RecordDelAhora = () => {
       setLoading(false);
       return;
     }
-    const { data: existing } = await supabase
-      .from("event_participants")
-      .select("public_access_token")
-      .eq("event_id", activeEvent.id as any)
-      .eq("email", email)
-      .maybeSingle();
 
-    if (existing) {
-      navigate(`/eventos/record-de-la-hora/mi-resultados?token=${existing.public_access_token}`);
-    } else {
+    const { data, error } = await supabase.functions.invoke("lookup-record-participant", {
+      body: { email, event_id: activeEvent.id },
+    });
+
+    if (error || !data?.found) {
       setLoginError("No se encontró un registro con ese email. Registrate primero.");
       setLoading(false);
+      return;
     }
+
+    navigate(`/eventos/record-de-la-hora/mi-resultados?token=${data.token}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,48 +100,23 @@ const RecordDelAhora = () => {
     setLoading(true);
 
     try {
-      const normalizedEmail = form.email.trim().toLowerCase();
-
-      // Check if already registered for this event
-      const { data: existing } = await supabase
-        .from("event_participants")
-        .select("public_access_token")
-        .eq("event_id", activeEvent.id as any)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
-
-      if (existing) {
-        navigate(`/eventos/record-de-la-hora/mi-resultados?token=${existing.public_access_token}`);
-        return;
-      }
-
-      // Insert new participant
-      const { data: inserted, error: insertError } = await supabase
-        .from("event_participants")
-        .insert({
-          event_slug: "record-de-la-hora",
-          event_id: activeEvent.id,
+      const { data, error } = await supabase.functions.invoke("register-record-participant", {
+        body: {
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
-          email: normalizedEmail,
-          team_name: form.team_name.trim() || "Sin equipo",
-        } as any)
-        .select("public_access_token")
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Send email with results link (fire & forget)
-      supabase.functions.invoke("send-event-checkin-email", {
-        body: {
-          email: normalizedEmail,
-          first_name: form.first_name.trim(),
-          token: inserted.public_access_token,
+          email: form.email.trim().toLowerCase(),
+          team_name: form.team_name.trim(),
+          event_id: activeEvent.id,
         },
       });
 
-      toast({ title: "¡Check-in exitoso!", description: "Te registraste correctamente." });
-      navigate(`/eventos/record-de-la-hora/mi-resultados?token=${inserted.public_access_token}`);
+      if (error || !data?.ok) {
+        console.error("register error", error, data);
+        throw new Error(data?.error || error?.message || "register_failed");
+      }
+
+      toast({ title: "¡Inscripción confirmada!", description: "Te enviamos un email con el link a tu resultado." });
+      navigate(`/eventos/record-de-la-hora/mi-resultados?token=${data.token}`);
     } catch (err: any) {
       console.error(err);
       toast({ title: "Error", description: "No se pudo registrar. Intentá de nuevo.", variant: "destructive" });
