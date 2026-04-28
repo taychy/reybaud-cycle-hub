@@ -130,6 +130,7 @@ interface Event {
 
 const EventsList = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("todos");
