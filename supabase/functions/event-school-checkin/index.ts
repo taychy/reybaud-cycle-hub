@@ -74,6 +74,19 @@ serve(async (req) => {
       return json({ error: "reservation_inactive" }, 409);
     }
 
+    // Validar que el evento ya haya comenzado (no permitir check-in antes del día)
+    const { data: ev } = await admin
+      .from("events")
+      .select("id, date")
+      .eq("id", reservation.event_id)
+      .maybeSingle();
+    if (!ev?.date) return json({ error: "event_not_found" }, 404);
+    // ev.date es 'YYYY-MM-DD'; comparamos contra hoy en formato local del server (UTC)
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (ev.date > todayIso) {
+      return json({ error: "event_not_started", event_date: ev.date }, 409);
+    }
+
     const nowIso = new Date().toISOString();
 
     // 2) Idempotencia: si ya tiene checkin_at, no volver a actualizar
