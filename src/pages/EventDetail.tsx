@@ -186,7 +186,7 @@ const EventDetail = () => {
     if (!event || !alumno) return;
     if (event.type !== "record_hora") return;
     if (!reservation?.id) return;
-    loadParticipantByReservation(reservation.id);
+    loadParticipantByReservation(reservation.id, event.id);
   }, [event, alumno, reservation?.id, loadParticipantByReservation]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
