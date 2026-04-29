@@ -334,6 +334,11 @@ const EventDetail = () => {
   const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
+  // eventStarted: día del evento o posterior. Parseamos la fecha como literal local
+  // (split '-') para evitar drift de timezone (regla del proyecto).
+  const [evY, evM, evD] = event.date.split("-").map(Number);
+  const eventStartLocal = new Date(evY, (evM || 1) - 1, evD || 1, 0, 0, 0);
+  const eventStarted = new Date() >= eventStartLocal;
   const hasReservation = !!reservation;
   const isActiveReservation = hasReservation && !["cancelada", "rechazada"].includes(reservation!.reservation_status);
 
