@@ -45,3 +45,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.lookup-record-participant]
     verify_jwt = false
+  [functions.get-event-participant-by-token]
+    verify_jwt = false
