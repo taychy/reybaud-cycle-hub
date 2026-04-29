@@ -19,6 +19,8 @@ type Body = {
   email?: string;
   team_name?: string;
   event_id?: string | null;
+  reservation_id?: string | null; // si la reserva ya existe (alumno logueado), reutilizar
+  source?: "app" | "landing" | null; // hint del cliente; si hay JWT siempre se fuerza "app"
 };
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -29,18 +31,44 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // Detección de sesión autenticada (opcional)
+    let authedEmail: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const jwt = authHeader.replace("Bearer ", "");
+        const { data: claimsData } = await userClient.auth.getClaims(jwt);
+        if (claimsData?.claims?.email) {
+          authedEmail = String(claimsData.claims.email).toLowerCase();
+        }
+      } catch (_) {
+        // si falla el parseo del JWT, seguimos como anónimo
+      }
+    }
+
     const body = (await req.json().catch(() => ({}))) as Body;
     const first_name = (body.first_name || "").trim();
     const last_name = (body.last_name || "").trim();
-    const email = (body.email || "").trim().toLowerCase();
+    const email = ((body.email || authedEmail || "").trim()).toLowerCase();
     const team_name = (body.team_name || "").trim() || "Sin equipo";
+    const isAuthed = !!authedEmail;
+    const originValue = isAuthed ? "app" : "landing_publica";
 
     if (first_name.length < 2 || last_name.length < 2 || !isEmail(email)) {
       return json({ error: "invalid_input" }, 400);
+    }
+
+    // Si hay JWT y el email del cuerpo difiere del JWT, forzamos el del JWT por seguridad
+    if (isAuthed && body.email && body.email.toLowerCase() !== authedEmail) {
+      // ignoramos el body.email — ya usamos authedEmail arriba
     }
 
     // 1) Resolver evento Record activo
