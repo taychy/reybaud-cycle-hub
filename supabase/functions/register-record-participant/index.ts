@@ -143,10 +143,23 @@ serve(async (req) => {
       }
     }
 
-    // 4) Buscar reservation activa para (event_id, alumno_id) o (event_id, external_email)
+    // 4) Buscar reservation: prioriza reservation_id explícito (alumno logueado),
+    //    luego activa para (event_id, alumno_id) o (event_id, external_participant_id).
     let reservation: any = null;
 
-    if (alumnoId) {
+    if (body.reservation_id) {
+      const { data: r } = await supabase
+        .from("event_reservations")
+        .select("*")
+        .eq("id", body.reservation_id)
+        .maybeSingle();
+      // Validar ownership: si hay alumno detectado, debe coincidir
+      if (r && (!alumnoId || r.alumno_id === alumnoId)) {
+        reservation = r;
+      }
+    }
+
+    if (!reservation && alumnoId) {
       const { data: r } = await supabase
         .from("event_reservations")
         .select("*")
@@ -157,7 +170,7 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       reservation = r;
-    } else {
+    } else if (!reservation && !alumnoId) {
       const { data: r } = await supabase
         .from("event_reservations")
         .select("*")
@@ -174,7 +187,7 @@ serve(async (req) => {
     if (!reservation) {
       const insertPayload: any = {
         event_id: eventId,
-        origin: "landing_publica",
+        origin: originValue,
         created_by: "cliente",
         reservation_status: "reserva_confirmada",
         payment_status: "no_aplica",
