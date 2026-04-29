@@ -60,12 +60,22 @@ interface EventReservation {
 
 interface Payment {
   id: string;
+  reservation_id: string;
   amount: number;
   currency: string;
+  original_amount: number | null;
+  original_currency: string | null;
+  event_currency: string | null;
+  exchange_rate_to_event_currency: number | null;
+  equivalent_amount_event_currency: number | null;
+  manual_override: boolean;
+  review_action: string | null;
+  review_notes: string | null;
   payment_date: string;
   payment_method: string;
   payment_reference: string | null;
   notes: string | null;
+  proof_url: string | null;
   status: string;
   created_at: string;
 }
