@@ -255,7 +255,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 
 const ReservationStatusCard = ({
   reservation, alumnoId, eventCurrency, eventDate, eventTitle, eventType, eventMetadata,
-  reglamentoUrl, whatsappUrl, onPaymentReported,
+  reglamentoUrl, whatsappUrl, alumnoNombre, onPaymentReported,
 }: ReservationStatusCardProps) => {
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
   // School events (record_hora, carrera, otro) show only the confirmation banner.
