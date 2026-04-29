@@ -275,6 +275,7 @@ const ReservationStatusCard = ({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
+  const [pendingPayments, setPendingPayments] = useState<Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>>([]);
 
   const loadChecklistData = useCallback(async () => {
     const { data } = await supabase
@@ -288,9 +289,32 @@ const ReservationStatusCard = ({
     }
   }, [reservation.id]);
 
+  // Pagos del alumno: pendientes (informado) y rechazados recientes,
+  // para mostrar el aviso "no reconocido todavía".
+  const loadPendingPayments = useCallback(async () => {
+    const { data } = await supabase
+      .from("reservation_payments" as any)
+      .select("id, original_amount, original_currency, amount, currency, review_notes, status")
+      .eq("reservation_id", reservation.id)
+      .in("status", ["informado", "rechazado"])
+      .order("created_at", { ascending: false });
+    if (data) {
+      setPendingPayments(
+        (data as any[]).map((p) => ({
+          id: p.id,
+          original_amount: p.original_amount ?? p.amount,
+          original_currency: p.original_currency ?? p.currency,
+          review_notes: p.review_notes,
+          status: p.status,
+        })),
+      );
+    }
+  }, [reservation.id]);
+
   useEffect(() => {
     loadChecklistData();
-  }, [loadChecklistData]);
+    loadPendingPayments();
+  }, [loadChecklistData, loadPendingPayments, reservation.updated_at]);
 
   const installments = installmentFromMetadata(eventMetadata);
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
@@ -586,6 +610,7 @@ const ReservationStatusCard = ({
                 </p>
               </div>
             </div>
+            <PendingPaymentsNote payments={pendingPayments} eventCurrency={currency} />
           </div>
         )}
 
@@ -623,6 +648,9 @@ const ReservationStatusCard = ({
                 </p>
               </div>
             </div>
+
+            <PendingPaymentsNote payments={pendingPayments} eventCurrency={currency} />
+
 
             {/* Next due date */}
             {nextDueDate && (reservation.balance_due ?? 0) > 0 && (
@@ -988,6 +1016,31 @@ const ReservationStatusCard = ({
         onSaved={loadChecklistData}
       />
     </>
+  );
+};
+
+const PendingPaymentsNote = ({
+  payments, eventCurrency,
+}: {
+  payments: Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>;
+  eventCurrency: string;
+}) => {
+  const informed = payments.filter((p) => p.status === "informado");
+  const rejected = payments.filter((p) => p.status === "rechazado");
+  if (informed.length === 0 && rejected.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1.5">
+      {informed.map((p) => (
+        <div key={p.id} className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-md px-2.5 py-1.5">
+          ⏳ Pago informado de <strong>{formatPrice(p.original_amount, p.original_currency)}</strong> pendiente de reconocer en {eventCurrency}. No reduce tu saldo hasta validación.
+        </div>
+      ))}
+      {rejected.map((p) => (
+        <div key={p.id} className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-md px-2.5 py-1.5">
+          ❌ Pago de {formatPrice(p.original_amount, p.original_currency)} rechazado{p.review_notes ? `: ${p.review_notes}` : "."}
+        </div>
+      ))}
+    </div>
   );
 };
 
