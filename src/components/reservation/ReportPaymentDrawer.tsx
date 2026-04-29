@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice, MONEDAS } from "@/lib/currency";
 import {
-  Banknote, Loader2, CheckCircle, Calendar,
+  Banknote, Loader2, CheckCircle, Upload, X, FileText,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -31,41 +31,103 @@ interface ReportPaymentDrawerProps {
   onOpenChange: (open: boolean) => void;
   reservation: Reservation;
   alumnoId: string;
+  /** Moneda base del evento (ej: "EUR" para Girona, "ARS" para eventos locales). */
   currency: string;
   onSuccess: () => void;
 }
+
+const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
 
 const ReportPaymentDrawer = ({
   open, onOpenChange, reservation, alumnoId, currency, onSuccess,
 }: ReportPaymentDrawerProps) => {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [amount, setAmount] = useState(reservation.balance_due?.toString() || "");
+  const [paymentCurrency, setPaymentCurrency] = useState(currency);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [method, setMethod] = useState("efectivo");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+  const [proofPath, setProofPath] = useState<string | null>(null);
+  const [proofFileName, setProofFileName] = useState<string | null>(null);
+
+  // Comprobante obligatorio salvo efectivo (cualquier moneda).
+  const isCashMethod = method === "efectivo";
+  const proofRequired = !isCashMethod;
+  const referenceOrNotesRequired = isCashMethod;
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "El archivo no puede superar 10 MB.", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `${alumnoId}/${reservation.id}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("payment-proofs")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    setUploading(false);
+    if (error) {
+      toast({ title: "Error al subir el comprobante.", description: error.message, variant: "destructive" });
+      return;
+    }
+    setProofPath(path);
+    setProofFileName(file.name);
+  };
+
+  const removeProof = () => {
+    setProofPath(null);
+    setProofFileName(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const validate = (): string | null => {
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) return "Ingresá un monto válido.";
+    if (!ALLOWED_CURRENCIES.includes(paymentCurrency)) return "Moneda no soportada.";
+    if (proofRequired && !proofPath) return "El comprobante es obligatorio para este medio de pago.";
+    if (referenceOrNotesRequired && !reference.trim() && !notes.trim()) {
+      return "Para pagos en efectivo, agregá una referencia o nota.";
+    }
+    return null;
+  };
 
   const handleSubmit = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({ title: "Ingresá un monto válido.", variant: "destructive" });
+    const err = validate();
+    if (err) {
+      toast({ title: err, variant: "destructive" });
       return;
     }
     setSubmitting(true);
 
-    // Insert payment record
+    const amt = parseFloat(amount);
+
+    // Insert: original_* es la verdad. amount/currency se mantienen como espejo
+    // para no romper código viejo. Equivalente y cotización quedan NULL: los define admin.
     const { error: payErr } = await supabase
       .from("reservation_payments" as any)
       .insert({
         reservation_id: reservation.id,
         alumno_id: alumnoId,
-        amount: parseFloat(amount),
-        currency,
+        amount: amt,
+        currency: paymentCurrency,
+        original_amount: amt,
+        original_currency: paymentCurrency,
+        event_currency: currency,
+        exchange_rate_to_event_currency: paymentCurrency === currency ? 1 : null,
+        equivalent_amount_event_currency: paymentCurrency === currency ? amt : null,
         payment_date: paymentDate,
         payment_method: method,
         payment_reference: reference.trim() || null,
         notes: notes.trim() || null,
+        proof_url: proofPath, // path en bucket privado
         status: "informado",
       } as any);
 
@@ -75,7 +137,8 @@ const ReportPaymentDrawer = ({
       return;
     }
 
-    // Update reservation payment status
+    // Marcar reserva como pendiente de verificación. NO toca amount_paid: eso lo hace
+    // recalculate_reservation_payment_totals al validar.
     const oldPaymentStatus = reservation.payment_status;
     await supabase
       .from("event_reservations" as any)
@@ -85,7 +148,6 @@ const ReportPaymentDrawer = ({
       } as any)
       .eq("id", reservation.id);
 
-    // Log history
     await supabase.from("reservation_status_history" as any).insert({
       reservation_id: reservation.id,
       old_payment_status: oldPaymentStatus,
@@ -93,7 +155,7 @@ const ReportPaymentDrawer = ({
       old_reservation_status: reservation.reservation_status,
       new_reservation_status: reservation.reservation_status,
       changed_by_role: "alumno",
-      note: `Pago informado: ${formatPrice(parseFloat(amount), currency)} via ${method}`,
+      note: `Pago informado: ${formatPrice(amt, paymentCurrency)} via ${method}`,
     } as any);
 
     setSubmitting(false);
@@ -107,24 +169,27 @@ const ReportPaymentDrawer = ({
     setTimeout(() => {
       setSuccess(false);
       setAmount(reservation.balance_due?.toString() || "");
+      setPaymentCurrency(currency);
       setPaymentDate(new Date().toISOString().slice(0, 10));
       setMethod("efectivo");
       setReference("");
       setNotes("");
+      setProofPath(null);
+      setProofFileName(null);
     }, 300);
   };
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent className="max-h-[92vh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="font-heading text-lg">
             {success ? "¡Pago informado!" : "Informar pago"}
           </DrawerTitle>
           <DrawerDescription>
             {success
-              ? "Recibimos tu aviso de pago. Nuestro equipo lo va a revisar."
-              : "¿Ya realizaste el pago de este evento? Informalo acá para que el equipo lo revise y actualice tu estado."}
+              ? "Recibimos tu aviso de pago. Nuestro equipo lo va a revisar y reconocer en la moneda del evento."
+              : "Informá el pago tal como lo realizaste. Administración va a validar el comprobante y aplicar la cotización correspondiente."}
           </DrawerDescription>
         </DrawerHeader>
 
@@ -133,7 +198,7 @@ const ReportPaymentDrawer = ({
             <div className="text-center py-6 space-y-4">
               <CheckCircle className="w-14 h-14 text-emerald-400 mx-auto" />
               <p className="text-sm text-muted-foreground">
-                Tu aviso de pago quedó registrado. Te avisaremos cuando sea validado.
+                Tu pago quedó pendiente de validación. Cuando administración lo reconozca, vas a ver el equivalente en {currency} aplicado a tu saldo.
               </p>
               <Button variant="gold" className="w-full" onClick={handleClose}>
                 Cerrar
@@ -150,33 +215,46 @@ const ReportPaymentDrawer = ({
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Monto pagado *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Ej: 50000"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Monto pagado *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Ej: 250"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Moneda *</Label>
+                  <Select value={paymentCurrency} onValueChange={setPaymentCurrency}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MONEDAS.filter(m => ALLOWED_CURRENCIES.includes(m.value)).map((m) => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {paymentCurrency !== currency && (
+                <p className="text-[11px] text-muted-foreground bg-muted/40 rounded-md p-2 leading-relaxed">
+                  Vas a informar en <strong>{paymentCurrency}</strong>. Administración va a aplicar la cotización oficial y reconocer el equivalente en <strong>{currency}</strong> al validar.
+                </p>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Fecha de pago</Label>
-                <Input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                />
+                <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Medio de pago</Label>
                 <Select value={method} onValueChange={setMethod}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PAYMENT_METHODS.map((m) => (
                       <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
@@ -186,9 +264,11 @@ const ReportPaymentDrawer = ({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Referencia / Comprobante (opcional)</Label>
+                <Label className="text-xs text-muted-foreground">
+                  Referencia / Comprobante {referenceOrNotesRequired ? "*" : "(opcional)"}
+                </Label>
                 <Input
-                  placeholder="Ej: nro de transferencia, ID de pago..."
+                  placeholder="Ej: nro de transferencia, ID de pago…"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
                   maxLength={200}
@@ -196,9 +276,47 @@ const ReportPaymentDrawer = ({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Observaciones (opcional)</Label>
+                <Label className="text-xs text-muted-foreground">
+                  Adjuntar comprobante {proofRequired ? "*" : "(opcional)"}
+                </Label>
+                {proofPath ? (
+                  <div className="flex items-center gap-2 rounded-md border border-border p-2 bg-muted/30">
+                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs flex-1 truncate">{proofFileName}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={removeProof}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full h-20 rounded-md border-2 border-dashed border-border hover:border-primary/50 bg-muted/30 flex flex-col items-center justify-center gap-1 text-muted-foreground text-xs transition-colors disabled:opacity-50"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Subir imagen o PDF</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Comentario (opcional)</Label>
                 <Textarea
-                  placeholder="Algún dato adicional..."
+                  placeholder="Algún dato adicional para el equipo…"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
@@ -207,12 +325,10 @@ const ReportPaymentDrawer = ({
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={handleClose}>
-                  Cancelar
-                </Button>
-                <Button variant="gold" className="flex-1" disabled={submitting} onClick={handleSubmit}>
+                <Button variant="outline" className="flex-1" onClick={handleClose}>Cancelar</Button>
+                <Button variant="gold" className="flex-1" disabled={submitting || uploading} onClick={handleSubmit}>
                   {submitting ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando…</>
                   ) : (
                     <><Banknote className="w-4 h-4 mr-2" /> Informar pago</>
                   )}
