@@ -1381,35 +1381,56 @@ const AdminEventReservations = ({
                   <p className="text-xs text-muted-foreground py-2">Sin pagos registrados.</p>
                 ) : (
                   <div className="space-y-2">
-                    {payments.map((p) => (
-                      <div key={p.id} className="rounded-lg border border-border p-3 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-sm font-semibold">
-                              {formatPrice(p.amount, p.currency)} — <span className="capitalize">{p.payment_method}</span>
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(p.payment_date + "T12:00:00").toLocaleDateString("es-AR")}
-                              {p.payment_reference && ` · Ref: ${p.payment_reference}`}
-                            </p>
+                    {payments.map((p) => {
+                      const origAmt = p.original_amount ?? p.amount;
+                      const origCurr = p.original_currency ?? p.currency;
+                      const evCurr = p.event_currency || (selectedRes ? curr(selectedRes) : eventCurrency);
+                      const sameCurr = origCurr === evCurr;
+                      const eq = p.equivalent_amount_event_currency;
+                      const rate = p.exchange_rate_to_event_currency;
+                      return (
+                        <div key={p.id} className="rounded-lg border border-border p-3 space-y-2">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                {formatPrice(origAmt, origCurr)} — <span className="capitalize">{p.payment_method}</span>
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(p.payment_date + "T12:00:00").toLocaleDateString("es-AR")}
+                                {p.payment_reference && ` · Ref: ${p.payment_reference}`}
+                              </p>
+                              {!sameCurr && p.status === "validado" && eq != null && rate != null && (
+                                <p className="text-[11px] text-emerald-400 mt-1">
+                                  Cotización {rate} → reconocido <strong>{formatPrice(eq, evCurr)}</strong>
+                                  {p.manual_override && <span className="ml-1 text-amber-400">(override)</span>}
+                                </p>
+                              )}
+                              {sameCurr && p.status === "validado" && eq != null && (
+                                <p className="text-[11px] text-emerald-400 mt-1">Reconocido {formatPrice(eq, evCurr)}</p>
+                              )}
+                              {!sameCurr && p.status === "informado" && (
+                                <p className="text-[11px] text-amber-400 mt-1">Pendiente de cotización a {evCurr}</p>
+                              )}
+                              {p.status === "rechazado" && p.review_notes && (
+                                <p className="text-[11px] text-red-400 mt-1">Motivo: {p.review_notes}</p>
+                              )}
+                            </div>
+                            <Badge variant="outline" className={`text-[10px] border shrink-0 ${paymentStatusColors[p.status] || ""}`}>
+                              {p.status}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[p.status] || ""}`}>
-                            {p.status}
-                          </Badge>
+                          {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
+                          {p.proof_url && <p className="text-[11px] text-muted-foreground">📎 Comprobante adjunto</p>}
+                          {p.status === "informado" && (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="default" className="text-xs h-8" onClick={() => openReviewPayment(p)}>
+                                <CheckCircle className="w-3 h-3 mr-1" /> Revisar y validar
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
-                        {p.status === "informado" && (
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="default" className="text-xs h-8" onClick={() => validatePayment(p.id, "validado")}>
-                              <CheckCircle className="w-3 h-3 mr-1" /> Validar
-                            </Button>
-                            <Button size="sm" variant="destructive" className="text-xs h-8" onClick={() => validatePayment(p.id, "rechazado")}>
-                              <XCircle className="w-3 h-3 mr-1" /> Rechazar
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
