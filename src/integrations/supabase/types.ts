@@ -1378,6 +1378,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_reservations_event_participant_id_fkey"
+            columns: ["event_participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_participants_ranking"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "event_reservations_external_participant_id_fkey"
             columns: ["external_participant_id"]
             isOneToOne: false
@@ -3422,6 +3429,50 @@ export type Database = {
           porcentaje_uso: number | null
         }
         Relationships: []
+      }
+      event_participants_ranking: {
+        Row: {
+          event_id: string | null
+          first_name: string | null
+          id: string | null
+          last_name: string | null
+          position: number | null
+          results_updated_at: string | null
+          status: string | null
+          team_name: string | null
+          time_value: number | null
+        }
+        Insert: {
+          event_id?: string | null
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          position?: number | null
+          results_updated_at?: string | null
+          status?: string | null
+          team_name?: string | null
+          time_value?: number | null
+        }
+        Update: {
+          event_id?: string | null
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          position?: number | null
+          results_updated_at?: string | null
+          status?: string | null
+          team_name?: string | null
+          time_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
