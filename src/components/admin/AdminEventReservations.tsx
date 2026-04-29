@@ -1570,6 +1570,17 @@ const AdminEventReservations = ({
           )}
         </SheetContent>
       </Sheet>
+
+      <ValidatePaymentDrawer
+        open={!!paymentToReview}
+        onOpenChange={(o) => { if (!o) setPaymentToReview(null); }}
+        payment={paymentToReview}
+        eventCurrency={selectedRes ? curr(selectedRes) : eventCurrency}
+        onDone={() => {
+          if (selectedRes) loadPayments(selectedRes.id);
+          loadReservations();
+        }}
+      />
     </div>
   );
 };
