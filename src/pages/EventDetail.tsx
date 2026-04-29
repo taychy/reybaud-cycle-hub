@@ -221,7 +221,7 @@ const EventDetail = () => {
       }
       toast({ title: "Check-in registrado ✓", description: "Ahora podés cargar tu resultado." });
       await loadReservation();
-      await loadParticipantByReservation(reservation.id);
+      await loadParticipantByReservation(reservation.id, event!.id);
     } finally {
       setCheckingIn(false);
     }
@@ -254,7 +254,7 @@ const EventDetail = () => {
       }
       toast({ title: "Resultado cargado correctamente ✓" });
       setShowResultForm(false);
-      await loadParticipantByReservation(reservation.id);
+      await loadParticipantByReservation(reservation.id, event!.id);
       logEventResultSubmission({
         eventId: event!.id,
         eventTitle: event?.title,
