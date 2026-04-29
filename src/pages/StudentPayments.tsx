@@ -199,11 +199,48 @@ const StudentPayments = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   })();
 
-  const activeSubs = subscriptions.filter(s => {
+  const activeSubsRaw = subscriptions.filter(s => {
     const eff = getEffectiveStatus(s);
     return eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente" || eff === "pago_pendiente";
   });
-  const historicSubs = subscriptions.filter(s => !activeSubs.includes(s));
+
+  // Capa 3 — Dedup defensivo en frontend.
+  // Si hay varias suscripciones activas para el mismo plan_id + fecha_fin,
+  // mostramos una sola fila para no duplicar el "Total mensual" mientras
+  // se audita la base. Prioridad de "ganadora":
+  //   1) mp_status === 'approved' con mp_payment_id
+  //   2) la más antigua por created_at
+  // No se modifica la base; solo se oculta visualmente la duplicada.
+  const dedupKey = (s: SubscriptionRecord) => `${s.plan_id || "noplan"}__${s.fecha_fin || "nofin"}`;
+  const groups = new Map<string, SubscriptionRecord[]>();
+  for (const s of activeSubsRaw) {
+    const k = dedupKey(s);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(s);
+  }
+  const activeSubs: SubscriptionRecord[] = [];
+  const hiddenDuplicateIds = new Set<string>();
+  for (const list of groups.values()) {
+    if (list.length === 1) {
+      activeSubs.push(list[0]);
+      continue;
+    }
+    const sorted = [...list].sort((a, b) => {
+      const aMp = a.mp_status === "approved" ? 0 : 1;
+      const bMp = b.mp_status === "approved" ? 0 : 1;
+      if (aMp !== bMp) return aMp - bMp;
+      // misma prioridad MP → más antigua gana
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+    const winner = sorted[0];
+    activeSubs.push(winner);
+    for (const loser of sorted.slice(1)) hiddenDuplicateIds.add(loser.id);
+    console.warn(
+      "[StudentPayments] Duplicado detectado y ocultado en UI",
+      { plan_id: winner.plan_id, fecha_fin: winner.fecha_fin, winner: winner.id, hidden: sorted.slice(1).map(s => s.id) }
+    );
+  }
+  const historicSubs = subscriptions.filter(s => !activeSubs.includes(s) && !hiddenDuplicateIds.has(s.id));
 
   const handleToggleRenovacion = async (sub: SubscriptionRecord) => {
     if (readOnly) return;
