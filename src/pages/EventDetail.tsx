@@ -880,7 +880,7 @@ const EventDetail = () => {
           )}
 
           {/* Rankings */}
-          {id && <EventRankings eventId={id} eventType={event.type} />}
+          {id && <EventRankings eventId={id} eventType={event.type} eventDate={event.date} />}
         </div>
       </main>
 
