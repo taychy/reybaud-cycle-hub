@@ -448,9 +448,9 @@ const ReservationStatusCard = ({
     setLoadingTimeline(true);
     const entries: TimelineEntry[] = [];
 
-    entries.push({ date: reservation.created_at, label: "Reserva creada", type: "reservation" });
+    entries.push({ date: reservation.created_at, label: eventType === "record_hora" ? "Inscripción creada" : "Reserva creada", type: "reservation" });
     if (reservation.confirmed_at)
-      entries.push({ date: reservation.confirmed_at, label: "Reserva confirmada", type: "status" });
+      entries.push({ date: reservation.confirmed_at, label: eventType === "record_hora" ? "Inscripción confirmada" : "Reserva confirmada", type: "status" });
 
     const { data: payments } = await supabase
       .from("reservation_payments" as any)
@@ -818,7 +818,7 @@ const ReservationStatusCard = ({
         >
           <span className="flex items-center gap-2 text-muted-foreground">
             <CalendarDays className="w-4 h-4" />
-            <span className="font-medium">Historial de mi reserva</span>
+            <span className="font-medium">{eventType === "record_hora" ? "Historial de mi inscripción" : "Historial de mi reserva"}</span>
           </span>
           {loadingTimeline ? (
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -878,7 +878,9 @@ const ReservationStatusCard = ({
           {showHelp && (
             <div className="px-4 pb-4 space-y-2">
               <p className="text-xs text-muted-foreground">
-                Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje.
+                {eventType === "record_hora"
+                  ? "Consultanos por dudas sobre la inscripción, el pago o el día del evento."
+                  : "Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje."}
               </p>
               <div className="flex flex-wrap gap-2">
                 {reglamentoUrl && (
@@ -914,7 +916,7 @@ const ReservationStatusCard = ({
 
         {/* Request date */}
         <p className="text-[10px] text-muted-foreground/50 text-center">
-          Reserva creada el {new Date(reservation.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+          {eventType === "record_hora" ? "Inscripción creada" : "Reserva creada"} el {new Date(reservation.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 

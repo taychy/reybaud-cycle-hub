@@ -134,8 +134,23 @@ serve(async (req) => {
 
       // submit_distance_authenticated
       if (!participant) return json({ error: "participant_not_found" }, 404);
+      // Consistencia: el participant debe pertenecer al mismo evento que la reserva
+      if (participant.event_id && participant.event_id !== reservation.event_id) {
+        return json({ error: "participant_event_mismatch" }, 409);
+      }
       if (!reservation.checkin_at && !participant.checked_in_at) {
         return json({ error: "checkin_required" }, 409);
+      }
+      // Validar que el evento ya haya comenzado
+      const { data: evCheck } = await supabase
+        .from("events")
+        .select("id, date")
+        .eq("id", reservation.event_id)
+        .maybeSingle();
+      if (!evCheck?.date) return json({ error: "event_not_found" }, 404);
+      const todayIso = new Date().toISOString().slice(0, 10);
+      if (evCheck.date > todayIso) {
+        return json({ error: "event_not_started", event_date: evCheck.date }, 409);
       }
 
       const km = Number(body.distance_km);

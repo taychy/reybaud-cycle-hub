@@ -165,14 +165,17 @@ const EventDetail = () => {
   }, [id, alumno, loadReservation]);
 
   // Load participant result via secure edge function (by reservation when logged in)
-  const loadParticipantByReservation = useCallback(async (reservationId: string) => {
+  // Defensive: only set if participant.event_id matches the current event id, to prevent
+  // ever showing a result that belongs to another Record event.
+  const loadParticipantByReservation = useCallback(async (reservationId: string, currentEventId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke("get-event-participant-by-token", {
         body: { action: "get_by_reservation", reservation_id: reservationId },
       });
       if (error) return;
-      if (data?.participant) {
-        setParticipantResult(data.participant);
+      const p = data?.participant;
+      if (p && p.event_id && p.event_id === currentEventId) {
+        setParticipantResult(p);
       } else {
         setParticipantResult(null);
       }
@@ -183,7 +186,7 @@ const EventDetail = () => {
     if (!event || !alumno) return;
     if (event.type !== "record_hora") return;
     if (!reservation?.id) return;
-    loadParticipantByReservation(reservation.id);
+    loadParticipantByReservation(reservation.id, event.id);
   }, [event, alumno, reservation?.id, loadParticipantByReservation]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
@@ -218,7 +221,7 @@ const EventDetail = () => {
       }
       toast({ title: "Check-in registrado ✓", description: "Ahora podés cargar tu resultado." });
       await loadReservation();
-      await loadParticipantByReservation(reservation.id);
+      await loadParticipantByReservation(reservation.id, event!.id);
     } finally {
       setCheckingIn(false);
     }
@@ -251,7 +254,7 @@ const EventDetail = () => {
       }
       toast({ title: "Resultado cargado correctamente ✓" });
       setShowResultForm(false);
-      await loadParticipantByReservation(reservation.id);
+      await loadParticipantByReservation(reservation.id, event!.id);
       logEventResultSubmission({
         eventId: event!.id,
         eventTitle: event?.title,
@@ -331,6 +334,11 @@ const EventDetail = () => {
   const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
+  // eventStarted: día del evento o posterior. Parseamos la fecha como literal local
+  // (split '-') para evitar drift de timezone (regla del proyecto).
+  const [evY, evM, evD] = event.date.split("-").map(Number);
+  const eventStartLocal = new Date(evY, (evM || 1) - 1, evD || 1, 0, 0, 0);
+  const eventStarted = new Date() >= eventStartLocal;
   const hasReservation = !!reservation;
   const isActiveReservation = hasReservation && !["cancelada", "rechazada"].includes(reservation!.reservation_status);
 
@@ -667,7 +675,21 @@ const EventDetail = () => {
             <>
               {event.type === "record_hora" ? (
                 // ─── RECORD DE LA HORA: flujo del alumno logueado (Etapa 2B) ───
-                !isActiveReservation ? null : !reservation?.checkin_at ? (
+                !isActiveReservation ? null : !eventStarted ? (
+                  // El evento todavía no ocurrió → no permitir check-in ni cargar resultado
+                  <div className="glass-card rounded-xl p-5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-primary" />
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Inscripción confirmada</h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Te esperamos el día del evento.
+                    </p>
+                    <p className="text-xs text-muted-foreground/80">
+                      La carga de resultado estará disponible el día del evento.
+                    </p>
+                  </div>
+                ) : !reservation?.checkin_at ? (
                   // Tiene reserva activa pero todavía no hizo check-in
                   <div className="glass-card rounded-xl p-5 space-y-3">
                     <div className="flex items-center gap-2">
