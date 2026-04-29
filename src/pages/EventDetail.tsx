@@ -438,6 +438,7 @@ const EventDetail = () => {
               eventMetadata={event.metadata}
               reglamentoUrl={event.metadata?.reglamento}
               whatsappUrl={event.metadata?.whatsapp_url}
+              alumnoNombre={alumno?.nombre}
               onPaymentReported={loadReservation}
             />
           )}
@@ -879,7 +880,7 @@ const EventDetail = () => {
           )}
 
           {/* Rankings */}
-          {id && <EventRankings eventId={id} eventType={event.type} />}
+          {id && <EventRankings eventId={id} eventType={event.type} eventDate={event.date} />}
         </div>
       </main>
 

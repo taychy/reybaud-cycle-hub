@@ -19,20 +19,42 @@ interface TeamRanking {
 interface Props {
   eventId: string;
   eventType?: string;
+  eventDate?: string; // ISO YYYY-MM-DD; si es record_hora y la fecha es futura, no se muestra ranking
 }
 
-export default function EventRankings({ eventId, eventType }: Props) {
+export default function EventRankings({ eventId, eventType, eventDate }: Props) {
   const [entries, setEntries] = useState<RankingEntry[]>([]);
   const [teams, setTeams] = useState<TeamRanking[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Para record_hora: no cargar ni mostrar ranking si el evento todavía no ocurrió.
+  const isRecordHora = eventType === "record_hora";
+  const eventNotYetHappened = (() => {
+    if (!isRecordHora || !eventDate) return false;
+    try {
+      const [y, m, d] = eventDate.split("T")[0].split("-").map((s) => parseInt(s, 10));
+      const evt = new Date(y, m - 1, d);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return evt.getTime() > today.getTime();
+    } catch {
+      return false;
+    }
+  })();
+
   useEffect(() => {
+    if (eventNotYetHappened) {
+      setLoading(false);
+      setEntries([]);
+      setTeams([]);
+      return;
+    }
     if (eventType === "record_hora") {
       loadParticipantRankings();
     } else {
       loadRankings();
     }
-  }, [eventId, eventType]);
+  }, [eventId, eventType, eventNotYetHappened]);
 
   const loadParticipantRankings = async () => {
     // Usa la vista pública sin PII (sin email, sin token).
@@ -103,6 +125,14 @@ export default function EventRankings({ eventId, eventType }: Props) {
     setTeams(teamArr);
   };
 
+  if (eventNotYetHappened) {
+    return (
+      <div className="glass-card rounded-xl p-5 text-center text-muted-foreground text-sm">
+        El ranking estará disponible después del evento.
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="glass-card rounded-xl p-5 text-center text-muted-foreground text-sm animate-pulse">
@@ -114,7 +144,7 @@ export default function EventRankings({ eventId, eventType }: Props) {
   if (entries.length === 0) {
     return (
       <div className="glass-card rounded-xl p-5 text-center text-muted-foreground text-sm">
-        Aún no hay resultados cargados.
+        Todavía no hay resultados cargados para este evento.
       </div>
     );
   }
