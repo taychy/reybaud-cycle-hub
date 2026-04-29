@@ -448,9 +448,9 @@ const ReservationStatusCard = ({
     setLoadingTimeline(true);
     const entries: TimelineEntry[] = [];
 
-    entries.push({ date: reservation.created_at, label: "Reserva creada", type: "reservation" });
+    entries.push({ date: reservation.created_at, label: eventType === "record_hora" ? "Inscripción creada" : "Reserva creada", type: "reservation" });
     if (reservation.confirmed_at)
-      entries.push({ date: reservation.confirmed_at, label: "Reserva confirmada", type: "status" });
+      entries.push({ date: reservation.confirmed_at, label: eventType === "record_hora" ? "Inscripción confirmada" : "Reserva confirmada", type: "status" });
 
     const { data: payments } = await supabase
       .from("reservation_payments" as any)
