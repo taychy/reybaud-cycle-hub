@@ -748,39 +748,11 @@ const AdminEventReservations = ({
     }
   };
 
-  const validatePayment = async (paymentId: string, status: "validado" | "rechazado") => {
-    await supabase
-      .from("reservation_payments" as any)
-      .update({ status, reviewed_at: new Date().toISOString() } as any)
-      .eq("id", paymentId);
-
-    if (selectedRes && status === "validado") {
-      const { data: allPayments } = await supabase
-        .from("reservation_payments" as any)
-        .select("amount, status")
-        .eq("reservation_id", selectedRes.id);
-
-      const validatedTotal = (allPayments as any[] || [])
-        .filter((p: any) => p.status === "validado")
-        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-
-      const currentPayment = payments.find(p => p.id === paymentId);
-      const newValidatedTotal = validatedTotal + (currentPayment ? Number(currentPayment.amount) : 0);
-      const balance = (selectedRes.amount_total || 0) - newValidatedTotal;
-
-      await supabase
-        .from("event_reservations" as any)
-        .update({
-          amount_paid: newValidatedTotal,
-          balance_due: balance > 0 ? balance : 0,
-          payment_status: balance <= 0 ? "pago_validado" : "parcial",
-        } as any)
-        .eq("id", selectedRes.id);
-    }
-
-    toast({ title: `Pago ${status === "validado" ? "validado" : "rechazado"}` });
-    if (selectedRes) loadPayments(selectedRes.id);
-    loadReservations();
+  // Abre el drawer de validación. Tanto validar como rechazar pasan por ahí
+  // (cotización, equivalente, motivo). El recálculo de amount_paid lo hace
+  // la RPC public.recalculate_reservation_payment_totals (idempotente).
+  const openReviewPayment = (payment: Payment) => {
+    setPaymentToReview(payment);
   };
 
   /* ─── Helpers ─── */
