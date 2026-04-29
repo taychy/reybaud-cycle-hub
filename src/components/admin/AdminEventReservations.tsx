@@ -219,6 +219,7 @@ const AdminEventReservations = ({
   // Detail drawer
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentToReview, setPaymentToReview] = useState<Payment | null>(null);
 
   // Add student
   const [showAddStudent, setShowAddStudent] = useState(false);
