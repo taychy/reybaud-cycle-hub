@@ -818,7 +818,7 @@ const ReservationStatusCard = ({
         >
           <span className="flex items-center gap-2 text-muted-foreground">
             <CalendarDays className="w-4 h-4" />
-            <span className="font-medium">Historial de mi reserva</span>
+            <span className="font-medium">{eventType === "record_hora" ? "Historial de mi inscripción" : "Historial de mi reserva"}</span>
           </span>
           {loadingTimeline ? (
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
