@@ -2659,13 +2659,21 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
+          equivalent_amount_event_currency: number | null
+          event_currency: string | null
+          exchange_rate_to_event_currency: number | null
           id: string
+          manual_override: boolean
           notes: string | null
+          original_amount: number | null
+          original_currency: string | null
           payment_date: string
           payment_method: string
           payment_reference: string | null
           proof_url: string | null
           reservation_id: string
+          review_action: string | null
+          review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
@@ -2675,13 +2683,21 @@ export type Database = {
           amount: number
           created_at?: string
           currency?: string
+          equivalent_amount_event_currency?: number | null
+          event_currency?: string | null
+          exchange_rate_to_event_currency?: number | null
           id?: string
+          manual_override?: boolean
           notes?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           payment_date?: string
           payment_method?: string
           payment_reference?: string | null
           proof_url?: string | null
           reservation_id: string
+          review_action?: string | null
+          review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -2691,13 +2707,21 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
+          equivalent_amount_event_currency?: number | null
+          event_currency?: string | null
+          exchange_rate_to_event_currency?: number | null
           id?: string
+          manual_override?: boolean
           notes?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           payment_date?: string
           payment_method?: string
           payment_reference?: string | null
           proof_url?: string | null
           reservation_id?: string
+          review_action?: string | null
+          review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -3518,6 +3542,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      recalculate_reservation_payment_totals: {
+        Args: { p_reservation_id: string }
+        Returns: undefined
       }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
