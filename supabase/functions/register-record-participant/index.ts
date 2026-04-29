@@ -148,7 +148,7 @@ serve(async (req) => {
         event_id: eventId,
         origin: "landing_publica",
         created_by: "cliente",
-        reservation_status: "confirmada",
+        reservation_status: "reserva_confirmada",
         payment_status: "no_aplica",
         accepted_terms: true,
       };
