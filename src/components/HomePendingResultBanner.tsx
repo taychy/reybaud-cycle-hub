@@ -47,7 +47,7 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
       if (checkedIn.length === 0) return;
 
       // Filtrar por eventos tipo record_hora que ya hayan pasado
-      const eventIds = parts.map((p: any) => p.event_id).filter(Boolean);
+      const eventIds = checkedIn.map((p: any) => p.event_id).filter(Boolean);
       if (eventIds.length === 0) return;
 
       const { data: evs } = await supabase
@@ -58,7 +58,6 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
 
       if (!evs || evs.length === 0) return;
 
-      // Tomar el más reciente que ya ocurrió
       const passed = (evs as any[])
         .filter((e) => (e.end_date || e.date) <= today)
         .sort((a, b) => (b.end_date || b.date).localeCompare(a.end_date || a.date));
@@ -66,7 +65,7 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
       if (passed.length === 0) return;
 
       const ev = passed[0];
-      const part = (parts as any[]).find((p) => p.event_id === ev.id);
+      const part = checkedIn.find((p: any) => p.event_id === ev.id);
       if (!part?.public_access_token) return;
 
       setPending({
