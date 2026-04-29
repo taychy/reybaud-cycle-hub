@@ -69,6 +69,8 @@ interface Reservation {
   currency_snapshot: string | null;
   next_due_date: string | null;
   confirmed_at: string | null;
+  checkin_at: string | null;
+  event_participant_id: string | null;
   created_at: string;
   updated_at: string;
 }
