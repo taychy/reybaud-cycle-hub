@@ -610,6 +610,7 @@ const ReservationStatusCard = ({
                 </p>
               </div>
             </div>
+            <PendingPaymentsNote payments={pendingPayments} eventCurrency={currency} />
           </div>
         )}
 
