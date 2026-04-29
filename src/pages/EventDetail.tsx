@@ -438,6 +438,7 @@ const EventDetail = () => {
               eventMetadata={event.metadata}
               reglamentoUrl={event.metadata?.reglamento}
               whatsappUrl={event.metadata?.whatsapp_url}
+              alumnoNombre={alumno?.nombre}
               onPaymentReported={loadReservation}
             />
           )}
