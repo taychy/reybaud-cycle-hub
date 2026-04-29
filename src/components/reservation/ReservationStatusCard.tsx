@@ -914,7 +914,7 @@ const ReservationStatusCard = ({
 
         {/* Request date */}
         <p className="text-[10px] text-muted-foreground/50 text-center">
-          Reserva creada el {new Date(reservation.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+          {eventType === "record_hora" ? "Inscripción creada" : "Reserva creada"} el {new Date(reservation.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
