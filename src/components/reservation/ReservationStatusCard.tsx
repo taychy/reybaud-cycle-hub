@@ -58,6 +58,7 @@ interface ReservationStatusCardProps {
   eventMetadata?: any;
   reglamentoUrl?: string;
   whatsappUrl?: string;
+  alumnoNombre?: string | null;
   onPaymentReported: () => void;
 }
 
