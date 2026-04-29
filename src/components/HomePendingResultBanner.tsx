@@ -30,17 +30,24 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
     const today = new Date().toISOString().slice(0, 10);
 
     (async () => {
-      // Buscar participaciones del alumno sin resultado cargado
+      // Buscar participaciones del alumno sin resultado cargado.
+      // Etapa 2B: sólo mostramos pendientes si el alumno YA hizo check-in
+      // (status = 'checked_in' o checked_in_at presente). Esto evita el banner
+      // recién al inscribirse.
       const { data: parts } = await supabase
         .from("event_participants")
-        .select("id, event_id, public_access_token, time_value, event_slug")
+        .select("id, event_id, public_access_token, time_value, event_slug, status, checked_in_at")
         .eq("email", email)
         .is("time_value", null);
 
       if (!parts || parts.length === 0) return;
+      const checkedIn = (parts as any[]).filter(
+        (p) => p.status === "checked_in" || !!p.checked_in_at,
+      );
+      if (checkedIn.length === 0) return;
 
       // Filtrar por eventos tipo record_hora que ya hayan pasado
-      const eventIds = parts.map((p: any) => p.event_id).filter(Boolean);
+      const eventIds = checkedIn.map((p: any) => p.event_id).filter(Boolean);
       if (eventIds.length === 0) return;
 
       const { data: evs } = await supabase
@@ -51,7 +58,6 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
 
       if (!evs || evs.length === 0) return;
 
-      // Tomar el más reciente que ya ocurrió
       const passed = (evs as any[])
         .filter((e) => (e.end_date || e.date) <= today)
         .sort((a, b) => (b.end_date || b.date).localeCompare(a.end_date || a.date));
@@ -59,7 +65,7 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
       if (passed.length === 0) return;
 
       const ev = passed[0];
-      const part = (parts as any[]).find((p) => p.event_id === ev.id);
+      const part = checkedIn.find((p: any) => p.event_id === ev.id);
       if (!part?.public_access_token) return;
 
       setPending({

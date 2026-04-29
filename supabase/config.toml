@@ -47,3 +47,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.get-event-participant-by-token]
     verify_jwt = false
+  [functions.event-school-checkin]
+    verify_jwt = false

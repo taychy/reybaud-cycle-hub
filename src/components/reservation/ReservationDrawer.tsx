@@ -182,6 +182,24 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       } catch { /* fire and forget */ }
     }
 
+    // Para eventos tipo escuela (record_hora), crear/asegurar el event_participant auxiliar
+    // (token + estructura para check-in y resultado). Fire & forget — no bloquea el éxito.
+    if (event.type === "record_hora") {
+      try {
+        await supabase.functions.invoke("register-record-participant", {
+          body: {
+            first_name: alumno.nombre,
+            last_name: alumno.apellido || "",
+            email: alumno.email,
+            team_name: "Sin equipo",
+            event_id: event.id,
+            reservation_id: (data as any)?.id,
+            source: "app",
+          },
+        });
+      } catch { /* fire and forget */ }
+    }
+
     setStep("success");
     onReserved(data);
     toast({ title: labels.toastTitle });

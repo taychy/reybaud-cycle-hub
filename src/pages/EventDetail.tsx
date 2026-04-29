@@ -69,6 +69,8 @@ interface Reservation {
   currency_snapshot: string | null;
   next_due_date: string | null;
   confirmed_at: string | null;
+  checkin_at: string | null;
+  event_participant_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -129,7 +131,8 @@ const EventDetail = () => {
   const [resultSpeed, setResultSpeed] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
-  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; public_access_token?: string; results_updated_at?: string | null } | null>(null);
+  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; status?: string | null; checked_in_at?: string | null; results_updated_at?: string | null } | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -161,11 +164,27 @@ const EventDetail = () => {
     loadResult(id, alumno.id);
   }, [id, alumno, loadReservation]);
 
-  // Load participant result only after event is loaded
+  // Load participant result via secure edge function (by reservation when logged in)
+  const loadParticipantByReservation = useCallback(async (reservationId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("get-event-participant-by-token", {
+        body: { action: "get_by_reservation", reservation_id: reservationId },
+      });
+      if (error) return;
+      if (data?.participant) {
+        setParticipantResult(data.participant);
+      } else {
+        setParticipantResult(null);
+      }
+    } catch { /* noop */ }
+  }, []);
+
   useEffect(() => {
     if (!event || !alumno) return;
-    loadParticipantResult(alumno.email);
-  }, [event, alumno]);
+    if (event.type !== "record_hora") return;
+    if (!reservation?.id) return;
+    loadParticipantByReservation(reservation.id);
+  }, [event, alumno, reservation?.id, loadParticipantByReservation]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
     const { data } = await supabase
@@ -182,15 +201,70 @@ const EventDetail = () => {
     }
   };
 
-  const loadParticipantResult = async (email: string) => {
-    if (!event || event.type !== "record_hora") return;
-    const { data } = await supabase
-      .from("event_participants")
-      .select("id, time_value, participant_comment, public_access_token, results_updated_at")
-      .eq("event_id", event.id as any)
-      .eq("email", email)
-      .maybeSingle();
-    if (data) setParticipantResult(data as any);
+  const handleCheckIn = async () => {
+    if (!reservation?.id || checkingIn) return;
+    setCheckingIn(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("event-school-checkin", {
+        body: { reservation_id: reservation.id },
+      });
+      if (error || !data?.ok) {
+        toast({
+          title: "No pudimos registrar tu check-in",
+          description: data?.error || error?.message || "Intentá nuevamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Check-in registrado ✓", description: "Ahora podés cargar tu resultado." });
+      await loadReservation();
+      await loadParticipantByReservation(reservation.id);
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleSubmitRecordResult = async () => {
+    if (!reservation?.id || !alumno) return;
+    const km = parseFloat(resultDistance);
+    if (!Number.isFinite(km) || km <= 0) {
+      toast({ title: "Ingresá una distancia válida (km)", variant: "destructive" });
+      return;
+    }
+    setSubmittingResult(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-event-participant-by-token", {
+        body: {
+          action: "submit_distance_authenticated",
+          reservation_id: reservation.id,
+          distance_km: km,
+          comment: resultNotes.trim() || null,
+        },
+      });
+      if (error || !data?.ok) {
+        toast({
+          title: "No pudimos guardar tu resultado",
+          description: data?.error || error?.message || "Intentá nuevamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Resultado cargado correctamente ✓" });
+      setShowResultForm(false);
+      await loadParticipantByReservation(reservation.id);
+      logEventResultSubmission({
+        eventId: event!.id,
+        eventTitle: event?.title,
+        alumnoId: alumno.id,
+        alumnoEmail: alumno.email,
+        source: "event_detail",
+        distanceKm: km,
+        comment: resultNotes.trim() || null,
+        isEdit: !!data?.was_edit,
+      });
+    } finally {
+      setSubmittingResult(false);
+    }
   };
 
   const handleSubmitResult = async () => {
@@ -592,15 +666,38 @@ const EventDetail = () => {
           {alumno && event.type !== "camp" && event.type !== "viaje" && (eventPast || event.type === "record_hora") && (
             <>
               {event.type === "record_hora" ? (
-                participantResult ? (
+                // ─── RECORD DE LA HORA: flujo del alumno logueado (Etapa 2B) ───
+                !isActiveReservation ? null : !reservation?.checkin_at ? (
+                  // Tiene reserva activa pero todavía no hizo check-in
+                  <div className="glass-card rounded-xl p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-primary" />
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Estás inscripto</h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      El día del evento, tocá <span className="font-semibold text-foreground">"Estoy presente"</span> para confirmar tu asistencia. Después vas a poder cargar tu distancia.
+                    </p>
+                    <Button
+                      variant="gold"
+                      className="w-full h-12"
+                      onClick={handleCheckIn}
+                      disabled={checkingIn}
+                    >
+                      {checkingIn ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Registrando…</>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4 mr-2" /> Estoy presente</>
+                      )}
+                    </Button>
+                  </div>
+                ) : participantResult?.time_value !== null && participantResult?.time_value !== undefined && !showResultForm ? (
+                  // Ya cargó resultado — mostrarlo con opción de editar
                   <div className="glass-card rounded-xl p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <Gauge className="w-5 h-5 text-primary" />
                       <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
                     </div>
-                    {participantResult.time_value !== null && participantResult.time_value !== undefined && (
-                      <p className="text-lg font-semibold text-primary">{Number(participantResult.time_value).toFixed(2)} km</p>
-                    )}
+                    <p className="text-lg font-semibold text-primary">{Number(participantResult.time_value).toFixed(2)} km</p>
                     {participantResult.participant_comment && (
                       <p className="text-sm text-muted-foreground">{participantResult.participant_comment}</p>
                     )}
@@ -609,31 +706,95 @@ const EventDetail = () => {
                         Última actualización: {new Date(participantResult.results_updated_at).toLocaleString("es-AR")}
                       </p>
                     )}
-                    {participantResult.public_access_token && (
+                    <Button
+                      variant="gold-outline"
+                      className="w-full"
+                      onClick={() => {
+                        setResultDistance(String(participantResult.time_value ?? ""));
+                        setResultNotes(participantResult.participant_comment || "");
+                        setShowResultForm(true);
+                      }}
+                    >
+                      <Ruler className="w-4 h-4 mr-2" /> Editar mi resultado
+                    </Button>
+                  </div>
+                ) : showResultForm ? (
+                  // Form inline para cargar/editar
+                  <div className="glass-card rounded-xl p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Send className="w-5 h-5 text-primary" />
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">
+                        {participantResult?.time_value != null ? "Editar resultado" : "Cargar resultado"}
+                      </h2>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Distancia (km)</Label>
+                      <Input
+                        type="number" step="0.01" min="0" placeholder="Ej: 38.42"
+                        value={resultDistance}
+                        onChange={(e) => setResultDistance(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Comentario (opcional)</Label>
+                      <Textarea
+                        placeholder="¿Cómo te fue? ¿Algún detalle a contar?"
+                        value={resultNotes}
+                        onChange={(e) => setResultNotes(e.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                      />
+                    </div>
+                    <div className="flex gap-2">
                       <Button
-                        variant="gold-outline"
-                        className="w-full"
-                        onClick={() => navigate(`/eventos/record-de-la-hora/mi-resultados?token=${participantResult.public_access_token}`)}
+                        variant="gold"
+                        className="flex-1"
+                        onClick={handleSubmitRecordResult}
+                        disabled={submittingResult}
                       >
-                        <Ruler className="w-4 h-4 mr-2" /> Editar mi resultado
+                        {submittingResult ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando…</>
+                        ) : (
+                          "Enviar resultado"
+                        )}
                       </Button>
-                    )}
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowResultForm(false);
+                          if (participantResult?.time_value != null) {
+                            setResultDistance(String(participantResult.time_value));
+                            setResultNotes(participantResult.participant_comment || "");
+                          } else {
+                            setResultDistance("");
+                            setResultNotes("");
+                          }
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
                   </div>
                 ) : (
+                  // Hizo check-in pero todavía no cargó resultado
                   <div className="glass-card rounded-xl p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <Ruler className="w-5 h-5 text-primary" />
-                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Cargar mi resultado</h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Para cargar tu distancia primero necesitás hacer check-in el día del evento.
+                      Hiciste check-in. Cuando termines, cargá tu distancia para sumarte al ranking.
                     </p>
                     <Button
                       variant="gold"
                       className="w-full h-12"
-                      onClick={() => navigate("/eventos/record-de-la-hora")}
+                      onClick={() => {
+                        setResultDistance("");
+                        setResultNotes("");
+                        setShowResultForm(true);
+                      }}
                     >
-                      <Ruler className="w-4 h-4 mr-2" /> Hacer check-in / cargar resultado
+                      <Ruler className="w-4 h-4 mr-2" /> Cargar mi resultado
                     </Button>
                   </div>
                 )
