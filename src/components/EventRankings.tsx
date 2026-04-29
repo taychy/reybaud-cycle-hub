@@ -125,6 +125,14 @@ export default function EventRankings({ eventId, eventType, eventDate }: Props) 
     setTeams(teamArr);
   };
 
+  if (eventNotYetHappened) {
+    return (
+      <div className="glass-card rounded-xl p-5 text-center text-muted-foreground text-sm">
+        El ranking estará disponible después del evento.
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="glass-card rounded-xl p-5 text-center text-muted-foreground text-sm animate-pulse">
@@ -136,7 +144,7 @@ export default function EventRankings({ eventId, eventType, eventDate }: Props) 
   if (entries.length === 0) {
     return (
       <div className="glass-card rounded-xl p-5 text-center text-muted-foreground text-sm">
-        Aún no hay resultados cargados.
+        Todavía no hay resultados cargados para este evento.
       </div>
     );
   }
