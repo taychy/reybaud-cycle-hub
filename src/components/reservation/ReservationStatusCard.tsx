@@ -649,6 +649,9 @@ const ReservationStatusCard = ({
               </div>
             </div>
 
+            <PendingPaymentsNote payments={pendingPayments} eventCurrency={currency} />
+
+
             {/* Next due date */}
             {nextDueDate && (reservation.balance_due ?? 0) > 0 && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/30">
