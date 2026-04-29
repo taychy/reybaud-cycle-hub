@@ -18,6 +18,7 @@ import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
+import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 
 interface Reservation {
   id: string;
