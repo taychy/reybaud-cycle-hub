@@ -666,15 +666,38 @@ const EventDetail = () => {
           {alumno && event.type !== "camp" && event.type !== "viaje" && (eventPast || event.type === "record_hora") && (
             <>
               {event.type === "record_hora" ? (
-                participantResult ? (
+                // ─── RECORD DE LA HORA: flujo del alumno logueado (Etapa 2B) ───
+                !isActiveReservation ? null : !reservation?.checkin_at ? (
+                  // Tiene reserva activa pero todavía no hizo check-in
+                  <div className="glass-card rounded-xl p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-primary" />
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Estás inscripto</h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      El día del evento, tocá <span className="font-semibold text-foreground">"Estoy presente"</span> para confirmar tu asistencia. Después vas a poder cargar tu distancia.
+                    </p>
+                    <Button
+                      variant="gold"
+                      className="w-full h-12"
+                      onClick={handleCheckIn}
+                      disabled={checkingIn}
+                    >
+                      {checkingIn ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Registrando…</>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4 mr-2" /> Estoy presente</>
+                      )}
+                    </Button>
+                  </div>
+                ) : participantResult?.time_value !== null && participantResult?.time_value !== undefined && !showResultForm ? (
+                  // Ya cargó resultado — mostrarlo con opción de editar
                   <div className="glass-card rounded-xl p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <Gauge className="w-5 h-5 text-primary" />
                       <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
                     </div>
-                    {participantResult.time_value !== null && participantResult.time_value !== undefined && (
-                      <p className="text-lg font-semibold text-primary">{Number(participantResult.time_value).toFixed(2)} km</p>
-                    )}
+                    <p className="text-lg font-semibold text-primary">{Number(participantResult.time_value).toFixed(2)} km</p>
                     {participantResult.participant_comment && (
                       <p className="text-sm text-muted-foreground">{participantResult.participant_comment}</p>
                     )}
@@ -683,31 +706,95 @@ const EventDetail = () => {
                         Última actualización: {new Date(participantResult.results_updated_at).toLocaleString("es-AR")}
                       </p>
                     )}
-                    {participantResult.public_access_token && (
+                    <Button
+                      variant="gold-outline"
+                      className="w-full"
+                      onClick={() => {
+                        setResultDistance(String(participantResult.time_value ?? ""));
+                        setResultNotes(participantResult.participant_comment || "");
+                        setShowResultForm(true);
+                      }}
+                    >
+                      <Ruler className="w-4 h-4 mr-2" /> Editar mi resultado
+                    </Button>
+                  </div>
+                ) : showResultForm ? (
+                  // Form inline para cargar/editar
+                  <div className="glass-card rounded-xl p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Send className="w-5 h-5 text-primary" />
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">
+                        {participantResult?.time_value != null ? "Editar resultado" : "Cargar resultado"}
+                      </h2>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Distancia (km)</Label>
+                      <Input
+                        type="number" step="0.01" min="0" placeholder="Ej: 38.42"
+                        value={resultDistance}
+                        onChange={(e) => setResultDistance(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Comentario (opcional)</Label>
+                      <Textarea
+                        placeholder="¿Cómo te fue? ¿Algún detalle a contar?"
+                        value={resultNotes}
+                        onChange={(e) => setResultNotes(e.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                      />
+                    </div>
+                    <div className="flex gap-2">
                       <Button
-                        variant="gold-outline"
-                        className="w-full"
-                        onClick={() => navigate(`/eventos/record-de-la-hora/mi-resultados?token=${participantResult.public_access_token}`)}
+                        variant="gold"
+                        className="flex-1"
+                        onClick={handleSubmitRecordResult}
+                        disabled={submittingResult}
                       >
-                        <Ruler className="w-4 h-4 mr-2" /> Editar mi resultado
+                        {submittingResult ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando…</>
+                        ) : (
+                          "Enviar resultado"
+                        )}
                       </Button>
-                    )}
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowResultForm(false);
+                          if (participantResult?.time_value != null) {
+                            setResultDistance(String(participantResult.time_value));
+                            setResultNotes(participantResult.participant_comment || "");
+                          } else {
+                            setResultDistance("");
+                            setResultNotes("");
+                          }
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
                   </div>
                 ) : (
+                  // Hizo check-in pero todavía no cargó resultado
                   <div className="glass-card rounded-xl p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <Ruler className="w-5 h-5 text-primary" />
-                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Mi resultado</h2>
+                      <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Cargar mi resultado</h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Para cargar tu distancia primero necesitás hacer check-in el día del evento.
+                      Hiciste check-in. Cuando termines, cargá tu distancia para sumarte al ranking.
                     </p>
                     <Button
                       variant="gold"
                       className="w-full h-12"
-                      onClick={() => navigate("/eventos/record-de-la-hora")}
+                      onClick={() => {
+                        setResultDistance("");
+                        setResultNotes("");
+                        setShowResultForm(true);
+                      }}
                     >
-                      <Ruler className="w-4 h-4 mr-2" /> Hacer check-in / cargar resultado
+                      <Ruler className="w-4 h-4 mr-2" /> Cargar mi resultado
                     </Button>
                   </div>
                 )
