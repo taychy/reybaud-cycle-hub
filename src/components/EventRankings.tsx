@@ -35,11 +35,11 @@ export default function EventRankings({ eventId, eventType }: Props) {
   }, [eventId, eventType]);
 
   const loadParticipantRankings = async () => {
-    const { data } = await supabase
-      .from("event_participants")
+    // Usa la vista pública sin PII (sin email, sin token).
+    const { data } = await (supabase as any)
+      .from("event_participants_ranking")
       .select("id, first_name, last_name, team_name, time_value")
-      .eq("event_id", eventId as any)
-      .not("time_value", "is", null)
+      .eq("event_id", eventId)
       .order("time_value", { ascending: false });
 
     if (!data || data.length === 0) {
