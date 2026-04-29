@@ -165,14 +165,17 @@ const EventDetail = () => {
   }, [id, alumno, loadReservation]);
 
   // Load participant result via secure edge function (by reservation when logged in)
-  const loadParticipantByReservation = useCallback(async (reservationId: string) => {
+  // Defensive: only set if participant.event_id matches the current event id, to prevent
+  // ever showing a result that belongs to another Record event.
+  const loadParticipantByReservation = useCallback(async (reservationId: string, currentEventId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke("get-event-participant-by-token", {
         body: { action: "get_by_reservation", reservation_id: reservationId },
       });
       if (error) return;
-      if (data?.participant) {
-        setParticipantResult(data.participant);
+      const p = data?.participant;
+      if (p && p.event_id && p.event_id === currentEventId) {
+        setParticipantResult(p);
       } else {
         setParticipantResult(null);
       }
