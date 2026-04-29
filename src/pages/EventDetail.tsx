@@ -131,7 +131,8 @@ const EventDetail = () => {
   const [resultSpeed, setResultSpeed] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [submittingResult, setSubmittingResult] = useState(false);
-  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; public_access_token?: string; results_updated_at?: string | null } | null>(null);
+  const [participantResult, setParticipantResult] = useState<{ id: string; time_value: number | null; participant_comment: string | null; status?: string | null; checked_in_at?: string | null; results_updated_at?: string | null } | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -163,11 +164,27 @@ const EventDetail = () => {
     loadResult(id, alumno.id);
   }, [id, alumno, loadReservation]);
 
-  // Load participant result only after event is loaded
+  // Load participant result via secure edge function (by reservation when logged in)
+  const loadParticipantByReservation = useCallback(async (reservationId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("get-event-participant-by-token", {
+        body: { action: "get_by_reservation", reservation_id: reservationId },
+      });
+      if (error) return;
+      if (data?.participant) {
+        setParticipantResult(data.participant);
+      } else {
+        setParticipantResult(null);
+      }
+    } catch { /* noop */ }
+  }, []);
+
   useEffect(() => {
     if (!event || !alumno) return;
-    loadParticipantResult(alumno.email);
-  }, [event, alumno]);
+    if (event.type !== "record_hora") return;
+    if (!reservation?.id) return;
+    loadParticipantByReservation(reservation.id);
+  }, [event, alumno, reservation?.id, loadParticipantByReservation]);
 
   const loadResult = async (eventId: string, alumnoId: string) => {
     const { data } = await supabase
@@ -184,15 +201,70 @@ const EventDetail = () => {
     }
   };
 
-  const loadParticipantResult = async (email: string) => {
-    if (!event || event.type !== "record_hora") return;
-    const { data } = await supabase
-      .from("event_participants")
-      .select("id, time_value, participant_comment, public_access_token, results_updated_at")
-      .eq("event_id", event.id as any)
-      .eq("email", email)
-      .maybeSingle();
-    if (data) setParticipantResult(data as any);
+  const handleCheckIn = async () => {
+    if (!reservation?.id || checkingIn) return;
+    setCheckingIn(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("event-school-checkin", {
+        body: { reservation_id: reservation.id },
+      });
+      if (error || !data?.ok) {
+        toast({
+          title: "No pudimos registrar tu check-in",
+          description: data?.error || error?.message || "Intentá nuevamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Check-in registrado ✓", description: "Ahora podés cargar tu resultado." });
+      await loadReservation();
+      await loadParticipantByReservation(reservation.id);
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleSubmitRecordResult = async () => {
+    if (!reservation?.id || !alumno) return;
+    const km = parseFloat(resultDistance);
+    if (!Number.isFinite(km) || km <= 0) {
+      toast({ title: "Ingresá una distancia válida (km)", variant: "destructive" });
+      return;
+    }
+    setSubmittingResult(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-event-participant-by-token", {
+        body: {
+          action: "submit_distance_authenticated",
+          reservation_id: reservation.id,
+          distance_km: km,
+          comment: resultNotes.trim() || null,
+        },
+      });
+      if (error || !data?.ok) {
+        toast({
+          title: "No pudimos guardar tu resultado",
+          description: data?.error || error?.message || "Intentá nuevamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Resultado cargado correctamente ✓" });
+      setShowResultForm(false);
+      await loadParticipantByReservation(reservation.id);
+      logEventResultSubmission({
+        eventId: event!.id,
+        eventTitle: event?.title,
+        alumnoId: alumno.id,
+        alumnoEmail: alumno.email,
+        source: "event_detail",
+        distanceKm: km,
+        comment: resultNotes.trim() || null,
+        isEdit: !!data?.was_edit,
+      });
+    } finally {
+      setSubmittingResult(false);
+    }
   };
 
   const handleSubmitResult = async () => {
