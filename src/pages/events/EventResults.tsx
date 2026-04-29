@@ -62,48 +62,46 @@ const EventResults = () => {
       return;
     }
 
-    const { data: p, error: pErr } = await supabase
-      .from("event_participants")
-      .select("*")
-      .eq("public_access_token", token)
-      .maybeSingle();
+    // 1) Lookup seguro vía edge function (no expone otros participantes)
+    const { data: getRes, error: getErr } = await supabase.functions.invoke(
+      "get-event-participant-by-token",
+      { body: { action: "get", token } }
+    );
 
-    if (pErr || !p) {
-      setError("Token inválido o expirado.");
+    if (getErr || !getRes?.ok || !getRes?.participant) {
+      const code = (getRes as any)?.error;
+      if (code === "token_expired") setError("Este link ha expirado.");
+      else setError("Token inválido o expirado.");
       setLoading(false);
       return;
     }
 
-    if (p.token_expires_at && new Date(p.token_expires_at) < new Date()) {
-      setError("Este link ha expirado.");
-      setLoading(false);
-      return;
+    const p = getRes.participant as Participant;
+    setParticipant(p);
+
+    // 2) Ranking del evento, sin PII (sin email, sin token), vía edge function
+    if (p.event_id) {
+      const { data: rankRes } = await supabase.functions.invoke(
+        "get-event-participant-by-token",
+        { body: { action: "ranking", event_id: p.event_id } }
+      );
+
+      const rankData: any[] = rankRes?.ranking ?? [];
+      const teamMap = new Map<string, TeamRanking>();
+      rankData.forEach((r) => {
+        const team = r.team_name || "Sin equipo";
+        if (!teamMap.has(team)) {
+          teamMap.set(team, { team_name: team, total_distance: 0, members: [] });
+        }
+        const t = teamMap.get(team)!;
+        const dist = Number(r.time_value) || 0;
+        t.total_distance += dist;
+        t.members.push({ first_name: r.first_name, last_name: r.last_name, distance: dist });
+      });
+      const sorted = Array.from(teamMap.values()).sort((a, b) => b.total_distance - a.total_distance);
+      setTeamRanking(sorted);
     }
 
-    setParticipant(p as unknown as Participant);
-
-    // Fetch all approved participants for this specific event (by event_id)
-    const { data: rankData } = await supabase
-      .from("event_participants")
-      .select("first_name, last_name, team_name, time_value")
-      .eq("event_id", (p as any).event_id)
-      .eq("status", "approved" as any)
-      .not("time_value", "is", null);
-
-    // Build team ranking
-    const teamMap = new Map<string, TeamRanking>();
-    ((rankData as any[]) || []).forEach((r) => {
-      const team = r.team_name || "Sin equipo";
-      if (!teamMap.has(team)) {
-        teamMap.set(team, { team_name: team, total_distance: 0, members: [] });
-      }
-      const t = teamMap.get(team)!;
-      const dist = Number(r.time_value) || 0;
-      t.total_distance += dist;
-      t.members.push({ first_name: r.first_name, last_name: r.last_name, distance: dist });
-    });
-    const sorted = Array.from(teamMap.values()).sort((a, b) => b.total_distance - a.total_distance);
-    setTeamRanking(sorted);
     setLoading(false);
   };
 
@@ -117,34 +115,35 @@ const EventResults = () => {
       toast({ title: "Error", description: "Ingresá una distancia válida.", variant: "destructive" });
       return;
     }
-    if (!participant) return;
+    if (!participant || !token) return;
 
     setSubmitting(true);
-    const distanceDisplay = `${km.toFixed(2)} km`;
 
-    const { data: updated, error: updateErr } = await supabase
-      .from("event_participants")
-      .update({
-        time_value: km,
-        time_result: distanceDisplay,
-        participant_comment: comment.trim() || null,
-        status: "result_submitted",
-        results_updated_at: new Date().toISOString(),
-      } as any)
-      .eq("id", participant.id)
-      .select("id");
+    const { data: subRes, error: subErr } = await supabase.functions.invoke(
+      "get-event-participant-by-token",
+      {
+        body: {
+          action: "submit_distance",
+          token,
+          distance_km: km,
+          comment: comment.trim() || null,
+        },
+      }
+    );
 
-    if (updateErr || !updated || updated.length === 0) {
-      toast({
-        title: "No se pudo guardar",
-        description: updateErr?.message || "Tu link puede haber expirado. Pedile al staff un link nuevo.",
-        variant: "destructive",
-      });
+    if (subErr || !subRes?.ok) {
+      const code = (subRes as any)?.error;
+      const msg =
+        code === "token_expired"
+          ? "Tu link expiró. Pedile al staff un link nuevo."
+          : code === "invalid_distance"
+          ? "Ingresá una distancia válida."
+          : "No se pudo guardar tu resultado. Probá de nuevo en un momento.";
+      toast({ title: "No se pudo guardar", description: msg, variant: "destructive" });
     } else {
       toast({ title: "¡Distancia cargada!", description: "Tu resultado fue enviado para revisión." });
       setShowDistanceForm(false);
       // Audit log: registra cada submit/edición vía token público
-      const wasEdit = participant.status === "rejected" || participant.status === "result_submitted" || participant.status === "approved";
       logEventResultSubmission({
         eventId: participant.event_id || "",
         alumnoEmail: participant.email,
@@ -152,7 +151,7 @@ const EventResults = () => {
         source: "public_token",
         distanceKm: km,
         comment: comment.trim() || null,
-        isEdit: wasEdit,
+        isEdit: !!subRes.was_edit,
       });
       await load();
     }
