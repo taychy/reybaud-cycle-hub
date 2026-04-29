@@ -878,28 +878,46 @@ const ReservationStatusCard = ({
             {showHelp ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </button>
           {showHelp && (
-            <div className="px-4 pb-4 space-y-2">
-              <p className="text-xs text-muted-foreground">
-                {eventType === "record_hora"
-                  ? "Consultanos por dudas sobre la inscripción, el pago o el día del evento."
-                  : "Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje."}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {reglamentoUrl && (
-                  <a href={reglamentoUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+            <div className="px-4 pb-4 space-y-3">
+              {eventType === "record_hora" ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Si tenés dudas sobre tu inscripción, el pago, el check-in o la carga de tu resultado, podés escribirnos por WhatsApp.
+                  </p>
+                  <a
+                    href={buildWhatsAppUrl(buildRecordHoraHelpMessage({ alumnoNombre, fechaEvento: eventDate }))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
                     <Button variant="outline" size="sm" className="w-full text-xs">
-                      <FileText className="w-3.5 h-3.5 mr-1.5" /> Reglamento
+                      <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Escribir por WhatsApp
                     </Button>
                   </a>
-                )}
-                {whatsappUrl && (
-                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full text-xs">
-                      <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Chatear por WhatsApp
-                    </Button>
-                  </a>
-                )}
-              </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {reglamentoUrl && (
+                      <a href={reglamentoUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full text-xs">
+                          <FileText className="w-3.5 h-3.5 mr-1.5" /> Reglamento
+                        </Button>
+                      </a>
+                    )}
+                    {whatsappUrl && (
+                      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full text-xs">
+                          <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Chatear por WhatsApp
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
