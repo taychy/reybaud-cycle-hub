@@ -878,7 +878,9 @@ const ReservationStatusCard = ({
           {showHelp && (
             <div className="px-4 pb-4 space-y-2">
               <p className="text-xs text-muted-foreground">
-                Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje.
+                {eventType === "record_hora"
+                  ? "Consultanos por dudas sobre la inscripción, el pago o el día del evento."
+                  : "Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje."}
               </p>
               <div className="flex flex-wrap gap-2">
                 {reglamentoUrl && (
