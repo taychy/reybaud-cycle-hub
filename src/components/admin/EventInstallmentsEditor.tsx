@@ -275,6 +275,7 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     toast.success("Cuota eliminada");
+    await syncMetadataMirror();
     load();
   };
 
