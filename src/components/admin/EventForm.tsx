@@ -23,6 +23,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/eventLinks";
+import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
