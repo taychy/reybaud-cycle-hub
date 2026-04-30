@@ -1366,85 +1366,148 @@ const AdminEventReservations = ({
                 </div>
 
                 {/* Admin payment form */}
-                {showAdminPayment && (() => {
-                  const evCurr = selectedRes ? curr(selectedRes) : eventCurrency;
-                  const sameCurrency = adminPayCurrency === evCurr;
-                  const computedEq = sameCurrency
-                    ? parseFloat(adminPayAmount) || 0
-                    : (parseFloat(adminPayAmount) || 0) * (parseFloat(adminPayRate) || 1);
-                  const hasPendingInst = matInstallments.some((i: any) => i.status === "pendiente" || i.status === "parcial");
+                 {showAdminPayment && (() => {
+                   const evCurr = selectedRes ? curr(selectedRes) : eventCurrency;
+                   const sameCurrency = adminPayCurrency === evCurr;
 
-                  return (
-                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
-                    <p className="text-xs font-semibold text-primary">Registrar pago manual validado</p>
+                   // Tri-directional calc helpers
+                   const amt = parseFloat(adminPayAmount) || 0;
+                   const rateVal = parseFloat(adminPayRate) || 0;
+                   const eqVal = parseFloat(adminPayEquivalent) || 0;
+                   const computedEq = sameCurrency ? amt : (amt && rateVal ? amt * rateVal : 0);
+                   // Override = admin manually set equivalent that differs from computed
+                   const hasRealOverride = !sameCurrency && adminPayOverride && eqVal > 0 && Math.abs(eqVal - computedEq) > 0.005;
 
-                    {/* Currency + Amount */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Moneda *</Label>
-                        <Select value={adminPayCurrency} onValueChange={(v) => {
-                          setAdminPayCurrency(v);
-                          setAdminPayRate(v === evCurr ? "1" : "");
-                          setAdminPayEquivalent("");
-                          setAdminPayOverride(false);
-                        }}>
-                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="EUR">€ EUR</SelectItem>
-                            <SelectItem value="USD">US$ USD</SelectItem>
-                            <SelectItem value="ARS">$ ARS</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Monto en {adminPayCurrency} *</Label>
-                        <Input type="number" step="0.01" min="0" value={adminPayAmount} onChange={(e) => setAdminPayAmount(e.target.value)} className="h-9" placeholder="Ej: 600" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Fecha</Label>
-                        <Input type="date" value={adminPayDate} onChange={(e) => setAdminPayDate(e.target.value)} className="h-9" />
-                      </div>
-                    </div>
+                   // Field change handlers with auto-calc
+                   const onAmountChange = (v: string) => {
+                     setAdminPayAmount(v);
+                     const a = parseFloat(v) || 0;
+                     if (sameCurrency) {
+                       setAdminPayEquivalent(a ? a.toFixed(2) : "");
+                       setAdminPayRate("1");
+                       setAdminPayOverride(false);
+                       return;
+                     }
+                     const r = parseFloat(adminPayRate) || 0;
+                     if (a && r) {
+                       setAdminPayEquivalent((a * r).toFixed(2));
+                       setAdminPayOverride(false);
+                     } else if (a && eqVal) {
+                       // Have amount + equivalent → calc rate
+                       setAdminPayRate((eqVal / a).toFixed(4));
+                       setAdminPayOverride(false);
+                     }
+                   };
 
-                    {/* Exchange rate (only if different currency) */}
-                    {!sameCurrency && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Cotización a {evCurr} *</Label>
-                          <Input type="number" step="0.0001" min="0" value={adminPayRate} onChange={(e) => setAdminPayRate(e.target.value)} className="h-9" placeholder={`1 ${adminPayCurrency} = ? ${evCurr}`} />
-                          <p className="text-[10px] text-muted-foreground">1 {adminPayCurrency} = {adminPayRate || "?"} {evCurr}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Equivalente reconocido ({evCurr})</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={adminPayOverride ? adminPayEquivalent : computedEq.toFixed(2)}
-                              onChange={(e) => {
-                                setAdminPayOverride(true);
-                                setAdminPayEquivalent(e.target.value);
-                              }}
-                              className="h-9"
-                            />
-                          </div>
-                          {!adminPayOverride && (
-                            <p className="text-[10px] text-emerald-400">= {formatPrice(computedEq, evCurr)}</p>
-                          )}
-                          {adminPayOverride && (
-                            <p className="text-[10px] text-amber-400">Override manual</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                   const onRateChange = (v: string) => {
+                     setAdminPayRate(v);
+                     const r = parseFloat(v) || 0;
+                     if (amt && r) {
+                       setAdminPayEquivalent((amt * r).toFixed(2));
+                       setAdminPayOverride(false);
+                     } else if (r && eqVal) {
+                       // Have rate + equivalent → calc amount
+                       setAdminPayAmount((eqVal / r).toFixed(2));
+                       setAdminPayOverride(false);
+                     }
+                   };
 
-                    {/* Override reason */}
-                    {adminPayOverride && !sameCurrency && (
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Motivo del override *</Label>
-                        <Input value={adminPayOverrideReason} onChange={(e) => setAdminPayOverrideReason(e.target.value)} className="h-9" placeholder="Ej: Cotización especial pactada..." />
-                      </div>
-                    )}
+                   const onEquivalentChange = (v: string) => {
+                     setAdminPayEquivalent(v);
+                     const eq = parseFloat(v) || 0;
+                     if (amt && rateVal && eq) {
+                       // All three present — check if it's a manual override
+                       const expected = amt * rateVal;
+                       if (Math.abs(eq - expected) > 0.005) {
+                         setAdminPayOverride(true);
+                       } else {
+                         setAdminPayOverride(false);
+                       }
+                     } else if (eq && amt && !rateVal) {
+                       // Have equivalent + amount → calc rate
+                       setAdminPayRate((eq / amt).toFixed(4));
+                       setAdminPayOverride(false);
+                     } else if (eq && rateVal && !amt) {
+                       // Have equivalent + rate → calc amount
+                       setAdminPayAmount((eq / rateVal).toFixed(2));
+                       setAdminPayOverride(false);
+                     } else {
+                       setAdminPayOverride(false);
+                     }
+                   };
+
+                   return (
+                   <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                     <p className="text-xs font-semibold text-primary">Registrar pago manual validado</p>
+
+                     {/* Currency + Amount */}
+                     <div className="grid grid-cols-3 gap-3">
+                       <div className="space-y-1">
+                         <Label className="text-[11px] text-muted-foreground">Moneda *</Label>
+                         <Select value={adminPayCurrency} onValueChange={(v) => {
+                           setAdminPayCurrency(v);
+                           const sc = v === evCurr;
+                           setAdminPayRate(sc ? "1" : "");
+                           setAdminPayOverride(false);
+                           setAdminPayOverrideReason("");
+                           if (sc && adminPayAmount) {
+                             setAdminPayEquivalent((parseFloat(adminPayAmount) || 0).toFixed(2));
+                           } else {
+                             setAdminPayEquivalent("");
+                           }
+                         }}>
+                           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="EUR">€ EUR</SelectItem>
+                             <SelectItem value="USD">US$ USD</SelectItem>
+                             <SelectItem value="ARS">$ ARS</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+                       <div className="space-y-1">
+                         <Label className="text-[11px] text-muted-foreground">Monto en {adminPayCurrency} *</Label>
+                         <Input type="number" step="0.01" min="0" value={adminPayAmount} onChange={(e) => onAmountChange(e.target.value)} className="h-9" placeholder="Ej: 600" />
+                       </div>
+                       <div className="space-y-1">
+                         <Label className="text-[11px] text-muted-foreground">Fecha</Label>
+                         <Input type="date" value={adminPayDate} onChange={(e) => setAdminPayDate(e.target.value)} className="h-9" />
+                       </div>
+                     </div>
+
+                     {/* Exchange rate (only if different currency) */}
+                     {!sameCurrency && (
+                       <div className="grid grid-cols-2 gap-3">
+                         <div className="space-y-1">
+                           <Label className="text-[11px] text-muted-foreground">Cotización a {evCurr} *</Label>
+                           <Input type="number" step="0.0001" min="0" value={adminPayRate} onChange={(e) => onRateChange(e.target.value)} className="h-9" placeholder={`1 ${adminPayCurrency} = ? ${evCurr}`} />
+                           <p className="text-[10px] text-muted-foreground">1 {adminPayCurrency} = {adminPayRate || "?"} {evCurr}</p>
+                         </div>
+                         <div className="space-y-1">
+                           <Label className="text-[11px] text-muted-foreground">Equivalente reconocido ({evCurr})</Label>
+                           <Input
+                             type="number"
+                             step="0.01"
+                             value={adminPayEquivalent}
+                             onChange={(e) => onEquivalentChange(e.target.value)}
+                             className="h-9"
+                           />
+                           {!hasRealOverride && eqVal > 0 && (
+                             <p className="text-[10px] text-emerald-400">= {formatPrice(eqVal, evCurr)}</p>
+                           )}
+                           {hasRealOverride && (
+                             <p className="text-[10px] text-amber-400">Override manual (esperado: {formatPrice(computedEq, evCurr)})</p>
+                           )}
+                         </div>
+                       </div>
+                     )}
+
+                     {/* Override reason — only when there's a real override */}
+                     {hasRealOverride && (
+                       <div className="space-y-1">
+                         <Label className="text-[11px] text-muted-foreground">Motivo del override *</Label>
+                         <Input value={adminPayOverrideReason} onChange={(e) => setAdminPayOverrideReason(e.target.value)} className="h-9" placeholder="Ej: Cotización especial pactada..." />
+                       </div>
+                     )}
 
                     {/* Installment selector */}
                     {matInstallments.length > 0 && (
