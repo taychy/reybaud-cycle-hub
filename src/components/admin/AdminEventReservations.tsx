@@ -248,6 +248,14 @@ const AdminEventReservations = ({
   const [submittingAdminPay, setSubmittingAdminPay] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [notifyOnPayment, setNotifyOnPayment] = useState(true);
+  const [adminPayCurrency, setAdminPayCurrency] = useState("EUR");
+  const [adminPayRate, setAdminPayRate] = useState("1");
+  const [adminPayEquivalent, setAdminPayEquivalent] = useState("");
+  const [adminPayOverride, setAdminPayOverride] = useState(false);
+  const [adminPayOverrideReason, setAdminPayOverrideReason] = useState("");
+  const [adminPayInstallmentId, setAdminPayInstallmentId] = useState<string | null>(null);
+  const [adminPayGeneralReason, setAdminPayGeneralReason] = useState("");
+  const [matInstallments, setMatInstallments] = useState<any[]>([]);
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
