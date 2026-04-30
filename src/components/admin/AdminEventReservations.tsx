@@ -1334,6 +1334,7 @@ const AdminEventReservations = ({
                   loadPayments(selectedRes.id);
                 }}
               />
+                   const hasPendingInst = matInstallments.some((i: any) => i.status === "pendiente" || i.status === "parcial");
 
 
               {/* Payments section */}
