@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
+import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 
 /* ─── Types ─── */
 
@@ -1271,41 +1272,19 @@ const AdminEventReservations = ({
                   alumnoId={selectedRes.alumno_id}
                 />
               )}
-              {/* Installments */}
-              {installments.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan de cuotas</h4>
-                  <div className="space-y-1.5">
-                    {installments.map((inst: any, idx: number) => {
-                      const instAmount = parseFloat(inst.amount || "0");
-                      const accBefore = installments.slice(0, idx).reduce((s: number, c: any) => s + (parseFloat(c.amount) || 0), 0);
-                      const isPaid = (selectedRes.amount_paid || 0) >= accBefore + instAmount;
-                      const isPartial = !isPaid && (selectedRes.amount_paid || 0) > accBefore;
-                      const isOverdue = inst.due_date && new Date(inst.due_date) < new Date() && !isPaid;
-                      return (
-                        <div key={idx} className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs border ${
-                          isPaid ? "bg-emerald-500/10 border-emerald-500/20" : isOverdue ? "bg-destructive/10 border-destructive/20" : "bg-muted/40 border-border/30"
-                        }`}>
-                          <div className="flex items-center gap-2">
-                            {isPaid ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> : isOverdue ? <AlertCircle className="w-3.5 h-3.5 text-destructive" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
-                            <span className="font-medium">{inst.label || `Cuota ${idx + 1}`}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold">{formatPrice(instAmount, eventCurrency)}</span>
-                            {inst.due_date && (
-                              <span className={isOverdue ? "text-destructive" : "text-muted-foreground"}>
-                                Vence {new Date(inst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                              </span>
-                            )}
-                            {isPaid && <span className="text-emerald-500 font-medium">Pagada</span>}
-                            {isPartial && <span className="text-sky-500 font-medium">Parcial</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* Installments — Etapa 3: panel real por reservation_installments */}
+              <ReservationInstallmentsPanel
+                reservationId={selectedRes.id}
+                reservationCurrency={curr(selectedRes)}
+                reservationAmountTotal={selectedRes.amount_total || 0}
+                reservationAmountPaid={selectedRes.amount_paid || 0}
+                hasEventInstallments={installments.length > 0}
+                onChanged={() => {
+                  loadReservations();
+                  loadPayments(selectedRes.id);
+                }}
+              />
+
 
               {/* Payments section */}
               <div className="space-y-3">
