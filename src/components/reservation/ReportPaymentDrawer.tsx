@@ -45,6 +45,8 @@ interface ReportPaymentDrawerProps {
   alumnoId: string;
   currency: string;
   onSuccess: () => void;
+  /** If set, preselect this installment when opening */
+  preselectedInstallmentId?: string | null;
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
@@ -56,7 +58,7 @@ const fmtDate = (d?: string | null) => {
 };
 
 const ReportPaymentDrawer = ({
-  open, onOpenChange, reservation, alumnoId, currency, onSuccess,
+  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId,
 }: ReportPaymentDrawerProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +96,12 @@ const ReportPaymentDrawer = ({
       if (cancelled) return;
       const items = (data as InstallmentOption[] | null) || [];
       setInstallments(items);
-      if (items.length > 0) {
+      if (preselectedInstallmentId && items.find(i => i.id === preselectedInstallmentId)) {
+        const target = items.find(i => i.id === preselectedInstallmentId)!;
+        const isNext = items[0]?.id === preselectedInstallmentId;
+        setInstallmentChoice(isNext ? "next" : `other:${preselectedInstallmentId}`);
+        setAmount(target.balance_due.toString());
+      } else if (items.length > 0) {
         setInstallmentChoice("next");
         setAmount(items[0].balance_due.toString());
       } else {

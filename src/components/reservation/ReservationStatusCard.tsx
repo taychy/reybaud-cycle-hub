@@ -19,6 +19,7 @@ import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
+import StudentInstallmentsPlan from "./StudentInstallmentsPlan";
 
 interface Reservation {
   id: string;
@@ -263,6 +264,7 @@ const ReservationStatusCard = ({
   const isTripLike = eventType === "camp" || eventType === "viaje";
   const { toast } = useToast();
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
+  const [preselectedInstallmentId, setPreselectedInstallmentId] = useState<string | null>(null);
   const [mpLoading, setMpLoading] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -662,9 +664,22 @@ const ReservationStatusCard = ({
               </div>
             )}
 
-            {/* Installments detail */}
+            {/* Real installments plan (Module 4) */}
+            <StudentInstallmentsPlan
+              reservationId={reservation.id}
+              currency={currency}
+              amountTotal={reservation.amount_total || 0}
+              amountPaid={reservation.amount_paid || 0}
+              balanceDue={reservation.balance_due ?? 0}
+              onReportPayment={(instId) => {
+                setPreselectedInstallmentId(instId ?? null);
+                setShowPaymentDrawer(true);
+              }}
+            />
+
+            {/* Legacy metadata installments fallback (old events without materialized installments) */}
             {installments.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-border/50">
+              <div className="space-y-2 pt-2 border-t border-border/50 legacy-installments-fallback">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Cuotas pagadas</span>
                   <span className="font-semibold text-foreground">{paidInstallments} de {installments.length}</span>
@@ -674,10 +689,10 @@ const ReservationStatusCard = ({
                     const instAmount = parseFloat(inst.amount || "0");
                     const accBefore = installments.slice(0, idx).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
                     const isPaidInst = (reservation.amount_paid || 0) >= accBefore + instAmount;
-                    const isOverdue = inst.due_date && new Date(inst.due_date) < new Date() && !isPaidInst;
+                    const isOverdueInst = inst.due_date && new Date(inst.due_date) < new Date() && !isPaidInst;
                     return (
                       <div key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
-                        isPaidInst ? "bg-emerald-500/10 border border-emerald-500/20" : isOverdue ? "bg-destructive/10 border border-destructive/20" : "bg-muted/40 border border-border/30"
+                        isPaidInst ? "bg-emerald-500/10 border border-emerald-500/20" : isOverdueInst ? "bg-destructive/10 border border-destructive/20" : "bg-muted/40 border border-border/30"
                       }`}>
                         <div className="flex items-center gap-2">
                           {isPaidInst ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
@@ -686,7 +701,7 @@ const ReservationStatusCard = ({
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{formatPrice(instAmount, currency)}</span>
                           {inst.due_date && (
-                            <span className={isOverdue ? "text-destructive" : "text-muted-foreground"}>
+                            <span className={isOverdueInst ? "text-destructive" : "text-muted-foreground"}>
                               {new Date(inst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                             </span>
                           )}
@@ -970,11 +985,12 @@ const ReservationStatusCard = ({
 
       <ReportPaymentDrawer
         open={showPaymentDrawer}
-        onOpenChange={setShowPaymentDrawer}
+        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) setPreselectedInstallmentId(null); }}
         reservation={reservation}
         alumnoId={alumnoId}
         currency={currency}
         onSuccess={onPaymentReported}
+        preselectedInstallmentId={preselectedInstallmentId}
       />
 
       <CancelReservationDrawer
