@@ -1138,6 +1138,65 @@ export type Database = {
           },
         ]
       }
+      event_installments: {
+        Row: {
+          active: boolean
+          amount: number
+          created_at: string
+          currency: string
+          description: string | null
+          due_date: string | null
+          event_id: string
+          external_payment_url_template: string | null
+          id: string
+          label: string
+          number: number
+          payment_method_hint: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          created_at?: string
+          currency: string
+          description?: string | null
+          due_date?: string | null
+          event_id: string
+          external_payment_url_template?: string | null
+          id?: string
+          label: string
+          number: number
+          payment_method_hint?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          event_id?: string
+          external_payment_url_template?: string | null
+          id?: string
+          label?: string
+          number?: number
+          payment_method_hint?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_installments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           approved_at: string | null
@@ -2593,6 +2652,84 @@ export type Database = {
           },
         ]
       }
+      reservation_installments: {
+        Row: {
+          amount: number
+          balance_due: number
+          condoned_at: string | null
+          created_at: string
+          currency: string
+          due_date: string | null
+          event_installment_id: string | null
+          external_payment_url: string | null
+          id: string
+          installment_number: number
+          label: string
+          notas: string | null
+          paid_amount: number
+          rescheduled_from_due_date: string | null
+          reservation_id: string
+          sort_order: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          balance_due?: number
+          condoned_at?: string | null
+          created_at?: string
+          currency: string
+          due_date?: string | null
+          event_installment_id?: string | null
+          external_payment_url?: string | null
+          id?: string
+          installment_number: number
+          label: string
+          notas?: string | null
+          paid_amount?: number
+          rescheduled_from_due_date?: string | null
+          reservation_id: string
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          balance_due?: number
+          condoned_at?: string | null
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          event_installment_id?: string | null
+          external_payment_url?: string | null
+          id?: string
+          installment_number?: number
+          label?: string
+          notas?: string | null
+          paid_amount?: number
+          rescheduled_from_due_date?: string | null
+          reservation_id?: string
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_installments_event_installment_id_fkey"
+            columns: ["event_installment_id"]
+            isOneToOne: false
+            referencedRelation: "event_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_installments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_notifications: {
         Row: {
           alumno_id: string | null
@@ -2663,6 +2800,8 @@ export type Database = {
           event_currency: string | null
           exchange_rate_to_event_currency: number | null
           id: string
+          installment_id: string | null
+          installment_number: number | null
           manual_override: boolean
           notes: string | null
           original_amount: number | null
@@ -2687,6 +2826,8 @@ export type Database = {
           event_currency?: string | null
           exchange_rate_to_event_currency?: number | null
           id?: string
+          installment_id?: string | null
+          installment_number?: number | null
           manual_override?: boolean
           notes?: string | null
           original_amount?: number | null
@@ -2711,6 +2852,8 @@ export type Database = {
           event_currency?: string | null
           exchange_rate_to_event_currency?: number | null
           id?: string
+          installment_id?: string | null
+          installment_number?: number | null
           manual_override?: boolean
           notes?: string | null
           original_amount?: number | null
@@ -2732,6 +2875,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_payments_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_installments"
             referencedColumns: ["id"]
           },
           {
@@ -3524,6 +3674,10 @@ export type Database = {
           id: string
           nombre: string
         }[]
+      }
+      materialize_reservation_installments: {
+        Args: { p_reservation_id: string }
+        Returns: number
       }
       move_to_dlq: {
         Args: {
