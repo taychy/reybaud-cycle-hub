@@ -254,6 +254,7 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     toast.success("Cuota desactivada. Las reservas existentes mantienen su snapshot.");
+    await syncMetadataMirror();
     load();
   };
 
