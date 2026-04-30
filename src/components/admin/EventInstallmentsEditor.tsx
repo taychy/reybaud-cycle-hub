@@ -233,6 +233,11 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...patch } : i)));
+    // Espejo: solo si cambió algún campo que metadata refleja
+    const mirroredKeys = ["number", "label", "amount", "due_date", "currency", "sort_order", "active"];
+    if (Object.keys(patch).some((k) => mirroredKeys.includes(k))) {
+      await syncMetadataMirror();
+    }
   };
 
   const handleDeactivate = async (item: EventInstallment) => {
