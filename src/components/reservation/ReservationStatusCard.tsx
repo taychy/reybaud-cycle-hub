@@ -196,6 +196,14 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
       actionType: "none",
     },
     {
+      id: "extras",
+      label: "Configurar mi viaje",
+      description: "Habitación, comidas, bici y extras",
+      icon: Package,
+      completed: false,
+      actionType: "none",
+    },
+    {
       id: "pago",
       label: "Informar próximo pago",
       description: "Cargá tu comprobante de pago",
@@ -235,14 +243,6 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
       icon: ShieldCheck,
       completed: !!checklistData["seguro"]?.completed,
       actionType: "document",
-    },
-    {
-      id: "extras",
-      label: "Elegir extras del viaje",
-      description: "Opciones adicionales disponibles",
-      icon: Package,
-      completed: false,
-      actionType: "none",
     },
   ];
 
