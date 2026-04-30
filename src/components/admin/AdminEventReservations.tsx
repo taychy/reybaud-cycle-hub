@@ -675,15 +675,21 @@ const AdminEventReservations = ({
     const rate = parseFloat(adminPayRate) || 1;
     const sameCurrency = adminPayCurrency === evCurr;
 
-    // Calculate equivalent
-    let eqAmt = sameCurrency ? origAmt : origAmt * rate;
-    const isOverride = adminPayOverride && adminPayEquivalent && parseFloat(adminPayEquivalent) !== eqAmt;
-    if (isOverride) {
-      if (!adminPayOverrideReason.trim()) {
-        toast({ title: "Ingresá un motivo para el override de equivalente.", variant: "destructive" });
-        return;
-      }
-      eqAmt = parseFloat(adminPayEquivalent);
+    // Equivalent: use adminPayEquivalent if set, otherwise compute
+    const parsedEq = parseFloat(adminPayEquivalent);
+    let eqAmt = sameCurrency ? origAmt : (parsedEq > 0 ? parsedEq : origAmt * rate);
+
+    if (!eqAmt || eqAmt <= 0) {
+      toast({ title: "No se pudo determinar el equivalente reconocido. Completá al menos 2 de los 3 campos (monto, cotización, equivalente).", variant: "destructive" });
+      return;
+    }
+
+    // Override = equivalent differs from amount × rate
+    const computedEqCheck = sameCurrency ? origAmt : origAmt * rate;
+    const isOverride = !sameCurrency && Math.abs(eqAmt - computedEqCheck) > 0.005;
+    if (isOverride && !adminPayOverrideReason.trim()) {
+      toast({ title: "Ingresá un motivo para el override de equivalente.", variant: "destructive" });
+      return;
     }
 
     // If no installment selected but there are pending installments, require reason
