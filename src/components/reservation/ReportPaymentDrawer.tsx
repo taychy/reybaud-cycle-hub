@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import {
-  Banknote, Loader2, CheckCircle, Upload, X, FileText,
+  Banknote, Loader2, CheckCircle, Upload, X, FileText, Info,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -15,6 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 
 interface Reservation {
@@ -26,17 +27,33 @@ interface Reservation {
   payment_status: string;
 }
 
+interface InstallmentOption {
+  id: string;
+  installment_number: number;
+  label: string;
+  amount: number;
+  currency: string;
+  due_date: string | null;
+  balance_due: number;
+  status: string;
+}
+
 interface ReportPaymentDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reservation: Reservation;
   alumnoId: string;
-  /** Moneda base del evento (ej: "EUR" para Girona, "ARS" para eventos locales). */
   currency: string;
   onSuccess: () => void;
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
+
+const fmtDate = (d?: string | null) => {
+  if (!d) return "";
+  const [y, m, dd] = d.split("-");
+  return `${dd}/${m}/${y}`;
+};
 
 const ReportPaymentDrawer = ({
   open, onOpenChange, reservation, alumnoId, currency, onSuccess,
@@ -55,7 +72,73 @@ const ReportPaymentDrawer = ({
   const [proofPath, setProofPath] = useState<string | null>(null);
   const [proofFileName, setProofFileName] = useState<string | null>(null);
 
-  // Comprobante obligatorio salvo efectivo (cualquier moneda).
+  // --- Installment selector state ---
+  const [installments, setInstallments] = useState<InstallmentOption[]>([]);
+  const [loadingInstallments, setLoadingInstallments] = useState(false);
+  // "next" = próxima cuota, "other:<id>" = otra cuota, "general" = pago general
+  const [installmentChoice, setInstallmentChoice] = useState<string>("general");
+
+  // Fetch installments when drawer opens
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const fetchInstallments = async () => {
+      setLoadingInstallments(true);
+      const { data } = await supabase
+        .from("reservation_installments")
+        .select("id,installment_number,label,amount,currency,due_date,balance_due,status")
+        .eq("reservation_id", reservation.id)
+        .in("status", ["pendiente", "parcial", "reprogramada"])
+        .order("sort_order", { ascending: true })
+        .order("installment_number", { ascending: true });
+      if (cancelled) return;
+      const items = (data as InstallmentOption[] | null) || [];
+      setInstallments(items);
+      if (items.length > 0) {
+        setInstallmentChoice("next");
+        setAmount(items[0].balance_due.toString());
+      } else {
+        setInstallmentChoice("general");
+      }
+      setLoadingInstallments(false);
+    };
+    fetchInstallments();
+    return () => { cancelled = true; };
+  }, [open, reservation.id]);
+
+  const hasInstallments = installments.length > 0;
+
+  const nextInstallment = installments[0] || null;
+
+  const otherInstallments = useMemo(
+    () => (installments.length > 1 ? installments.slice(1) : []),
+    [installments]
+  );
+
+  // Resolve selected installment
+  const selectedInstallment = useMemo<InstallmentOption | null>(() => {
+    if (installmentChoice === "next" && nextInstallment) return nextInstallment;
+    if (installmentChoice.startsWith("other:")) {
+      const id = installmentChoice.replace("other:", "");
+      return installments.find((i) => i.id === id) || null;
+    }
+    return null;
+  }, [installmentChoice, nextInstallment, installments]);
+
+  // When choice changes, update suggested amount
+  const handleInstallmentChoiceChange = (value: string) => {
+    setInstallmentChoice(value);
+    if (value === "general") {
+      setAmount(reservation.balance_due?.toString() || "");
+    } else if (value === "next" && nextInstallment) {
+      setAmount(nextInstallment.balance_due.toString());
+    } else if (value.startsWith("other:")) {
+      const id = value.replace("other:", "");
+      const inst = installments.find((i) => i.id === id);
+      if (inst) setAmount(inst.balance_due.toString());
+    }
+  };
+
   const isCashMethod = method === "efectivo";
   const proofRequired = !isCashMethod;
   const referenceOrNotesRequired = isCashMethod;
@@ -109,8 +192,6 @@ const ReportPaymentDrawer = ({
 
     const amt = parseFloat(amount);
 
-    // Insert: original_* es la verdad. amount/currency se mantienen como espejo
-    // para no romper código viejo. Equivalente y cotización quedan NULL: los define admin.
     const { error: payErr } = await supabase
       .from("reservation_payments" as any)
       .insert({
@@ -127,8 +208,10 @@ const ReportPaymentDrawer = ({
         payment_method: method,
         payment_reference: reference.trim() || null,
         notes: notes.trim() || null,
-        proof_url: proofPath, // path en bucket privado
+        proof_url: proofPath,
         status: "informado",
+        installment_id: selectedInstallment?.id || null,
+        installment_number: selectedInstallment?.installment_number || null,
       } as any);
 
     if (payErr) {
@@ -137,8 +220,6 @@ const ReportPaymentDrawer = ({
       return;
     }
 
-    // Marcar reserva como pendiente de verificación. NO toca amount_paid: eso lo hace
-    // recalculate_reservation_payment_totals al validar.
     const oldPaymentStatus = reservation.payment_status;
     await supabase
       .from("event_reservations" as any)
@@ -148,6 +229,10 @@ const ReportPaymentDrawer = ({
       } as any)
       .eq("id", reservation.id);
 
+    const installmentLabel = selectedInstallment
+      ? ` → ${selectedInstallment.label}`
+      : "";
+
     await supabase.from("reservation_status_history" as any).insert({
       reservation_id: reservation.id,
       old_payment_status: oldPaymentStatus,
@@ -155,7 +240,7 @@ const ReportPaymentDrawer = ({
       old_reservation_status: reservation.reservation_status,
       new_reservation_status: reservation.reservation_status,
       changed_by_role: "alumno",
-      note: `Pago informado: ${formatPrice(amt, paymentCurrency)} via ${method}`,
+      note: `Pago informado: ${formatPrice(amt, paymentCurrency)} via ${method}${installmentLabel}`,
     } as any);
 
     setSubmitting(false);
@@ -176,6 +261,8 @@ const ReportPaymentDrawer = ({
       setNotes("");
       setProofPath(null);
       setProofFileName(null);
+      setInstallmentChoice("general");
+      setInstallments([]);
     }, 300);
   };
 
@@ -213,6 +300,85 @@ const ReportPaymentDrawer = ({
                     {formatPrice(reservation.balance_due, currency)}
                   </p>
                 </div>
+              )}
+
+              {/* --- Installment selector --- */}
+              {!loadingInstallments && hasInstallments && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">¿A qué querés aplicar este pago?</Label>
+                  <RadioGroup
+                    value={installmentChoice}
+                    onValueChange={handleInstallmentChoiceChange}
+                    className="space-y-2"
+                  >
+                    {/* Next installment */}
+                    {nextInstallment && (
+                      <label
+                        htmlFor="inst-next"
+                        className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                          installmentChoice === "next"
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-muted/20"
+                        }`}
+                      >
+                        <RadioGroupItem value="next" id="inst-next" className="mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">{nextInstallment.label}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Saldo: {formatPrice(nextInstallment.balance_due, nextInstallment.currency)}
+                            {nextInstallment.due_date && ` · Vence ${fmtDate(nextInstallment.due_date)}`}
+                          </p>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* Other installments */}
+                    {otherInstallments.map((inst) => (
+                      <label
+                        key={inst.id}
+                        htmlFor={`inst-${inst.id}`}
+                        className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                          installmentChoice === `other:${inst.id}`
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-muted/20"
+                        }`}
+                      >
+                        <RadioGroupItem value={`other:${inst.id}`} id={`inst-${inst.id}`} className="mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">{inst.label}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Saldo: {formatPrice(inst.balance_due, inst.currency)}
+                            {inst.due_date && ` · Vence ${fmtDate(inst.due_date)}`}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+
+                    {/* General payment */}
+                    <label
+                      htmlFor="inst-general"
+                      className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                        installmentChoice === "general"
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-muted/20"
+                      }`}
+                    >
+                      <RadioGroupItem value="general" id="inst-general" className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">Pago general / no sé</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Si no estás seguro, podés elegir esta opción. Administración lo imputará correctamente al validarlo.
+                        </p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+                </div>
+              )}
+
+              {loadingInstallments && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Cargando cuotas…
+                </p>
               )}
 
               <div className="grid grid-cols-2 gap-3">
