@@ -96,7 +96,12 @@ const ReportPaymentDrawer = ({
       if (cancelled) return;
       const items = (data as InstallmentOption[] | null) || [];
       setInstallments(items);
-      if (items.length > 0) {
+      if (preselectedInstallmentId && items.find(i => i.id === preselectedInstallmentId)) {
+        const target = items.find(i => i.id === preselectedInstallmentId)!;
+        const isNext = items[0]?.id === preselectedInstallmentId;
+        setInstallmentChoice(isNext ? "next" : `other:${preselectedInstallmentId}`);
+        setAmount(target.balance_due.toString());
+      } else if (items.length > 0) {
         setInstallmentChoice("next");
         setAmount(items[0].balance_due.toString());
       } else {
