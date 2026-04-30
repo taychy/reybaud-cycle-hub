@@ -112,6 +112,68 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
 
   useEffect(() => { load(); }, [load]);
 
+  /**
+   * Espejo temporal unidireccional event_installments → events.metadata.installments.
+   * Mantiene compatibilidad con lectores legacy (ReservationStatusCard, AdminEventReservations,
+   * ReportPaymentDrawer) hasta que Etapa 3/4 los migre a event_installments / reservation_installments.
+   *
+   * Reglas:
+   * - Solo cuotas activas, ordenadas por sort_order y luego number.
+   * - amount como string (formato legacy esperado por metadata.installments).
+   * - installments_enabled = true si hay alguna cuota activa, false en caso contrario.
+   * - installments = [] cuando no hay activas.
+   */
+  const syncMetadataMirror = useCallback(async () => {
+    // Leer estado fresco desde DB (no confiar en el state local)
+    const { data: fresh, error: freshErr } = await supabase
+      .from("event_installments")
+      .select("number,label,amount,currency,due_date,sort_order")
+      .eq("event_id", eventId)
+      .eq("active", true)
+      .order("sort_order", { ascending: true })
+      .order("number", { ascending: true });
+
+    if (freshErr) {
+      console.warn("[installments mirror] read failed", freshErr);
+      return;
+    }
+
+    const mirror = (fresh || []).map((c: any) => ({
+      number: c.number,
+      label: c.label,
+      amount: String(c.amount ?? ""),
+      due_date: c.due_date || "",
+      currency: c.currency,
+    }));
+
+    const { data: ev, error: evErr } = await supabase
+      .from("events")
+      .select("metadata")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (evErr || !ev) {
+      console.warn("[installments mirror] event read failed", evErr);
+      return;
+    }
+
+    const currentMeta = (ev.metadata as Record<string, any>) || {};
+    const nextMeta = {
+      ...currentMeta,
+      installments: mirror,
+      installments_enabled: mirror.length > 0,
+    };
+
+    const { error: upErr } = await supabase
+      .from("events")
+      .update({ metadata: nextMeta })
+      .eq("id", eventId);
+
+    if (upErr) {
+      console.warn("[installments mirror] write failed", upErr);
+    }
+  }, [eventId]);
+
   const handleAdd = async () => {
     const nextNumber = items.filter((i) => i.active).length > 0
       ? Math.max(...items.filter((i) => i.active).map((i) => i.number)) + 1
@@ -141,6 +203,7 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     toast.success("Cuota agregada");
+    await syncMetadataMirror();
     load();
   };
 
@@ -170,6 +233,11 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...patch } : i)));
+    // Espejo: solo si cambió algún campo que metadata refleja
+    const mirroredKeys = ["number", "label", "amount", "due_date", "currency", "sort_order", "active"];
+    if (Object.keys(patch).some((k) => mirroredKeys.includes(k))) {
+      await syncMetadataMirror();
+    }
   };
 
   const handleDeactivate = async (item: EventInstallment) => {
@@ -186,6 +254,7 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     toast.success("Cuota desactivada. Las reservas existentes mantienen su snapshot.");
+    await syncMetadataMirror();
     load();
   };
 
@@ -206,6 +275,7 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     toast.success("Cuota eliminada");
+    await syncMetadataMirror();
     load();
   };
 
