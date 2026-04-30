@@ -203,6 +203,7 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
       return;
     }
     toast.success("Cuota agregada");
+    await syncMetadataMirror();
     load();
   };
 
