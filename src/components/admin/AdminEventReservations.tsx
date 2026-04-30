@@ -379,7 +379,8 @@ const AdminEventReservations = ({
     setSendingNotif(true);
 
     // Always rebuild HTML from the (potentially edited) text to keep them in sync
-    const finalHtml = buildHtmlFromText(contenidoTexto, tipo);
+    const reservaLink = getReservaLink(selectedRes);
+    const finalHtml = buildHtmlFromText(contenidoTexto, tipo, reservaLink);
 
     const { data: sessionData } = await supabase.auth.getSession();
     const adminEmail = sessionData?.session?.user?.email || "admin";
