@@ -79,6 +79,8 @@ interface Payment {
   proof_url: string | null;
   status: string;
   created_at: string;
+  installment_id: string | null;
+  installment_number: number | null;
 }
 
 interface AlumnoOption {
