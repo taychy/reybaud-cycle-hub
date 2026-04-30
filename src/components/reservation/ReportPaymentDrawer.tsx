@@ -45,6 +45,8 @@ interface ReportPaymentDrawerProps {
   alumnoId: string;
   currency: string;
   onSuccess: () => void;
+  /** If set, preselect this installment when opening */
+  preselectedInstallmentId?: string | null;
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
