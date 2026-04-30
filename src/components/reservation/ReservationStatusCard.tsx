@@ -19,6 +19,7 @@ import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
+import StudentInstallmentsPlan from "./StudentInstallmentsPlan";
 
 interface Reservation {
   id: string;
