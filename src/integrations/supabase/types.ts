@@ -2660,7 +2660,10 @@ export type Database = {
           changed_at: string
           changed_by: string | null
           id: string
-          reason: string | null
+          new_installment_id: string | null
+          payment_id: string | null
+          previous_installment_id: string | null
+          reason: string
           reservation_id: string
           reservation_installment_id: string | null
         }
@@ -2671,7 +2674,10 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           id?: string
-          reason?: string | null
+          new_installment_id?: string | null
+          payment_id?: string | null
+          previous_installment_id?: string | null
+          reason: string
           reservation_id: string
           reservation_installment_id?: string | null
         }
@@ -2682,7 +2688,10 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           id?: string
-          reason?: string | null
+          new_installment_id?: string | null
+          payment_id?: string | null
+          previous_installment_id?: string | null
+          reason?: string
           reservation_id?: string
           reservation_installment_id?: string | null
         }
