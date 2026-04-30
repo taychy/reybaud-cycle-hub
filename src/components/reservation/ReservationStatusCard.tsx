@@ -949,11 +949,12 @@ const ReservationStatusCard = ({
 
       <ReportPaymentDrawer
         open={showPaymentDrawer}
-        onOpenChange={setShowPaymentDrawer}
+        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) setPreselectedInstallmentId(null); }}
         reservation={reservation}
         alumnoId={alumnoId}
         currency={currency}
         onSuccess={onPaymentReported}
+        preselectedInstallmentId={preselectedInstallmentId}
       />
 
       <CancelReservationDrawer
