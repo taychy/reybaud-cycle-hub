@@ -264,6 +264,7 @@ const ReservationStatusCard = ({
   const isTripLike = eventType === "camp" || eventType === "viaje";
   const { toast } = useToast();
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
+  const [preselectedInstallmentId, setPreselectedInstallmentId] = useState<string | null>(null);
   const [mpLoading, setMpLoading] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
