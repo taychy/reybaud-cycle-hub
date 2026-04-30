@@ -1435,6 +1435,7 @@ const AdminEventReservations = ({
                        setAdminPayOverride(false);
                      }
                    };
+                   const hasPendingInst = matInstallments.some((i: any) => i.status === "pendiente" || i.status === "parcial");
 
                    return (
                    <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
