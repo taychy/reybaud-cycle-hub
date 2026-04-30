@@ -2652,11 +2652,49 @@ export type Database = {
           },
         ]
       }
+      reservation_installment_history: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          changed_at: string
+          changed_by: string | null
+          id: string
+          reason: string | null
+          reservation_id: string
+          reservation_installment_id: string | null
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          reason?: string | null
+          reservation_id: string
+          reservation_installment_id?: string | null
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          reason?: string | null
+          reservation_id?: string
+          reservation_installment_id?: string | null
+        }
+        Relationships: []
+      }
       reservation_installments: {
         Row: {
           amount: number
           balance_due: number
+          condoned_amount: number
           condoned_at: string | null
+          condoned_by: string | null
           created_at: string
           currency: string
           due_date: string | null
@@ -2666,17 +2704,23 @@ export type Database = {
           installment_number: number
           label: string
           notas: string | null
+          original_due_date: string | null
           paid_amount: number
+          rescheduled_at: string | null
+          rescheduled_by: string | null
           rescheduled_from_due_date: string | null
           reservation_id: string
           sort_order: number
           status: string
+          status_reason: string | null
           updated_at: string
         }
         Insert: {
           amount: number
           balance_due?: number
+          condoned_amount?: number
           condoned_at?: string | null
+          condoned_by?: string | null
           created_at?: string
           currency: string
           due_date?: string | null
@@ -2686,17 +2730,23 @@ export type Database = {
           installment_number: number
           label: string
           notas?: string | null
+          original_due_date?: string | null
           paid_amount?: number
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
           rescheduled_from_due_date?: string | null
           reservation_id: string
           sort_order?: number
           status?: string
+          status_reason?: string | null
           updated_at?: string
         }
         Update: {
           amount?: number
           balance_due?: number
+          condoned_amount?: number
           condoned_at?: string | null
+          condoned_by?: string | null
           created_at?: string
           currency?: string
           due_date?: string | null
@@ -2706,11 +2756,15 @@ export type Database = {
           installment_number?: number
           label?: string
           notas?: string | null
+          original_due_date?: string | null
           paid_amount?: number
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
           rescheduled_from_due_date?: string | null
           reservation_id?: string
           sort_order?: number
           status?: string
+          status_reason?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3651,6 +3705,10 @@ export type Database = {
     }
     Functions: {
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
+      condone_installment: {
+        Args: { p_amount: number; p_installment_id: string; p_reason: string }
+        Returns: undefined
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -3703,6 +3761,14 @@ export type Database = {
       }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
+        Returns: undefined
+      }
+      reschedule_installment: {
+        Args: {
+          p_installment_id: string
+          p_new_due_date: string
+          p_reason: string
+        }
         Returns: undefined
       }
     }
