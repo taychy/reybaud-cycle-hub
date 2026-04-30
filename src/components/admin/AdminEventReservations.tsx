@@ -341,7 +341,20 @@ const AdminEventReservations = ({
     setNotifyHtml(tpl.html(ctx));
   };
 
-  const buildHtmlFromText = (text: string, tipo: string) => {
+  const getReservaLink = (res: EventReservation): string => {
+    const origin = window.location.origin;
+    if (res.external_participant_id && res.access_token) {
+      return `${origin}/viaje/mi-reserva?token=${res.access_token}`;
+    }
+    return `${origin}/eventos/${eventId}`;
+  };
+
+  const buildCtaButton = (reservaLink?: string): string => {
+    if (!reservaLink) return "";
+    return `<div style="text-align:center;margin:24px 0 8px"><a href="${reservaLink}" style="display:inline-block;padding:12px 28px;background-color:#1a1a2e;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:14px">Ver mi reserva</a></div>`;
+  };
+
+  const buildHtmlFromText = (text: string, tipo: string, reservaLink?: string) => {
     const colorMap: Record<string, string> = {
       pago_registrado: "#059669",
       cuota_pendiente: "#d97706",
@@ -357,7 +370,8 @@ const AdminEventReservations = ({
     const color = colorMap[tipo] || "#1a1a2e";
     const title = titleMap[tipo] || "Notificación";
     const htmlBody = text.replace(/\n/g, "<br/>");
-    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
+    const cta = buildCtaButton(reservaLink);
+    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
   };
 
   const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, _contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
