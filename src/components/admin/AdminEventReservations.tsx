@@ -248,6 +248,14 @@ const AdminEventReservations = ({
   const [submittingAdminPay, setSubmittingAdminPay] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [notifyOnPayment, setNotifyOnPayment] = useState(true);
+  const [adminPayCurrency, setAdminPayCurrency] = useState("EUR");
+  const [adminPayRate, setAdminPayRate] = useState("1");
+  const [adminPayEquivalent, setAdminPayEquivalent] = useState("");
+  const [adminPayOverride, setAdminPayOverride] = useState(false);
+  const [adminPayOverrideReason, setAdminPayOverrideReason] = useState("");
+  const [adminPayInstallmentId, setAdminPayInstallmentId] = useState<string | null>(null);
+  const [adminPayGeneralReason, setAdminPayGeneralReason] = useState("");
+  const [matInstallments, setMatInstallments] = useState<any[]>([]);
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -646,28 +654,73 @@ const AdminEventReservations = ({
     loadReservations();
   };
 
+  // Load materialized installments for the selected reservation
+  const loadMatInstallments = async (resId: string) => {
+    const { data } = await supabase
+      .from("reservation_installments" as any)
+      .select("*")
+      .eq("reservation_id", resId)
+      .order("sort_order", { ascending: true });
+    setMatInstallments((data as any[]) || []);
+  };
+
   const registerAdminPayment = async () => {
     if (!selectedRes || !adminPayAmount || parseFloat(adminPayAmount) <= 0) {
       toast({ title: "Ingresá un monto válido.", variant: "destructive" });
       return;
     }
+
+    const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
+    const origAmt = parseFloat(adminPayAmount);
+    const rate = parseFloat(adminPayRate) || 1;
+    const sameCurrency = adminPayCurrency === evCurr;
+
+    // Calculate equivalent
+    let eqAmt = sameCurrency ? origAmt : origAmt * rate;
+    const isOverride = adminPayOverride && adminPayEquivalent && parseFloat(adminPayEquivalent) !== eqAmt;
+    if (isOverride) {
+      if (!adminPayOverrideReason.trim()) {
+        toast({ title: "Ingresá un motivo para el override de equivalente.", variant: "destructive" });
+        return;
+      }
+      eqAmt = parseFloat(adminPayEquivalent);
+    }
+
+    // If no installment selected but there are pending installments, require reason
+    const hasPendingInstallments = matInstallments.some((i: any) => i.status === "pendiente" || i.status === "parcial");
+    if (!adminPayInstallmentId && hasPendingInstallments && !adminPayGeneralReason.trim()) {
+      toast({ title: "Indicá un motivo para registrar como pago general con cuotas pendientes.", variant: "destructive" });
+      return;
+    }
+
     setSubmittingAdminPay(true);
-    const amt = parseFloat(adminPayAmount);
-    const curr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
+
+    const { data: session } = await supabase.auth.getSession();
+    const adminUid = session?.session?.user?.id || null;
 
     const { error: payErr } = await supabase
       .from("reservation_payments" as any)
       .insert({
         reservation_id: selectedRes.id,
         alumno_id: selectedRes.alumno_id,
-        amount: amt,
-        currency: curr,
+        amount: eqAmt,
+        currency: evCurr,
+        original_amount: origAmt,
+        original_currency: adminPayCurrency,
+        event_currency: evCurr,
+        exchange_rate_to_event_currency: sameCurrency ? 1 : rate,
+        equivalent_amount_event_currency: eqAmt,
+        manual_override: !!isOverride,
         payment_date: adminPayDate,
         payment_method: adminPayMethod,
         payment_reference: adminPayRef.trim() || null,
         notes: adminPayNotes.trim() || null,
         status: "validado",
+        review_action: "validado",
         reviewed_at: new Date().toISOString(),
+        reviewed_by: adminUid,
+        review_notes: isOverride ? adminPayOverrideReason.trim() : (adminPayGeneralReason.trim() || null),
+        installment_id: adminPayInstallmentId || null,
       } as any);
 
     if (payErr) {
@@ -676,36 +729,15 @@ const AdminEventReservations = ({
       return;
     }
 
-    const newPaid = (selectedRes.amount_paid || 0) + amt;
-    const newBalance = Math.max(0, (selectedRes.amount_total || 0) - newPaid);
-    const newPaymentStatus = newBalance <= 0 ? "pago_validado" : "parcial";
-
-    let nextDue: string | null = null;
-    if (installments.length > 0 && newBalance > 0) {
-      let accumulated = 0;
-      for (const inst of installments) {
-        accumulated += parseFloat(inst.amount || "0");
-        if (accumulated > newPaid && inst.due_date) { nextDue = inst.due_date; break; }
-      }
-    }
-
-    await supabase
-      .from("event_reservations" as any)
-      .update({
-        amount_paid: newPaid,
-        balance_due: newBalance,
-        payment_status: newPaymentStatus,
-        estado: newPaymentStatus === "pago_validado" ? "pago_confirmado" : "pendiente_verificacion",
-        next_due_date: nextDue,
-      } as any)
-      .eq("id", selectedRes.id);
+    // Use RPC to recalculate totals
+    await supabase.rpc("recalculate_reservation_payment_totals" as any, { p_reservation_id: selectedRes.id });
 
     await supabase.from("reservation_status_history" as any).insert({
       reservation_id: selectedRes.id,
       old_payment_status: selectedRes.payment_status,
-      new_payment_status: newPaymentStatus,
+      new_payment_status: "recalculado",
       changed_by_role: "admin",
-      note: `Pago registrado por admin: ${formatPrice(amt, curr)} via ${adminPayMethod}`,
+      note: `Pago manual validado: ${formatPrice(origAmt, adminPayCurrency)}${!sameCurrency ? ` (≈ ${formatPrice(eqAmt, evCurr)})` : ""} via ${adminPayMethod}`,
     } as any);
 
     setSubmittingAdminPay(false);
@@ -713,17 +745,25 @@ const AdminEventReservations = ({
     setAdminPayAmount("");
     setAdminPayRef("");
     setAdminPayNotes("");
+    setAdminPayCurrency(evCurr);
+    setAdminPayRate("1");
+    setAdminPayEquivalent("");
+    setAdminPayOverride(false);
+    setAdminPayOverrideReason("");
+    setAdminPayInstallmentId(null);
+    setAdminPayGeneralReason("");
     toast({ title: "Pago registrado y validado" });
     loadPayments(selectedRes.id);
     loadReservations();
+    loadMatInstallments(selectedRes.id);
 
     // Auto-facturar (segmento viajes) — solo si hay alumno_id
     if (selectedRes.alumno_id) {
       supabase.functions.invoke("auto-facturar", {
         body: {
           alumno_id: selectedRes.alumno_id,
-          concepto: `Reserva ${eventTitle} — pago ${formatPrice(amt, curr)}`,
-          monto: amt,
+          concepto: `Reserva ${eventTitle} — pago ${formatPrice(eqAmt, evCurr)}`,
+          monto: eqAmt,
           referencia_tipo: "evento",
           referencia_id: selectedRes.id,
           segmento: "viajes",
@@ -737,15 +777,23 @@ const AdminEventReservations = ({
 
     // Send notification if toggled on
     if (notifyOnPayment) {
-      const ctx = getNotifContext(selectedRes, { monto: amt });
+      const ctx = getNotifContext(selectedRes, { monto: eqAmt });
       const tpl = notifTemplates.pago_registrado;
-      const updatedCtx = { ...ctx, abonado: formatPrice(newPaid, curr), saldo: formatPrice(newBalance, curr) };
+      // Reload to get updated totals
+      const { data: updatedRes } = await supabase
+        .from("event_reservations" as any)
+        .select("amount_paid, balance_due")
+        .eq("id", selectedRes.id)
+        .maybeSingle();
+      const newPaid = (updatedRes as any)?.amount_paid ?? 0;
+      const newBalance = (updatedRes as any)?.balance_due ?? 0;
+      const updatedCtx = { ...ctx, abonado: formatPrice(newPaid, evCurr), saldo: formatPrice(newBalance, evCurr) };
       await sendNotification(
         "pago_registrado",
         tpl.asunto.replace("{{evento}}", eventTitle),
         tpl.contenido(updatedCtx),
         tpl.html(updatedCtx),
-        { monto: amt, metodo: adminPayMethod, nuevo_abonado: newPaid, nuevo_saldo: newBalance },
+        { monto: eqAmt, metodo: adminPayMethod, nuevo_abonado: newPaid, nuevo_saldo: newBalance },
         `pago-${selectedRes.id}-${Date.now()}`
       );
     }
@@ -1297,28 +1345,136 @@ const AdminEventReservations = ({
                     size="sm"
                     className="h-8 text-xs"
                     onClick={() => {
-                      setShowAdminPayment(!showAdminPayment);
-                      setAdminPayAmount(selectedRes.balance_due?.toString() || "");
+                      const toggling = !showAdminPayment;
+                      setShowAdminPayment(toggling);
+                      if (toggling && selectedRes) {
+                        const evCurr = curr(selectedRes);
+                        setAdminPayCurrency(evCurr);
+                        setAdminPayRate("1");
+                        setAdminPayEquivalent("");
+                        setAdminPayOverride(false);
+                        setAdminPayOverrideReason("");
+                        setAdminPayInstallmentId(null);
+                        setAdminPayGeneralReason("");
+                        setAdminPayAmount(selectedRes.balance_due?.toString() || "");
+                        loadMatInstallments(selectedRes.id);
+                      }
                     }}
                   >
-                    <Banknote className="w-3.5 h-3.5 mr-1" /> Registrar pago
+                    <Banknote className="w-3.5 h-3.5 mr-1" /> Registrar pago manual validado
                   </Button>
                 </div>
 
                 {/* Admin payment form */}
-                {showAdminPayment && (
+                {showAdminPayment && (() => {
+                  const evCurr = selectedRes ? curr(selectedRes) : eventCurrency;
+                  const sameCurrency = adminPayCurrency === evCurr;
+                  const computedEq = sameCurrency
+                    ? parseFloat(adminPayAmount) || 0
+                    : (parseFloat(adminPayAmount) || 0) * (parseFloat(adminPayRate) || 1);
+                  const hasPendingInst = matInstallments.some((i: any) => i.status === "pendiente" || i.status === "parcial");
+
+                  return (
                   <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
-                    <p className="text-xs font-semibold text-primary">Registrar pago (se valida automáticamente)</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <p className="text-xs font-semibold text-primary">Registrar pago manual validado</p>
+
+                    {/* Currency + Amount */}
+                    <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Monto *</Label>
-                        <Input type="number" step="0.01" min="0" value={adminPayAmount} onChange={(e) => setAdminPayAmount(e.target.value)} className="h-9" placeholder="Ej: 50000" />
+                        <Label className="text-[11px] text-muted-foreground">Moneda *</Label>
+                        <Select value={adminPayCurrency} onValueChange={(v) => {
+                          setAdminPayCurrency(v);
+                          setAdminPayRate(v === evCurr ? "1" : "");
+                          setAdminPayEquivalent("");
+                          setAdminPayOverride(false);
+                        }}>
+                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EUR">€ EUR</SelectItem>
+                            <SelectItem value="USD">US$ USD</SelectItem>
+                            <SelectItem value="ARS">$ ARS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Monto en {adminPayCurrency} *</Label>
+                        <Input type="number" step="0.01" min="0" value={adminPayAmount} onChange={(e) => setAdminPayAmount(e.target.value)} className="h-9" placeholder="Ej: 600" />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Fecha</Label>
                         <Input type="date" value={adminPayDate} onChange={(e) => setAdminPayDate(e.target.value)} className="h-9" />
                       </div>
                     </div>
+
+                    {/* Exchange rate (only if different currency) */}
+                    {!sameCurrency && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Cotización a {evCurr} *</Label>
+                          <Input type="number" step="0.0001" min="0" value={adminPayRate} onChange={(e) => setAdminPayRate(e.target.value)} className="h-9" placeholder={`1 ${adminPayCurrency} = ? ${evCurr}`} />
+                          <p className="text-[10px] text-muted-foreground">1 {adminPayCurrency} = {adminPayRate || "?"} {evCurr}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Equivalente reconocido ({evCurr})</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={adminPayOverride ? adminPayEquivalent : computedEq.toFixed(2)}
+                              onChange={(e) => {
+                                setAdminPayOverride(true);
+                                setAdminPayEquivalent(e.target.value);
+                              }}
+                              className="h-9"
+                            />
+                          </div>
+                          {!adminPayOverride && (
+                            <p className="text-[10px] text-emerald-400">= {formatPrice(computedEq, evCurr)}</p>
+                          )}
+                          {adminPayOverride && (
+                            <p className="text-[10px] text-amber-400">Override manual</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Override reason */}
+                    {adminPayOverride && !sameCurrency && (
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Motivo del override *</Label>
+                        <Input value={adminPayOverrideReason} onChange={(e) => setAdminPayOverrideReason(e.target.value)} className="h-9" placeholder="Ej: Cotización especial pactada..." />
+                      </div>
+                    )}
+
+                    {/* Installment selector */}
+                    {matInstallments.length > 0 && (
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Imputar a cuota</Label>
+                        <Select value={adminPayInstallmentId || "__general__"} onValueChange={(v) => {
+                          setAdminPayInstallmentId(v === "__general__" ? null : v);
+                          setAdminPayGeneralReason("");
+                        }}>
+                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__general__">Pago general</SelectItem>
+                            {matInstallments.map((inst: any) => (
+                              <SelectItem key={inst.id} value={inst.id}>
+                                {inst.label || `Cuota ${inst.installment_number}`} — {formatPrice(inst.balance_due, evCurr)} pendiente
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* General payment reason when installments exist */}
+                    {!adminPayInstallmentId && hasPendingInst && (
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-amber-400">Motivo de pago general (obligatorio con cuotas pendientes) *</Label>
+                        <Input value={adminPayGeneralReason} onChange={(e) => setAdminPayGeneralReason(e.target.value)} className="h-9" placeholder="Ej: Anticipo sin cuota específica..." />
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Método</Label>
@@ -1342,6 +1498,21 @@ const AdminEventReservations = ({
                       <Label className="text-[11px] text-muted-foreground">Nota (opcional)</Label>
                       <Input value={adminPayNotes} onChange={(e) => setAdminPayNotes(e.target.value)} className="h-9" placeholder="Observaciones..." />
                     </div>
+
+                    {/* Summary */}
+                    {parseFloat(adminPayAmount) > 0 && (
+                      <div className="p-2 rounded-lg bg-secondary/30 text-xs space-y-1">
+                        <p><strong>Resumen:</strong> {formatPrice(parseFloat(adminPayAmount), adminPayCurrency)}
+                          {!sameCurrency && ` × ${adminPayRate || "?"} = ${formatPrice(adminPayOverride ? parseFloat(adminPayEquivalent) || 0 : computedEq, evCurr)} reconocidos`}
+                        </p>
+                        {adminPayInstallmentId && (() => {
+                          const inst = matInstallments.find((i: any) => i.id === adminPayInstallmentId);
+                          return inst ? <p>→ Imputado a: <strong>{inst.label || `Cuota ${inst.installment_number}`}</strong></p> : null;
+                        })()}
+                        {!adminPayInstallmentId && <p>→ Pago general (sin cuota específica)</p>}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2 pt-1">
                       <Switch checked={notifyOnPayment} onCheckedChange={setNotifyOnPayment} id="notify-pay" />
                       <Label htmlFor="notify-pay" className="text-[11px] text-muted-foreground cursor-pointer">
@@ -1356,7 +1527,8 @@ const AdminEventReservations = ({
                       </Button>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {payments.length === 0 && !showAdminPayment ? (
                   <p className="text-xs text-muted-foreground py-2">Sin pagos registrados.</p>
