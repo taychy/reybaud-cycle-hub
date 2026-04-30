@@ -676,6 +676,42 @@ const ReservationStatusCard = ({
                 setShowPaymentDrawer(true);
               }}
             />
+
+            {/* Legacy metadata installments fallback (old events without materialized installments) */}
+            {installments.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/50 legacy-installments-fallback">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Cuotas pagadas</span>
+                  <span className="font-semibold text-foreground">{paidInstallments} de {installments.length}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {installments.map((inst, idx) => {
+                    const instAmount = parseFloat(inst.amount || "0");
+                    const accBefore = installments.slice(0, idx).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+                    const isPaidInst = (reservation.amount_paid || 0) >= accBefore + instAmount;
+                    const isOverdueInst = inst.due_date && new Date(inst.due_date) < new Date() && !isPaidInst;
+                    return (
+                      <div key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
+                        isPaidInst ? "bg-emerald-500/10 border border-emerald-500/20" : isOverdueInst ? "bg-destructive/10 border border-destructive/20" : "bg-muted/40 border border-border/30"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          {isPaidInst ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
+                          <span className="font-medium">{inst.label || `Cuota ${idx + 1}`}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{formatPrice(instAmount, currency)}</span>
+                          {inst.due_date && (
+                            <span className={isOverdueInst ? "text-destructive" : "text-muted-foreground"}>
+                              {new Date(inst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
