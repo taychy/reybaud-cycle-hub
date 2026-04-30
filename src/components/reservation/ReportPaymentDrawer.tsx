@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import {
-  Banknote, Loader2, CheckCircle, Upload, X, FileText, Info,
+  Banknote, Loader2, CheckCircle, Upload, X, FileText,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
