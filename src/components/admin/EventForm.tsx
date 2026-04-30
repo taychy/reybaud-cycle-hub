@@ -481,114 +481,16 @@ const EventForm = ({
 
         {meta.pricing_mode === "con_valor" && (
           <div className="space-y-3 pt-2 border-t border-border/30">
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={meta.installments_enabled || false}
-                onCheckedChange={(v) => {
-                  updateMeta("installments_enabled", v);
-                  if (!v) { updateMeta("installments", []); }
-                }}
+            {eventId ? (
+              <EventInstallmentsEditor
+                eventId={eventId}
+                eventCurrency={meta.currency || "ARS"}
+                eventPrice={meta.price ? parseFloat(meta.price) : null}
               />
-              <Label className="text-sm">Pago en cuotas</Label>
-            </div>
-
-            {meta.installments_enabled && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Cuotas programadas</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => {
-                      const cuotas = [...(meta.installments || [])];
-                      const num = cuotas.length + 1;
-                      const totalPrice = parseFloat(meta.price || "0");
-                      const remaining = totalPrice - cuotas.reduce((s: number, c: any) => s + (parseFloat(c.amount) || 0), 0);
-                      cuotas.push({
-                        number: num,
-                        amount: remaining > 0 ? remaining.toString() : "",
-                        due_date: "",
-                        label: `Cuota ${num}`,
-                      });
-                      updateMeta("installments", cuotas);
-                    }}
-                  >
-                    + Agregar cuota
-                  </Button>
-                </div>
-
-                {(meta.installments || []).map((inst: any, idx: number) => (
-                  <div key={idx} className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 items-end">
-                    <span className="text-xs text-muted-foreground font-mono w-6 text-center pb-2">{idx + 1}</span>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Descripción</Label>
-                      <Input
-                        value={inst.label || ""}
-                        placeholder={`Cuota ${idx + 1}`}
-                        className="h-8 text-xs"
-                        onChange={(e) => {
-                          const cuotas = [...(meta.installments || [])];
-                          cuotas[idx] = { ...cuotas[idx], label: e.target.value };
-                          updateMeta("installments", cuotas);
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Monto</Label>
-                      <Input
-                        type="number"
-                        value={inst.amount || ""}
-                        placeholder="0"
-                        className="h-8 text-xs"
-                        onChange={(e) => {
-                          const cuotas = [...(meta.installments || [])];
-                          cuotas[idx] = { ...cuotas[idx], amount: e.target.value };
-                          updateMeta("installments", cuotas);
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Vencimiento</Label>
-                      <Input
-                        type="date"
-                        value={inst.due_date || ""}
-                        className="h-8 text-xs"
-                        onChange={(e) => {
-                          const cuotas = [...(meta.installments || [])];
-                          cuotas[idx] = { ...cuotas[idx], due_date: e.target.value };
-                          updateMeta("installments", cuotas);
-                        }}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        const cuotas = (meta.installments || []).filter((_: any, i: number) => i !== idx);
-                        updateMeta("installments", cuotas);
-                      }}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                ))}
-
-                {(meta.installments || []).length > 0 && (() => {
-                  const totalCuotas = (meta.installments || []).reduce((s: number, c: any) => s + (parseFloat(c.amount) || 0), 0);
-                  const totalPrice = parseFloat(meta.price || "0");
-                  const diff = totalPrice - totalCuotas;
-                  return (
-                    <p className={`text-xs ${Math.abs(diff) < 0.01 ? "text-emerald-400" : "text-amber-400"}`}>
-                      Total cuotas: {meta.currency || "ARS"} {totalCuotas.toLocaleString()} / Precio: {meta.currency || "ARS"} {totalPrice.toLocaleString()}
-                      {Math.abs(diff) >= 0.01 && ` (diferencia: ${diff > 0 ? "+" : ""}${diff.toLocaleString()})`}
-                    </p>
-                  );
-                })()}
-              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                Guardá el evento primero para configurar el plan de cuotas.
+              </p>
             )}
           </div>
         )}
