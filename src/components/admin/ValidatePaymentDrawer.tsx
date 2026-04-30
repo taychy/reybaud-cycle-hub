@@ -256,22 +256,32 @@ const ValidatePaymentDrawer = ({
       } as any);
     }
 
-    // Update payment
+    // Update payment — always backfill original_amount/original_currency if missing
+    const updatePayload: Record<string, any> = {
+      status: "validado",
+      review_action: "validado",
+      review_notes: reviewNotes.trim() || null,
+      manual_override: isManualOverride,
+      exchange_rate_to_event_currency: r,
+      equivalent_amount_event_currency: eq,
+      event_currency: evCurr,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: userId,
+      installment_id: newInstallmentId,
+      installment_number: newInstallmentNumber,
+    };
+
+    // Backfill original_amount and original_currency if they were never set
+    if (payment.original_amount == null) {
+      updatePayload.original_amount = payment.amount;
+    }
+    if (!payment.original_currency) {
+      updatePayload.original_currency = payment.currency || evCurr;
+    }
+
     const { error } = await supabase
       .from("reservation_payments" as any)
-      .update({
-        status: "validado",
-        review_action: "validado",
-        review_notes: reviewNotes.trim() || null,
-        manual_override: isManualOverride,
-        exchange_rate_to_event_currency: r,
-        equivalent_amount_event_currency: eq,
-        event_currency: evCurr,
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: userId,
-        installment_id: newInstallmentId,
-        installment_number: newInstallmentNumber,
-      } as any)
+      .update(updatePayload as any)
       .eq("id", payment.id);
 
     if (error) {
