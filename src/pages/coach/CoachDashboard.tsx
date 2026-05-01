@@ -19,21 +19,18 @@ const CoachDashboard = () => {
 
   useEffect(() => {
     const init = async () => {
+      // ProtectedRoute already validates session + role.
+      // We only need to fetch coach data here — no redundant auth redirect
+      // that could race against token refresh on app reopen.
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate("/admin/login"); return; }
-
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
-        _role: "coach" as any,
-      });
-      if (!isCoach) { navigate("/admin/login"); return; }
+      if (!session) return; // ProtectedRoute will handle redirect
 
       const { data: coach } = await supabase
         .from("coaches")
         .select("*")
         .eq("user_id", session.user.id)
         .single();
-      if (!coach) { navigate("/admin/login"); return; }
+      if (!coach) return; // ProtectedRoute handles access
 
       setCoachName((coach as any).nombre);
       const coachGrupos = (coach as any).grupos || [];
