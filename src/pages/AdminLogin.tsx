@@ -196,8 +196,6 @@ const AdminLogin = () => {
   }
 
   // OTP code verification
-  const [otpCode, setOtpCode] = useState("");
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
