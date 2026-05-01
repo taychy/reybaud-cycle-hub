@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, ArrowLeft, MailCheck, AlertTriangle, RefreshCw } from "lucide-react";
+import { ChevronRight, ArrowLeft, MailCheck, AlertTriangle, RefreshCw, KeyRound } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
@@ -192,6 +193,33 @@ const AdminLogin = () => {
     );
   }
 
+  // OTP code verification
+  const [otpCode, setOtpCode] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+    setVerifyingOtp(true);
+    setError(null);
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase().trim(),
+      token: otpCode,
+      type: "email",
+    });
+
+    setVerifyingOtp(false);
+    if (verifyError) {
+      setError(verifyError.message?.includes("expired")
+        ? "El código expiró. Solicitá uno nuevo."
+        : verifyError.message || "Código inválido.");
+      setOtpCode("");
+      return;
+    }
+    // onAuthStateChange will handle redirect
+    toast.success("Sesión iniciada correctamente.");
+  };
+
   // Link sent confirmation
   if (linkSent) {
     return (
@@ -203,17 +231,60 @@ const AdminLogin = () => {
             Revisá tu email
           </h1>
           <p className="text-muted-foreground text-sm">
-            Te enviamos un enlace de acceso a <strong className="text-foreground">{email}</strong>. Hacé clic en el enlace para ingresar.
+            Te enviamos un código de acceso a <strong className="text-foreground">{email}</strong>.
           </p>
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-            <p className="text-xs text-amber-200">
-              💡 Si usás la app instalada, el enlace se abrirá en tu navegador. Es normal — ingresá desde ahí.
-            </p>
+
+          {/* OTP Code Entry */}
+          <div className="glass-card rounded-lg p-6 space-y-4">
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <KeyRound className="w-4 h-4" />
+              <span>Ingresá el código de 6 dígitos del email</span>
+            </div>
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={otpCode}
+                onChange={(value) => {
+                  setOtpCode(value);
+                  setError(null);
+                }}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            {error && (
+              <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
+                {error}
+              </div>
+            )}
+
+            <Button
+              variant="gold"
+              className="w-full"
+              size="lg"
+              disabled={verifyingOtp || otpCode.length !== 6}
+              onClick={handleVerifyOtp}
+            >
+              {verifyingOtp ? "Verificando..." : "Ingresar"}
+            </Button>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            También podés tocar el enlace del email si estás en el navegador.
+          </p>
+
           <div className="space-y-3">
             <Button
               variant="outline"
-              onClick={() => { setLinkSent(false); setError(null); }}
+              onClick={() => { setLinkSent(false); setError(null); setOtpCode(""); }}
               className="w-full"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -221,11 +292,14 @@ const AdminLogin = () => {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => handleSendLink({ preventDefault: () => {} } as React.FormEvent)}
+              onClick={() => {
+                setOtpCode("");
+                handleSendLink({ preventDefault: () => {} } as React.FormEvent);
+              }}
               className="w-full text-xs"
               disabled={loading}
             >
-              {loading ? "Reenviando..." : "Reenviar enlace de acceso"}
+              {loading ? "Reenviando..." : "Reenviar código"}
             </Button>
           </div>
         </div>
