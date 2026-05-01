@@ -78,21 +78,20 @@ const VersionBadge = () => {
           v{__APP_VERSION__}
         </span>
       </button>
+      {/* Botón de actualización siempre visible para PWAs instaladas */}
+      <button
+        type="button"
+        onClick={handleManualUpdate}
+        disabled={updating}
+        className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground border border-primary/50 disabled:opacity-70"
+      >
+        <RefreshCw className={`h-3 w-3 ${updating ? "animate-spin" : ""}`} />
+        {updating ? "…" : "⟳"}
+      </button>
       {expanded && (
-        <>
-          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-background/80 text-muted-foreground border border-border">
-            {buildTime}
-          </span>
-          <button
-            type="button"
-            onClick={handleManualUpdate}
-            disabled={updating}
-            className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground border border-primary/50 disabled:opacity-70"
-          >
-            <RefreshCw className={`h-3 w-3 ${updating ? "animate-spin" : ""}`} />
-            Actualizar
-          </button>
-        </>
+        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-background/80 text-muted-foreground border border-border">
+          {buildTime}
+        </span>
       )}
     </div>
   );
