@@ -168,7 +168,7 @@ const Login = () => {
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
-      options: { emailRedirectTo: "https://reybaud-app.com/" },
+      options: { emailRedirectTo: "https://reybaud-app.com/auth/callback" },
     });
     if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
 

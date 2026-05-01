@@ -117,7 +117,7 @@ const AdminLogin = () => {
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
       options: {
-        emailRedirectTo: `${PRODUCTION_ORIGIN}/admin/login`,
+        emailRedirectTo: `${PRODUCTION_ORIGIN}/auth/callback`,
       },
     });
 

@@ -65,6 +65,7 @@ import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
+import AuthCallback from "./pages/AuthCallback";
 import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
@@ -87,6 +88,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/completar-registro" element={<CompleteRegistration />} />
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
