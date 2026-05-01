@@ -52,7 +52,7 @@ const CoachAsesoria = () => {
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate("/admin/login"); return; }
+      if (!session) return; // ProtectedRoute handles redirect
 
       const { data: coach } = await supabase
         .from("coaches")

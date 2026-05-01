@@ -79,12 +79,7 @@ const CoachEventRecordDelAhora = () => {
   useEffect(() => {
     const checkCoach = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate("/admin/login"); return; }
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
-        _role: "coach" as any,
-      });
-      if (!isCoach) { navigate("/admin/login"); return; }
+      if (!session) return; // ProtectedRoute handles redirect
       await fetchParticipants();
       setLoading(false);
     };
