@@ -65,6 +65,7 @@ import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
+import AuthCallback from "./pages/AuthCallback";
 import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
