@@ -204,9 +204,7 @@ const Login = () => {
     );
   }
 
-  // OTP code verification state
-  const [otpCode, setOtpCode] = useState("");
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  // OTP code verification
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
