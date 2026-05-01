@@ -15,6 +15,8 @@ const AdminLogin = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [otpCode, setOtpCode] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [showResendFromError, setShowResendFromError] = useState(false);
   const navigate = useNavigate();
