@@ -19,6 +19,8 @@ const Login = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [adminRedirect, setAdminRedirect] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -202,9 +204,7 @@ const Login = () => {
     );
   }
 
-  // OTP code verification state
-  const [otpCode, setOtpCode] = useState("");
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  // OTP code verification
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
