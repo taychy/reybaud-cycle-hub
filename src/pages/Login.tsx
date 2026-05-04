@@ -81,7 +81,7 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "vacaciones") {
-        navigate("/alumno", { replace: true });
+        navigate(returnTo || "/alumno", { replace: true });
         return;
       }
 
