@@ -1378,6 +1378,59 @@ const AdminEventReservations = ({
                 />
               </div>
 
+              {/* Result section for school events (record_hora, carrera, etc.) */}
+              {isSchoolEvent && (
+                <div className="rounded-xl border border-border p-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resultado del participante</h4>
+                  {participantResult ? (
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Check-in</p>
+                        <p className="font-medium">{participantResult.checked_in_at ? "Sí" : "No"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Resultado cargado</p>
+                        <p className="font-medium">{participantResult.time_value != null ? "Sí" : "No"}</p>
+                      </div>
+                      {participantResult.time_value != null && (
+                        <>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Distancia</p>
+                            <p className="font-medium">{participantResult.time_value} km</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Posición</p>
+                            <p className="font-medium">{participantResult.position ?? "—"}</p>
+                          </div>
+                        </>
+                      )}
+                      {participantResult.time_result && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-muted-foreground">Detalle</p>
+                          <p className="font-medium">{participantResult.time_result}</p>
+                        </div>
+                      )}
+                      {participantResult.staff_feedback && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-muted-foreground">Feedback del staff</p>
+                          <p className="font-medium">{participantResult.staff_feedback}</p>
+                        </div>
+                      )}
+                      {participantResult.results_updated_at && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-muted-foreground">Última actualización</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(participantResult.results_updated_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Sin registro de participación (check-in) para este evento.</p>
+                  )}
+                </div>
+              )}
+
               {/* Trip preparation checklist — only for camp/viaje */}
               {isTripLike && (
                 <ReservationChecklistViewer
