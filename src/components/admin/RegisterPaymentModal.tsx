@@ -184,7 +184,10 @@ export function RegisterPaymentModal({
         } as any)
         .eq("id", selectedSubId);
 
-      if (error) throw error;
+      if (error) {
+        if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+        throw error;
+      }
 
       // Activate student if full payment
       if (newEstado === "activa") {
