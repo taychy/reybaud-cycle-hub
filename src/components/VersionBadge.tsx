@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const VersionBadge = () => {
   const [expanded, setExpanded] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const isMobile = useIsMobile();
 
   const env = (() => {
     if (typeof window === "undefined") return "live" as const;
