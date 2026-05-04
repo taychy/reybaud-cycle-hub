@@ -1304,28 +1304,34 @@ const AdminEventReservations = ({
               </div>
 
               {/* Financial summary */}
-              <div className="rounded-xl border border-border p-4 space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resumen financiero</h4>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-lg font-bold text-foreground">{fmtMoney(selectedRes.amount_total, curr(selectedRes))}</p>
-                    <p className="text-[10px] text-muted-foreground">Total</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-emerald-500">{fmtMoney(selectedRes.amount_paid, curr(selectedRes))}</p>
-                    <p className="text-[10px] text-muted-foreground">Abonado</p>
-                  </div>
-                  <div>
-                    <p className={`text-lg font-bold ${(selectedRes.balance_due ?? 0) > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-                      {fmtMoney(selectedRes.balance_due ?? ((selectedRes.amount_total || 0) - (selectedRes.amount_paid || 0)), curr(selectedRes))}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Saldo</p>
-                  </div>
+              {isPaymentFree ? (
+                <div className="rounded-xl border border-border p-4">
+                  <p className="text-xs text-muted-foreground">Este evento no requiere pago desde la app.</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Método: <span className="capitalize">{selectedRes.metodo_pago}</span>
-                </p>
-              </div>
+              ) : (
+                <div className="rounded-xl border border-border p-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resumen financiero</h4>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-foreground">{fmtMoney(selectedRes.amount_total, curr(selectedRes))}</p>
+                      <p className="text-[10px] text-muted-foreground">Total</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-emerald-500">{fmtMoney(selectedRes.amount_paid, curr(selectedRes))}</p>
+                      <p className="text-[10px] text-muted-foreground">Abonado</p>
+                    </div>
+                    <div>
+                      <p className={`text-lg font-bold ${(selectedRes.balance_due ?? 0) > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                        {fmtMoney(selectedRes.balance_due ?? ((selectedRes.amount_total || 0) - (selectedRes.amount_paid || 0)), curr(selectedRes))}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Saldo</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Método: <span className="capitalize">{selectedRes.metodo_pago?.replace(/_/g, " ")}</span>
+                  </p>
+                </div>
+              )}
 
               {/* Dates / timeline */}
               <div className="space-y-2">
