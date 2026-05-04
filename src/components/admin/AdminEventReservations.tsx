@@ -1153,9 +1153,11 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => openDetail(r)}>
                             <Eye className="w-3.5 h-3.5 mr-2" /> Ver detalle
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => setShowAdminPayment(true), 100); }}>
-                            <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
-                          </DropdownMenuItem>
+                          {!isPaymentFree && (
+                            <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => setShowAdminPayment(true), 100); }}>
+                              <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           {waUrl && (
                             <DropdownMenuItem asChild>
