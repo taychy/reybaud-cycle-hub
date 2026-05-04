@@ -163,7 +163,7 @@ const AdminLogin = () => {
           )}
           <div className="glass-card rounded-lg p-6 space-y-4">
             <p className="text-muted-foreground text-sm">
-              Ingresá tu email para recibir un nuevo enlace de acceso.
+              Ingresá tu email para recibir un nuevo código de acceso.
             </p>
             <Input
               type="email"
@@ -179,7 +179,7 @@ const AdminLogin = () => {
               disabled={loading || !email.trim()}
               onClick={(e) => handleSendLink(e as any)}
             >
-              {loading ? "Enviando..." : "Enviar nuevo enlace de acceso"}
+              {loading ? "Enviando..." : "Enviar nuevo código de acceso"}
               <RefreshCw className="w-4 h-4 ml-2" />
             </Button>
           </div>
