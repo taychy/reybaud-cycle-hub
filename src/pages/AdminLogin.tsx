@@ -88,8 +88,8 @@ const AdminLogin = () => {
       return false;
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      await redirectByRole(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void redirectByRole(session);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
