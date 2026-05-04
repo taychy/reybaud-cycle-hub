@@ -860,6 +860,19 @@ const AdminEventReservations = ({
     else { setSortKey(key); setSortAsc(false); }
   };
 
+  const loadParticipantResult = async (r: EventReservation) => {
+    setParticipantResult(null);
+    if (!isSchoolEvent) return;
+    const p = getParticipant(r);
+    const { data } = await supabase
+      .from("event_participants")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("email", p.email)
+      .maybeSingle();
+    setParticipantResult(data);
+  };
+
   const openDetail = (r: EventReservation) => {
     setSelectedRes(r);
     setShowAdminPayment(false);
@@ -867,6 +880,7 @@ const AdminEventReservations = ({
     setDetailTab("info");
     loadPayments(r.id);
     loadNotifications(r.id);
+    loadParticipantResult(r);
   };
 
   /* ─── Priority indicators ─── */
