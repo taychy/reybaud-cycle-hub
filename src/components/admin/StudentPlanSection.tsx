@@ -389,9 +389,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </div>
         )}
 
-        {/* Notify overdue button for expired/pending statuses */}
+        {/* Overdue actions: register payment + notify */}
         {isOverdueStatus(effectiveEstado) && (
-          <div className="pt-1">
+          <div className="pt-1 space-y-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-6 px-2 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 w-full"
+              onClick={() => setRegPaySubId(sub.id)}
+            >
+              <DollarSign className="w-3 h-3 mr-0.5" /> Registrar pago
+            </Button>
             <Button
               variant="outline"
               size="sm"
