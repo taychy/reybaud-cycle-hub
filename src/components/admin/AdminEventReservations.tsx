@@ -1370,18 +1370,20 @@ const AdminEventReservations = ({
                   alumnoId={selectedRes.alumno_id}
                 />
               )}
-              {/* Installments — Etapa 3: panel real por reservation_installments */}
-              <ReservationInstallmentsPanel
-                reservationId={selectedRes.id}
-                reservationCurrency={curr(selectedRes)}
-                reservationAmountTotal={selectedRes.amount_total || 0}
-                reservationAmountPaid={selectedRes.amount_paid || 0}
-                hasEventInstallments={installments.length > 0}
-                onChanged={() => {
-                  loadReservations();
-                  loadPayments(selectedRes.id);
-                }}
-              />
+              {/* Installments — only when payment required */}
+              {!isPaymentFree && (
+                <ReservationInstallmentsPanel
+                  reservationId={selectedRes.id}
+                  reservationCurrency={curr(selectedRes)}
+                  reservationAmountTotal={selectedRes.amount_total || 0}
+                  reservationAmountPaid={selectedRes.amount_paid || 0}
+                  hasEventInstallments={installments.length > 0}
+                  onChanged={() => {
+                    loadReservations();
+                    loadPayments(selectedRes.id);
+                  }}
+                />
+              )}
 
 
               {/* Payments section */}
