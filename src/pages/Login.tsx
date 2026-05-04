@@ -10,7 +10,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
-import { clearPendingOtpState, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
+import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -48,7 +48,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
 
   if (alumno) {
     clearPendingOtpState();
-    navigate(returnTo || "/alumno", { replace: true });
+    navigate(getSafeReturnTo(returnTo) || "/alumno", { replace: true });
     return;
   }
 
@@ -86,7 +86,7 @@ const Login = () => {
         return;
       }
 
-      const targetReturnTo = returnTo || otpReturnTo;
+      const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo);
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
@@ -244,8 +244,9 @@ const Login = () => {
     });
     if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
 
-    savePendingOtpState({ email: trimmedEmail, returnTo, context: "main" });
-    setOtpReturnTo(returnTo);
+    const safeReturnTo = getSafeReturnTo(returnTo);
+    savePendingOtpState({ email: trimmedEmail, returnTo: safeReturnTo, context: "main" });
+    setOtpReturnTo(safeReturnTo);
     setMagicLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu email.");
