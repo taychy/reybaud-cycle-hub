@@ -1484,6 +1484,15 @@ const ManageStudents = () => {
           <ImportStudentsContent />
         </TabsContent>
       </Tabs>
+
+      {/* Register Payment Modal */}
+      <RegisterPaymentModal
+        open={!!regPayAlumno}
+        onOpenChange={(open) => !open && setRegPayAlumno(null)}
+        alumnoId={regPayAlumno?.id}
+        alumnoNombre={regPayAlumno ? getFullName(regPayAlumno) : null}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };
