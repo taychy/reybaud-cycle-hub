@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +26,7 @@ import { StudentDiscountSection } from "@/components/admin/StudentDiscountSectio
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { ManageSubscriptionModal } from "@/components/admin/ManageSubscriptionModal";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -145,6 +146,7 @@ const ManageStudents = () => {
   const [resending, setResending] = useState<string | null>(null);
   const [overduePreviewRequestToken, setOverduePreviewRequestToken] = useState(0);
   const [regPayAlumno, setRegPayAlumno] = useState<Alumno | null>(null);
+  const [manageSubAlumno, setManageSubAlumno] = useState<Alumno | null>(null);
   const isMobile = useIsMobile();
 
   // Sorting
@@ -397,64 +399,57 @@ const ManageStudents = () => {
 
   // --- Context-sensitive actions for dropdown ---
   const getContextActions = (alumno: Alumno) => {
-    const actions: { label: string; icon: any; action: () => void; destructive?: boolean; separator?: boolean }[] = [];
+    const actions: { label: string; icon: any; action: () => void; destructive?: boolean; separator?: boolean; groupLabel?: string }[] = [];
     const sub = getActiveSub(alumno.id);
     const estado = alumno.estado;
 
-    actions.push({ label: "Ver detalle", icon: Eye, action: () => openDrawer(alumno) });
-
-    // Impersonation (super admin only)
+    // --- General ---
+    actions.push({ label: "", icon: null, action: () => {}, groupLabel: "General" });
+    actions.push({ label: "Abrir ficha", icon: Eye, action: () => openDrawer(alumno) });
     if (isSuperAdmin) {
       actions.push({ label: "Ver como usuario", icon: Eye, action: () => navigate(`/admin/ver-como/${alumno.id}`) });
     }
 
-    // State transitions
+    // --- Finanzas / suscripción ---
+    actions.push({ label: "", icon: null, action: () => {}, separator: true });
+    actions.push({ label: "", icon: null, action: () => {}, groupLabel: "Finanzas / suscripción" });
+    actions.push({ label: "Registrar pago", icon: DollarSign, action: () => setRegPayAlumno(alumno) });
+    actions.push({ label: "Gestionar suscripción", icon: CreditCard, action: () => setManageSubAlumno(alumno) });
+
+    // --- Comunicación ---
+    actions.push({ label: "", icon: null, action: () => {}, separator: true });
+    actions.push({ label: "", icon: null, action: () => {}, groupLabel: "Comunicación" });
+    if (!(alumno as any).password_set) {
+      actions.push({ label: (alumno as any).invited_at ? "Reenviar invitación" : "Enviar invitación", icon: MailPlus, action: () => handleResendInvite(alumno) });
+    }
+    const subEstadoForNotif = getSubEstadoLabel(alumno.id);
+    if (subEstadoForNotif === "pago_pendiente" || subEstadoForNotif === "acceso_pausado" || subEstadoForNotif === "vencida") {
+      actions.push({ label: "Vista previa y enviar", icon: BellRing, action: () => openOverduePreview(alumno) });
+    }
+
+    // --- Acceso ---
+    actions.push({ label: "", icon: null, action: () => {}, separator: true });
+    actions.push({ label: "", icon: null, action: () => {}, groupLabel: "Acceso" });
     if (estado === "inactivo" || estado === "vacaciones") {
-      actions.push({ label: "Reactivar", icon: Play, action: () => openStateChange(alumno, "activo") });
+      actions.push({ label: "Reactivar acceso", icon: Play, action: () => openStateChange(alumno, "activo") });
     }
     if (estado === "activo") {
       actions.push({ label: "Pausar (vacaciones)", icon: Palmtree, action: () => openStateChange(alumno, "vacaciones") });
-      actions.push({ label: "Desactivar", icon: UserX, action: () => openStateChange(alumno, "inactivo") });
-    }
-    if (estado === "activo" && isSuperAdmin) {
-      actions.push({ label: "Bloquear", icon: Ban, action: () => openStateChange(alumno, "bloqueado"), destructive: true });
-    }
-    if (estado === "bloqueado" && isSuperAdmin) {
-      actions.push({ label: "Desbloquear", icon: UserCheck, action: () => openStateChange(alumno, "activo") });
+      actions.push({ label: "Desactivar acceso", icon: UserX, action: () => openStateChange(alumno, "inactivo") });
     }
     if (estado === "pendiente") {
       actions.push({ label: "Aprobar (activar)", icon: UserCheck, action: () => openStateChange(alumno, "activo") });
     }
+    if (estado === "activo" && isSuperAdmin) {
+      actions.push({ label: "Bloquear usuario", icon: Ban, action: () => openStateChange(alumno, "bloqueado"), destructive: true });
+    }
+    if (estado === "bloqueado" && isSuperAdmin) {
+      actions.push({ label: "Desbloquear", icon: UserCheck, action: () => openStateChange(alumno, "activo") });
+    }
 
+    // --- Zona de riesgo ---
     actions.push({ label: "", icon: null, action: () => {}, separator: true });
-
-    // Subscription actions
-    if (sub && sub.estado === "activa") {
-      actions.push({ label: "Pausar suscripción", icon: Pause, action: () => { setSubChangeAlumno(alumno); setSubChangeTarget("pausa"); setSubChangeMotivo(""); } });
-    }
-    if (sub && sub.estado === "pausa") {
-      actions.push({ label: "Reactivar suscripción", icon: Play, action: () => { setSubChangeAlumno(alumno); setSubChangeTarget("activa"); setSubChangeMotivo(""); } });
-    }
-    if (sub) {
-      actions.push({ label: "Cambiar estado suscripción", icon: FileText, action: () => openSubChange(alumno) });
-    }
-    actions.push({ label: "Registrar pago", icon: DollarSign, action: () => setRegPayAlumno(alumno) });
-    actions.push({ label: "Habilitar suscripción manual", icon: CalendarCheck, action: () => openManualSub(alumno) });
-    actions.push({ label: "Cambiar plan", icon: CreditCard, action: () => { setChangePlanAlumno(alumno); setNewPlanId(getActiveSub(alumno.id)?.plan_id || ""); } });
-
-    actions.push({ label: "", icon: null, action: () => {}, separator: true });
-
-    // Resend invite (show whenever password not set)
-    if (!(alumno as any).password_set) {
-      actions.push({ label: (alumno as any).invited_at ? "Reenviar invitación" : "Enviar invitación", icon: MailPlus, action: () => handleResendInvite(alumno) });
-    }
-
-    // Notify overdue payment
-    const subEstado = getSubEstadoLabel(alumno.id);
-    if (subEstado === "pago_pendiente" || subEstado === "acceso_pausado" || subEstado === "vencida") {
-      actions.push({ label: "Vista previa y enviar", icon: BellRing, action: () => openOverduePreview(alumno) });
-    }
-
+    actions.push({ label: "", icon: null, action: () => {}, groupLabel: "Zona de riesgo" });
     actions.push({ label: "Eliminar", icon: Trash2, action: () => setDeleteAlumno(alumno), destructive: true });
 
     return actions;
@@ -900,7 +895,8 @@ const ManageStudents = () => {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56">
                             {getContextActions(alumno).map((a, i) =>
-                              a.separator ? <DropdownMenuSeparator key={i} /> : (
+                              a.separator ? <DropdownMenuSeparator key={i} /> :
+                              a.groupLabel ? <DropdownMenuLabel key={i} className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal">{a.groupLabel}</DropdownMenuLabel> : (
                                 <DropdownMenuItem key={i} onClick={(e) => { e.stopPropagation(); a.action(); }} className={a.destructive ? "text-destructive focus:text-destructive" : ""}>
                                   {a.icon && <a.icon className="w-4 h-4 mr-2" />}
                                   {a.label}
@@ -1002,7 +998,8 @@ const ManageStudents = () => {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56">
                                 {getContextActions(alumno).map((a, i) =>
-                                  a.separator ? <DropdownMenuSeparator key={i} /> : (
+                                  a.separator ? <DropdownMenuSeparator key={i} /> :
+                                  a.groupLabel ? <DropdownMenuLabel key={i} className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal">{a.groupLabel}</DropdownMenuLabel> : (
                                     <DropdownMenuItem key={i} onClick={() => a.action()} className={a.destructive ? "text-destructive focus:text-destructive" : ""}>
                                       {a.icon && <a.icon className="w-4 h-4 mr-2" />}
                                       {a.label}
@@ -1504,6 +1501,17 @@ const ManageStudents = () => {
         alumnoId={regPayAlumno?.id}
         alumnoNombre={regPayAlumno ? getFullName(regPayAlumno) : null}
         onSuccess={fetchAlumnos}
+      />
+
+      {/* Manage Subscription Modal */}
+      <ManageSubscriptionModal
+        open={!!manageSubAlumno}
+        onOpenChange={(open) => !open && setManageSubAlumno(null)}
+        alumno={manageSubAlumno}
+        suscripciones={suscripciones as any}
+        planes={planes as any}
+        isSuperAdmin={isSuperAdmin}
+        onSuccess={() => { fetchAlumnos(); supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, metodo_pago, planes(id, nombre, precio, moneda)").order("created_at", { ascending: false }).then(({ data }) => setSuscripciones((data as any) || [])); }}
       />
     </div>
   );
