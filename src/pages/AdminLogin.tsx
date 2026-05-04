@@ -238,6 +238,7 @@ const AdminLogin = () => {
       setOtpCode("");
       return;
     }
+    clearPendingOtpState();
     // onAuthStateChange will handle redirect
     toast.success("Sesión iniciada correctamente.");
   };
