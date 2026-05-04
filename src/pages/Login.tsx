@@ -220,14 +220,14 @@ const Login = () => {
     if (!startOtpRequest()) return;
     setLoginError(null);
     setLoading(true);
-    const trimmedEmail = email.toLowerCase().trim();
-    if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); finishOtpRequest(); return; }
+    try {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); return; }
 
-    if (!canRequestOtpAgain("main", trimmedEmail)) {
-      setLoading(false);
-      finishOtpRequest();
-      return;
-    }
+      if (!canRequestOtpAgain("main", trimmedEmail)) {
+        setLoading(false);
+        return;
+      }
 
     // Check if email exists anywhere (alumno, admin, or coach)
     const { data: alumnoData } = await supabase
@@ -239,26 +239,27 @@ const Login = () => {
     if (!alumnoData && !isAdminOrCoach) {
       setLoginError("No se encontró una cuenta con ese email. Si sos nuevo, creá tu cuenta primero.");
       setLoading(false);
-      finishOtpRequest();
       return;
     }
 
     // Check blocked alumno
-    if (alumnoData?.estado === "bloqueado") { setLoginError(t("login.accessDisabled")); setLoading(false); finishOtpRequest(); return; }
+    if (alumnoData?.estado === "bloqueado") { setLoginError(t("login.accessDisabled")); setLoading(false); return; }
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
       options: { emailRedirectTo: "https://reybaud-app.com/auth/callback" },
     });
-    if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); finishOtpRequest(); return; }
+    if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
 
     const safeReturnTo = getSafeReturnTo(returnTo);
     savePendingOtpState({ email: trimmedEmail, returnTo: safeReturnTo, context: "main" });
     setOtpReturnTo(safeReturnTo);
     setMagicLinkSent(true);
     setLoading(false);
-    finishOtpRequest();
     toast.success("Código de acceso enviado. Revisá tu email.");
+    } finally {
+      finishOtpRequest();
+    }
   };
 
   const handleGoogleLogin = async () => {
