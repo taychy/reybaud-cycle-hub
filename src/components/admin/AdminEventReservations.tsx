@@ -1337,7 +1337,7 @@ const AdminEventReservations = ({
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cronología</h4>
                 <div className="space-y-1.5 text-xs">
-                  <TimelineItem label="Reserva creada" date={selectedRes.created_at} />
+                  <TimelineItem label={termReservaCreada} date={selectedRes.created_at} />
                   {selectedRes.confirmed_at && <TimelineItem label="Confirmada" date={selectedRes.confirmed_at} color="text-emerald-500" />}
                   {selectedRes.cancelled_at && <TimelineItem label="Cancelada" date={selectedRes.cancelled_at} color="text-destructive" />}
                   <TimelineItem label="Última actualización" date={selectedRes.updated_at} />
