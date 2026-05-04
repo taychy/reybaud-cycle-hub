@@ -249,7 +249,17 @@ const Login = () => {
       email: trimmedEmail,
       options: { emailRedirectTo: "https://reybaud-app.com/auth/callback" },
     });
-    if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
+    if (otpError) {
+      console.warn("OTP request failed", {
+        code: otpError.code,
+        status: otpError.status,
+        message: otpError.message,
+        at: new Date().toISOString(),
+      });
+      setLoginError(otpError.message || "Error");
+      setLoading(false);
+      return;
+    }
 
     const safeReturnTo = getSafeReturnTo(returnTo);
     savePendingOtpState({ email: trimmedEmail, returnTo: safeReturnTo, context: "main" });
