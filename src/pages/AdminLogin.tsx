@@ -177,7 +177,7 @@ const AdminLogin = () => {
               {error}
             </div>
           )}
-          <div className="glass-card rounded-lg p-6 space-y-4">
+          <div className="glass-card rounded-lg p-4 sm:p-6 space-y-4">
             <p className="text-muted-foreground text-sm">
               Ingresá tu email para recibir un nuevo código de acceso.
             </p>
@@ -270,7 +270,7 @@ const AdminLogin = () => {
               >
                 <InputOTPGroup>
                   {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} />
+                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
