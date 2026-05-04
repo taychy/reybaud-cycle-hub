@@ -1077,12 +1077,16 @@ const AdminEventReservations = ({
             <button className="flex items-center gap-1 hover:text-foreground text-left" onClick={() => toggleSort("name")}>
               Alumno <ArrowUpDown className="w-3 h-3" />
             </button>
-            <span>Reserva</span>
+            <span>{isSchoolEvent ? "Inscripción" : "Reserva"}</span>
             <span>Pago</span>
-            <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("balance")}>
-              Abonado <ArrowUpDown className="w-3 h-3" />
-            </button>
-            <span>Saldo</span>
+            {!isPaymentFree && (
+              <>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("balance")}>
+                  Abonado <ArrowUpDown className="w-3 h-3" />
+                </button>
+                <span>Saldo</span>
+              </>
+            )}
             <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("date")}>
               Fecha <ArrowUpDown className="w-3 h-3" />
             </button>
