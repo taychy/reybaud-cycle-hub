@@ -182,6 +182,7 @@ const AdminPayments = () => {
   const [manualPayData, setManualPayData] = useState<ManualPaymentData>({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0], fecha_fin: "" });
   const [recordatorioDialog, setRecordatorioDialog] = useState<Suscripcion | null>(null);
   const [recordatorioMsg, setRecordatorioMsg] = useState("");
+  const [showRegisterPayment, setShowRegisterPayment] = useState(false);
   // Correct method dialog (for student-reported payments)
   const [correctMethodDialog, setCorrectMethodDialog] = useState<Suscripcion | null>(null);
   const [correctMethodValue, setCorrectMethodValue] = useState("efectivo");
