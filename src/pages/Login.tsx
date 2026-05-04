@@ -10,7 +10,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
-import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
+import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -217,10 +217,17 @@ const Login = () => {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startOtpRequest()) return;
     setLoginError(null);
     setLoading(true);
-    const trimmedEmail = email.toLowerCase().trim();
-    if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); return; }
+    try {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); return; }
+
+      if (!canRequestOtpAgain("main", trimmedEmail)) {
+        setLoading(false);
+        return;
+      }
 
     // Check if email exists anywhere (alumno, admin, or coach)
     const { data: alumnoData } = await supabase
@@ -242,7 +249,17 @@ const Login = () => {
       email: trimmedEmail,
       options: { emailRedirectTo: "https://reybaud-app.com/auth/callback" },
     });
-    if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
+    if (otpError) {
+      console.warn("OTP request failed", {
+        code: otpError.code,
+        status: otpError.status,
+        message: otpError.message,
+        at: new Date().toISOString(),
+      });
+      setLoginError(otpError.message || "Error");
+      setLoading(false);
+      return;
+    }
 
     const safeReturnTo = getSafeReturnTo(returnTo);
     savePendingOtpState({ email: trimmedEmail, returnTo: safeReturnTo, context: "main" });
@@ -250,6 +267,9 @@ const Login = () => {
     setMagicLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu email.");
+    } finally {
+      finishOtpRequest();
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -277,28 +297,25 @@ const Login = () => {
   }
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length < OTP_LENGTH) return;
+    if (verifyingOtp) return;
+    const normalizedCode = normalizeOtpCode(otpCode);
+    if (normalizedCode.length < OTP_LENGTH) return;
     setVerifyingOtp(true);
     setLoginError(null);
 
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.toLowerCase().trim(),
-      token: otpCode,
+      token: normalizedCode,
       type: "email",
     });
 
     setVerifyingOtp(false);
     if (verifyError) {
-      if (verifyError.message?.includes("expired")) {
-        setLoginError("El código venció. Pedí uno nuevo.");
-      } else if (verifyError.message?.includes("invalid") || verifyError.message?.includes("Token")) {
-        setLoginError("Código incorrecto. Revisalo e intentá nuevamente.");
-      } else {
-        setLoginError(verifyError.message || "Error al verificar el código.");
-      }
+      setLoginError(getOtpErrorMessage(verifyError));
       setOtpCode("");
       return;
     }
+    clearPendingOtpState();
     toast.success("Sesión iniciada correctamente.");
     // onAuthStateChange will handle redirect
   };
@@ -332,7 +349,7 @@ const Login = () => {
                 maxLength={OTP_LENGTH}
                 value={otpCode}
                 onChange={(value) => {
-                  setOtpCode(value);
+                  setOtpCode(normalizeOtpCode(value));
                   setLoginError(null);
                 }}
               >

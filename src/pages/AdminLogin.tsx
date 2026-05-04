@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, ArrowLeft, MailCheck, AlertTriangle, RefreshCw, KeyRound } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
-import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
+import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
 
@@ -88,8 +88,8 @@ const AdminLogin = () => {
       return false;
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      await redirectByRole(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void redirectByRole(session);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -110,16 +110,22 @@ const AdminLogin = () => {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startOtpRequest()) return;
     setError(null);
     setShowResendFromError(false);
     setLoading(true);
+    try {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (!trimmedEmail) {
+        setError("Ingresá tu email.");
+        setLoading(false);
+        return;
+      }
 
-    const trimmedEmail = email.toLowerCase().trim();
-    if (!trimmedEmail) {
-      setError("Ingresá tu email.");
-      setLoading(false);
-      return;
-    }
+      if (!canRequestOtpAgain("staff", trimmedEmail)) {
+        setLoading(false);
+        return;
+      }
 
     const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
       _email: trimmedEmail,
@@ -139,6 +145,12 @@ const AdminLogin = () => {
     });
 
     if (otpError) {
+      console.warn("OTP request failed", {
+        code: otpError.code,
+        status: otpError.status,
+        message: otpError.message,
+        at: new Date().toISOString(),
+      });
       setError(otpError.message || "Error al enviar el código.");
       setLoading(false);
       return;
@@ -149,6 +161,9 @@ const AdminLogin = () => {
     setLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
+    } finally {
+      finishOtpRequest();
+    }
   };
 
   if (checkingSession) {
@@ -212,28 +227,25 @@ const AdminLogin = () => {
   }
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length < OTP_LENGTH) return;
+    if (verifyingOtp) return;
+    const normalizedCode = normalizeOtpCode(otpCode);
+    if (normalizedCode.length < OTP_LENGTH) return;
     setVerifyingOtp(true);
     setError(null);
 
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.toLowerCase().trim(),
-      token: otpCode,
+      token: normalizedCode,
       type: "email",
     });
 
     setVerifyingOtp(false);
     if (verifyError) {
-      if (verifyError.message?.includes("expired")) {
-        setError("El código venció. Pedí uno nuevo.");
-      } else if (verifyError.message?.includes("invalid") || verifyError.message?.includes("Token")) {
-        setError("Código incorrecto. Revisalo e intentá nuevamente.");
-      } else {
-        setError(verifyError.message || "Error al verificar el código.");
-      }
+      setError(getOtpErrorMessage(verifyError));
       setOtpCode("");
       return;
     }
+    clearPendingOtpState();
     // onAuthStateChange will handle redirect
     toast.success("Sesión iniciada correctamente.");
   };
@@ -264,7 +276,7 @@ const AdminLogin = () => {
                 maxLength={OTP_LENGTH}
                 value={otpCode}
                 onChange={(value) => {
-                  setOtpCode(value);
+                  setOtpCode(normalizeOtpCode(value));
                   setError(null);
                 }}
               >
