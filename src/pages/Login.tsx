@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ const Login = () => {
   const [otpCode, setOtpCode] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -79,7 +81,7 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "vacaciones") {
-        navigate("/alumno", { replace: true });
+        navigate(returnTo || "/alumno", { replace: true });
         return;
       }
 
@@ -126,7 +128,7 @@ const Login = () => {
       localStorage.removeItem("alumno_from_vacation");
       localStorage.removeItem("upgrade_from_sub_id");
       localStorage.removeItem("upgrade_preselect_plan_id");
-      navigate("/alumno", { replace: true });
+      navigate(returnTo || "/alumno", { replace: true });
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
