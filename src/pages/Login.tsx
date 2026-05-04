@@ -68,16 +68,25 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const [otpReturnTo, setOtpReturnTo] = useState<string | null>(returnTo);
   const { t } = useTranslation();
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        const pendingOtp = loadPendingOtpState("main");
+        if (pendingOtp) {
+          setEmail(pendingOtp.email);
+          setOtpReturnTo(pendingOtp.returnTo);
+          setMagicLinkSent(true);
+        }
         localStorage.removeItem("alumno");
         setCheckingSession(false);
         return;
       }
+
+      const targetReturnTo = returnTo || otpReturnTo;
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
@@ -88,6 +97,7 @@ const Login = () => {
         _role: "admin" as any,
       });
       if (isAdmin) {
+        clearPendingOtpState();
         navigate("/admin", { replace: true });
         return;
       }
@@ -97,6 +107,7 @@ const Login = () => {
         _role: "coach" as any,
       });
       if (isCoach) {
+        clearPendingOtpState();
         navigate("/coach", { replace: true });
         return;
       }
@@ -122,6 +133,7 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "inactivo" && alumno.grupo === "Sin grupo") {
+        clearPendingOtpState();
         localStorage.setItem("registro_alumno_id", alumno.id);
         navigate("/planes", { replace: true });
         return;
@@ -135,8 +147,10 @@ const Login = () => {
         if (alumno.grupo === "Sin grupo") {
           setCheckingSession(false);
           setLoginError(t("login.pendingApproval"));
+          clearPendingOtpState();
           return;
         }
+        clearPendingOtpState();
         localStorage.setItem("registro_alumno_id", alumno.id);
         navigate("/planes", { replace: true });
         return;
@@ -147,7 +161,8 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "vacaciones") {
-        navigate(returnTo || "/alumno", { replace: true });
+        clearPendingOtpState();
+        navigate(targetReturnTo || "/alumno", { replace: true });
         return;
       }
 
@@ -179,6 +194,7 @@ const Login = () => {
       });
 
       if (!hasAccess) {
+        clearPendingOtpState();
         localStorage.setItem("registro_alumno_id", alumno.id);
         localStorage.setItem("alumno_renewal", "1");
         navigate("/planes", { replace: true });
@@ -188,7 +204,8 @@ const Login = () => {
       localStorage.removeItem("alumno_from_vacation");
       localStorage.removeItem("upgrade_from_sub_id");
       localStorage.removeItem("upgrade_preselect_plan_id");
-      navigate(returnTo || "/alumno", { replace: true });
+      clearPendingOtpState();
+      navigate(targetReturnTo || "/alumno", { replace: true });
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -196,7 +213,7 @@ const Login = () => {
     });
     checkSession();
     return () => subscription.unsubscribe();
-  }, [navigate, t]);
+  }, [navigate, t, returnTo, otpReturnTo]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
