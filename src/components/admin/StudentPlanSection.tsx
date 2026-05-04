@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
@@ -81,6 +82,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [duplicateAlert, setDuplicateAlert] = useState<{ plan_nombre: string; fecha_fin: string }[]>([]);
   const { discounts, applyDiscount, loading: discountsLoading, subscriptionCount } = useStudentDiscounts(alumno.id);
 
   // Dialog state
@@ -114,9 +116,21 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
       supabase.from("descuentos").select("id, nombre, valor, tipo, categoria").eq("activo", true).eq("categoria", "segunda_actividad"),
     ]);
-    setSubs((subsRes.data as any) || []);
+    const allSubs = (subsRes.data as any) || [];
+    setSubs(allSubs);
     setPlanes(planesRes.data || []);
     setAvailableDiscounts((discountsRes.data as any) || []);
+
+    // Detect duplicates client-side from fetched data
+    const activeOnly = allSubs.filter((s: SuscripcionData) => s.estado === "activa" && !s.cancelada_at);
+    const dupeGroups: Record<string, { plan_nombre: string; fecha_fin: string; count: number }> = {};
+    for (const s of activeOnly) {
+      const key = `${s.plan_id}|${s.fecha_fin}`;
+      if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: s.fecha_fin || "—", count: 0 };
+      dupeGroups[key].count++;
+    }
+    setDuplicateAlert(Object.values(dupeGroups).filter(g => g.count > 1));
+
     setLoading(false);
   };
 
@@ -221,7 +235,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             : Math.max(0, precioBase - discount.valor);
         }
 
-        const { data: newSub } = await supabase.from("suscripciones").insert({
+        const { data: newSub, error: insertError } = await supabase.from("suscripciones").insert({
           alumno_id: alumno.id,
           plan_id: newPlanId,
           estado: "activa",
@@ -234,6 +248,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           precio_base: precioBase,
           precio_final: precioFinal,
         } as any).select("id").single();
+
+        if (insertError) {
+          if (isDuplicateSubError(insertError)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw insertError;
+        }
 
         // Also assign discount to descuentos_alumno for tracking
         if (discount && newSub) {
@@ -433,6 +452,20 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             <Plus className="w-3 h-3 mr-0.5" /> Agregar plan
           </Button>
         </div>
+
+        {/* Duplicate alert */}
+        {duplicateAlert.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-xs text-amber-300">
+              <span className="font-semibold">Suscripciones duplicadas detectadas.</span>
+              {duplicateAlert.map((d, i) => (
+                <span key={i} className="block mt-0.5">• {d.plan_nombre} — vence {d.fecha_fin}</span>
+              ))}
+              <span className="block mt-1 text-amber-400/70">Revisar conciliación: cancelar o fusionar la duplicada.</span>
+            </div>
+          </div>
+        )}
 
         {/* Active subscriptions */}
         {activeSubs.length > 0 ? (

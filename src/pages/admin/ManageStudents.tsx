@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -703,7 +704,11 @@ const ManageStudents = () => {
       await supabase.from("suscripciones").update({ estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin }).eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
     } else {
       const { error } = await supabase.from("suscripciones").insert({ alumno_id: manualSubAlumno.id, plan_id: planId, estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
-      if (error) { toast.error("Error al crear la suscripción."); setSavingManual(false); return; }
+      if (error) { 
+        toast.error(isDuplicateSubError(error) ? DUPLICATE_SUB_MSG : "Error al crear la suscripción."); 
+        setSavingManual(false); 
+        return; 
+      }
     }
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
     const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
@@ -763,7 +768,11 @@ const ManageStudents = () => {
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         const endStr = lastDay.toISOString().split("T")[0];
         const { error } = await supabase.from("suscripciones").insert({ alumno_id: changePlanAlumno.id, plan_id: newPlanId, estado: "activa", fecha_inicio: todayStr, fecha_fin: endStr, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
-        if (error) throw error;
+        if (error) { 
+          if (isDuplicateSubError(error)) toast.error(DUPLICATE_SUB_MSG);
+          else throw error; 
+          setSavingPlan(false); return; 
+        }
       }
       supabase.functions.invoke("notify-student-update", {
         body: { alumno_id: changePlanAlumno.id, type: "plan_cambiado", plan_nombre: selectedPlan?.nombre || "Nuevo plan", plan_precio: selectedPlan?.precio, plan_moneda: selectedPlan?.moneda },

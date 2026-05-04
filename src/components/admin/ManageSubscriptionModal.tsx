@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE, type EffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { CreditCard, Play, Pause, XCircle, Plus, ArrowRightLeft, AlertTriangle, Clock, FileText } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -158,11 +159,15 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
           const today = new Date();
           const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
           const selectedPlan = planes.find(p => p.id === newPlanId);
-          await supabase.from("suscripciones").insert({
+          const { error: insErr } = await supabase.from("suscripciones").insert({
             alumno_id: alumno.id, plan_id: newPlanId, estado: "activa",
             fecha_inicio: todayStr, fecha_fin: manualFechaFin,
             mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin",
           } as any);
+          if (insErr) {
+            if (isDuplicateSubError(insErr)) { toast.error(DUPLICATE_SUB_MSG); break; }
+            throw insErr;
+          }
           await supabase.from("alumnos").update({ estado: "activo" }).eq("id", alumno.id);
           supabase.functions.invoke("notify-student-update", { body: { alumno_id: alumno.id, type: "habilitado", fecha_vencimiento: manualFechaFin } }).catch(() => {});
           toast.success(`Plan ${selectedPlan?.nombre} asignado hasta ${manualFechaFin}`);

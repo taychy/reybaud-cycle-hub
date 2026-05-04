@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     ).toISOString().split("T")[0];
 
     if (mpData.status === "approved") {
-      await supabaseAdmin
+      const { error: updateErr } = await supabaseAdmin
         .from("suscripciones")
         .update({
           estado: "activa",
@@ -101,6 +101,10 @@ Deno.serve(async (req) => {
           fecha_fin: endOfMonth,
         })
         .eq("id", suscripcion_id);
+
+      if (updateErr) {
+        console.error("Error updating subscription (possible duplicate):", updateErr);
+      }
 
       // Activate student
       await supabaseAdmin
