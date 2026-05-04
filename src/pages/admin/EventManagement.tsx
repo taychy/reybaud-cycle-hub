@@ -119,19 +119,30 @@ const EventManagement = () => {
     });
   };
 
+  const parseDecimal = (val: string): number | null => {
+    if (!val) return null;
+    // Normalize comma to dot, strip non-numeric except dot
+    const normalized = val.replace(",", ".").replace(/[^\d.]/g, "");
+    const num = parseFloat(normalized);
+    return isNaN(num) ? null : num;
+  };
+
   const saveEdit = async () => {
     if (!editingId) return;
     setSaving(true);
 
-    // Sync time_value from score (km recorridos) for rankings
-    const scoreVal = editForm.score ? parseFloat(editForm.score) : null;
+    const scoreVal = editForm.score ? parseDecimal(editForm.score) : null;
+    // For Record de la Hora, distance is the primary metric — parse time_value from time_result
+    const distanceVal = parseDecimal(editForm.time_result);
+    // time_value drives rankings: prefer distance, fallback to score
+    const timeValue = distanceVal ?? scoreVal;
 
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from("event_participants")
       .update({
         score: scoreVal,
         time_result: editForm.time_result || null,
-        time_value: scoreVal, // Keep time_value synced for rankings
+        time_value: timeValue,
         position: editForm.position ? parseInt(editForm.position) : null,
         staff_feedback: editForm.staff_feedback || null,
         results_updated_at: new Date().toISOString(),
@@ -139,7 +150,8 @@ const EventManagement = () => {
       .eq("id", editingId);
 
     if (error) {
-      toast({ title: "Error", description: "No se pudo guardar.", variant: "destructive" });
+      console.error("Error saving participant result:", error);
+      toast({ title: "Error", description: error.message || "No se pudo guardar.", variant: "destructive" });
     } else {
       toast({ title: "Guardado", description: "Resultados actualizados." });
       setEditingId(null);
