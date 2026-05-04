@@ -315,7 +315,7 @@ export function RegisterPaymentModal({
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                   <SelectContent>
                     {pendingSubs.map(s => {
-                      const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+                      const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as PendingSub & { cancelada_at?: string | null }).cancelada_at });
                       const statusLabel = effective === "pago_pendiente" ? "Pago pendiente" : effective === "acceso_pausado" ? "Acceso pausado" : s.estado;
                       return (
                         <SelectItem key={s.id} value={s.id}>
