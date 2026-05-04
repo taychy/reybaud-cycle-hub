@@ -20,6 +20,7 @@ import {
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
   ChevronDown, ChevronUp
 } from "lucide-react";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Suscripcion = {
   id: string;
@@ -181,6 +182,7 @@ const AdminPayments = () => {
   const [manualPayData, setManualPayData] = useState<ManualPaymentData>({ observaciones: "", metodo: "efectivo", fecha_pago: new Date().toISOString().split("T")[0], fecha_fin: "" });
   const [recordatorioDialog, setRecordatorioDialog] = useState<Suscripcion | null>(null);
   const [recordatorioMsg, setRecordatorioMsg] = useState("");
+  const [showRegisterPayment, setShowRegisterPayment] = useState(false);
   // Correct method dialog (for student-reported payments)
   const [correctMethodDialog, setCorrectMethodDialog] = useState<Suscripcion | null>(null);
   const [correctMethodValue, setCorrectMethodValue] = useState("efectivo");
@@ -442,9 +444,15 @@ const AdminPayments = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground">Pagos y Cobranzas</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gestión integral de pagos, conciliación y cobranza</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-foreground">Pagos y Cobranzas</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gestión integral de pagos, conciliación y cobranza</p>
+        </div>
+        <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
+          <DollarSign className="w-4 h-4" />
+          Registrar pago
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -868,6 +876,13 @@ const AdminPayments = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Register Payment Modal */}
+      <RegisterPaymentModal
+        open={showRegisterPayment}
+        onOpenChange={setShowRegisterPayment}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };

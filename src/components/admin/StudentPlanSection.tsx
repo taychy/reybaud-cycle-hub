@@ -10,12 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -94,6 +95,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
+  const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
 
   // Email preview state
   const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
@@ -387,9 +389,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </div>
         )}
 
-        {/* Notify overdue button for expired/pending statuses */}
+        {/* Overdue actions: register payment + notify */}
         {isOverdueStatus(effectiveEstado) && (
-          <div className="pt-1">
+          <div className="pt-1 space-y-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-6 px-2 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 w-full"
+              onClick={() => setRegPaySubId(sub.id)}
+            >
+              <DollarSign className="w-3 h-3 mr-0.5" /> Registrar pago
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -669,6 +679,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Register Payment Modal */}
+      <RegisterPaymentModal
+        open={!!regPaySubId}
+        onOpenChange={(open) => !open && setRegPaySubId(null)}
+        alumnoId={alumno.id}
+        alumnoNombre={alumno.nombre}
+        subscripcionId={regPaySubId}
+        onSuccess={() => { fetchData(); onRefresh(); }}
+      />
     </>
   );
 }

@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -25,6 +25,7 @@ import { MedicalCertificateSection } from "@/components/admin/MedicalCertificate
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -141,6 +142,7 @@ const ManageStudents = () => {
 
   const [resending, setResending] = useState<string | null>(null);
   const [overduePreviewRequestToken, setOverduePreviewRequestToken] = useState(0);
+  const [regPayAlumno, setRegPayAlumno] = useState<Alumno | null>(null);
   const isMobile = useIsMobile();
 
   // Sorting
@@ -424,6 +426,7 @@ const ManageStudents = () => {
     if (sub) {
       actions.push({ label: "Cambiar estado suscripción", icon: FileText, action: () => openSubChange(alumno) });
     }
+    actions.push({ label: "Registrar pago", icon: DollarSign, action: () => setRegPayAlumno(alumno) });
     actions.push({ label: "Habilitar suscripción manual", icon: CalendarCheck, action: () => openManualSub(alumno) });
     actions.push({ label: "Cambiar plan", icon: CreditCard, action: () => { setChangePlanAlumno(alumno); setNewPlanId(getActiveSub(alumno.id)?.plan_id || ""); } });
 
@@ -1481,6 +1484,15 @@ const ManageStudents = () => {
           <ImportStudentsContent />
         </TabsContent>
       </Tabs>
+
+      {/* Register Payment Modal */}
+      <RegisterPaymentModal
+        open={!!regPayAlumno}
+        onOpenChange={(open) => !open && setRegPayAlumno(null)}
+        alumnoId={regPayAlumno?.id}
+        alumnoNombre={regPayAlumno ? getFullName(regPayAlumno) : null}
+        onSuccess={fetchAlumnos}
+      />
     </div>
   );
 };
