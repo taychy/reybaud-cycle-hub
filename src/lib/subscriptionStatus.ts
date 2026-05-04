@@ -196,7 +196,9 @@ export const SUB_STATUS_LABELS: Record<string, string> = {
   vencida: "Vencida",
   cancelada: "Cancelada",
   pausa: "Pausada",
+  duplicada: "Duplicada",
 };
+
 
 /** Status config for badges */
 export const SUB_STATUS_BADGE: Record<string, { className: string }> = {
@@ -208,4 +210,5 @@ export const SUB_STATUS_BADGE: Record<string, { className: string }> = {
   vencida: { className: "bg-destructive/10 text-destructive border-destructive/30" },
   cancelada: { className: "text-muted-foreground border-dashed" },
   pausa: { className: "border-amber-500/50 text-amber-400" },
+  duplicada: { className: "text-muted-foreground border-dashed bg-muted/30" },
 };

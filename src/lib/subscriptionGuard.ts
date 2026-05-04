@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
  * Checks if a student already has an active subscription for the same plan and period.
  * Returns the existing subscription id if found, null otherwise.
  */
+const OPERATIONAL_STATES = ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"];
+
 export async function checkDuplicateActiveSub(
   alumnoId: string,
   planId: string,
@@ -15,7 +17,7 @@ export async function checkDuplicateActiveSub(
     .eq("alumno_id", alumnoId)
     .eq("plan_id", planId)
     .eq("fecha_fin", fechaFin)
-    .eq("estado", "activa")
+    .in("estado", OPERATIONAL_STATES)
     .is("cancelada_at", null)
     .limit(1);
 
@@ -40,7 +42,7 @@ export async function detectDuplicateActiveSubs(alumnoId: string): Promise<
     .from("suscripciones")
     .select("id, plan_id, fecha_fin, estado, cancelada_at, planes(nombre)")
     .eq("alumno_id", alumnoId)
-    .eq("estado", "activa")
+    .in("estado", OPERATIONAL_STATES)
     .is("cancelada_at", null);
 
   if (!data || data.length === 0) return [];
