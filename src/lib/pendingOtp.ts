@@ -1,4 +1,5 @@
 export const OTP_LENGTH = 8;
+export const OTP_REQUEST_COOLDOWN_MS = 8_000;
 
 export type PendingOtpContext = "main" | "staff";
 
@@ -12,6 +13,8 @@ export interface PendingOtpState {
 }
 
 const PENDING_OTP_STORAGE_KEY = "reybaud_pending_otp";
+
+let inFlightOtpRequest = false;
 
 const canUseStorage = () => typeof window !== "undefined" && !!window.localStorage;
 
@@ -69,6 +72,42 @@ export const savePendingOtpState = ({
 export const clearPendingOtpState = () => {
   if (!canUseStorage()) return;
   window.localStorage.removeItem(PENDING_OTP_STORAGE_KEY);
+};
+
+export const startOtpRequest = () => {
+  if (inFlightOtpRequest) return false;
+  inFlightOtpRequest = true;
+  return true;
+};
+
+export const finishOtpRequest = () => {
+  inFlightOtpRequest = false;
+};
+
+export const canRequestOtpAgain = (context: PendingOtpContext, email: string) => {
+  const pending = loadPendingOtpState(context);
+  if (!pending || pending.email !== email) return true;
+  return Date.now() - pending.requestedAt > OTP_REQUEST_COOLDOWN_MS;
+};
+
+export const normalizeOtpCode = (value: string) => value.replace(/\D/g, "").slice(0, OTP_LENGTH);
+
+export const getOtpErrorMessage = (error: { message?: string; code?: string; status?: number }) => {
+  const message = error.message || "";
+  const code = error.code || "";
+
+  console.warn("OTP verify failed", {
+    code,
+    status: error.status,
+    message,
+    at: new Date().toISOString(),
+  });
+
+  if (code === "otp_expired" || /^otp_expired$/i.test(message) || /^token expired$/i.test(message)) {
+    return "El código venció. Pedí uno nuevo.";
+  }
+
+  return "No pudimos validar el código. Pedí uno nuevo o intentá nuevamente.";
 };
 
 export const getSafeReturnTo = (returnTo: string | null | undefined) => {
