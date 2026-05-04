@@ -109,8 +109,12 @@ export function RegisterPaymentModal({
       .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[RegisterPaymentModal] Error loading subs:", error);
+        }
         const allSubs = (data as unknown as (PendingSub & { cancelada_at?: string | null })[]) || [];
+        console.log("[RegisterPaymentModal] allSubs for alumno", selectedAlumnoId, allSubs.map(s => ({ id: s.id, estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at, effective: getEffectiveSubStatus(s) })));
         const subs = allSubs.filter(isAdminPayableSubscription);
         setPendingSubs(subs);
         // Auto-select if only one or if subscripcionId matches
