@@ -25,6 +25,7 @@ import { MedicalCertificateSection } from "@/components/admin/MedicalCertificate
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -141,6 +142,7 @@ const ManageStudents = () => {
 
   const [resending, setResending] = useState<string | null>(null);
   const [overduePreviewRequestToken, setOverduePreviewRequestToken] = useState(0);
+  const [regPayAlumno, setRegPayAlumno] = useState<Alumno | null>(null);
   const isMobile = useIsMobile();
 
   // Sorting
@@ -424,6 +426,7 @@ const ManageStudents = () => {
     if (sub) {
       actions.push({ label: "Cambiar estado suscripción", icon: FileText, action: () => openSubChange(alumno) });
     }
+    actions.push({ label: "Registrar pago", icon: DollarSign, action: () => setRegPayAlumno(alumno) });
     actions.push({ label: "Habilitar suscripción manual", icon: CalendarCheck, action: () => openManualSub(alumno) });
     actions.push({ label: "Cambiar plan", icon: CreditCard, action: () => { setChangePlanAlumno(alumno); setNewPlanId(getActiveSub(alumno.id)?.plan_id || ""); } });
 
