@@ -207,7 +207,7 @@ const Login = () => {
   // OTP code verification
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) return;
+    if (otpCode.length < 6) return;
     setVerifyingOtp(true);
     setLoginError(null);
 
@@ -249,11 +249,11 @@ const Login = () => {
           <div className="glass-card rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <KeyRound className="w-4 h-4" />
-              <span>Ingresá el código de 6 dígitos</span>
+              <span>Ingresá el código que recibiste por email</span>
             </div>
             <div className="flex justify-center">
               <InputOTP
-                maxLength={6}
+                maxLength={8}
                 value={otpCode}
                 onChange={(value) => {
                   setOtpCode(value);
@@ -267,6 +267,8 @@ const Login = () => {
                   <InputOTPSlot index={3} />
                   <InputOTPSlot index={4} />
                   <InputOTPSlot index={5} />
+                  <InputOTPSlot index={6} />
+                  <InputOTPSlot index={7} />
                 </InputOTPGroup>
               </InputOTP>
             </div>
@@ -281,7 +283,7 @@ const Login = () => {
               variant="gold"
               className="w-full h-12 rounded-xl"
               size="lg"
-              disabled={verifyingOtp || otpCode.length !== 6}
+              disabled={verifyingOtp || otpCode.length < 6}
               onClick={handleVerifyOtp}
             >
               {verifyingOtp ? "Verificando..." : "Ingresar"}
