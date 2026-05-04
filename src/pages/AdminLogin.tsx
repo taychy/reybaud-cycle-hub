@@ -238,11 +238,11 @@ const AdminLogin = () => {
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <KeyRound className="w-4 h-4" />
-              <span>Ingresá el código de 6 dígitos del email</span>
+              <span>Ingresá el código que recibiste por email</span>
             </div>
             <div className="flex justify-center">
               <InputOTP
-                maxLength={6}
+                maxLength={8}
                 value={otpCode}
                 onChange={(value) => {
                   setOtpCode(value);
@@ -256,6 +256,8 @@ const AdminLogin = () => {
                   <InputOTPSlot index={3} />
                   <InputOTPSlot index={4} />
                   <InputOTPSlot index={5} />
+                  <InputOTPSlot index={6} />
+                  <InputOTPSlot index={7} />
                 </InputOTPGroup>
               </InputOTP>
             </div>
