@@ -38,6 +38,7 @@ interface SuscripcionConPlan {
   fecha_inicio: string | null;
   fecha_fin: string | null;
   cancelada_at?: string | null;
+  created_at: string;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
 }
 
@@ -198,7 +199,7 @@ const ManageStudents = () => {
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
 
   useEffect(() => {
-    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, planes(id, nombre, precio, moneda)").then(({ data }) => {
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, planes(id, nombre, precio, moneda)").order("created_at", { ascending: false }).then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
     supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
