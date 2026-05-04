@@ -146,6 +146,7 @@ const ManageStudents = () => {
   const [resending, setResending] = useState<string | null>(null);
   const [overduePreviewRequestToken, setOverduePreviewRequestToken] = useState(0);
   const [regPayAlumno, setRegPayAlumno] = useState<Alumno | null>(null);
+  const [manageSubAlumno, setManageSubAlumno] = useState<Alumno | null>(null);
   const isMobile = useIsMobile();
 
   // Sorting
