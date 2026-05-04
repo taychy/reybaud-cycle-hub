@@ -304,6 +304,7 @@ const Login = () => {
       setOtpCode("");
       return;
     }
+    clearPendingOtpState();
     toast.success("Sesión iniciada correctamente.");
     // onAuthStateChange will handle redirect
   };
