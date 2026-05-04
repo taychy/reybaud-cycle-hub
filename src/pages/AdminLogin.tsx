@@ -114,20 +114,18 @@ const AdminLogin = () => {
     setError(null);
     setShowResendFromError(false);
     setLoading(true);
+    try {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (!trimmedEmail) {
+        setError("Ingresá tu email.");
+        setLoading(false);
+        return;
+      }
 
-    const trimmedEmail = email.toLowerCase().trim();
-    if (!trimmedEmail) {
-      setError("Ingresá tu email.");
-      setLoading(false);
-      finishOtpRequest();
-      return;
-    }
-
-    if (!canRequestOtpAgain("staff", trimmedEmail)) {
-      setLoading(false);
-      finishOtpRequest();
-      return;
-    }
+      if (!canRequestOtpAgain("staff", trimmedEmail)) {
+        setLoading(false);
+        return;
+      }
 
     const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
       _email: trimmedEmail,
@@ -136,7 +134,6 @@ const AdminLogin = () => {
     if (!isValidEmail) {
       setError("No se encontró una cuenta de staff con ese email. Si sos alumno, ingresá desde el login principal.");
       setLoading(false);
-      finishOtpRequest();
       return;
     }
 
@@ -150,7 +147,6 @@ const AdminLogin = () => {
     if (otpError) {
       setError(otpError.message || "Error al enviar el código.");
       setLoading(false);
-      finishOtpRequest();
       return;
     }
 
@@ -158,8 +154,10 @@ const AdminLogin = () => {
     setOtpReturnTo(returnTo);
     setLinkSent(true);
     setLoading(false);
-    finishOtpRequest();
     toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
+    } finally {
+      finishOtpRequest();
+    }
   };
 
   if (checkingSession) {
