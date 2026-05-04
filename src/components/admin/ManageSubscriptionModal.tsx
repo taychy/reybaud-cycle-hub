@@ -326,7 +326,7 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                       <span className="text-foreground">{s.planes?.nombre || "—"}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">{formatDate(s.fecha_inicio)} — {formatDate(s.fecha_fin)}</span>
-                        <Badge variant="outline" className={`text-[10px] ${(SUB_STATUS_BADGE[eff] || {}).className || ""}`}>
+                        <Badge variant="outline" className={`text-[10px] ${SUB_STATUS_BADGE[eff]?.className || ""}`}>
                           {SUB_STATUS_LABELS[eff] || eff}
                         </Badge>
                       </div>
@@ -456,7 +456,7 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                   <p className="text-sm font-medium">Cambiar estado manualmente</p>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">Actual:</span>
-                    <Badge variant="outline" className={`text-xs ${badgeCfg.className}`}>{statusLabel}</Badge>
+              <Badge variant="outline" className={`text-xs ${(badgeCfg as any).className || ""}`}>{statusLabel}</Badge>
                   </div>
                   <Select value={subChangeTarget} onValueChange={setSubChangeTarget}>
                     <SelectTrigger className="bg-secondary border-border text-xs"><SelectValue placeholder="Seleccionar estado" /></SelectTrigger>
