@@ -24,7 +24,7 @@ const EMAIL_SUBJECTS_BY_ROLE: Record<string, Record<string, string>> = {
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'Confirmá tu email - Ciclismo Reybaud',
   invite: 'Activá tu cuenta – Ciclismo Reybaud',
-  magiclink: 'Tu link de acceso - Ciclismo Reybaud',
+  magiclink: 'Tu código de acceso - Ciclismo Reybaud',
   recovery: 'Restablecé tu contraseña - Ciclismo Reybaud',
   email_change: 'Confirmá tu cambio de email - Ciclismo Reybaud',
   reauthentication: 'Tu código de verificación - Ciclismo Reybaud',
@@ -63,6 +63,7 @@ const SAMPLE_DATA: Record<string, object> = {
   magiclink: {
     siteName: SITE_NAME,
     confirmationUrl: SAMPLE_PROJECT_URL,
+    token: '123456',
   },
   recovery: {
     siteName: SITE_NAME,
