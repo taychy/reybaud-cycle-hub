@@ -327,11 +327,15 @@ export function RegisterPaymentModal({
                 <Select value={selectedSubId || ""} onValueChange={setSelectedSubId}>
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                   <SelectContent>
-                    {pendingSubs.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.planes?.nombre || "Sin plan"} — {s.estado} — ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
-                      </SelectItem>
-                    ))}
+                    {pendingSubs.map(s => {
+                      const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+                      const statusLabel = effective === "pago_pendiente" ? "Pago pendiente" : effective === "acceso_pausado" ? "Acceso pausado" : s.estado;
+                      return (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.planes?.nombre || "Sin plan"} — {statusLabel} — ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               )}
