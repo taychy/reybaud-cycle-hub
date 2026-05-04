@@ -1265,7 +1265,7 @@ const AdminEventReservations = ({
               {/* Status controls */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Estado reserva</Label>
+                  <Label className="text-xs text-muted-foreground">{isSchoolEvent ? "Estado de inscripción" : "Estado reserva"}</Label>
                   <Select
                     value={selectedRes.reservation_status}
                     onValueChange={(v) => updateReservationStatus(selectedRes.id, "reservation_status", v)}
