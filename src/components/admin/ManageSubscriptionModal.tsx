@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE, type EffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { CreditCard, Play, Pause, XCircle, Plus, ArrowRightLeft, AlertTriangle, Clock, FileText } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
