@@ -14,7 +14,7 @@ import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertT
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
-import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
+import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
@@ -28,6 +28,7 @@ interface SuscripcionData {
   estado: string;
   fecha_inicio: string | null;
   fecha_fin: string | null;
+  cancelada_at?: string | null;
   mp_status: string | null;
   metodo_pago: string;
   origen_registro: string;
@@ -107,7 +108,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes, discountsRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
@@ -133,12 +134,12 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   // Categorize subscriptions using shared effective status
   const activeSubs = subs.filter(s => {
-    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
     return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
   });
   const historicSubs = subs.filter(s => !activeSubs.includes(s));
 
-  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
 
   // --- Actions ---
   const handlePauseSub = async (subId: string) => {
