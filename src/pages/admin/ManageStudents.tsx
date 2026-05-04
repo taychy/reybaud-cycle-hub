@@ -704,7 +704,11 @@ const ManageStudents = () => {
       await supabase.from("suscripciones").update({ estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin }).eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
     } else {
       const { error } = await supabase.from("suscripciones").insert({ alumno_id: manualSubAlumno.id, plan_id: planId, estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
-      if (error) { toast.error("Error al crear la suscripción."); setSavingManual(false); return; }
+      if (error) { 
+        toast.error(isDuplicateSubError(error) ? DUPLICATE_SUB_MSG : "Error al crear la suscripción."); 
+        setSavingManual(false); 
+        return; 
+      }
     }
     await supabase.from("alumnos").update({ estado: "activo" }).eq("id", manualSubAlumno.id);
     const emailType = hasPendingPayment ? "pago_confirmado" : "habilitado";
