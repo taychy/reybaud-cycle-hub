@@ -903,11 +903,15 @@ const AdminEventReservations = ({
 
       {/* ─── Stats Cards ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label="Total reservas" value={stats.total} icon={<Users className="w-4 h-4" />} />
+        <StatCard label={isSchoolEvent ? "Total inscriptos" : "Total reservas"} value={stats.total} icon={<Users className="w-4 h-4" />} />
         <StatCard label="Confirmadas" value={stats.confirmed} color="text-emerald-500" icon={<CheckCircle className="w-4 h-4" />} />
         <StatCard label="Pendientes" value={stats.pending} color="text-amber-500" icon={<Clock className="w-4 h-4" />} />
-        <StatCard label="Total cobrado" value={formatPrice(stats.totalCobrado, eventCurrency)} color="text-emerald-500" icon={<DollarSign className="w-4 h-4" />} />
-        <StatCard label="Saldo pendiente" value={formatPrice(stats.saldoPendiente, eventCurrency)} color="text-amber-500" icon={<Banknote className="w-4 h-4" />} />
+        {!isPaymentFree && (
+          <>
+            <StatCard label="Total cobrado" value={formatPrice(stats.totalCobrado, eventCurrency)} color="text-emerald-500" icon={<DollarSign className="w-4 h-4" />} />
+            <StatCard label="Saldo pendiente" value={formatPrice(stats.saldoPendiente, eventCurrency)} color="text-amber-500" icon={<Banknote className="w-4 h-4" />} />
+          </>
+        )}
       </div>
 
       {/* ─── Quick Filter Chips ─── */}
