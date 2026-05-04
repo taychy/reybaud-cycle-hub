@@ -1203,13 +1203,15 @@ const AdminEventReservations = ({
                         {reservationStatusLabels[r.reservation_status] || r.reservation_status}
                       </Badge>
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
-                        {paymentStatusLabels[r.payment_status] || r.payment_status}
+                        {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="text-emerald-500">Abonado: {fmtMoney(r.amount_paid, c)}</span>
-                      {bal > 0 && <span className="text-amber-500">Saldo: {fmtMoney(bal, c)}</span>}
-                    </div>
+                    {!isPaymentFree && (
+                      <div className="flex items-center gap-4 text-xs">
+                        <span className="text-emerald-500">Abonado: {fmtMoney(r.amount_paid, c)}</span>
+                        {bal > 0 && <span className="text-amber-500">Saldo: {fmtMoney(bal, c)}</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
