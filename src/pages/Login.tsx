@@ -10,8 +10,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
-
-const OTP_LENGTH = 6;
+import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -24,6 +23,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     _role: "admin" as any,
   });
   if (isAdmin) {
+    clearPendingOtpState();
     navigate("/admin", { replace: true });
     return;
   }
@@ -34,6 +34,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     _role: "coach" as any,
   });
   if (isCoach) {
+    clearPendingOtpState();
     navigate("/coach", { replace: true });
     return;
   }
@@ -46,7 +47,8 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     .maybeSingle();
 
   if (alumno) {
-    navigate(returnTo || "/alumno", { replace: true });
+    clearPendingOtpState();
+    navigate(getSafeReturnTo(returnTo) || "/alumno", { replace: true });
     return;
   }
 
@@ -66,16 +68,25 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const [otpReturnTo, setOtpReturnTo] = useState<string | null>(returnTo);
   const { t } = useTranslation();
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        const pendingOtp = loadPendingOtpState("main");
+        if (pendingOtp) {
+          setEmail(pendingOtp.email);
+          setOtpReturnTo(pendingOtp.returnTo);
+          setMagicLinkSent(true);
+        }
         localStorage.removeItem("alumno");
         setCheckingSession(false);
         return;
       }
+
+      const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo);
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
@@ -86,6 +97,7 @@ const Login = () => {
         _role: "admin" as any,
       });
       if (isAdmin) {
+        clearPendingOtpState();
         navigate("/admin", { replace: true });
         return;
       }
@@ -95,6 +107,7 @@ const Login = () => {
         _role: "coach" as any,
       });
       if (isCoach) {
+        clearPendingOtpState();
         navigate("/coach", { replace: true });
         return;
       }
@@ -120,6 +133,7 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "inactivo" && alumno.grupo === "Sin grupo") {
+        clearPendingOtpState();
         localStorage.setItem("registro_alumno_id", alumno.id);
         navigate("/planes", { replace: true });
         return;
@@ -133,8 +147,10 @@ const Login = () => {
         if (alumno.grupo === "Sin grupo") {
           setCheckingSession(false);
           setLoginError(t("login.pendingApproval"));
+          clearPendingOtpState();
           return;
         }
+        clearPendingOtpState();
         localStorage.setItem("registro_alumno_id", alumno.id);
         navigate("/planes", { replace: true });
         return;
@@ -145,7 +161,8 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "vacaciones") {
-        navigate(returnTo || "/alumno", { replace: true });
+        clearPendingOtpState();
+        navigate(targetReturnTo || "/alumno", { replace: true });
         return;
       }
 
@@ -177,6 +194,7 @@ const Login = () => {
       });
 
       if (!hasAccess) {
+        clearPendingOtpState();
         localStorage.setItem("registro_alumno_id", alumno.id);
         localStorage.setItem("alumno_renewal", "1");
         navigate("/planes", { replace: true });
@@ -186,7 +204,8 @@ const Login = () => {
       localStorage.removeItem("alumno_from_vacation");
       localStorage.removeItem("upgrade_from_sub_id");
       localStorage.removeItem("upgrade_preselect_plan_id");
-      navigate(returnTo || "/alumno", { replace: true });
+      clearPendingOtpState();
+      navigate(targetReturnTo || "/alumno", { replace: true });
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -194,7 +213,7 @@ const Login = () => {
     });
     checkSession();
     return () => subscription.unsubscribe();
-  }, [navigate, t]);
+  }, [navigate, t, returnTo, otpReturnTo]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +244,9 @@ const Login = () => {
     });
     if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
 
+    const safeReturnTo = getSafeReturnTo(returnTo);
+    savePendingOtpState({ email: trimmedEmail, returnTo: safeReturnTo, context: "main" });
+    setOtpReturnTo(safeReturnTo);
     setMagicLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu email.");
@@ -300,7 +322,7 @@ const Login = () => {
             </p>
           </div>
 
-          <div className="glass-card rounded-xl p-6 space-y-4">
+          <div className="glass-card rounded-xl p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <KeyRound className="w-4 h-4" />
               <span>Código de acceso</span>
@@ -316,7 +338,7 @@ const Login = () => {
               >
                 <InputOTPGroup>
                   {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} />
+                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
@@ -346,7 +368,13 @@ const Login = () => {
           <div className="space-y-3 pt-2">
             <Button
               variant="outline"
-              onClick={() => { setMagicLinkSent(false); setLoginError(null); setOtpCode(""); }}
+              onClick={() => {
+                clearPendingOtpState();
+                setMagicLinkSent(false);
+                setLoginError(null);
+                setOtpCode("");
+                setOtpReturnTo(returnTo);
+              }}
               className="w-full h-12 rounded-xl"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />

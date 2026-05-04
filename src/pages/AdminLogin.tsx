@@ -7,9 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, ArrowLeft, MailCheck, AlertTriangle, RefreshCw, KeyRound } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
+import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
-const OTP_LENGTH = 6;
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -22,6 +22,8 @@ const AdminLogin = () => {
   const [showResendFromError, setShowResendFromError] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
+  const [otpReturnTo, setOtpReturnTo] = useState<string | null>(returnTo);
 
   // Detect callback errors from URL
   useEffect(() => {
@@ -67,13 +69,13 @@ const AdminLogin = () => {
         _user_id: userId,
         _role: "admin" as any,
       });
-      if (isAdmin) { navigate("/admin", { replace: true }); return true; }
+      if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return true; }
 
       const { data: isCoach } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "coach" as any,
       });
-      if (isCoach) { navigate("/coach", { replace: true }); return true; }
+      if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return true; }
 
       // Check alumno
       const { data: alumno } = await supabase
@@ -81,7 +83,7 @@ const AdminLogin = () => {
         .select("id")
         .eq("user_id", userId)
         .maybeSingle();
-      if (alumno) { navigate("/alumno", { replace: true }); return true; }
+      if (alumno) { clearPendingOtpState(); navigate(otpReturnTo || "/alumno", { replace: true }); return true; }
 
       return false;
     };
@@ -92,11 +94,19 @@ const AdminLogin = () => {
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const redirected = await redirectByRole(session);
-      if (!redirected) setCheckingSession(false);
+      if (!redirected) {
+        const pendingOtp = loadPendingOtpState("staff");
+        if (pendingOtp) {
+          setEmail(pendingOtp.email);
+          setOtpReturnTo(pendingOtp.returnTo);
+          setLinkSent(true);
+        }
+        setCheckingSession(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, otpReturnTo]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +144,8 @@ const AdminLogin = () => {
       return;
     }
 
+    savePendingOtpState({ email: trimmedEmail, returnTo, context: "staff" });
+    setOtpReturnTo(returnTo);
     setLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
@@ -165,7 +177,7 @@ const AdminLogin = () => {
               {error}
             </div>
           )}
-          <div className="glass-card rounded-lg p-6 space-y-4">
+          <div className="glass-card rounded-lg p-4 sm:p-6 space-y-4">
             <p className="text-muted-foreground text-sm">
               Ingresá tu email para recibir un nuevo código de acceso.
             </p>
@@ -258,7 +270,7 @@ const AdminLogin = () => {
               >
                 <InputOTPGroup>
                   {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} />
+                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
@@ -288,7 +300,13 @@ const AdminLogin = () => {
           <div className="space-y-3">
             <Button
               variant="outline"
-              onClick={() => { setLinkSent(false); setError(null); setOtpCode(""); }}
+              onClick={() => {
+                clearPendingOtpState();
+                setLinkSent(false);
+                setError(null);
+                setOtpCode("");
+                setOtpReturnTo(returnTo);
+              }}
               className="w-full"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
