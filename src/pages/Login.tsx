@@ -128,7 +128,7 @@ const Login = () => {
       localStorage.removeItem("alumno_from_vacation");
       localStorage.removeItem("upgrade_from_sub_id");
       localStorage.removeItem("upgrade_preselect_plan_id");
-      navigate("/alumno", { replace: true });
+      navigate(returnTo || "/alumno", { replace: true });
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
