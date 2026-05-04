@@ -244,6 +244,8 @@ const Login = () => {
     });
     if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
 
+    savePendingOtpState({ email: trimmedEmail, returnTo, context: "main" });
+    setOtpReturnTo(returnTo);
     setMagicLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu email.");
@@ -365,7 +367,13 @@ const Login = () => {
           <div className="space-y-3 pt-2">
             <Button
               variant="outline"
-              onClick={() => { setMagicLinkSent(false); setLoginError(null); setOtpCode(""); }}
+              onClick={() => {
+                clearPendingOtpState();
+                setMagicLinkSent(false);
+                setLoginError(null);
+                setOtpCode("");
+                setOtpReturnTo(returnTo);
+              }}
               className="w-full h-12 rounded-xl"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
