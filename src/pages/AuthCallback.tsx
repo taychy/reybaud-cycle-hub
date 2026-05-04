@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo.png";
+import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState } from "@/lib/pendingOtp";
 
 /**
  * Centralized auth callback handler.
@@ -80,6 +81,8 @@ const AuthCallback = () => {
 
       // 3. Determine role and redirect
       const userId = session.user.id;
+      const pendingOtp = loadPendingOtpState();
+      const returnTo = getSafeReturnTo(pendingOtp?.returnTo);
 
       // Check admin
       const { data: isAdmin } = await supabase.rpc("has_role", {
@@ -87,6 +90,7 @@ const AuthCallback = () => {
         _role: "admin" as any,
       });
       if (!cancelled && isAdmin) {
+        clearPendingOtpState();
         navigate("/admin", { replace: true });
         return;
       }
@@ -97,6 +101,7 @@ const AuthCallback = () => {
         _role: "coach" as any,
       });
       if (!cancelled && isCoach) {
+        clearPendingOtpState();
         navigate("/coach", { replace: true });
         return;
       }
@@ -108,12 +113,14 @@ const AuthCallback = () => {
         .eq("user_id", userId)
         .maybeSingle();
       if (!cancelled && alumno) {
-        navigate("/alumno", { replace: true });
+        clearPendingOtpState();
+        navigate(returnTo || "/alumno", { replace: true });
         return;
       }
 
       // Fallback: user exists but no role matched — send to home
       if (!cancelled) {
+        clearPendingOtpState();
         navigate("/", { replace: true });
       }
     };
