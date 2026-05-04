@@ -222,7 +222,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             : Math.max(0, precioBase - discount.valor);
         }
 
-        const { data: newSub } = await supabase.from("suscripciones").insert({
+        const { data: newSub, error: insertError } = await supabase.from("suscripciones").insert({
           alumno_id: alumno.id,
           plan_id: newPlanId,
           estado: "activa",
@@ -235,6 +235,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           precio_base: precioBase,
           precio_final: precioFinal,
         } as any).select("id").single();
+
+        if (insertError) {
+          if (isDuplicateSubError(insertError)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw insertError;
+        }
 
         // Also assign discount to descuentos_alumno for tracking
         if (discount && newSub) {
