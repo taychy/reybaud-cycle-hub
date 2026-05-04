@@ -1491,7 +1491,7 @@ const ManageStudents = () => {
         onOpenChange={(open) => !open && setRegPayAlumno(null)}
         alumnoId={regPayAlumno?.id}
         alumnoNombre={regPayAlumno ? getFullName(regPayAlumno) : null}
-        onSuccess={fetchData}
+        onSuccess={fetchAlumnos}
       />
     </div>
   );
