@@ -143,7 +143,7 @@ const reservationStatusLabels: Record<string, string> = {
 
 const paymentStatusLabels: Record<string, string> = {
   no_informado: "No informado",
-  no_aplica: "N/A",
+  no_aplica: "No aplica",
   pago_pendiente: "Pendiente",
   pago_informado: "Informado - Revisar",
   pago_validado: "Pagado",
