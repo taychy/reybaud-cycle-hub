@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscriptionStatus";
 import { supabase } from "@/integrations/supabase/client";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
