@@ -7,9 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, ArrowLeft, MailCheck, AlertTriangle, RefreshCw, KeyRound } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
+import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
-const OTP_LENGTH = 6;
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -22,6 +22,8 @@ const AdminLogin = () => {
   const [showResendFromError, setShowResendFromError] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
+  const [otpReturnTo, setOtpReturnTo] = useState<string | null>(returnTo);
 
   // Detect callback errors from URL
   useEffect(() => {
@@ -67,13 +69,13 @@ const AdminLogin = () => {
         _user_id: userId,
         _role: "admin" as any,
       });
-      if (isAdmin) { navigate("/admin", { replace: true }); return true; }
+      if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return true; }
 
       const { data: isCoach } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "coach" as any,
       });
-      if (isCoach) { navigate("/coach", { replace: true }); return true; }
+      if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return true; }
 
       // Check alumno
       const { data: alumno } = await supabase
@@ -81,7 +83,7 @@ const AdminLogin = () => {
         .select("id")
         .eq("user_id", userId)
         .maybeSingle();
-      if (alumno) { navigate("/alumno", { replace: true }); return true; }
+      if (alumno) { clearPendingOtpState(); navigate(otpReturnTo || "/alumno", { replace: true }); return true; }
 
       return false;
     };
@@ -92,11 +94,19 @@ const AdminLogin = () => {
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const redirected = await redirectByRole(session);
-      if (!redirected) setCheckingSession(false);
+      if (!redirected) {
+        const pendingOtp = loadPendingOtpState("staff");
+        if (pendingOtp) {
+          setEmail(pendingOtp.email);
+          setOtpReturnTo(pendingOtp.returnTo);
+          setLinkSent(true);
+        }
+        setCheckingSession(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, otpReturnTo]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
