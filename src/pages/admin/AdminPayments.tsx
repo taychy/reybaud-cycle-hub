@@ -20,6 +20,7 @@ import {
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
   ChevronDown, ChevronUp
 } from "lucide-react";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Suscripcion = {
   id: string;
