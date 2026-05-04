@@ -37,6 +37,7 @@ interface PendingSub {
 }
 
 const PAYABLE_STATES = ["pendiente", "pendiente_verificacion", "vencida", "pago_pendiente", "acceso_pausado"];
+const PAYABLE_STATES_WITH_EXPIRED = [...PAYABLE_STATES, "activa"];
 
 export function RegisterPaymentModal({
   open,
