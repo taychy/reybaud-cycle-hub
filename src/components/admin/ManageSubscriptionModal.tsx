@@ -259,8 +259,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
 
   if (!alumno) return null;
 
-  const badgeCfg = effectiveStatus !== "sin_suscripcion"
-    ? SUB_STATUS_BADGE[effectiveStatus] || {}
+  const badgeCfg: { className: string } = effectiveStatus !== "sin_suscripcion"
+    ? (SUB_STATUS_BADGE[effectiveStatus] || { className: "" })
     : { className: "text-muted-foreground border-dashed" };
   const statusLabel = effectiveStatus !== "sin_suscripcion"
     ? (SUB_STATUS_LABELS[effectiveStatus] || effectiveStatus)
