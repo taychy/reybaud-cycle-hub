@@ -42,7 +42,7 @@ export async function detectDuplicateActiveSubs(alumnoId: string): Promise<
     .from("suscripciones")
     .select("id, plan_id, fecha_fin, estado, cancelada_at, planes(nombre)")
     .eq("alumno_id", alumnoId)
-    .eq("estado", "activa")
+    .in("estado", OPERATIONAL_STATES)
     .is("cancelada_at", null);
 
   if (!data || data.length === 0) return [];
