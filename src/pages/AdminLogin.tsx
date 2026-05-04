@@ -198,7 +198,7 @@ const AdminLogin = () => {
   // OTP code verification
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) return;
+    if (otpCode.length < 6) return;
     setVerifyingOtp(true);
     setError(null);
 
