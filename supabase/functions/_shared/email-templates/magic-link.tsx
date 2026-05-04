@@ -96,12 +96,12 @@ const text = {
 }
 const codeStyle = {
   fontFamily: 'Courier, monospace',
-  fontSize: '36px',
+  fontSize: '32px',
   fontWeight: 'bold' as const,
   color: '#E8832A',
   margin: '0 0 10px',
   textAlign: 'center' as const,
-  letterSpacing: '8px',
+  letterSpacing: '6px',
 }
 const expireNote = {
   fontSize: '12px',
