@@ -1387,6 +1387,12 @@ const AdminEventReservations = ({
 
 
               {/* Payments section */}
+              {isPaymentFree ? (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pagos</h4>
+                  <p className="text-xs text-muted-foreground py-2">Este evento no requiere pagos registrados.</p>
+                </div>
+              ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pagos registrados</h4>
