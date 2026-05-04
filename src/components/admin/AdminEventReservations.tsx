@@ -143,7 +143,7 @@ const reservationStatusLabels: Record<string, string> = {
 
 const paymentStatusLabels: Record<string, string> = {
   no_informado: "No informado",
-  no_aplica: "N/A",
+  no_aplica: "No aplica",
   pago_pendiente: "Pendiente",
   pago_informado: "Informado - Revisar",
   pago_validado: "Pagado",
@@ -209,6 +209,12 @@ const AdminEventReservations = ({
   // Trip-like events show full onboarding (checklist + installments).
   // School events (record_hora, carrera, otro) show simplified flow.
   const isTripLike = eventType === "camp" || eventType === "viaje";
+  const isSchoolEvent = eventType === "record_hora" || eventType === "carrera" || eventType === "escuela";
+  const isPaymentFree = eventNature === "propio_solo_inscripcion" || (eventPrice != null && eventPrice <= 0);
+  // For school events use "inscripción" terminology instead of "reserva"
+  const termReserva = isSchoolEvent ? "inscripción" : "reserva";
+  const termReservas = isSchoolEvent ? "inscripciones" : "reservas";
+  const termReservaCreada = isSchoolEvent ? "Inscripción creada" : "Reserva creada";
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,6 +273,7 @@ const AdminEventReservations = ({
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
   const [detailTab, setDetailTab] = useState("info");
+  const [participantResult, setParticipantResult] = useState<any | null>(null);
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
@@ -853,6 +860,19 @@ const AdminEventReservations = ({
     else { setSortKey(key); setSortAsc(false); }
   };
 
+  const loadParticipantResult = async (r: EventReservation) => {
+    setParticipantResult(null);
+    if (!isSchoolEvent) return;
+    const p = getParticipant(r);
+    const { data } = await supabase
+      .from("event_participants")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("email", p.email)
+      .maybeSingle();
+    setParticipantResult(data);
+  };
+
   const openDetail = (r: EventReservation) => {
     setSelectedRes(r);
     setShowAdminPayment(false);
@@ -860,6 +880,7 @@ const AdminEventReservations = ({
     setDetailTab("info");
     loadPayments(r.id);
     loadNotifications(r.id);
+    loadParticipantResult(r);
   };
 
   /* ─── Priority indicators ─── */
@@ -897,11 +918,15 @@ const AdminEventReservations = ({
 
       {/* ─── Stats Cards ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label="Total reservas" value={stats.total} icon={<Users className="w-4 h-4" />} />
+        <StatCard label={isSchoolEvent ? "Total inscriptos" : "Total reservas"} value={stats.total} icon={<Users className="w-4 h-4" />} />
         <StatCard label="Confirmadas" value={stats.confirmed} color="text-emerald-500" icon={<CheckCircle className="w-4 h-4" />} />
         <StatCard label="Pendientes" value={stats.pending} color="text-amber-500" icon={<Clock className="w-4 h-4" />} />
-        <StatCard label="Total cobrado" value={formatPrice(stats.totalCobrado, eventCurrency)} color="text-emerald-500" icon={<DollarSign className="w-4 h-4" />} />
-        <StatCard label="Saldo pendiente" value={formatPrice(stats.saldoPendiente, eventCurrency)} color="text-amber-500" icon={<Banknote className="w-4 h-4" />} />
+        {!isPaymentFree && (
+          <>
+            <StatCard label="Total cobrado" value={formatPrice(stats.totalCobrado, eventCurrency)} color="text-emerald-500" icon={<DollarSign className="w-4 h-4" />} />
+            <StatCard label="Saldo pendiente" value={formatPrice(stats.saldoPendiente, eventCurrency)} color="text-amber-500" icon={<Banknote className="w-4 h-4" />} />
+          </>
+        )}
       </div>
 
       {/* ─── Quick Filter Chips ─── */}
@@ -948,10 +973,10 @@ const AdminEventReservations = ({
         </div>
         <Select value={filterResStatus} onValueChange={setFilterResStatus}>
           <SelectTrigger className="w-[150px] h-10">
-            <SelectValue placeholder="Reserva" />
+            <SelectValue placeholder={isSchoolEvent ? "Inscripción" : "Reserva"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas las reservas</SelectItem>
+            <SelectItem value="all">{isSchoolEvent ? "Todas las inscripciones" : "Todas las reservas"}</SelectItem>
             {Object.entries(reservationStatusLabels).filter(([k], i, arr) => arr.findIndex(([k2]) => reservationStatusLabels[k2] === reservationStatusLabels[k]) === i).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}
@@ -1053,26 +1078,30 @@ const AdminEventReservations = ({
       {loading ? (
         <div className="text-center py-12 text-muted-foreground animate-pulse">
           <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
-          Cargando reservas...
+          Cargando {termReservas}...
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No hay reservas que coincidan.</p>
+          <p className="text-sm">No hay {termReservas} que coincidan.</p>
         </div>
       ) : (
         <div className="space-y-0">
           {/* Column headers */}
-          <div className="hidden md:grid md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border">
+          <div className={`hidden md:grid ${isPaymentFree ? "md:grid-cols-[1fr_130px_130px_80px_44px]" : "md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px]"} gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border`}>
             <button className="flex items-center gap-1 hover:text-foreground text-left" onClick={() => toggleSort("name")}>
               Alumno <ArrowUpDown className="w-3 h-3" />
             </button>
-            <span>Reserva</span>
+            <span>{isSchoolEvent ? "Inscripción" : "Reserva"}</span>
             <span>Pago</span>
-            <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("balance")}>
-              Abonado <ArrowUpDown className="w-3 h-3" />
-            </button>
-            <span>Saldo</span>
+            {!isPaymentFree && (
+              <>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("balance")}>
+                  Abonado <ArrowUpDown className="w-3 h-3" />
+                </button>
+                <span>Saldo</span>
+              </>
+            )}
             <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("date")}>
               Fecha <ArrowUpDown className="w-3 h-3" />
             </button>
@@ -1093,7 +1122,7 @@ const AdminEventReservations = ({
                   onClick={() => openDetail(r)}
                 >
                   {/* Desktop row */}
-                  <div className="hidden md:grid md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px] gap-2 items-center">
+                  <div className={`hidden md:grid ${isPaymentFree ? "md:grid-cols-[1fr_130px_130px_80px_44px]" : "md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px]"} gap-2 items-center`}>
                     {/* Participant */}
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
@@ -1111,15 +1140,18 @@ const AdminEventReservations = ({
                     {/* Estado pago */}
                     <div>
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
-                        {paymentStatusLabels[r.payment_status] || r.payment_status}
+                        {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
                     </div>
-                    {/* Abonado */}
-                    <p className="text-sm text-emerald-500 font-medium">{fmtMoney(r.amount_paid, c)}</p>
-                    {/* Saldo */}
-                    <p className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-                      {fmtMoney(bal, c)}
-                    </p>
+                    {/* Abonado + Saldo — only when payment required */}
+                    {!isPaymentFree && (
+                      <>
+                        <p className="text-sm text-emerald-500 font-medium">{fmtMoney(r.amount_paid, c)}</p>
+                        <p className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                          {fmtMoney(bal, c)}
+                        </p>
+                      </>
+                    )}
                     {/* Fecha */}
                     <p className="text-xs text-muted-foreground">
                       {new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
@@ -1136,9 +1168,11 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => openDetail(r)}>
                             <Eye className="w-3.5 h-3.5 mr-2" /> Ver detalle
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => setShowAdminPayment(true), 100); }}>
-                            <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
-                          </DropdownMenuItem>
+                          {!isPaymentFree && (
+                            <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => setShowAdminPayment(true), 100); }}>
+                              <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           {waUrl && (
                             <DropdownMenuItem asChild>
@@ -1184,13 +1218,15 @@ const AdminEventReservations = ({
                         {reservationStatusLabels[r.reservation_status] || r.reservation_status}
                       </Badge>
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
-                        {paymentStatusLabels[r.payment_status] || r.payment_status}
+                        {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="text-emerald-500">Abonado: {fmtMoney(r.amount_paid, c)}</span>
-                      {bal > 0 && <span className="text-amber-500">Saldo: {fmtMoney(bal, c)}</span>}
-                    </div>
+                    {!isPaymentFree && (
+                      <div className="flex items-center gap-4 text-xs">
+                        <span className="text-emerald-500">Abonado: {fmtMoney(r.amount_paid, c)}</span>
+                        {bal > 0 && <span className="text-amber-500">Saldo: {fmtMoney(bal, c)}</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -1244,7 +1280,7 @@ const AdminEventReservations = ({
               {/* Status controls */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Estado reserva</Label>
+                  <Label className="text-xs text-muted-foreground">{isSchoolEvent ? "Estado de inscripción" : "Estado reserva"}</Label>
                   <Select
                     value={selectedRes.reservation_status}
                     onValueChange={(v) => updateReservationStatus(selectedRes.id, "reservation_status", v)}
@@ -1283,34 +1319,40 @@ const AdminEventReservations = ({
               </div>
 
               {/* Financial summary */}
-              <div className="rounded-xl border border-border p-4 space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resumen financiero</h4>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-lg font-bold text-foreground">{fmtMoney(selectedRes.amount_total, curr(selectedRes))}</p>
-                    <p className="text-[10px] text-muted-foreground">Total</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-emerald-500">{fmtMoney(selectedRes.amount_paid, curr(selectedRes))}</p>
-                    <p className="text-[10px] text-muted-foreground">Abonado</p>
-                  </div>
-                  <div>
-                    <p className={`text-lg font-bold ${(selectedRes.balance_due ?? 0) > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-                      {fmtMoney(selectedRes.balance_due ?? ((selectedRes.amount_total || 0) - (selectedRes.amount_paid || 0)), curr(selectedRes))}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Saldo</p>
-                  </div>
+              {isPaymentFree ? (
+                <div className="rounded-xl border border-border p-4">
+                  <p className="text-xs text-muted-foreground">Este evento no requiere pago desde la app.</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Método: <span className="capitalize">{selectedRes.metodo_pago}</span>
-                </p>
-              </div>
+              ) : (
+                <div className="rounded-xl border border-border p-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resumen financiero</h4>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-foreground">{fmtMoney(selectedRes.amount_total, curr(selectedRes))}</p>
+                      <p className="text-[10px] text-muted-foreground">Total</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-emerald-500">{fmtMoney(selectedRes.amount_paid, curr(selectedRes))}</p>
+                      <p className="text-[10px] text-muted-foreground">Abonado</p>
+                    </div>
+                    <div>
+                      <p className={`text-lg font-bold ${(selectedRes.balance_due ?? 0) > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                        {fmtMoney(selectedRes.balance_due ?? ((selectedRes.amount_total || 0) - (selectedRes.amount_paid || 0)), curr(selectedRes))}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Saldo</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Método: <span className="capitalize">{selectedRes.metodo_pago?.replace(/_/g, " ")}</span>
+                  </p>
+                </div>
+              )}
 
               {/* Dates / timeline */}
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cronología</h4>
                 <div className="space-y-1.5 text-xs">
-                  <TimelineItem label="Reserva creada" date={selectedRes.created_at} />
+                  <TimelineItem label={termReservaCreada} date={selectedRes.created_at} />
                   {selectedRes.confirmed_at && <TimelineItem label="Confirmada" date={selectedRes.confirmed_at} color="text-emerald-500" />}
                   {selectedRes.cancelled_at && <TimelineItem label="Cancelada" date={selectedRes.cancelled_at} color="text-destructive" />}
                   <TimelineItem label="Última actualización" date={selectedRes.updated_at} />
@@ -1336,6 +1378,59 @@ const AdminEventReservations = ({
                 />
               </div>
 
+              {/* Result section for school events (record_hora, carrera, etc.) */}
+              {isSchoolEvent && (
+                <div className="rounded-xl border border-border p-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resultado del participante</h4>
+                  {participantResult ? (
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Check-in</p>
+                        <p className="font-medium">{participantResult.checked_in_at ? "Sí" : "No"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Resultado cargado</p>
+                        <p className="font-medium">{participantResult.time_value != null ? "Sí" : "No"}</p>
+                      </div>
+                      {participantResult.time_value != null && (
+                        <>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Distancia</p>
+                            <p className="font-medium">{participantResult.time_value} km</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Posición</p>
+                            <p className="font-medium">{participantResult.position ?? "—"}</p>
+                          </div>
+                        </>
+                      )}
+                      {participantResult.time_result && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-muted-foreground">Detalle</p>
+                          <p className="font-medium">{participantResult.time_result}</p>
+                        </div>
+                      )}
+                      {participantResult.staff_feedback && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-muted-foreground">Feedback del staff</p>
+                          <p className="font-medium">{participantResult.staff_feedback}</p>
+                        </div>
+                      )}
+                      {participantResult.results_updated_at && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-muted-foreground">Última actualización</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(participantResult.results_updated_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Sin registro de participación (check-in) para este evento.</p>
+                  )}
+                </div>
+              )}
+
               {/* Trip preparation checklist — only for camp/viaje */}
               {isTripLike && (
                 <ReservationChecklistViewer
@@ -1343,21 +1438,29 @@ const AdminEventReservations = ({
                   alumnoId={selectedRes.alumno_id}
                 />
               )}
-              {/* Installments — Etapa 3: panel real por reservation_installments */}
-              <ReservationInstallmentsPanel
-                reservationId={selectedRes.id}
-                reservationCurrency={curr(selectedRes)}
-                reservationAmountTotal={selectedRes.amount_total || 0}
-                reservationAmountPaid={selectedRes.amount_paid || 0}
-                hasEventInstallments={installments.length > 0}
-                onChanged={() => {
-                  loadReservations();
-                  loadPayments(selectedRes.id);
-                }}
-              />
+              {/* Installments — only when payment required */}
+              {!isPaymentFree && (
+                <ReservationInstallmentsPanel
+                  reservationId={selectedRes.id}
+                  reservationCurrency={curr(selectedRes)}
+                  reservationAmountTotal={selectedRes.amount_total || 0}
+                  reservationAmountPaid={selectedRes.amount_paid || 0}
+                  hasEventInstallments={installments.length > 0}
+                  onChanged={() => {
+                    loadReservations();
+                    loadPayments(selectedRes.id);
+                  }}
+                />
+              )}
 
 
               {/* Payments section */}
+              {isPaymentFree ? (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pagos</h4>
+                  <p className="text-xs text-muted-foreground py-2">Este evento no requiere pagos registrados.</p>
+                </div>
+              ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pagos registrados</h4>
@@ -1672,6 +1775,7 @@ const AdminEventReservations = ({
                   </div>
                 )}
               </div>
+              )}
               {/* Notifications section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
