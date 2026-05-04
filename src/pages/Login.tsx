@@ -322,7 +322,7 @@ const Login = () => {
             </p>
           </div>
 
-          <div className="glass-card rounded-xl p-6 space-y-4">
+          <div className="glass-card rounded-xl p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <KeyRound className="w-4 h-4" />
               <span>Código de acceso</span>
@@ -338,7 +338,7 @@ const Login = () => {
               >
                 <InputOTPGroup>
                   {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} />
+                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
