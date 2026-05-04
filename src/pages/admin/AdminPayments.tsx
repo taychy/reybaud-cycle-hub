@@ -876,6 +876,13 @@ const AdminPayments = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Register Payment Modal */}
+      <RegisterPaymentModal
+        open={showRegisterPayment}
+        onOpenChange={setShowRegisterPayment}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };
