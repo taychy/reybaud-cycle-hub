@@ -1107,7 +1107,7 @@ const AdminEventReservations = ({
                   onClick={() => openDetail(r)}
                 >
                   {/* Desktop row */}
-                  <div className="hidden md:grid md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px] gap-2 items-center">
+                  <div className={`hidden md:grid ${isPaymentFree ? "md:grid-cols-[1fr_130px_130px_80px_44px]" : "md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px]"} gap-2 items-center`}>
                     {/* Participant */}
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
@@ -1125,15 +1125,18 @@ const AdminEventReservations = ({
                     {/* Estado pago */}
                     <div>
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
-                        {paymentStatusLabels[r.payment_status] || r.payment_status}
+                        {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
                     </div>
-                    {/* Abonado */}
-                    <p className="text-sm text-emerald-500 font-medium">{fmtMoney(r.amount_paid, c)}</p>
-                    {/* Saldo */}
-                    <p className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-                      {fmtMoney(bal, c)}
-                    </p>
+                    {/* Abonado + Saldo — only when payment required */}
+                    {!isPaymentFree && (
+                      <>
+                        <p className="text-sm text-emerald-500 font-medium">{fmtMoney(r.amount_paid, c)}</p>
+                        <p className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                          {fmtMoney(bal, c)}
+                        </p>
+                      </>
+                    )}
                     {/* Fecha */}
                     <p className="text-xs text-muted-foreground">
                       {new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
