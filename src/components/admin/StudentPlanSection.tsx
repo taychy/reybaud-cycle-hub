@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
-import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
+import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
@@ -30,6 +30,7 @@ interface SuscripcionData {
   fecha_inicio: string | null;
   fecha_fin: string | null;
   cancelada_at?: string | null;
+  cancelada_motivo?: string | null;
   mp_status: string | null;
   metodo_pago: string;
   origen_registro: string;
@@ -49,18 +50,8 @@ interface Props {
   openOverduePreviewToken?: number;
 }
 
-const getSubBadge = (estado: string) => {
-  switch (estado) {
-    case "activa": return { variant: "default" as const, className: "bg-emerald-600/20 text-emerald-400 border-emerald-500/30" };
-    case "pausa": return { variant: "secondary" as const, className: "border-amber-500/50 text-amber-400" };
-    case "pago_pendiente": return { variant: "outline" as const, className: "bg-amber-500/20 text-amber-400 border-amber-500/30" };
-    case "acceso_pausado": return { variant: "destructive" as const, className: "bg-destructive/20 text-destructive border-destructive/30" };
-    case "vencida": return { variant: "destructive" as const, className: "" };
-    case "pendiente": case "pendiente_verificacion": return { variant: "outline" as const, className: "border-yellow-500/50 text-yellow-400" };
-    case "cancelada": return { variant: "outline" as const, className: "text-muted-foreground" };
-    default: return { variant: "outline" as const, className: "text-muted-foreground border-dashed" };
-  }
-};
+/** States considered "operationally active" — shown in main list */
+const ACTIVE_STATES = new Set(["activa", "pago_pendiente", "acceso_pausado", "pendiente", "pendiente_verificacion", "pausa"]);
 
 const formatDate = (d: string | null) => {
   if (!d) return "—";
@@ -98,6 +89,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
+  const [removingSub, setRemovingSub] = useState(false);
   const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
 
   // Email preview state
@@ -110,7 +102,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes, discountsRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
@@ -122,9 +114,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setAvailableDiscounts((discountsRes.data as any) || []);
 
     // Detect duplicates client-side from fetched data
-    const activeOnly = allSubs.filter((s: SuscripcionData) => s.estado === "activa" && !s.cancelada_at);
+    const operationalOnly = allSubs.filter((s: SuscripcionData) => ACTIVE_STATES.has(getEffStatus(s)) && !s.cancelada_at);
     const dupeGroups: Record<string, { plan_nombre: string; fecha_fin: string; count: number }> = {};
-    for (const s of activeOnly) {
+    for (const s of operationalOnly) {
       const key = `${s.plan_id}|${s.fecha_fin}`;
       if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: s.fecha_fin || "—", count: 0 };
       dupeGroups[key].count++;
@@ -146,18 +138,19 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setLastHandledOverduePreviewToken(openOverduePreviewToken);
   }, [openOverduePreviewToken, lastHandledOverduePreviewToken, subs]);
 
-  // Categorize subscriptions using shared effective status
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
+
+  // Categorize subscriptions: active operational vs history
   const activeSubs = subs.filter(s => {
-    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
-    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
+    const eff = getEffStatus(s);
+    return ACTIVE_STATES.has(eff);
   });
   const historicSubs = subs.filter(s => !activeSubs.includes(s));
 
-  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
-
   // --- Actions ---
   const handlePauseSub = async (subId: string) => {
-    await supabase.from("suscripciones").update({ estado: "pausa" }).eq("id", subId);
+    const { error } = await supabase.from("suscripciones").update({ estado: "pausa" }).eq("id", subId);
+    if (error) { toast.error("Error al pausar la suscripción"); return; }
     const sub = subs.find(s => s.id === subId);
     toast.success("Suscripción pausada");
     await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → pausa", description: `Plan "${sub?.planes?.nombre || "—"}" pausado`, actorRole });
@@ -166,7 +159,12 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   };
 
   const handleReactivateSub = async (subId: string) => {
-    await supabase.from("suscripciones").update({ estado: "activa" }).eq("id", subId);
+    const { error } = await supabase.from("suscripciones").update({ estado: "activa" }).eq("id", subId);
+    if (error) {
+      if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); return; }
+      toast.error("Error al reactivar la suscripción");
+      return;
+    }
     const sub = subs.find(s => s.id === subId);
     toast.success("Suscripción reactivada");
     await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → activa", description: `Plan "${sub?.planes?.nombre || "—"}" reactivado`, actorRole });
@@ -176,14 +174,67 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   const handleRemovePlan = async () => {
     if (!removeSubId) return;
-    const sub = subs.find(s => s.id === removeSubId);
-    await supabase.from("suscripciones").update({ estado: "cancelada", cancelada_motivo: "Plan removido por admin", cancelada_at: new Date().toISOString() } as any).eq("id", removeSubId);
-    toast.success("Plan removido");
-    await logStudentActivity({ alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan removido", description: `Se removió el plan "${sub?.planes?.nombre || "—"}"`, actorRole, referenceLabel: sub?.planes?.nombre || "—" });
-    setShowRemovePlan(false);
-    setRemoveSubId(null);
-    fetchData();
-    onRefresh();
+    setRemovingSub(true);
+    try {
+      const sub = subs.find(s => s.id === removeSubId);
+      const { error, count } = await supabase
+        .from("suscripciones")
+        .update({
+          estado: "cancelada",
+          cancelada_motivo: "Plan removido por admin",
+          cancelada_at: new Date().toISOString(),
+          auto_renovacion: false,
+        } as any)
+        .eq("id", removeSubId)
+        .select("id");
+
+      if (error) {
+        toast.error("Error al quitar el plan: " + (error.message || "Error desconocido"));
+        return;
+      }
+
+      // Verify the update actually happened
+      const { data: verify } = await supabase
+        .from("suscripciones")
+        .select("estado, cancelada_at")
+        .eq("id", removeSubId)
+        .single();
+
+      if (!verify || verify.estado !== "cancelada" || !verify.cancelada_at) {
+        toast.error("El plan no se pudo cancelar correctamente. Intentá de nuevo.");
+        return;
+      }
+
+      // Audit log
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: adminProfile } = await supabase.from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
+        await supabase.from("audit_log").insert([{
+          user_id: session.user.id,
+          user_email: adminProfile?.email || session.user.email || "",
+          user_role: adminProfile?.role || "admin",
+          action: "quitar_plan",
+          entity_type: "suscripcion",
+          entity_id: removeSubId,
+          details: {
+            alumno: alumno.nombre,
+            plan: sub?.planes?.nombre || "—",
+            estado_anterior: sub?.estado,
+          },
+        }]);
+      }
+
+      toast.success("Plan removido correctamente");
+      await logStudentActivity({ alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan removido", description: `Se removió el plan "${sub?.planes?.nombre || "—"}"`, actorRole, referenceLabel: sub?.planes?.nombre || "—" });
+      setShowRemovePlan(false);
+      setRemoveSubId(null);
+      fetchData();
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado al quitar el plan");
+    } finally {
+      setRemovingSub(false);
+    }
   };
 
   const openAddPlan = () => {
@@ -215,14 +266,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
       if (dialogMode === "add") {
-        // Add a NEW subscription without touching existing ones
-        // Parse date parts to avoid UTC/timezone drift
         const [startY, startM, startD] = changeFechaInicio.split("-").map(Number);
         const freq = selectedPlan?.frecuencia || "mensual";
         let monthsToAdd = 1;
         if (freq === "trimestral") monthsToAdd = 3;
         else if (freq === "anual") monthsToAdd = 12;
-        // Last day of the target month
         const endDate = new Date(startY, startM - 1 + monthsToAdd, 0);
         const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
 
@@ -254,7 +302,6 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           throw insertError;
         }
 
-        // Also assign discount to descuentos_alumno for tracking
         if (discount && newSub) {
           await supabase.from("descuentos_alumno").insert({
             alumno_id: alumno.id,
@@ -272,10 +319,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
-        // Change an existing subscription's plan
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
-        await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio } as any).eq("id", dialogSubId!);
+        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio } as any).eq("id", dialogSubId!);
+        if (error) {
+          if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw error;
+        }
         toast.success(`Plan actualizado`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Cambio de plan",
@@ -284,7 +334,6 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         });
       }
 
-      // Notify student
       supabase.functions.invoke("notify-student-update", {
         body: { alumno_id: alumno.id, type: "plan_cambiado", plan_nombre: selectedPlan?.nombre || "Nuevo plan", plan_precio: selectedPlan?.precio, plan_moneda: selectedPlan?.moneda },
       }).catch(() => {});
@@ -310,13 +359,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     );
   }
 
-  const renderSubCard = (sub: SuscripcionData, index: number) => {
+  const renderSubCard = (sub: SuscripcionData, index: number, isHistoric: boolean) => {
     const effectiveEstado = getEffStatus(sub);
-    const effectiveBadge = getSubBadge(effectiveEstado);
-    const isActive = effectiveEstado === "activa" || effectiveEstado === "pendiente_verificacion" || effectiveEstado === "pausa" || effectiveEstado === "pago_pendiente";
+    const badgeCfg = SUB_STATUS_BADGE[effectiveEstado] || SUB_STATUS_BADGE.cancelada || { className: "text-muted-foreground border-dashed" };
+    const statusLabel = SUB_STATUS_LABELS[effectiveEstado] || effectiveEstado;
+    const isActive = ACTIVE_STATES.has(effectiveEstado);
 
-    // Discount logic — subs are ordered by created_at DESC, so index 0 is the newest.
-    // The "segunda_actividad" discount applies to the most recently added plan (index 0) when there's more than one active sub.
+    // Discount logic
     const totalActive = activeSubs.length;
     const isSecondary = totalActive > 1 && index === 0;
     const planPrice = sub.planes?.precio || 0;
@@ -336,11 +385,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const savings = displayBase - displayFinal;
 
     return (
-      <div key={sub.id} className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
+      <div key={sub.id} className={`rounded-lg border p-3 space-y-2 ${isHistoric ? "border-border/50 bg-muted/20 opacity-80" : "border-border bg-secondary/30"}`}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-foreground">{sub.planes?.nombre || "Sin plan"}</span>
-          <Badge variant={effectiveBadge.variant} className={`text-[10px] ${effectiveBadge.className}`}>
-            {effectiveEstado === "pendiente_verificacion" ? "Pendiente" : effectiveEstado}
+          <Badge variant="outline" className={`text-[10px] ${badgeCfg.className}`}>
+            {statusLabel}
           </Badge>
         </div>
 
@@ -354,7 +403,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {sub.fecha_fin && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Vencimiento</span>
-              <span className={effectiveEstado === "pago_pendiente" || effectiveEstado === "acceso_pausado" || effectiveEstado === "vencida" ? "text-destructive font-medium" : "text-foreground"}>
+              <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : "text-foreground"}>
                 {formatDate(sub.fecha_fin)}
               </span>
             </div>
@@ -385,15 +434,23 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </div>
             </>
           )}
+
+          {/* Show cancellation reason in history */}
+          {isHistoric && sub.cancelada_motivo && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Motivo</span>
+              <span className="text-muted-foreground italic">{sub.cancelada_motivo}</span>
+            </div>
+          )}
         </div>
 
-        {/* Per-subscription actions */}
-        {isActive && (
+        {/* Actions for ACTIVE subs only */}
+        {!isHistoric && isActive && (
           <div className="flex flex-wrap gap-1 pt-1">
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openChangePlan(sub.id)}>
               <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
             </Button>
-            {sub.estado === "activa" && (
+            {(sub.estado === "activa" || effectiveEstado === "activa") && !sub.cancelada_at && (
               <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => handlePauseSub(sub.id)}>
                 <Pause className="w-3 h-3 mr-0.5" /> Pausar
               </Button>
@@ -409,8 +466,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </div>
         )}
 
-        {/* Overdue actions: register payment + notify */}
-        {isOverdueStatus(effectiveEstado) && (
+        {/* Overdue actions — only for active subs, NOT history */}
+        {!isHistoric && isOverdueStatus(effectiveEstado) && (
           <div className="pt-1 space-y-1">
             <Button
               variant="outline"
@@ -430,6 +487,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             </Button>
           </div>
         )}
+
+        {/* History: no action buttons except View Detail (future) */}
       </div>
     );
   };
@@ -470,7 +529,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         {/* Active subscriptions */}
         {activeSubs.length > 0 ? (
           <div className="space-y-2">
-            {activeSubs.map((sub, i) => renderSubCard(sub, i))}
+            {activeSubs.map((sub, i) => renderSubCard(sub, i, false))}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">Sin planes activos</p>
@@ -483,7 +542,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               Historial ({historicSubs.length} plan{historicSubs.length !== 1 ? "es" : ""})
             </summary>
             <div className="space-y-2 mt-2">
-              {historicSubs.slice(0, 5).map((sub, i) => renderSubCard(sub, activeSubs.length + i))}
+              {historicSubs.slice(0, 5).map((sub, i) => renderSubCard(sub, activeSubs.length + i, true))}
               {historicSubs.length > 5 && (
                 <p className="text-[10px] text-muted-foreground text-center">
                   y {historicSubs.length - 5} más...
@@ -536,7 +595,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <Textarea value={changeNote} onChange={(e) => setChangeNote(e.target.value)} placeholder="Ej: Segunda actividad, solicitud del alumno..." className="bg-secondary border-border text-sm min-h-[50px]" />
             </div>
 
-            {/* Second activity discount toggle - only when adding and there's already an active plan */}
+            {/* Second activity discount toggle */}
             {dialogMode === "add" && activeSubs.length > 0 && availableDiscounts.length > 0 && newPlanId && (() => {
               const selectedPlan = planes.find(p => p.id === newPlanId);
               const discount = availableDiscounts[0];
@@ -583,7 +642,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       </Dialog>
 
       {/* ===== REMOVE PLAN DIALOG ===== */}
-      <Dialog open={showRemovePlan} onOpenChange={setShowRemovePlan}>
+      <Dialog open={showRemovePlan} onOpenChange={(open) => { if (!removingSub) setShowRemovePlan(open); }}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider">Quitar plan</DialogTitle>
@@ -598,8 +657,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRemovePlan(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleRemovePlan}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setShowRemovePlan(false)} disabled={removingSub}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRemovePlan} disabled={removingSub}>
+              {removingSub ? "Quitando..." : "Confirmar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -626,7 +687,6 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               : null;
             return (
               <div className="space-y-4">
-                {/* Email metadata */}
                 <div className="rounded-md border border-border bg-secondary/30 p-3 space-y-1 text-xs">
                   <div className="flex gap-2">
                     <span className="text-muted-foreground font-medium w-16">Para:</span>
@@ -638,7 +698,6 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                   </div>
                 </div>
 
-                {/* Email body preview */}
                 <div className="rounded-md border border-border bg-white p-4 space-y-3">
                   <h3 className="text-[#d4820a] font-semibold text-base">⚠️ Mensualidad vencida</h3>
                   <p className="text-sm text-[#333]">
@@ -660,7 +719,6 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                   </p>
                 </div>
 
-                {/* Plan info */}
                 <div className="rounded-md border border-border bg-secondary/30 p-3 text-xs space-y-1">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Plan</span>
