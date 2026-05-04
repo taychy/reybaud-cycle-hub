@@ -10,8 +10,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
-
-const OTP_LENGTH = 6;
+import { clearPendingOtpState, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -24,6 +23,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     _role: "admin" as any,
   });
   if (isAdmin) {
+    clearPendingOtpState();
     navigate("/admin", { replace: true });
     return;
   }
@@ -34,6 +34,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     _role: "coach" as any,
   });
   if (isCoach) {
+    clearPendingOtpState();
     navigate("/coach", { replace: true });
     return;
   }
@@ -46,6 +47,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     .maybeSingle();
 
   if (alumno) {
+    clearPendingOtpState();
     navigate(returnTo || "/alumno", { replace: true });
     return;
   }
