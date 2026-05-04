@@ -190,7 +190,6 @@ export function RegisterPaymentModal({
           fecha_inicio: fechaPago,
           fecha_fin: fechaFin,
           metodo_pago: metodo,
-          mp_status: metodo,
           origen_registro: "cargado_admin",
           notas: notasParts.join(" | "),
           precio_final: isParcial ? expectedAmount : undefined,
