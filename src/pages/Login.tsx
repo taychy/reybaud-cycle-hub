@@ -10,7 +10,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
-import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
+import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -217,10 +217,17 @@ const Login = () => {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startOtpRequest()) return;
     setLoginError(null);
     setLoading(true);
     const trimmedEmail = email.toLowerCase().trim();
-    if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); return; }
+    if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); finishOtpRequest(); return; }
+
+    if (!canRequestOtpAgain("main", trimmedEmail)) {
+      setLoading(false);
+      finishOtpRequest();
+      return;
+    }
 
     // Check if email exists anywhere (alumno, admin, or coach)
     const { data: alumnoData } = await supabase
@@ -232,23 +239,25 @@ const Login = () => {
     if (!alumnoData && !isAdminOrCoach) {
       setLoginError("No se encontró una cuenta con ese email. Si sos nuevo, creá tu cuenta primero.");
       setLoading(false);
+      finishOtpRequest();
       return;
     }
 
     // Check blocked alumno
-    if (alumnoData?.estado === "bloqueado") { setLoginError(t("login.accessDisabled")); setLoading(false); return; }
+    if (alumnoData?.estado === "bloqueado") { setLoginError(t("login.accessDisabled")); setLoading(false); finishOtpRequest(); return; }
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
       options: { emailRedirectTo: "https://reybaud-app.com/auth/callback" },
     });
-    if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); return; }
+    if (otpError) { setLoginError(otpError.message || "Error"); setLoading(false); finishOtpRequest(); return; }
 
     const safeReturnTo = getSafeReturnTo(returnTo);
     savePendingOtpState({ email: trimmedEmail, returnTo: safeReturnTo, context: "main" });
     setOtpReturnTo(safeReturnTo);
     setMagicLinkSent(true);
     setLoading(false);
+    finishOtpRequest();
     toast.success("Código de acceso enviado. Revisá tu email.");
   };
 
@@ -281,21 +290,16 @@ const Login = () => {
     setVerifyingOtp(true);
     setLoginError(null);
 
+    const normalizedCode = normalizeOtpCode(otpCode);
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.toLowerCase().trim(),
-      token: otpCode,
+      token: normalizedCode,
       type: "email",
     });
 
     setVerifyingOtp(false);
     if (verifyError) {
-      if (verifyError.message?.includes("expired")) {
-        setLoginError("El código venció. Pedí uno nuevo.");
-      } else if (verifyError.message?.includes("invalid") || verifyError.message?.includes("Token")) {
-        setLoginError("Código incorrecto. Revisalo e intentá nuevamente.");
-      } else {
-        setLoginError(verifyError.message || "Error al verificar el código.");
-      }
+      setLoginError(getOtpErrorMessage(verifyError));
       setOtpCode("");
       return;
     }
@@ -332,7 +336,7 @@ const Login = () => {
                 maxLength={OTP_LENGTH}
                 value={otpCode}
                 onChange={(value) => {
-                  setOtpCode(value);
+                  setOtpCode(normalizeOtpCode(value));
                   setLoginError(null);
                 }}
               >
