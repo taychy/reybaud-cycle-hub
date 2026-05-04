@@ -1063,17 +1063,17 @@ const AdminEventReservations = ({
       {loading ? (
         <div className="text-center py-12 text-muted-foreground animate-pulse">
           <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
-          Cargando reservas...
+          Cargando {termReservas}...
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No hay reservas que coincidan.</p>
+          <p className="text-sm">No hay {termReservas} que coincidan.</p>
         </div>
       ) : (
         <div className="space-y-0">
           {/* Column headers */}
-          <div className="hidden md:grid md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px] gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border">
+          <div className={`hidden md:grid ${isPaymentFree ? "md:grid-cols-[1fr_130px_130px_80px_44px]" : "md:grid-cols-[1fr_130px_130px_90px_90px_80px_44px]"} gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border`}>
             <button className="flex items-center gap-1 hover:text-foreground text-left" onClick={() => toggleSort("name")}>
               Alumno <ArrowUpDown className="w-3 h-3" />
             </button>
