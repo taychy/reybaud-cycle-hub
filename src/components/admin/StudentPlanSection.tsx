@@ -16,6 +16,7 @@ import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
