@@ -958,10 +958,10 @@ const AdminEventReservations = ({
         </div>
         <Select value={filterResStatus} onValueChange={setFilterResStatus}>
           <SelectTrigger className="w-[150px] h-10">
-            <SelectValue placeholder="Reserva" />
+            <SelectValue placeholder={isSchoolEvent ? "Inscripción" : "Reserva"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas las reservas</SelectItem>
+            <SelectItem value="all">{isSchoolEvent ? "Todas las inscripciones" : "Todas las reservas"}</SelectItem>
             {Object.entries(reservationStatusLabels).filter(([k], i, arr) => arr.findIndex(([k2]) => reservationStatusLabels[k2] === reservationStatusLabels[k]) === i).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}
