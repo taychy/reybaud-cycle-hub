@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, ArrowLeft, MailCheck, AlertTriangle, RefreshCw, KeyRound } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
-import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
+import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
 
@@ -110,6 +110,7 @@ const AdminLogin = () => {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startOtpRequest()) return;
     setError(null);
     setShowResendFromError(false);
     setLoading(true);
@@ -118,6 +119,13 @@ const AdminLogin = () => {
     if (!trimmedEmail) {
       setError("Ingresá tu email.");
       setLoading(false);
+      finishOtpRequest();
+      return;
+    }
+
+    if (!canRequestOtpAgain("staff", trimmedEmail)) {
+      setLoading(false);
+      finishOtpRequest();
       return;
     }
 
@@ -128,6 +136,7 @@ const AdminLogin = () => {
     if (!isValidEmail) {
       setError("No se encontró una cuenta de staff con ese email. Si sos alumno, ingresá desde el login principal.");
       setLoading(false);
+      finishOtpRequest();
       return;
     }
 
@@ -141,6 +150,7 @@ const AdminLogin = () => {
     if (otpError) {
       setError(otpError.message || "Error al enviar el código.");
       setLoading(false);
+      finishOtpRequest();
       return;
     }
 
@@ -148,6 +158,7 @@ const AdminLogin = () => {
     setOtpReturnTo(returnTo);
     setLinkSent(true);
     setLoading(false);
+    finishOtpRequest();
     toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
   };
 
@@ -216,21 +227,16 @@ const AdminLogin = () => {
     setVerifyingOtp(true);
     setError(null);
 
+    const normalizedCode = normalizeOtpCode(otpCode);
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.toLowerCase().trim(),
-      token: otpCode,
+      token: normalizedCode,
       type: "email",
     });
 
     setVerifyingOtp(false);
     if (verifyError) {
-      if (verifyError.message?.includes("expired")) {
-        setError("El código venció. Pedí uno nuevo.");
-      } else if (verifyError.message?.includes("invalid") || verifyError.message?.includes("Token")) {
-        setError("Código incorrecto. Revisalo e intentá nuevamente.");
-      } else {
-        setError(verifyError.message || "Error al verificar el código.");
-      }
+      setError(getOtpErrorMessage(verifyError));
       setOtpCode("");
       return;
     }
@@ -264,7 +270,7 @@ const AdminLogin = () => {
                 maxLength={OTP_LENGTH}
                 value={otpCode}
                 onChange={(value) => {
-                  setOtpCode(value);
+                  setOtpCode(normalizeOtpCode(value));
                   setError(null);
                 }}
               >
