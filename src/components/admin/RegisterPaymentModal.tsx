@@ -380,7 +380,7 @@ export function RegisterPaymentModal({
                 <Select value={metodo} onValueChange={setMetodo}>
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_METHODS.map(m => (
+                    {PAYMENT_METHODS.filter(m => m.key !== "mercadopago").map(m => (
                       <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
                     ))}
                   </SelectContent>
