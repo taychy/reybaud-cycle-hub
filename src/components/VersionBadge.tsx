@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { forceAppHardReload } from "@/lib/appUpdate";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Indicador discreto de versión y entorno (preview vs publicada).
