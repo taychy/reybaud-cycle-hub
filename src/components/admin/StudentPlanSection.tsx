@@ -95,6 +95,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
+  const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
 
   // Email preview state
   const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
