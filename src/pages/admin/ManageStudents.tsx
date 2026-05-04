@@ -1502,6 +1502,17 @@ const ManageStudents = () => {
         alumnoNombre={regPayAlumno ? getFullName(regPayAlumno) : null}
         onSuccess={fetchAlumnos}
       />
+
+      {/* Manage Subscription Modal */}
+      <ManageSubscriptionModal
+        open={!!manageSubAlumno}
+        onOpenChange={(open) => !open && setManageSubAlumno(null)}
+        alumno={manageSubAlumno}
+        suscripciones={suscripciones as any}
+        planes={planes as any}
+        isSuperAdmin={isSuperAdmin}
+        onSuccess={() => { fetchAlumnos(); supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, metodo_pago, planes(id, nombre, precio, moneda)").order("created_at", { ascending: false }).then(({ data }) => setSuscripciones((data as any) || [])); }}
+      />
     </div>
   );
 };
