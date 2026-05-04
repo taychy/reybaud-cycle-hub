@@ -23,6 +23,19 @@ export interface SubStatusInput {
   cancelada_at?: string | null;
 }
 
+export const ADMIN_PAYABLE_EFFECTIVE_STATUSES: EffectiveSubStatus[] = [
+  "pendiente",
+  "pendiente_verificacion",
+  "vencida",
+  "pago_pendiente",
+  "acceso_pausado",
+];
+
+export function isAdminPayableSubscription(sub: SubStatusInput): boolean {
+  if (sub.cancelada_at || sub.estado === "cancelada") return false;
+  return ADMIN_PAYABLE_EFFECTIVE_STATUSES.includes(getEffectiveSubStatus(sub));
+}
+
 /**
  * Computes the effective subscription status based on current date and grace period rules.
  */

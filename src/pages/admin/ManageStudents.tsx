@@ -24,7 +24,7 @@ import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
-import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
+import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 
 type Alumno = Tables<"alumnos">;
@@ -37,6 +37,8 @@ interface SuscripcionConPlan {
   estado: string;
   fecha_inicio: string | null;
   fecha_fin: string | null;
+  cancelada_at?: string | null;
+  created_at: string;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
 }
 
@@ -197,7 +199,7 @@ const ManageStudents = () => {
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
 
   useEffect(() => {
-    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, planes(id, nombre, precio, moneda)").order("created_at", { ascending: false }).then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
     supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
@@ -211,10 +213,13 @@ const ManageStudents = () => {
   const getActiveSub = (alumnoId: string) => {
     return suscripciones.find(s => {
       if (s.alumno_id !== alumnoId) return false;
-      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
       return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
     });
   };
+
+  const getPayableSub = (alumnoId: string) =>
+    suscripciones.find(s => s.alumno_id === alumnoId && isAdminPayableSubscription(s));
 
   const getAnySub = (alumnoId: string) => {
     const subs = suscripciones.filter(s => s.alumno_id === alumnoId);
@@ -222,13 +227,17 @@ const ManageStudents = () => {
   };
 
   const getSubEstadoLabel = (alumnoId: string): string => {
+    const payable = getPayableSub(alumnoId);
+    if (payable) {
+      return getEffectiveSubStatus({ estado: payable.estado, fecha_fin: payable.fecha_fin, cancelada_at: payable.cancelada_at });
+    }
     const active = getActiveSub(alumnoId);
     if (active) {
-      return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin });
+      return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin, cancelada_at: active.cancelada_at });
     }
     const any = getAnySub(alumnoId);
     if (any) {
-      return getEffectiveSubStatus({ estado: any.estado, fecha_fin: any.fecha_fin });
+      return getEffectiveSubStatus({ estado: any.estado, fecha_fin: any.fecha_fin, cancelada_at: any.cancelada_at });
     }
     return "sin_suscripcion";
   };
@@ -312,9 +321,12 @@ const ManageStudents = () => {
 
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
-    const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase()) ||
-      getApellido(a).toLowerCase().includes(search.toLowerCase());
+    const normalizedSearch = search.toLowerCase().trim();
+    const fullName = `${a.nombre} ${getApellido(a)}`.toLowerCase().replace(/\s+/g, " ").trim();
+    const matchesSearch = fullName.includes(normalizedSearch) ||
+      a.email.toLowerCase().includes(normalizedSearch) ||
+      a.nombre.toLowerCase().includes(normalizedSearch) ||
+      getApellido(a).toLowerCase().includes(normalizedSearch);
     if (!matchesSearch) return false;
     switch (statusFilter) {
       case "pendientes": return a.estado === "pendiente";
