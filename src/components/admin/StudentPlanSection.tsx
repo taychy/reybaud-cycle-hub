@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
