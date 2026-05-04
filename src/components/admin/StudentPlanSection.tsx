@@ -116,9 +116,21 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
       supabase.from("descuentos").select("id, nombre, valor, tipo, categoria").eq("activo", true).eq("categoria", "segunda_actividad"),
     ]);
-    setSubs((subsRes.data as any) || []);
+    const allSubs = (subsRes.data as any) || [];
+    setSubs(allSubs);
     setPlanes(planesRes.data || []);
     setAvailableDiscounts((discountsRes.data as any) || []);
+
+    // Detect duplicates client-side from fetched data
+    const activeOnly = allSubs.filter((s: SuscripcionData) => s.estado === "activa" && !s.cancelada_at);
+    const dupeGroups: Record<string, { plan_nombre: string; fecha_fin: string; count: number }> = {};
+    for (const s of activeOnly) {
+      const key = `${s.plan_id}|${s.fecha_fin}`;
+      if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: s.fecha_fin || "—", count: 0 };
+      dupeGroups[key].count++;
+    }
+    setDuplicateAlert(Object.values(dupeGroups).filter(g => g.count > 1));
+
     setLoading(false);
   };
 
