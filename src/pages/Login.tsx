@@ -283,7 +283,7 @@ const Login = () => {
               variant="gold"
               className="w-full h-12 rounded-xl"
               size="lg"
-              disabled={verifyingOtp || otpCode.length !== 6}
+              disabled={verifyingOtp || otpCode.length < 6}
               onClick={handleVerifyOtp}
             >
               {verifyingOtp ? "Verificando..." : "Ingresar"}
