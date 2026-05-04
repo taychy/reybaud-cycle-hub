@@ -15,7 +15,8 @@ export interface PaymentMethodDef {
 export const PAYMENT_METHODS: PaymentMethodDef[] = [
   { key: "efectivo", label: "Efectivo", shortLabel: "Efectivo" },
   { key: "transferencia", label: "Transferencia bancaria", shortLabel: "Transferencia" },
-  { key: "mercadopago", label: "MercadoPago", shortLabel: "MP" },
+  { key: "mercadopago", label: "MercadoPago (automático)", shortLabel: "MP auto" },
+  { key: "mp_externo", label: "MercadoPago (externo)", shortLabel: "MP externo" },
   { key: "tarjeta", label: "Tarjeta de crédito/débito", shortLabel: "Tarjeta" },
   { key: "plataforma_externa", label: "Plataforma de pago externa", shortLabel: "Externo" },
 ];
