@@ -321,9 +321,12 @@ const ManageStudents = () => {
 
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
-    const matchesSearch = a.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase()) ||
-      getApellido(a).toLowerCase().includes(search.toLowerCase());
+    const normalizedSearch = search.toLowerCase().trim();
+    const fullName = `${a.nombre} ${getApellido(a)}`.toLowerCase().replace(/\s+/g, " ").trim();
+    const matchesSearch = fullName.includes(normalizedSearch) ||
+      a.email.toLowerCase().includes(normalizedSearch) ||
+      a.nombre.toLowerCase().includes(normalizedSearch) ||
+      getApellido(a).toLowerCase().includes(normalizedSearch);
     if (!matchesSearch) return false;
     switch (statusFilter) {
       case "pendientes": return a.estado === "pendiente";
