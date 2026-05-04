@@ -272,7 +272,7 @@ const AdminLogin = () => {
               variant="gold"
               className="w-full"
               size="lg"
-              disabled={verifyingOtp || otpCode.length !== 6}
+              disabled={verifyingOtp || otpCode.length < 6}
               onClick={handleVerifyOtp}
             >
               {verifyingOtp ? "Verificando..." : "Ingresar"}
