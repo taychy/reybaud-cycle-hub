@@ -109,12 +109,22 @@ export function RegisterPaymentModal({
     setLoadingSubs(true);
     supabase
       .from("suscripciones")
-      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, planes(id, nombre, precio, moneda)")
+      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
-      .in("estado", PAYABLE_STATES)
+      .in("estado", PAYABLE_STATES_WITH_EXPIRED)
+      .is("cancelada_at", null)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        const subs = (data as unknown as PendingSub[]) || [];
+        const allSubs = (data as unknown as (PendingSub & { cancelada_at?: string | null })[]) || [];
+        // Filter: include explicitly payable states + activa subs that are effectively expired
+        const subs = allSubs.filter(s => {
+          if (PAYABLE_STATES.includes(s.estado)) return true;
+          if (s.estado === "activa" && s.fecha_fin) {
+            const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+            return effective !== "activa"; // expired activa = pago_pendiente or acceso_pausado
+          }
+          return false;
+        });
         setPendingSubs(subs);
         // Auto-select if only one or if subscripcionId matches
         if (subscripcionId && subs.find(s => s.id === subscripcionId)) {
