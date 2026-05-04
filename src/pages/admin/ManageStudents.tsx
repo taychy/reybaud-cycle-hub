@@ -998,7 +998,8 @@ const ManageStudents = () => {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56">
                                 {getContextActions(alumno).map((a, i) =>
-                                  a.separator ? <DropdownMenuSeparator key={i} /> : (
+                                  a.separator ? <DropdownMenuSeparator key={i} /> :
+                                  a.groupLabel ? <DropdownMenuLabel key={i} className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal">{a.groupLabel}</DropdownMenuLabel> : (
                                     <DropdownMenuItem key={i} onClick={() => a.action()} className={a.destructive ? "text-destructive focus:text-destructive" : ""}>
                                       {a.icon && <a.icon className="w-4 h-4 mr-2" />}
                                       {a.label}
