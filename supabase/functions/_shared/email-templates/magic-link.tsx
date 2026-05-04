@@ -17,27 +17,54 @@ import {
 interface MagicLinkEmailProps {
   siteName: string
   confirmationUrl: string
+  token?: string
 }
 
 export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
+  token,
 }: MagicLinkEmailProps) => (
   <Html lang="es" dir="ltr">
     <Head />
-    <Preview>Tu link de acceso a Ciclismo Reybaud</Preview>
+    <Preview>Tu código de acceso a Ciclismo Reybaud{token ? `: ${token}` : ''}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Img src={LOGO_URL} alt="Ciclismo Reybaud" width="60" height="60" style={logo} />
-        <Heading style={h1}>Tu link de acceso</Heading>
-        <Text style={text}>
-          Hacé clic en el botón para ingresar a Ciclismo Reybaud. Este link expira en breve.
-        </Text>
-        <Button style={button} href={confirmationUrl}>
-          Ingresar
-        </Button>
+        <Heading style={h1}>Tu código de acceso</Heading>
+
+        {token ? (
+          <>
+            <Text style={text}>
+              Ingresá este código en la app para acceder a Ciclismo Reybaud:
+            </Text>
+            <Text style={codeStyle}>{token}</Text>
+            <Text style={expireNote}>
+              Este código vence en unos minutos.
+            </Text>
+            <Text style={dividerText}>
+              ─────────
+            </Text>
+            <Text style={altText}>
+              También podés ingresar tocando este enlace:
+            </Text>
+            <Button style={buttonSecondary} href={confirmationUrl}>
+              Ingresar con enlace
+            </Button>
+          </>
+        ) : (
+          <>
+            <Text style={text}>
+              Hacé clic en el botón para ingresar a Ciclismo Reybaud. Este link expira en breve.
+            </Text>
+            <Button style={button} href={confirmationUrl}>
+              Ingresar
+            </Button>
+          </>
+        )}
+
         <Text style={footer}>
-          Si no solicitaste este link, podés ignorar este email.
+          Si no solicitaste este acceso, podés ignorar este email.
         </Text>
       </Container>
     </Body>
@@ -64,7 +91,35 @@ const text = {
   fontSize: '14px',
   color: '#555555',
   lineHeight: '1.6',
+  margin: '0 0 20px',
+  textAlign: 'center' as const,
+}
+const codeStyle = {
+  fontFamily: 'Courier, monospace',
+  fontSize: '36px',
+  fontWeight: 'bold' as const,
+  color: '#E8832A',
+  margin: '0 0 10px',
+  textAlign: 'center' as const,
+  letterSpacing: '8px',
+}
+const expireNote = {
+  fontSize: '12px',
+  color: '#999999',
+  textAlign: 'center' as const,
   margin: '0 0 25px',
+}
+const dividerText = {
+  fontSize: '12px',
+  color: '#CCCCCC',
+  textAlign: 'center' as const,
+  margin: '0 0 15px',
+}
+const altText = {
+  fontSize: '13px',
+  color: '#888888',
+  textAlign: 'center' as const,
+  margin: '0 0 15px',
 }
 const button = {
   backgroundColor: '#E8832A',
@@ -76,5 +131,17 @@ const button = {
   textDecoration: 'none',
   display: 'block' as const,
   textAlign: 'center' as const,
+}
+const buttonSecondary = {
+  backgroundColor: '#f5f5f5',
+  color: '#555555',
+  fontSize: '13px',
+  fontWeight: '600' as const,
+  borderRadius: '8px',
+  padding: '10px 20px',
+  textDecoration: 'none',
+  display: 'block' as const,
+  textAlign: 'center' as const,
+  border: '1px solid #dddddd',
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0', textAlign: 'center' as const }

@@ -177,7 +177,7 @@ const Login = () => {
 
     setMagicLinkSent(true);
     setLoading(false);
-    toast.success(t("login.magicLinkSuccess"));
+    toast.success("Código de acceso enviado. Revisá tu email.");
   };
 
   const handleGoogleLogin = async () => {
@@ -375,7 +375,7 @@ const Login = () => {
           )}
 
           <Button type="submit" variant="gold" className="w-full h-12 rounded-xl text-base" disabled={loading}>
-            {loading ? "Enviando…" : "Continuar con email"}
+            {loading ? "Enviando…" : "Pedir código de acceso"}
             {!loading && <ChevronRight className="w-4 h-4" />}
           </Button>
 
