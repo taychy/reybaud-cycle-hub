@@ -145,6 +145,12 @@ const AdminLogin = () => {
     });
 
     if (otpError) {
+      console.warn("OTP request failed", {
+        code: otpError.code,
+        status: otpError.status,
+        message: otpError.message,
+        at: new Date().toISOString(),
+      });
       setError(otpError.message || "Error al enviar el código.");
       setLoading(false);
       return;
