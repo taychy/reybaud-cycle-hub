@@ -209,6 +209,12 @@ const AdminEventReservations = ({
   // Trip-like events show full onboarding (checklist + installments).
   // School events (record_hora, carrera, otro) show simplified flow.
   const isTripLike = eventType === "camp" || eventType === "viaje";
+  const isSchoolEvent = eventType === "record_hora" || eventType === "carrera" || eventType === "escuela";
+  const isPaymentFree = eventNature === "propio_solo_inscripcion" || (eventPrice != null && eventPrice <= 0);
+  // For school events use "inscripción" terminology instead of "reserva"
+  const termReserva = isSchoolEvent ? "inscripción" : "reserva";
+  const termReservas = isSchoolEvent ? "inscripciones" : "reservas";
+  const termReservaCreada = isSchoolEvent ? "Inscripción creada" : "Reserva creada";
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
