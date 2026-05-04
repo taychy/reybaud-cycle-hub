@@ -287,11 +287,12 @@ const Login = () => {
   }
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length < OTP_LENGTH) return;
+    if (verifyingOtp) return;
+    const normalizedCode = normalizeOtpCode(otpCode);
+    if (normalizedCode.length < OTP_LENGTH) return;
     setVerifyingOtp(true);
     setLoginError(null);
 
-    const normalizedCode = normalizeOtpCode(otpCode);
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.toLowerCase().trim(),
       token: normalizedCode,
