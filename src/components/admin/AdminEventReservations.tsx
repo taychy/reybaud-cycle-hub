@@ -273,6 +273,7 @@ const AdminEventReservations = ({
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
   const [detailTab, setDetailTab] = useState("info");
+  const [participantResult, setParticipantResult] = useState<any | null>(null);
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
