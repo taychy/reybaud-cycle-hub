@@ -2,6 +2,7 @@ export type PaymentMethodKey =
   | "efectivo"
   | "transferencia"
   | "mercadopago"
+  | "mp_externo"
   | "tarjeta"
   | "plataforma_externa";
 
