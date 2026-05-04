@@ -144,6 +144,8 @@ const AdminLogin = () => {
       return;
     }
 
+    savePendingOtpState({ email: trimmedEmail, returnTo, context: "staff" });
+    setOtpReturnTo(returnTo);
     setLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
@@ -298,7 +300,13 @@ const AdminLogin = () => {
           <div className="space-y-3">
             <Button
               variant="outline"
-              onClick={() => { setLinkSent(false); setError(null); setOtpCode(""); }}
+              onClick={() => {
+                clearPendingOtpState();
+                setLinkSent(false);
+                setError(null);
+                setOtpCode("");
+                setOtpReturnTo(returnTo);
+              }}
               className="w-full"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
