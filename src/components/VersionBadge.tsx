@@ -56,6 +56,19 @@ const VersionBadge = () => {
     }
   })();
 
+  const buildTimeShort = (() => {
+    try {
+      return new Date(__BUILD_TIME__).toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return __BUILD_TIME__;
+    }
+  })();
+
   const handleManualUpdate = async () => {
     if (updating) return;
     setUpdating(true);
