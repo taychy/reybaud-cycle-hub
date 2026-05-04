@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ interface PendingSub {
 }
 
 const PAYABLE_STATES = ["pendiente", "pendiente_verificacion", "vencida", "pago_pendiente", "acceso_pausado"];
+const PAYABLE_STATES_WITH_EXPIRED = [...PAYABLE_STATES, "activa"];
 
 export function RegisterPaymentModal({
   open,
@@ -107,12 +109,22 @@ export function RegisterPaymentModal({
     setLoadingSubs(true);
     supabase
       .from("suscripciones")
-      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, planes(id, nombre, precio, moneda)")
+      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
-      .in("estado", PAYABLE_STATES)
+      .in("estado", PAYABLE_STATES_WITH_EXPIRED)
+      .is("cancelada_at", null)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        const subs = (data as unknown as PendingSub[]) || [];
+        const allSubs = (data as unknown as (PendingSub & { cancelada_at?: string | null })[]) || [];
+        // Filter: include explicitly payable states + activa subs that are effectively expired
+        const subs = allSubs.filter(s => {
+          if (PAYABLE_STATES.includes(s.estado)) return true;
+          if (s.estado === "activa" && s.fecha_fin) {
+            const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+            return effective !== "activa"; // expired activa = pago_pendiente or acceso_pausado
+          }
+          return false;
+        });
         setPendingSubs(subs);
         // Auto-select if only one or if subscripcionId matches
         if (subscripcionId && subs.find(s => s.id === subscripcionId)) {
@@ -178,7 +190,6 @@ export function RegisterPaymentModal({
           fecha_inicio: fechaPago,
           fecha_fin: fechaFin,
           metodo_pago: metodo,
-          mp_status: metodo,
           origen_registro: "cargado_admin",
           notas: notasParts.join(" | "),
           precio_final: isParcial ? expectedAmount : undefined,
@@ -316,11 +327,15 @@ export function RegisterPaymentModal({
                 <Select value={selectedSubId || ""} onValueChange={setSelectedSubId}>
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                   <SelectContent>
-                    {pendingSubs.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.planes?.nombre || "Sin plan"} — {s.estado} — ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
-                      </SelectItem>
-                    ))}
+                    {pendingSubs.map(s => {
+                      const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin });
+                      const statusLabel = effective === "pago_pendiente" ? "Pago pendiente" : effective === "acceso_pausado" ? "Acceso pausado" : s.estado;
+                      return (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.planes?.nombre || "Sin plan"} — {statusLabel} — ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               )}
@@ -365,7 +380,7 @@ export function RegisterPaymentModal({
                 <Select value={metodo} onValueChange={setMetodo}>
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_METHODS.map(m => (
+                    {PAYMENT_METHODS.filter(m => m.key !== "mercadopago").map(m => (
                       <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
                     ))}
                   </SelectContent>

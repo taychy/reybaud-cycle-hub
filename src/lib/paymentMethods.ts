@@ -2,6 +2,7 @@ export type PaymentMethodKey =
   | "efectivo"
   | "transferencia"
   | "mercadopago"
+  | "mp_externo"
   | "tarjeta"
   | "plataforma_externa";
 
@@ -14,7 +15,8 @@ export interface PaymentMethodDef {
 export const PAYMENT_METHODS: PaymentMethodDef[] = [
   { key: "efectivo", label: "Efectivo", shortLabel: "Efectivo" },
   { key: "transferencia", label: "Transferencia bancaria", shortLabel: "Transferencia" },
-  { key: "mercadopago", label: "MercadoPago", shortLabel: "MP" },
+  { key: "mercadopago", label: "MercadoPago (automático)", shortLabel: "MP auto" },
+  { key: "mp_externo", label: "MercadoPago (externo)", shortLabel: "MP externo" },
   { key: "tarjeta", label: "Tarjeta de crédito/débito", shortLabel: "Tarjeta" },
   { key: "plataforma_externa", label: "Plataforma de pago externa", shortLabel: "Externo" },
 ];
@@ -27,7 +29,8 @@ export function normalizePaymentMethod(raw: string | null | undefined): PaymentM
   const lower = raw.toLowerCase().trim();
   if (lower === "cash" || lower === "efectivo") return "efectivo";
   if (lower === "transferencia") return "transferencia";
-  if (lower === "mercadopago" || lower === "mp" || lower === "mp_externo") return "mercadopago";
+  if (lower === "mercadopago" || lower === "mp") return "mercadopago";
+  if (lower === "mp_externo") return "mp_externo";
   if (lower === "tarjeta" || lower === "card" || lower === "tarjeta_externa") return "tarjeta";
   if (lower === "externo" || lower === "plataforma_externa" || lower === "otro" || lower === "manual") return "plataforma_externa";
   return "efectivo";
