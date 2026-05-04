@@ -548,7 +548,7 @@ const EventDetail = () => {
               <p className="text-sm text-muted-foreground">
                 {isInscriptionOnly ? "Iniciá sesión para inscribirte." : "Iniciá sesión para reservar tu lugar."}
               </p>
-              <Button variant="gold" onClick={() => navigate("/login")}>Iniciar sesión</Button>
+              <Button variant="gold" onClick={() => navigate(`/?returnTo=${encodeURIComponent(window.location.pathname)}`)}>Iniciar sesión</Button>
             </div>
           )}
 
