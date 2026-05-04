@@ -143,13 +143,15 @@ const StudentPayments = () => {
   const [changePlanSub, setChangePlanSub] = useState<SubscriptionRecord | null>(null);
 
   useEffect(() => {
-    const load = async () => {
+    let cancelled = false;
+
+    const load = async (session: { user: { email?: string; id: string } } | null) => {
+      if (cancelled) return;
       let alumnoData: Alumno | null = null;
 
       if (isImpersonating && targetAlumno) {
         alumnoData = targetAlumno;
       } else {
-        const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.email) { navigate("/"); return; }
         const { data } = await supabase
           .from("alumnos")
@@ -160,6 +162,7 @@ const StudentPayments = () => {
         alumnoData = data;
       }
 
+      if (cancelled) return;
       setAlumno(alumnoData);
 
       const { data: subs } = await supabase
@@ -168,6 +171,7 @@ const StudentPayments = () => {
         .eq("alumno_id", alumnoData.id)
         .order("created_at", { ascending: false });
 
+      if (cancelled) return;
       if (subs) {
         const mapped: SubscriptionRecord[] = subs.map((s: any) => ({
           id: s.id,
@@ -190,7 +194,21 @@ const StudentPayments = () => {
 
       setLoading(false);
     };
-    load();
+
+    // Listen for auth changes (token refresh on app reopen, session restore)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!cancelled) load(session);
+    });
+
+    // Also check current session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      load(session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [navigate, isImpersonating, targetAlumno]);
 
   // Categorize
