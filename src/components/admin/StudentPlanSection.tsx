@@ -453,6 +453,20 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </Button>
         </div>
 
+        {/* Duplicate alert */}
+        {duplicateAlert.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-xs text-amber-300">
+              <span className="font-semibold">Suscripciones duplicadas detectadas.</span>
+              {duplicateAlert.map((d, i) => (
+                <span key={i} className="block mt-0.5">• {d.plan_nombre} — vence {d.fecha_fin}</span>
+              ))}
+              <span className="block mt-1 text-amber-400/70">Revisar conciliación: cancelar o fusionar la duplicada.</span>
+            </div>
+          </div>
+        )}
+
         {/* Active subscriptions */}
         {activeSubs.length > 0 ? (
           <div className="space-y-2">
