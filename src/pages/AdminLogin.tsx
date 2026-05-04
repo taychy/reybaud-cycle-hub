@@ -132,7 +132,7 @@ const AdminLogin = () => {
 
     setLinkSent(true);
     setLoading(false);
-    toast.success("Enlace de acceso enviado. Revisá tu bandeja de entrada.");
+    toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
   };
 
   if (checkingSession) {
@@ -340,7 +340,7 @@ const AdminLogin = () => {
             )}
 
             <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Enviando..." : "Enviar enlace de acceso"}
+              {loading ? "Enviando..." : "Pedir código de acceso"}
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
