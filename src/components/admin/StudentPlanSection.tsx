@@ -679,6 +679,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Register Payment Modal */}
+      <RegisterPaymentModal
+        open={!!regPaySubId}
+        onOpenChange={(open) => !open && setRegPaySubId(null)}
+        alumnoId={alumno.id}
+        alumnoNombre={alumno.nombre}
+        subscripcionId={regPaySubId}
+        onSuccess={() => { fetchData(); onRefresh(); }}
+      />
     </>
   );
 }
