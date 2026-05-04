@@ -70,3 +70,9 @@ export const clearPendingOtpState = () => {
   if (!canUseStorage()) return;
   window.localStorage.removeItem(PENDING_OTP_STORAGE_KEY);
 };
+
+export const getSafeReturnTo = (returnTo: string | null | undefined) => {
+  if (!returnTo || !returnTo.startsWith("/") || returnTo.startsWith("//")) return null;
+  if (returnTo === "/" || returnTo.startsWith("/admin/login")) return null;
+  return returnTo;
+};
