@@ -82,6 +82,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [duplicateAlert, setDuplicateAlert] = useState<{ plan_nombre: string; fecha_fin: string }[]>([]);
   const { discounts, applyDiscount, loading: discountsLoading, subscriptionCount } = useStudentDiscounts(alumno.id);
 
   // Dialog state
