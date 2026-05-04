@@ -9,6 +9,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
+const OTP_LENGTH = 6;
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -22,13 +23,12 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Detect callback errors from URL (e.g. otp_expired, access_denied)
+  // Detect callback errors from URL
   useEffect(() => {
     const urlError = searchParams.get("error");
     const errorCode = searchParams.get("error_code");
     const errorDesc = searchParams.get("error_description");
 
-    // Also check hash fragment (Supabase sometimes puts errors there)
     const hash = window.location.hash;
     const hashParams = new URLSearchParams(hash.replace("#", "?"));
     const hashError = hashParams.get("error");
@@ -40,59 +40,65 @@ const AdminLogin = () => {
     const finalDesc = errorDesc || hashErrorDesc;
 
     if (finalError) {
-      let friendlyMessage = "El enlace de acceso no pudo ser validado.";
+      let friendlyMessage = "El código o enlace de acceso no pudo ser validado.";
 
       if (finalCode === "otp_expired" || finalDesc?.includes("expired")) {
-        friendlyMessage = "El enlace de acceso expiró o ya fue utilizado. Solicitá uno nuevo.";
+        friendlyMessage = "El código venció. Pedí uno nuevo.";
       } else if (finalCode === "otp_disabled") {
-        friendlyMessage = "El acceso por enlace está deshabilitado.";
+        friendlyMessage = "El acceso por código está deshabilitado.";
       } else if (finalDesc) {
         friendlyMessage = `Error: ${finalDesc}`;
-      }
-
-      // If opened from PWA in browser, add context
-      const isPWACrossContext = document.referrer === "" && !window.matchMedia("(display-mode: standalone)").matches;
-      if (isPWACrossContext && finalCode === "otp_expired") {
-        friendlyMessage = "El enlace de acceso se abrió en un contexto distinto al que lo solicitó (ej. app instalada vs navegador). Solicitá un nuevo enlace desde este navegador.";
       }
 
       setError(friendlyMessage);
       setShowResendFromError(true);
       setCheckingSession(false);
-
-      // Clean URL params
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [searchParams]);
 
-  // Auto-redirect if already authenticated
+  // Auto-redirect if already authenticated — check all roles
   useEffect(() => {
-    const checkAdminSession = async (session: any) => {
+    const redirectByRole = async (session: any) => {
       if (!session) return false;
+      const userId = session.user.id;
+
       const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
-        _role: "admin",
+        _user_id: userId,
+        _role: "admin" as any,
       });
-      if (isAdmin) {
-        navigate("/admin", { replace: true });
-        return true;
-      }
+      if (isAdmin) { navigate("/admin", { replace: true }); return true; }
+
+      const { data: isCoach } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "coach" as any,
+      });
+      if (isCoach) { navigate("/coach", { replace: true }); return true; }
+
+      // Check alumno
+      const { data: alumno } = await supabase
+        .from("alumnos")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (alumno) { navigate("/alumno", { replace: true }); return true; }
+
       return false;
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      await checkAdminSession(session);
+      await redirectByRole(session);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const redirected = await checkAdminSession(session);
+      const redirected = await redirectByRole(session);
       if (!redirected) setCheckingSession(false);
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleSendLink = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setShowResendFromError(false);
@@ -105,18 +111,16 @@ const AdminLogin = () => {
       return;
     }
 
-    // Verify the email belongs to an admin (not coach — coaches use their own portal)
     const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
       _email: trimmedEmail,
     });
 
     if (!isValidEmail) {
-      setError("No se encontró una cuenta de administrador con ese email. Si sos coach, ingresá desde el portal de coaches.");
+      setError("No se encontró una cuenta de staff con ese email. Si sos alumno, ingresá desde el login principal.");
       setLoading(false);
       return;
     }
 
-    // Always redirect to production domain to avoid PWA/browser context mismatch
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
       options: {
@@ -125,7 +129,7 @@ const AdminLogin = () => {
     });
 
     if (otpError) {
-      setError(otpError.message || "Error al enviar el enlace.");
+      setError(otpError.message || "Error al enviar el código.");
       setLoading(false);
       return;
     }
@@ -146,7 +150,7 @@ const AdminLogin = () => {
     );
   }
 
-  // Error from callback — show friendly error with resend option
+  // Error from callback
   if (showResendFromError && !linkSent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -154,7 +158,7 @@ const AdminLogin = () => {
           <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
           <AlertTriangle className="w-14 h-14 text-amber-500 mx-auto" />
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Enlace no válido
+            Código no válido
           </h1>
           {error && (
             <div className="text-sm text-destructive bg-destructive/10 rounded-md p-4 text-left">
@@ -177,9 +181,9 @@ const AdminLogin = () => {
               className="w-full"
               size="lg"
               disabled={loading || !email.trim()}
-              onClick={(e) => handleSendLink(e as any)}
+              onClick={(e) => handleSendOtp(e as any)}
             >
-              {loading ? "Enviando..." : "Enviar nuevo código de acceso"}
+              {loading ? "Enviando..." : "Pedir nuevo código de acceso"}
               <RefreshCw className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -195,10 +199,8 @@ const AdminLogin = () => {
     );
   }
 
-  // OTP code verification
-
   const handleVerifyOtp = async () => {
-    if (otpCode.length < 6) return;
+    if (otpCode.length < OTP_LENGTH) return;
     setVerifyingOtp(true);
     setError(null);
 
@@ -210,9 +212,13 @@ const AdminLogin = () => {
 
     setVerifyingOtp(false);
     if (verifyError) {
-      setError(verifyError.message?.includes("expired")
-        ? "El código expiró. Solicitá uno nuevo."
-        : verifyError.message || "Código inválido.");
+      if (verifyError.message?.includes("expired")) {
+        setError("El código venció. Pedí uno nuevo.");
+      } else if (verifyError.message?.includes("invalid") || verifyError.message?.includes("Token")) {
+        setError("Código incorrecto. Revisalo e intentá nuevamente.");
+      } else {
+        setError(verifyError.message || "Error al verificar el código.");
+      }
       setOtpCode("");
       return;
     }
@@ -220,7 +226,7 @@ const AdminLogin = () => {
     toast.success("Sesión iniciada correctamente.");
   };
 
-  // Link sent confirmation
+  // OTP sent — show code entry
   if (linkSent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -232,17 +238,18 @@ const AdminLogin = () => {
           </h1>
           <p className="text-muted-foreground text-sm">
             Te enviamos un código de acceso a <strong className="text-foreground">{email}</strong>.
+            <br />
+            Ingresalo acá para entrar.
           </p>
 
-          {/* OTP Code Entry */}
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <KeyRound className="w-4 h-4" />
-              <span>Ingresá el código que recibiste por email</span>
+              <span>Código de acceso</span>
             </div>
             <div className="flex justify-center">
               <InputOTP
-                maxLength={8}
+                maxLength={OTP_LENGTH}
                 value={otpCode}
                 onChange={(value) => {
                   setOtpCode(value);
@@ -250,14 +257,9 @@ const AdminLogin = () => {
                 }}
               >
                 <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                  <InputOTPSlot index={6} />
-                  <InputOTPSlot index={7} />
+                  {Array.from({ length: OTP_LENGTH }, (_, i) => (
+                    <InputOTPSlot key={i} index={i} />
+                  ))}
                 </InputOTPGroup>
               </InputOTP>
             </div>
@@ -272,7 +274,7 @@ const AdminLogin = () => {
               variant="gold"
               className="w-full"
               size="lg"
-              disabled={verifyingOtp || otpCode.length < 6}
+              disabled={verifyingOtp || otpCode.length < OTP_LENGTH}
               onClick={handleVerifyOtp}
             >
               {verifyingOtp ? "Verificando..." : "Ingresar"}
@@ -296,7 +298,7 @@ const AdminLogin = () => {
               variant="ghost"
               onClick={() => {
                 setOtpCode("");
-                handleSendLink({ preventDefault: () => {} } as React.FormEvent);
+                handleSendOtp({ preventDefault: () => {} } as React.FormEvent);
               }}
               className="w-full text-xs"
               disabled={loading}
@@ -315,12 +317,12 @@ const AdminLogin = () => {
         <div className="text-center space-y-3">
           <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
           <h1 className="text-3xl font-heading font-bold uppercase tracking-wider text-foreground">
-            Admin Panel
+            Acceso Staff
           </h1>
           <p className="text-muted-foreground text-sm">Ciclismo Reybaud</p>
         </div>
 
-        <form onSubmit={handleSendLink} className="space-y-4">
+        <form onSubmit={handleSendOtp} className="space-y-4">
           <div className="glass-card rounded-lg p-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="admin-email" className="text-sm font-medium text-foreground">Email</label>
@@ -354,7 +356,7 @@ const AdminLogin = () => {
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             <ArrowLeft className="w-3 h-3" />
-            Volver al login de alumnos
+            Volver al login principal
           </button>
           <br />
           <button

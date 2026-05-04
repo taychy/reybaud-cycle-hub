@@ -11,6 +11,49 @@ import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
 
+const OTP_LENGTH = 6;
+
+/**
+ * Helper: check roles and redirect accordingly.
+ * Priority: admin > coach > alumno > fallback.
+ */
+async function redirectByRole(userId: string, navigate: ReturnType<typeof useNavigate>, returnTo: string | null) {
+  // Check admin
+  const { data: isAdmin } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin" as any,
+  });
+  if (isAdmin) {
+    navigate("/admin", { replace: true });
+    return;
+  }
+
+  // Check coach
+  const { data: isCoach } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _role: "coach" as any,
+  });
+  if (isCoach) {
+    navigate("/coach", { replace: true });
+    return;
+  }
+
+  // Check alumno
+  const { data: alumno } = await supabase
+    .from("alumnos")
+    .select("id, estado, grupo")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (alumno) {
+    navigate(returnTo || "/alumno", { replace: true });
+    return;
+  }
+
+  // No role found
+  navigate("/", { replace: true });
+}
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -18,7 +61,6 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [adminRedirect, setAdminRedirect] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const navigate = useNavigate();
@@ -35,7 +77,29 @@ const Login = () => {
         return;
       }
 
+      const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
+
+      // Check admin/coach first for fast redirect
+      const { data: isAdmin } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin" as any,
+      });
+      if (isAdmin) {
+        navigate("/admin", { replace: true });
+        return;
+      }
+
+      const { data: isCoach } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "coach" as any,
+      });
+      if (isCoach) {
+        navigate("/coach", { replace: true });
+        return;
+      }
+
+      // Alumno flow
       if (!userEmail) { setCheckingSession(false); return; }
 
       const { data: alumno } = await supabase
@@ -85,8 +149,6 @@ const Login = () => {
         return;
       }
 
-      // Check for any subscription that grants access (active, grace period, or pending verification)
-      // Importante: incluimos canceladas porque la política es "acceso hasta fin de período".
       const { data: recentSubs } = await supabase
         .from("suscripciones")
         .select("id, estado, fecha_fin, cancelada_at")
@@ -99,13 +161,11 @@ const Login = () => {
         if (sub.estado === "pendiente_verificacion") return true;
         if (sub.estado !== "activa" && sub.estado !== "cancelada") return false;
         if (!sub.fecha_fin) return sub.estado === "activa";
-        // Parse date parts to avoid timezone drift
         const parts = sub.fecha_fin.substring(0, 10).split("-");
         const finDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59);
         const now2 = new Date();
         now2.setHours(0, 0, 0, 0);
         if (now2 <= finDate) return true;
-        // Grace period: allow up to day 5 of the month after expiry
         const expMonth = finDate.getMonth();
         const expYear = finDate.getFullYear();
         const curMonth = now2.getMonth();
@@ -113,7 +173,6 @@ const Login = () => {
         const isNextMonth =
           (curYear === expYear && curMonth === expMonth + 1) ||
           (curYear === expYear + 1 && expMonth === 11 && curMonth === 0);
-        // Grace period sólo aplica a activas, no a canceladas
         return sub.estado === "activa" && isNextMonth && now2.getDate() <= 5;
       });
 
@@ -123,7 +182,6 @@ const Login = () => {
         navigate("/planes", { replace: true });
         return;
       }
-      // Limpiar flags residuales que podrían disparar pantalla de "renovar" indebidamente
       localStorage.removeItem("alumno_renewal");
       localStorage.removeItem("alumno_from_vacation");
       localStorage.removeItem("upgrade_from_sub_id");
@@ -138,38 +196,28 @@ const Login = () => {
     return () => subscription.unsubscribe();
   }, [navigate, t]);
 
-  const handleSendMagicLink = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
     setLoading(true);
     const trimmedEmail = email.toLowerCase().trim();
     if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); return; }
 
-    const { data, error: fetchError } = await supabase
+    // Check if email exists anywhere (alumno, admin, or coach)
+    const { data: alumnoData } = await supabase
       .rpc("lookup_alumno_by_email", { p_email: trimmedEmail })
       .maybeSingle();
 
-    if (fetchError || !data) {
-      const { data: isAdminOrCoach } = await supabase.rpc("check_admin_or_coach_email" as any, { _email: trimmedEmail });
-      if (isAdminOrCoach) {
-        setLoginError(null);
-        setAdminRedirect(trimmedEmail);
-      } else {
-        setLoginError(t("login.userNotFound"));
-      }
+    const { data: isAdminOrCoach } = await supabase.rpc("check_admin_or_coach_email" as any, { _email: trimmedEmail });
+
+    if (!alumnoData && !isAdminOrCoach) {
+      setLoginError("No se encontró una cuenta con ese email. Si sos nuevo, creá tu cuenta primero.");
       setLoading(false);
       return;
     }
-    if (data.estado === "bloqueado") { setLoginError(t("login.accessDisabled")); setLoading(false); return; }
-    if (data.estado === "inactivo" && data.grupo === "Sin grupo") {
-      localStorage.setItem("registro_alumno_id", data.id);
-      navigate("/planes");
-      setLoading(false);
-      return;
-    }
-    if (data.estado === "inactivo") { setLoginError(t("login.accountInactive")); setLoading(false); return; }
-    if (data.estado === "pendiente") { setLoginError(t("login.pendingApproval")); setLoading(false); return; }
-    if (data.grupo === "Sin grupo" && data.estado !== "vacaciones") { setLoginError(t("login.noGroupAssigned")); setLoading(false); return; }
+
+    // Check blocked alumno
+    if (alumnoData?.estado === "bloqueado") { setLoginError(t("login.accessDisabled")); setLoading(false); return; }
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
@@ -206,10 +254,8 @@ const Login = () => {
     );
   }
 
-  // OTP code verification
-
   const handleVerifyOtp = async () => {
-    if (otpCode.length < 6) return;
+    if (otpCode.length < OTP_LENGTH) return;
     setVerifyingOtp(true);
     setLoginError(null);
 
@@ -221,13 +267,18 @@ const Login = () => {
 
     setVerifyingOtp(false);
     if (verifyError) {
-      setLoginError(verifyError.message?.includes("expired")
-        ? "El código expiró. Solicitá uno nuevo."
-        : verifyError.message || "Código inválido.");
+      if (verifyError.message?.includes("expired")) {
+        setLoginError("El código venció. Pedí uno nuevo.");
+      } else if (verifyError.message?.includes("invalid") || verifyError.message?.includes("Token")) {
+        setLoginError("Código incorrecto. Revisalo e intentá nuevamente.");
+      } else {
+        setLoginError(verifyError.message || "Error al verificar el código.");
+      }
       setOtpCode("");
       return;
     }
     toast.success("Sesión iniciada correctamente.");
+    // onAuthStateChange will handle redirect
   };
 
   if (magicLinkSent) {
@@ -244,18 +295,19 @@ const Login = () => {
             <p className="text-muted-foreground text-sm leading-relaxed">
               Te enviamos un código de acceso a{" "}
               <strong className="text-foreground">{email}</strong>.
+              <br />
+              Ingresalo acá para entrar.
             </p>
           </div>
 
-          {/* OTP Code Entry */}
           <div className="glass-card rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <KeyRound className="w-4 h-4" />
-              <span>Ingresá el código que recibiste por email</span>
+              <span>Código de acceso</span>
             </div>
             <div className="flex justify-center">
               <InputOTP
-                maxLength={8}
+                maxLength={OTP_LENGTH}
                 value={otpCode}
                 onChange={(value) => {
                   setOtpCode(value);
@@ -263,14 +315,9 @@ const Login = () => {
                 }}
               >
                 <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                  <InputOTPSlot index={6} />
-                  <InputOTPSlot index={7} />
+                  {Array.from({ length: OTP_LENGTH }, (_, i) => (
+                    <InputOTPSlot key={i} index={i} />
+                  ))}
                 </InputOTPGroup>
               </InputOTP>
             </div>
@@ -285,7 +332,7 @@ const Login = () => {
               variant="gold"
               className="w-full h-12 rounded-xl"
               size="lg"
-              disabled={verifyingOtp || otpCode.length < 6}
+              disabled={verifyingOtp || otpCode.length < OTP_LENGTH}
               onClick={handleVerifyOtp}
             >
               {verifyingOtp ? "Verificando..." : "Ingresar"}
@@ -309,7 +356,7 @@ const Login = () => {
               variant="ghost"
               onClick={() => {
                 setOtpCode("");
-                handleSendMagicLink({ preventDefault: () => {} } as React.FormEvent);
+                handleSendOtp({ preventDefault: () => {} } as React.FormEvent);
               }}
               className="w-full text-xs"
               disabled={loading}
@@ -337,7 +384,7 @@ const Login = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSendMagicLink} className="space-y-4">
+        <form onSubmit={handleSendOtp} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium text-foreground">
               Tu email
@@ -349,28 +396,11 @@ const Login = () => {
               autoComplete="username"
               placeholder="nombre@email.com"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setLoginError(null); setAdminRedirect(null); }}
+              onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
               required
               className="h-12 rounded-xl bg-secondary border-border text-foreground placeholder:text-muted-foreground text-base"
             />
           </div>
-
-          {adminRedirect && (
-            <div className="text-sm bg-primary/10 rounded-xl p-4 space-y-2">
-              <p className="text-foreground">
-                Este email corresponde a una cuenta de <strong>staff</strong>, no de alumno.
-              </p>
-              <Button
-                type="button"
-                variant="gold-outline"
-                size="sm"
-                className="w-full rounded-xl"
-                onClick={() => navigate("/admin/login")}
-              >
-                Ir al acceso staff
-              </Button>
-            </div>
-          )}
 
           {loginError && (
             <div className="text-sm text-destructive bg-destructive/10 rounded-xl p-3">
