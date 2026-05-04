@@ -444,9 +444,15 @@ const AdminPayments = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground">Pagos y Cobranzas</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gestión integral de pagos, conciliación y cobranza</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-foreground">Pagos y Cobranzas</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gestión integral de pagos, conciliación y cobranza</p>
+        </div>
+        <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
+          <DollarSign className="w-4 h-4" />
+          Registrar pago
+        </Button>
       </div>
 
       {/* Summary cards */}
