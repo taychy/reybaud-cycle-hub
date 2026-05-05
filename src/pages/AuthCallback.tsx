@@ -79,44 +79,38 @@ const AuthCallback = () => {
         return;
       }
 
-      // 3. Determine role and redirect
+      // 3. Determine role and redirect based on portal context
       const userId = session.user.id;
       const pendingOtp = loadPendingOtpState();
       const returnTo = getSafeReturnTo(pendingOtp?.returnTo);
+      const portalContext = pendingOtp?.context; // "main" = student, "staff" = admin/coach
 
-      // Check admin
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin" as any,
-      });
-      if (!cancelled && isAdmin) {
-        clearPendingOtpState();
-        navigate("/admin", { replace: true });
-        return;
-      }
+      // Gather all roles in parallel
+      const [{ data: isAdmin }, { data: isCoach }, { data: alumno }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: userId, _role: "admin" as any }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "coach" as any }),
+        supabase.from("alumnos").select("id").eq("user_id", userId).maybeSingle(),
+      ]);
 
-      // Check coach
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "coach" as any,
-      });
-      if (!cancelled && isCoach) {
-        clearPendingOtpState();
-        navigate("/coach", { replace: true });
-        return;
-      }
+      if (cancelled) return;
 
-      // Check alumno
-      const { data: alumno } = await supabase
-        .from("alumnos")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!cancelled && alumno) {
+      // If came from student portal, prioritize alumno
+      if (portalContext === "main" && alumno) {
         clearPendingOtpState();
         navigate(returnTo || "/alumno", { replace: true });
         return;
       }
+
+      // If came from staff portal, prioritize admin > coach
+      if (portalContext === "staff") {
+        if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return; }
+        if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return; }
+      }
+
+      // No context or fallback: admin > coach > alumno
+      if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return; }
+      if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return; }
+      if (alumno) { clearPendingOtpState(); navigate(returnTo || "/alumno", { replace: true }); return; }
 
       // Fallback: user exists but no role matched — send to home
       if (!cancelled) {
