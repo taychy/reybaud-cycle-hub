@@ -14,10 +14,24 @@ import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpError
 
 /**
  * Helper: check roles and redirect accordingly.
- * Priority: admin > coach > alumno > fallback.
+ * This is the STUDENT portal → alumno takes priority.
+ * Only fall back to admin/coach if user has no alumno record.
  */
 async function redirectByRole(userId: string, navigate: ReturnType<typeof useNavigate>, returnTo: string | null) {
-  // Check admin
+  // Student portal: check alumno FIRST
+  const { data: alumno } = await supabase
+    .from("alumnos")
+    .select("id, estado, grupo")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (alumno) {
+    clearPendingOtpState();
+    navigate(getSafeReturnTo(returnTo) || "/alumno", { replace: true });
+    return;
+  }
+
+  // Fallback: check admin
   const { data: isAdmin } = await supabase.rpc("has_role", {
     _user_id: userId,
     _role: "admin" as any,
@@ -28,7 +42,7 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     return;
   }
 
-  // Check coach
+  // Fallback: check coach
   const { data: isCoach } = await supabase.rpc("has_role", {
     _user_id: userId,
     _role: "coach" as any,
@@ -36,19 +50,6 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
   if (isCoach) {
     clearPendingOtpState();
     navigate("/coach", { replace: true });
-    return;
-  }
-
-  // Check alumno
-  const { data: alumno } = await supabase
-    .from("alumnos")
-    .select("id, estado, grupo")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (alumno) {
-    clearPendingOtpState();
-    navigate(getSafeReturnTo(returnTo) || "/alumno", { replace: true });
     return;
   }
 
@@ -90,27 +91,6 @@ const Login = () => {
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
-
-      // Check admin/coach first for fast redirect
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin" as any,
-      });
-      if (isAdmin) {
-        clearPendingOtpState();
-        navigate("/admin", { replace: true });
-        return;
-      }
-
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "coach" as any,
-      });
-      if (isCoach) {
-        clearPendingOtpState();
-        navigate("/coach", { replace: true });
-        return;
-      }
 
       // Alumno flow
       if (!userEmail) { setCheckingSession(false); return; }
