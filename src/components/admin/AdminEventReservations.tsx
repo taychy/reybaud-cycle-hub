@@ -1736,11 +1736,12 @@ const AdminEventReservations = ({
                       const sameCurr = origCurr === evCurr;
                       const eq = p.equivalent_amount_event_currency;
                       const rate = p.exchange_rate_to_event_currency;
+                      const isAnulado = p.status === "anulado";
                       return (
-                        <div key={p.id} className="rounded-lg border border-border p-3 space-y-2">
+                        <div key={p.id} className={`rounded-lg border p-3 space-y-2 ${isAnulado ? "border-border/50 opacity-60" : "border-border"}`}>
                           <div className="flex justify-between items-start gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold">
+                              <p className={`text-sm font-semibold ${isAnulado ? "line-through" : ""}`}>
                                 {formatPrice(origAmt, origCurr)} — <span className="capitalize">{p.payment_method}</span>
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -1762,6 +1763,9 @@ const AdminEventReservations = ({
                               {p.status === "rechazado" && p.review_notes && (
                                 <p className="text-[11px] text-red-400 mt-1">Motivo: {p.review_notes}</p>
                               )}
+                              {isAnulado && p.anulado_motivo && (
+                                <p className="text-[11px] text-red-400 mt-1">Anulado: {p.anulado_motivo}</p>
+                              )}
                             </div>
                             <Badge variant="outline" className={`text-[10px] border shrink-0 ${paymentStatusColors[p.status] || ""}`}>
                               {p.status}
@@ -1769,13 +1773,24 @@ const AdminEventReservations = ({
                           </div>
                           {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
                           {p.proof_url && <p className="text-[11px] text-muted-foreground">📎 Comprobante adjunto</p>}
-                          {p.status === "informado" && (
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="default" className="text-xs h-8" onClick={() => openReviewPayment(p)}>
+                          {/* Action buttons */}
+                          <div className="flex gap-2 flex-wrap">
+                            {p.status === "informado" && (
+                              <Button size="sm" variant="default" className="text-xs h-7" onClick={() => openReviewPayment(p)}>
                                 <CheckCircle className="w-3 h-3 mr-1" /> Revisar y validar
                               </Button>
-                            </div>
-                          )}
+                            )}
+                            {!isAnulado && (
+                              <>
+                                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => { setPaymentToEdit(p); setEditPaymentMode("edit"); }}>
+                                  <Pencil className="w-3 h-3 mr-1" /> Editar
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive" onClick={() => { setPaymentToEdit(p); setEditPaymentMode("annul"); }}>
+                                  <Ban className="w-3 h-3 mr-1" /> Anular
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
