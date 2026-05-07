@@ -31,6 +31,7 @@ import {
 import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
+import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
 
 /* ─── Types ─── */
 
