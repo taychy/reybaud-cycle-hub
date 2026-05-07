@@ -82,6 +82,9 @@ interface Payment {
   created_at: string;
   installment_id: string | null;
   installment_number: number | null;
+  anulado_at: string | null;
+  anulado_por: string | null;
+  anulado_motivo: string | null;
 }
 
 interface AlumnoOption {
