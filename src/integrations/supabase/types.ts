@@ -2853,10 +2853,55 @@ export type Database = {
           },
         ]
       }
+      reservation_payment_changes: {
+        Row: {
+          action: string
+          changed_by: string | null
+          changed_by_email: string | null
+          created_at: string
+          field_changed: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          payment_id: string
+          reason: string | null
+          reservation_id: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          payment_id: string
+          reason?: string | null
+          reservation_id: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          payment_id?: string
+          reason?: string | null
+          reservation_id?: string
+        }
+        Relationships: []
+      }
       reservation_payments: {
         Row: {
           alumno_id: string | null
           amount: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
           created_at: string
           currency: string
           equivalent_amount_event_currency: number | null
@@ -2883,6 +2928,9 @@ export type Database = {
         Insert: {
           alumno_id?: string | null
           amount: number
+          anulado_at?: string | null
+          anulado_motivo?: string | null
+          anulado_por?: string | null
           created_at?: string
           currency?: string
           equivalent_amount_event_currency?: number | null
@@ -2909,6 +2957,9 @@ export type Database = {
         Update: {
           alumno_id?: string | null
           amount?: number
+          anulado_at?: string | null
+          anulado_motivo?: string | null
+          anulado_por?: string | null
           created_at?: string
           currency?: string
           equivalent_amount_event_currency?: number | null
