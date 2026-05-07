@@ -172,6 +172,7 @@ const paymentStatusColors: Record<string, string> = {
   pago_validado: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
   pago_rechazado: "bg-destructive/15 text-destructive border-destructive/30",
   parcial: "bg-sky-500/15 text-sky-500 border-sky-500/30",
+  anulado: "bg-muted text-muted-foreground border-border line-through",
 };
 
 /* ─── Props ─── */
