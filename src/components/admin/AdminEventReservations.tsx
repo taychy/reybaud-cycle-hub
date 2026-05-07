@@ -230,6 +230,8 @@ const AdminEventReservations = ({
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentToReview, setPaymentToReview] = useState<Payment | null>(null);
+  const [paymentToEdit, setPaymentToEdit] = useState<Payment | null>(null);
+  const [editPaymentMode, setEditPaymentMode] = useState<"edit" | "annul">("edit");
 
   // Add student
   const [showAddStudent, setShowAddStudent] = useState(false);
