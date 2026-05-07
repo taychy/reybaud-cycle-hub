@@ -1945,6 +1945,17 @@ const AdminEventReservations = ({
           loadReservations();
         }}
       />
+
+      <EditPaymentDrawer
+        open={!!paymentToEdit}
+        onOpenChange={(o) => { if (!o) setPaymentToEdit(null); }}
+        payment={paymentToEdit}
+        mode={editPaymentMode}
+        onDone={() => {
+          if (selectedRes) loadPayments(selectedRes.id);
+          loadReservations();
+        }}
+      />
     </div>
   );
 };
