@@ -119,7 +119,7 @@ const App = () => (
           <Route path="/coach/liquidaciones" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachLiquidaciones /></ProtectedRoute>} />
           <Route path="/coach/asesoria" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAsesoria /></ProtectedRoute>} />
           <Route path="/eventos" element={<Eventos />} />
-          <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
+          <Route path="/eventos/record-de-la-hora" element={<Navigate to="/eventos/62a29493-7c8a-474a-a509-7224a8fb0cd7" replace />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
