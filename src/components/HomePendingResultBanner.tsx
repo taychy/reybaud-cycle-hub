@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 interface PendingResult {
   participantId: string;
   token: string;
+  eventId: string;
   eventTitle: string;
   eventDate: string;
 }
