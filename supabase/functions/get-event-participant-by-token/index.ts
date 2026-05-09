@@ -141,16 +141,24 @@ serve(async (req) => {
       if (!reservation.checkin_at && !participant.checked_in_at) {
         return json({ error: "checkin_required" }, 409);
       }
-      // Validar que el evento ya haya comenzado
+      // Validar que la carga de resultado esté habilitada (respeta metadata.checkin_opens_at).
       const { data: evCheck } = await supabase
         .from("events")
-        .select("id, date")
+        .select("id, date, metadata")
         .eq("id", reservation.event_id)
         .maybeSingle();
       if (!evCheck?.date) return json({ error: "event_not_found" }, 404);
-      const todayIso = new Date().toISOString().slice(0, 10);
-      if (evCheck.date > todayIso) {
-        return json({ error: "event_not_started", event_date: evCheck.date }, 409);
+      const checkinOpensAtRaw = (evCheck as any)?.metadata?.checkin_opens_at as string | undefined;
+      if (checkinOpensAtRaw) {
+        const opensAt = new Date(checkinOpensAtRaw);
+        if (!isNaN(opensAt.getTime()) && new Date() < opensAt) {
+          return json({ error: "event_not_started", checkin_opens_at: checkinOpensAtRaw }, 409);
+        }
+      } else {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        if (evCheck.date > todayIso) {
+          return json({ error: "event_not_started", event_date: evCheck.date }, 409);
+        }
       }
 
       const km = Number(body.distance_km);
