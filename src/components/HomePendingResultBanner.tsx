@@ -83,8 +83,8 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
 
   return (
     <button
-      onClick={() => navigate(`/eventos/record-de-la-hora/mi-resultados?token=${pending.token}`)}
-      className="w-full text-left rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 space-y-2 shadow-lg shadow-black/10 transition-all hover:border-primary/60 active:scale-[0.98]"
+      onClick={() => navigate(`/eventos/${pending.eventId}`)}
+      className="w-full text-left rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 space-y-2 shadow-lg shadow-black/10 transition-all hover:border-primary/60 hover:shadow-primary/20 active:scale-[0.98] cursor-pointer"
     >
       <div className="flex items-center gap-2">
         <Ruler className="w-4 h-4 text-primary shrink-0" />
