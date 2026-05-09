@@ -693,17 +693,28 @@ const EventDetail = () => {
                 // ─── RECORD DE LA HORA: flujo del alumno logueado (Etapa 2B) ───
                 !isActiveReservation ? null : !eventStarted ? (
                   // El evento todavía no ocurrió → no permitir check-in ni cargar resultado
-                  <div className="glass-card rounded-xl p-5 space-y-2">
+                  <div className="glass-card rounded-xl p-5 space-y-2 border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 text-primary" />
                       <h2 className="font-heading text-base font-semibold uppercase tracking-wide">Inscripción confirmada</h2>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Te esperamos el día del evento.
-                    </p>
-                    <p className="text-xs text-muted-foreground/80">
-                      La carga de resultado estará disponible el día del evento.
-                    </p>
+                    {checkinOpensLabel ? (
+                      <>
+                        <p className="text-sm text-foreground/90">
+                          El check-in abre el <span className="font-semibold text-primary">{checkinOpensLabel} hs</span>.
+                        </p>
+                        <p className="text-xs text-muted-foreground/80">
+                          A esa hora vas a ver el botón <span className="font-semibold text-foreground/90">"Estoy presente"</span> para confirmar tu asistencia y luego cargar tu resultado.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">Te esperamos el día del evento.</p>
+                        <p className="text-xs text-muted-foreground/80">
+                          La carga de resultado estará disponible el día del evento.
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : !reservation?.checkin_at ? (
                   // Tiene reserva activa pero todavía no hizo check-in
