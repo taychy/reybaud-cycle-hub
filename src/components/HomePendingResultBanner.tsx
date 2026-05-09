@@ -72,6 +72,7 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
       setPending({
         participantId: part.id,
         token: part.public_access_token,
+        eventId: ev.id,
         eventTitle: ev.title,
         eventDate: ev.date,
       });
