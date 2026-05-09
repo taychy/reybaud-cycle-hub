@@ -74,17 +74,26 @@ serve(async (req) => {
       return json({ error: "reservation_inactive" }, 409);
     }
 
-    // Validar que el evento ya haya comenzado (no permitir check-in antes del día)
+    // Validar que el check-in esté habilitado.
+    // Si el evento define metadata.checkin_opens_at (timestamp ISO), respetamos esa hora.
+    // De lo contrario, exigimos que la fecha del evento (YYYY-MM-DD) sea hoy o anterior.
     const { data: ev } = await admin
       .from("events")
-      .select("id, date")
+      .select("id, date, metadata")
       .eq("id", reservation.event_id)
       .maybeSingle();
     if (!ev?.date) return json({ error: "event_not_found" }, 404);
-    // ev.date es 'YYYY-MM-DD'; comparamos contra hoy en formato local del server (UTC)
-    const todayIso = new Date().toISOString().slice(0, 10);
-    if (ev.date > todayIso) {
-      return json({ error: "event_not_started", event_date: ev.date }, 409);
+    const checkinOpensAtRaw = (ev as any)?.metadata?.checkin_opens_at as string | undefined;
+    if (checkinOpensAtRaw) {
+      const opensAt = new Date(checkinOpensAtRaw);
+      if (!isNaN(opensAt.getTime()) && new Date() < opensAt) {
+        return json({ error: "event_not_started", checkin_opens_at: checkinOpensAtRaw }, 409);
+      }
+    } else {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      if (ev.date > todayIso) {
+        return json({ error: "event_not_started", event_date: ev.date }, 409);
+      }
     }
 
     const nowIso = new Date().toISOString();
