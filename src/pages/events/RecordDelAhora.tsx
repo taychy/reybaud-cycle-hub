@@ -220,20 +220,30 @@ const RecordDelAhora = () => {
     sessionStorage.setItem(RECORD_OAUTH_PENDING_KEY, "1");
     oauthLaunchInProgressRef.current = true;
     setOauthProcessing(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
-    });
-    oauthLaunchInProgressRef.current = false;
-    if (result.error) {
+    setOauthError("");
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
+      });
+      oauthLaunchInProgressRef.current = false;
+      if (result.error) {
+        console.log("[record-google-oauth] cleanup flag");
+        sessionStorage.removeItem(RECORD_OAUTH_PENDING_KEY);
+        setOauthProcessing(false);
+        toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
+        return;
+      }
+      if (result.redirected) return;
+      setOauthProcessing(false);
+      window.setTimeout(() => setOauthProcessing(true), 0);
+    } catch (err) {
+      oauthLaunchInProgressRef.current = false;
+      console.error("[record-google-oauth] google launch error", err);
       console.log("[record-google-oauth] cleanup flag");
       sessionStorage.removeItem(RECORD_OAUTH_PENDING_KEY);
       setOauthProcessing(false);
       toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
-      return;
     }
-    if (result.redirected) return;
-    setOauthProcessing(false);
-    window.setTimeout(() => setOauthProcessing(true), 0);
   };
 
   const validate = () => {
