@@ -33,6 +33,7 @@ const RecordDelAhora = () => {
   const { toast } = useToast();
   const oauthRunRef = useRef(false);
   const oauthRunIdRef = useRef(0);
+  const oauthLaunchInProgressRef = useRef(false);
   const activeEventRef = useRef<RecordStage | null>(null);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
@@ -77,6 +78,7 @@ const RecordDelAhora = () => {
   // After Google OAuth redirect: restore session, resolve the event, then lookup/register and navigate.
   useEffect(() => {
     if (!oauthProcessing) return;
+    if (oauthLaunchInProgressRef.current) return;
     if (sessionStorage.getItem(RECORD_OAUTH_PENDING_KEY) !== "1") {
       setOauthProcessing(false);
       return;
@@ -215,18 +217,23 @@ const RecordDelAhora = () => {
   }, [navigate, oauthProcessing, toast]);
 
   const handleGoogle = async () => {
-    sessionStorage.setItem("record_oauth_pending", "1");
+    sessionStorage.setItem(RECORD_OAUTH_PENDING_KEY, "1");
+    oauthLaunchInProgressRef.current = true;
     setOauthProcessing(true);
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
     });
+    oauthLaunchInProgressRef.current = false;
     if (result.error) {
-      sessionStorage.removeItem("record_oauth_pending");
+      console.log("[record-google-oauth] cleanup flag");
+      sessionStorage.removeItem(RECORD_OAUTH_PENDING_KEY);
       setOauthProcessing(false);
       toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
       return;
     }
     if (result.redirected) return;
+    setOauthProcessing(false);
+    window.setTimeout(() => setOauthProcessing(true), 0);
   };
 
   const validate = () => {
