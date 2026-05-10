@@ -62,6 +62,7 @@ const EventManagement = () => {
     : eventInfo
       ? getPublicEventLink(eventInfo.id)
       : "https://reybaud-app.com/eventos/record-de-la-hora";
+  const qrTargetUrl = `${eventUrl}?t=${Date.now()}`;
 
   const fetchParticipants = async () => {
     let query = supabase.from("event_participants").select("*");

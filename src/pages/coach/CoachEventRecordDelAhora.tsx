@@ -75,6 +75,7 @@ const CoachEventRecordDelAhora = () => {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
   const eventUrl = "https://reybaud-app.com/eventos/record-de-la-hora";
+  const qrTargetUrl = `${eventUrl}?t=${Date.now()}`;
 
   useEffect(() => {
     const checkCoach = async () => {
