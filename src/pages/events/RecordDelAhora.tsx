@@ -16,6 +16,7 @@ const RecordDelAhora = () => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
   const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
+  const [stages, setStages] = useState<Array<{ id: string; date: string; title: string; location: string | null; metadata: any }>>([]);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -24,32 +25,22 @@ const RecordDelAhora = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Pick the next upcoming record_hora event (or the most recent if none upcoming)
+  // Load all record_hora stages + pick active event
   useEffect(() => {
     (async () => {
+      const { data: all } = await supabase
+        .from("events")
+        .select("id, date, title, location, metadata")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .order("date", { ascending: true });
+      const list = (all || []) as any[];
+      setStages(list);
+
       const today = new Date().toISOString().slice(0, 10);
-      const { data: upcoming } = await supabase
-        .from("events")
-        .select("id, date, title")
-        .eq("type", "record_hora" as any)
-        .eq("is_active", true)
-        .gte("date", today)
-        .order("date", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (upcoming) {
-        setActiveEvent(upcoming as any);
-        return;
-      }
-      const { data: past } = await supabase
-        .from("events")
-        .select("id, date, title")
-        .eq("type", "record_hora" as any)
-        .eq("is_active", true)
-        .order("date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (past) setActiveEvent(past as any);
+      const upcoming = list.find((e) => e.date >= today);
+      const chosen = upcoming || list[list.length - 1];
+      if (chosen) setActiveEvent(chosen);
     })();
   }, []);
 
@@ -136,17 +127,41 @@ const RecordDelAhora = () => {
         <p className="text-muted-foreground text-center text-sm md:text-base">
           Competencia interna
         </p>
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <CalendarDays className="w-4 h-4 text-primary" /> 01/03/2026
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-primary" /> 08:00
-          </span>
-          <span className="flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-primary" /> KDT, Palermo
-          </span>
-        </div>
+        {stages.length > 0 && (
+          <div className="w-full max-w-md flex flex-col gap-2 mt-2">
+            {stages.map((s, idx) => {
+              const [y, m, d] = s.date.split("-");
+              const dateStr = `${d}/${m}/${y}`;
+              const opensAt = s.metadata?.checkin_opens_at as string | undefined;
+              let timeStr = "08:00";
+              if (opensAt) {
+                const dt = new Date(opensAt);
+                if (!isNaN(dt.getTime())) {
+                  timeStr = dt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+                }
+              }
+              const loc = s.location || s.metadata?.location_name || "KDT, Palermo";
+              const isActive = activeEvent?.id === s.id;
+              return (
+                <div
+                  key={s.id}
+                  className={`rounded-lg px-3 py-2 border ${isActive ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20 opacity-70"}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-semibold uppercase tracking-wider ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                      Etapa {idx + 1}{isActive ? " · Actual" : ""}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-primary" /> {dateStr}</span>
+                    <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-primary" /> {timeStr}</span>
+                    <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" /> {loc}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Beta banner */}
