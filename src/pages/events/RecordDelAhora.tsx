@@ -213,6 +213,8 @@ const RecordDelAhora = () => {
 
     return () => {
       cancelled = true;
+      oauthRunRef.current = false;
+      oauthRunIdRef.current += 1;
     };
   }, [navigate, oauthProcessing, toast]);
 
@@ -366,6 +368,12 @@ const RecordDelAhora = () => {
           <span className="font-semibold text-primary">BETA</span> — Esta función está en fase de prueba. Puede presentar fallas o comportamientos inesperados.
         </p>
       </div>
+
+      {!oauthProcessing && oauthError && (
+        <div className="w-full max-w-md border border-destructive/30 bg-destructive/10 rounded-lg px-4 py-3 mb-2 text-sm text-destructive text-center">
+          {oauthError}
+        </div>
+      )}
 
 
       {/* OAuth processing overlay — reemplaza los CTAs mientras volvemos del login con Google */}
