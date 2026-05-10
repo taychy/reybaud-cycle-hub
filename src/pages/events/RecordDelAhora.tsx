@@ -331,7 +331,7 @@ const RecordDelAhora = () => {
       )}
 
       {/* Login by email */}
-      {mode === "login" && (
+      {!oauthProcessing && mode === "login" && (
         <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-5">
           <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-foreground">
             Ingresar con email
@@ -359,7 +359,7 @@ const RecordDelAhora = () => {
       )}
 
       {/* Registration form */}
-      {mode === "register" && (
+      {!oauthProcessing && mode === "register" && (
         <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-5 h-5 text-primary" />
