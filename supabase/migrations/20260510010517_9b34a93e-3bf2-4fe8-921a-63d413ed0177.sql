@@ -1,0 +1,1 @@
+UPDATE events SET metadata = metadata || '{"start_time":"08:30"}'::jsonb WHERE id='62a29493-7c8a-474a-a509-7224a8fb0cd7';
