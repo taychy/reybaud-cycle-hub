@@ -110,6 +110,19 @@ const EventResults = () => {
     load();
   }, [token]);
 
+  // Load all record_hora stages to show dynamic header (avoid stale hardcoded date)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("events")
+        .select("id, date, location, metadata")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .order("date", { ascending: true });
+      setStages((data || []) as any);
+    })();
+  }, []);
+
   const handleSubmitDistance = async () => {
     const km = parseFloat(distanceKm);
     if (!km || km <= 0) {
