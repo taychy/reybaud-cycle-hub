@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,41 @@ import logo from "@/assets/logo.png";
 import { MapPin, Clock, CalendarDays, Users, AlertTriangle, Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable/index";
 
+const RECORD_OAUTH_PENDING_KEY = "record_oauth_pending";
+const OAUTH_TIMEOUT_MS = 10000;
+
+type RecordStage = {
+  id: string;
+  date: string;
+  title: string;
+  location: string | null;
+  metadata: any;
+};
+
+const pickActiveRecordEvent = (list: RecordStage[]) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = list.find((e) => e.date >= today);
+  return upcoming || list[list.length - 1] || null;
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const RecordDelAhora = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const oauthRunRef = useRef(false);
+  const oauthRunIdRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
+  const [oauthError, setOauthError] = useState("");
+  const [activeEvent, setActiveEvent] = useState<RecordStage | null>(null);
   // TODO post-MVP: pedir nombre de equipo después del login con Google si no lo tenemos.
   const [oauthProcessing, setOauthProcessing] = useState<boolean>(
-    typeof window !== "undefined" && sessionStorage.getItem("record_oauth_pending") === "1"
+    typeof window !== "undefined" && sessionStorage.getItem(RECORD_OAUTH_PENDING_KEY) === "1"
   );
-  const [stages, setStages] = useState<Array<{ id: string; date: string; title: string; location: string | null; metadata: any }>>([]);
+  const [stages, setStages] = useState<RecordStage[]>([]);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -39,12 +61,10 @@ const RecordDelAhora = () => {
         .eq("type", "record_hora" as any)
         .eq("is_active", true)
         .order("date", { ascending: true });
-      const list = (all || []) as any[];
+      const list = (all || []) as RecordStage[];
       setStages(list);
 
-      const today = new Date().toISOString().slice(0, 10);
-      const upcoming = list.find((e) => e.date >= today);
-      const chosen = upcoming || list[list.length - 1];
+      const chosen = pickActiveRecordEvent(list);
       if (chosen) setActiveEvent(chosen);
     })();
   }, []);
