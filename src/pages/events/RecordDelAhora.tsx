@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,47 @@ import logo from "@/assets/logo.png";
 import { MapPin, Clock, CalendarDays, Users, AlertTriangle, Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable/index";
 
+const RECORD_OAUTH_PENDING_KEY = "record_oauth_pending";
+const OAUTH_TIMEOUT_MS = 10000;
+
+type RecordStage = {
+  id: string;
+  date: string;
+  title: string;
+  location: string | null;
+  metadata: {
+    start_time?: string;
+    location_name?: string;
+    [key: string]: unknown;
+  } | null;
+};
+
+const pickActiveRecordEvent = (list: RecordStage[]) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = list.find((e) => e.date >= today);
+  return upcoming || list[list.length - 1] || null;
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const RecordDelAhora = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const oauthRunRef = useRef(false);
+  const oauthRunIdRef = useRef(0);
+  const oauthLaunchInProgressRef = useRef(false);
+  const activeEventRef = useRef<RecordStage | null>(null);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
+  const [oauthError, setOauthError] = useState("");
+  const [activeEvent, setActiveEvent] = useState<RecordStage | null>(null);
   // TODO post-MVP: pedir nombre de equipo después del login con Google si no lo tenemos.
   const [oauthProcessing, setOauthProcessing] = useState<boolean>(
-    typeof window !== "undefined" && sessionStorage.getItem("record_oauth_pending") === "1"
+    typeof window !== "undefined" && sessionStorage.getItem(RECORD_OAUTH_PENDING_KEY) === "1"
   );
-  const [stages, setStages] = useState<Array<{ id: string; date: string; title: string; location: string | null; metadata: any }>>([]);
+  const [stages, setStages] = useState<RecordStage[]>([]);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -32,123 +60,205 @@ const RecordDelAhora = () => {
 
   // Load all record_hora stages + pick active event
   useEffect(() => {
+    activeEventRef.current = activeEvent;
+  }, [activeEvent]);
+
+  useEffect(() => {
     (async () => {
       const { data: all } = await supabase
         .from("events")
         .select("id, date, title, location, metadata")
-        .eq("type", "record_hora" as any)
+        .eq("type", "record_hora")
         .eq("is_active", true)
         .order("date", { ascending: true });
-      const list = (all || []) as any[];
+      const list = (all || []) as RecordStage[];
       setStages(list);
 
-      const today = new Date().toISOString().slice(0, 10);
-      const upcoming = list.find((e) => e.date >= today);
-      const chosen = upcoming || list[list.length - 1];
+      const chosen = pickActiveRecordEvent(list);
       if (chosen) setActiveEvent(chosen);
     })();
   }, []);
 
-  // After Google OAuth redirect: if session exists, auto-register/lookup the participant
+  // After Google OAuth redirect: restore session, resolve the event, then lookup/register and navigate.
   useEffect(() => {
-    const fromOAuth = sessionStorage.getItem("record_oauth_pending") === "1";
-    if (!fromOAuth) return;
-    if (!activeEvent) return; // esperamos a que carguen los eventos; si nunca llega, el timeout limpia
+    if (!oauthProcessing) return;
+    if (oauthLaunchInProgressRef.current) return;
+    if (sessionStorage.getItem(RECORD_OAUTH_PENDING_KEY) !== "1") {
+      setOauthProcessing(false);
+      return;
+    }
+    if (oauthRunRef.current) return;
+
     let cancelled = false;
+    oauthRunRef.current = true;
+    const runId = oauthRunIdRef.current + 1;
+    oauthRunIdRef.current = runId;
 
+    const isCurrentRun = () => !cancelled && oauthRunIdRef.current === runId;
     const cleanupFlag = () => {
-      sessionStorage.removeItem("record_oauth_pending");
-      if (!cancelled) setOauthProcessing(false);
+      console.log("[record-google-oauth] cleanup flag");
+      sessionStorage.removeItem(RECORD_OAUTH_PENDING_KEY);
+      if (isCurrentRun()) {
+        setOauthProcessing(false);
+        setLoading(false);
+      }
+      oauthRunRef.current = false;
+      oauthRunIdRef.current += 1;
     };
-
-    const failAndReset = (description: string) => {
-      cleanupFlag();
-      if (!cancelled) {
+    const failAndReset = (description = "No pudimos completar el acceso con Google. Tocá intentar nuevamente.") => {
+      if (isCurrentRun()) {
+        setOauthError(description);
         toast({ title: "No pudimos completar el ingreso", description, variant: "destructive" });
       }
+      cleanupFlag();
+    };
+    const resolveActiveEvent = async () => {
+      const cachedEvent = activeEventRef.current;
+      if (cachedEvent) {
+        console.log("[record-google-oauth] active event found", cachedEvent.id);
+        return cachedEvent;
+      }
+
+      for (let attempt = 1; attempt <= 4; attempt += 1) {
+        const { data, error } = await supabase
+          .from("events")
+          .select("id, date, title, location, metadata")
+          .eq("type", "record_hora")
+          .eq("is_active", true)
+          .order("date", { ascending: true });
+
+        const list = ((data || []) as RecordStage[]);
+        if (list.length > 0) {
+          setStages(list);
+          const chosen = pickActiveRecordEvent(list);
+          if (chosen) {
+            console.log("[record-google-oauth] active event found", chosen.id);
+            activeEventRef.current = chosen;
+            setActiveEvent(chosen);
+            return chosen;
+          }
+        }
+
+        console.log("[record-google-oauth] active event not found", { attempt, error });
+        if (attempt < 4) await wait(500);
+      }
+
+      return null;
     };
 
-    (async () => {
+    const processGoogleReturn = async () => {
+      console.log("[record-google-oauth] oauth pending detected");
+      setLoading(true);
+      setOauthError("");
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const timeout = window.setTimeout(() => {
+          if (isCurrentRun()) {
+            console.log("[record-google-oauth] timeout");
+            failAndReset("No pudimos completar el acceso con Google. Tocá intentar nuevamente.");
+          }
+        }, OAUTH_TIMEOUT_MS);
+
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         const user = session?.user;
         const email = user?.email?.toLowerCase();
-        if (!user || !email) {
-          failAndReset("No detectamos tu sesión de Google. Probá de nuevo.");
+        console.log(email ? "[record-google-oauth] session found" : "[record-google-oauth] session not found", { sessionError });
+        if (!isCurrentRun()) return;
+        if (sessionError || !user || !email) {
+          window.clearTimeout(timeout);
+          failAndReset("No pudimos completar el acceso con Google. Tocá intentar nuevamente.");
           return;
         }
 
-        setLoading(true);
-        // Try lookup first
-        const { data: look } = await supabase.functions.invoke("lookup-record-participant", {
-          body: { email, event_id: activeEvent.id },
+        const event = await resolveActiveEvent();
+        if (!isCurrentRun()) return;
+        if (!event) {
+          window.clearTimeout(timeout);
+          failAndReset("No pudimos completar el acceso con Google. Tocá intentar nuevamente.");
+          return;
+        }
+
+        const { data: look, error: lookupError } = await supabase.functions.invoke("lookup-record-participant", {
+          body: { email, event_id: event.id },
         });
-        if (cancelled) return;
-        if (look?.found) {
+        console.log("[record-google-oauth] lookup result", { found: look?.found, error: lookupError });
+        if (!isCurrentRun()) return;
+        if (look?.found && look.token) {
+          window.clearTimeout(timeout);
+          console.log("[record-google-oauth] navigating to token", look.token);
           cleanupFlag();
           navigate(`/eventos/record-de-la-hora/mi-resultados?token=${look.token}`);
           return;
         }
-        // Auto-register using Google profile
-        const meta: any = user.user_metadata || {};
-        const fullName: string = meta.full_name || meta.name || "";
-        const parts = fullName.trim().split(/\s+/);
-        const first_name = meta.given_name || parts[0] || "Atleta";
-        const last_name = meta.family_name || parts.slice(1).join(" ") || "—";
 
-        const { data: reg, error } = await supabase.functions.invoke("register-record-participant", {
-          body: {
-            first_name,
-            last_name,
-            email,
-            team_name: "",
-            event_id: activeEvent.id,
-          },
+        const meta = (user.user_metadata || {}) as Record<string, unknown>;
+        const fullName = typeof meta.full_name === "string" ? meta.full_name : typeof meta.name === "string" ? meta.name : "";
+        const parts = fullName.trim().split(/\s+/).filter(Boolean);
+        const first_name = typeof meta.given_name === "string" && meta.given_name.trim() ? meta.given_name : parts[0] || "Atleta";
+        const last_name = typeof meta.family_name === "string" && meta.family_name.trim() ? meta.family_name : parts.slice(1).join(" ") || "—";
+        const { data: reg, error: registerError } = await supabase.functions.invoke("register-record-participant", {
+          body: { first_name, last_name, email, team_name: "", event_id: event.id },
         });
-        if (cancelled) return;
-        if (error || !reg?.ok) throw new Error(reg?.error || error?.message || "register_failed");
+        console.log("[record-google-oauth] register result", { ok: reg?.ok, error: registerError || reg?.error });
+        if (!isCurrentRun()) return;
+        if (registerError || !reg?.ok || !reg?.token) throw new Error(reg?.error || registerError?.message || "register_failed");
+
+        window.clearTimeout(timeout);
+        console.log("[record-google-oauth] navigating to token", reg.token);
         cleanupFlag();
         navigate(`/eventos/record-de-la-hora/mi-resultados?token=${reg.token}`);
       } catch (err) {
-        console.error("google auto-register error", err);
-        failAndReset("No se pudo completar el registro con Google. Intentá de nuevo.");
-      } finally {
-        if (!cancelled) setLoading(false);
+        console.error("[record-google-oauth] google auto-register error", err);
+        failAndReset("No pudimos completar el acceso con Google. Tocá intentar nuevamente.");
       }
-    })();
-    return () => { cancelled = true; };
-  }, [activeEvent, navigate, toast]);
+    };
 
-  // Si la flag quedó pegada pero nunca aparece evento activo, liberar tras 8s.
-  useEffect(() => {
-    if (!oauthProcessing) return;
-    const t = setTimeout(() => {
-      if (sessionStorage.getItem("record_oauth_pending") === "1" && !activeEvent) {
-        sessionStorage.removeItem("record_oauth_pending");
-        setOauthProcessing(false);
-        toast({
-          title: "No pudimos completar el ingreso",
-          description: "No encontramos un evento activo. Probá de nuevo.",
-          variant: "destructive",
-        });
-      }
-    }, 8000);
-    return () => clearTimeout(t);
-  }, [oauthProcessing, activeEvent, toast]);
+    processGoogleReturn();
+
+    return () => {
+      cancelled = true;
+      oauthRunRef.current = false;
+      oauthRunIdRef.current += 1;
+    };
+  }, [navigate, oauthProcessing, toast]);
 
   const handleGoogle = async () => {
-    sessionStorage.setItem("record_oauth_pending", "1");
+    sessionStorage.setItem(RECORD_OAUTH_PENDING_KEY, "1");
+    oauthLaunchInProgressRef.current = true;
     setOauthProcessing(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
-    });
-    if (result.error) {
-      sessionStorage.removeItem("record_oauth_pending");
+    setOauthError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) {
+        console.log("[record-google-oauth] session found before redirect");
+        oauthLaunchInProgressRef.current = false;
+        setOauthProcessing(false);
+        window.setTimeout(() => setOauthProcessing(true), 0);
+        return;
+      }
+
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
+      });
+      oauthLaunchInProgressRef.current = false;
+      if (result.error) {
+        console.log("[record-google-oauth] cleanup flag");
+        sessionStorage.removeItem(RECORD_OAUTH_PENDING_KEY);
+        setOauthProcessing(false);
+        toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
+        return;
+      }
+      if (result.redirected) return;
+      setOauthProcessing(false);
+      window.setTimeout(() => setOauthProcessing(true), 0);
+    } catch (err) {
+      oauthLaunchInProgressRef.current = false;
+      console.error("[record-google-oauth] google launch error", err);
+      console.log("[record-google-oauth] cleanup flag");
+      sessionStorage.removeItem(RECORD_OAUTH_PENDING_KEY);
       setOauthProcessing(false);
       toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
-      return;
     }
-    if (result.redirected) return;
   };
 
   const validate = () => {
@@ -215,7 +325,7 @@ const RecordDelAhora = () => {
 
       toast({ title: "¡Inscripción confirmada!", description: "Te enviamos un email con el link a tu resultado." });
       navigate(`/eventos/record-de-la-hora/mi-resultados?token=${data.token}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "No se pudo registrar. Intentá de nuevo.", variant: "destructive" });
     } finally {
@@ -271,6 +381,12 @@ const RecordDelAhora = () => {
           <span className="font-semibold text-primary">BETA</span> — Esta función está en fase de prueba. Puede presentar fallas o comportamientos inesperados.
         </p>
       </div>
+
+      {!oauthProcessing && oauthError && (
+        <div className="w-full max-w-md border border-destructive/30 bg-destructive/10 rounded-lg px-4 py-3 mb-2 text-sm text-destructive text-center">
+          {oauthError}
+        </div>
+      )}
 
 
       {/* OAuth processing overlay — reemplaza los CTAs mientras volvemos del login con Google */}
