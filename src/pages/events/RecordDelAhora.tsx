@@ -92,13 +92,14 @@ const RecordDelAhora = () => {
         setLoading(false);
       }
       oauthRunRef.current = false;
+      oauthRunIdRef.current += 1;
     };
     const failAndReset = (description = "No pudimos completar el acceso con Google. Tocá intentar nuevamente.") => {
-      cleanupFlag();
       if (isCurrentRun()) {
         setOauthError(description);
         toast({ title: "No pudimos completar el ingreso", description, variant: "destructive" });
       }
+      cleanupFlag();
     };
     const resolveActiveEvent = async () => {
       if (activeEvent) {
