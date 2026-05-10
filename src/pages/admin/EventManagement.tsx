@@ -51,13 +51,17 @@ const EventManagement = () => {
   const [saving, setSaving] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
-  const [eventInfo, setEventInfo] = useState<{ id: string; title: string; date: string; location: string | null; start_time: string | null } | null>(null);
+  const [eventInfo, setEventInfo] = useState<{ id: string; title: string; date: string; location: string | null; start_time: string | null; type: string | null } | null>(null);
 
-  // URL pública: si tenemos eventId real, usar la landing genérica del evento.
-  // Fallback al landing legacy del Record de la Hora.
-  const eventUrl = eventInfo
-    ? getPublicEventLink(eventInfo.id)
-    : "https://reybaud-app.com/eventos/record-de-la-hora";
+  // URL pública para el QR:
+  // - Eventos tipo "record_hora": usamos la landing email-only (registro sin login).
+  // - Resto de eventos: landing genérica /eventos/:id (requiere login para reservar).
+  const isRecordHora = eventInfo?.type === "record_hora";
+  const eventUrl = isRecordHora
+    ? "https://reybaud-app.com/eventos/record-de-la-hora"
+    : eventInfo
+      ? getPublicEventLink(eventInfo.id)
+      : "https://reybaud-app.com/eventos/record-de-la-hora";
 
   const fetchParticipants = async () => {
     let query = supabase.from("event_participants").select("*");
@@ -77,7 +81,7 @@ const EventManagement = () => {
       if (eventIdParam) {
         const { data } = await supabase
           .from("events")
-          .select("id, title, date, location, start_time")
+          .select("id, title, date, location, start_time, type")
           .eq("id", eventIdParam)
           .maybeSingle();
         if (data) setEventInfo(data as any);
