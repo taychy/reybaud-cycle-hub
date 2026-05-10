@@ -33,6 +33,7 @@ const RecordDelAhora = () => {
   const { toast } = useToast();
   const oauthRunRef = useRef(false);
   const oauthRunIdRef = useRef(0);
+  const activeEventRef = useRef<RecordStage | null>(null);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"choose" | "register" | "login">("choose");
   const [loginEmail, setLoginEmail] = useState("");
@@ -53,6 +54,10 @@ const RecordDelAhora = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Load all record_hora stages + pick active event
+  useEffect(() => {
+    activeEventRef.current = activeEvent;
+  }, [activeEvent]);
+
   useEffect(() => {
     (async () => {
       const { data: all } = await supabase
@@ -102,9 +107,10 @@ const RecordDelAhora = () => {
       cleanupFlag();
     };
     const resolveActiveEvent = async () => {
-      if (activeEvent) {
-        console.log("[record-google-oauth] active event found", activeEvent.id);
-        return activeEvent;
+      const cachedEvent = activeEventRef.current;
+      if (cachedEvent) {
+        console.log("[record-google-oauth] active event found", cachedEvent.id);
+        return cachedEvent;
       }
 
       for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -121,6 +127,7 @@ const RecordDelAhora = () => {
           const chosen = pickActiveRecordEvent(list);
           if (chosen) {
             console.log("[record-google-oauth] active event found", chosen.id);
+            activeEventRef.current = chosen;
             setActiveEvent(chosen);
             return chosen;
           }
@@ -205,7 +212,7 @@ const RecordDelAhora = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeEvent, navigate, oauthProcessing, toast]);
+  }, [navigate, oauthProcessing, toast]);
 
   const handleGoogle = async () => {
     sessionStorage.setItem("record_oauth_pending", "1");
