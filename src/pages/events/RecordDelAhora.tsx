@@ -45,6 +45,71 @@ const RecordDelAhora = () => {
     })();
   }, []);
 
+  // After Google OAuth redirect: if session exists, auto-register/lookup the participant
+  useEffect(() => {
+    if (!activeEvent) return;
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      const email = user?.email?.toLowerCase();
+      if (!user || !email) return;
+      // Only proceed if redirect came from OAuth (avoid hijacking logged-in students)
+      const fromOAuth = sessionStorage.getItem("record_oauth_pending") === "1";
+      if (!fromOAuth) return;
+      sessionStorage.removeItem("record_oauth_pending");
+
+      setLoading(true);
+      try {
+        // Try lookup first
+        const { data: look } = await supabase.functions.invoke("lookup-record-participant", {
+          body: { email, event_id: activeEvent.id },
+        });
+        if (!cancelled && look?.found) {
+          navigate(`/eventos/record-de-la-hora/mi-resultados?token=${look.token}`);
+          return;
+        }
+        // Auto-register using Google profile
+        const meta: any = user.user_metadata || {};
+        const fullName: string = meta.full_name || meta.name || "";
+        const parts = fullName.trim().split(/\s+/);
+        const first_name = meta.given_name || parts[0] || "Atleta";
+        const last_name = meta.family_name || parts.slice(1).join(" ") || "—";
+
+        const { data: reg, error } = await supabase.functions.invoke("register-record-participant", {
+          body: {
+            first_name,
+            last_name,
+            email,
+            team_name: "",
+            event_id: activeEvent.id,
+          },
+        });
+        if (error || !reg?.ok) throw new Error(reg?.error || error?.message || "register_failed");
+        if (!cancelled) navigate(`/eventos/record-de-la-hora/mi-resultados?token=${reg.token}`);
+      } catch (err) {
+        console.error("google auto-register error", err);
+        toast({ title: "Error", description: "No se pudo completar el registro con Google.", variant: "destructive" });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeEvent, navigate, toast]);
+
+  const handleGoogle = async () => {
+    sessionStorage.setItem("record_oauth_pending", "1");
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.href,
+    });
+    if (result.error) {
+      sessionStorage.removeItem("record_oauth_pending");
+      toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
+      return;
+    }
+    if (result.redirected) return;
+  };
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (form.first_name.trim().length < 2) e.first_name = "Mínimo 2 caracteres";
