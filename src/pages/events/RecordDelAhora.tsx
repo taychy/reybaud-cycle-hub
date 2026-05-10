@@ -138,11 +138,13 @@ const RecordDelAhora = () => {
 
   const handleGoogle = async () => {
     sessionStorage.setItem("record_oauth_pending", "1");
+    setOauthProcessing(true);
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.href,
+      redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
     });
     if (result.error) {
       sessionStorage.removeItem("record_oauth_pending");
+      setOauthProcessing(false);
       toast({ title: "Error", description: "No se pudo iniciar sesión con Google.", variant: "destructive" });
       return;
     }
