@@ -228,6 +228,15 @@ const RecordDelAhora = () => {
     setOauthProcessing(true);
     setOauthError("");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) {
+        console.log("[record-google-oauth] session found before redirect");
+        oauthLaunchInProgressRef.current = false;
+        setOauthProcessing(false);
+        window.setTimeout(() => setOauthProcessing(true), 0);
+        return;
+      }
+
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: `${window.location.origin}/eventos/record-de-la-hora`,
       });
