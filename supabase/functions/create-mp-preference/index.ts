@@ -11,12 +11,16 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   try {
     const { plan_id, alumno_id, suscripcion_id } = await req.json();
 
-    if (!plan_id || !alumno_id || !suscripcion_id) {
+    if (!plan_id || !alumno_id || !suscripcion_id ||
+        !UUID_RE.test(String(plan_id)) ||
+        !UUID_RE.test(String(alumno_id)) ||
+        !UUID_RE.test(String(suscripcion_id))) {
       return new Response(
-        JSON.stringify({ error: "Faltan parámetros requeridos" }),
+        JSON.stringify({ error: "Solicitud inválida" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -51,6 +55,20 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Alumno no encontrado" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify suscripcion belongs to alumno and matches plan (prevents cross-account abuse)
+    const { data: sub, error: subError } = await supabaseAdmin
+      .from("suscripciones")
+      .select("id, alumno_id, plan_id")
+      .eq("id", suscripcion_id)
+      .maybeSingle();
+
+    if (subError || !sub || sub.alumno_id !== alumno_id || sub.plan_id !== plan_id) {
+      return new Response(
+        JSON.stringify({ error: "Solicitud inválida" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -105,9 +123,9 @@ Deno.serve(async (req) => {
     const mpData = await mpResponse.json();
 
     if (!mpResponse.ok) {
-      console.error("MP error:", JSON.stringify(mpData));
+      console.error("[create-mp-preference] MP error:", JSON.stringify(mpData));
       return new Response(
-        JSON.stringify({ error: "Error al crear preferencia de pago", detail: mpData }),
+        JSON.stringify({ error: "Error al crear preferencia de pago" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
