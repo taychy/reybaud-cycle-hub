@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Ruler, ChevronRight } from "lucide-react";
+import { Ruler, ChevronRight, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-interface PendingResult {
-  participantId: string;
-  token: string;
+type Mode = "needs_checkin" | "needs_result";
+
+interface PendingItem {
+  mode: Mode;
   eventId: string;
   eventTitle: string;
   eventDate: string;
@@ -17,69 +18,98 @@ interface HomePendingResultBannerProps {
 }
 
 /**
- * Detecta si el alumno está vinculado a un evento tipo Record que ya pasó
- * y todavía no cargó su resultado (time_value IS NULL). Si es así, muestra
- * un CTA destacado para que vaya al flujo público de carga de resultado.
+ * Banner adaptable para eventos tipo Record:
+ *  - "needs_checkin": el alumno está inscripto, la ventana de check-in ya abrió
+ *    pero todavía no marcó presente. CTA -> ir al evento a hacer check-in.
+ *  - "needs_result": el alumno ya hizo check-in y todavía no cargó el resultado.
+ *    CTA -> ir al evento a cargar resultado.
  */
 const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) => {
-  const [pending, setPending] = useState<PendingResult | null>(null);
+  const [pending, setPending] = useState<PendingItem | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!alumnoEmail) return;
     const email = alumnoEmail.toLowerCase().trim();
     const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
 
     (async () => {
-      // Buscar participaciones del alumno sin resultado cargado.
-      // Etapa 2B: sólo mostramos pendientes si el alumno YA hizo check-in
-      // (status = 'checked_in' o checked_in_at presente). Esto evita el banner
-      // recién al inscribirse.
       const { data: parts } = await supabase
         .from("event_participants")
-        .select("id, event_id, public_access_token, time_value, event_slug, status, checked_in_at")
+        .select("id, event_id, time_value, status, checked_in_at")
         .eq("email", email)
         .is("time_value", null);
 
       if (!parts || parts.length === 0) return;
-      const checkedIn = (parts as any[]).filter(
-        (p) => p.status === "checked_in" || !!p.checked_in_at,
-      );
-      if (checkedIn.length === 0) return;
-
-      // Filtrar por eventos tipo record_hora que ya hayan pasado
-      const eventIds = checkedIn.map((p: any) => p.event_id).filter(Boolean);
+      const eventIds = (parts as any[]).map((p) => p.event_id).filter(Boolean);
       if (eventIds.length === 0) return;
 
       const { data: evs } = await supabase
         .from("events")
-        .select("id, title, date, end_date, type")
+        .select("id, title, date, end_date, type, metadata")
         .in("id", eventIds)
         .eq("type", "record_hora" as any);
 
       if (!evs || evs.length === 0) return;
 
-      const passed = (evs as any[])
-        .filter((e) => (e.end_date || e.date) <= today)
-        .sort((a, b) => (b.end_date || b.date).localeCompare(a.end_date || a.date));
+      // Recorremos eventos vigentes/recientes (no muy viejos)
+      const candidates = (evs as any[])
+        .map((e) => {
+          const part = (parts as any[]).find((p) => p.event_id === e.id);
+          const checkinOpensAt = e.metadata?.checkin_opens_at
+            ? new Date(e.metadata.checkin_opens_at)
+            : new Date(`${e.date}T00:00:00`);
+          const eventEnd = e.end_date || e.date;
+          const isCheckedIn = part?.status === "checked_in" || !!part?.checked_in_at;
+          return { e, part, checkinOpensAt, eventEnd, isCheckedIn };
+        })
+        .filter((c) => !!c.part);
 
-      if (passed.length === 0) return;
+      // 1) Prioridad: needs_result (ya hizo check-in, evento ya pasó o está en curso)
+      const needsResult = candidates
+        .filter((c) => c.isCheckedIn && c.eventEnd <= today)
+        .sort((a, b) => b.eventEnd.localeCompare(a.eventEnd))[0];
 
-      const ev = passed[0];
-      const part = checkedIn.find((p: any) => p.event_id === ev.id);
-      if (!part?.public_access_token) return;
+      if (needsResult) {
+        setPending({
+          mode: "needs_result",
+          eventId: needsResult.e.id,
+          eventTitle: needsResult.e.title,
+          eventDate: needsResult.e.date,
+        });
+        return;
+      }
 
-      setPending({
-        participantId: part.id,
-        token: part.public_access_token,
-        eventId: ev.id,
-        eventTitle: ev.title,
-        eventDate: ev.date,
-      });
+      // 2) needs_checkin: ventana abierta, evento aún no terminó, no hizo check-in
+      const needsCheckin = candidates
+        .filter(
+          (c) =>
+            !c.isCheckedIn &&
+            c.checkinOpensAt <= now &&
+            c.eventEnd >= today,
+        )
+        .sort((a, b) => a.checkinOpensAt.getTime() - b.checkinOpensAt.getTime())[0];
+
+      if (needsCheckin) {
+        setPending({
+          mode: "needs_checkin",
+          eventId: needsCheckin.e.id,
+          eventTitle: needsCheckin.e.title,
+          eventDate: needsCheckin.e.date,
+        });
+      }
     })();
   }, [alumnoEmail]);
 
   if (!pending) return null;
+
+  const isCheckin = pending.mode === "needs_checkin";
+  const Icon = isCheckin ? MapPin : Ruler;
+  const label = isCheckin ? "Check-in disponible" : "Resultado pendiente";
+  const description = isCheckin
+    ? `El check-in está abierto. Marcá tu presencia en ${pending.eventTitle}.`
+    : `Cargá tu resultado del ${pending.eventTitle} para que quede registrado en tu historial.`;
 
   return (
     <button
@@ -87,18 +117,16 @@ const HomePendingResultBanner = ({ alumnoEmail }: HomePendingResultBannerProps) 
       className="w-full text-left rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 space-y-2 shadow-lg shadow-black/10 transition-all hover:border-primary/60 hover:shadow-primary/20 active:scale-[0.98] cursor-pointer"
     >
       <div className="flex items-center gap-2">
-        <Ruler className="w-4 h-4 text-primary shrink-0" />
+        <Icon className="w-4 h-4 text-primary shrink-0" />
         <span className="text-[11px] font-heading font-semibold uppercase tracking-wider text-primary truncate flex-1">
-          Resultado pendiente
+          {label}
         </span>
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-primary/15 text-primary border-primary/30">
           Acción
         </Badge>
         <ChevronRight className="w-4 h-4 text-primary shrink-0" />
       </div>
-      <p className="text-xs text-foreground/80 line-clamp-2">
-        Cargá tu resultado del <span className="font-semibold">{pending.eventTitle}</span> para que quede registrado en tu historial.
-      </p>
+      <p className="text-xs text-foreground/80 line-clamp-2">{description}</p>
     </button>
   );
 };
