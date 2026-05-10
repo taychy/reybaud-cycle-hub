@@ -64,6 +64,18 @@ Deno.serve(async (req) => {
     }
 
     const externalRef: string = String(payment.external_reference);
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Validate external_reference format: either "event:<uuid>" or "<uuid>" (suscripcion)
+    const isEventRef = externalRef.startsWith("event:");
+    const refUuid = isEventRef ? externalRef.slice("event:".length) : externalRef;
+    if (!UUID_RE.test(refUuid)) {
+      console.error("[mp-webhook] Invalid external_reference format");
+      return new Response(JSON.stringify({ ok: true, invalid_ref: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,

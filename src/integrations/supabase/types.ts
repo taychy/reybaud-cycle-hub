@@ -3777,6 +3777,13 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_program_inscriptions_count: {
+        Args: { p_plan_ids: string[] }
+        Returns: {
+          count: number
+          plan_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

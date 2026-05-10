@@ -89,10 +89,10 @@ const PlanSelection = () => {
         const planesData = (data as Plan[]) || [];
         const programIds = planesData.filter(p => p.tipo === "programa" && p.max_inscripciones).map(p => p.id);
         if (programIds.length > 0) {
-          const { data: subs } = await supabase.from("suscripciones").select("plan_id").in("plan_id", programIds).in("estado", ["activa", "pendiente_verificacion"]);
-          if (subs) {
+          const { data: counts } = await supabase.rpc("get_program_inscriptions_count", { p_plan_ids: programIds } as any);
+          if (counts) {
             const countMap: Record<string, number> = {};
-            subs.forEach((s: any) => { countMap[s.plan_id] = (countMap[s.plan_id] || 0) + 1; });
+            (counts as any[]).forEach((c) => { countMap[c.plan_id] = Number(c.count) || 0; });
             planesData.forEach(p => { if (countMap[p.id]) p.inscripciones_actuales = countMap[p.id]; });
           }
         }
