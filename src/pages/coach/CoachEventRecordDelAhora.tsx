@@ -75,6 +75,7 @@ const CoachEventRecordDelAhora = () => {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamValue, setEditTeamValue] = useState("");
   const eventUrl = "https://reybaud-app.com/eventos/record-de-la-hora";
+  const qrTargetUrl = `${eventUrl}?t=${Date.now()}`;
 
   useEffect(() => {
     const checkCoach = async () => {
@@ -287,7 +288,7 @@ const CoachEventRecordDelAhora = () => {
           <p className="text-sm font-medium text-foreground">📱 QR del evento</p>
           <div className="flex flex-col items-center gap-3">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(eventUrl)}&bgcolor=1a1a2e&color=E8832A&format=png`}
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrTargetUrl)}&bgcolor=1a1a2e&color=E8832A&format=png`}
               alt="QR del evento"
               className="w-40 h-40 rounded-lg border border-border"
             />
@@ -296,7 +297,7 @@ const CoachEventRecordDelAhora = () => {
               <Search className="w-3.5 h-3.5 mr-1" /> Copiar link
             </Button>
             <Button variant="outline" size="sm" onClick={() => {
-              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(eventUrl)}&format=png`;
+              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrTargetUrl)}&format=png`;
               const img = new Image();
               img.crossOrigin = "anonymous";
               img.onload = () => {
