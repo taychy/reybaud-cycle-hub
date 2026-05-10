@@ -198,14 +198,7 @@ const RecordDelAhora = () => {
             {stages.map((s, idx) => {
               const [y, m, d] = s.date.split("-");
               const dateStr = `${d}/${m}/${y}`;
-              const opensAt = s.metadata?.checkin_opens_at as string | undefined;
-              let timeStr = "08:00";
-              if (opensAt) {
-                const dt = new Date(opensAt);
-                if (!isNaN(dt.getTime())) {
-                  timeStr = dt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
-                }
-              }
+              const timeStr = (s.metadata?.start_time as string | undefined)?.trim() || "08:00";
               const loc = s.location || s.metadata?.location_name || "KDT, Palermo";
               const isActive = activeEvent?.id === s.id;
               return (
