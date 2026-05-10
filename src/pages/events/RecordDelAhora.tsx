@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
-import { MapPin, Clock, CalendarDays, Users, AlertTriangle } from "lucide-react";
+import { MapPin, Clock, CalendarDays, Users, AlertTriangle, Loader2 } from "lucide-react";
 import { lovable } from "@/integrations/lovable/index";
 
 const RecordDelAhora = () => {
@@ -17,6 +17,10 @@ const RecordDelAhora = () => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
   const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
+  // TODO post-MVP: pedir nombre de equipo después del login con Google si no lo tenemos.
+  const [oauthProcessing, setOauthProcessing] = useState<boolean>(
+    typeof window !== "undefined" && sessionStorage.getItem("record_oauth_pending") === "1"
+  );
   const [stages, setStages] = useState<Array<{ id: string; date: string; title: string; location: string | null; metadata: any }>>([]);
   const [form, setForm] = useState({
     first_name: "",
@@ -47,25 +51,41 @@ const RecordDelAhora = () => {
 
   // After Google OAuth redirect: if session exists, auto-register/lookup the participant
   useEffect(() => {
-    if (!activeEvent) return;
+    const fromOAuth = sessionStorage.getItem("record_oauth_pending") === "1";
+    if (!fromOAuth) return;
+    if (!activeEvent) return; // esperamos a que carguen los eventos; si nunca llega, el timeout limpia
     let cancelled = false;
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      const email = user?.email?.toLowerCase();
-      if (!user || !email) return;
-      // Only proceed if redirect came from OAuth (avoid hijacking logged-in students)
-      const fromOAuth = sessionStorage.getItem("record_oauth_pending") === "1";
-      if (!fromOAuth) return;
-      sessionStorage.removeItem("record_oauth_pending");
 
-      setLoading(true);
+    const cleanupFlag = () => {
+      sessionStorage.removeItem("record_oauth_pending");
+      if (!cancelled) setOauthProcessing(false);
+    };
+
+    const failAndReset = (description: string) => {
+      cleanupFlag();
+      if (!cancelled) {
+        toast({ title: "No pudimos completar el ingreso", description, variant: "destructive" });
+      }
+    };
+
+    (async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
+        const email = user?.email?.toLowerCase();
+        if (!user || !email) {
+          failAndReset("No detectamos tu sesión de Google. Probá de nuevo.");
+          return;
+        }
+
+        setLoading(true);
         // Try lookup first
         const { data: look } = await supabase.functions.invoke("lookup-record-participant", {
           body: { email, event_id: activeEvent.id },
         });
-        if (!cancelled && look?.found) {
+        if (cancelled) return;
+        if (look?.found) {
+          cleanupFlag();
           navigate(`/eventos/record-de-la-hora/mi-resultados?token=${look.token}`);
           return;
         }
@@ -85,17 +105,36 @@ const RecordDelAhora = () => {
             event_id: activeEvent.id,
           },
         });
+        if (cancelled) return;
         if (error || !reg?.ok) throw new Error(reg?.error || error?.message || "register_failed");
-        if (!cancelled) navigate(`/eventos/record-de-la-hora/mi-resultados?token=${reg.token}`);
+        cleanupFlag();
+        navigate(`/eventos/record-de-la-hora/mi-resultados?token=${reg.token}`);
       } catch (err) {
         console.error("google auto-register error", err);
-        toast({ title: "Error", description: "No se pudo completar el registro con Google.", variant: "destructive" });
+        failAndReset("No se pudo completar el registro con Google. Intentá de nuevo.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [activeEvent, navigate, toast]);
+
+  // Si la flag quedó pegada pero nunca aparece evento activo, liberar tras 8s.
+  useEffect(() => {
+    if (!oauthProcessing) return;
+    const t = setTimeout(() => {
+      if (sessionStorage.getItem("record_oauth_pending") === "1" && !activeEvent) {
+        sessionStorage.removeItem("record_oauth_pending");
+        setOauthProcessing(false);
+        toast({
+          title: "No pudimos completar el ingreso",
+          description: "No encontramos un evento activo. Probá de nuevo.",
+          variant: "destructive",
+        });
+      }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [oauthProcessing, activeEvent, toast]);
 
   const handleGoogle = async () => {
     sessionStorage.setItem("record_oauth_pending", "1");
