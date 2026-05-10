@@ -46,6 +46,7 @@ const EventResults = () => {
   const [hideBanner, setHideBanner] = useState(() => localStorage.getItem("hide_install_banner") === "true");
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [teamRanking, setTeamRanking] = useState<TeamRanking[]>([]);
+  const [stages, setStages] = useState<Array<{ id: string; date: string; location: string | null; metadata: any }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,6 +109,19 @@ const EventResults = () => {
   useEffect(() => {
     load();
   }, [token]);
+
+  // Load all record_hora stages to show dynamic header (avoid stale hardcoded date)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("events")
+        .select("id, date, location, metadata")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .order("date", { ascending: true });
+      setStages((data || []) as any);
+    })();
+  }, []);
 
   const handleSubmitDistance = async () => {
     const km = parseFloat(distanceKm);
@@ -186,11 +200,34 @@ const EventResults = () => {
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
           Record de la Hora
         </h1>
-        <div className="flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5 text-primary" />01/03/2026</span>
-          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-primary" />08:00</span>
-          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-primary" />KDT, Palermo</span>
-        </div>
+        {stages.length > 0 && (
+          <div className="w-full max-w-md flex flex-col gap-2 mt-1">
+            {stages.map((s, idx) => {
+              const [y, m, d] = s.date.split("-");
+              const dateStr = `${d}/${m}/${y}`;
+              const timeStr = (s.metadata?.start_time as string | undefined)?.trim() || "08:00";
+              const loc = s.location || s.metadata?.location_name || "KDT, Palermo";
+              const isActive = participant?.event_id === s.id;
+              return (
+                <div
+                  key={s.id}
+                  className={`rounded-lg px-3 py-2 border ${isActive ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20 opacity-70"}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                      Etapa {idx + 1}{isActive ? " · Actual" : ""}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5 text-primary" />{dateStr}</span>
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-primary" />{timeStr}</span>
+                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-primary" />{loc}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Install app banner - mobile only, not installed, not dismissed */}
