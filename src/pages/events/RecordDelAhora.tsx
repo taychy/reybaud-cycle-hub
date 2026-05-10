@@ -273,8 +273,21 @@ const RecordDelAhora = () => {
       </div>
 
 
+      {/* OAuth processing overlay — reemplaza los CTAs mientras volvemos del login con Google */}
+      {oauthProcessing && (
+        <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-3 flex flex-col items-center text-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-foreground">
+            Completando registro con Google…
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Un momento, estamos preparando tu acceso al Record de la Hora.
+          </p>
+        </div>
+      )}
+
       {/* Choose mode */}
-      {mode === "choose" && (
+      {!oauthProcessing && mode === "choose" && (
         <div className="w-full max-w-md glass-card rounded-xl p-6 space-y-4">
           <Button
             variant="gold"
