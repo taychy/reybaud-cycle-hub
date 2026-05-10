@@ -25,32 +25,22 @@ const RecordDelAhora = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Pick the next upcoming record_hora event (or the most recent if none upcoming)
+  // Load all record_hora stages + pick active event
   useEffect(() => {
     (async () => {
+      const { data: all } = await supabase
+        .from("events")
+        .select("id, date, title, location, metadata")
+        .eq("type", "record_hora" as any)
+        .eq("is_active", true)
+        .order("date", { ascending: true });
+      const list = (all || []) as any[];
+      setStages(list);
+
       const today = new Date().toISOString().slice(0, 10);
-      const { data: upcoming } = await supabase
-        .from("events")
-        .select("id, date, title")
-        .eq("type", "record_hora" as any)
-        .eq("is_active", true)
-        .gte("date", today)
-        .order("date", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (upcoming) {
-        setActiveEvent(upcoming as any);
-        return;
-      }
-      const { data: past } = await supabase
-        .from("events")
-        .select("id, date, title")
-        .eq("type", "record_hora" as any)
-        .eq("is_active", true)
-        .order("date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (past) setActiveEvent(past as any);
+      const upcoming = list.find((e) => e.date >= today);
+      const chosen = upcoming || list[list.length - 1];
+      if (chosen) setActiveEvent(chosen);
     })();
   }, []);
 
