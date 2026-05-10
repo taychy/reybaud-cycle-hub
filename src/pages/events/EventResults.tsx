@@ -46,6 +46,7 @@ const EventResults = () => {
   const [hideBanner, setHideBanner] = useState(() => localStorage.getItem("hide_install_banner") === "true");
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [teamRanking, setTeamRanking] = useState<TeamRanking[]>([]);
+  const [stages, setStages] = useState<Array<{ id: string; date: string; location: string | null; metadata: any }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
