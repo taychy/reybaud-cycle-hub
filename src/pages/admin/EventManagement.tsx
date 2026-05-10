@@ -183,7 +183,7 @@ const EventManagement = () => {
   };
 
   const downloadQrPdf = () => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(eventUrl)}&format=png`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrTargetUrl)}&format=png`;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -261,7 +261,7 @@ const EventManagement = () => {
         <p className="text-sm font-medium text-foreground">📱 QR y link del evento</p>
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(eventUrl)}&bgcolor=1a1a2e&color=E8832A&format=png`}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrTargetUrl)}&bgcolor=1a1a2e&color=E8832A&format=png`}
             alt="QR del evento"
             className="w-48 h-48 rounded-lg border border-border"
           />
