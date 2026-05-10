@@ -16,6 +16,7 @@ const RecordDelAhora = () => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginError, setLoginError] = useState("");
   const [activeEvent, setActiveEvent] = useState<{ id: string; date: string; title: string } | null>(null);
+  const [stages, setStages] = useState<Array<{ id: string; date: string; title: string; location: string | null; metadata: any }>>([]);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
