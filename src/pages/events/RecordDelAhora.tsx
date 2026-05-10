@@ -17,7 +17,11 @@ type RecordStage = {
   date: string;
   title: string;
   location: string | null;
-  metadata: any;
+  metadata: {
+    start_time?: string;
+    location_name?: string;
+    [key: string]: unknown;
+  } | null;
 };
 
 const pickActiveRecordEvent = (list: RecordStage[]) => {
@@ -64,7 +68,7 @@ const RecordDelAhora = () => {
       const { data: all } = await supabase
         .from("events")
         .select("id, date, title, location, metadata")
-        .eq("type", "record_hora" as any)
+        .eq("type", "record_hora")
         .eq("is_active", true)
         .order("date", { ascending: true });
       const list = (all || []) as RecordStage[];
@@ -119,7 +123,7 @@ const RecordDelAhora = () => {
         const { data, error } = await supabase
           .from("events")
           .select("id, date, title, location, metadata")
-          .eq("type", "record_hora" as any)
+          .eq("type", "record_hora")
           .eq("is_active", true)
           .order("date", { ascending: true });
 
@@ -187,11 +191,11 @@ const RecordDelAhora = () => {
           return;
         }
 
-        const meta: any = user.user_metadata || {};
-        const fullName: string = meta.full_name || meta.name || "";
+        const meta = (user.user_metadata || {}) as Record<string, unknown>;
+        const fullName = typeof meta.full_name === "string" ? meta.full_name : typeof meta.name === "string" ? meta.name : "";
         const parts = fullName.trim().split(/\s+/).filter(Boolean);
-        const first_name = meta.given_name || parts[0] || "Atleta";
-        const last_name = meta.family_name || parts.slice(1).join(" ") || "—";
+        const first_name = typeof meta.given_name === "string" && meta.given_name.trim() ? meta.given_name : parts[0] || "Atleta";
+        const last_name = typeof meta.family_name === "string" && meta.family_name.trim() ? meta.family_name : parts.slice(1).join(" ") || "—";
         const { data: reg, error: registerError } = await supabase.functions.invoke("register-record-participant", {
           body: { first_name, last_name, email, team_name: "", event_id: event.id },
         });
@@ -312,7 +316,7 @@ const RecordDelAhora = () => {
 
       toast({ title: "¡Inscripción confirmada!", description: "Te enviamos un email con el link a tu resultado." });
       navigate(`/eventos/record-de-la-hora/mi-resultados?token=${data.token}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "No se pudo registrar. Intentá de nuevo.", variant: "destructive" });
     } finally {
