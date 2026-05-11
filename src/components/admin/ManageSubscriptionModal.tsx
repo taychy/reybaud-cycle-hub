@@ -481,7 +481,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                     <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo del cambio..." className="bg-secondary border-border text-sm" />
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
