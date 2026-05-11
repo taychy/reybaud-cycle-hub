@@ -456,17 +456,22 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
               )}
 
               {/* Cambiar estado manualmente */}
-              {selectedAction === "cambiar_estado" && primarySub && (
+              {selectedAction === "cambiar_estado" && primarySub && (() => {
+                const fallbackTransitions = ["activa", "pausa", "vencida", "cancelada"];
+                const transitions = (VALID_SUB_TRANSITIONS[primarySub.estado] && VALID_SUB_TRANSITIONS[primarySub.estado].length > 0)
+                  ? VALID_SUB_TRANSITIONS[primarySub.estado]
+                  : fallbackTransitions.filter(s => s !== primarySub.estado);
+                return (
                 <div className="space-y-3">
                   <p className="text-sm font-medium">Cambiar estado manualmente</p>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">Actual:</span>
-              <Badge variant="outline" className={`text-xs ${(badgeCfg as any).className || ""}`}>{statusLabel}</Badge>
+                    <Badge variant="outline" className={`text-xs ${(badgeCfg as any).className || ""}`}>{statusLabel}</Badge>
                   </div>
                   <Select value={subChangeTarget} onValueChange={setSubChangeTarget}>
                     <SelectTrigger className="bg-secondary border-border text-xs"><SelectValue placeholder="Seleccionar estado" /></SelectTrigger>
-                    <SelectContent>
-                      {(VALID_SUB_TRANSITIONS[primarySub.estado] || []).map(e => (
+                    <SelectContent className="z-[100] bg-popover">
+                      {transitions.map(e => (
                         <SelectItem key={e} value={e} className="text-xs">{SUB_STATUS_LABELS[e] || e}</SelectItem>
                       ))}
                     </SelectContent>
@@ -476,7 +481,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                     <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo del cambio..." className="bg-secondary border-border text-sm" />
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
