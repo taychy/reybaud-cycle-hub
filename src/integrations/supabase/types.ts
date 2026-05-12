@@ -157,6 +157,10 @@ export type Database = {
           nombre: string
           notas: string | null
           password_set: boolean
+          pause_fecha_estimada_retorno: string | null
+          pause_motivo: string | null
+          pause_proximo_followup: string | null
+          pause_ultimo_contacto_at: string | null
           profile_complete: boolean
           provincia: string | null
           registration_status: string
@@ -193,6 +197,10 @@ export type Database = {
           nombre: string
           notas?: string | null
           password_set?: boolean
+          pause_fecha_estimada_retorno?: string | null
+          pause_motivo?: string | null
+          pause_proximo_followup?: string | null
+          pause_ultimo_contacto_at?: string | null
           profile_complete?: boolean
           provincia?: string | null
           registration_status?: string
@@ -229,6 +237,10 @@ export type Database = {
           nombre?: string
           notas?: string | null
           password_set?: boolean
+          pause_fecha_estimada_retorno?: string | null
+          pause_motivo?: string | null
+          pause_proximo_followup?: string | null
+          pause_ultimo_contacto_at?: string | null
           profile_complete?: boolean
           provincia?: string | null
           registration_status?: string
