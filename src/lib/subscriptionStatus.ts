@@ -207,6 +207,7 @@ export const SUB_STATUS_LABELS: Record<string, string> = {
   cancelada: "Cancelada",
   pausa: "Pausada",
   duplicada: "Duplicada",
+  sin_plan: "Sin plan activo",
 };
 
 
