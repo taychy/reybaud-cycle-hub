@@ -241,13 +241,16 @@ const ManageStudents = () => {
   };
 
   const getSubEstadoLabel = (alumnoId: string): string => {
-    const payable = getPayableSub(alumnoId);
-    if (payable) {
-      return getEffectiveSubStatus({ estado: payable.estado, fecha_fin: payable.fecha_fin, cancelada_at: payable.cancelada_at });
-    }
+    // Prioridad: 1) sub activa vigente (manda siempre);
+    // 2) sub "cobrable" (vencida/pendiente) SOLO si no hay otra activa para el mismo plan;
+    // 3) cualquiera (la más reciente por fecha_fin).
     const active = getActiveSub(alumnoId);
     if (active) {
       return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin, cancelada_at: active.cancelada_at });
+    }
+    const payable = getPayableSub(alumnoId);
+    if (payable) {
+      return getEffectiveSubStatus({ estado: payable.estado, fecha_fin: payable.fecha_fin, cancelada_at: payable.cancelada_at });
     }
     const any = getAnySub(alumnoId);
     if (any) {
