@@ -72,9 +72,7 @@ const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 const PAID_ORIGEN = ["automatico", "cargado_admin"];
 
-// KPI buckets unificados con la lógica de getEffectiveSubStatus.
-// Importamos perezosamente para evitar ciclos de import.
-import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+
 
 const getPaymentStatus = (sub: Suscripcion): string => {
   // 1) Cancelada → cancelado (independiente del cálculo efectivo)
