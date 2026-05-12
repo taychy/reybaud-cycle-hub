@@ -1245,7 +1245,7 @@ const ManageStudents = () => {
                 </TableBody>
               </Table>
             </div>
-          )}
+          ))}
 
           {/* ===== RIGHT DRAWER (Detail) ===== */}
           <Sheet open={!!drawerAlumno} onOpenChange={(open) => { if (!open) setDrawerAlumno(null); }}>
