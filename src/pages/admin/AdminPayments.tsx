@@ -21,6 +21,7 @@ import {
   ChevronDown, ChevronUp
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 type Suscripcion = {
   id: string;
