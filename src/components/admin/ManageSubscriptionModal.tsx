@@ -62,6 +62,7 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
   const [subChangeTarget, setSubChangeTarget] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -72,6 +73,7 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       setSubChangeTarget("");
       setSaving(false);
       setConfirmCancel(false);
+      setSelectedSubId(null);
       const now = new Date();
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       setManualFechaFin(lastDay.toISOString().split("T")[0]);
@@ -85,13 +87,31 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
   }, [alumno, suscripciones]);
 
-  // The "primary" sub is the most relevant one (non-cancelled, most recent)
-  const primarySub = useMemo(() => {
+  // Default "primary" sub (most relevant non-cancelled, fallback to most recent)
+  const defaultSub = useMemo(() => {
     return alumnoSubs.find(s => {
       const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
       return eff !== "cancelada";
     }) || alumnoSubs[0] || null;
   }, [alumnoSubs]);
+
+  // Active target sub: user-selected or default
+  const primarySub = useMemo(() => {
+    if (selectedSubId) {
+      const found = alumnoSubs.find(s => s.id === selectedSubId);
+      if (found) return found;
+    }
+    return defaultSub;
+  }, [selectedSubId, alumnoSubs, defaultSub]);
+
+  const handleSelectSub = (subId: string) => {
+    if (subId === primarySub?.id) return;
+    setSelectedSubId(subId);
+    setSelectedAction(null);
+    setMotivo("");
+    setNewPlanId("");
+    setSubChangeTarget("");
+  };
 
   const effectiveStatus: EffectiveSubStatus | "sin_suscripcion" = primarySub
     ? getEffectiveSubStatus({ estado: primarySub.estado, fecha_fin: primarySub.fecha_fin, cancelada_at: primarySub.cancelada_at })
