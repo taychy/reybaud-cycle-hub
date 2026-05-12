@@ -13,6 +13,7 @@ import StudentPayments from "./pages/StudentPayments";
 import SetPassword from "./pages/SetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
+import WhatsAppConciliador from "./pages/admin/WhatsAppConciliador";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
 import Asesoria from "./pages/Asesoria";
