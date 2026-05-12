@@ -15,7 +15,8 @@ export type EffectiveSubStatus =
   | "pendiente_verificacion"
   | "vencida"
   | "cancelada"
-  | "pausa";
+  | "pausa"
+  | "sin_plan";
 
 export interface SubStatusInput {
   estado: string;
