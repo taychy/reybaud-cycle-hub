@@ -21,6 +21,7 @@ import {
   ChevronDown, ChevronUp
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 type Suscripcion = {
   id: string;
@@ -72,22 +73,50 @@ const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 const PAID_ORIGEN = ["automatico", "cargado_admin"];
 
+
+
 const getPaymentStatus = (sub: Suscripcion): string => {
-  if (sub.estado === "pendiente_verificacion") return "informado";
-  if (sub.estado === "conciliado") return "conciliado";
-  if (sub.estado === "activa") return "pagado";
+  // 1) Cancelada → cancelado (independiente del cálculo efectivo)
   if (sub.estado === "cancelada") return "cancelado";
-  if (sub.estado === "pendiente" && sub.fecha_fin) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const fin = new Date(sub.fecha_fin + "T23:59:59");
-    if (today > fin) return "vencido";
-    return "por_cobrar";
-  }
-  if (sub.estado === "pendiente") return "por_cobrar";
+  if (sub.estado === "conciliado") return "conciliado";
+
+  // 2) Caso especial: vencida con origen "pagado" (cobro confirmado pero período vencido)
+  //    se sigue contando como pagado dentro de su período. La aplicación del período
+  //    se hace por separado en el KPI.
   if (sub.estado === "vencida" && PAID_ORIGEN.includes(sub.origen_registro)) return "pagado";
-  if (sub.fecha_fin && new Date(sub.fecha_fin) < new Date() && sub.estado !== "activa") return "vencido";
-  return sub.estado;
+
+  // 3) Para el resto, usamos getEffectiveSubStatus (mismo motor que ve el alumno)
+  const eff = getEffectiveSubStatus({
+    estado: sub.estado,
+    fecha_fin: sub.fecha_fin,
+    cancelada_at: null, // ya manejamos cancelada arriba
+  });
+
+  switch (eff) {
+    case "activa": return "pagado";
+    case "pendiente_verificacion": return "informado";
+    case "pendiente": return "por_cobrar";
+    case "pago_pendiente": return "por_cobrar"; // día 1-5 del mes siguiente: gracia
+    case "acceso_pausado": return "vencido";    // después del día 5 sin pago
+    case "vencida": return "vencido";
+    case "cancelada": return "cancelado";
+    case "pausa": return "cancelado";
+    default: return eff;
+  }
+};
+
+// "YYYY-MM" del mes actual para default del filtro de período
+const currentPeriodKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+// Devuelve true si la sub pertenece al período (mes) elegido. "all" = sin filtro.
+const subInPeriod = (sub: Suscripcion, periodo: string): boolean => {
+  if (periodo === "all") return true;
+  const ref = sub.fecha_fin || sub.fecha_inicio;
+  if (!ref) return false;
+  return ref.substring(0, 7) === periodo;
 };
 
 const getStatusBadge = (status: string) => {
@@ -170,6 +199,7 @@ const AdminPayments = () => {
   const [filterAlumno, setFilterAlumno] = useState("");
   const [filterFechaDesde, setFilterFechaDesde] = useState("");
   const [filterFechaHasta, setFilterFechaHasta] = useState("");
+  const [filterPeriodo, setFilterPeriodo] = useState<string>(currentPeriodKey());
 
   // Expandable rows
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -219,6 +249,7 @@ const AdminPayments = () => {
 
   const filtered = useMemo(() => {
     return suscripciones.filter((s) => {
+      if (!subInPeriod(s, filterPeriodo)) return false;
       const status = getPaymentStatus(s);
       if (filterEstado !== "todos" && status !== filterEstado) return false;
       if (filterPlan !== "todos" && s.plan_id !== filterPlan) return false;
@@ -231,7 +262,7 @@ const AdminPayments = () => {
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
       return true;
     });
-  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta]);
+  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo]);
 
   const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -428,15 +459,30 @@ const AdminPayments = () => {
     setFilterFechaHasta("");
   };
 
-  // Summary counts
+  // Summary counts (scoped to selected period)
   const summary = useMemo(() => {
     const counts = { pagado: 0, por_cobrar: 0, informado: 0, conciliado: 0, vencido: 0 };
     suscripciones.forEach((s) => {
+      if (!subInPeriod(s, filterPeriodo)) return;
       const st = getPaymentStatus(s);
       if (st in counts) counts[st as keyof typeof counts]++;
     });
     return counts;
-  }, [suscripciones]);
+  }, [suscripciones, filterPeriodo]);
+
+  // Period selector options: last 12 months + "all"
+  const periodOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: "all", label: "Todos los meses" }];
+    const monthNames = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      opts.push({ value: key, label: i === 0 ? `${label} (actual)` : label });
+    }
+    return opts;
+  }, []);
 
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground">Cargando pagos...</div>;
@@ -444,15 +490,27 @@ const AdminPayments = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-heading font-bold text-foreground">Pagos y Cobranzas</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestión integral de pagos, conciliación y cobranza</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gestión integral de pagos, conciliación y cobranza · <span className="text-foreground font-medium">{periodOptions.find(o => o.value === filterPeriodo)?.label || filterPeriodo}</span>
+          </p>
         </div>
-        <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
-          <DollarSign className="w-4 h-4" />
-          Registrar pago
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={filterPeriodo} onValueChange={setFilterPeriodo}>
+            <SelectTrigger className="h-9 text-sm w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {periodOptions.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
+            <DollarSign className="w-4 h-4" />
+            Registrar pago
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
