@@ -677,6 +677,48 @@ const ManageStudents = () => {
     });
   };
 
+  const openContactDialog = (alumno: Alumno) => {
+    setContactAlumno(alumno);
+    setContactCanal("whatsapp");
+    setContactNota("");
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    setContactProxFollowup(d.toISOString().slice(0, 10));
+  };
+
+  const executeContactRegistration = async () => {
+    if (!contactAlumno) return;
+    setSavingContact(true);
+    const alumno = contactAlumno;
+    const nowIso = new Date().toISOString();
+    const canalLabel: Record<string, string> = {
+      whatsapp: "WhatsApp",
+      llamada: "Llamada",
+      email: "Email",
+      presencial: "Presencial",
+    };
+    const { error } = await supabase.from("alumnos").update({
+      pause_ultimo_contacto_at: nowIso,
+      pause_proximo_followup: contactProxFollowup || null,
+    } as any).eq("id", alumno.id);
+    if (error) {
+      toast.error("No se pudo registrar el contacto");
+      setSavingContact(false);
+      return;
+    }
+    await logStudentActivity({
+      alumnoId: alumno.id,
+      eventType: "contacto_pausa",
+      title: `Contacto vía ${canalLabel[contactCanal] || contactCanal}`,
+      description: contactNota || "Sin notas adicionales",
+      actorRole: isSuperAdmin ? "super_admin" : "admin",
+    });
+    toast.success("Contacto registrado");
+    setSavingContact(false);
+    setContactAlumno(null);
+    fetchAlumnos();
+  };
+
   const openSubChange = (alumno: Alumno) => {
     setSubChangeAlumno(alumno);
     setSubChangeTarget("");
