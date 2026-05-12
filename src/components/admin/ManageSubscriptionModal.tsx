@@ -191,13 +191,20 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
         }
         case "marcar_pago_pendiente": {
           if (!primarySub) break;
-          // Move fecha_fin to yesterday to trigger pago_pendiente effective status
+          // Move fecha_fin to yesterday and clear any cancellation so the sub
+          // becomes effectively "vencida"/"pago_pendiente" (debt visible to alumno).
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           const ydStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-          await supabase.from("suscripciones").update({ fecha_fin: ydStr } as any).eq("id", primarySub.id);
-          toast.success("Marcado como pago pendiente");
-          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Marcada pago pendiente", description: motivo || "Fecha fin adelantada por admin", actorRole: getActorRole() });
+          await supabase.from("suscripciones").update({
+            estado: "vencida",
+            fecha_fin: ydStr,
+            cancelada_at: null,
+            cancelada_motivo: null,
+            auto_renovacion: false,
+          } as any).eq("id", primarySub.id);
+          toast.success("Marcado como impaga / pago pendiente");
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Marcada pago pendiente", description: motivo || "Sub marcada como impaga por admin", actorRole: getActorRole() });
           break;
         }
         case "marcar_vencida": {
