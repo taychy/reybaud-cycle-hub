@@ -72,22 +72,52 @@ const ESTADO_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 const PAID_ORIGEN = ["automatico", "cargado_admin"];
 
+// KPI buckets unificados con la lógica de getEffectiveSubStatus.
+// Importamos perezosamente para evitar ciclos de import.
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+
 const getPaymentStatus = (sub: Suscripcion): string => {
-  if (sub.estado === "pendiente_verificacion") return "informado";
-  if (sub.estado === "conciliado") return "conciliado";
-  if (sub.estado === "activa") return "pagado";
+  // 1) Cancelada → cancelado (independiente del cálculo efectivo)
   if (sub.estado === "cancelada") return "cancelado";
-  if (sub.estado === "pendiente" && sub.fecha_fin) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const fin = new Date(sub.fecha_fin + "T23:59:59");
-    if (today > fin) return "vencido";
-    return "por_cobrar";
-  }
-  if (sub.estado === "pendiente") return "por_cobrar";
+  if (sub.estado === "conciliado") return "conciliado";
+
+  // 2) Caso especial: vencida con origen "pagado" (cobro confirmado pero período vencido)
+  //    se sigue contando como pagado dentro de su período. La aplicación del período
+  //    se hace por separado en el KPI.
   if (sub.estado === "vencida" && PAID_ORIGEN.includes(sub.origen_registro)) return "pagado";
-  if (sub.fecha_fin && new Date(sub.fecha_fin) < new Date() && sub.estado !== "activa") return "vencido";
-  return sub.estado;
+
+  // 3) Para el resto, usamos getEffectiveSubStatus (mismo motor que ve el alumno)
+  const eff = getEffectiveSubStatus({
+    estado: sub.estado,
+    fecha_fin: sub.fecha_fin,
+    cancelada_at: null, // ya manejamos cancelada arriba
+  });
+
+  switch (eff) {
+    case "activa": return "pagado";
+    case "pendiente_verificacion": return "informado";
+    case "pendiente": return "por_cobrar";
+    case "pago_pendiente": return "por_cobrar"; // día 1-5 del mes siguiente: gracia
+    case "acceso_pausado": return "vencido";    // después del día 5 sin pago
+    case "vencida": return "vencido";
+    case "cancelada": return "cancelado";
+    case "pausa": return "cancelado";
+    default: return eff;
+  }
+};
+
+// "YYYY-MM" del mes actual para default del filtro de período
+const currentPeriodKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+// Devuelve true si la sub pertenece al período (mes) elegido. "all" = sin filtro.
+const subInPeriod = (sub: Suscripcion, periodo: string): boolean => {
+  if (periodo === "all") return true;
+  const ref = sub.fecha_fin || sub.fecha_inicio;
+  if (!ref) return false;
+  return ref.substring(0, 7) === periodo;
 };
 
 const getStatusBadge = (status: string) => {
