@@ -989,8 +989,111 @@ const ManageStudents = () => {
             ))}
           </div>
 
-          {/* Table / Cards */}
-          {isMobile ? (
+          {/* ===== Specialized Pausados board ===== */}
+          {statusFilter === "vacaciones" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="glass-card rounded-md p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total pausados</p>
+                  <p className="text-2xl font-heading font-bold text-foreground mt-1">{pausados.length}</p>
+                </div>
+                <div className="glass-card rounded-md p-3 border border-destructive/30">
+                  <p className="text-[10px] uppercase tracking-wider text-destructive">Follow-up vencido</p>
+                  <p className="text-2xl font-heading font-bold text-destructive mt-1">{pausados.filter(p => p.urgency.tone === "danger").length}</p>
+                </div>
+                <div className="glass-card rounded-md p-3 border border-amber-500/30">
+                  <p className="text-[10px] uppercase tracking-wider text-amber-400">Esta semana</p>
+                  <p className="text-2xl font-heading font-bold text-amber-400 mt-1">{pausados.filter(p => p.urgency.tone === "warn").length}</p>
+                </div>
+                <div className="glass-card rounded-md p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sin agenda</p>
+                  <p className="text-2xl font-heading font-bold text-foreground mt-1">{pausados.filter(p => !p.alumno.pause_proximo_followup).length}</p>
+                </div>
+              </div>
+
+              {pausados.length === 0 ? (
+                <div className="glass-card rounded-lg p-12 text-center text-muted-foreground">
+                  <Palmtree className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p>No hay alumnos en vacaciones.</p>
+                </div>
+              ) : (
+                <div className="glass-card rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Alumno</TableHead>
+                        <TableHead className="text-muted-foreground">Motivo</TableHead>
+                        <TableHead className="text-muted-foreground hidden md:table-cell">Días pausado</TableHead>
+                        <TableHead className="text-muted-foreground">Próx. follow-up</TableHead>
+                        <TableHead className="text-muted-foreground hidden lg:table-cell">Retorno estimado</TableHead>
+                        <TableHead className="text-muted-foreground hidden lg:table-cell">Último contacto</TableHead>
+                        <TableHead className="text-muted-foreground"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pausados.map(({ alumno, urgency, diasPausado }) => {
+                        const a: any = alumno;
+                        const motivoKey = a.pause_motivo || "otro";
+                        const MotivoIcon = PAUSE_MOTIVO_ICONS[motivoKey] || FileText;
+                        const motivoLabel = PAUSE_MOTIVO_LABELS[motivoKey] || a.pause_motivo || "—";
+                        const fechaRetorno = parseDateLocal(a.pause_fecha_estimada_retorno);
+                        const ultContacto = a.pause_ultimo_contacto_at ? new Date(a.pause_ultimo_contacto_at) : null;
+                        const ultContactoStr = ultContacto
+                          ? `${daysBetween(new Date(ultContacto.getFullYear(), ultContacto.getMonth(), ultContacto.getDate()), today0)}d atrás`
+                          : "Sin contacto";
+                        const urgencyClass =
+                          urgency.tone === "danger" ? "bg-destructive/20 text-destructive border-destructive/40" :
+                          urgency.tone === "warn" ? "bg-amber-500/20 text-amber-400 border-amber-500/40" :
+                          urgency.tone === "ok" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" :
+                          "text-muted-foreground border-dashed";
+                        return (
+                          <TableRow key={alumno.id} className="border-border hover:bg-muted/30 cursor-pointer" onClick={() => openDrawer(alumno)}>
+                            <TableCell>
+                              <div className="font-medium text-foreground text-sm">{alumno.nombre} {getApellido(alumno)}</div>
+                              <div className="text-xs text-muted-foreground">{alumno.grupo}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <MotivoIcon className="w-3 h-3" />
+                                {motivoLabel}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{diasPausado}d</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-xs gap-1 ${urgencyClass}`}>
+                                <Clock className="w-3 h-3" />
+                                {urgency.label}
+                              </Badge>
+                              {a.pause_proximo_followup && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">{formatDate(a.pause_proximo_followup)}</div>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
+                              {fechaRetorno ? formatDate(a.pause_fecha_estimada_retorno) : <span className="italic">no definida</span>}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{ultContactoStr}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1.5 justify-end">
+                                <Button size="sm" variant="gold" className="h-7 text-xs" onClick={() => openContactDialog(alumno)}>
+                                  <MessageSquare className="w-3 h-3 mr-1" /> Registrar contacto
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openStateChange(alumno, "activo")}>
+                                  <Play className="w-3 h-3 mr-1" /> Reactivar
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          ) : (
+
+          /* Table / Cards */
+          isMobile ? (
             <div className="space-y-2">
               {loading ? (
                 <p className="text-center text-muted-foreground py-8">Cargando...</p>
