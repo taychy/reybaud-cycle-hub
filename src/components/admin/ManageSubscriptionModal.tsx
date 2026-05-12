@@ -344,29 +344,41 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
             )}
           </div>
 
-          {/* History - other subs */}
+          {/* Subscription picker — clickable list of all subs */}
           {alumnoSubs.length > 1 && (
-            <details className="text-xs">
-              <summary className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                Historial ({alumnoSubs.length} suscripciones)
-              </summary>
-              <div className="mt-2 space-y-1.5 max-h-32 overflow-y-auto">
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Seleccionar suscripción ({alumnoSubs.length})
+              </p>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
                 {alumnoSubs.map(s => {
                   const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
+                  const isActive = s.id === primarySub?.id;
                   return (
-                    <div key={s.id} className="flex items-center justify-between py-1 px-2 rounded bg-secondary/20">
-                      <span className="text-foreground">{s.planes?.nombre || "—"}</span>
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleSelectSub(s.id)}
+                      className={`w-full flex items-center justify-between py-1.5 px-2 rounded text-xs transition-colors text-left ${
+                        isActive
+                          ? "bg-primary/15 border border-primary/40"
+                          : "bg-secondary/20 border border-transparent hover:bg-secondary/40"
+                      }`}
+                    >
+                      <span className={isActive ? "text-foreground font-medium" : "text-foreground"}>
+                        {s.planes?.nombre || "—"}
+                      </span>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">{formatDate(s.fecha_inicio)} — {formatDate(s.fecha_fin)}</span>
                         <Badge variant="outline" className={`text-[10px] ${SUB_STATUS_BADGE[eff]?.className || ""}`}>
                           {SUB_STATUS_LABELS[eff] || eff}
                         </Badge>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
-            </details>
+            </div>
           )}
 
           <Separator />
