@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -128,6 +128,17 @@ const ManageStudents = () => {
   const [stateChangeMotivo, setStateChangeMotivo] = useState("");
   const [stateChangeNota, setStateChangeNota] = useState("");
   const [savingState, setSavingState] = useState(false);
+  // Pause-specific extra fields (when target = vacaciones)
+  const [pauseMotivoTipo, setPauseMotivoTipo] = useState<string>("");
+  const [pauseFechaRetorno, setPauseFechaRetorno] = useState<string>("");
+  const [pauseFollowup, setPauseFollowup] = useState<string>("");
+
+  // Register contact dialog (paused student follow-up)
+  const [contactAlumno, setContactAlumno] = useState<Alumno | null>(null);
+  const [contactCanal, setContactCanal] = useState<string>("whatsapp");
+  const [contactNota, setContactNota] = useState("");
+  const [contactProxFollowup, setContactProxFollowup] = useState<string>("");
+  const [savingContact, setSavingContact] = useState(false);
 
   // Sub state change dialog
   const [subChangeAlumno, setSubChangeAlumno] = useState<Alumno | null>(null);
@@ -590,6 +601,14 @@ const ManageStudents = () => {
     setStateChangeTarget(targetEstado);
     setStateChangeMotivo("");
     setStateChangeNota("");
+    // Defaults for pause flow
+    if (targetEstado === "vacaciones") {
+      setPauseMotivoTipo("");
+      setPauseFechaRetorno("");
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      setPauseFollowup(d.toISOString().slice(0, 10));
+    }
   };
 
   const executeStateChange = async () => {
@@ -600,6 +619,20 @@ const ManageStudents = () => {
     const updateData: any = { estado: newEstado };
     if (stateChangeNota) {
       updateData.notas = [alumno.notas, `[${new Date().toLocaleDateString("es-AR")}] ${stateChangeNota}`].filter(Boolean).join("\n");
+    }
+    // Pause-specific: persist motivo, fecha estimada de retorno, próximo follow-up
+    if (newEstado === "vacaciones") {
+      updateData.pause_motivo = pauseMotivoTipo || stateChangeMotivo || null;
+      updateData.pause_fecha_estimada_retorno = pauseFechaRetorno || null;
+      updateData.pause_proximo_followup = pauseFollowup || null;
+      updateData.pause_ultimo_contacto_at = null;
+    }
+    // Returning to active: clear pause tracking fields
+    if (newEstado === "activo" && alumno.estado === "vacaciones") {
+      updateData.pause_motivo = null;
+      updateData.pause_fecha_estimada_retorno = null;
+      updateData.pause_proximo_followup = null;
+      updateData.pause_ultimo_contacto_at = null;
     }
     await supabase.from("alumnos").update(updateData).eq("id", alumno.id);
     if (newEstado === "vacaciones") {
@@ -642,6 +675,48 @@ const ManageStudents = () => {
     supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
+  };
+
+  const openContactDialog = (alumno: Alumno) => {
+    setContactAlumno(alumno);
+    setContactCanal("whatsapp");
+    setContactNota("");
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    setContactProxFollowup(d.toISOString().slice(0, 10));
+  };
+
+  const executeContactRegistration = async () => {
+    if (!contactAlumno) return;
+    setSavingContact(true);
+    const alumno = contactAlumno;
+    const nowIso = new Date().toISOString();
+    const canalLabel: Record<string, string> = {
+      whatsapp: "WhatsApp",
+      llamada: "Llamada",
+      email: "Email",
+      presencial: "Presencial",
+    };
+    const { error } = await supabase.from("alumnos").update({
+      pause_ultimo_contacto_at: nowIso,
+      pause_proximo_followup: contactProxFollowup || null,
+    } as any).eq("id", alumno.id);
+    if (error) {
+      toast.error("No se pudo registrar el contacto");
+      setSavingContact(false);
+      return;
+    }
+    await logStudentActivity({
+      alumnoId: alumno.id,
+      eventType: "contacto_pausa",
+      title: `Contacto vía ${canalLabel[contactCanal] || contactCanal}`,
+      description: contactNota || "Sin notas adicionales",
+      actorRole: isSuperAdmin ? "super_admin" : "admin",
+    });
+    toast.success("Contacto registrado");
+    setSavingContact(false);
+    setContactAlumno(null);
+    fetchAlumnos();
   };
 
   const openSubChange = (alumno: Alumno) => {
@@ -825,6 +900,48 @@ const ManageStudents = () => {
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
+  // --- Pause-tracking helpers ---
+  const PAUSE_MOTIVO_LABELS: Record<string, string> = {
+    lesion: "Lesión", enfermedad: "Enfermedad", viaje: "Viaje",
+    embarazo: "Embarazo", personal: "Personal", otro: "Otro",
+  };
+  const PAUSE_MOTIVO_ICONS: Record<string, any> = {
+    lesion: HeartPulse, enfermedad: HeartPulse, viaje: MapPin,
+    embarazo: HeartPulse, personal: Users, otro: FileText,
+  };
+  const parseDateLocal = (s: string | null | undefined): Date | null => {
+    if (!s) return null;
+    const parts = s.substring(0, 10).split("-");
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  };
+  const daysBetween = (a: Date, b: Date) => Math.floor((b.getTime() - a.getTime()) / 86400000);
+  const today0 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+
+  const getFollowupUrgency = (alumno: any): { label: string; tone: "danger" | "warn" | "ok" | "muted"; days: number | null } => {
+    const f = parseDateLocal(alumno.pause_proximo_followup);
+    if (!f) return { label: "Sin agendar", tone: "warn", days: null };
+    const diff = daysBetween(today0, f);
+    if (diff < 0) return { label: `Vencido hace ${Math.abs(diff)}d`, tone: "danger", days: diff };
+    if (diff === 0) return { label: "Hoy", tone: "warn", days: 0 };
+    if (diff <= 2) return { label: `En ${diff}d`, tone: "warn", days: diff };
+    return { label: `En ${diff}d`, tone: "ok", days: diff };
+  };
+
+  const pausados = alumnos
+    .filter(a => a.estado === "vacaciones")
+    .map(a => {
+      const u = getFollowupUrgency(a as any);
+      const ultimoCambio = parseDateLocal((a as any).updated_at?.toString().slice(0, 10) || null);
+      const diasPausado = ultimoCambio ? Math.max(0, daysBetween(ultimoCambio, today0)) : 0;
+      return { alumno: a, urgency: u, diasPausado };
+    })
+    .sort((x, y) => {
+      const order = { danger: 0, warn: 1, ok: 2, muted: 3 } as const;
+      return order[x.urgency.tone] - order[y.urgency.tone];
+    });
+
+
   // --- RENDER ---
   return (
     <div className="space-y-6">
@@ -872,8 +989,111 @@ const ManageStudents = () => {
             ))}
           </div>
 
-          {/* Table / Cards */}
-          {isMobile ? (
+          {/* ===== Specialized Pausados board ===== */}
+          {statusFilter === "vacaciones" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="glass-card rounded-md p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total pausados</p>
+                  <p className="text-2xl font-heading font-bold text-foreground mt-1">{pausados.length}</p>
+                </div>
+                <div className="glass-card rounded-md p-3 border border-destructive/30">
+                  <p className="text-[10px] uppercase tracking-wider text-destructive">Follow-up vencido</p>
+                  <p className="text-2xl font-heading font-bold text-destructive mt-1">{pausados.filter(p => p.urgency.tone === "danger").length}</p>
+                </div>
+                <div className="glass-card rounded-md p-3 border border-amber-500/30">
+                  <p className="text-[10px] uppercase tracking-wider text-amber-400">Esta semana</p>
+                  <p className="text-2xl font-heading font-bold text-amber-400 mt-1">{pausados.filter(p => p.urgency.tone === "warn").length}</p>
+                </div>
+                <div className="glass-card rounded-md p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sin agenda</p>
+                  <p className="text-2xl font-heading font-bold text-foreground mt-1">{pausados.filter(p => !p.alumno.pause_proximo_followup).length}</p>
+                </div>
+              </div>
+
+              {pausados.length === 0 ? (
+                <div className="glass-card rounded-lg p-12 text-center text-muted-foreground">
+                  <Palmtree className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p>No hay alumnos en vacaciones.</p>
+                </div>
+              ) : (
+                <div className="glass-card rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Alumno</TableHead>
+                        <TableHead className="text-muted-foreground">Motivo</TableHead>
+                        <TableHead className="text-muted-foreground hidden md:table-cell">Días pausado</TableHead>
+                        <TableHead className="text-muted-foreground">Próx. follow-up</TableHead>
+                        <TableHead className="text-muted-foreground hidden lg:table-cell">Retorno estimado</TableHead>
+                        <TableHead className="text-muted-foreground hidden lg:table-cell">Último contacto</TableHead>
+                        <TableHead className="text-muted-foreground"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pausados.map(({ alumno, urgency, diasPausado }) => {
+                        const a: any = alumno;
+                        const motivoKey = a.pause_motivo || "otro";
+                        const MotivoIcon = PAUSE_MOTIVO_ICONS[motivoKey] || FileText;
+                        const motivoLabel = PAUSE_MOTIVO_LABELS[motivoKey] || a.pause_motivo || "—";
+                        const fechaRetorno = parseDateLocal(a.pause_fecha_estimada_retorno);
+                        const ultContacto = a.pause_ultimo_contacto_at ? new Date(a.pause_ultimo_contacto_at) : null;
+                        const ultContactoStr = ultContacto
+                          ? `${daysBetween(new Date(ultContacto.getFullYear(), ultContacto.getMonth(), ultContacto.getDate()), today0)}d atrás`
+                          : "Sin contacto";
+                        const urgencyClass =
+                          urgency.tone === "danger" ? "bg-destructive/20 text-destructive border-destructive/40" :
+                          urgency.tone === "warn" ? "bg-amber-500/20 text-amber-400 border-amber-500/40" :
+                          urgency.tone === "ok" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" :
+                          "text-muted-foreground border-dashed";
+                        return (
+                          <TableRow key={alumno.id} className="border-border hover:bg-muted/30 cursor-pointer" onClick={() => openDrawer(alumno)}>
+                            <TableCell>
+                              <div className="font-medium text-foreground text-sm">{alumno.nombre} {getApellido(alumno)}</div>
+                              <div className="text-xs text-muted-foreground">{alumno.grupo}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <MotivoIcon className="w-3 h-3" />
+                                {motivoLabel}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{diasPausado}d</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-xs gap-1 ${urgencyClass}`}>
+                                <Clock className="w-3 h-3" />
+                                {urgency.label}
+                              </Badge>
+                              {a.pause_proximo_followup && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">{formatDate(a.pause_proximo_followup)}</div>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
+                              {fechaRetorno ? formatDate(a.pause_fecha_estimada_retorno) : <span className="italic">no definida</span>}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{ultContactoStr}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1.5 justify-end">
+                                <Button size="sm" variant="gold" className="h-7 text-xs" onClick={() => openContactDialog(alumno)}>
+                                  <MessageSquare className="w-3 h-3 mr-1" /> Registrar contacto
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openStateChange(alumno, "activo")}>
+                                  <Play className="w-3 h-3 mr-1" /> Reactivar
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          ) : (
+
+          /* Table / Cards */
+          isMobile ? (
             <div className="space-y-2">
               {loading ? (
                 <p className="text-center text-muted-foreground py-8">Cargando...</p>
@@ -1025,7 +1245,7 @@ const ManageStudents = () => {
                 </TableBody>
               </Table>
             </div>
-          )}
+          ))}
 
           {/* ===== RIGHT DRAWER (Detail) ===== */}
           <Sheet open={!!drawerAlumno} onOpenChange={(open) => { if (!open) setDrawerAlumno(null); }}>
@@ -1323,6 +1543,37 @@ const ManageStudents = () => {
                   {stateChangeTarget === "vacaciones" && <p className="text-xs text-muted-foreground bg-secondary/50 rounded-md p-2">⚡ Las suscripciones activas se pausarán automáticamente.</p>}
                   {stateChangeTarget === "activo" && stateChangeAlumno.estado === "vacaciones" && <p className="text-xs text-muted-foreground bg-secondary/50 rounded-md p-2">⚡ Las suscripciones en pausa se reactivarán automáticamente.</p>}
                   {stateChangeTarget === "bloqueado" && <p className="text-xs text-destructive bg-destructive/10 rounded-md p-2">⚠ Se cancelarán todas las suscripciones activas/pausadas.</p>}
+
+                  {stateChangeTarget === "vacaciones" && (
+                    <div className="space-y-3 rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
+                      <p className="text-xs font-medium text-blue-400 uppercase tracking-wider">Seguimiento de la pausa</p>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Motivo de la pausa</Label>
+                        <Select value={pauseMotivoTipo} onValueChange={setPauseMotivoTipo}>
+                          <SelectTrigger className="bg-secondary border-border text-sm"><SelectValue placeholder="Seleccionar motivo" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lesion">Lesión</SelectItem>
+                            <SelectItem value="enfermedad">Enfermedad</SelectItem>
+                            <SelectItem value="viaje">Viaje</SelectItem>
+                            <SelectItem value="embarazo">Embarazo</SelectItem>
+                            <SelectItem value="personal">Motivo personal</SelectItem>
+                            <SelectItem value="otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Retorno estimado</Label>
+                          <Input type="date" value={pauseFechaRetorno} onChange={(e) => setPauseFechaRetorno(e.target.value)} className="bg-secondary border-border text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Próximo follow-up</Label>
+                          <Input type="date" value={pauseFollowup} onChange={(e) => setPauseFollowup(e.target.value)} className="bg-secondary border-border text-xs" />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">El follow-up te recuerda contactar al alumno en el tablero "Vacaciones".</p>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label className="text-xs">Motivo (opcional)</Label>
                     <Input value={stateChangeMotivo} onChange={(e) => setStateChangeMotivo(e.target.value)} placeholder="Ej: Solicitud del alumno..." className="bg-secondary border-border text-sm" />
@@ -1337,6 +1588,48 @@ const ManageStudents = () => {
                 <Button variant="outline" onClick={() => setStateChangeAlumno(null)}>Cancelar</Button>
                 <Button variant={stateChangeTarget === "bloqueado" ? "destructive" : "gold"} disabled={savingState} onClick={executeStateChange}>
                   {savingState ? "Guardando..." : "Confirmar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Register contact (paused student follow-up) */}
+          <Dialog open={!!contactAlumno} onOpenChange={(open) => { if (!open) setContactAlumno(null); }}>
+            <DialogContent className="sm:max-w-md bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="font-heading uppercase tracking-wider">Registrar contacto</DialogTitle>
+              </DialogHeader>
+              {contactAlumno && (
+                <div className="space-y-4 py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Alumno: <span className="text-foreground font-medium">{contactAlumno.nombre} {getApellido(contactAlumno)}</span>
+                  </p>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Canal</Label>
+                    <Select value={contactCanal} onValueChange={setContactCanal}>
+                      <SelectTrigger className="bg-secondary border-border text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="llamada">Llamada</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="presencial">Presencial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">¿Cómo le fue? (nota interna)</Label>
+                    <Textarea value={contactNota} onChange={(e) => setContactNota(e.target.value)} placeholder="Ej: Sigue con dolor, vuelve en 2 semanas..." className="bg-secondary border-border text-sm min-h-[70px]" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Próximo follow-up</Label>
+                    <Input type="date" value={contactProxFollowup} onChange={(e) => setContactProxFollowup(e.target.value)} className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setContactAlumno(null)}>Cancelar</Button>
+                <Button variant="gold" disabled={savingContact} onClick={executeContactRegistration}>
+                  {savingContact ? "Guardando..." : "Registrar"}
                 </Button>
               </DialogFooter>
             </DialogContent>
