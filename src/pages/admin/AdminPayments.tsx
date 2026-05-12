@@ -250,6 +250,7 @@ const AdminPayments = () => {
 
   const filtered = useMemo(() => {
     return suscripciones.filter((s) => {
+      if (!subInPeriod(s, filterPeriodo)) return false;
       const status = getPaymentStatus(s);
       if (filterEstado !== "todos" && status !== filterEstado) return false;
       if (filterPlan !== "todos" && s.plan_id !== filterPlan) return false;
@@ -262,7 +263,7 @@ const AdminPayments = () => {
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
       return true;
     });
-  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta]);
+  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo]);
 
   const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
