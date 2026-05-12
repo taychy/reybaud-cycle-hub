@@ -1398,6 +1398,37 @@ const ManageStudents = () => {
                   {stateChangeTarget === "vacaciones" && <p className="text-xs text-muted-foreground bg-secondary/50 rounded-md p-2">⚡ Las suscripciones activas se pausarán automáticamente.</p>}
                   {stateChangeTarget === "activo" && stateChangeAlumno.estado === "vacaciones" && <p className="text-xs text-muted-foreground bg-secondary/50 rounded-md p-2">⚡ Las suscripciones en pausa se reactivarán automáticamente.</p>}
                   {stateChangeTarget === "bloqueado" && <p className="text-xs text-destructive bg-destructive/10 rounded-md p-2">⚠ Se cancelarán todas las suscripciones activas/pausadas.</p>}
+
+                  {stateChangeTarget === "vacaciones" && (
+                    <div className="space-y-3 rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
+                      <p className="text-xs font-medium text-blue-400 uppercase tracking-wider">Seguimiento de la pausa</p>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Motivo de la pausa</Label>
+                        <Select value={pauseMotivoTipo} onValueChange={setPauseMotivoTipo}>
+                          <SelectTrigger className="bg-secondary border-border text-sm"><SelectValue placeholder="Seleccionar motivo" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lesion">Lesión</SelectItem>
+                            <SelectItem value="enfermedad">Enfermedad</SelectItem>
+                            <SelectItem value="viaje">Viaje</SelectItem>
+                            <SelectItem value="embarazo">Embarazo</SelectItem>
+                            <SelectItem value="personal">Motivo personal</SelectItem>
+                            <SelectItem value="otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Retorno estimado</Label>
+                          <Input type="date" value={pauseFechaRetorno} onChange={(e) => setPauseFechaRetorno(e.target.value)} className="bg-secondary border-border text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Próximo follow-up</Label>
+                          <Input type="date" value={pauseFollowup} onChange={(e) => setPauseFollowup(e.target.value)} className="bg-secondary border-border text-xs" />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">El follow-up te recuerda contactar al alumno en el tablero "Vacaciones".</p>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label className="text-xs">Motivo (opcional)</Label>
                     <Input value={stateChangeMotivo} onChange={(e) => setStateChangeMotivo(e.target.value)} placeholder="Ej: Solicitud del alumno..." className="bg-secondary border-border text-sm" />
