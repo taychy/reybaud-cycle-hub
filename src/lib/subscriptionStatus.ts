@@ -172,7 +172,12 @@ export function getAccessPermissions(subs: SubStatusInput[]): AccessPermissions 
     };
   }
 
-  // No subs at all or all cancelled/vencida
+  // No subs at all, or all cancelled/vencida — alumno needs to pick/regularize a plan
+  const hasAnySub = subs.length > 0;
+  const allInactive = statuses.every(
+    (s) => s === "cancelada" || s === "vencida" || s === "sin_plan"
+  );
+
   return {
     canViewHome: true,
     canViewEvents: true,
@@ -181,9 +186,13 @@ export function getAccessPermissions(subs: SubStatusInput[]): AccessPermissions 
     canViewMore: true,
     canMarkTraining: false,
     canReserveActivities: false,
-    bannerMessage: null,
-    bannerType: null,
-    status: statuses[0] || "vencida",
+    bannerMessage: hasAnySub && allInactive
+      ? "Tu plan ya no está vigente. Elegí un plan para volver a entrenar y reservar actividades."
+      : !hasAnySub
+        ? "Todavía no tenés un plan activo. Elegí uno para empezar a entrenar."
+        : null,
+    bannerType: (hasAnySub && allInactive) || !hasAnySub ? "warning" : null,
+    status: !hasAnySub ? "sin_plan" : (statuses[0] || "vencida"),
   };
 }
 
