@@ -121,8 +121,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       actions.push({ type: "activar", label: "Activar manualmente", icon: Play });
     }
 
-    if (effectiveStatus === "activa") {
-      actions.push({ type: "marcar_pago_pendiente", label: "Marcar como pago pendiente", icon: Clock });
+    if (effectiveStatus === "activa" || effectiveStatus === "cancelada") {
+      actions.push({ type: "marcar_pago_pendiente", label: "Marcar como impaga / pago pendiente", icon: Clock });
     }
 
     if (primarySub && effectiveStatus !== "cancelada" && effectiveStatus !== "sin_suscripcion") {
