@@ -128,6 +128,17 @@ const ManageStudents = () => {
   const [stateChangeMotivo, setStateChangeMotivo] = useState("");
   const [stateChangeNota, setStateChangeNota] = useState("");
   const [savingState, setSavingState] = useState(false);
+  // Pause-specific extra fields (when target = vacaciones)
+  const [pauseMotivoTipo, setPauseMotivoTipo] = useState<string>("");
+  const [pauseFechaRetorno, setPauseFechaRetorno] = useState<string>("");
+  const [pauseFollowup, setPauseFollowup] = useState<string>("");
+
+  // Register contact dialog (paused student follow-up)
+  const [contactAlumno, setContactAlumno] = useState<Alumno | null>(null);
+  const [contactCanal, setContactCanal] = useState<string>("whatsapp");
+  const [contactNota, setContactNota] = useState("");
+  const [contactProxFollowup, setContactProxFollowup] = useState<string>("");
+  const [savingContact, setSavingContact] = useState(false);
 
   // Sub state change dialog
   const [subChangeAlumno, setSubChangeAlumno] = useState<Alumno | null>(null);
