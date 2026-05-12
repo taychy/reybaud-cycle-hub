@@ -460,15 +460,30 @@ const AdminPayments = () => {
     setFilterFechaHasta("");
   };
 
-  // Summary counts
+  // Summary counts (scoped to selected period)
   const summary = useMemo(() => {
     const counts = { pagado: 0, por_cobrar: 0, informado: 0, conciliado: 0, vencido: 0 };
     suscripciones.forEach((s) => {
+      if (!subInPeriod(s, filterPeriodo)) return;
       const st = getPaymentStatus(s);
       if (st in counts) counts[st as keyof typeof counts]++;
     });
     return counts;
-  }, [suscripciones]);
+  }, [suscripciones, filterPeriodo]);
+
+  // Period selector options: last 12 months + "all"
+  const periodOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: "all", label: "Todos los meses" }];
+    const monthNames = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      opts.push({ value: key, label: i === 0 ? `${label} (actual)` : label });
+    }
+    return opts;
+  }, []);
 
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground">Cargando pagos...</div>;
