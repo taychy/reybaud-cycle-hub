@@ -620,6 +620,20 @@ const ManageStudents = () => {
     if (stateChangeNota) {
       updateData.notas = [alumno.notas, `[${new Date().toLocaleDateString("es-AR")}] ${stateChangeNota}`].filter(Boolean).join("\n");
     }
+    // Pause-specific: persist motivo, fecha estimada de retorno, próximo follow-up
+    if (newEstado === "vacaciones") {
+      updateData.pause_motivo = pauseMotivoTipo || stateChangeMotivo || null;
+      updateData.pause_fecha_estimada_retorno = pauseFechaRetorno || null;
+      updateData.pause_proximo_followup = pauseFollowup || null;
+      updateData.pause_ultimo_contacto_at = null;
+    }
+    // Returning to active: clear pause tracking fields
+    if (newEstado === "activo" && alumno.estado === "vacaciones") {
+      updateData.pause_motivo = null;
+      updateData.pause_fecha_estimada_retorno = null;
+      updateData.pause_proximo_followup = null;
+      updateData.pause_ultimo_contacto_at = null;
+    }
     await supabase.from("alumnos").update(updateData).eq("id", alumno.id);
     if (newEstado === "vacaciones") {
       await supabase.from("suscripciones").update({ estado: "pausa" }).eq("alumno_id", alumno.id).eq("estado", "activa");
