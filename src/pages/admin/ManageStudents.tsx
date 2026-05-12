@@ -1593,6 +1593,48 @@ const ManageStudents = () => {
             </DialogContent>
           </Dialog>
 
+          {/* Register contact (paused student follow-up) */}
+          <Dialog open={!!contactAlumno} onOpenChange={(open) => { if (!open) setContactAlumno(null); }}>
+            <DialogContent className="sm:max-w-md bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="font-heading uppercase tracking-wider">Registrar contacto</DialogTitle>
+              </DialogHeader>
+              {contactAlumno && (
+                <div className="space-y-4 py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Alumno: <span className="text-foreground font-medium">{contactAlumno.nombre} {getApellido(contactAlumno)}</span>
+                  </p>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Canal</Label>
+                    <Select value={contactCanal} onValueChange={setContactCanal}>
+                      <SelectTrigger className="bg-secondary border-border text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="llamada">Llamada</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="presencial">Presencial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">¿Cómo le fue? (nota interna)</Label>
+                    <Textarea value={contactNota} onChange={(e) => setContactNota(e.target.value)} placeholder="Ej: Sigue con dolor, vuelve en 2 semanas..." className="bg-secondary border-border text-sm min-h-[70px]" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Próximo follow-up</Label>
+                    <Input type="date" value={contactProxFollowup} onChange={(e) => setContactProxFollowup(e.target.value)} className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setContactAlumno(null)}>Cancelar</Button>
+                <Button variant="gold" disabled={savingContact} onClick={executeContactRegistration}>
+                  {savingContact ? "Guardando..." : "Registrar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Subscription state change */}
           <Dialog open={!!subChangeAlumno} onOpenChange={(open) => { if (!open) setSubChangeAlumno(null); }}>
             <DialogContent className="sm:max-w-md bg-card border-border">
