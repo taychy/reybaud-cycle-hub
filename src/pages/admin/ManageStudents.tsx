@@ -900,6 +900,48 @@ const ManageStudents = () => {
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
+  // --- Pause-tracking helpers ---
+  const PAUSE_MOTIVO_LABELS: Record<string, string> = {
+    lesion: "Lesión", enfermedad: "Enfermedad", viaje: "Viaje",
+    embarazo: "Embarazo", personal: "Personal", otro: "Otro",
+  };
+  const PAUSE_MOTIVO_ICONS: Record<string, any> = {
+    lesion: HeartPulse, enfermedad: HeartPulse, viaje: MapPin,
+    embarazo: HeartPulse, personal: Users, otro: FileText,
+  };
+  const parseDateLocal = (s: string | null | undefined): Date | null => {
+    if (!s) return null;
+    const parts = s.substring(0, 10).split("-");
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  };
+  const daysBetween = (a: Date, b: Date) => Math.floor((b.getTime() - a.getTime()) / 86400000);
+  const today0 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+
+  const getFollowupUrgency = (alumno: any): { label: string; tone: "danger" | "warn" | "ok" | "muted"; days: number | null } => {
+    const f = parseDateLocal(alumno.pause_proximo_followup);
+    if (!f) return { label: "Sin agendar", tone: "warn", days: null };
+    const diff = daysBetween(today0, f);
+    if (diff < 0) return { label: `Vencido hace ${Math.abs(diff)}d`, tone: "danger", days: diff };
+    if (diff === 0) return { label: "Hoy", tone: "warn", days: 0 };
+    if (diff <= 2) return { label: `En ${diff}d`, tone: "warn", days: diff };
+    return { label: `En ${diff}d`, tone: "ok", days: diff };
+  };
+
+  const pausados = alumnos
+    .filter(a => a.estado === "vacaciones")
+    .map(a => {
+      const u = getFollowupUrgency(a as any);
+      const ultimoCambio = parseDateLocal((a as any).updated_at?.toString().slice(0, 10) || null);
+      const diasPausado = ultimoCambio ? Math.max(0, daysBetween(ultimoCambio, today0)) : 0;
+      return { alumno: a, urgency: u, diasPausado };
+    })
+    .sort((x, y) => {
+      const order = { danger: 0, warn: 1, ok: 2, muted: 3 } as const;
+      return order[x.urgency.tone] - order[y.urgency.tone];
+    });
+
+
   // --- RENDER ---
   return (
     <div className="space-y-6">
