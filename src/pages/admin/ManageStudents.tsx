@@ -601,6 +601,14 @@ const ManageStudents = () => {
     setStateChangeTarget(targetEstado);
     setStateChangeMotivo("");
     setStateChangeNota("");
+    // Defaults for pause flow
+    if (targetEstado === "vacaciones") {
+      setPauseMotivoTipo("");
+      setPauseFechaRetorno("");
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      setPauseFollowup(d.toISOString().slice(0, 10));
+    }
   };
 
   const executeStateChange = async () => {
