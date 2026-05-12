@@ -491,15 +491,27 @@ const AdminPayments = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-heading font-bold text-foreground">Pagos y Cobranzas</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestión integral de pagos, conciliación y cobranza</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gestión integral de pagos, conciliación y cobranza · <span className="text-foreground font-medium">{periodOptions.find(o => o.value === filterPeriodo)?.label || filterPeriodo}</span>
+          </p>
         </div>
-        <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
-          <DollarSign className="w-4 h-4" />
-          Registrar pago
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={filterPeriodo} onValueChange={setFilterPeriodo}>
+            <SelectTrigger className="h-9 text-sm w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {periodOptions.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
+            <DollarSign className="w-4 h-4" />
+            Registrar pago
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
