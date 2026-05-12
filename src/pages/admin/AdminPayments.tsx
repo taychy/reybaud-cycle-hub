@@ -200,6 +200,7 @@ const AdminPayments = () => {
   const [filterAlumno, setFilterAlumno] = useState("");
   const [filterFechaDesde, setFilterFechaDesde] = useState("");
   const [filterFechaHasta, setFilterFechaHasta] = useState("");
+  const [filterPeriodo, setFilterPeriodo] = useState<string>(currentPeriodKey());
 
   // Expandable rows
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
