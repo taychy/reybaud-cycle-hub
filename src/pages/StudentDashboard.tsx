@@ -347,6 +347,13 @@ const StudentDashboard = () => {
   const renderAccessBanner = () => {
     if (!accessPerms?.bannerMessage) return null;
     const isError = accessPerms.bannerType === "error";
+    const status = accessPerms.status;
+    const isSinPlan = status === "sin_plan" || status === "cancelada" || status === "vencida";
+
+    let title = "Pago pendiente";
+    if (status === "acceso_pausado") title = "Acceso pausado por pago pendiente";
+    else if (isSinPlan) title = "Sin plan activo";
+
     return (
       <div className={`rounded-xl border p-4 space-y-3 ${
         isError
@@ -361,18 +368,26 @@ const StudentDashboard = () => {
           )}
           <div className="space-y-2">
             <p className={`text-sm font-medium ${isError ? "text-destructive" : "text-amber-500"}`}>
-              {accessPerms.status === "pago_pendiente" ? "Pago pendiente" : "Acceso pausado por pago pendiente"}
+              {title}
             </p>
             <p className="text-xs text-muted-foreground">{accessPerms.bannerMessage}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="gold" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
-            Pagar ahora
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
-            Informar pago
-          </Button>
+          {isSinPlan ? (
+            <Button variant="gold" size="sm" onClick={() => navigate("/planes")} className="flex-1">
+              Elegir plan
+            </Button>
+          ) : (
+            <>
+              <Button variant="gold" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
+                Pagar ahora
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate("/alumno/pagos")} className="flex-1">
+                Informar pago
+              </Button>
+            </>
+          )}
         </div>
         <a
           href="https://wa.me/5491140312299?text=Hola%2C%20necesito%20ayuda%20con%20mi%20pago"
