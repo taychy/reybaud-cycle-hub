@@ -17,6 +17,7 @@ const mainItems: NavItem[] = [
   { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
   { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
+  { to: "/admin/whatsapp-conciliador", label: "WhatsApp", icon: MessageCircle },
 ];
 
 const finanzasItems: NavItem[] = [
