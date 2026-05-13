@@ -218,6 +218,9 @@ const SuperAdminControl = () => {
         ))}
       </div>
 
+      {/* Alarma chequeo de WhatsApp (días 5-7 y 15-17) */}
+      <WhatsAppCheckAlert />
+
       {/* Two columns: Alerts + Coach feedback */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
