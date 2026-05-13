@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import {
   CheckCircle2, Clock, AlertCircle, Plus, RefreshCw, Play, Pause, Check,
-  Calendar, User, ListTodo, Inbox, Users, Filter,
+  Calendar, User, ListTodo, Inbox, Users, Filter, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 const PRIORIDAD_COLOR: Record<TareaPrioridad, string> = {
