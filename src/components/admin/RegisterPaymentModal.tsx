@@ -182,7 +182,7 @@ export function RegisterPaymentModal({
     try {
       const montoNum = parseFloat(montoPagado) || 0;
       const sub = pendingSubs.find(s => s.id === selectedSubId);
-      const expectedAmount = sub?.precio_final ?? sub?.precio_base ?? sub?.planes?.precio ?? 0;
+      const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
       const isParcial = montoNum > 0 && montoNum < expectedAmount;
 
       const newEstado = isParcial ? "pendiente" : "activa";
@@ -200,7 +200,9 @@ export function RegisterPaymentModal({
           metodo_pago: metodo,
           origen_registro: "cargado_admin",
           notas: notasParts.join(" | "),
-          precio_final: isParcial ? expectedAmount : undefined,
+          precio_base: baseUsed || undefined,
+          precio_final: isParcial ? expectedAmount : expectedAmount,
+          descuento_id: effDiscountId ?? undefined,
         } as any)
         .eq("id", selectedSubId);
 
