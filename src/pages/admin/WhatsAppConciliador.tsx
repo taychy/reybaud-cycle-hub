@@ -70,10 +70,22 @@ const SNIPPET = `(async () => {
   }
   collect();
   const list = [...names].join('\\n');
-  await navigator.clipboard.writeText(list);
-  console.log('✅ ' + names.size + ' miembros copiados al portapapeles');
+  let copied = false;
+  try {
+    if (typeof copy === 'function') { copy(list); copied = true; }
+  } catch(e) {}
+  if (!copied) {
+    try { await navigator.clipboard.writeText(list); copied = true; } catch(e) {}
+  }
+  console.log('===== INICIO LISTA (' + names.size + ' miembros) =====');
   console.log(list);
-  alert('✅ ' + names.size + ' miembros copiados. Pegalo en el conciliador.');
+  console.log('===== FIN LISTA =====');
+  if (copied) {
+    console.log('✅ Copiado al portapapeles. Pegá en el conciliador.');
+  } else {
+    console.log('⚠️ No se pudo copiar automáticamente. Ejecutá: copy(temp1) ó seleccioná la lista de arriba con el mouse y copiala manualmente.');
+    window.temp1 = list;
+  }
 })();`;
 
 const WhatsAppConciliador = () => {
