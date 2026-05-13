@@ -680,11 +680,12 @@ const AdminPayments = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>Alumno</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Vencimiento</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Método</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("alumno")}>Alumno<SortIcon k="alumno" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("plan")}>Plan<SortIcon k="plan" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("vencimiento")}>Vencimiento<SortIcon k="vencimiento" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("operacion")}>F. operación<SortIcon k="operacion" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("estado")}>Estado<SortIcon k="estado" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("metodo")}>Método<SortIcon k="metodo" /></TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
