@@ -126,21 +126,36 @@ export function RegisterPaymentModal({
       });
   }, [selectedAlumnoId, open]);
 
+  // Discounts for selected student (live calc when sub has no saved discount)
+  const { applyDiscount, subscriptionCount } = useStudentDiscounts(selectedAlumnoId);
+
+  // Compute effective price for a sub: respect saved discount, else apply live student discount
+  const getEffectivePrice = (sub: PendingSub | undefined): { price: number; discountId: string | null; baseUsed: number } => {
+    if (!sub) return { price: 0, discountId: null, baseUsed: 0 };
+    const base = sub.precio_base ?? sub.planes?.precio ?? 0;
+    // If sub already has saved discount → respect precio_final
+    if (sub.descuento_id) {
+      return { price: sub.precio_final ?? base, discountId: sub.descuento_id, baseUsed: base };
+    }
+    // No saved discount → try to apply live student discount
+    const isSecondary = subscriptionCount > 1;
+    const result = applyDiscount(base, "planes", isSecondary);
+    return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: base };
+  };
+
   // When sub is selected, pre-fill amount and fecha_fin
   useEffect(() => {
     const sub = pendingSubs.find(s => s.id === selectedSubId);
     if (!sub) return;
-    const precio = sub.precio_final ?? sub.precio_base ?? sub.planes?.precio ?? 0;
-    setMontoPagado(String(precio));
+    const { price } = getEffectivePrice(sub);
+    setMontoPagado(String(price));
     // Default: end of current month
     if (!fechaFin) {
       const now = new Date();
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       setFechaFin(lastDay.toISOString().split("T")[0]);
     }
-  }, [selectedSubId, pendingSubs]);
-
-  const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
+  }, [selectedSubId, pendingSubs, subscriptionCount]);
 
   const handleSubmit = async () => {
     if (!selectedSubId || !selectedAlumnoId) {
