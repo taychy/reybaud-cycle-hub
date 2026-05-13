@@ -202,11 +202,14 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {visibles.map(t => (
-            <TareaCard key={t.id} t={t} userId={userId} onOpen={() => setOpenTarea(t)} onAsignarme={() => handleAsignarme(t)} onStart={() => handleStateChange(t, "en_curso")} onDone={() => handleStateChange(t, "hecha")} />
-          ))}
-        </div>
+        <GroupedTareas
+          tareas={visibles}
+          userId={userId}
+          onOpen={(t) => setOpenTarea(t)}
+          onAsignarme={handleAsignarme}
+          onStart={(t) => handleStateChange(t, "en_curso")}
+          onDone={(t) => handleStateChange(t, "hecha")}
+        />
       )}
 
       {openTarea && (
