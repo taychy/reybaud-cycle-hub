@@ -359,23 +359,42 @@ export function RegisterPaymentModal({
           {selectedSub && (
             <>
               {/* Plan info */}
-              <div className="bg-secondary/30 rounded-md p-3 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Plan</span>
-                  <span className="font-medium">{selectedSub.planes?.nombre || "—"}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Monto esperado</span>
-                  <span className="font-medium">{selectedSub.planes?.moneda || "ARS"} {selectedSub.precio_final ?? selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0}</span>
-                </div>
-                {selectedSub.fecha_fin && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Vencimiento actual</span>
-                    <span className="text-destructive font-medium">{selectedSub.fecha_fin}</span>
+              {(() => {
+                const moneda = selectedSub.planes?.moneda || "ARS";
+                const baseAmount = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
+                const { price: effectivePrice, discountId: effDiscountId } = getEffectivePrice(selectedSub);
+                const hasDiscount = !!effDiscountId && effectivePrice < baseAmount;
+                const live = applyDiscount(baseAmount, "planes", subscriptionCount > 1);
+                const discountLabel = hasDiscount ? (live.discount?.nombre || "Descuento") : null;
+                return (
+                  <div className="bg-secondary/30 rounded-md p-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-medium">{selectedSub.planes?.nombre || "—"}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Precio base</span>
+                      <span className={hasDiscount ? "line-through text-muted-foreground" : "font-medium"}>{moneda} {baseAmount}</span>
+                    </div>
+                    {hasDiscount && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-emerald-500">{discountLabel}</span>
+                        <span className="text-emerald-500 font-medium">−{moneda} {baseAmount - effectivePrice}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground">Monto esperado</span>
+                      <span className="font-bold text-foreground">{moneda} {effectivePrice}</span>
+                    </div>
+                    {selectedSub.fecha_fin && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Vencimiento actual</span>
+                        <span className="text-destructive font-medium">{selectedSub.fecha_fin}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
+                );
+              })()}
               <div>
                 <Label className="text-xs">Monto pagado</Label>
                 <Input
