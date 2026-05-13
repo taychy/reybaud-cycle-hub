@@ -49,6 +49,10 @@ const SuperAdminControl = () => {
   const [alumnoAlerts, setAlumnoAlerts] = useState<AlumnoAlert[]>([]);
   const [recentFeedback, setRecentFeedback] = useState<CoachFeedbackRow[]>([]);
   const [coachActivity, setCoachActivity] = useState<CoachActivity[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [myRoles, setMyRoles] = useState<TareaRol[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [showContexto, setShowContexto] = useState(false);
   const [stats, setStats] = useState({
     totalAlertas: 0,
     sinSesiones30d: 0,
@@ -56,6 +60,28 @@ const SuperAdminControl = () => {
     coachesSinFeedback: 0,
     alumnosSinPlan: 0,
   });
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+      const roles: TareaRol[] = [];
+      const [adminRes, coachRes, depoRes, superRes] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: user.id, _role: "coach" }),
+        supabase.from("deposito_profiles").select("id").eq("user_id", user.id).eq("estado", "activo").maybeSingle(),
+        supabase.from("admin_profiles").select("role").eq("user_id", user.id).eq("status", "active").maybeSingle(),
+      ]);
+      if (adminRes.data) roles.push("admin");
+      if (coachRes.data) roles.push("coach");
+      if (depoRes.data) roles.push("deposito");
+      const isSuper = (superRes.data as any)?.role === "super_admin";
+      if (isSuper) roles.push("super_admin");
+      setIsSuperAdmin(isSuper);
+      setMyRoles(roles);
+    })();
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
