@@ -3716,6 +3716,101 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_check_items: {
+        Row: {
+          alumno_id: string
+          checked_at: string | null
+          created_at: string
+          id: string
+          nombre_snapshot: string
+          nota: string | null
+          plan_inconsistente: boolean
+          resultado: string
+          run_id: string
+        }
+        Insert: {
+          alumno_id: string
+          checked_at?: string | null
+          created_at?: string
+          id?: string
+          nombre_snapshot: string
+          nota?: string | null
+          plan_inconsistente?: boolean
+          resultado?: string
+          run_id: string
+        }
+        Update: {
+          alumno_id?: string
+          checked_at?: string | null
+          created_at?: string
+          id?: string
+          nombre_snapshot?: string
+          nota?: string | null
+          plan_inconsistente?: boolean
+          resultado?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_check_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_check_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_check_runs: {
+        Row: {
+          admin_id: string | null
+          cerrado_at: string | null
+          confirmados: number
+          created_at: string
+          estado: string
+          faltantes: number
+          fecha_objetivo: string
+          grupo: string
+          id: string
+          notas: string | null
+          plan_revision: number
+          saltados: number
+          total_esperados: number
+          updated_at: string
+        }
+        Insert: {
+          admin_id?: string | null
+          cerrado_at?: string | null
+          confirmados?: number
+          created_at?: string
+          estado?: string
+          faltantes?: number
+          fecha_objetivo: string
+          grupo: string
+          id?: string
+          notas?: string | null
+          plan_revision?: number
+          saltados?: number
+          total_esperados?: number
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string | null
+          cerrado_at?: string | null
+          confirmados?: number
+          created_at?: string
+          estado?: string
+          faltantes?: number
+          fecha_objetivo?: string
+          grupo?: string
+          id?: string
+          notas?: string | null
+          plan_revision?: number
+          saltados?: number
+          total_esperados?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       emisor_facturado_anual: {
