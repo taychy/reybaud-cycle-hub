@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard,
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
