@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { toast } from "sonner";
 import { DollarSign } from "lucide-react";
 
