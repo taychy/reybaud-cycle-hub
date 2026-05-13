@@ -40,7 +40,10 @@ const ORIGEN_LABEL: Record<string, string> = {
   alumno_inactivo_30d: "Inactividad",
   coach_sin_feedback_14d: "Feedback",
   certificado_por_vencer: "Certificado",
-  pago_pendiente_validar: "Pago",
+  pago_pendiente_validar: "Pago a validar",
+  suscripcion_pendiente_15d: "Suscripción pendiente",
+  suscripcion_vencida_sin_renovar: "Vencida sin renovar",
+  alumno_estado_intermedio_15d: "Revisar estado alumno",
   manual: "Manual",
 };
 
