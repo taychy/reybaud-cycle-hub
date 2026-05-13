@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard,
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
@@ -204,6 +204,21 @@ const AdminPayments = () => {
   // Expandable rows
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+  // Sorting
+  type SortKey = "alumno" | "plan" | "vencimiento" | "estado" | "metodo" | "operacion";
+  const [sortKey, setSortKey] = useState<SortKey>("operacion");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "vencimiento" || key === "operacion" ? "desc" : "asc"); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="w-3 h-3 inline ml-1 opacity-50" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="w-3 h-3 inline ml-1" />
+      : <ArrowDown className="w-3 h-3 inline ml-1" />;
+  };
+
   // Dialogs
   const [confirmAction, setConfirmAction] = useState<{ type: string; sub: Suscripcion } | null>(null);
   const [editFechaDialog, setEditFechaDialog] = useState<Suscripcion | null>(null);
@@ -248,7 +263,7 @@ const AdminPayments = () => {
   }, [manualPayDialog]);
 
   const filtered = useMemo(() => {
-    return suscripciones.filter((s) => {
+    const list = suscripciones.filter((s) => {
       if (!subInPeriod(s, filterPeriodo)) return false;
       const status = getPaymentStatus(s);
       if (filterEstado !== "todos" && status !== filterEstado) return false;
@@ -262,7 +277,35 @@ const AdminPayments = () => {
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
       return true;
     });
-  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const cmp = (a: string | number | null | undefined, b: string | number | null | undefined) => {
+      const av = a ?? "";
+      const bv = b ?? "";
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    };
+    const getOperacion = (s: Suscripcion) =>
+      (PAID_ORIGEN.includes(s.origen_registro) ? (s.fecha_inicio || s.updated_at) : s.updated_at) || s.created_at;
+
+    list.sort((a, b) => {
+      switch (sortKey) {
+        case "alumno":
+          return cmp(
+            [a.alumnos?.nombre, a.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase(),
+            [b.alumnos?.nombre, b.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase()
+          );
+        case "plan": return cmp(a.planes?.nombre?.toLowerCase(), b.planes?.nombre?.toLowerCase());
+        case "vencimiento": return cmp(a.fecha_fin, b.fecha_fin);
+        case "estado": return cmp(getPaymentStatus(a), getPaymentStatus(b));
+        case "metodo": return cmp(a.metodo_pago, b.metodo_pago);
+        case "operacion": return cmp(getOperacion(a), getOperacion(b));
+        default: return 0;
+      }
+    });
+    return list;
+  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo, sortKey, sortDir]);
 
   const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -637,17 +680,18 @@ const AdminPayments = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>Alumno</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Vencimiento</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Método</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("alumno")}>Alumno<SortIcon k="alumno" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("plan")}>Plan<SortIcon k="plan" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("vencimiento")}>Vencimiento<SortIcon k="vencimiento" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("operacion")}>F. operación<SortIcon k="operacion" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("estado")}>Estado<SortIcon k="estado" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("metodo")}>Método<SortIcon k="metodo" /></TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No se encontraron pagos con los filtros seleccionados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No se encontraron pagos con los filtros seleccionados</TableCell></TableRow>
                 ) : (
                   filtered.map((sub) => {
                     const status = getPaymentStatus(sub);
@@ -671,6 +715,7 @@ const AdminPayments = () => {
                           </TableCell>
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
                           <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
+                          <TableCell className="text-sm">{formatDate(PAID_ORIGEN.includes(sub.origen_registro) ? (sub.fecha_inicio || sub.updated_at) : sub.updated_at)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>
                           <TableCell>
                             {(() => {
@@ -738,7 +783,7 @@ const AdminPayments = () => {
                         </TableRow>
                         {isExpanded && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={7} className="p-0">
+                            <TableCell colSpan={8} className="p-0">
                               <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-b border-border/50">
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Monto</p>
