@@ -7,6 +7,7 @@ import {
   AlertTriangle, UserX, Clock, MessageSquare, Activity,
   ShieldAlert, Eye, TrendingDown, Users,
 } from "lucide-react";
+import { WhatsAppCheckAlert } from "@/components/admin/WhatsAppCheckAlert";
 
 interface AlumnoAlert {
   id: string;
@@ -216,6 +217,9 @@ const SuperAdminControl = () => {
           </Card>
         ))}
       </div>
+
+      {/* Alarma chequeo de WhatsApp (días 5-7 y 15-17) */}
+      <WhatsAppCheckAlert />
 
       {/* Two columns: Alerts + Coach feedback */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
