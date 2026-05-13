@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import {
   CheckCircle2, Clock, AlertCircle, Plus, RefreshCw, Play, Pause, Check,
-  Calendar, User, ListTodo, Inbox, Users, Filter,
+  Calendar, User, ListTodo, Inbox, Users, Filter, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 const PRIORIDAD_COLOR: Record<TareaPrioridad, string> = {
@@ -202,11 +202,14 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {visibles.map(t => (
-            <TareaCard key={t.id} t={t} userId={userId} onOpen={() => setOpenTarea(t)} onAsignarme={() => handleAsignarme(t)} onStart={() => handleStateChange(t, "en_curso")} onDone={() => handleStateChange(t, "hecha")} />
-          ))}
-        </div>
+        <GroupedTareas
+          tareas={visibles}
+          userId={userId}
+          onOpen={(t) => setOpenTarea(t)}
+          onAsignarme={handleAsignarme}
+          onStart={(t) => handleStateChange(t, "en_curso")}
+          onDone={(t) => handleStateChange(t, "hecha")}
+        />
       )}
 
       {openTarea && (
@@ -214,6 +217,85 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
       )}
       {nueva && <NuevaTareaDialog onClose={() => setNueva(false)} onCreate={createTarea} />}
     </div>
+  );
+};
+
+const GroupedTareas = ({ tareas, userId, onOpen, onAsignarme, onStart, onDone }: any) => {
+  // Agrupar por origen + rol_destino. Manuales nunca se agrupan (cada una es única).
+  const groups = useMemo(() => {
+    const map = new Map<string, { key: string; origen: string; rol: TareaRol; items: Tarea[] }>();
+    for (const t of tareas as Tarea[]) {
+      const key = t.origen === "manual" ? `manual:${t.id}` : `${t.origen}:${t.rol_destino}`;
+      if (!map.has(key)) map.set(key, { key, origen: t.origen, rol: t.rol_destino, items: [] });
+      map.get(key)!.items.push(t);
+    }
+    return Array.from(map.values());
+  }, [tareas]);
+
+  return (
+    <div className="space-y-2">
+      {groups.map(g => (
+        g.items.length === 1 ? (
+          <TareaCard key={g.key} t={g.items[0]} userId={userId}
+            onOpen={() => onOpen(g.items[0])}
+            onAsignarme={() => onAsignarme(g.items[0])}
+            onStart={() => onStart(g.items[0])}
+            onDone={() => onDone(g.items[0])} />
+        ) : (
+          <TareaGroup key={g.key} group={g} userId={userId} onOpen={onOpen} onAsignarme={onAsignarme} onStart={onStart} onDone={onDone} />
+        )
+      ))}
+    </div>
+  );
+};
+
+const TareaGroup = ({ group, userId, onOpen, onAsignarme, onStart, onDone }: any) => {
+  const [open, setOpen] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const items: Tarea[] = group.items;
+  const vencidas = items.filter(t => t.fecha_vencimiento && t.fecha_vencimiento < today && t.estado !== "hecha").length;
+  const pendientes = items.filter(t => t.estado === "pendiente").length;
+  const enCurso = items.filter(t => t.estado === "en_curso").length;
+  const maxPrio = items.reduce((acc, t) => {
+    const order: Record<TareaPrioridad, number> = { critica: 0, alta: 1, media: 2, baja: 3 };
+    return order[t.prioridad] < order[acc] ? t.prioridad : acc;
+  }, "baja" as TareaPrioridad);
+  // Heurística: título común = quitar la parte específica entre paréntesis o después de ":"
+  const tituloComun = items[0].titulo.split(/[—:(]/)[0].trim() || items[0].titulo;
+
+  return (
+    <Card className={`border-border ${vencidas > 0 ? "border-red-500/40" : ""}`}>
+      <CardContent className="p-0">
+        <button onClick={() => setOpen(!open)} className="w-full p-3 flex items-start gap-2 text-left hover:bg-muted/30 transition-colors">
+          {open ? <ChevronDown className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <Badge variant="outline" className={`text-[10px] ${PRIORIDAD_COLOR[maxPrio]}`}>{maxPrio}</Badge>
+              <Badge variant="outline" className="text-[10px]">{ROL_LABEL[group.rol as TareaRol]}</Badge>
+              <Badge variant="outline" className="text-[10px] bg-muted/30">{ORIGEN_LABEL[group.origen] || group.origen}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{items.length} tareas</Badge>
+              {vencidas > 0 && <Badge variant="outline" className="text-[10px] bg-red-500/15 text-red-600 border-red-500/30">{vencidas} vencidas</Badge>}
+              {enCurso > 0 && <Badge variant="outline" className="text-[10px] bg-blue-500/15 text-blue-600 border-blue-500/30">{enCurso} en curso</Badge>}
+              {pendientes > 0 && <Badge variant="outline" className="text-[10px]">{pendientes} pendientes</Badge>}
+            </div>
+            <p className="text-sm font-medium text-foreground">{tituloComun}</p>
+          </div>
+        </button>
+        {open && (
+          <div className="border-t border-border divide-y divide-border">
+            {items.map(t => (
+              <div key={t.id} className="px-3 py-2 pl-9">
+                <TareaCard t={t} userId={userId}
+                  onOpen={() => onOpen(t)}
+                  onAsignarme={() => onAsignarme(t)}
+                  onStart={() => onStart(t)}
+                  onDone={() => onDone(t)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
