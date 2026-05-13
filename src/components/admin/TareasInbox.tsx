@@ -39,10 +39,12 @@ const ORIGEN_LABEL: Record<string, string> = {
   whatsapp_check: "WhatsApp",
   alumno_inactivo_30d: "Inactividad",
   coach_sin_feedback_14d: "Feedback",
-  certificado_por_vencer: "Certificado",
+  certificado_por_vencer: "Certificado por vencer",
+  certificado_no_cargado: "Certificado faltante",
   pago_pendiente_validar: "Pago a validar",
   suscripcion_pendiente_15d: "Suscripción pendiente",
   suscripcion_vencida_sin_renovar: "Vencida sin renovar",
+  renovacion_proxima_7d: "Renovación próxima",
   alumno_estado_intermedio_15d: "Revisar estado alumno",
   manual: "Manual",
 };
