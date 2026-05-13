@@ -1,98 +1,112 @@
-# Rediseño del módulo de WhatsApp: chequeo guiado + alarma mensual
+# Centro de Control → Gestor de Tareas multi-rol
 
-## Objetivo
+## Concepto
 
-Reemplazar el flujo actual de "pegar lista y matchear" por un **chequeo asistido alumno por alumno, dentro de cada grupo**, ejecutable los días **5 y 15 de cada mes**, con un **aviso visible en el Centro de Control** mientras la tarea esté pendiente.
+El Centro de Control deja de ser solo un tablero de alertas y pasa a ser un **inbox de tareas operativas** filtrado por el rol del usuario logueado. Cada tarea tiene responsable, vencimiento, estado y trazabilidad. Conviven tareas generadas automáticamente por reglas del sistema con tareas creadas manualmente por un admin.
 
----
+## Roles soportados
 
-## 1. Nuevo flujo en `/admin/whatsapp-conciliador`
+- **Super Admin** — ve todas las tareas de todos los roles + las suyas.
+- **Admin** — ve tareas de rol `admin` + las asignadas a su persona.
+- **Coach** — ve tareas de rol `coach` + las asignadas a su persona.
+- **Depósito** — ve tareas de rol `deposito` + las asignadas a su persona.
 
-Wizard de 4 pasos, mobile-friendly:
+## Modelo de datos
 
-**Paso 1 — Elegir grupo y fecha objetivo**
-- Selector de grupo (Iniciación, Avanzados, Pista, etc.) + fecha objetivo prellenada (5 o 15 del mes en curso).
-- Muestra: total de alumnos esperados según `suscripciones` activas + `agenda_grupal`.
+Tabla nueva `tareas`:
 
-**Paso 2 — Lista alfabética del grupo, uno por uno**
-Cada fila = un alumno con:
-- Foto / inicial + Nombre y Apellido
-- Plan vigente + estado de pago del mes (Pagado / Por cobrar / Vencido)
-- Teléfono (con botón "abrir WhatsApp")
-- 3 botones grandes:
-  - ✅ **Está en el grupo de WhatsApp**
-  - ❌ **No está** (abre input opcional para nota)
-  - ⏭ **Saltar** (lo deja pendiente para revisar después)
+- `tipo` (`automatica` | `manual` | `recurrente`)
+- `origen` (clave estable: `whatsapp_check`, `alumno_inactivo_30d`, `coach_sin_feedback_14d`, `certificado_por_vencer`, `pago_pendiente_validar`, `stock_bajo`, `manual`, etc.)
+- `titulo`, `descripcion`
+- `rol_destino` (`super_admin` | `admin` | `coach` | `deposito`)
+- `asignado_user_id` (nullable — si está, prevalece sobre el rol)
+- `entidad_tipo` + `entidad_id` (deep-link opcional: alumno, suscripción, evento, etc.)
+- `prioridad` (`baja` | `media` | `alta` | `critica`)
+- `fecha_vencimiento` (date, nullable)
+- `estado` (`pendiente` | `en_curso` | `hecha` | `pospuesta`)
+- `pospuesta_hasta` (date, nullable)
+- `nota_cierre`, `cerrada_por`, `cerrada_at`
+- `dedupe_key` (texto único, evita duplicados de la misma tarea automática)
+- `created_by`, `created_at`, `updated_at`
 
-Avance automático al siguiente alumno tras marcar. Barra de progreso arriba (`23 / 47`).
+Tabla `tareas_historial` para auditoría (cambios de estado, reasignaciones, notas).
 
-**Paso 3 — Inconsistencias de plan**
-Lista compacta de los alumnos marcados ❌ que **sí tienen plan activo** (= deberían estar en el grupo). Permite:
-- Enviar invitación por WhatsApp con un botón
-- Anotar motivo (de baja, cambió de grupo, error de plan, etc.)
+RLS:
+- Super Admin: ALL
+- Admin/Coach/Depósito: SELECT/UPDATE de tareas de su rol o asignadas a su `user_id`
+- Solo Admin/Super Admin pueden crear tareas manuales
 
-**Paso 4 — Resumen y cierre**
-- KPIs: confirmados, faltantes, plan a revisar, saltados
-- Botón "Cerrar chequeo" → guarda el run como `cerrado`
-- Deeplink al alumno desde cada fila para corregir plan / cobrar / dar de baja
+## UI del Centro de Control
 
----
+Reemplazo de la vista actual por 3 zonas:
 
-## 2. Cambios de base de datos
+```text
+┌─────────────────────────────────────────────────┐
+│  KPIs:  Pendientes  En curso  Vencidas  Hoy     │
+├─────────────────────────────────────────────────┤
+│  Tabs:  [Mis tareas] [Por rol] [Todas*]         │
+│  Filtros: prioridad · origen · vencimiento      │
+│                              [+ Nueva tarea]    │
+├─────────────────────────────────────────────────┤
+│  Lista de tareas (cards):                       │
+│   • Título + chip de origen + chip de rol       │
+│   • Vencimiento (rojo si vencida)               │
+│   • Botones: Tomar · En curso · Posponer · ✓    │
+│   • Click → drawer con detalle, historial,      │
+│     deep-link a la entidad relacionada          │
+└─────────────────────────────────────────────────┘
+```
 
-Dos tablas nuevas (RLS solo para `admin`/`super_admin`):
+`*Todas` solo visible para Super Admin.
 
-**`whatsapp_check_runs`**
-- `grupo`, `fecha_objetivo` (date), `admin_id`
-- `total_esperados`, `confirmados`, `faltantes`, `plan_revision`, `saltados`
-- `estado`: `pendiente | en_progreso | cerrado`
-- `cerrado_at`
+Debajo, en colapsable, se mantienen los paneles existentes (alumnos en riesgo, feedback de coaches, actividad de coaches) como **datos de contexto** — ya no como alertas sueltas, porque las tareas las resumen.
 
-**`whatsapp_check_items`**
-- `run_id`, `alumno_id`, `nombre_snapshot`
-- `resultado`: `presente | ausente | saltado`
-- `plan_inconsistente` (bool), `nota`, `checked_at`
+## Generación automática (Fase 1, sin cron)
 
-Esto permite auditoría y métricas (cuántas veces faltó cada alumno).
+Función SQL `generate_tareas_automaticas()` (SECURITY DEFINER) que se ejecuta on-demand al entrar al centro de control + botón manual "Refrescar tareas". Reglas iniciales:
 
----
+- **WhatsApp check** — días 5-7 y 15-17 → tarea para `admin` por cada grupo no cerrado.
+- **Alumno inactivo +30d** activo con plan → tarea `admin`, prioridad alta.
+- **Coach sin feedback +14d** → tarea para ese `coach` específico.
+- **Certificado médico vencido o por vencer (30d)** → tarea `admin`.
+- **Pagos `pendiente_verificacion` >48h** → tarea `admin`, prioridad alta.
 
-## 3. Alarma en el Centro de Control (`SuperAdminControl.tsx`)
+Cada regla usa `dedupe_key` (ej: `whatsapp_check:Avanzado:2026-05`) para no duplicar.
 
-Card nueva "Chequeo de WhatsApp" con lógica:
+Más adelante (Fase 2) se programa con `pg_cron` y se agregan reglas de depósito.
 
-| Día del mes | Estado de la card |
-|---|---|
-| 1–4 y 8–14 y 18–fin | Oculta |
-| 5–7 (chequeo del 5) | Naranja: "Pendiente — revisar grupos" |
-| 15–17 (chequeo del 15) | Naranja: "Pendiente — revisar grupos" |
-| Día 8 / 18 sin cerrar | Roja: "Atrasado" |
-| Cerrado | Verde discreta con resumen del último run |
+## Tareas manuales
 
-Cada card lista los grupos con su estado (pendiente / en progreso / cerrado) y un botón "Iniciar chequeo" que lleva al wizard con el grupo y fecha precargados.
+Drawer "Nueva tarea":
+- Título, descripción, prioridad, vencimiento
+- Rol destino (obligatorio)
+- Asignar a persona (opcional, lista filtrada por rol)
+- Vincular entidad (opcional: buscar alumno/evento)
 
----
+## Ciclo de vida
 
-## 4. Limpieza del módulo viejo
+`pendiente` → `en_curso` → `hecha` (con nota opcional)
+- "Posponer" pide nueva fecha y motivo, vuelve a `pendiente` cuando llega esa fecha.
+- Cerrar tarea registra `cerrada_por` + `cerrada_at` + nota → escribe en `tareas_historial`.
 
-- Quitar el textarea, el modal "Cómo extraer la lista" y el snippet de consola.
-- Mantener `nameMatch.ts` por si en el futuro lo querés reutilizar.
+## Integración con la alarma de WhatsApp
 
----
+El componente `WhatsAppCheckAlert` se transforma en **generador de tareas** en lugar de banner aislado: si estamos en ventana 5-7 / 15-17, crea tareas por grupo. La alarma roja desaparece — ahora las tareas vencidas son la señal.
 
-## Lo que NO incluye este plan
+## Entregables
 
-- No envía recordatorios por mail/push automáticos.
-- No bloquea ninguna acción si no hacés el chequeo (solo avisa).
-- No edita el plan inline desde el wizard (te lleva al alumno).
-- No se conecta a la API de WhatsApp Business.
+1. Migración: tabla `tareas`, `tareas_historial`, función `generate_tareas_automaticas()`, RLS, índices.
+2. Hook `useTareas(role, userId)` con realtime.
+3. Componentes: `TareasInbox`, `TareaCard`, `TareaDrawer`, `NuevaTareaDialog`.
+4. Refactor `SuperAdminControl.tsx` para usar el inbox como vista principal.
+5. Adaptar `WhatsAppCheckAlert` para generar tareas.
+6. KPIs por rol en el header.
 
----
+## Fuera de alcance (ahora)
 
-## ¿Avanzo así?
+- Notificaciones por email/push de tareas.
+- `pg_cron` automático (lo dejamos para Fase 2 cuando las reglas estén estables).
+- Tareas para rol `student`.
+- Comentarios/colaboración multi-usuario en una tarea.
 
-Decime si querés ajustar algo:
-- Otros días distintos al 5 y 15
-- Que la alarma también mande mail
-- Edición rápida del plan dentro del paso 2
-- Mostrar también el último chequeo histórico por alumno
+¿Avanzo con esta arquitectura, o querés ajustar alguna regla automática inicial o el set de estados antes de empezar?

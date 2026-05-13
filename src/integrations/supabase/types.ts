@@ -3665,6 +3665,122 @@ export type Database = {
           },
         ]
       }
+      tareas: {
+        Row: {
+          asignado_user_id: string | null
+          cerrada_at: string | null
+          cerrada_por: string | null
+          created_at: string
+          created_by: string | null
+          dedupe_key: string | null
+          descripcion: string | null
+          entidad_id: string | null
+          entidad_tipo: string | null
+          estado: Database["public"]["Enums"]["tarea_estado"]
+          fecha_vencimiento: string | null
+          id: string
+          metadata: Json
+          nota_cierre: string | null
+          origen: string
+          pospuesta_hasta: string | null
+          prioridad: Database["public"]["Enums"]["tarea_prioridad"]
+          rol_destino: Database["public"]["Enums"]["tarea_rol"]
+          tipo: Database["public"]["Enums"]["tarea_tipo"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          asignado_user_id?: string | null
+          cerrada_at?: string | null
+          cerrada_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          dedupe_key?: string | null
+          descripcion?: string | null
+          entidad_id?: string | null
+          entidad_tipo?: string | null
+          estado?: Database["public"]["Enums"]["tarea_estado"]
+          fecha_vencimiento?: string | null
+          id?: string
+          metadata?: Json
+          nota_cierre?: string | null
+          origen?: string
+          pospuesta_hasta?: string | null
+          prioridad?: Database["public"]["Enums"]["tarea_prioridad"]
+          rol_destino: Database["public"]["Enums"]["tarea_rol"]
+          tipo?: Database["public"]["Enums"]["tarea_tipo"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          asignado_user_id?: string | null
+          cerrada_at?: string | null
+          cerrada_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          dedupe_key?: string | null
+          descripcion?: string | null
+          entidad_id?: string | null
+          entidad_tipo?: string | null
+          estado?: Database["public"]["Enums"]["tarea_estado"]
+          fecha_vencimiento?: string | null
+          id?: string
+          metadata?: Json
+          nota_cierre?: string | null
+          origen?: string
+          pospuesta_hasta?: string | null
+          prioridad?: Database["public"]["Enums"]["tarea_prioridad"]
+          rol_destino?: Database["public"]["Enums"]["tarea_rol"]
+          tipo?: Database["public"]["Enums"]["tarea_tipo"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tareas_historial: {
+        Row: {
+          accion: string
+          cambio: Json | null
+          changed_by: string | null
+          created_at: string
+          estado_anterior: Database["public"]["Enums"]["tarea_estado"] | null
+          estado_nuevo: Database["public"]["Enums"]["tarea_estado"] | null
+          id: string
+          nota: string | null
+          tarea_id: string
+        }
+        Insert: {
+          accion: string
+          cambio?: Json | null
+          changed_by?: string | null
+          created_at?: string
+          estado_anterior?: Database["public"]["Enums"]["tarea_estado"] | null
+          estado_nuevo?: Database["public"]["Enums"]["tarea_estado"] | null
+          id?: string
+          nota?: string | null
+          tarea_id: string
+        }
+        Update: {
+          accion?: string
+          cambio?: Json | null
+          changed_by?: string | null
+          created_at?: string
+          estado_anterior?: Database["public"]["Enums"]["tarea_estado"] | null
+          estado_nuevo?: Database["public"]["Enums"]["tarea_estado"] | null
+          id?: string
+          nota?: string | null
+          tarea_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tareas_historial_tarea_id_fkey"
+            columns: ["tarea_id"]
+            isOneToOne: false
+            referencedRelation: "tareas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_templates: {
         Row: {
           created_at: string
@@ -3884,6 +4000,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      generate_tareas_automaticas: { Args: never; Returns: number }
       get_program_inscriptions_count: {
         Args: { p_plan_ids: string[] }
         Returns: {
@@ -3898,6 +4015,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       lookup_alumno_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -3945,6 +4063,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      user_matches_tarea_rol: {
+        Args: {
+          _rol: Database["public"]["Enums"]["tarea_rol"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       admin_role: "super_admin" | "admin" | "support"
@@ -3959,6 +4084,10 @@ export type Database = {
         | "Sin grupo"
         | "Principiante"
         | "Personalizado"
+      tarea_estado: "pendiente" | "en_curso" | "hecha" | "pospuesta"
+      tarea_prioridad: "baja" | "media" | "alta" | "critica"
+      tarea_rol: "super_admin" | "admin" | "coach" | "deposito"
+      tarea_tipo: "automatica" | "manual" | "recurrente"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
     }
     CompositeTypes: {
@@ -4100,6 +4229,10 @@ export const Constants = {
         "Principiante",
         "Personalizado",
       ],
+      tarea_estado: ["pendiente", "en_curso", "hecha", "pospuesta"],
+      tarea_prioridad: ["baja", "media", "alta", "critica"],
+      tarea_rol: ["super_admin", "admin", "coach", "deposito"],
+      tarea_tipo: ["automatica", "manual", "recurrente"],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
     },
   },
