@@ -157,6 +157,9 @@ export function RegisterPaymentModal({
     }
   }, [selectedSubId, pendingSubs, subscriptionCount]);
 
+  const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
+
+
   const handleSubmit = async () => {
     if (!selectedSubId || !selectedAlumnoId) {
       toast.error("Seleccioná un alumno y una suscripción pendiente.");
