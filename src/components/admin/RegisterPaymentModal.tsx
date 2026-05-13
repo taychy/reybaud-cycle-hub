@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { toast } from "sonner";
 import { DollarSign } from "lucide-react";
 
@@ -32,6 +33,7 @@ interface PendingSub {
   fecha_fin: string | null;
   precio_base: number | null;
   precio_final: number | null;
+  descuento_id: string | null;
   metodo_pago: string;
   alumno_id: string;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
@@ -107,7 +109,7 @@ export function RegisterPaymentModal({
     setLoadingSubs(true);
     supabase
       .from("suscripciones")
-      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
+      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, descuento_id, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -124,21 +126,39 @@ export function RegisterPaymentModal({
       });
   }, [selectedAlumnoId, open]);
 
+  // Discounts for selected student (live calc when sub has no saved discount)
+  const { applyDiscount, subscriptionCount } = useStudentDiscounts(selectedAlumnoId);
+
+  // Compute effective price for a sub: respect saved discount, else apply live student discount
+  const getEffectivePrice = (sub: PendingSub | undefined): { price: number; discountId: string | null; baseUsed: number } => {
+    if (!sub) return { price: 0, discountId: null, baseUsed: 0 };
+    const base = sub.precio_base ?? sub.planes?.precio ?? 0;
+    // If sub already has saved discount → respect precio_final
+    if (sub.descuento_id) {
+      return { price: sub.precio_final ?? base, discountId: sub.descuento_id, baseUsed: base };
+    }
+    // No saved discount → try to apply live student discount
+    const isSecondary = subscriptionCount > 1;
+    const result = applyDiscount(base, "planes", isSecondary);
+    return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: base };
+  };
+
   // When sub is selected, pre-fill amount and fecha_fin
   useEffect(() => {
     const sub = pendingSubs.find(s => s.id === selectedSubId);
     if (!sub) return;
-    const precio = sub.precio_final ?? sub.precio_base ?? sub.planes?.precio ?? 0;
-    setMontoPagado(String(precio));
+    const { price } = getEffectivePrice(sub);
+    setMontoPagado(String(price));
     // Default: end of current month
     if (!fechaFin) {
       const now = new Date();
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       setFechaFin(lastDay.toISOString().split("T")[0]);
     }
-  }, [selectedSubId, pendingSubs]);
+  }, [selectedSubId, pendingSubs, subscriptionCount]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
+
 
   const handleSubmit = async () => {
     if (!selectedSubId || !selectedAlumnoId) {
@@ -162,7 +182,7 @@ export function RegisterPaymentModal({
     try {
       const montoNum = parseFloat(montoPagado) || 0;
       const sub = pendingSubs.find(s => s.id === selectedSubId);
-      const expectedAmount = sub?.precio_final ?? sub?.precio_base ?? sub?.planes?.precio ?? 0;
+      const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
       const isParcial = montoNum > 0 && montoNum < expectedAmount;
 
       const newEstado = isParcial ? "pendiente" : "activa";
@@ -180,7 +200,9 @@ export function RegisterPaymentModal({
           metodo_pago: metodo,
           origen_registro: "cargado_admin",
           notas: notasParts.join(" | "),
-          precio_final: isParcial ? expectedAmount : undefined,
+          precio_base: baseUsed || undefined,
+          precio_final: isParcial ? expectedAmount : expectedAmount,
+          descuento_id: effDiscountId ?? undefined,
         } as any)
         .eq("id", selectedSubId);
 
@@ -337,23 +359,42 @@ export function RegisterPaymentModal({
           {selectedSub && (
             <>
               {/* Plan info */}
-              <div className="bg-secondary/30 rounded-md p-3 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Plan</span>
-                  <span className="font-medium">{selectedSub.planes?.nombre || "—"}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Monto esperado</span>
-                  <span className="font-medium">{selectedSub.planes?.moneda || "ARS"} {selectedSub.precio_final ?? selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0}</span>
-                </div>
-                {selectedSub.fecha_fin && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Vencimiento actual</span>
-                    <span className="text-destructive font-medium">{selectedSub.fecha_fin}</span>
+              {(() => {
+                const moneda = selectedSub.planes?.moneda || "ARS";
+                const baseAmount = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
+                const { price: effectivePrice, discountId: effDiscountId } = getEffectivePrice(selectedSub);
+                const hasDiscount = !!effDiscountId && effectivePrice < baseAmount;
+                const live = applyDiscount(baseAmount, "planes", subscriptionCount > 1);
+                const discountLabel = hasDiscount ? (live.discount?.nombre || "Descuento") : null;
+                return (
+                  <div className="bg-secondary/30 rounded-md p-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-medium">{selectedSub.planes?.nombre || "—"}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Precio base</span>
+                      <span className={hasDiscount ? "line-through text-muted-foreground" : "font-medium"}>{moneda} {baseAmount}</span>
+                    </div>
+                    {hasDiscount && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-emerald-500">{discountLabel}</span>
+                        <span className="text-emerald-500 font-medium">−{moneda} {baseAmount - effectivePrice}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground">Monto esperado</span>
+                      <span className="font-bold text-foreground">{moneda} {effectivePrice}</span>
+                    </div>
+                    {selectedSub.fecha_fin && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Vencimiento actual</span>
+                        <span className="text-destructive font-medium">{selectedSub.fecha_fin}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
+                );
+              })()}
               <div>
                 <Label className="text-xs">Monto pagado</Label>
                 <Input
