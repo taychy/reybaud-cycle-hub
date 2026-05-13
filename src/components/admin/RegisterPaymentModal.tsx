@@ -33,6 +33,7 @@ interface PendingSub {
   fecha_fin: string | null;
   precio_base: number | null;
   precio_final: number | null;
+  descuento_id: string | null;
   metodo_pago: string;
   alumno_id: string;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
