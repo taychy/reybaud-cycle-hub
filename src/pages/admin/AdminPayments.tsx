@@ -691,7 +691,7 @@ const AdminPayments = () => {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No se encontraron pagos con los filtros seleccionados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No se encontraron pagos con los filtros seleccionados</TableCell></TableRow>
                 ) : (
                   filtered.map((sub) => {
                     const status = getPaymentStatus(sub);
