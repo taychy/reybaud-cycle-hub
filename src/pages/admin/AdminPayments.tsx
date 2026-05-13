@@ -204,6 +204,21 @@ const AdminPayments = () => {
   // Expandable rows
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+  // Sorting
+  type SortKey = "alumno" | "plan" | "vencimiento" | "estado" | "metodo" | "operacion";
+  const [sortKey, setSortKey] = useState<SortKey>("operacion");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "vencimiento" || key === "operacion" ? "desc" : "asc"); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="w-3 h-3 inline ml-1 opacity-50" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="w-3 h-3 inline ml-1" />
+      : <ArrowDown className="w-3 h-3 inline ml-1" />;
+  };
+
   // Dialogs
   const [confirmAction, setConfirmAction] = useState<{ type: string; sub: Suscripcion } | null>(null);
   const [editFechaDialog, setEditFechaDialog] = useState<Suscripcion | null>(null);
