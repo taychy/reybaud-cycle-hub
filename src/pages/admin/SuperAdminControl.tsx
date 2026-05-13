@@ -7,6 +7,7 @@ import {
   AlertTriangle, UserX, Clock, MessageSquare, Activity,
   ShieldAlert, Eye, TrendingDown, Users,
 } from "lucide-react";
+import { WhatsAppCheckAlert } from "@/components/admin/WhatsAppCheckAlert";
 
 interface AlumnoAlert {
   id: string;
