@@ -109,7 +109,7 @@ export function RegisterPaymentModal({
     setLoadingSubs(true);
     supabase
       .from("suscripciones")
-      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
+      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, descuento_id, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
