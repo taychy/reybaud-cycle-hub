@@ -224,183 +224,190 @@ const SuperAdminControl = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Centro de Control</h1>
-        <p className="text-sm text-muted-foreground">Alertas críticas y estado operativo del negocio</p>
-      </div>
-
-      {/* KPI Alerts */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          { label: "Alertas activas", value: stats.totalAlertas, icon: AlertTriangle, color: "text-destructive" },
-          { label: "Inactivos +30d", value: stats.sinSesiones30d, icon: UserX, color: "text-red-500" },
-          { label: "Sin sesiones recientes", value: stats.sinLogin7d, icon: Clock, color: "text-orange-400" },
-          { label: "Coaches sin feedback", value: stats.coachesSinFeedback, icon: MessageSquare, color: "text-yellow-400" },
-          { label: "Alumnos sin plan", value: stats.alumnosSinPlan, icon: ShieldAlert, color: "text-red-400" },
-        ].map((kpi) => (
-          <Card key={kpi.label} className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-                <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">{kpi.label}</span>
-              </div>
-              <p className={`text-2xl font-heading font-bold ${kpi.value > 0 ? kpi.color : "text-green-500"}`}>{kpi.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+        <p className="text-sm text-muted-foreground">Tareas operativas pendientes para tu rol</p>
       </div>
 
       {/* Alarma chequeo de WhatsApp (días 5-7 y 15-17) */}
       <WhatsAppCheckAlert />
 
-      {/* Two columns: Alerts + Coach feedback */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Inbox de tareas — protagonista */}
+      <TareasInbox userId={userId} isSuperAdmin={isSuperAdmin} myRoles={myRoles} />
 
-        {/* Alumnos en riesgo */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-destructive" />
-              Alumnos en riesgo de abandono
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {alumnoAlerts.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                🎉 Todos los alumnos activos tienen actividad reciente
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Alumno</TableHead>
-                      <TableHead>Grupo</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Días inactivo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {alumnoAlerts.slice(0, 15).map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>
-                          <div>
-                            <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
-                            <p className="text-xs text-muted-foreground">{a.email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px]">{a.grupo}</Badge>
-                        </TableCell>
-                        <TableCell>{getAlertBadge(a.alertType)}</TableCell>
-                        <TableCell className="text-right">
-                          <span className={`font-heading font-bold ${a.daysSinceActivity > 30 ? "text-destructive" : a.daysSinceActivity > 14 ? "text-orange-400" : "text-muted-foreground"}`}>
-                            {a.daysSinceActivity}d
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Feedback reciente de coaches */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              Feedback reciente de coaches
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {recentFeedback.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                No hay feedback registrado aún
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {recentFeedback.slice(0, 10).map((f) => (
-                  <div key={f.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-primary">
-                          {f.coach?.nombre || "Coach"}
-                        </span>
-                        <span className="text-muted-foreground text-[10px]">→</span>
-                        <span className="text-xs text-muted-foreground">
-                          {f.alumno ? `${f.alumno.nombre} ${f.alumno.apellido || ""}` : "Alumno"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {f.tipo && <Badge variant="outline" className="text-[10px]">{f.tipo}</Badge>}
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(f.fecha + "T12:00:00").toLocaleDateString("es-AR")}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-foreground/80 line-clamp-2">{f.comentario}</p>
+      {/* Contexto operativo (datos crudos) */}
+      <Collapsible open={showContexto} onOpenChange={setShowContexto}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="w-full justify-between">
+            <span className="flex items-center gap-2 text-xs font-heading uppercase tracking-wider">
+              <Eye className="w-4 h-4" /> Datos de contexto · alertas, feedback, actividad
+            </span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${showContexto ? "rotate-180" : ""}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-6 pt-4">
+          {/* KPI Alerts */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { label: "Alertas activas", value: stats.totalAlertas, icon: AlertTriangle, color: "text-destructive" },
+              { label: "Inactivos +30d", value: stats.sinSesiones30d, icon: UserX, color: "text-red-500" },
+              { label: "Sin sesiones recientes", value: stats.sinLogin7d, icon: Clock, color: "text-orange-400" },
+              { label: "Coaches sin feedback", value: stats.coachesSinFeedback, icon: MessageSquare, color: "text-yellow-400" },
+              { label: "Alumnos sin plan", value: stats.alumnosSinPlan, icon: ShieldAlert, color: "text-red-400" },
+            ].map((kpi) => (
+              <Card key={kpi.label} className="border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
+                    <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">{kpi.label}</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <p className={`text-2xl font-heading font-bold ${kpi.value > 0 ? kpi.color : "text-green-500"}`}>{kpi.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* Coach activity table */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Actividad de Coaches
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {coachActivity.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">No hay coaches activos</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Coach</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="text-center">Total feedback</TableHead>
-                    <TableHead>Último feedback</TableHead>
-                    <TableHead className="text-center">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {coachActivity.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.nombre}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.email}</TableCell>
-                      <TableCell className="text-center font-heading font-bold">{c.totalFeedback}</TableCell>
-                      <TableCell className="text-xs">
-                        {c.lastFeedbackDate
-                          ? new Date(c.lastFeedbackDate + "T12:00:00").toLocaleDateString("es-AR")
-                          : <span className="text-muted-foreground">Nunca</span>}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {c.totalFeedback === 0 ? (
-                          <Badge variant="destructive" className="text-[10px]">Sin actividad</Badge>
-                        ) : c.daysSinceLastFeedback !== null && c.daysSinceLastFeedback > 14 ? (
-                          <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]">
-                            {c.daysSinceLastFeedback}d sin feedback
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Activo</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4 text-destructive" />
+                  Alumnos en riesgo de abandono
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {alumnoAlerts.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">
+                    🎉 Todos los alumnos activos tienen actividad reciente
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Alumno</TableHead>
+                          <TableHead>Grupo</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead className="text-right">Días inactivo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {alumnoAlerts.slice(0, 15).map((a) => (
+                          <TableRow key={a.id}>
+                            <TableCell>
+                              <div>
+                                <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
+                                <p className="text-xs text-muted-foreground">{a.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">{a.grupo}</Badge>
+                            </TableCell>
+                            <TableCell>{getAlertBadge(a.alertType)}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={`font-heading font-bold ${a.daysSinceActivity > 30 ? "text-destructive" : a.daysSinceActivity > 14 ? "text-orange-400" : "text-muted-foreground"}`}>
+                                {a.daysSinceActivity}d
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  Feedback reciente de coaches
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {recentFeedback.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">No hay feedback registrado aún</div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {recentFeedback.slice(0, 10).map((f) => (
+                      <div key={f.id} className="px-4 py-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-primary">{f.coach?.nombre || "Coach"}</span>
+                            <span className="text-muted-foreground text-[10px]">→</span>
+                            <span className="text-xs text-muted-foreground">
+                              {f.alumno ? `${f.alumno.nombre} ${f.alumno.apellido || ""}` : "Alumno"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {f.tipo && <Badge variant="outline" className="text-[10px]">{f.tipo}</Badge>}
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(f.fecha + "T12:00:00").toLocaleDateString("es-AR")}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-foreground/80 line-clamp-2">{f.comentario}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                Actividad de Coaches
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {coachActivity.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm">No hay coaches activos</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Coach</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead className="text-center">Total feedback</TableHead>
+                        <TableHead>Último feedback</TableHead>
+                        <TableHead className="text-center">Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {coachActivity.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.nombre}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{c.email}</TableCell>
+                          <TableCell className="text-center font-heading font-bold">{c.totalFeedback}</TableCell>
+                          <TableCell className="text-xs">
+                            {c.lastFeedbackDate
+                              ? new Date(c.lastFeedbackDate + "T12:00:00").toLocaleDateString("es-AR")
+                              : <span className="text-muted-foreground">Nunca</span>}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {c.totalFeedback === 0 ? (
+                              <Badge variant="destructive" className="text-[10px]">Sin actividad</Badge>
+                            ) : c.daysSinceLastFeedback !== null && c.daysSinceLastFeedback > 14 ? (
+                              <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]">
+                                {c.daysSinceLastFeedback}d sin feedback
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Activo</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 };
