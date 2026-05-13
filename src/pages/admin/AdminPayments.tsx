@@ -263,7 +263,7 @@ const AdminPayments = () => {
   }, [manualPayDialog]);
 
   const filtered = useMemo(() => {
-    return suscripciones.filter((s) => {
+    const list = suscripciones.filter((s) => {
       if (!subInPeriod(s, filterPeriodo)) return false;
       const status = getPaymentStatus(s);
       if (filterEstado !== "todos" && status !== filterEstado) return false;
@@ -277,7 +277,35 @@ const AdminPayments = () => {
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
       return true;
     });
-  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const cmp = (a: string | number | null | undefined, b: string | number | null | undefined) => {
+      const av = a ?? "";
+      const bv = b ?? "";
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    };
+    const getOperacion = (s: Suscripcion) =>
+      (PAID_ORIGEN.includes(s.origen_registro) ? (s.fecha_inicio || s.updated_at) : s.updated_at) || s.created_at;
+
+    list.sort((a, b) => {
+      switch (sortKey) {
+        case "alumno":
+          return cmp(
+            [a.alumnos?.nombre, a.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase(),
+            [b.alumnos?.nombre, b.alumnos?.apellido].filter(Boolean).join(" ").toLowerCase()
+          );
+        case "plan": return cmp(a.planes?.nombre?.toLowerCase(), b.planes?.nombre?.toLowerCase());
+        case "vencimiento": return cmp(a.fecha_fin, b.fecha_fin);
+        case "estado": return cmp(getPaymentStatus(a), getPaymentStatus(b));
+        case "metodo": return cmp(a.metodo_pago, b.metodo_pago);
+        case "operacion": return cmp(getOperacion(a), getOperacion(b));
+        default: return 0;
+      }
+    });
+    return list;
+  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo, sortKey, sortDir]);
 
   const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
