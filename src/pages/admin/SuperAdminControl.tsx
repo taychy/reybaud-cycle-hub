@@ -3,11 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 import {
   AlertTriangle, UserX, Clock, MessageSquare, Activity,
-  ShieldAlert, Eye, TrendingDown, Users,
+  ShieldAlert, Eye, TrendingDown, Users, ChevronDown,
 } from "lucide-react";
 import { WhatsAppCheckAlert } from "@/components/admin/WhatsAppCheckAlert";
+import { TareasInbox } from "@/components/admin/TareasInbox";
+import type { TareaRol } from "@/hooks/useTareas";
 
 interface AlumnoAlert {
   id: string;
