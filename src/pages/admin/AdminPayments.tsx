@@ -783,7 +783,7 @@ const AdminPayments = () => {
                         </TableRow>
                         {isExpanded && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={7} className="p-0">
+                            <TableCell colSpan={8} className="p-0">
                               <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-b border-border/50">
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Monto</p>
