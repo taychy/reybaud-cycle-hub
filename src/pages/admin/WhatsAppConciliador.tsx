@@ -126,9 +126,6 @@ const WhatsAppConciliador = () => {
   const [submitting, setSubmitting] = useState(false);
   const [notasCierre, setNotasCierre] = useState("");
 
-  // estado para el dialog inline "está en otro grupo"
-  const [showOtroGrupo, setShowOtroGrupo] = useState(false);
-  const [otroGrupoValue, setOtroGrupoValue] = useState("");
 
   useEffect(() => {
     const init = async () => {
