@@ -526,19 +526,54 @@ const WhatsAppConciliador = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
                   <Button onClick={() => markCurrent("presente")} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <CheckCircle2 className="w-5 h-5 mr-2" /> Está en este grupo
+                    <CheckCircle2 className="w-5 h-5 mr-2" /> Está
                   </Button>
                   <Button onClick={() => markCurrent("ausente")} size="lg" variant="destructive">
                     <XCircle className="w-5 h-5 mr-2" /> No está
+                  </Button>
+                  <Button onClick={() => { setReassignOpen(v => !v); setReassignTo(""); }} size="lg" variant="outline" className="border-blue-500/40 text-blue-600 hover:bg-blue-500/10">
+                    <ArrowRightLeft className="w-5 h-5 mr-2" /> Mal asignado
                   </Button>
                   <Button onClick={() => markCurrent("saltado")} size="lg" variant="outline">
                     <SkipForward className="w-5 h-5 mr-2" /> Saltar
                   </Button>
                 </div>
+
+                {reassignOpen && (
+                  <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 space-y-2">
+                    <p className="text-xs">
+                      <strong>{cur.alumno.nombre}</strong> figura en <strong>{cur.alumno.grupo}</strong> en la app, pero no está en el WhatsApp de <strong>{selectedGrupo}</strong>. ¿A qué grupo pertenece realmente?
+                    </p>
+                    <div className="flex gap-2 flex-wrap items-center">
+                      <Select value={reassignTo} onValueChange={setReassignTo}>
+                        <SelectTrigger className="h-9 w-full sm:w-64">
+                          <SelectValue placeholder="Elegí grupo correcto…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {grupos.filter(g => g !== selectedGrupo).map(g => (
+                            <SelectItem key={g} value={g}>{g}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        disabled={!reassignTo}
+                        onClick={() => markMalAsignado(reassignTo)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Check className="w-4 h-4 mr-1" /> Reasignar y continuar
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => markMalAsignado(null)}>
+                        No sé · marcar para revisar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-[11px] text-muted-foreground -mt-1">
-                  Si encontrás en el grupo a alguien que <strong>no está en esta lista</strong> (porque en la app figura en otro grupo), cargalo en la sección "Personas en el grupo no esperadas" del paso 3 y reasignalo desde ahí.
+                  Si encontrás en el grupo a alguien que <strong>no está en esta lista</strong>, cargalo en "Personas en el grupo no esperadas" del paso 3.
                 </p>
 
                 <Textarea
