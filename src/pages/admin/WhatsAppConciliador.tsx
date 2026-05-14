@@ -125,6 +125,8 @@ const WhatsAppConciliador = () => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [notasCierre, setNotasCierre] = useState("");
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignTo, setReassignTo] = useState<string>("");
 
 
   useEffect(() => {
