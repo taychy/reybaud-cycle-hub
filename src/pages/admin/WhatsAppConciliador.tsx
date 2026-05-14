@@ -490,12 +490,9 @@ const WhatsAppConciliador = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
                   <Button onClick={() => markCurrent("presente")} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white">
                     <CheckCircle2 className="w-5 h-5 mr-2" /> Está en este grupo
-                  </Button>
-                  <Button onClick={() => setShowOtroGrupo(true)} size="lg" variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10">
-                    <ShuffleIcon className="w-5 h-5 mr-2" /> Está, pero en otro grupo
                   </Button>
                   <Button onClick={() => markCurrent("ausente")} size="lg" variant="destructive">
                     <XCircle className="w-5 h-5 mr-2" /> No está
@@ -504,28 +501,9 @@ const WhatsAppConciliador = () => {
                     <SkipForward className="w-5 h-5 mr-2" /> Saltar
                   </Button>
                 </div>
-
-                {showOtroGrupo && (
-                  <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
-                    <Label className="text-xs">¿En qué grupo de WhatsApp lo viste?</Label>
-                    <div className="flex gap-2">
-                      <Select value={otroGrupoValue} onValueChange={setOtroGrupoValue}>
-                        <SelectTrigger><SelectValue placeholder="Elegí el grupo donde aparece…" /></SelectTrigger>
-                        <SelectContent>
-                          {grupos.filter(g => g !== selectedGrupo).map(g => (
-                            <SelectItem key={g} value={g}>{g}</SelectItem>
-                          ))}
-                          <SelectItem value="Otro / no identificado">Otro / no identificado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button onClick={handleOtroGrupoConfirm}>Confirmar</Button>
-                      <Button variant="ghost" onClick={() => { setShowOtroGrupo(false); setOtroGrupoValue(""); }}>Cancelar</Button>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Esto queda registrado para revisar después si hay que reasignarlo en la app.
-                    </p>
-                  </div>
-                )}
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  Si encontrás en el grupo a alguien que <strong>no está en esta lista</strong> (porque en la app figura en otro grupo), cargalo en la sección "Personas en el grupo no esperadas" del paso 3 y reasignalo desde ahí.
+                </p>
 
                 <Textarea
                   placeholder="Nota opcional (motivo, qué hacer, etc.)"
