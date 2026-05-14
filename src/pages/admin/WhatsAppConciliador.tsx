@@ -56,6 +56,9 @@ type ExtraRow = {
   telefono: string;
   motivo: "no_es_alumno" | "alumno_otro_grupo" | "alumno_inactivo" | "desconocido";
   nota: string;
+  alumno_id: string | null;
+  reasignar_a_grupo: string | null;
+  reasignado: boolean;
 };
 
 type Step = 1 | 2 | 3 | 4;
