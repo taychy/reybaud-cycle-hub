@@ -3840,6 +3840,8 @@ export type Database = {
           motivo: string | null
           nombre: string
           nota: string | null
+          reasignado_at: string | null
+          reasignar_a_grupo: string | null
           run_id: string
           telefono: string | null
         }
@@ -3850,6 +3852,8 @@ export type Database = {
           motivo?: string | null
           nombre: string
           nota?: string | null
+          reasignado_at?: string | null
+          reasignar_a_grupo?: string | null
           run_id: string
           telefono?: string | null
         }
@@ -3860,6 +3864,8 @@ export type Database = {
           motivo?: string | null
           nombre?: string
           nota?: string | null
+          reasignado_at?: string | null
+          reasignar_a_grupo?: string | null
           run_id?: string
           telefono?: string | null
         }

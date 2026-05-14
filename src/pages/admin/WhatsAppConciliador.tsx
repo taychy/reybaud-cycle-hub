@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   CheckCircle2, XCircle, SkipForward, MessageCircle, ChevronLeft, ChevronRight,
-  AlertTriangle, ExternalLink, Users, RefreshCw, Phone, ShuffleIcon,
-  UserPlus, Trash2, History,
+  AlertTriangle, ExternalLink, Users, RefreshCw, Phone, Search,
+  UserPlus, Trash2, History, ArrowRightLeft, Check,
 } from "lucide-react";
 import { normalizePhoneAR, formatPhoneAR } from "@/lib/phoneNormalize";
 
@@ -56,6 +56,9 @@ type ExtraRow = {
   telefono: string;
   motivo: "no_es_alumno" | "alumno_otro_grupo" | "alumno_inactivo" | "desconocido";
   nota: string;
+  alumno_id: string | null;
+  reasignar_a_grupo: string | null;
+  reasignado: boolean;
 };
 
 type Step = 1 | 2 | 3 | 4;
@@ -123,9 +126,6 @@ const WhatsAppConciliador = () => {
   const [submitting, setSubmitting] = useState(false);
   const [notasCierre, setNotasCierre] = useState("");
 
-  // estado para el dialog inline "está en otro grupo"
-  const [showOtroGrupo, setShowOtroGrupo] = useState(false);
-  const [otroGrupoValue, setOtroGrupoValue] = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -260,12 +260,6 @@ const WhatsAppConciliador = () => {
     else goToReview(next);
   };
 
-  const handleOtroGrupoConfirm = async () => {
-    if (!otroGrupoValue) { toast({ title: "Indicá el grupo real", variant: "destructive" }); return; }
-    setShowOtroGrupo(false);
-    await markCurrent("presente", { grupoIncorrecto: true, grupoReal: otroGrupoValue });
-    setOtroGrupoValue("");
-  };
 
   const goToReview = async (rows = items) => {
     const confirmados = rows.filter(r => r.resultado === "presente").length;
@@ -286,7 +280,10 @@ const WhatsAppConciliador = () => {
   };
 
   const addExtra = () => {
-    setExtras([...extras, { nombre: "", telefono: "", motivo: "desconocido", nota: "" }]);
+    setExtras([...extras, {
+      nombre: "", telefono: "", motivo: "desconocido", nota: "",
+      alumno_id: null, reasignar_a_grupo: null, reasignado: false,
+    }]);
   };
   const updateExtra = (i: number, patch: Partial<ExtraRow>) => {
     const next = [...extras];
@@ -294,6 +291,33 @@ const WhatsAppConciliador = () => {
     setExtras(next);
   };
   const removeExtra = (i: number) => setExtras(extras.filter((_, j) => j !== i));
+
+  const linkExtraToAlumno = (i: number, a: Alumno) => {
+    updateExtra(i, {
+      alumno_id: a.id,
+      nombre: `${a.nombre} ${a.apellido || ""}`.trim(),
+      telefono: a.telefono || "",
+      motivo: "alumno_otro_grupo",
+      reasignar_a_grupo: selectedGrupo,
+      nota: `En la app figura en "${a.grupo}". Reasignar a "${selectedGrupo}".`,
+    });
+  };
+
+  const reassignExtra = async (i: number) => {
+    const ex = extras[i];
+    if (!ex.alumno_id || !ex.reasignar_a_grupo) return;
+    const { error } = await supabase
+      .from("alumnos")
+      .update({ grupo: ex.reasignar_a_grupo as any })
+      .eq("id", ex.alumno_id);
+    if (error) {
+      toast({ title: "No se pudo reasignar", description: error.message, variant: "destructive" });
+      return;
+    }
+    updateExtra(i, { reasignado: true });
+    setAlumnos(prev => prev.map(a => a.id === ex.alumno_id ? { ...a, grupo: ex.reasignar_a_grupo! } : a));
+    toast({ title: "Alumno reasignado", description: `Movido a ${ex.reasignar_a_grupo}` });
+  };
 
   const closeRun = async () => {
     if (!runId) return;
@@ -308,9 +332,13 @@ const WhatsAppConciliador = () => {
             telefono: e.telefono || null,
             motivo: e.motivo,
             nota: e.nota || null,
+            alumno_id: e.alumno_id,
+            reasignar_a_grupo: e.reasignar_a_grupo,
+            reasignado_at: e.reasignado ? new Date().toISOString() : null,
           })),
         );
       }
+      const reasignacionesExtra = validExtras.filter(e => e.alumno_id && e.reasignar_a_grupo).length;
       const { data: { session } } = await supabase.auth.getSession();
       await supabase.from("whatsapp_check_runs").update({
         estado: "cerrado",
@@ -318,6 +346,7 @@ const WhatsAppConciliador = () => {
         cerrado_por: session?.user?.id || null,
         notas_cierre: notasCierre || null,
         desconocidos_en_grupo: validExtras.length,
+        grupo_mal_asignado: items.filter(i => i.grupo_incorrecto).length + reasignacionesExtra,
       } as any).eq("id", runId);
       setStep(4);
     } catch (e: any) {
@@ -457,12 +486,9 @@ const WhatsAppConciliador = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
                   <Button onClick={() => markCurrent("presente")} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white">
                     <CheckCircle2 className="w-5 h-5 mr-2" /> Está en este grupo
-                  </Button>
-                  <Button onClick={() => setShowOtroGrupo(true)} size="lg" variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10">
-                    <ShuffleIcon className="w-5 h-5 mr-2" /> Está, pero en otro grupo
                   </Button>
                   <Button onClick={() => markCurrent("ausente")} size="lg" variant="destructive">
                     <XCircle className="w-5 h-5 mr-2" /> No está
@@ -471,28 +497,9 @@ const WhatsAppConciliador = () => {
                     <SkipForward className="w-5 h-5 mr-2" /> Saltar
                   </Button>
                 </div>
-
-                {showOtroGrupo && (
-                  <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
-                    <Label className="text-xs">¿En qué grupo de WhatsApp lo viste?</Label>
-                    <div className="flex gap-2">
-                      <Select value={otroGrupoValue} onValueChange={setOtroGrupoValue}>
-                        <SelectTrigger><SelectValue placeholder="Elegí el grupo donde aparece…" /></SelectTrigger>
-                        <SelectContent>
-                          {grupos.filter(g => g !== selectedGrupo).map(g => (
-                            <SelectItem key={g} value={g}>{g}</SelectItem>
-                          ))}
-                          <SelectItem value="Otro / no identificado">Otro / no identificado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button onClick={handleOtroGrupoConfirm}>Confirmar</Button>
-                      <Button variant="ghost" onClick={() => { setShowOtroGrupo(false); setOtroGrupoValue(""); }}>Cancelar</Button>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Esto queda registrado para revisar después si hay que reasignarlo en la app.
-                    </p>
-                  </div>
-                )}
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  Si encontrás en el grupo a alguien que <strong>no está en esta lista</strong> (porque en la app figura en otro grupo), cargalo en la sección "Personas en el grupo no esperadas" del paso 3 y reasignalo desde ahí.
+                </p>
 
                 <Textarea
                   placeholder="Nota opcional (motivo, qué hacer, etc.)"
@@ -547,49 +554,94 @@ const WhatsAppConciliador = () => {
               onFicha={(id) => navigate(`/admin/alumnos?focus=${id}`)}
             />
 
-            {/* Grupo mal asignado */}
-            <RevisionSection
-              title={`Grupo mal asignado en la app (${grupoMal.length})`}
-              tone="info"
-              description="Aparecen en otro grupo de WhatsApp distinto al que figuran en la app. Revisar y reasignar el grupo del alumno."
-              empty="No se detectaron casos de grupo mal asignado."
-              items={grupoMal}
-              showGrupoReal
-              onFicha={(id) => navigate(`/admin/alumnos?focus=${id}`)}
-            />
+            {/* Grupo mal asignado (combina items + extras vinculados a alumno) */}
+            {(() => {
+              const extrasVinculados = extras.filter(e => e.alumno_id && e.reasignar_a_grupo);
+              const totalMal = grupoMal.length + extrasVinculados.length;
+              return (
+                <Card className="border-blue-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ArrowRightLeft className="w-4 h-4 text-blue-500" />
+                      Grupo mal asignado en la app ({totalMal})
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Alumnos que están en el WhatsApp de <strong>{selectedGrupo}</strong> pero en la app figuran en otro grupo. Reasignalos para que coincidan.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {totalMal === 0 && <p className="text-sm text-emerald-600">No se detectaron casos de grupo mal asignado.</p>}
+                    {grupoMal.map(it => (
+                      <div key={`item-${it.alumno.id}`} className="border border-blue-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex-1 min-w-[200px]">
+                          <p className="font-semibold text-sm">{it.alumno.nombre} {it.alumno.apellido || ""}</p>
+                          <p className="text-xs text-blue-600">Visto en <strong>{it.grupo_real_sugerido}</strong> · en app figura en <strong>{it.alumno.grupo}</strong></p>
+                          {it.nota && <p className="text-xs text-muted-foreground italic mt-1">"{it.nota}"</p>}
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/alumnos?focus=${it.alumno.id}`)}>
+                          <ExternalLink className="w-3.5 h-3.5 mr-1" />Ficha
+                        </Button>
+                      </div>
+                    ))}
+                    {extrasVinculados.map((ex) => {
+                      const i = extras.indexOf(ex);
+                      const alumno = alumnos.find(a => a.id === ex.alumno_id);
+                      return (
+                        <div key={`extra-${i}`} className="border border-blue-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex-1 min-w-[200px]">
+                            <p className="font-semibold text-sm">{ex.nombre}</p>
+                            <p className="text-xs text-blue-600">
+                              Visto en <strong>{selectedGrupo}</strong> · en app figura en <strong>{alumno?.grupo || "—"}</strong>
+                            </p>
+                            {ex.nota && <p className="text-xs text-muted-foreground italic mt-1">"{ex.nota}"</p>}
+                          </div>
+                          <div className="flex gap-1.5">
+                            {ex.reasignado ? (
+                              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
+                                <Check className="w-3 h-3 mr-1" />Reasignado
+                              </Badge>
+                            ) : (
+                              <Button size="sm" onClick={() => reassignExtra(i)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />Reasignar a {selectedGrupo}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
-            {/* Extras detectados en el grupo */}
+            {/* Personas en el grupo no esperadas */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base">Personas en el grupo no esperadas ({extras.filter(e => e.nombre.trim()).length})</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Cargá quienes están en el grupo de WhatsApp pero no figuran en este chequeo (ex-alumnos, gente de otro grupo, desconocidos).
+                    Cargá quienes están en el grupo de WhatsApp pero no aparecen en esta lista. Si es un alumno con grupo mal asignado en la app, buscalo por nombre y reasignalo.
                   </p>
                 </div>
                 <Button size="sm" variant="outline" onClick={addExtra}>
                   <UserPlus className="w-4 h-4 mr-1" /> Agregar
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 {extras.length === 0 && (
                   <p className="text-sm text-muted-foreground italic">Ninguno cargado.</p>
                 )}
                 {extras.map((ex, i) => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start border border-border rounded-md p-2">
-                    <Input className="md:col-span-3" placeholder="Nombre o alias" value={ex.nombre} onChange={e => updateExtra(i, { nombre: e.target.value })} />
-                    <Input className="md:col-span-3" placeholder="Teléfono (opcional)" value={ex.telefono} onChange={e => updateExtra(i, { telefono: e.target.value })} />
-                    <Select value={ex.motivo} onValueChange={(v) => updateExtra(i, { motivo: v as ExtraRow["motivo"] })}>
-                      <SelectTrigger className="md:col-span-3"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(MOTIVO_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Input className="md:col-span-2" placeholder="Nota" value={ex.nota} onChange={e => updateExtra(i, { nota: e.target.value })} />
-                    <Button variant="ghost" size="icon" className="md:col-span-1" onClick={() => removeExtra(i)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
+                  <ExtraEditor
+                    key={i}
+                    extra={ex}
+                    alumnos={alumnos}
+                    selectedGrupo={selectedGrupo}
+                    onUpdate={(patch) => updateExtra(i, patch)}
+                    onRemove={() => removeExtra(i)}
+                    onLink={(a) => linkExtraToAlumno(i, a)}
+                    onUnlink={() => updateExtra(i, { alumno_id: null, reasignar_a_grupo: null, motivo: "desconocido", nota: "", reasignado: false })}
+                  />
                 ))}
               </CardContent>
             </Card>
@@ -762,6 +814,90 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone?: "suc
     <div className="bg-muted/30 border border-border rounded-md p-3">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
       <p className={`text-2xl font-heading font-bold ${cls}`}>{value}</p>
+    </div>
+  );
+};
+
+const ExtraEditor = ({
+  extra, alumnos, selectedGrupo, onUpdate, onRemove, onLink, onUnlink,
+}: {
+  extra: ExtraRow;
+  alumnos: Alumno[];
+  selectedGrupo: string;
+  onUpdate: (patch: Partial<ExtraRow>) => void;
+  onRemove: () => void;
+  onLink: (a: Alumno) => void;
+  onUnlink: () => void;
+}) => {
+  const [query, setQuery] = useState("");
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return alumnos
+      .filter(a => a.grupo !== selectedGrupo)
+      .filter(a => `${a.nombre} ${a.apellido || ""} ${a.email}`.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [query, alumnos, selectedGrupo]);
+
+  const linked = !!extra.alumno_id;
+
+  return (
+    <div className={`border rounded-md p-3 space-y-2 ${linked ? "border-blue-500/40 bg-blue-500/5" : "border-border"}`}>
+      {!linked && (
+        <div className="space-y-1.5">
+          <Label className="text-xs flex items-center gap-1"><Search className="w-3 h-3" /> Buscar alumno existente (otro grupo)</Label>
+          <Input
+            placeholder="Escribí nombre, apellido o email…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {matches.length > 0 && (
+            <div className="border border-border rounded-md max-h-44 overflow-y-auto bg-background">
+              {matches.map(a => (
+                <button
+                  type="button"
+                  key={a.id}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b border-border/50 last:border-0"
+                  onClick={() => { onLink(a); setQuery(""); }}
+                >
+                  <div className="font-medium">{a.nombre} {a.apellido || ""}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Grupo en app: <strong>{a.grupo}</strong> · {a.email}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {query.trim().length >= 2 && matches.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">Sin coincidencias. Cargalo manualmente abajo si no es alumno.</p>
+          )}
+        </div>
+      )}
+
+      {linked && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-sm">
+            <p className="font-semibold text-blue-700 dark:text-blue-300">{extra.nombre}</p>
+            <p className="text-xs text-muted-foreground">Marcado para reasignar a <strong>{extra.reasignar_a_grupo}</strong></p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onUnlink}>Desvincular</Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
+        <Input className="md:col-span-3" placeholder="Nombre o alias" value={extra.nombre} onChange={e => onUpdate({ nombre: e.target.value })} disabled={linked} />
+        <Input className="md:col-span-3" placeholder="Teléfono (opcional)" value={extra.telefono} onChange={e => onUpdate({ telefono: e.target.value })} disabled={linked} />
+        <Select value={extra.motivo} onValueChange={(v) => onUpdate({ motivo: v as ExtraRow["motivo"] })}>
+          <SelectTrigger className="md:col-span-3"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(MOTIVO_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input className="md:col-span-2" placeholder="Nota" value={extra.nota} onChange={e => onUpdate({ nota: e.target.value })} />
+        <Button variant="ghost" size="icon" className="md:col-span-1" onClick={onRemove}>
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
     </div>
   );
 };
