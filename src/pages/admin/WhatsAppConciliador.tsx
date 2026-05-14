@@ -125,6 +125,8 @@ const WhatsAppConciliador = () => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [notasCierre, setNotasCierre] = useState("");
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignTo, setReassignTo] = useState<string>("");
 
 
   useEffect(() => {
@@ -252,6 +254,44 @@ const WhatsAppConciliador = () => {
     next[currentIdx] = updated;
     setItems(next);
     await persistItem(updated);
+    setReassignOpen(false);
+    setReassignTo("");
+    advance(next);
+  };
+
+  const markMalAsignado = async (grupoCorrecto: string | null) => {
+    const cur = items[currentIdx];
+    if (!cur) return;
+    // Marcamos como ausente del grupo actual + grupo_incorrecto, con sugerencia (puede ser null = "revisar")
+    const updated: ItemRow = {
+      ...cur,
+      resultado: "ausente",
+      plan_inconsistente: cur.hasActivePlan,
+      grupo_incorrecto: true,
+      grupo_real_sugerido: grupoCorrecto,
+      nota: cur.nota || (grupoCorrecto
+        ? `Mal asignado en la app: debería estar en "${grupoCorrecto}".`
+        : `Mal asignado en la app: no corresponde a "${selectedGrupo}". Revisar grupo correcto.`),
+    };
+    const next = [...items];
+    next[currentIdx] = updated;
+    setItems(next);
+    await persistItem(updated);
+    // Si eligieron grupo concreto, reasignar en alumnos
+    if (grupoCorrecto) {
+      const { error } = await supabase
+        .from("alumnos")
+        .update({ grupo: grupoCorrecto as any })
+        .eq("id", cur.alumno.id);
+      if (error) {
+        toast({ title: "No se pudo reasignar", description: error.message, variant: "destructive" });
+      } else {
+        setAlumnos(prev => prev.map(a => a.id === cur.alumno.id ? { ...a, grupo: grupoCorrecto } : a));
+        toast({ title: "Reasignado", description: `${cur.alumno.nombre} ahora está en ${grupoCorrecto}` });
+      }
+    }
+    setReassignOpen(false);
+    setReassignTo("");
     advance(next);
   };
 
@@ -486,19 +526,54 @@ const WhatsAppConciliador = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
                   <Button onClick={() => markCurrent("presente")} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <CheckCircle2 className="w-5 h-5 mr-2" /> Está en este grupo
+                    <CheckCircle2 className="w-5 h-5 mr-2" /> Está
                   </Button>
                   <Button onClick={() => markCurrent("ausente")} size="lg" variant="destructive">
                     <XCircle className="w-5 h-5 mr-2" /> No está
+                  </Button>
+                  <Button onClick={() => { setReassignOpen(v => !v); setReassignTo(""); }} size="lg" variant="outline" className="border-blue-500/40 text-blue-600 hover:bg-blue-500/10">
+                    <ArrowRightLeft className="w-5 h-5 mr-2" /> Mal asignado
                   </Button>
                   <Button onClick={() => markCurrent("saltado")} size="lg" variant="outline">
                     <SkipForward className="w-5 h-5 mr-2" /> Saltar
                   </Button>
                 </div>
+
+                {reassignOpen && (
+                  <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 space-y-2">
+                    <p className="text-xs">
+                      <strong>{cur.alumno.nombre}</strong> figura en <strong>{cur.alumno.grupo}</strong> en la app, pero no está en el WhatsApp de <strong>{selectedGrupo}</strong>. ¿A qué grupo pertenece realmente?
+                    </p>
+                    <div className="flex gap-2 flex-wrap items-center">
+                      <Select value={reassignTo} onValueChange={setReassignTo}>
+                        <SelectTrigger className="h-9 w-full sm:w-64">
+                          <SelectValue placeholder="Elegí grupo correcto…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {grupos.filter(g => g !== selectedGrupo).map(g => (
+                            <SelectItem key={g} value={g}>{g}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        disabled={!reassignTo}
+                        onClick={() => markMalAsignado(reassignTo)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Check className="w-4 h-4 mr-1" /> Reasignar y continuar
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => markMalAsignado(null)}>
+                        No sé · marcar para revisar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-[11px] text-muted-foreground -mt-1">
-                  Si encontrás en el grupo a alguien que <strong>no está en esta lista</strong> (porque en la app figura en otro grupo), cargalo en la sección "Personas en el grupo no esperadas" del paso 3 y reasignalo desde ahí.
+                  Si encontrás en el grupo a alguien que <strong>no está en esta lista</strong>, cargalo en "Personas en el grupo no esperadas" del paso 3.
                 </p>
 
                 <Textarea
