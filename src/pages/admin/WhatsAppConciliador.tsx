@@ -818,4 +818,88 @@ const Kpi = ({ label, value, tone }: { label: string; value: number; tone?: "suc
   );
 };
 
+const ExtraEditor = ({
+  extra, alumnos, selectedGrupo, onUpdate, onRemove, onLink, onUnlink,
+}: {
+  extra: ExtraRow;
+  alumnos: Alumno[];
+  selectedGrupo: string;
+  onUpdate: (patch: Partial<ExtraRow>) => void;
+  onRemove: () => void;
+  onLink: (a: Alumno) => void;
+  onUnlink: () => void;
+}) => {
+  const [query, setQuery] = useState("");
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return alumnos
+      .filter(a => a.grupo !== selectedGrupo)
+      .filter(a => `${a.nombre} ${a.apellido || ""} ${a.email}`.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [query, alumnos, selectedGrupo]);
+
+  const linked = !!extra.alumno_id;
+
+  return (
+    <div className={`border rounded-md p-3 space-y-2 ${linked ? "border-blue-500/40 bg-blue-500/5" : "border-border"}`}>
+      {!linked && (
+        <div className="space-y-1.5">
+          <Label className="text-xs flex items-center gap-1"><Search className="w-3 h-3" /> Buscar alumno existente (otro grupo)</Label>
+          <Input
+            placeholder="Escribí nombre, apellido o email…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {matches.length > 0 && (
+            <div className="border border-border rounded-md max-h-44 overflow-y-auto bg-background">
+              {matches.map(a => (
+                <button
+                  type="button"
+                  key={a.id}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b border-border/50 last:border-0"
+                  onClick={() => { onLink(a); setQuery(""); }}
+                >
+                  <div className="font-medium">{a.nombre} {a.apellido || ""}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Grupo en app: <strong>{a.grupo}</strong> · {a.email}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {query.trim().length >= 2 && matches.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">Sin coincidencias. Cargalo manualmente abajo si no es alumno.</p>
+          )}
+        </div>
+      )}
+
+      {linked && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-sm">
+            <p className="font-semibold text-blue-700 dark:text-blue-300">{extra.nombre}</p>
+            <p className="text-xs text-muted-foreground">Marcado para reasignar a <strong>{extra.reasignar_a_grupo}</strong></p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onUnlink}>Desvincular</Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
+        <Input className="md:col-span-3" placeholder="Nombre o alias" value={extra.nombre} onChange={e => onUpdate({ nombre: e.target.value })} disabled={linked} />
+        <Input className="md:col-span-3" placeholder="Teléfono (opcional)" value={extra.telefono} onChange={e => onUpdate({ telefono: e.target.value })} disabled={linked} />
+        <Select value={extra.motivo} onValueChange={(v) => onUpdate({ motivo: v as ExtraRow["motivo"] })}>
+          <SelectTrigger className="md:col-span-3"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(MOTIVO_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input className="md:col-span-2" placeholder="Nota" value={extra.nota} onChange={e => onUpdate({ nota: e.target.value })} />
+        <Button variant="ghost" size="icon" className="md:col-span-1" onClick={onRemove}>
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export default WhatsAppConciliador;
