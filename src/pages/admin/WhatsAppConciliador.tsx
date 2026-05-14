@@ -332,9 +332,13 @@ const WhatsAppConciliador = () => {
             telefono: e.telefono || null,
             motivo: e.motivo,
             nota: e.nota || null,
+            alumno_id: e.alumno_id,
+            reasignar_a_grupo: e.reasignar_a_grupo,
+            reasignado_at: e.reasignado ? new Date().toISOString() : null,
           })),
         );
       }
+      const reasignacionesExtra = validExtras.filter(e => e.alumno_id && e.reasignar_a_grupo).length;
       const { data: { session } } = await supabase.auth.getSession();
       await supabase.from("whatsapp_check_runs").update({
         estado: "cerrado",
@@ -342,6 +346,7 @@ const WhatsAppConciliador = () => {
         cerrado_por: session?.user?.id || null,
         notas_cierre: notasCierre || null,
         desconocidos_en_grupo: validExtras.length,
+        grupo_mal_asignado: items.filter(i => i.grupo_incorrecto).length + reasignacionesExtra,
       } as any).eq("id", runId);
       setStep(4);
     } catch (e: any) {
