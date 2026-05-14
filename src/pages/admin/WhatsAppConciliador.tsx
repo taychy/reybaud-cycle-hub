@@ -260,12 +260,6 @@ const WhatsAppConciliador = () => {
     else goToReview(next);
   };
 
-  const handleOtroGrupoConfirm = async () => {
-    if (!otroGrupoValue) { toast({ title: "Indicá el grupo real", variant: "destructive" }); return; }
-    setShowOtroGrupo(false);
-    await markCurrent("presente", { grupoIncorrecto: true, grupoReal: otroGrupoValue });
-    setOtroGrupoValue("");
-  };
 
   const goToReview = async (rows = items) => {
     const confirmados = rows.filter(r => r.resultado === "presente").length;
