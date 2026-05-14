@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   CheckCircle2, XCircle, SkipForward, MessageCircle, ChevronLeft, ChevronRight,
-  AlertTriangle, ExternalLink, Users, RefreshCw, Phone, ShuffleIcon,
-  UserPlus, Trash2, History,
+  AlertTriangle, ExternalLink, Users, RefreshCw, Phone, Search,
+  UserPlus, Trash2, History, ArrowRightLeft, Check,
 } from "lucide-react";
 import { normalizePhoneAR, formatPhoneAR } from "@/lib/phoneNormalize";
 
