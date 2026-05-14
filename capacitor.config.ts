@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.6a1f3174a013459c8bd930c01c52e32a',
+  appId: 'app.lovable.reybaudcyclehub',
   appName: 'reybaud-cycle-hub',
   webDir: 'dist',
   server: {
