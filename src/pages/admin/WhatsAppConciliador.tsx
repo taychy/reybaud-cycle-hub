@@ -289,7 +289,10 @@ const WhatsAppConciliador = () => {
   };
 
   const addExtra = () => {
-    setExtras([...extras, { nombre: "", telefono: "", motivo: "desconocido", nota: "" }]);
+    setExtras([...extras, {
+      nombre: "", telefono: "", motivo: "desconocido", nota: "",
+      alumno_id: null, reasignar_a_grupo: null, reasignado: false,
+    }]);
   };
   const updateExtra = (i: number, patch: Partial<ExtraRow>) => {
     const next = [...extras];
@@ -297,6 +300,33 @@ const WhatsAppConciliador = () => {
     setExtras(next);
   };
   const removeExtra = (i: number) => setExtras(extras.filter((_, j) => j !== i));
+
+  const linkExtraToAlumno = (i: number, a: Alumno) => {
+    updateExtra(i, {
+      alumno_id: a.id,
+      nombre: `${a.nombre} ${a.apellido || ""}`.trim(),
+      telefono: a.telefono || "",
+      motivo: "alumno_otro_grupo",
+      reasignar_a_grupo: selectedGrupo,
+      nota: `En la app figura en "${a.grupo}". Reasignar a "${selectedGrupo}".`,
+    });
+  };
+
+  const reassignExtra = async (i: number) => {
+    const ex = extras[i];
+    if (!ex.alumno_id || !ex.reasignar_a_grupo) return;
+    const { error } = await supabase
+      .from("alumnos")
+      .update({ grupo: ex.reasignar_a_grupo as any })
+      .eq("id", ex.alumno_id);
+    if (error) {
+      toast({ title: "No se pudo reasignar", description: error.message, variant: "destructive" });
+      return;
+    }
+    updateExtra(i, { reasignado: true });
+    setAlumnos(prev => prev.map(a => a.id === ex.alumno_id ? { ...a, grupo: ex.reasignar_a_grupo! } : a));
+    toast({ title: "Alumno reasignado", description: `Movido a ${ex.reasignar_a_grupo}` });
+  };
 
   const closeRun = async () => {
     if (!runId) return;
