@@ -3832,11 +3832,54 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_check_extras: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          id: string
+          motivo: string | null
+          nombre: string
+          nota: string | null
+          run_id: string
+          telefono: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nombre: string
+          nota?: string | null
+          run_id: string
+          telefono?: string | null
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nombre?: string
+          nota?: string | null
+          run_id?: string
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_check_extras_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_check_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_check_items: {
         Row: {
           alumno_id: string
           checked_at: string | null
           created_at: string
+          grupo_incorrecto: boolean
+          grupo_real_sugerido: string | null
           id: string
           nombre_snapshot: string
           nota: string | null
@@ -3848,6 +3891,8 @@ export type Database = {
           alumno_id: string
           checked_at?: string | null
           created_at?: string
+          grupo_incorrecto?: boolean
+          grupo_real_sugerido?: string | null
           id?: string
           nombre_snapshot: string
           nota?: string | null
@@ -3859,6 +3904,8 @@ export type Database = {
           alumno_id?: string
           checked_at?: string | null
           created_at?: string
+          grupo_incorrecto?: boolean
+          grupo_real_sugerido?: string | null
           id?: string
           nombre_snapshot?: string
           nota?: string | null
@@ -3880,15 +3927,20 @@ export type Database = {
         Row: {
           admin_id: string | null
           cerrado_at: string | null
+          cerrado_por: string | null
           confirmados: number
           created_at: string
+          desconocidos_en_grupo: number
           estado: string
           faltantes: number
           fecha_objetivo: string
           grupo: string
+          grupo_mal_asignado: number
           id: string
           notas: string | null
+          notas_cierre: string | null
           plan_revision: number
+          plan_vencido_en_grupo: number
           saltados: number
           total_esperados: number
           updated_at: string
@@ -3896,15 +3948,20 @@ export type Database = {
         Insert: {
           admin_id?: string | null
           cerrado_at?: string | null
+          cerrado_por?: string | null
           confirmados?: number
           created_at?: string
+          desconocidos_en_grupo?: number
           estado?: string
           faltantes?: number
           fecha_objetivo: string
           grupo: string
+          grupo_mal_asignado?: number
           id?: string
           notas?: string | null
+          notas_cierre?: string | null
           plan_revision?: number
+          plan_vencido_en_grupo?: number
           saltados?: number
           total_esperados?: number
           updated_at?: string
@@ -3912,15 +3969,20 @@ export type Database = {
         Update: {
           admin_id?: string | null
           cerrado_at?: string | null
+          cerrado_por?: string | null
           confirmados?: number
           created_at?: string
+          desconocidos_en_grupo?: number
           estado?: string
           faltantes?: number
           fecha_objetivo?: string
           grupo?: string
+          grupo_mal_asignado?: number
           id?: string
           notas?: string | null
+          notas_cierre?: string | null
           plan_revision?: number
+          plan_vencido_en_grupo?: number
           saltados?: number
           total_esperados?: number
           updated_at?: string
