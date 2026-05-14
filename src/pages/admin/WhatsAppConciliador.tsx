@@ -254,6 +254,44 @@ const WhatsAppConciliador = () => {
     next[currentIdx] = updated;
     setItems(next);
     await persistItem(updated);
+    setReassignOpen(false);
+    setReassignTo("");
+    advance(next);
+  };
+
+  const markMalAsignado = async (grupoCorrecto: string | null) => {
+    const cur = items[currentIdx];
+    if (!cur) return;
+    // Marcamos como ausente del grupo actual + grupo_incorrecto, con sugerencia (puede ser null = "revisar")
+    const updated: ItemRow = {
+      ...cur,
+      resultado: "ausente",
+      plan_inconsistente: cur.hasActivePlan,
+      grupo_incorrecto: true,
+      grupo_real_sugerido: grupoCorrecto,
+      nota: cur.nota || (grupoCorrecto
+        ? `Mal asignado en la app: debería estar en "${grupoCorrecto}".`
+        : `Mal asignado en la app: no corresponde a "${selectedGrupo}". Revisar grupo correcto.`),
+    };
+    const next = [...items];
+    next[currentIdx] = updated;
+    setItems(next);
+    await persistItem(updated);
+    // Si eligieron grupo concreto, reasignar en alumnos
+    if (grupoCorrecto) {
+      const { error } = await supabase
+        .from("alumnos")
+        .update({ grupo: grupoCorrecto as any })
+        .eq("id", cur.alumno.id);
+      if (error) {
+        toast({ title: "No se pudo reasignar", description: error.message, variant: "destructive" });
+      } else {
+        setAlumnos(prev => prev.map(a => a.id === cur.alumno.id ? { ...a, grupo: grupoCorrecto } : a));
+        toast({ title: "Reasignado", description: `${cur.alumno.nombre} ahora está en ${grupoCorrecto}` });
+      }
+    }
+    setReassignOpen(false);
+    setReassignTo("");
     advance(next);
   };
 
