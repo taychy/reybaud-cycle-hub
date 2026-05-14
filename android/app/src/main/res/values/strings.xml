@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">reybaud-cycle-hub</string>
+    <string name="title_activity_main">reybaud-cycle-hub</string>
+    <string name="package_name">app.lovable.reybaudcyclehub</string>
+    <string name="custom_url_scheme">app.lovable.reybaudcyclehub</string>
+</resources>
