@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Percent, Users, Copy, Tag, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Percent, Users, Copy, Tag, Search, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { hasAnyConflict, findConflictingExisting, aplicaLabel, type AplicaA } from "@/lib/discountConflicts";
 
 interface Descuento {
   id: string;
