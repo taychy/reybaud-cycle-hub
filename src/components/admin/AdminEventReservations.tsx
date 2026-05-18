@@ -189,6 +189,7 @@ interface AdminEventReservationsProps {
   eventLocation?: string | null;
   eventMaxCapacity?: number | null;
   eventStatus?: string;
+  eventPaymentMode?: "cuotas" | "simple";
 }
 
 /* ─── Sort ─── */
