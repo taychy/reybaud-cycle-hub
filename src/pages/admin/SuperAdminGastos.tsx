@@ -819,7 +819,7 @@ const SuperAdminGastos = () => {
                               );
                             })}
                           </TableRow>
-                        ))}
+                        );})}
                       </>
                     ))}
                   </TableBody>
