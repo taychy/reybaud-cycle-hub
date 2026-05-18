@@ -486,17 +486,48 @@ const EventForm = ({
 
         {meta.pricing_mode === "con_valor" && (
           <div className="space-y-3 pt-2 border-t border-border/30">
-            {eventId ? (
-              <EventInstallmentsEditor
-                eventId={eventId}
-                eventCurrency={meta.currency || "ARS"}
-                eventPrice={meta.price ? parseFloat(meta.price) : null}
-              />
-            ) : (
-              <p className="text-xs text-muted-foreground italic">
-                Guardá el evento primero para configurar el plan de cuotas.
+            <div className="space-y-1.5">
+              <Label>Modo de cobranza</Label>
+              <Select
+                value={form.payment_mode}
+                onValueChange={(v: "cuotas" | "simple") => setForm({ ...form, payment_mode: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cuotas">Plan de cuotas (fechas y montos predefinidos)</SelectItem>
+                  <SelectItem value="simple">Cobranza simple (pagos manuales, sin cuotas)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {form.payment_mode === "simple"
+                  ? "Cada pago se carga manualmente o se valida cuando el participante lo informa. Sin plan de cuotas predefinido."
+                  : "Se define un plan de cuotas con fechas y montos. Cada pago se imputa a su cuota."}
               </p>
+            </div>
+
+            {form.payment_mode === "cuotas" && (
+              eventId ? (
+                <EventInstallmentsEditor
+                  eventId={eventId}
+                  eventCurrency={meta.currency || "ARS"}
+                  eventPrice={meta.price ? parseFloat(meta.price) : null}
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Guardá el evento primero para configurar el plan de cuotas.
+                </p>
+              )
             )}
+
+            <div className="pt-2 border-t border-border/30">
+              {eventId ? (
+                <EventAddonsEditor eventId={eventId} eventCurrency={meta.currency || "ARS"} />
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Guardá el evento primero para configurar extras (habitación individual, alquiler de bicicleta, etc.).
+                </p>
+              )}
+            </div>
           </div>
         )}
       </fieldset>
