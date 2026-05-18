@@ -1861,6 +1861,60 @@ export type Database = {
         }
         Relationships: []
       }
+      gastos_ejecucion_pagos: {
+        Row: {
+          created_at: string
+          ejecucion_id: string
+          fecha: string
+          forma_pago: string
+          gasto_id: string | null
+          id: string
+          monto: number
+          notas: string | null
+          pagado_por: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ejecucion_id: string
+          fecha: string
+          forma_pago: string
+          gasto_id?: string | null
+          id?: string
+          monto: number
+          notas?: string | null
+          pagado_por?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ejecucion_id?: string
+          fecha?: string
+          forma_pago?: string
+          gasto_id?: string | null
+          id?: string
+          monto?: number
+          notas?: string | null
+          pagado_por?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_ejecucion_pagos_ejecucion_id_fkey"
+            columns: ["ejecucion_id"]
+            isOneToOne: false
+            referencedRelation: "gastos_ejecuciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_ejecucion_pagos_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gastos_ejecuciones: {
         Row: {
           created_at: string
@@ -4307,6 +4361,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -4373,6 +4428,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      recalc_gasto_ejecucion: {
+        Args: { p_ejec_id: string }
+        Returns: undefined
+      }
       recalculate_reservation_amount_total: {
         Args: { p_reservation_id: string }
         Returns: undefined
@@ -4385,11 +4444,31 @@ export type Database = {
         Args: { _email: string; _nombre: string; _user_id: string }
         Returns: undefined
       }
+      register_gasto_pago: {
+        Args: {
+          p_ejec_id: string
+          p_fecha: string
+          p_forma_pago: string
+          p_monto: number
+          p_notas?: string
+        }
+        Returns: string
+      }
       reschedule_installment: {
         Args: {
           p_installment_id: string
           p_new_due_date: string
           p_reason: string
+        }
+        Returns: undefined
+      }
+      update_gasto_pago: {
+        Args: {
+          p_fecha: string
+          p_forma_pago: string
+          p_monto: number
+          p_notas?: string
+          p_pago_id: string
         }
         Returns: undefined
       }
