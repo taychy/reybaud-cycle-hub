@@ -1458,6 +1458,12 @@ const ManageStudents = () => {
 
                     <Separator />
 
+                    {/* Emergencia, cobertura y familiares */}
+                    <StudentEmergencyFamilySection alumno={drawerAlumno} />
+
+                    <Separator />
+
+
                     {/* Apto Físico */}
                     <MedicalCertificateSection
                       alumno={drawerAlumno}
