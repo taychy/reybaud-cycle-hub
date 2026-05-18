@@ -638,7 +638,50 @@ const SuperAdminGastos = () => {
         </TabsList>
 
         {/* AGENDA */}
-        <TabsContent value="agenda" className="mt-4">
+        <TabsContent value="agenda" className="mt-4 space-y-4">
+          {Object.keys(deudaSaldos).length > 0 && (
+            <Card className="border-destructive/40 bg-destructive/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-destructive" />
+                  Con deuda acumulada
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Concepto</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Ámbito</TableHead>
+                      <TableHead className="text-right">Saldo deuda</TableHead>
+                      <TableHead className="w-32">Acción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recurrentes
+                      .filter(r => deudaSaldos[r.id] && deudaSaldos[r.id].saldo > 0)
+                      .sort((a, b) => (deudaSaldos[b.id]?.saldo || 0) - (deudaSaldos[a.id]?.saldo || 0))
+                      .map(r => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.concepto}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
+                          <TableCell>{ambitoBadge(r.ambito)}</TableCell>
+                          <TableCell className="text-right font-heading font-bold text-destructive">
+                            {fmt(deudaSaldos[r.id].saldo, deudaSaldos[r.id].moneda)}
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => openDeuda(r)}>
+                              <TrendingDown className="w-3 h-3" /> Gestionar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Pendientes de pagar — {monthLabel(mes)}</CardTitle>
