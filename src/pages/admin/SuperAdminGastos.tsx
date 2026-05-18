@@ -336,7 +336,23 @@ const SuperAdminGastos = () => {
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gastos</h1>
           <p className="text-sm text-muted-foreground">Catálogo recurrente, agenda de pagos y control mensual</p>
-        </div>
+      </div>
+
+      {/* Banner cómo cargar pagos */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-4 flex gap-3 items-start text-sm">
+          <Wallet className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <div className="font-heading font-bold text-foreground">Cómo cargo lo que pago cada mes</div>
+            <ol className="text-muted-foreground text-xs space-y-0.5 list-decimal pl-4">
+              <li>Elegí el mes arriba a la derecha. Si está vacío se generan automáticamente las cuotas del catálogo.</li>
+              <li>En la pestaña <b>Agenda</b> tocá <b>Pagar</b> en cada concepto que pagaste y completá monto, fecha y forma de pago. Pasa a verde y queda registrado en el histórico contable.</li>
+              <li>En la pestaña <b>Matriz anual</b> podés ver todo el año tipo planilla. Tocá cualquier celda pendiente para marcar el pago directo.</li>
+              <li>Lo nuevo que no esté en el catálogo lo agregás desde <b>Catálogo → Nuevo</b> y reaparece automáticamente cada mes.</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
         <div className="flex items-center gap-2">
           <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-44" />
           <Button variant="outline" size="sm" onClick={generarMes} className="gap-1">
