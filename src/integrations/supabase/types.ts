@@ -644,6 +644,8 @@ export type Database = {
           asignado_por: string | null
           created_at: string
           descuento_id: string
+          fecha_fin: string | null
+          fecha_inicio: string
           id: string
           nota: string | null
           updated_at: string
@@ -654,6 +656,8 @@ export type Database = {
           asignado_por?: string | null
           created_at?: string
           descuento_id: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
           id?: string
           nota?: string | null
           updated_at?: string
@@ -664,6 +668,8 @@ export type Database = {
           asignado_por?: string | null
           created_at?: string
           descuento_id?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
           id?: string
           nota?: string | null
           updated_at?: string
@@ -4440,6 +4446,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      expire_descuentos_alumno: { Args: never; Returns: number }
       generate_gastos_ejecuciones_month: {
         Args: { p_mes: string }
         Returns: number
