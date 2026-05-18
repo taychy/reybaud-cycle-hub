@@ -277,7 +277,7 @@ const ManageDescuentos = () => {
     setAssignOpen(true);
   };
 
-  const isAssigned = (alumnoId: string) => asignados.some(a => a.alumno_id === alumnoId && a.activo);
+  
 
   const reloadAsignados = async (descuentoId: string) => {
     const { data } = await supabase.from("descuentos_alumno" as any).select("*").eq("descuento_id", descuentoId);
