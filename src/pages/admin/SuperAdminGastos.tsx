@@ -775,12 +775,27 @@ const SuperAdminGastos = () => {
                         <TableRow key={`h-${cat}`} className="bg-muted/40">
                           <TableCell colSpan={13} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
                         </TableRow>
-                        {items.map(r => (
-                          <TableRow key={r.id}>
+                        {items.map(r => {
+                          const deuda = deudaSaldos[r.id];
+                          const hasDeuda = !!deuda && deuda.saldo > 0;
+                          return (
+                          <TableRow key={r.id} className={hasDeuda ? "border-l-2 border-l-destructive" : ""}>
                             <TableCell className="sticky left-0 bg-card text-sm font-medium">
-                              <div className="flex items-center gap-2">
-                                {ambitoBadge(r.ambito)}
-                                <span>{r.concepto}</span>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  {ambitoBadge(r.ambito)}
+                                  <span>{r.concepto}</span>
+                                </div>
+                                {hasDeuda && (
+                                  <button
+                                    onClick={() => openDeuda(r)}
+                                    className="inline-flex items-center gap-1 text-[11px] text-destructive hover:underline self-start"
+                                    title="Ver y gestionar deuda"
+                                  >
+                                    <CreditCard className="w-3 h-3" />
+                                    Debe {fmt(deuda.saldo, deuda.moneda)}
+                                  </button>
+                                )}
                               </div>
                             </TableCell>
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(mm => {
