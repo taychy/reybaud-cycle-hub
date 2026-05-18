@@ -1033,4 +1033,55 @@ const ExtraEditor = ({
   );
 };
 
+const ReviewPicker = ({
+  item, grupos, onReassign, onFicha,
+}: {
+  item: ItemRow;
+  grupos: string[];
+  onReassign: (grupo: string) => void;
+  onFicha: () => void;
+}) => {
+  const [pick, setPick] = useState<string>("");
+  const opciones = grupos.filter(g => g !== item.alumno.grupo);
+  if (item.reasignado) {
+    return (
+      <div className="border border-emerald-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap bg-emerald-500/5">
+        <div className="flex-1 min-w-[200px]">
+          <p className="font-semibold text-sm">{item.alumno.nombre} {item.alumno.apellido || ""}</p>
+          <p className="text-xs text-emerald-600">Reasignado a <strong>{item.alumno.grupo}</strong></p>
+        </div>
+        <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
+          <Check className="w-3 h-3 mr-1" />Listo
+        </Badge>
+      </div>
+    );
+  }
+  return (
+    <div className="border border-amber-500/30 rounded-md p-3 space-y-2">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="flex-1 min-w-[200px]">
+          <p className="font-semibold text-sm">{item.alumno.nombre} {item.alumno.apellido || ""}</p>
+          <p className="text-xs text-muted-foreground">
+            Hoy figura en <strong>{item.alumno.grupo}</strong> · {item.planName}
+          </p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={onFicha}>
+          <ExternalLink className="w-3.5 h-3.5 mr-1" />Ficha
+        </Button>
+      </div>
+      <div className="flex gap-2 flex-wrap items-center">
+        <Select value={pick} onValueChange={setPick}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Elegí el grupo correcto…" /></SelectTrigger>
+          <SelectContent>
+            {opciones.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button size="sm" disabled={!pick} onClick={() => onReassign(pick)} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />Reasignar
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export default WhatsAppConciliador;
