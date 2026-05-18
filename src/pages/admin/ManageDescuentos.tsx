@@ -326,15 +326,16 @@ const ManageDescuentos = () => {
         </TabsList>
 
         <TabsContent value="descuentos" className="space-y-5 mt-4">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {categorias.filter(c => c.value !== "general").map(cat => {
-              const count = descuentos.filter(d => d.categoria === cat.value && d.activo).length;
+          {/* Summary cards — alumnos con descuento activo por categoría */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {categorias.map(cat => {
+              const count = alumnosConDescuento.filter(a => a.descuento_categoria === cat.value && a.activo).length;
               return (
                 <Card key={cat.value} className="bg-card border-border">
                   <CardContent className="p-4 text-center">
                     <p className="text-2xl font-heading font-bold text-foreground">{count}</p>
                     <p className="text-xs text-muted-foreground">{cat.label}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">{count === 1 ? "alumno" : "alumnos"}</p>
                   </CardContent>
                 </Card>
               );
