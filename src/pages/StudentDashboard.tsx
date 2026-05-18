@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal, AlertTriangle, Lock } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
 import { MedicalCertificateStudent } from "@/components/student/MedicalCertificateStudent";
+import { EmergencyMedicalSelfSection } from "@/components/student/EmergencyMedicalSelfSection";
 import BottomNav from "@/components/BottomNav";
 import { EventosContent } from "@/pages/Eventos";
 import { StudentProgressContent } from "@/pages/StudentProgress";
@@ -450,7 +451,16 @@ const StudentDashboard = () => {
               </div>
             </div>
 
-            {/* Trámites section */}
+            {/* Mis datos personales (emergencia + obra social) */}
+            {alumno && (
+              <EmergencyMedicalSelfSection
+                alumno={alumno}
+                onUpdate={(a) => setAlumno(a)}
+                readOnly={readOnly}
+              />
+            )}
+
+            {/* Trámites */}
             <div id="apto-fisico" className="space-y-3">
               <h3 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground px-1">
                 Trámites
