@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,46 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Receipt, Wallet, Trash2, Edit2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
+  CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+
+type Ambito = "personal" | "emprendimiento" | "mixto";
+type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
+type EstadoEjec = "pendiente" | "pagado" | "vencido" | "omitido" | "parcial";
+
+interface Recurrente {
+  id: string;
+  concepto: string;
+  categoria: string;
+  ambito: Ambito;
+  responsable: string | null;
+  monto_estimado: number;
+  moneda: string;
+  frecuencia: Frecuencia;
+  dia_vencimiento: number | null;
+  forma_pago_default: string | null;
+  proveedor: string | null;
+  notas: string | null;
+  activo: boolean;
+}
+
+interface Ejecucion {
+  id: string;
+  recurrente_id: string;
+  mes: string;
+  fecha_vencimiento: string | null;
+  monto_previsto: number;
+  moneda: string;
+  estado: EstadoEjec;
+  monto_pagado: number | null;
+  fecha_pago: string | null;
+  forma_pago: string | null;
+  notas: string | null;
+}
 
 interface GastoRow {
   id: string;
@@ -30,313 +68,675 @@ interface GastoRow {
   created_at: string;
 }
 
-const CATEGORIAS_GASTO = [
-  "Alquiler", "Sueldos", "Seguros", "Servicios", "Marketing",
-  "Equipamiento", "Mantenimiento", "Impuestos", "Comisiones", "Otros",
+const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
+const FORMA_PAGO_OPTS = [
+  { v: "efectivo", l: "Efectivo" },
+  { v: "transferencia", l: "Transferencia" },
+  { v: "tarjeta_credito", l: "Tarjeta de Crédito" },
+  { v: "mp_personal", l: "MP Personal" },
+  { v: "mp_josi", l: "MP Josi" },
+  { v: "mp_escuela", l: "MP Escuela" },
+  { v: "mp_tienda", l: "MP Tienda" },
+  { v: "mc_personal", l: "MC Personal" },
+  { v: "banco", l: "Banco" },
 ];
 
-const FORMA_PAGO_LABELS: Record<string, string> = {
-  efectivo: "Efectivo",
-  tarjeta_credito: "Tarjeta de Crédito",
-  mp_personal: "MP Personal",
-  mp_josi: "MP Josi",
-  mp_escuela: "MP Escuela",
-  mp_tienda: "MP Tienda",
-  mc_personal: "MC Personal",
-  banco: "Banco",
+const FORMA_PAGO_LABELS: Record<string, string> = Object.fromEntries(FORMA_PAGO_OPTS.map(o => [o.v, o.l]));
+
+const fmt = (n: number, m: string = "ARS") => formatPrice(n || 0, m);
+const monthLabel = (m: string) => {
+  const [y, mm] = m.split("-");
+  return new Date(Number(y), Number(mm) - 1, 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+};
+const nowMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+const parseDate = (s: string | null) => {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const daysTo = (s: string | null) => {
+  const d = parseDate(s);
+  if (!d) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
 };
 
-const fmtMoneda = (n: number, moneda: string) => formatPrice(n, moneda);
+const ambitoBadge = (a: Ambito) => {
+  const map: Record<Ambito, { l: string; cn: string; Icon: typeof Building2 }> = {
+    emprendimiento: { l: "Empresa", cn: "bg-primary/15 text-primary border-primary/30", Icon: Building2 },
+    personal: { l: "Personal", cn: "bg-accent/15 text-accent border-accent/30", Icon: Home },
+    mixto: { l: "Mixto", cn: "bg-muted text-foreground border-border", Icon: Boxes },
+  };
+  const { l, cn, Icon } = map[a];
+  return <Badge variant="outline" className={`gap-1 ${cn}`}><Icon className="w-3 h-3" />{l}</Badge>;
+};
+
+const estadoBadge = (e: EstadoEjec, dias: number | null) => {
+  if (e === "pagado") return <Badge className="bg-green-500/15 text-green-500 border-green-500/30 gap-1"><CheckCircle2 className="w-3 h-3" />Pagado</Badge>;
+  if (e === "vencido") return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />Vencido</Badge>;
+  if (e === "omitido") return <Badge variant="outline">Omitido</Badge>;
+  if (e === "parcial") return <Badge className="bg-yellow-500/15 text-yellow-500 border-yellow-500/30">Parcial</Badge>;
+  if (dias !== null && dias <= 3) return <Badge className="bg-orange-500/15 text-orange-500 border-orange-500/30 gap-1"><Clock className="w-3 h-3" />Vence en {dias}d</Badge>;
+  return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" />Pendiente</Badge>;
+};
 
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
+  const [mes, setMes] = useState(nowMonth());
+  const [recurrentes, setRecurrentes] = useState<Recurrente[]>([]);
+  const [ejecuciones, setEjecuciones] = useState<Ejecucion[]>([]);
   const [gastos, setGastos] = useState<GastoRow[]>([]);
-  const [gastoDialogOpen, setGastoDialogOpen] = useState(false);
-  const [editingGasto, setEditingGasto] = useState<GastoRow | null>(null);
 
-  const [gastoForm, setGastoForm] = useState({
-    categoria: "Otros",
-    subcategoria: "",
-    descripcion: "",
-    monto: "",
-    moneda: "ARS",
-    fecha: new Date().toISOString().split("T")[0],
-    recurrente: false,
-    frecuencia: "",
-    proveedor: "",
-    notas: "",
-    forma_pago: "efectivo",
+  // Catálogo dialog
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [editingRec, setEditingRec] = useState<Recurrente | null>(null);
+  const [recForm, setRecForm] = useState({
+    concepto: "", categoria: "Otros", ambito: "emprendimiento" as Ambito,
+    responsable: "Tay", monto_estimado: "", moneda: "ARS",
+    frecuencia: "mensual" as Frecuencia, dia_vencimiento: "10",
+    forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
+  });
+
+  // Pago dialog
+  const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
+  const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
+  const [pagoForm, setPagoForm] = useState({
+    monto: "", fecha: new Date().toISOString().split("T")[0],
+    forma_pago: "transferencia", notas: "",
   });
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("gastos").select("*").order("fecha", { ascending: false }).limit(500);
-    setGastos((data || []) as GastoRow[]);
+    const [recRes, ejecRes, gastosRes] = await Promise.all([
+      supabase.from("gastos_recurrentes").select("*").order("categoria").order("concepto"),
+      supabase.from("gastos_ejecuciones").select("*").eq("mes", mes),
+      supabase.from("gastos").select("*").order("fecha", { ascending: false }).limit(200),
+    ]);
+    setRecurrentes((recRes.data || []) as any);
+    setEjecuciones((ejecRes.data || []) as any);
+    setGastos((gastosRes.data || []) as any);
     setLoading(false);
-  }, []);
+  }, [mes]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleSaveGasto = async () => {
-    if (!gastoForm.descripcion || !gastoForm.monto) {
-      toast({ title: "Completá descripción y monto", variant: "destructive" });
-      return;
-    }
-    const payload = {
-      categoria: gastoForm.categoria,
-      subcategoria: gastoForm.subcategoria || null,
-      descripcion: gastoForm.descripcion,
-      monto: Number(gastoForm.monto),
-      moneda: gastoForm.moneda,
-      fecha: gastoForm.fecha,
-      recurrente: gastoForm.recurrente,
-      frecuencia: gastoForm.recurrente ? gastoForm.frecuencia || null : null,
-      proveedor: gastoForm.proveedor || null,
-      notas: gastoForm.notas || null,
-      forma_pago: gastoForm.forma_pago,
-    };
-
-    if (editingGasto) {
-      const { error } = await supabase.from("gastos").update(payload as any).eq("id", editingGasto.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Gasto actualizado" });
-    } else {
-      const { error } = await supabase.from("gastos").insert(payload as any);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Gasto registrado" });
-    }
-
-    setGastoDialogOpen(false);
-    setEditingGasto(null);
-    resetForm();
-    loadData();
-  };
-
-  const handleDeleteGasto = async (id: string) => {
-    const { error } = await supabase.from("gastos").delete().eq("id", id);
+  const generarMes = async () => {
+    const { error } = await supabase.rpc("generate_gastos_ejecuciones_month", { p_mes: mes });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Gasto eliminado" });
+    toast({ title: "Mes generado", description: `Ejecuciones de ${monthLabel(mes)} actualizadas` });
     loadData();
   };
 
-  const resetForm = () => {
-    setGastoForm({
-      categoria: "Otros", subcategoria: "", descripcion: "", monto: "", moneda: "ARS",
-      fecha: new Date().toISOString().split("T")[0], recurrente: false,
-      frecuencia: "", proveedor: "", notas: "", forma_pago: "efectivo",
+  // -------- KPIs ----------
+  const kpis = useMemo(() => {
+    const k = {
+      total: 0, pagado: 0, pendiente: 0, vencido: 0,
+      personal: 0, empresa: 0, mixto: 0, vencidoCount: 0, proximosCount: 0,
+    };
+    for (const e of ejecuciones) {
+      const rec = recurrentes.find(r => r.id === e.recurrente_id);
+      if (!rec) continue;
+      k.total += e.monto_previsto || 0;
+      if (e.estado === "pagado") k.pagado += e.monto_pagado || e.monto_previsto || 0;
+      else k.pendiente += e.monto_previsto || 0;
+      if (e.estado === "vencido") { k.vencido += e.monto_previsto || 0; k.vencidoCount++; }
+      const d = daysTo(e.fecha_vencimiento);
+      if (e.estado === "pendiente" && d !== null && d >= 0 && d <= 7) k.proximosCount++;
+      if (rec.ambito === "personal") k.personal += e.monto_previsto || 0;
+      else if (rec.ambito === "emprendimiento") k.empresa += e.monto_previsto || 0;
+      else k.mixto += e.monto_previsto || 0;
+    }
+    return k;
+  }, [ejecuciones, recurrentes]);
+
+  // Agenda (pendientes ordenados por fecha)
+  const agenda = useMemo(() => {
+    return ejecuciones
+      .filter(e => e.estado === "pendiente" || e.estado === "vencido" || e.estado === "parcial")
+      .map(e => ({ e, rec: recurrentes.find(r => r.id === e.recurrente_id)! }))
+      .filter(x => x.rec)
+      .sort((a, b) => (a.e.fecha_vencimiento || "").localeCompare(b.e.fecha_vencimiento || ""));
+  }, [ejecuciones, recurrentes]);
+
+  // -------- Acciones ----------
+  const openPagar = (e: Ejecucion, rec: Recurrente) => {
+    setPayingEjec({ ejec: e, rec });
+    setPagoForm({
+      monto: String(e.monto_previsto || rec.monto_estimado),
+      fecha: new Date().toISOString().split("T")[0],
+      forma_pago: rec.forma_pago_default || "transferencia",
+      notas: "",
     });
+    setPagoDialogOpen(true);
   };
 
-  const openEditGasto = (g: GastoRow) => {
-    setEditingGasto(g);
-    setGastoForm({
-      categoria: g.categoria,
-      subcategoria: g.subcategoria || "",
-      descripcion: g.descripcion,
-      monto: String(g.monto),
-      moneda: g.moneda || "ARS",
-      fecha: g.fecha,
-      recurrente: g.recurrente,
-      frecuencia: g.frecuencia || "",
-      proveedor: g.proveedor || "",
-      notas: g.notas || "",
-      forma_pago: g.forma_pago || "efectivo",
+  const confirmarPago = async () => {
+    if (!payingEjec) return;
+    const { error } = await supabase.rpc("pay_gasto_ejecucion", {
+      p_id: payingEjec.ejec.id,
+      p_monto: Number(pagoForm.monto),
+      p_fecha: pagoForm.fecha,
+      p_forma_pago: pagoForm.forma_pago,
+      p_notas: pagoForm.notas || null,
     });
-    setGastoDialogOpen(true);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Pago registrado", description: payingEjec.rec.concepto });
+    setPagoDialogOpen(false); setPayingEjec(null);
+    loadData();
   };
+
+  const omitirEjec = async (id: string) => {
+    const { error } = await supabase.from("gastos_ejecuciones").update({ estado: "omitido" as EstadoEjec }).eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Marcado como omitido" });
+    loadData();
+  };
+
+  // -------- Catálogo ----------
+  const resetRecForm = () => setRecForm({
+    concepto: "", categoria: "Otros", ambito: "emprendimiento",
+    responsable: "Tay", monto_estimado: "", moneda: "ARS",
+    frecuencia: "mensual", dia_vencimiento: "10",
+    forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
+  });
+
+  const openEditRec = (r: Recurrente) => {
+    setEditingRec(r);
+    setRecForm({
+      concepto: r.concepto, categoria: r.categoria, ambito: r.ambito,
+      responsable: r.responsable || "Tay", monto_estimado: String(r.monto_estimado),
+      moneda: r.moneda, frecuencia: r.frecuencia,
+      dia_vencimiento: String(r.dia_vencimiento || 10),
+      forma_pago_default: r.forma_pago_default || "transferencia",
+      proveedor: r.proveedor || "", notas: r.notas || "", activo: r.activo,
+    });
+    setCatDialogOpen(true);
+  };
+
+  const saveRec = async () => {
+    if (!recForm.concepto.trim()) { toast({ title: "Falta el concepto", variant: "destructive" }); return; }
+    const payload = {
+      concepto: recForm.concepto.trim(),
+      categoria: recForm.categoria,
+      ambito: recForm.ambito,
+      responsable: recForm.responsable || null,
+      monto_estimado: Number(recForm.monto_estimado) || 0,
+      moneda: recForm.moneda,
+      frecuencia: recForm.frecuencia,
+      dia_vencimiento: recForm.dia_vencimiento ? Number(recForm.dia_vencimiento) : null,
+      forma_pago_default: recForm.forma_pago_default,
+      proveedor: recForm.proveedor || null,
+      notas: recForm.notas || null,
+      activo: recForm.activo,
+    };
+    if (editingRec) {
+      const { error } = await supabase.from("gastos_recurrentes").update(payload as any).eq("id", editingRec.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Actualizado" });
+    } else {
+      const { error } = await supabase.from("gastos_recurrentes").insert(payload as any);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Concepto agregado" });
+    }
+    setCatDialogOpen(false); setEditingRec(null); resetRecForm();
+    loadData();
+  };
+
+  const deleteRec = async (id: string) => {
+    if (!confirm("¿Eliminar este concepto recurrente? También se borrarán sus ejecuciones futuras.")) return;
+    const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Eliminado" });
+    loadData();
+  };
+
+  // -------- Matriz (concepto × mes) ----------
+  const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
+  const [matrizData, setMatrizData] = useState<Record<string, Record<number, Ejecucion | null>>>({});
+
+  const loadMatriz = useCallback(async () => {
+    const ini = `${matrizYear}-01`; const fin = `${matrizYear}-12`;
+    const { data } = await supabase.from("gastos_ejecuciones").select("*").gte("mes", ini).lte("mes", fin);
+    const grid: Record<string, Record<number, Ejecucion | null>> = {};
+    for (const e of (data || []) as Ejecucion[]) {
+      const m = Number(e.mes.split("-")[1]);
+      if (!grid[e.recurrente_id]) grid[e.recurrente_id] = {};
+      grid[e.recurrente_id][m] = e;
+    }
+    setMatrizData(grid);
+  }, [matrizYear]);
+
+  useEffect(() => { loadMatriz(); }, [loadMatriz, ejecuciones]);
 
   if (loading) return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando gastos...</div>;
 
-  const startOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
-  const gastosPorCategoria = gastos
-    .filter(g => g.fecha >= startOfMonth)
-    .reduce((acc, g) => { acc[g.categoria] = (acc[g.categoria] || 0) + g.monto; return acc; }, {} as Record<string, number>);
-  const gastosCatArray = Object.entries(gastosPorCategoria).map(([cat, total]) => ({ cat, total })).sort((a, b) => b.total - a.total);
-  const maxGastoCat = Math.max(...gastosCatArray.map(g => g.total), 1);
+  const recByCategoria = recurrentes.reduce((acc, r) => {
+    (acc[r.categoria] = acc[r.categoria] || []).push(r);
+    return acc;
+  }, {} as Record<string, Recurrente[]>);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gastos</h1>
-        <p className="text-sm text-muted-foreground">Registro y control de gastos operativos</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gastos</h1>
+          <p className="text-sm text-muted-foreground">Catálogo recurrente, agenda de pagos y control mensual</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-44" />
+          <Button variant="outline" size="sm" onClick={generarMes} className="gap-1">
+            <RefreshCw className="w-4 h-4" /> Generar mes
+          </Button>
+        </div>
       </div>
 
-      {/* Gastos por categoría */}
-      <Card className="border-border">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider">Total previsto</div>
+          <div className="text-xl font-heading font-bold mt-1">{fmt(kpis.total)}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">{monthLabel(mes)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider">Pagado</div>
+          <div className="text-xl font-heading font-bold mt-1 text-green-500">{fmt(kpis.pagado)}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">{kpis.total > 0 ? Math.round((kpis.pagado / kpis.total) * 100) : 0}% del mes</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider">Pendiente</div>
+          <div className="text-xl font-heading font-bold mt-1 text-orange-500">{fmt(kpis.pendiente)}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">{kpis.proximosCount} vencen en 7 días</div>
+        </CardContent></Card>
+        <Card className={kpis.vencidoCount > 0 ? "border-destructive" : ""}>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">Vencido</div>
+            <div className="text-xl font-heading font-bold mt-1 text-destructive">{fmt(kpis.vencido)}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{kpis.vencidoCount} item{kpis.vencidoCount !== 1 ? "s" : ""}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Personal vs Empresa */}
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-destructive" />
-            Gastos del mes por categoría
-          </CardTitle>
+          <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Distribución del mes</CardTitle>
         </CardHeader>
-        <CardContent>
-          {gastosCatArray.length > 0 ? (
-            <div className="space-y-3">
-              {gastosCatArray.map((g) => (
-                <div key={g.cat} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{g.cat}</span>
-                    <span className="font-heading font-bold">${g.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
-                  </div>
-                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-destructive/70 rounded-full" style={{ width: `${(g.total / maxGastoCat) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
+        <CardContent className="space-y-3">
+          {[
+            { l: "Emprendimiento", v: kpis.empresa, Icon: Building2, cn: "bg-primary" },
+            { l: "Personal", v: kpis.personal, Icon: Home, cn: "bg-accent" },
+            { l: "Mixto", v: kpis.mixto, Icon: Boxes, cn: "bg-muted-foreground" },
+          ].map(({ l, v, Icon, cn }) => (
+            <div key={l} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-muted-foreground"><Icon className="w-3.5 h-3.5" />{l}</span>
+                <span className="font-heading font-bold">{fmt(v)}</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className={`h-full ${cn} rounded-full`} style={{ width: `${kpis.total > 0 ? (v / kpis.total) * 100 : 0}%` }} />
+              </div>
             </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground text-sm">No hay gastos registrados este mes</div>
-          )}
+          ))}
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-primary" />
-              Gestión de gastos
-            </CardTitle>
-            <Dialog open={gastoDialogOpen} onOpenChange={(open) => { setGastoDialogOpen(open); if (!open) { setEditingGasto(null); resetForm(); } }}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="gold" className="gap-1"><Plus className="w-4 h-4" /> Registrar gasto</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{editingGasto ? "Editar gasto" : "Registrar gasto"}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Categoría</Label>
-                      <Select value={gastoForm.categoria} onValueChange={(v) => setGastoForm(f => ({ ...f, categoria: v }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{CATEGORIAS_GASTO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Fecha</Label>
-                      <Input type="date" value={gastoForm.fecha} onChange={(e) => setGastoForm(f => ({ ...f, fecha: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Descripción</Label>
-                    <Input value={gastoForm.descripcion} onChange={(e) => setGastoForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Ej: Alquiler local Palermo" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Moneda</Label>
-                      <Select value={gastoForm.moneda} onValueChange={(v) => setGastoForm(f => ({ ...f, moneda: v }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ARS">$ ARS</SelectItem>
-                          <SelectItem value="USD">US$ USD</SelectItem>
-                          <SelectItem value="EUR">€ EUR</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Monto</Label>
-                      <Input type="number" value={gastoForm.monto} onChange={(e) => setGastoForm(f => ({ ...f, monto: e.target.value }))} placeholder="0" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Proveedor</Label>
-                      <Input value={gastoForm.proveedor} onChange={(e) => setGastoForm(f => ({ ...f, proveedor: e.target.value }))} placeholder="Opcional" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Forma de pago</Label>
-                    <Select value={gastoForm.forma_pago} onValueChange={(v) => setGastoForm(f => ({ ...f, forma_pago: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="efectivo">Efectivo</SelectItem>
-                        <SelectItem value="tarjeta_credito">Tarjeta de Crédito</SelectItem>
-                        <SelectItem value="mp_personal">Mercado Pago Personal</SelectItem>
-                        <SelectItem value="mp_josi">Mercado Pago Josi</SelectItem>
-                        <SelectItem value="mp_escuela">Mercado Pago Escuela</SelectItem>
-                        <SelectItem value="mp_tienda">Mercado Pago Tienda</SelectItem>
-                        <SelectItem value="mc_personal">Mercado Crédito Personal</SelectItem>
-                        <SelectItem value="banco">Banco</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch checked={gastoForm.recurrente} onCheckedChange={(v) => setGastoForm(f => ({ ...f, recurrente: v }))} />
-                    <Label className="text-xs">Gasto recurrente</Label>
-                    {gastoForm.recurrente && (
-                      <Select value={gastoForm.frecuencia} onValueChange={(v) => setGastoForm(f => ({ ...f, frecuencia: v }))}>
-                        <SelectTrigger className="w-32"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mensual">Mensual</SelectItem>
-                          <SelectItem value="trimestral">Trimestral</SelectItem>
-                          <SelectItem value="anual">Anual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Notas</Label>
-                    <Textarea value={gastoForm.notas} onChange={(e) => setGastoForm(f => ({ ...f, notas: e.target.value }))} rows={2} placeholder="Opcional" />
-                  </div>
-                  <Button onClick={handleSaveGasto} className="w-full" variant="gold">
-                    {editingGasto ? "Guardar cambios" : "Registrar gasto"}
-                  </Button>
+      <Tabs defaultValue="agenda">
+        <TabsList>
+          <TabsTrigger value="agenda" className="gap-1"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
+          <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
+          <TabsTrigger value="catalogo" className="gap-1"><Wallet className="w-4 h-4" />Catálogo</TabsTrigger>
+          <TabsTrigger value="historico" className="gap-1"><Receipt className="w-4 h-4" />Histórico</TabsTrigger>
+        </TabsList>
+
+        {/* AGENDA */}
+        <TabsContent value="agenda" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Pendientes de pagar — {monthLabel(mes)}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {agenda.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">
+                  No hay pagos pendientes este mes. {ejecuciones.length === 0 && "Generá el mes para crear las cuotas."}
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {gastos.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">No hay gastos registrados.</div>
-          ) : (
-            <div className="overflow-x-auto">
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Concepto</TableHead>
+                        <TableHead>Ámbito</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Vence</TableHead>
+                        <TableHead>Resp.</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        <TableHead className="w-32">Acción</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {agenda.map(({ e, rec }) => {
+                        const d = daysTo(e.fecha_vencimiento);
+                        return (
+                          <TableRow key={e.id} className={e.estado === "vencido" ? "bg-destructive/5" : ""}>
+                            <TableCell>{estadoBadge(e.estado, d)}</TableCell>
+                            <TableCell className="font-medium">{rec.concepto}</TableCell>
+                            <TableCell>{ambitoBadge(rec.ambito)}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{rec.categoria}</Badge></TableCell>
+                            <TableCell className="text-xs">
+                              {e.fecha_vencimiento ? parseDate(e.fecha_vencimiento)!.toLocaleDateString("es-AR") : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{rec.responsable || "—"}</TableCell>
+                            <TableCell className="text-right font-heading font-bold">{fmt(e.monto_previsto, e.moneda)}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="gold" className="h-7 text-xs" onClick={() => openPagar(e, rec)}>Pagar</Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => omitirEjec(e.id)} title="Marcar omitido">
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* MATRIZ */}
+        <TabsContent value="matriz" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Matriz anual</CardTitle>
+              <Select value={String(matrizYear)} onValueChange={(v) => setMatrizYear(Number(v))}>
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-card min-w-[200px]">Concepto</TableHead>
+                      {["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"].map((m, i) => (
+                        <TableHead key={i} className="text-center text-xs">{m}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(recByCategoria).map(([cat, items]) => (
+                      <>
+                        <TableRow key={`h-${cat}`} className="bg-muted/40">
+                          <TableCell colSpan={13} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
+                        </TableRow>
+                        {items.map(r => (
+                          <TableRow key={r.id}>
+                            <TableCell className="sticky left-0 bg-card text-sm font-medium">
+                              <div className="flex items-center gap-2">
+                                {ambitoBadge(r.ambito)}
+                                <span>{r.concepto}</span>
+                              </div>
+                            </TableCell>
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(mm => {
+                              const ej = matrizData[r.id]?.[mm];
+                              const monto = ej?.monto_pagado || ej?.monto_previsto || 0;
+                              let cls = "text-muted-foreground/40";
+                              if (ej?.estado === "pagado") cls = "text-green-500 bg-green-500/5";
+                              else if (ej?.estado === "vencido") cls = "text-destructive bg-destructive/5 font-bold";
+                              else if (ej?.estado === "pendiente") cls = "text-orange-500";
+                              return (
+                                <TableCell key={mm} className={`text-center text-xs ${cls}`}>
+                                  {monto > 0 ? Math.round(monto / 1000) + "k" : "—"}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* CATALOGO */}
+        <TabsContent value="catalogo" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Catálogo de gastos recurrentes</CardTitle>
+              <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); resetRecForm(); setCatDialogOpen(true); }}>
+                <Plus className="w-4 h-4" /> Nuevo
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fecha</TableHead>
+                    <TableHead>Concepto</TableHead>
                     <TableHead>Categoría</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Forma de pago</TableHead>
-                    <TableHead>Proveedor</TableHead>
-                     <TableHead>Moneda</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead>Ámbito</TableHead>
+                    <TableHead>Frec.</TableHead>
+                    <TableHead>Vence día</TableHead>
+                    <TableHead>Resp.</TableHead>
+                    <TableHead className="text-right">Estimado</TableHead>
+                    <TableHead>Activo</TableHead>
                     <TableHead className="w-20">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {gastos.slice(0, 20).map((g) => (
-                    <TableRow key={g.id}>
-                      <TableCell className="text-xs">{new Date(g.fecha + "T12:00:00").toLocaleDateString("es-AR")}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
-                      <TableCell className="text-sm max-w-[200px] truncate">{g.descripcion}</TableCell>
-                      <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || "Efectivo"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[10px]">{g.moneda || "ARS"}</Badge></TableCell>
-                      <TableCell className="text-right font-heading font-bold">{fmtMoneda(g.monto, g.moneda || "ARS")}</TableCell>
-                      <TableCell>
-                        {g.recurrente ? (
-                          <Badge variant="secondary" className="text-[10px]">{g.frecuencia || "Recurrente"}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Único</span>
-                        )}
-                      </TableCell>
+                  {recurrentes.map(r => (
+                    <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
+                      <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
+                      <TableCell>{ambitoBadge(r.ambito)}</TableCell>
+                      <TableCell className="text-xs">{r.frecuencia}</TableCell>
+                      <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
+                      <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
+                      <TableCell>{r.activo ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditGasto(g)}><Edit2 className="w-3 h-3" /></Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteGasto(g.id)}><Trash2 className="w-3 h-3" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)}><Edit2 className="w-3 h-3" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteRec(r.id)}><Trash2 className="w-3 h-3" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* HISTORICO */}
+        <TabsContent value="historico" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Histórico contable</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {gastos.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">Sin movimientos</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead>Forma de pago</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {gastos.slice(0, 30).map(g => (
+                      <TableRow key={g.id}>
+                        <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
+                        <TableCell className="text-sm max-w-[300px] truncate">{g.descripcion}</TableCell>
+                        <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
+                        <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* DIALOG: Catálogo */}
+      <Dialog open={catDialogOpen} onOpenChange={(o) => { setCatDialogOpen(o); if (!o) { setEditingRec(null); resetRecForm(); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingRec ? "Editar concepto" : "Nuevo concepto recurrente"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Concepto</Label>
+              <Input value={recForm.concepto} onChange={(e) => setRecForm(f => ({ ...f, concepto: e.target.value }))} placeholder="Ej: Alquiler Oficina" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Categoría</Label>
+                <Select value={recForm.categoria} onValueChange={(v) => setRecForm(f => ({ ...f, categoria: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ámbito</Label>
+                <Select value={recForm.ambito} onValueChange={(v) => setRecForm(f => ({ ...f, ambito: v as Ambito }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="emprendimiento">Emprendimiento</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="mixto">Mixto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Moneda</Label>
+                <Select value={recForm.moneda} onValueChange={(v) => setRecForm(f => ({ ...f, moneda: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">$ ARS</SelectItem>
+                    <SelectItem value="USD">US$ USD</SelectItem>
+                    <SelectItem value="EUR">€ EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Monto estimado</Label>
+                <Input type="number" value={recForm.monto_estimado} onChange={(e) => setRecForm(f => ({ ...f, monto_estimado: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Día venc.</Label>
+                <Input type="number" min={1} max={31} value={recForm.dia_vencimiento} onChange={(e) => setRecForm(f => ({ ...f, dia_vencimiento: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Frecuencia</Label>
+                <Select value={recForm.frecuencia} onValueChange={(v) => setRecForm(f => ({ ...f, frecuencia: v as Frecuencia }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mensual">Mensual</SelectItem>
+                    <SelectItem value="bimestral">Bimestral</SelectItem>
+                    <SelectItem value="trimestral">Trimestral</SelectItem>
+                    <SelectItem value="semestral">Semestral</SelectItem>
+                    <SelectItem value="anual">Anual</SelectItem>
+                    <SelectItem value="variable">Variable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Responsable</Label>
+                <Select value={recForm.responsable} onValueChange={(v) => setRecForm(f => ({ ...f, responsable: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Tay">Tay</SelectItem>
+                    <SelectItem value="Clau">Clau</SelectItem>
+                    <SelectItem value="Ambos">Ambos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Forma de pago habitual</Label>
+              <Select value={recForm.forma_pago_default} onValueChange={(v) => setRecForm(f => ({ ...f, forma_pago_default: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{FORMA_PAGO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Proveedor (opcional)</Label>
+              <Input value={recForm.proveedor} onChange={(e) => setRecForm(f => ({ ...f, proveedor: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Notas</Label>
+              <Textarea rows={2} value={recForm.notas} onChange={(e) => setRecForm(f => ({ ...f, notas: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch checked={recForm.activo} onCheckedChange={(v) => setRecForm(f => ({ ...f, activo: v }))} />
+              <Label className="text-xs">Activo (genera ejecuciones cada mes)</Label>
+            </div>
+            <Button onClick={saveRec} className="w-full" variant="gold">{editingRec ? "Guardar" : "Crear concepto"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: Pagar */}
+      <Dialog open={pagoDialogOpen} onOpenChange={setPagoDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Registrar pago</DialogTitle></DialogHeader>
+          {payingEjec && (
+            <div className="space-y-3">
+              <div className="p-3 rounded-md bg-muted/40 space-y-1">
+                <div className="font-heading font-bold">{payingEjec.rec.concepto}</div>
+                <div className="text-xs text-muted-foreground">
+                  {payingEjec.rec.categoria} · {monthLabel(payingEjec.ejec.mes)} · vence {payingEjec.ejec.fecha_vencimiento ? parseDate(payingEjec.ejec.fecha_vencimiento)!.toLocaleDateString("es-AR") : "—"}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Monto real</Label>
+                  <Input type="number" value={pagoForm.monto} onChange={(e) => setPagoForm(f => ({ ...f, monto: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fecha de pago</Label>
+                  <Input type="date" value={pagoForm.fecha} onChange={(e) => setPagoForm(f => ({ ...f, fecha: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Forma de pago</Label>
+                <Select value={pagoForm.forma_pago} onValueChange={(v) => setPagoForm(f => ({ ...f, forma_pago: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{FORMA_PAGO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Notas (opcional)</Label>
+                <Textarea rows={2} value={pagoForm.notas} onChange={(e) => setPagoForm(f => ({ ...f, notas: e.target.value }))} />
+              </div>
+              <Button onClick={confirmarPago} variant="gold" className="w-full">Confirmar pago</Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
