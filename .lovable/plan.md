@@ -1,112 +1,75 @@
-# Centro de Control → Gestor de Tareas multi-rol
+## Objetivo
+Agregar a la ficha del alumno: **familiares en la escuela** (vínculos a alumnos + externos), **contacto de emergencia** (hasta 2) y **obra social/prepaga** (texto libre). Contacto de emergencia y obra social son **autogestionados por el alumno**.
 
-## Concepto
+## 1. Base de datos (migración)
 
-El Centro de Control deja de ser solo un tablero de alertas y pasa a ser un **inbox de tareas operativas** filtrado por el rol del usuario logueado. Cada tarea tiene responsable, vencimiento, estado y trazabilidad. Conviven tareas generadas automáticamente por reglas del sistema con tareas creadas manualmente por un admin.
+**Tabla `alumnos`** — agregar columnas:
+- `contacto_emergencia_relacion` (text) — para el contacto 1 ya existente
+- `contacto_emergencia_nombre_2`, `contacto_emergencia_telefono_2`, `contacto_emergencia_relacion_2` (text)
+- `obra_social_nombre` (text)
+- `obra_social_numero_socio` (text)
+- `obra_social_plan` (text, opcional)
 
-## Roles soportados
+**Tabla nueva `alumno_familiares`**:
+| Campo | Tipo | Nota |
+|---|---|---|
+| id | uuid PK | |
+| alumno_id | uuid FK → alumnos | NOT NULL |
+| familiar_alumno_id | uuid FK → alumnos | nullable (si es alumno) |
+| familiar_externo_nombre | text | si no es alumno |
+| familiar_externo_telefono | text | opcional |
+| relacion | text | padre, madre, hijo, hermano, conyuge, otro |
+| notas | text | |
+| created_at, created_by | | |
 
-- **Super Admin** — ve todas las tareas de todos los roles + las suyas.
-- **Admin** — ve tareas de rol `admin` + las asignadas a su persona.
-- **Coach** — ve tareas de rol `coach` + las asignadas a su persona.
-- **Depósito** — ve tareas de rol `deposito` + las asignadas a su persona.
+- CHECK: `familiar_alumno_id IS NOT NULL OR familiar_externo_nombre IS NOT NULL`
+- UNIQUE `(alumno_id, familiar_alumno_id)` cuando no es nulo
+- **Trigger reciprocidad**: si se inserta A→B (con familiar_alumno_id), se crea B→A con relación inversa (mapping: padre/madre→hijo, hijo→padre_madre, hermano/conyuge/otro→sí mismo). Sin loop infinito (chequea si ya existe).
+- **Trigger de borrado**: al borrar A→B, borrar B→A también.
 
-## Modelo de datos
+**RLS**:
+- `alumno_familiares`: admin full; alumno puede SELECT donde `alumno_id` corresponde a su perfil (vía `auth.email()`).
+- Columnas nuevas de `alumnos`: las policies existentes ya cubren self-update.
 
-Tabla nueva `tareas`:
+## 2. Tarea automática (recordatorio no bloqueante)
+Agregar en `generate_tareas_automaticas()` un origen `datos_emergencia_incompletos`:
+- Si alumno activo y `contacto_emergencia_nombre IS NULL OR obra_social_nombre IS NULL` después de 30 días desde `created_at`.
+- Bucket quincenal, prioridad media, rol_destino `admin`.
 
-- `tipo` (`automatica` | `manual` | `recurrente`)
-- `origen` (clave estable: `whatsapp_check`, `alumno_inactivo_30d`, `coach_sin_feedback_14d`, `certificado_por_vencer`, `pago_pendiente_validar`, `stock_bajo`, `manual`, etc.)
-- `titulo`, `descripcion`
-- `rol_destino` (`super_admin` | `admin` | `coach` | `deposito`)
-- `asignado_user_id` (nullable — si está, prevalece sobre el rol)
-- `entidad_tipo` + `entidad_id` (deep-link opcional: alumno, suscripción, evento, etc.)
-- `prioridad` (`baja` | `media` | `alta` | `critica`)
-- `fecha_vencimiento` (date, nullable)
-- `estado` (`pendiente` | `en_curso` | `hecha` | `pospuesta`)
-- `pospuesta_hasta` (date, nullable)
-- `nota_cierre`, `cerrada_por`, `cerrada_at`
-- `dedupe_key` (texto único, evita duplicados de la misma tarea automática)
-- `created_by`, `created_at`, `updated_at`
+## 3. Frontend — Admin (ficha alumno)
 
-Tabla `tareas_historial` para auditoría (cambios de estado, reasignaciones, notas).
+**`ManageStudents.tsx`** — en el drawer del alumno, agregar 3 cards nuevas (solo lectura para admin, con CTA "Solicitar al alumno"):
+- **Contacto de emergencia** (lista hasta 2)
+- **Cobertura médica** (obra social + n° socio + plan)
+- **Familiares en la escuela** (lista) con CTA `+ Vincular familiar` → dialog:
+  - Toggle: "Alumno de la escuela" / "Externo"
+  - Si alumno: search-select de alumnos
+  - Si externo: nombre + teléfono
+  - Select de relación
+  - Notas
+  - Botones eliminar por fila
 
-RLS:
-- Super Admin: ALL
-- Admin/Coach/Depósito: SELECT/UPDATE de tareas de su rol o asignadas a su `user_id`
-- Solo Admin/Super Admin pueden crear tareas manuales
+Crear componente nuevo `src/components/admin/StudentEmergencyMedicalSection.tsx` y `StudentFamiliaresSection.tsx` para mantener `ManageStudents.tsx` limpio.
 
-## UI del Centro de Control
+## 4. Frontend — Alumno (autogestión)
 
-Reemplazo de la vista actual por 3 zonas:
+En `StudentDashboard.tsx` tab "mas", agregar nueva sección **"Mis datos personales"** con:
+- Card "Contacto de emergencia" → edit dialog con 2 contactos
+- Card "Cobertura médica" → edit dialog con obra social
+- Badge ⚠️ "Completá tus datos" si están vacíos
+- Anchor `#datos-emergencia` para deep link
 
-```text
-┌─────────────────────────────────────────────────┐
-│  KPIs:  Pendientes  En curso  Vencidas  Hoy     │
-├─────────────────────────────────────────────────┤
-│  Tabs:  [Mis tareas] [Por rol] [Todas*]         │
-│  Filtros: prioridad · origen · vencimiento      │
-│                              [+ Nueva tarea]    │
-├─────────────────────────────────────────────────┤
-│  Lista de tareas (cards):                       │
-│   • Título + chip de origen + chip de rol       │
-│   • Vencimiento (rojo si vencida)               │
-│   • Botones: Tomar · En curso · Posponer · ✓    │
-│   • Click → drawer con detalle, historial,      │
-│     deep-link a la entidad relacionada          │
-└─────────────────────────────────────────────────┘
-```
+Componente nuevo `src/components/student/EmergencyContactCard.tsx` y `MedicalCoverageCard.tsx`. Updates se hacen contra `alumnos` filtrado por `user_id = auth.uid()` (RLS existente lo permite).
 
-`*Todas` solo visible para Super Admin.
+## 5. Memoria
+Guardar memoria `mem://features/student-emergency-medical-family` con la lógica (campos, tabla, trigger reciprocidad, autogestión).
 
-Debajo, en colapsable, se mantienen los paneles existentes (alumnos en riesgo, feedback de coaches, actividad de coaches) como **datos de contexto** — ya no como alertas sueltas, porque las tareas las resumen.
+---
 
-## Generación automática (Fase 1, sin cron)
+## Decisiones tomadas (de las preguntas)
+- Familiares: alumnos + externos (ambos)
+- Contacto emergencia: hasta 2
+- Obra social: texto libre (sin select)
+- Obligatoriedad: recordatorio no bloqueante (badge + tarea a los 30 días)
 
-Función SQL `generate_tareas_automaticas()` (SECURITY DEFINER) que se ejecuta on-demand al entrar al centro de control + botón manual "Refrescar tareas". Reglas iniciales:
-
-- **WhatsApp check** — días 5-7 y 15-17 → tarea para `admin` por cada grupo no cerrado.
-- **Alumno inactivo +30d** activo con plan → tarea `admin`, prioridad alta.
-- **Coach sin feedback +14d** → tarea para ese `coach` específico.
-- **Certificado médico vencido o por vencer (30d)** → tarea `admin`.
-- **Pagos `pendiente_verificacion` >48h** → tarea `admin`, prioridad alta.
-
-Cada regla usa `dedupe_key` (ej: `whatsapp_check:Avanzado:2026-05`) para no duplicar.
-
-Más adelante (Fase 2) se programa con `pg_cron` y se agregan reglas de depósito.
-
-## Tareas manuales
-
-Drawer "Nueva tarea":
-- Título, descripción, prioridad, vencimiento
-- Rol destino (obligatorio)
-- Asignar a persona (opcional, lista filtrada por rol)
-- Vincular entidad (opcional: buscar alumno/evento)
-
-## Ciclo de vida
-
-`pendiente` → `en_curso` → `hecha` (con nota opcional)
-- "Posponer" pide nueva fecha y motivo, vuelve a `pendiente` cuando llega esa fecha.
-- Cerrar tarea registra `cerrada_por` + `cerrada_at` + nota → escribe en `tareas_historial`.
-
-## Integración con la alarma de WhatsApp
-
-El componente `WhatsAppCheckAlert` se transforma en **generador de tareas** en lugar de banner aislado: si estamos en ventana 5-7 / 15-17, crea tareas por grupo. La alarma roja desaparece — ahora las tareas vencidas son la señal.
-
-## Entregables
-
-1. Migración: tabla `tareas`, `tareas_historial`, función `generate_tareas_automaticas()`, RLS, índices.
-2. Hook `useTareas(role, userId)` con realtime.
-3. Componentes: `TareasInbox`, `TareaCard`, `TareaDrawer`, `NuevaTareaDialog`.
-4. Refactor `SuperAdminControl.tsx` para usar el inbox como vista principal.
-5. Adaptar `WhatsAppCheckAlert` para generar tareas.
-6. KPIs por rol en el header.
-
-## Fuera de alcance (ahora)
-
-- Notificaciones por email/push de tareas.
-- `pg_cron` automático (lo dejamos para Fase 2 cuando las reglas estén estables).
-- Tareas para rol `student`.
-- Comentarios/colaboración multi-usuario en una tarea.
-
-¿Avanzo con esta arquitectura, o querés ajustar alguna regla automática inicial o el set de estados antes de empezar?
+Si te parece, lo implemento en este orden: 1) migración + RLS, 2) componentes admin, 3) componentes alumno, 4) tarea automática + memoria.
