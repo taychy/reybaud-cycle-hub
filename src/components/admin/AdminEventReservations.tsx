@@ -1194,7 +1194,7 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
                           </DropdownMenuItem>
-                          {r.external_participant_id && r.access_token && (
+                          {isTripLike && r.access_token && (
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => {
