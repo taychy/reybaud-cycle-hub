@@ -359,6 +359,103 @@ const SuperAdminGastos = () => {
     loadData();
   };
 
+  // -------- Deuda ----------
+  const loadDeudaMovs = async (recId: string) => {
+    const { data } = await supabase
+      .from("gastos_deuda_movimientos" as any)
+      .select("id,tipo,monto,fecha,concepto,forma_pago,notas,gasto_id")
+      .eq("recurrente_id", recId)
+      .order("fecha", { ascending: false });
+    setDeudaMovs((data || []) as any);
+  };
+
+  const loadDeudaDetalle = async (recId: string) => {
+    const { data } = await supabase.rpc("get_gasto_recurrente_saldo_deuda" as any, { p_rec_id: recId });
+    const row: any = (data && (data as any[])[0]) || null;
+    if (row) {
+      setDeudaDetalle({
+        automatica: Number(row.deuda_automatica || 0),
+        cargos: Number(row.cargos_manuales || 0),
+        ajustes: Number(row.ajustes || 0),
+        pagos: Number(row.pagos_deuda || 0),
+        saldo: Number(row.saldo_total || 0),
+        moneda: row.moneda || "ARS",
+      });
+    } else setDeudaDetalle(null);
+  };
+
+  const openDeuda = async (rec: Recurrente) => {
+    setDeudaRec(rec);
+    setEditingDeudaMovId(null);
+    setDeudaForm({
+      tipo: "pago", monto: "", fecha: new Date().toISOString().split("T")[0],
+      forma_pago: rec.forma_pago_default || "transferencia", concepto: "", notas: "",
+    });
+    await Promise.all([loadDeudaMovs(rec.id), loadDeudaDetalle(rec.id)]);
+    setDeudaDialogOpen(true);
+  };
+
+  const confirmarDeudaMov = async () => {
+    if (!deudaRec) return;
+    const monto = Number(deudaForm.monto);
+    if (!monto || monto <= 0) { toast({ title: "Monto inválido", variant: "destructive" }); return; }
+
+    if (editingDeudaMovId) {
+      const { error } = await supabase.rpc("update_gasto_deuda_mov" as any, {
+        p_id: editingDeudaMovId, p_monto: monto, p_fecha: deudaForm.fecha,
+        p_forma_pago: deudaForm.forma_pago || null,
+        p_concepto: deudaForm.concepto || null,
+        p_notas: deudaForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Movimiento actualizado" });
+    } else if (deudaForm.tipo === "pago") {
+      const { error } = await supabase.rpc("register_gasto_deuda_pago" as any, {
+        p_rec_id: deudaRec.id, p_monto: monto, p_fecha: deudaForm.fecha,
+        p_forma_pago: deudaForm.forma_pago, p_notas: deudaForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Pago a deuda registrado" });
+    } else {
+      const { error } = await supabase.rpc("register_gasto_deuda_cargo" as any, {
+        p_rec_id: deudaRec.id, p_tipo: deudaForm.tipo, p_monto: monto, p_fecha: deudaForm.fecha,
+        p_concepto: deudaForm.concepto || null, p_notas: deudaForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: deudaForm.tipo === "cargo" ? "Cargo agregado" : "Ajuste registrado" });
+    }
+
+    setEditingDeudaMovId(null);
+    setDeudaForm(f => ({ ...f, monto: "", notas: "", concepto: "" }));
+    await Promise.all([loadDeudaMovs(deudaRec.id), loadDeudaDetalle(deudaRec.id)]);
+    loadData();
+  };
+
+  const startEditDeudaMov = (m: any) => {
+    setEditingDeudaMovId(m.id);
+    setDeudaForm({
+      tipo: m.tipo, monto: String(m.monto), fecha: m.fecha,
+      forma_pago: m.forma_pago || "transferencia",
+      concepto: m.concepto || "", notas: m.notas || "",
+    });
+  };
+
+  const cancelEditDeudaMov = () => {
+    setEditingDeudaMovId(null);
+    setDeudaForm(f => ({ ...f, monto: "", notas: "", concepto: "" }));
+  };
+
+  const deleteDeudaMov = async (id: string) => {
+    if (!confirm("¿Eliminar este movimiento de deuda?")) return;
+    const { error } = await supabase.rpc("delete_gasto_deuda_mov" as any, { p_id: id });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Movimiento eliminado" });
+    if (deudaRec) await Promise.all([loadDeudaMovs(deudaRec.id), loadDeudaDetalle(deudaRec.id)]);
+    if (editingDeudaMovId === id) cancelEditDeudaMov();
+    loadData();
+  };
+
+
   // -------- Catálogo ----------
   const resetRecForm = () => setRecForm({
     concepto: "", categoria: "Otros", ambito: "emprendimiento",
