@@ -163,6 +163,18 @@ const SuperAdminGastos = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Auto-generar ejecuciones si el mes está vacío y no es un mes pasado lejano
+  useEffect(() => {
+    if (loading) return;
+    if (ejecuciones.length > 0) return;
+    // Solo auto-genera para el mes actual o futuros (evita ensuciar histórico)
+    if (mes < nowMonth()) return;
+    (async () => {
+      await supabase.rpc("generate_gastos_ejecuciones_month", { p_mes: mes });
+      loadData();
+    })();
+  }, [loading, ejecuciones.length, mes, loadData]);
+
   const generarMes = async () => {
     const { error } = await supabase.rpc("generate_gastos_ejecuciones_month", { p_mes: mes });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
