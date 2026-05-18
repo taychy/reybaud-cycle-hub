@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     // Verify suscripcion belongs to alumno and matches plan (prevents cross-account abuse)
     const { data: sub, error: subError } = await supabaseAdmin
       .from("suscripciones")
-      .select("id, alumno_id, plan_id")
+      .select("id, alumno_id, plan_id, precio_base, precio_final")
       .eq("id", suscripcion_id)
       .maybeSingle();
 
@@ -83,13 +83,17 @@ Deno.serve(async (req) => {
     // Build the base URL for redirects
     const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
 
+    // Precio final: prioriza el de la suscripción (incluye becas/descuentos), con fallback al plan
+    const unitPrice = Number(sub.precio_final ?? sub.precio_base ?? plan.precio);
+    const hasDiscount = sub.precio_base != null && sub.precio_final != null && Number(sub.precio_final) < Number(sub.precio_base);
+
     // Create Mercado Pago preference
     const preferenceBody = {
       items: [
         {
-          title: `Plan ${plan.nombre} - Ciclismo Reybaud`,
+          title: `Plan ${plan.nombre}${hasDiscount ? " (con descuento aplicado)" : ""} - Ciclismo Reybaud`,
           quantity: 1,
-          unit_price: Number(plan.precio),
+          unit_price: unitPrice,
           currency_id: "ARS",
         },
       ],
