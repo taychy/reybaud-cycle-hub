@@ -451,7 +451,16 @@ const StudentDashboard = () => {
               </div>
             </div>
 
-            {/* Trámites section */}
+            {/* Mis datos personales (emergencia + obra social) */}
+            {alumno && (
+              <EmergencyMedicalSelfSection
+                alumno={alumno}
+                onUpdate={(a) => setAlumno(a)}
+                readOnly={readOnly}
+              />
+            )}
+
+            {/* Trámites */}
             <div id="apto-fisico" className="space-y-3">
               <h3 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground px-1">
                 Trámites
