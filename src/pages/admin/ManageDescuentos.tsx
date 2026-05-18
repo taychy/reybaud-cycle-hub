@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Percent, Users, Copy, Tag, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Percent, Users, Copy, Tag, Search, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { hasAnyConflict, findConflictingExisting, aplicaLabel, type AplicaA } from "@/lib/discountConflicts";
 
 interface Descuento {
   id: string;
@@ -349,9 +350,11 @@ const ManageDescuentos = () => {
 
         <TabsContent value="descuentos" className="space-y-5 mt-4">
           {/* Summary cards — alumnos con descuento activo por categoría */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             {categorias.map(cat => {
-              const count = alumnosConDescuento.filter(a => a.descuento_categoria === cat.value && a.activo).length;
+              const count = new Set(
+                alumnosConDescuento.filter(a => a.descuento_categoria === cat.value && a.activo).map(a => a.alumno_id)
+              ).size;
               return (
                 <Card key={cat.value} className="bg-card border-border">
                   <CardContent className="p-4 text-center">
@@ -362,7 +365,31 @@ const ManageDescuentos = () => {
                 </Card>
               );
             })}
+            {/* Card de conflictos: alumnos con 2+ vigentes que se pisan */}
+            {(() => {
+              const byAlumno = new Map<string, { aplica_a: string; id: string }[]>();
+              alumnosConDescuento.filter(a => a.activo).forEach(a => {
+                const arr = byAlumno.get(a.alumno_id) || [];
+                arr.push({ aplica_a: a.descuento_aplica_a, id: a.asignacion_id });
+                byAlumno.set(a.alumno_id, arr);
+              });
+              let conflictCount = 0;
+              byAlumno.forEach(items => { if (hasAnyConflict(items)) conflictCount++; });
+              return (
+                <Card className={`bg-card border-border ${conflictCount > 0 ? "border-amber-500/40" : ""}`}>
+                  <CardContent className="p-4 text-center">
+                    <p className={`text-2xl font-heading font-bold flex items-center justify-center gap-1 ${conflictCount > 0 ? "text-amber-400" : "text-foreground"}`}>
+                      {conflictCount > 0 && <AlertTriangle className="w-4 h-4" />}
+                      {conflictCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Conflictos</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">2+ vigentes</p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
+
 
           {/* Table */}
           <Card className="bg-card border-border">
@@ -679,12 +706,34 @@ const ManageAssignDialog = ({
       toast({ title: "Fecha de inicio obligatoria", variant: "destructive" });
       return;
     }
+    // Chequeo de conflicto: ¿el alumno ya tiene otros descuentos vigentes
+    // sobre el mismo "aplica_a" (o uno con aplica_a = "todo")?
+    if (selectedDescuento) {
+      const { data: existentes } = await supabase
+        .from("descuentos_alumno" as any)
+        .select("id, fecha_inicio, fecha_fin, activo, descuentos!inner(nombre, aplica_a)")
+        .eq("alumno_id", selectedAlumno)
+        .neq("descuento_id", selectedDescuento.id);
+      const vigentes = ((existentes as any[]) || []).filter(e =>
+        isVigente(e.fecha_inicio, e.fecha_fin, e.activo)
+      ).map(e => ({ id: e.id, aplica_a: e.descuentos?.aplica_a as AplicaA, nombre: e.descuentos?.nombre as string }));
+      const conflicts = findConflictingExisting(selectedDescuento.aplica_a as AplicaA, vigentes);
+      if (conflicts.length > 0) {
+        const ok = window.confirm(
+          `Este alumno ya tiene vigente: ${conflicts.map(c => c.nombre).join(", ")}.\n\n` +
+          `Al cobrar se aplicará automáticamente solo el descuento de mayor valor sobre ${aplicaLabel(selectedDescuento.aplica_a as AplicaA)}.\n\n` +
+          `¿Agregar igual?`
+        );
+        if (!ok) return;
+      }
+    }
     await addAsignacion(selectedAlumno, newFechaInicio, newFechaFin || null);
     setSelectedAlumno(null);
     setNewFechaInicio(todayStr);
     setNewFechaFin("");
     setSearchAlumno("");
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
