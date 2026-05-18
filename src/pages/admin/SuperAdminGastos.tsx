@@ -510,7 +510,14 @@ const SuperAdminGastos = () => {
                               {e.fecha_vencimiento ? parseDate(e.fecha_vencimiento)!.toLocaleDateString("es-AR") : "—"}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">{rec.responsable || "—"}</TableCell>
-                            <TableCell className="text-right font-heading font-bold">{fmt(e.monto_previsto, e.moneda)}</TableCell>
+                            <TableCell className="text-right font-heading font-bold">
+                              {e.estado === "parcial" && e.monto_pagado ? (
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span className="text-yellow-500 text-xs">{fmt(e.monto_pagado, e.moneda)} pagado</span>
+                                  <span>Resta {fmt((e.monto_previsto || 0) - (e.monto_pagado || 0), e.moneda)}</span>
+                                </div>
+                              ) : fmt(e.monto_previsto, e.moneda)}
+                            </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
                                 <Button size="sm" variant="gold" className="h-7 text-xs" onClick={() => openPagar(e, rec)}>Pagar</Button>
