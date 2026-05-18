@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, MessageSquarePlus, CalendarClock, Banknote, MessageCircle } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -218,7 +218,6 @@ const AdminLayout = () => {
             <>
               <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
-              <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} />
             </>
           )}
           {navSections.map((section, idx) => (
@@ -317,7 +316,6 @@ const AdminLayout = () => {
               <>
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
-                <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} mobile />
               </>
             )}
             {navSections.map((section, idx) => (

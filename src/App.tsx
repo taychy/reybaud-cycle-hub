@@ -34,7 +34,6 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
-import AdminMejoras from "./pages/admin/AdminMejoras";
 import ManagePlanes from "./pages/admin/ManagePlanes";
 import ManageDescuentos from "./pages/admin/ManageDescuentos";
 import ManagePrecios from "./pages/admin/ManagePrecios";
@@ -153,7 +152,7 @@ const App = () => (
             <Route path="metricas" element={<SuperAdminDashboard />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
-            <Route path="mejoras" element={<AdminMejoras />} />
+            
             <Route path="liquidaciones" element={<AdminLiquidaciones />} />
             <Route path="turnera" element={<AdminTurnera />} />
             <Route path="tienda" element={<StoreDashboard />} />
