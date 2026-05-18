@@ -316,7 +316,6 @@ const AdminLayout = () => {
               <>
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
-                <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} mobile />
               </>
             )}
             {navSections.map((section, idx) => (
