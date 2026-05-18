@@ -522,8 +522,14 @@ const SuperAdminGastos = () => {
                               if (ej?.estado === "pagado") cls = "text-green-500 bg-green-500/5";
                               else if (ej?.estado === "vencido") cls = "text-destructive bg-destructive/5 font-bold";
                               else if (ej?.estado === "pendiente") cls = "text-orange-500";
+                              const clickable = ej && (ej.estado === "pendiente" || ej.estado === "vencido" || ej.estado === "parcial");
                               return (
-                                <TableCell key={mm} className={`text-center text-xs ${cls}`}>
+                                <TableCell
+                                  key={mm}
+                                  className={`text-center text-xs ${cls} ${clickable ? "cursor-pointer hover:bg-primary/10" : ""}`}
+                                  onClick={() => { if (clickable && ej) openPagar(ej, r); }}
+                                  title={clickable ? "Marcar pago" : undefined}
+                                >
                                   {monto > 0 ? Math.round(monto / 1000) + "k" : "—"}
                                 </TableCell>
                               );
