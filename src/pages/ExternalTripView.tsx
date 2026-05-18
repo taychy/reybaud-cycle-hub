@@ -120,19 +120,21 @@ const ExternalTripView = () => {
     // Fetch reservation by token
     const { data: res, error: resErr } = await supabase
       .from("event_reservations")
-      .select("id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, event_id, access_token")
+      .select("id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token")
       .eq("access_token", token)
       .maybeSingle();
 
     if (resErr || !res) { setError("No encontramos tu reserva. Verificá el enlace o contactá al equipo."); setLoading(false); return; }
     setReservation(res as ReservationData);
 
-    // Fetch event + participant in parallel
+    // Fetch event + participant in parallel (participant from external table OR alumnos)
     const [eventRes, partRes] = await Promise.all([
       supabase.from("events").select("id, title, date, end_date, location, currency, metadata, image_url, duration_days, duration_nights").eq("id", res.event_id).single(),
       res.external_participant_id
         ? supabase.from("event_external_participants").select("id, nombre, apellido, email").eq("id", res.external_participant_id).single()
-        : Promise.resolve({ data: null }),
+        : res.alumno_id
+          ? supabase.from("alumnos").select("id, nombre, apellido, email").eq("id", res.alumno_id).single()
+          : Promise.resolve({ data: null }),
     ]);
 
     if (eventRes.data) setEvent(eventRes.data as EventData);
