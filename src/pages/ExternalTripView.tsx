@@ -127,13 +127,13 @@ const ExternalTripView = () => {
     if (resErr || !res) { setError("No encontramos tu reserva. Verificá el enlace o contactá al equipo."); setLoading(false); return; }
     setReservation(res as ReservationData);
 
-    // Fetch event + participant in parallel (participant from external table OR alumnos)
+    // Fetch event + participant in parallel (participant from external table OR via RPC for internal alumno)
     const [eventRes, partRes] = await Promise.all([
       supabase.from("events").select("id, title, date, end_date, location, currency, metadata, image_url, duration_days, duration_nights").eq("id", res.event_id).single(),
       res.external_participant_id
         ? supabase.from("event_external_participants").select("id, nombre, apellido, email").eq("id", res.external_participant_id).single()
         : res.alumno_id
-          ? supabase.from("alumnos").select("id, nombre, apellido, email").eq("id", res.alumno_id).single()
+          ? supabase.rpc("get_reservation_participant_by_token", { p_token: token }).maybeSingle().then((r: any) => ({ data: r.data }))
           : Promise.resolve({ data: null }),
     ]);
 
