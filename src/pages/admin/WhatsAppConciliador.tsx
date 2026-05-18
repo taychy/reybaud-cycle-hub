@@ -48,6 +48,7 @@ type ItemRow = {
   planVencido: boolean;
   planName: string;
   paymentBadge: { label: string; cls: string };
+  reasignado?: boolean;
 };
 
 type ExtraRow = {
