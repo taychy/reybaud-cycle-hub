@@ -126,6 +126,7 @@ interface Event {
   spots_taken: number;
   level: string | null;
   metadata: Record<string, any>;
+  payment_mode?: "cuotas" | "simple";
 }
 
 const EventsList = () => {
@@ -515,6 +516,7 @@ const EventsList = () => {
                 eventLocation={reservationsEvent.location}
                 eventMaxCapacity={reservationsEvent.max_capacity}
                 eventStatus={reservationsEvent.status}
+                eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
               />
               <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />

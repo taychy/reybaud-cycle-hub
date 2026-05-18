@@ -31,6 +31,7 @@ import {
 import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
+import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
 
 /* ─── Types ─── */
@@ -189,6 +190,7 @@ interface AdminEventReservationsProps {
   eventLocation?: string | null;
   eventMaxCapacity?: number | null;
   eventStatus?: string;
+  eventPaymentMode?: "cuotas" | "simple";
 }
 
 /* ─── Sort ─── */
@@ -209,8 +211,9 @@ const quickFilters: { key: QuickFilter; label: string }[] = [
 
 const AdminEventReservations = ({
   eventId, eventTitle, eventCurrency, eventPrice, eventNature, eventType, eventMetadata,
-  eventDate, eventLocation, eventMaxCapacity, eventStatus,
+  eventDate, eventLocation, eventMaxCapacity, eventStatus, eventPaymentMode = "cuotas",
 }: AdminEventReservationsProps) => {
+  const isSimplePayment = eventPaymentMode === "simple";
   // Trip-like events show full onboarding (checklist + installments).
   // School events (record_hora, carrera, otro) show simplified flow.
   const isTripLike = eventType === "camp" || eventType === "viaje";
@@ -1445,8 +1448,20 @@ const AdminEventReservations = ({
                   alumnoId={selectedRes.alumno_id}
                 />
               )}
-              {/* Installments — only when payment required */}
+              {/* Extras contratados (siempre disponible si el evento tiene addons) */}
               {!isPaymentFree && (
+                <ReservationAddonsPanel
+                  reservationId={selectedRes.id}
+                  eventId={eventId}
+                  onChanged={() => {
+                    loadReservations();
+                    loadPayments(selectedRes.id);
+                  }}
+                />
+              )}
+
+              {/* Installments — solo en modo cuotas y con pago requerido */}
+              {!isPaymentFree && !isSimplePayment && (
                 <ReservationInstallmentsPanel
                   reservationId={selectedRes.id}
                   reservationCurrency={curr(selectedRes)}
