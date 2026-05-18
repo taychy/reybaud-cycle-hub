@@ -1025,6 +1025,62 @@ export type Database = {
           },
         ]
       }
+      event_addons: {
+        Row: {
+          activo: boolean
+          created_at: string
+          currency: string
+          descripcion: string | null
+          event_id: string
+          id: string
+          max_por_participante: number | null
+          nombre: string
+          precio: number
+          sort_order: number
+          stock_total: number | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          currency?: string
+          descripcion?: string | null
+          event_id: string
+          id?: string
+          max_por_participante?: number | null
+          nombre: string
+          precio?: number
+          sort_order?: number
+          stock_total?: number | null
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          currency?: string
+          descripcion?: string | null
+          event_id?: string
+          id?: string
+          max_por_participante?: number | null
+          nombre?: string
+          precio?: number
+          sort_order?: number
+          stock_total?: number | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_addons_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_announcements: {
         Row: {
           category: string
@@ -1530,6 +1586,7 @@ export type Database = {
           location: string | null
           max_capacity: number | null
           metadata: Json
+          payment_mode: Database["public"]["Enums"]["event_payment_mode"]
           price: number | null
           same_day: boolean
           short_description: string | null
@@ -1559,6 +1616,7 @@ export type Database = {
           location?: string | null
           max_capacity?: number | null
           metadata?: Json
+          payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
           price?: number | null
           same_day?: boolean
           short_description?: string | null
@@ -1588,6 +1646,7 @@ export type Database = {
           location?: string | null
           max_capacity?: number | null
           metadata?: Json
+          payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
           price?: number | null
           same_day?: boolean
           short_description?: string | null
@@ -2606,6 +2665,63 @@ export type Database = {
             columns: ["servicio_id"]
             isOneToOne: false
             referencedRelation: "servicios_turnera"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_addons: {
+        Row: {
+          added_by: string | null
+          addon_id: string
+          cantidad: number
+          created_at: string
+          currency: string
+          id: string
+          notas: string | null
+          precio_unitario: number
+          reservation_id: string
+          subtotal: number
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          addon_id: string
+          cantidad?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notas?: string | null
+          precio_unitario?: number
+          reservation_id: string
+          subtotal?: number
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          addon_id?: string
+          cantidad?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notas?: string | null
+          precio_unitario?: number
+          reservation_id?: string
+          subtotal?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "event_addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_addons_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
         ]
@@ -4115,6 +4231,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      recalculate_reservation_amount_total: {
+        Args: { p_reservation_id: string }
+        Returns: undefined
+      }
       recalculate_reservation_payment_totals: {
         Args: { p_reservation_id: string }
         Returns: undefined
@@ -4143,6 +4263,7 @@ export type Database = {
       admin_role: "super_admin" | "admin" | "support"
       app_role: "admin" | "alumno" | "coach" | "deposito"
       estado_plan: "borrador" | "publicado"
+      event_payment_mode: "cuotas" | "simple"
       event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
       grupo_ciclismo:
         | "G1"
@@ -4287,6 +4408,7 @@ export const Constants = {
       admin_role: ["super_admin", "admin", "support"],
       app_role: ["admin", "alumno", "coach", "deposito"],
       estado_plan: ["borrador", "publicado"],
+      event_payment_mode: ["cuotas", "simple"],
       event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],
       grupo_ciclismo: [
         "G1",
