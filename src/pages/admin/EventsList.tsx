@@ -126,6 +126,7 @@ interface Event {
   spots_taken: number;
   level: string | null;
   metadata: Record<string, any>;
+  payment_mode?: "cuotas" | "simple";
 }
 
 const EventsList = () => {
