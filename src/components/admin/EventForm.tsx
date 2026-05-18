@@ -162,6 +162,7 @@ export const eventFormToPayload = (form: EventFormData) => {
     type: form.type,
     image_url: form.image_url || null,
     metadata: form.metadata,
+    payment_mode: form.payment_mode,
     location: m.location_name || m.race_location || m.destination || null,
     price: m.pricing_mode === "no_mostrar" ? null
       : m.pricing_mode === "gratuito" ? 0
