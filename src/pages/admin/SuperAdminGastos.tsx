@@ -794,41 +794,82 @@ const SuperAdminGastos = () => {
       </Dialog>
 
       {/* DIALOG: Pagar */}
-      <Dialog open={pagoDialogOpen} onOpenChange={setPagoDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Registrar pago</DialogTitle></DialogHeader>
-          {payingEjec && (
-            <div className="space-y-3">
-              <div className="p-3 rounded-md bg-muted/40 space-y-1">
-                <div className="font-heading font-bold">{payingEjec.rec.concepto}</div>
-                <div className="text-xs text-muted-foreground">
-                  {payingEjec.rec.categoria} · {monthLabel(payingEjec.ejec.mes)} · vence {payingEjec.ejec.fecha_vencimiento ? parseDate(payingEjec.ejec.fecha_vencimiento)!.toLocaleDateString("es-AR") : "—"}
+      <Dialog open={pagoDialogOpen} onOpenChange={(o) => { setPagoDialogOpen(o); if (!o) { setEditingPagoId(null); setPagos([]); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingPagoId ? "Editar pago" : "Registrar pago"}</DialogTitle></DialogHeader>
+          {payingEjec && (() => {
+            const totalPagado = pagos.reduce((s, p) => s + Number(p.monto || 0), 0);
+            const previsto = payingEjec.ejec.monto_previsto || 0;
+            const restante = Math.max(previsto - totalPagado, 0);
+            return (
+              <div className="space-y-3">
+                <div className="p-3 rounded-md bg-muted/40 space-y-1">
+                  <div className="font-heading font-bold">{payingEjec.rec.concepto}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {payingEjec.rec.categoria} · {monthLabel(payingEjec.ejec.mes)} · vence {payingEjec.ejec.fecha_vencimiento ? parseDate(payingEjec.ejec.fecha_vencimiento)!.toLocaleDateString("es-AR") : "—"}
+                  </div>
+                  <div className="flex gap-3 text-xs pt-1 flex-wrap">
+                    <span>Previsto: <b>{fmt(previsto, payingEjec.ejec.moneda)}</b></span>
+                    <span className="text-green-500">Pagado: <b>{fmt(totalPagado, payingEjec.ejec.moneda)}</b></span>
+                    <span className={restante > 0 ? "text-orange-500" : "text-muted-foreground"}>Resta: <b>{fmt(restante, payingEjec.ejec.moneda)}</b></span>
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Monto real</Label>
-                  <Input type="number" value={pagoForm.monto} onChange={(e) => setPagoForm(f => ({ ...f, monto: e.target.value }))} />
+
+                {pagos.length > 0 && (
+                  <div className="border rounded-md divide-y">
+                    <div className="px-3 py-2 text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground bg-muted/30">Pagos registrados</div>
+                    {pagos.map(p => (
+                      <div key={p.id} className={`p-2.5 flex items-center justify-between gap-2 text-sm ${editingPagoId === p.id ? "bg-primary/5" : ""}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">{fmt(p.monto, payingEjec.ejec.moneda)} <span className="text-xs text-muted-foreground font-normal">· {FORMA_PAGO_LABELS[p.forma_pago] || p.forma_pago}</span></div>
+                          <div className="text-xs text-muted-foreground">{parseDate(p.fecha)!.toLocaleDateString("es-AR")}{p.notas ? ` · ${p.notas}` : ""}</div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditPago(p)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deletePago(p.id)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border rounded-md p-3 space-y-3">
+                  <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
+                    {editingPagoId ? "Editando pago" : (pagos.length > 0 ? "Agregar otro pago" : "Nuevo pago")}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Monto</Label>
+                      <Input type="number" value={pagoForm.monto} onChange={(e) => setPagoForm(f => ({ ...f, monto: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Fecha</Label>
+                      <Input type="date" value={pagoForm.fecha} onChange={(e) => setPagoForm(f => ({ ...f, fecha: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Forma de pago</Label>
+                    <Select value={pagoForm.forma_pago} onValueChange={(v) => setPagoForm(f => ({ ...f, forma_pago: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{FORMA_PAGO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Notas (opcional)</Label>
+                    <Textarea rows={2} value={pagoForm.notas} onChange={(e) => setPagoForm(f => ({ ...f, notas: e.target.value }))} />
+                  </div>
+                  <div className="flex gap-2">
+                    {editingPagoId && <Button variant="outline" className="flex-1" onClick={cancelEditPago}>Cancelar</Button>}
+                    <Button onClick={confirmarPago} variant="gold" className="flex-1">
+                      {editingPagoId ? "Guardar cambios" : "Confirmar pago"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Fecha de pago</Label>
-                  <Input type="date" value={pagoForm.fecha} onChange={(e) => setPagoForm(f => ({ ...f, fecha: e.target.value }))} />
-                </div>
+
+                <Button variant="ghost" className="w-full" onClick={() => setPagoDialogOpen(false)}>Cerrar</Button>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Forma de pago</Label>
-                <Select value={pagoForm.forma_pago} onValueChange={(v) => setPagoForm(f => ({ ...f, forma_pago: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{FORMA_PAGO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Notas (opcional)</Label>
-                <Textarea rows={2} value={pagoForm.notas} onChange={(e) => setPagoForm(f => ({ ...f, notas: e.target.value }))} />
-              </div>
-              <Button onClick={confirmarPago} variant="gold" className="w-full">Confirmar pago</Button>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
