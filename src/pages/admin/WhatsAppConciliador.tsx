@@ -360,6 +360,24 @@ const WhatsAppConciliador = () => {
     toast({ title: "Alumno reasignado", description: `Movido a ${ex.reasignar_a_grupo}` });
   };
 
+  const reassignItem = async (alumnoId: string, grupoNuevo: string) => {
+    if (!grupoNuevo) return;
+    const { error } = await supabase
+      .from("alumnos")
+      .update({ grupo: grupoNuevo as any })
+      .eq("id", alumnoId);
+    if (error) {
+      toast({ title: "No se pudo reasignar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setAlumnos(prev => prev.map(a => a.id === alumnoId ? { ...a, grupo: grupoNuevo } : a));
+    setItems(prev => prev.map(it => it.alumno.id === alumnoId
+      ? { ...it, grupo_real_sugerido: grupoNuevo, reasignado: true, alumno: { ...it.alumno, grupo: grupoNuevo } }
+      : it));
+    toast({ title: "Alumno reasignado", description: `Movido a ${grupoNuevo}` });
+  };
+
+
   const closeRun = async () => {
     if (!runId) return;
     setSubmitting(true);
