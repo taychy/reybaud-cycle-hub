@@ -4473,6 +4473,15 @@ export type Database = {
           plan_id: string
         }[]
       }
+      get_reservation_participant_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          apellido: string
+          email: string
+          id: string
+          nombre: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
