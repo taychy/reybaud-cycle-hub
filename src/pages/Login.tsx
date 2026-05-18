@@ -482,13 +482,24 @@ const Login = () => {
           </button>
         </div>
 
-        <div className="text-center pb-6 pt-4">
+        <div className="text-center pb-6 pt-4 space-y-2">
           <button
             onClick={() => navigate("/admin/login")}
             className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
           >
             Acceso staff
           </button>
+          <p className="text-[11px] text-muted-foreground/40">
+            Desarrollado por{" "}
+            <a
+              href="https://wa.me/5491153833337"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-muted-foreground/70 transition-colors underline underline-offset-2"
+            >
+              Ryōshi Lab
+            </a>
+          </p>
         </div>
       </div>
     </div>
