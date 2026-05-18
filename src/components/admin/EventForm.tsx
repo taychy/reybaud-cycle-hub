@@ -92,6 +92,7 @@ export interface EventFormData {
   show_public: boolean;
   type: string; // db enum
   image_url: string;
+  payment_mode: "cuotas" | "simple";
   // metadata (JSONB)
   metadata: Record<string, any>;
 }
