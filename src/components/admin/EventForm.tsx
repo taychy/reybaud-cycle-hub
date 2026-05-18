@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/eventLinks";
 import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
+import { EventAddonsEditor } from "./EventAddonsEditor";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
