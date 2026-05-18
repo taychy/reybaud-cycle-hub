@@ -607,7 +607,7 @@ const SuperAdminGastos = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Object.entries(recByCategoria).map(([cat, items]) => (
+                    {recByCategoriaOrdenado.map(([cat, items]) => (
                       <>
                         <TableRow key={`h-${cat}`} className="bg-muted/40">
                           <TableCell colSpan={13} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
