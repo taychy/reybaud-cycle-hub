@@ -84,6 +84,7 @@ interface Props {
 }
 
 export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
+  const navigate = useNavigate();
   const [scope, setScope] = useState<TareaScope>("mi_rol");
   const { tareas, loading, generating, generate, updateTarea, createTarea } = useTareas(scope, userId, isSuperAdmin);
   const [filtroEstado, setFiltroEstado] = useState<string>("activas");
