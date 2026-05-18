@@ -350,9 +350,11 @@ const ManageDescuentos = () => {
 
         <TabsContent value="descuentos" className="space-y-5 mt-4">
           {/* Summary cards — alumnos con descuento activo por categoría */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             {categorias.map(cat => {
-              const count = alumnosConDescuento.filter(a => a.descuento_categoria === cat.value && a.activo).length;
+              const count = new Set(
+                alumnosConDescuento.filter(a => a.descuento_categoria === cat.value && a.activo).map(a => a.alumno_id)
+              ).size;
               return (
                 <Card key={cat.value} className="bg-card border-border">
                   <CardContent className="p-4 text-center">
@@ -363,7 +365,31 @@ const ManageDescuentos = () => {
                 </Card>
               );
             })}
+            {/* Card de conflictos: alumnos con 2+ vigentes que se pisan */}
+            {(() => {
+              const byAlumno = new Map<string, { aplica_a: string; id: string }[]>();
+              alumnosConDescuento.filter(a => a.activo).forEach(a => {
+                const arr = byAlumno.get(a.alumno_id) || [];
+                arr.push({ aplica_a: a.descuento_aplica_a, id: a.asignacion_id });
+                byAlumno.set(a.alumno_id, arr);
+              });
+              let conflictCount = 0;
+              byAlumno.forEach(items => { if (hasAnyConflict(items)) conflictCount++; });
+              return (
+                <Card className={`bg-card border-border ${conflictCount > 0 ? "border-amber-500/40" : ""}`}>
+                  <CardContent className="p-4 text-center">
+                    <p className={`text-2xl font-heading font-bold flex items-center justify-center gap-1 ${conflictCount > 0 ? "text-amber-400" : "text-foreground"}`}>
+                      {conflictCount > 0 && <AlertTriangle className="w-4 h-4" />}
+                      {conflictCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Conflictos</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">2+ vigentes</p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
+
 
           {/* Table */}
           <Card className="bg-card border-border">
