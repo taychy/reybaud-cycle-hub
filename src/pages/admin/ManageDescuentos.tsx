@@ -279,25 +279,53 @@ const ManageDescuentos = () => {
 
   const isAssigned = (alumnoId: string) => asignados.some(a => a.alumno_id === alumnoId && a.activo);
 
-  const toggleAssign = async (alumnoId: string) => {
+  const reloadAsignados = async (descuentoId: string) => {
+    const { data } = await supabase.from("descuentos_alumno" as any).select("*").eq("descuento_id", descuentoId);
+    setAsignados((data as any) || []);
+    loadOverview();
+  };
+
+  const addAsignacion = async (alumnoId: string, fechaInicio: string, fechaFin: string | null) => {
     if (!selectedDescuento) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    // Si ya existe (aunque inactivo), reactivar y actualizar fechas
     const existing = asignados.find(a => a.alumno_id === alumnoId);
-    
     if (existing) {
-      await supabase.from("descuentos_alumno" as any)
-        .update({ activo: !existing.activo } as any)
+      const { error } = await supabase.from("descuentos_alumno" as any)
+        .update({ activo: true, fecha_inicio: fechaInicio, fecha_fin: fechaFin } as any)
         .eq("id", existing.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Asignación reactivada" });
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("descuentos_alumno" as any).insert({
+      const { error } = await supabase.from("descuentos_alumno" as any).insert({
         descuento_id: selectedDescuento.id,
         alumno_id: alumnoId,
         asignado_por: user?.id,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
       } as any);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Alumno asignado" });
     }
+    await reloadAsignados(selectedDescuento.id);
+  };
 
-    const { data } = await supabase.from("descuentos_alumno" as any).select("*").eq("descuento_id", selectedDescuento.id);
-    setAsignados((data as any) || []);
+  const updateAsignacion = async (id: string, patch: { fecha_inicio?: string; fecha_fin?: string | null; activo?: boolean }) => {
+    if (!selectedDescuento) return;
+    const { error } = await supabase.from("descuentos_alumno" as any).update(patch as any).eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    await reloadAsignados(selectedDescuento.id);
+  };
+
+  const removeAsignacion = async (id: string) => {
+    if (!selectedDescuento) return;
+    // "Quitar" = inactivar y cerrar con fecha hoy (histórico)
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from("descuentos_alumno" as any)
+      .update({ activo: false, fecha_fin: today } as any).eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Asignación cerrada" });
+    await reloadAsignados(selectedDescuento.id);
   };
 
   const filteredAlumnos = alumnos.filter(a => {
