@@ -360,7 +360,7 @@ const AdminEventReservations = ({
 
   const getReservaLink = (res: EventReservation): string => {
     const origin = window.location.origin;
-    if (res.external_participant_id && res.access_token) {
+    if (isTripLike && res.access_token) {
       return `${origin}/viaje/mi-reserva?token=${res.access_token}`;
     }
     return `${origin}/eventos/${eventId}`;
