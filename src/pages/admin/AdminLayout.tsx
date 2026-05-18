@@ -213,11 +213,11 @@ const AdminLayout = () => {
 
         {/* Nav */}
         <nav className={`flex-1 ${collapsed ? "p-1.5" : "p-3"} space-y-1 overflow-y-auto`}>
+          <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} />
           {isSuperAdmin && (
             <>
               <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
-              <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} />
               <NavItem item={{ to: "/admin/mejoras", label: "Mejoras", icon: MessageSquarePlus }} />
             </>
           )}
