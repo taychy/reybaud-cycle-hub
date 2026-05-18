@@ -573,8 +573,9 @@ const SuperAdminGastos = () => {
                               let cls = "text-muted-foreground/40";
                               if (ej?.estado === "pagado") cls = "text-green-500 bg-green-500/5";
                               else if (ej?.estado === "vencido") cls = "text-destructive bg-destructive/5 font-bold";
+                              else if (ej?.estado === "parcial") cls = "text-yellow-500 bg-yellow-500/5";
                               else if (ej?.estado === "pendiente") cls = "text-orange-500";
-                              const clickable = ej && (ej.estado === "pendiente" || ej.estado === "vencido" || ej.estado === "parcial");
+                              const clickable = !!ej && ej.estado !== "omitido";
                               return (
                                 <TableCell
                                   key={mm}
