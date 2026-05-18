@@ -1861,6 +1861,79 @@ export type Database = {
         }
         Relationships: []
       }
+      gastos_deuda_movimientos: {
+        Row: {
+          concepto: string | null
+          creado_por: string | null
+          created_at: string
+          ejecucion_id: string | null
+          fecha: string
+          forma_pago: string | null
+          gasto_id: string | null
+          id: string
+          moneda: string
+          monto: number
+          notas: string | null
+          recurrente_id: string
+          tipo: Database["public"]["Enums"]["gasto_deuda_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          concepto?: string | null
+          creado_por?: string | null
+          created_at?: string
+          ejecucion_id?: string | null
+          fecha?: string
+          forma_pago?: string | null
+          gasto_id?: string | null
+          id?: string
+          moneda?: string
+          monto: number
+          notas?: string | null
+          recurrente_id: string
+          tipo: Database["public"]["Enums"]["gasto_deuda_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          concepto?: string | null
+          creado_por?: string | null
+          created_at?: string
+          ejecucion_id?: string | null
+          fecha?: string
+          forma_pago?: string | null
+          gasto_id?: string | null
+          id?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          recurrente_id?: string
+          tipo?: Database["public"]["Enums"]["gasto_deuda_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_deuda_movimientos_ejecucion_id_fkey"
+            columns: ["ejecucion_id"]
+            isOneToOne: false
+            referencedRelation: "gastos_ejecuciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_deuda_movimientos_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_deuda_movimientos_recurrente_id_fkey"
+            columns: ["recurrente_id"]
+            isOneToOne: false
+            referencedRelation: "gastos_recurrentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gastos_ejecucion_pagos: {
         Row: {
           created_at: string
@@ -4361,6 +4434,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      delete_gasto_deuda_mov: { Args: { p_id: string }; Returns: undefined }
       delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -4372,6 +4446,26 @@ export type Database = {
       }
       generate_tareas_automaticas: { Args: never; Returns: number }
       generate_tareas_gastos_pendientes: { Args: never; Returns: number }
+      get_all_gastos_saldo_deuda: {
+        Args: never
+        Returns: {
+          moneda: string
+          recurrente_id: string
+          saldo_total: number
+        }[]
+      }
+      get_gasto_recurrente_saldo_deuda: {
+        Args: { p_rec_id: string }
+        Returns: {
+          ajustes: number
+          cargos_manuales: number
+          deuda_automatica: number
+          moneda: string
+          pagos_deuda: number
+          recurrente_id: string
+          saldo_total: number
+        }[]
+      }
       get_program_inscriptions_count: {
         Args: { p_plan_ids: string[] }
         Returns: {
@@ -4444,6 +4538,27 @@ export type Database = {
         Args: { _email: string; _nombre: string; _user_id: string }
         Returns: undefined
       }
+      register_gasto_deuda_cargo: {
+        Args: {
+          p_concepto?: string
+          p_fecha: string
+          p_monto: number
+          p_notas?: string
+          p_rec_id: string
+          p_tipo: string
+        }
+        Returns: string
+      }
+      register_gasto_deuda_pago: {
+        Args: {
+          p_fecha: string
+          p_forma_pago: string
+          p_monto: number
+          p_notas?: string
+          p_rec_id: string
+        }
+        Returns: string
+      }
       register_gasto_pago: {
         Args: {
           p_ejec_id: string
@@ -4459,6 +4574,17 @@ export type Database = {
           p_installment_id: string
           p_new_due_date: string
           p_reason: string
+        }
+        Returns: undefined
+      }
+      update_gasto_deuda_mov: {
+        Args: {
+          p_concepto?: string
+          p_fecha: string
+          p_forma_pago?: string
+          p_id: string
+          p_monto: number
+          p_notas?: string
         }
         Returns: undefined
       }
@@ -4487,6 +4613,7 @@ export type Database = {
       event_payment_mode: "cuotas" | "simple"
       event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
       gasto_ambito: "personal" | "emprendimiento" | "mixto"
+      gasto_deuda_tipo: "cargo" | "ajuste" | "pago"
       gasto_ejecucion_estado:
         | "pendiente"
         | "pagado"
@@ -4646,6 +4773,7 @@ export const Constants = {
       event_payment_mode: ["cuotas", "simple"],
       event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],
       gasto_ambito: ["personal", "emprendimiento", "mixto"],
+      gasto_deuda_tipo: ["cargo", "ajuste", "pago"],
       gasto_ejecucion_estado: [
         "pendiente",
         "pagado",

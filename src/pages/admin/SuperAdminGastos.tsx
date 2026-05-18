@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
-  CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes,
+  CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -151,6 +151,28 @@ const SuperAdminGastos = () => {
   });
 
 
+  // Deuda
+  const [deudaSaldos, setDeudaSaldos] = useState<Record<string, { saldo: number; moneda: string }>>({});
+  const [deudaDialogOpen, setDeudaDialogOpen] = useState(false);
+  const [deudaRec, setDeudaRec] = useState<Recurrente | null>(null);
+  const [deudaMovs, setDeudaMovs] = useState<Array<{ id: string; tipo: string; monto: number; fecha: string; concepto: string | null; forma_pago: string | null; notas: string | null; gasto_id: string | null }>>([]);
+  const [deudaDetalle, setDeudaDetalle] = useState<{ automatica: number; cargos: number; ajustes: number; pagos: number; saldo: number; moneda: string } | null>(null);
+  const [editingDeudaMovId, setEditingDeudaMovId] = useState<string | null>(null);
+  const [deudaForm, setDeudaForm] = useState({
+    tipo: "pago" as "pago" | "cargo" | "ajuste",
+    monto: "", fecha: new Date().toISOString().split("T")[0],
+    forma_pago: "transferencia", concepto: "", notas: "",
+  });
+
+  const loadDeudaSaldos = useCallback(async () => {
+    const { data } = await supabase.rpc("get_all_gastos_saldo_deuda" as any);
+    const map: Record<string, { saldo: number; moneda: string }> = {};
+    for (const row of (data || []) as any[]) {
+      map[row.recurrente_id] = { saldo: Number(row.saldo_total || 0), moneda: row.moneda || "ARS" };
+    }
+    setDeudaSaldos(map);
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     const [recRes, ejecRes, gastosRes] = await Promise.all([
@@ -161,8 +183,9 @@ const SuperAdminGastos = () => {
     setRecurrentes((recRes.data || []) as any);
     setEjecuciones((ejecRes.data || []) as any);
     setGastos((gastosRes.data || []) as any);
+    await loadDeudaSaldos();
     setLoading(false);
-  }, [mes]);
+  }, [mes, loadDeudaSaldos]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -335,6 +358,103 @@ const SuperAdminGastos = () => {
     toast({ title: "Marcado como omitido" });
     loadData();
   };
+
+  // -------- Deuda ----------
+  const loadDeudaMovs = async (recId: string) => {
+    const { data } = await supabase
+      .from("gastos_deuda_movimientos" as any)
+      .select("id,tipo,monto,fecha,concepto,forma_pago,notas,gasto_id")
+      .eq("recurrente_id", recId)
+      .order("fecha", { ascending: false });
+    setDeudaMovs((data || []) as any);
+  };
+
+  const loadDeudaDetalle = async (recId: string) => {
+    const { data } = await supabase.rpc("get_gasto_recurrente_saldo_deuda" as any, { p_rec_id: recId });
+    const row: any = (data && (data as any[])[0]) || null;
+    if (row) {
+      setDeudaDetalle({
+        automatica: Number(row.deuda_automatica || 0),
+        cargos: Number(row.cargos_manuales || 0),
+        ajustes: Number(row.ajustes || 0),
+        pagos: Number(row.pagos_deuda || 0),
+        saldo: Number(row.saldo_total || 0),
+        moneda: row.moneda || "ARS",
+      });
+    } else setDeudaDetalle(null);
+  };
+
+  const openDeuda = async (rec: Recurrente) => {
+    setDeudaRec(rec);
+    setEditingDeudaMovId(null);
+    setDeudaForm({
+      tipo: "pago", monto: "", fecha: new Date().toISOString().split("T")[0],
+      forma_pago: rec.forma_pago_default || "transferencia", concepto: "", notas: "",
+    });
+    await Promise.all([loadDeudaMovs(rec.id), loadDeudaDetalle(rec.id)]);
+    setDeudaDialogOpen(true);
+  };
+
+  const confirmarDeudaMov = async () => {
+    if (!deudaRec) return;
+    const monto = Number(deudaForm.monto);
+    if (!monto || monto <= 0) { toast({ title: "Monto inválido", variant: "destructive" }); return; }
+
+    if (editingDeudaMovId) {
+      const { error } = await supabase.rpc("update_gasto_deuda_mov" as any, {
+        p_id: editingDeudaMovId, p_monto: monto, p_fecha: deudaForm.fecha,
+        p_forma_pago: deudaForm.forma_pago || null,
+        p_concepto: deudaForm.concepto || null,
+        p_notas: deudaForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Movimiento actualizado" });
+    } else if (deudaForm.tipo === "pago") {
+      const { error } = await supabase.rpc("register_gasto_deuda_pago" as any, {
+        p_rec_id: deudaRec.id, p_monto: monto, p_fecha: deudaForm.fecha,
+        p_forma_pago: deudaForm.forma_pago, p_notas: deudaForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Pago a deuda registrado" });
+    } else {
+      const { error } = await supabase.rpc("register_gasto_deuda_cargo" as any, {
+        p_rec_id: deudaRec.id, p_tipo: deudaForm.tipo, p_monto: monto, p_fecha: deudaForm.fecha,
+        p_concepto: deudaForm.concepto || null, p_notas: deudaForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: deudaForm.tipo === "cargo" ? "Cargo agregado" : "Ajuste registrado" });
+    }
+
+    setEditingDeudaMovId(null);
+    setDeudaForm(f => ({ ...f, monto: "", notas: "", concepto: "" }));
+    await Promise.all([loadDeudaMovs(deudaRec.id), loadDeudaDetalle(deudaRec.id)]);
+    loadData();
+  };
+
+  const startEditDeudaMov = (m: any) => {
+    setEditingDeudaMovId(m.id);
+    setDeudaForm({
+      tipo: m.tipo, monto: String(m.monto), fecha: m.fecha,
+      forma_pago: m.forma_pago || "transferencia",
+      concepto: m.concepto || "", notas: m.notas || "",
+    });
+  };
+
+  const cancelEditDeudaMov = () => {
+    setEditingDeudaMovId(null);
+    setDeudaForm(f => ({ ...f, monto: "", notas: "", concepto: "" }));
+  };
+
+  const deleteDeudaMov = async (id: string) => {
+    if (!confirm("¿Eliminar este movimiento de deuda?")) return;
+    const { error } = await supabase.rpc("delete_gasto_deuda_mov" as any, { p_id: id });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Movimiento eliminado" });
+    if (deudaRec) await Promise.all([loadDeudaMovs(deudaRec.id), loadDeudaDetalle(deudaRec.id)]);
+    if (editingDeudaMovId === id) cancelEditDeudaMov();
+    loadData();
+  };
+
 
   // -------- Catálogo ----------
   const resetRecForm = () => setRecForm({
@@ -518,7 +638,50 @@ const SuperAdminGastos = () => {
         </TabsList>
 
         {/* AGENDA */}
-        <TabsContent value="agenda" className="mt-4">
+        <TabsContent value="agenda" className="mt-4 space-y-4">
+          {Object.keys(deudaSaldos).length > 0 && (
+            <Card className="border-destructive/40 bg-destructive/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-destructive" />
+                  Con deuda acumulada
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Concepto</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Ámbito</TableHead>
+                      <TableHead className="text-right">Saldo deuda</TableHead>
+                      <TableHead className="w-32">Acción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recurrentes
+                      .filter(r => deudaSaldos[r.id] && deudaSaldos[r.id].saldo > 0)
+                      .sort((a, b) => (deudaSaldos[b.id]?.saldo || 0) - (deudaSaldos[a.id]?.saldo || 0))
+                      .map(r => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.concepto}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
+                          <TableCell>{ambitoBadge(r.ambito)}</TableCell>
+                          <TableCell className="text-right font-heading font-bold text-destructive">
+                            {fmt(deudaSaldos[r.id].saldo, deudaSaldos[r.id].moneda)}
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => openDeuda(r)}>
+                              <TrendingDown className="w-3 h-3" /> Gestionar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Pendientes de pagar — {monthLabel(mes)}</CardTitle>
@@ -612,12 +775,27 @@ const SuperAdminGastos = () => {
                         <TableRow key={`h-${cat}`} className="bg-muted/40">
                           <TableCell colSpan={13} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
                         </TableRow>
-                        {items.map(r => (
-                          <TableRow key={r.id}>
+                        {items.map(r => {
+                          const deuda = deudaSaldos[r.id];
+                          const hasDeuda = !!deuda && deuda.saldo > 0;
+                          return (
+                          <TableRow key={r.id} className={hasDeuda ? "border-l-2 border-l-destructive" : ""}>
                             <TableCell className="sticky left-0 bg-card text-sm font-medium">
-                              <div className="flex items-center gap-2">
-                                {ambitoBadge(r.ambito)}
-                                <span>{r.concepto}</span>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  {ambitoBadge(r.ambito)}
+                                  <span>{r.concepto}</span>
+                                </div>
+                                {hasDeuda && (
+                                  <button
+                                    onClick={() => openDeuda(r)}
+                                    className="inline-flex items-center gap-1 text-[11px] text-destructive hover:underline self-start"
+                                    title="Ver y gestionar deuda"
+                                  >
+                                    <CreditCard className="w-3 h-3" />
+                                    Debe {fmt(deuda.saldo, deuda.moneda)}
+                                  </button>
+                                )}
                               </div>
                             </TableCell>
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(mm => {
@@ -641,7 +819,7 @@ const SuperAdminGastos = () => {
                               );
                             })}
                           </TableRow>
-                        ))}
+                        );})}
                       </>
                     ))}
                   </TableBody>
@@ -923,6 +1101,129 @@ const SuperAdminGastos = () => {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: Deuda */}
+      <Dialog open={deudaDialogOpen} onOpenChange={(o) => { setDeudaDialogOpen(o); if (!o) { setDeudaRec(null); setEditingDeudaMovId(null); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-destructive" />
+              Deuda — {deudaRec?.concepto}
+            </DialogTitle>
+          </DialogHeader>
+          {deudaRec && (
+            <div className="space-y-3">
+              {/* Resumen */}
+              {deudaDetalle && (
+                <div className="p-3 rounded-md bg-muted/40 space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Saldo actual</span>
+                    <span className={`font-heading font-bold text-lg ${deudaDetalle.saldo > 0 ? "text-destructive" : "text-green-500"}`}>
+                      {fmt(deudaDetalle.saldo, deudaDetalle.moneda)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground pt-1 border-t border-border/50">
+                    <div>Auto (cuotas vencidas): <b className="text-foreground">{fmt(deudaDetalle.automatica, deudaDetalle.moneda)}</b></div>
+                    <div>+ Cargos manuales: <b className="text-foreground">{fmt(deudaDetalle.cargos, deudaDetalle.moneda)}</b></div>
+                    <div>± Ajustes: <b className="text-foreground">{fmt(deudaDetalle.ajustes, deudaDetalle.moneda)}</b></div>
+                    <div>− Pagos a deuda: <b className="text-green-500">{fmt(deudaDetalle.pagos, deudaDetalle.moneda)}</b></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Historial movimientos manuales */}
+              {deudaMovs.length > 0 && (
+                <div className="border rounded-md divide-y">
+                  <div className="px-3 py-2 text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground bg-muted/30">
+                    Movimientos manuales
+                  </div>
+                  {deudaMovs.map(m => {
+                    const tipoLabel = m.tipo === "pago" ? "Pago" : m.tipo === "cargo" ? "Cargo" : "Ajuste";
+                    const color = m.tipo === "pago" ? "text-green-500" : m.tipo === "cargo" ? "text-destructive" : "text-yellow-500";
+                    return (
+                      <div key={m.id} className={`p-2.5 flex items-center justify-between gap-2 text-sm ${editingDeudaMovId === m.id ? "bg-primary/5" : ""}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium flex items-center gap-2">
+                            <Badge variant="outline" className={`text-[10px] ${color}`}>{tipoLabel}</Badge>
+                            <span className={color}>{m.tipo === "pago" ? "−" : "+"}{fmt(m.monto, deudaDetalle?.moneda || "ARS")}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {parseDate(m.fecha)!.toLocaleDateString("es-AR")}
+                            {m.forma_pago ? ` · ${FORMA_PAGO_LABELS[m.forma_pago] || m.forma_pago}` : ""}
+                            {m.concepto ? ` · ${m.concepto}` : ""}
+                            {m.notas ? ` · ${m.notas}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditDeudaMov(m)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteDeudaMov(m.id)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Formulario */}
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
+                  {editingDeudaMovId ? "Editando movimiento" : "Nuevo movimiento"}
+                </div>
+                {!editingDeudaMovId && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={deudaForm.tipo} onValueChange={(v) => setDeudaForm(f => ({ ...f, tipo: v as any }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pago">Pago a deuda (resta saldo, genera asiento)</SelectItem>
+                        <SelectItem value="cargo">Cargo (suma deuda: intereses, deuda inicial)</SelectItem>
+                        <SelectItem value="ajuste">Ajuste (corregir diferencia con el banco)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Monto</Label>
+                    <Input type="number" value={deudaForm.monto} onChange={(e) => setDeudaForm(f => ({ ...f, monto: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fecha</Label>
+                    <Input type="date" value={deudaForm.fecha} onChange={(e) => setDeudaForm(f => ({ ...f, fecha: e.target.value }))} className="text-foreground [color-scheme:dark]" />
+                  </div>
+                </div>
+                {deudaForm.tipo === "pago" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Forma de pago</Label>
+                    <Select value={deudaForm.forma_pago} onValueChange={(v) => setDeudaForm(f => ({ ...f, forma_pago: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{FORMA_PAGO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {deudaForm.tipo !== "pago" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Concepto (opcional)</Label>
+                    <Input value={deudaForm.concepto} onChange={(e) => setDeudaForm(f => ({ ...f, concepto: e.target.value }))} placeholder="Ej: Intereses mes 10" />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs">Notas (opcional)</Label>
+                  <Textarea rows={2} value={deudaForm.notas} onChange={(e) => setDeudaForm(f => ({ ...f, notas: e.target.value }))} />
+                </div>
+                <div className="flex gap-2">
+                  {editingDeudaMovId && <Button variant="outline" className="flex-1" onClick={cancelEditDeudaMov}>Cancelar</Button>}
+                  <Button onClick={confirmarDeudaMov} variant="gold" className="flex-1">
+                    {editingDeudaMovId ? "Guardar cambios" : "Confirmar"}
+                  </Button>
+                </div>
+              </div>
+
+              <Button variant="ghost" className="w-full" onClick={() => setDeudaDialogOpen(false)}>Cerrar</Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
