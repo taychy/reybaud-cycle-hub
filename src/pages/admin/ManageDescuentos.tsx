@@ -85,6 +85,7 @@ const categoriaBadge: Record<string, { label: string; className: string }> = {
 };
 
 interface AlumnoConDescuento {
+  asignacion_id: string;
   alumno_id: string;
   alumno_nombre: string;
   alumno_apellido: string;
@@ -97,6 +98,8 @@ interface AlumnoConDescuento {
   activo: boolean;
   created_at: string;
   nota: string | null;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
 }
 
 const ManageDescuentos = () => {
