@@ -439,19 +439,21 @@ const ManageDescuentos = () => {
                     <TableHead className="text-muted-foreground">Valor</TableHead>
                     <TableHead className="text-muted-foreground">Aplica a</TableHead>
                     <TableHead className="text-muted-foreground">Desde</TableHead>
+                    <TableHead className="text-muted-foreground">Hasta</TableHead>
                     <TableHead className="text-muted-foreground">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {overviewLoading ? (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Cargando...</TableCell></TableRow>
                   ) : filteredOverview.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay alumnos con descuentos</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No hay alumnos con descuentos</TableCell></TableRow>
                   ) : (
                     filteredOverview.map((a, idx) => {
                       const cat = categoriaBadge[a.descuento_categoria] || categoriaBadge.general;
+                      const vencido = a.fecha_fin && parseFechaLocal(a.fecha_fin)! < new Date(new Date().setHours(0,0,0,0));
                       return (
-                        <TableRow key={`${a.alumno_id}-${a.descuento_nombre}-${idx}`} className="border-border">
+                        <TableRow key={`${a.asignacion_id}-${idx}`} className="border-border">
                           <TableCell>
                             <div>
                               <span className="font-medium text-foreground text-sm">{a.alumno_nombre} {a.alumno_apellido}</span>
@@ -469,7 +471,10 @@ const ManageDescuentos = () => {
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground capitalize">{a.descuento_aplica_a}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {new Date(a.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                            {formatFecha(a.fecha_inicio) !== "—" ? formatFecha(a.fecha_inicio) : new Date(a.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                          </TableCell>
+                          <TableCell className={`text-xs ${vencido ? "text-amber-400" : "text-muted-foreground"}`}>
+                            {formatFecha(a.fecha_fin)}
                           </TableCell>
                           <TableCell>
                             <Badge variant={a.activo ? "default" : "outline"} className={a.activo ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "text-muted-foreground text-[10px]"}>
