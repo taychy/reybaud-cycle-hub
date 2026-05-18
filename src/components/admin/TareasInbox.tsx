@@ -144,6 +144,16 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
       }
       if (nuevoEstado === "pospuesta") patch.pospuesta_hasta = pospuestaHasta || null;
       await updateTarea(t.id, patch, `cambio_estado:${nuevoEstado}`, nota);
+      // Si arranco la tarea, navego a la entidad para resolverla
+      if (nuevoEstado === "en_curso") {
+        const route = getTareaRoute(t);
+        if (route) {
+          toast.success("Tarea en curso · abriendo destino");
+          setOpenTarea(null);
+          navigate(route);
+          return;
+        }
+      }
       toast.success("Tarea actualizada");
       setOpenTarea(null);
     } catch (e: any) {
