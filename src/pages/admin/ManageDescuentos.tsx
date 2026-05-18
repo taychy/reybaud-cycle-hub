@@ -706,12 +706,34 @@ const ManageAssignDialog = ({
       toast({ title: "Fecha de inicio obligatoria", variant: "destructive" });
       return;
     }
+    // Chequeo de conflicto: ¿el alumno ya tiene otros descuentos vigentes
+    // sobre el mismo "aplica_a" (o uno con aplica_a = "todo")?
+    if (selectedDescuento) {
+      const { data: existentes } = await supabase
+        .from("descuentos_alumno" as any)
+        .select("id, fecha_inicio, fecha_fin, activo, descuentos!inner(nombre, aplica_a)")
+        .eq("alumno_id", selectedAlumno)
+        .neq("descuento_id", selectedDescuento.id);
+      const vigentes = ((existentes as any[]) || []).filter(e =>
+        isVigente(e.fecha_inicio, e.fecha_fin, e.activo)
+      ).map(e => ({ id: e.id, aplica_a: e.descuentos?.aplica_a as AplicaA, nombre: e.descuentos?.nombre as string }));
+      const conflicts = findConflictingExisting(selectedDescuento.aplica_a as AplicaA, vigentes);
+      if (conflicts.length > 0) {
+        const ok = window.confirm(
+          `Este alumno ya tiene vigente: ${conflicts.map(c => c.nombre).join(", ")}.\n\n` +
+          `Al cobrar se aplicará automáticamente solo el descuento de mayor valor sobre ${aplicaLabel(selectedDescuento.aplica_a as AplicaA)}.\n\n` +
+          `¿Agregar igual?`
+        );
+        if (!ok) return;
+      }
+    }
     await addAsignacion(selectedAlumno, newFechaInicio, newFechaFin || null);
     setSelectedAlumno(null);
     setNewFechaInicio(todayStr);
     setNewFechaFin("");
     setSearchAlumno("");
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
