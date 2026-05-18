@@ -4171,6 +4171,7 @@ export type Database = {
       }
     }
     Functions: {
+      auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }

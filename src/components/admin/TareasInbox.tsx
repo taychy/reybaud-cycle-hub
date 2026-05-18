@@ -1,6 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTareas, type Tarea, type TareaEstado, type TareaPrioridad, type TareaRol, type TareaScope } from "@/hooks/useTareas";
+
+// Mapea una tarea automática a la ruta admin donde se resuelve.
+// Devuelve null si no hay destino claro (ej: whatsapp_check sin entidad concreta).
+function getTareaRoute(t: Tarea): string | null {
+  const meta = (t.metadata || {}) as Record<string, any>;
+  const alumnoId = meta.alumno_id as string | undefined;
+  switch (t.origen) {
+    case "whatsapp_check":
+      return "/admin/whatsapp-conciliador";
+    case "alumno_inactivo_30d":
+    case "certificado_no_cargado":
+    case "certificado_por_vencer":
+    case "suscripcion_vencida_sin_renovar":
+    case "alumno_estado_intermedio_15d":
+      return alumnoId ? `/admin/alumnos?focus=${alumnoId}` : "/admin/alumnos";
+    case "pago_pendiente_validar":
+    case "suscripcion_pendiente_15d":
+    case "renovacion_proxima_7d":
+      return alumnoId ? `/admin/alumnos?focus=${alumnoId}&section=pagos` : "/admin/pagos";
+    case "coach_sin_feedback_14d":
+      return "/admin/asesoria";
+    default:
+      if (t.entidad_tipo === "alumno" && t.entidad_id) return `/admin/alumnos?focus=${t.entidad_id}`;
+      if (t.entidad_tipo === "suscripcion" && alumnoId) return `/admin/alumnos?focus=${alumnoId}&section=pagos`;
+      return null;
+  }
+}
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +84,7 @@ interface Props {
 }
 
 export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
+  const navigate = useNavigate();
   const [scope, setScope] = useState<TareaScope>("mi_rol");
   const { tareas, loading, generating, generate, updateTarea, createTarea } = useTareas(scope, userId, isSuperAdmin);
   const [filtroEstado, setFiltroEstado] = useState<string>("activas");
@@ -115,6 +144,16 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
       }
       if (nuevoEstado === "pospuesta") patch.pospuesta_hasta = pospuestaHasta || null;
       await updateTarea(t.id, patch, `cambio_estado:${nuevoEstado}`, nota);
+      // Si arranco la tarea, navego a la entidad para resolverla
+      if (nuevoEstado === "en_curso") {
+        const route = getTareaRoute(t);
+        if (route) {
+          toast.success("Tarea en curso · abriendo destino");
+          setOpenTarea(null);
+          navigate(route);
+          return;
+        }
+      }
       toast.success("Tarea actualizada");
       setOpenTarea(null);
     } catch (e: any) {
