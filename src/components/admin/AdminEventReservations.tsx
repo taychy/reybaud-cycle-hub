@@ -210,8 +210,9 @@ const quickFilters: { key: QuickFilter; label: string }[] = [
 
 const AdminEventReservations = ({
   eventId, eventTitle, eventCurrency, eventPrice, eventNature, eventType, eventMetadata,
-  eventDate, eventLocation, eventMaxCapacity, eventStatus,
+  eventDate, eventLocation, eventMaxCapacity, eventStatus, eventPaymentMode = "cuotas",
 }: AdminEventReservationsProps) => {
+  const isSimplePayment = eventPaymentMode === "simple";
   // Trip-like events show full onboarding (checklist + installments).
   // School events (record_hora, carrera, otro) show simplified flow.
   const isTripLike = eventType === "camp" || eventType === "viaje";
