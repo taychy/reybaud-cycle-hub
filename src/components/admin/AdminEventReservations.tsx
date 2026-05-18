@@ -360,7 +360,7 @@ const AdminEventReservations = ({
 
   const getReservaLink = (res: EventReservation): string => {
     const origin = window.location.origin;
-    if (res.external_participant_id && res.access_token) {
+    if (isTripLike && res.access_token) {
       return `${origin}/viaje/mi-reserva?token=${res.access_token}`;
     }
     return `${origin}/eventos/${eventId}`;
@@ -1194,7 +1194,7 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
                           </DropdownMenuItem>
-                          {r.external_participant_id && r.access_token && (
+                          {isTripLike && r.access_token && (
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => {
@@ -1276,7 +1276,7 @@ const AdminEventReservations = ({
                 }}>
                   <Mail className="w-3.5 h-3.5 mr-1.5" /> Email
                 </Button>
-                {selectedRes.external_participant_id && selectedRes.access_token && (
+                {isTripLike && selectedRes.access_token && (
                   <Button variant="outline" size="sm" onClick={() => {
                     const url = `${window.location.origin}/viaje/mi-reserva?token=${selectedRes.access_token}`;
                     navigator.clipboard.writeText(url);
