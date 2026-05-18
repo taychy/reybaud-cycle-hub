@@ -111,6 +111,7 @@ const emptyForm: EventFormData = {
   show_public: false,
   type: "otro",
   image_url: "",
+  payment_mode: "cuotas",
   metadata: {},
 };
 
