@@ -672,6 +672,7 @@ const SuperAdminGastos = () => {
                       <TableHead>Descripción</TableHead>
                       <TableHead>Forma de pago</TableHead>
                       <TableHead className="text-right">Monto</TableHead>
+                      <TableHead className="w-20">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -682,6 +683,12 @@ const SuperAdminGastos = () => {
                         <TableCell className="text-sm max-w-[300px] truncate">{g.descripcion}</TableCell>
                         <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
                         <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
