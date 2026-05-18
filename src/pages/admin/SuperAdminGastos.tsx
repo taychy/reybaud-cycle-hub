@@ -452,7 +452,7 @@ const SuperAdminGastos = () => {
         </CardContent>
       </Card>
         <div className="flex items-center gap-2">
-          <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-44" />
+          <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-44 text-foreground [color-scheme:dark]" />
           <Button variant="outline" size="sm" onClick={generarMes} className="gap-1">
             <RefreshCw className="w-4 h-4" /> Generar mes
           </Button>
