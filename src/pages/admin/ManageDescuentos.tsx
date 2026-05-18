@@ -148,11 +148,12 @@ const ManageDescuentos = () => {
     setOverviewLoading(true);
     const { data } = await supabase
       .from("descuentos_alumno" as any)
-      .select("alumno_id, activo, nota, created_at, alumnos!inner(nombre, apellido, email), descuentos!inner(nombre, categoria, valor, tipo, aplica_a)")
+      .select("id, alumno_id, activo, nota, created_at, fecha_inicio, fecha_fin, alumnos!inner(nombre, apellido, email), descuentos!inner(nombre, categoria, valor, tipo, aplica_a)")
       .order("created_at", { ascending: false });
 
     if (data) {
       setAlumnosConDescuento((data as any[]).map((d: any) => ({
+        asignacion_id: d.id,
         alumno_id: d.alumno_id,
         alumno_nombre: d.alumnos?.nombre || "",
         alumno_apellido: d.alumnos?.apellido || "",
@@ -162,9 +163,11 @@ const ManageDescuentos = () => {
         descuento_valor: d.descuentos?.valor || 0,
         descuento_tipo: d.descuentos?.tipo || "porcentaje",
         descuento_aplica_a: d.descuentos?.aplica_a || "todo",
-        activo: d.activo,
+        activo: isVigente(d.fecha_inicio, d.fecha_fin, d.activo),
         created_at: d.created_at,
         nota: d.nota,
+        fecha_inicio: d.fecha_inicio,
+        fecha_fin: d.fecha_fin,
       })));
     }
     setOverviewLoading(false);
