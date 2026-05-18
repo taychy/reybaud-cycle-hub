@@ -328,12 +328,6 @@ const ManageDescuentos = () => {
     await reloadAsignados(selectedDescuento.id);
   };
 
-  const filteredAlumnos = alumnos.filter(a => {
-    const q = searchAlumno.toLowerCase();
-    return !q || `${a.nombre} ${a.apellido || ""} ${a.email}`.toLowerCase().includes(q);
-  });
-
-  const activeAssignCount = (dId: string) => asignados.filter(a => a.descuento_id === dId && a.activo).length;
 
   return (
     <div className="space-y-6">
