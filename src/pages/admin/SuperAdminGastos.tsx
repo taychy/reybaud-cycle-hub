@@ -418,6 +418,15 @@ const SuperAdminGastos = () => {
     (acc[r.categoria] = acc[r.categoria] || []).push(r);
     return acc;
   }, {} as Record<string, Recurrente[]>);
+  const categoriaOrden = ["Sueldos", "Impuestos", "Sueldos variables", "Servicios", "Vehiculo"];
+  const recByCategoriaOrdenado = Object.entries(recByCategoria).sort(([a], [b]) => {
+    const ia = categoriaOrden.findIndex(c => c.toLowerCase() === a.toLowerCase());
+    const ib = categoriaOrden.findIndex(c => c.toLowerCase() === b.toLowerCase());
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 
   return (
     <div className="space-y-6">
