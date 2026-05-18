@@ -217,10 +217,25 @@ const SuperAdminGastos = () => {
   }, [ejecuciones, recurrentes]);
 
   // -------- Acciones ----------
-  const openPagar = (e: Ejecucion, rec: Recurrente) => {
+  const loadPagosEjec = async (ejecId: string) => {
+    const { data } = await supabase
+      .from("gastos_ejecucion_pagos" as any)
+      .select("id,monto,fecha,forma_pago,notas")
+      .eq("ejecucion_id", ejecId)
+      .order("fecha", { ascending: true });
+    setPagos((data || []) as any);
+  };
+
+  const openPagar = async (e: Ejecucion, rec: Recurrente) => {
     setPayingEjec({ ejec: e, rec });
+    setEditingPagoId(null);
+    await loadPagosEjec(e.id);
+    const totalPagado = (await supabase
+      .from("gastos_ejecucion_pagos" as any)
+      .select("monto").eq("ejecucion_id", e.id)).data?.reduce((s: number, p: any) => s + Number(p.monto || 0), 0) || 0;
+    const restante = Math.max((e.monto_previsto || rec.monto_estimado) - totalPagado, 0);
     setPagoForm({
-      monto: String(e.monto_previsto || rec.monto_estimado),
+      monto: String(restante || e.monto_previsto || rec.monto_estimado),
       fecha: new Date().toISOString().split("T")[0],
       forma_pago: rec.forma_pago_default || "transferencia",
       notas: "",
@@ -230,18 +245,51 @@ const SuperAdminGastos = () => {
 
   const confirmarPago = async () => {
     if (!payingEjec) return;
-    const { error } = await supabase.rpc("pay_gasto_ejecucion", {
-      p_id: payingEjec.ejec.id,
-      p_monto: Number(pagoForm.monto),
-      p_fecha: pagoForm.fecha,
-      p_forma_pago: pagoForm.forma_pago,
-      p_notas: pagoForm.notas || null,
-    });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Pago registrado", description: payingEjec.rec.concepto });
-    setPagoDialogOpen(false); setPayingEjec(null);
+    const monto = Number(pagoForm.monto);
+    if (!monto || monto <= 0) { toast({ title: "Monto inválido", variant: "destructive" }); return; }
+
+    if (editingPagoId) {
+      const { error } = await supabase.rpc("update_gasto_pago" as any, {
+        p_pago_id: editingPagoId, p_monto: monto, p_fecha: pagoForm.fecha,
+        p_forma_pago: pagoForm.forma_pago, p_notas: pagoForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Pago actualizado" });
+    } else {
+      const { error } = await supabase.rpc("register_gasto_pago" as any, {
+        p_ejec_id: payingEjec.ejec.id, p_monto: monto, p_fecha: pagoForm.fecha,
+        p_forma_pago: pagoForm.forma_pago, p_notas: pagoForm.notas || null,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Pago registrado", description: payingEjec.rec.concepto });
+    }
+
+    await loadPagosEjec(payingEjec.ejec.id);
+    setEditingPagoId(null);
+    setPagoForm(f => ({ ...f, monto: "", notas: "" }));
     loadData();
   };
+
+  const startEditPago = (p: { id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }) => {
+    setEditingPagoId(p.id);
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "" });
+  };
+
+  const cancelEditPago = () => {
+    setEditingPagoId(null);
+    setPagoForm(f => ({ ...f, monto: "", notas: "" }));
+  };
+
+  const deletePago = async (id: string) => {
+    if (!confirm("¿Eliminar este pago? El estado de la cuota se va a recalcular.")) return;
+    const { error } = await supabase.rpc("delete_gasto_pago" as any, { p_pago_id: id });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Pago eliminado" });
+    if (payingEjec) await loadPagosEjec(payingEjec.ejec.id);
+    if (editingPagoId === id) cancelEditPago();
+    loadData();
+  };
+
 
   const omitirEjec = async (id: string) => {
     const { error } = await supabase.from("gastos_ejecuciones").update({ estado: "omitido" as EstadoEjec }).eq("id", id);
