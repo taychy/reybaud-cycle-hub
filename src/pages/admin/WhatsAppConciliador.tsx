@@ -622,17 +622,19 @@ const WhatsAppConciliador = () => {
 
       {/* PASO 3: REVISIÓN */}
       {step === 3 && (() => {
-        const aInvitar = items.filter(i => i.resultado === "ausente" && i.hasActivePlan);
-        const ausentesSinPlan = items.filter(i => i.resultado === "ausente" && !i.hasActivePlan);
+        const aInvitar = items.filter(i => i.resultado === "ausente" && i.hasActivePlan && !i.grupo_incorrecto);
+        const ausentesSinPlan = items.filter(i => i.resultado === "ausente" && !i.hasActivePlan && !i.grupo_incorrecto);
         const planVencidoEnGrupo = items.filter(i => i.resultado === "presente" && i.planVencido);
-        const grupoMal = items.filter(i => i.grupo_incorrecto);
+        const malConDestino = items.filter(i => i.grupo_incorrecto && i.grupo_real_sugerido);
+        const malSinDefinir = items.filter(i => i.grupo_incorrecto && !i.grupo_real_sugerido);
+        const extrasVinculados = extras.filter(e => e.alumno_id && e.reasignar_a_grupo);
         return (
           <div className="space-y-4">
             {/* A invitar */}
             <RevisionSection
               title={`A invitar al grupo (${aInvitar.length})`}
               tone="warning"
-              description="Tienen plan activo pero no aparecen en el grupo. Invitalos al WhatsApp."
+              description="Tienen plan activo, están asignados a este grupo en la app y no aparecen en el WhatsApp. Invitalos."
               empty="No hay alumnos con plan activo fuera del grupo."
               items={aInvitar}
               onFicha={(id) => navigate(`/admin/alumnos?focus=${id}`)}
@@ -648,65 +650,100 @@ const WhatsAppConciliador = () => {
               onFicha={(id) => navigate(`/admin/alumnos?focus=${id}`)}
             />
 
-            {/* Grupo mal asignado (combina items + extras vinculados a alumno) */}
-            {(() => {
-              const extrasVinculados = extras.filter(e => e.alumno_id && e.reasignar_a_grupo);
-              const totalMal = grupoMal.length + extrasVinculados.length;
-              return (
-                <Card className="border-blue-500/30">
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <ArrowRightLeft className="w-4 h-4 text-blue-500" />
-                      Grupo mal asignado en la app ({totalMal})
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                      Alumnos que están en el WhatsApp de <strong>{selectedGrupo}</strong> pero en la app figuran en otro grupo. Reasignalos para que coincidan.
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {totalMal === 0 && <p className="text-sm text-emerald-600">No se detectaron casos de grupo mal asignado.</p>}
-                    {grupoMal.map(it => (
-                      <div key={`item-${it.alumno.id}`} className="border border-blue-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex-1 min-w-[200px]">
-                          <p className="font-semibold text-sm">{it.alumno.nombre} {it.alumno.apellido || ""}</p>
-                          <p className="text-xs text-blue-600">Visto en <strong>{it.grupo_real_sugerido}</strong> · en app figura en <strong>{it.alumno.grupo}</strong></p>
-                          {it.nota && <p className="text-xs text-muted-foreground italic mt-1">"{it.nota}"</p>}
-                        </div>
-                        <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/alumnos?focus=${it.alumno.id}`)}>
-                          <ExternalLink className="w-3.5 h-3.5 mr-1" />Ficha
+            {/* Reasignar a grupo concreto (ítems con destino + extras vinculados) */}
+            <Card className="border-blue-500/30">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ArrowRightLeft className="w-4 h-4 text-blue-500" />
+                  Reasignar a otro grupo ({malConDestino.length + extrasVinculados.length})
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Alumnos mal asignados en la app con destino conocido. Confirmá la reasignación.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {malConDestino.length + extrasVinculados.length === 0 && (
+                  <p className="text-sm text-emerald-600">Sin casos pendientes de reasignación.</p>
+                )}
+                {malConDestino.map(it => (
+                  <div key={`item-${it.alumno.id}`} className="border border-blue-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="font-semibold text-sm">{it.alumno.nombre} {it.alumno.apellido || ""}</p>
+                      <p className="text-xs text-blue-600">
+                        En app: <strong>{it.alumno.grupo}</strong> → debería ir a <strong>{it.grupo_real_sugerido}</strong>
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {it.reasignado || it.alumno.grupo === it.grupo_real_sugerido ? (
+                        <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
+                          <Check className="w-3 h-3 mr-1" />Reasignado
+                        </Badge>
+                      ) : (
+                        <Button size="sm" onClick={() => reassignItem(it.alumno.id, it.grupo_real_sugerido!)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                          <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />Reasignar a {it.grupo_real_sugerido}
                         </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/alumnos?focus=${it.alumno.id}`)}>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {extrasVinculados.map((ex) => {
+                  const i = extras.indexOf(ex);
+                  const alumno = alumnos.find(a => a.id === ex.alumno_id);
+                  return (
+                    <div key={`extra-${i}`} className="border border-blue-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex-1 min-w-[200px]">
+                        <p className="font-semibold text-sm">{ex.nombre}</p>
+                        <p className="text-xs text-blue-600">
+                          En app: <strong>{alumno?.grupo || "—"}</strong> → debería ir a <strong>{selectedGrupo}</strong>
+                        </p>
                       </div>
-                    ))}
-                    {extrasVinculados.map((ex) => {
-                      const i = extras.indexOf(ex);
-                      const alumno = alumnos.find(a => a.id === ex.alumno_id);
-                      return (
-                        <div key={`extra-${i}`} className="border border-blue-500/30 rounded-md p-3 flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex-1 min-w-[200px]">
-                            <p className="font-semibold text-sm">{ex.nombre}</p>
-                            <p className="text-xs text-blue-600">
-                              Visto en <strong>{selectedGrupo}</strong> · en app figura en <strong>{alumno?.grupo || "—"}</strong>
-                            </p>
-                            {ex.nota && <p className="text-xs text-muted-foreground italic mt-1">"{ex.nota}"</p>}
-                          </div>
-                          <div className="flex gap-1.5">
-                            {ex.reasignado ? (
-                              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
-                                <Check className="w-3 h-3 mr-1" />Reasignado
-                              </Badge>
-                            ) : (
-                              <Button size="sm" onClick={() => reassignExtra(i)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />Reasignar a {selectedGrupo}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
-              );
-            })()}
+                      <div className="flex gap-1.5">
+                        {ex.reasignado ? (
+                          <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
+                            <Check className="w-3 h-3 mr-1" />Reasignado
+                          </Badge>
+                        ) : (
+                          <Button size="sm" onClick={() => reassignExtra(i)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />Reasignar a {selectedGrupo}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* Revisar grupo (sin definir) */}
+            {malSinDefinir.length > 0 && (
+              <Card className="border-amber-500/30">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Revisar grupo correcto ({malSinDefinir.length})
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Están asignados a <strong>{selectedGrupo}</strong> en la app, pero <strong>no pertenecen a este grupo</strong>.
+                    Averiguá a qué grupo corresponden y reasignalos acá.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {malSinDefinir.map(it => (
+                    <ReviewPicker
+                      key={`rev-${it.alumno.id}`}
+                      item={it}
+                      grupos={grupos}
+                      onReassign={(g) => reassignItem(it.alumno.id, g)}
+                      onFicha={() => navigate(`/admin/alumnos?focus=${it.alumno.id}`)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
 
             {/* Personas en el grupo no esperadas */}
             <Card>
