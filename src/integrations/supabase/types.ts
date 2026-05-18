@@ -129,6 +129,57 @@ export type Database = {
           },
         ]
       }
+      alumno_familiares: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          created_by: string | null
+          familiar_alumno_id: string | null
+          familiar_externo_nombre: string | null
+          familiar_externo_telefono: string | null
+          id: string
+          notas: string | null
+          relacion: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          created_by?: string | null
+          familiar_alumno_id?: string | null
+          familiar_externo_nombre?: string | null
+          familiar_externo_telefono?: string | null
+          id?: string
+          notas?: string | null
+          relacion?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          created_by?: string | null
+          familiar_alumno_id?: string | null
+          familiar_externo_nombre?: string | null
+          familiar_externo_telefono?: string | null
+          id?: string
+          notas?: string | null
+          relacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_familiares_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_familiares_familiar_alumno_id_fkey"
+            columns: ["familiar_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alumnos: {
         Row: {
           apellido: string | null
@@ -136,7 +187,11 @@ export type Database = {
           como_se_entero: string | null
           condicion_medica: string | null
           contacto_emergencia_nombre: string | null
+          contacto_emergencia_nombre_2: string | null
+          contacto_emergencia_relacion: string | null
+          contacto_emergencia_relacion_2: string | null
           contacto_emergencia_telefono: string | null
+          contacto_emergencia_telefono_2: string | null
           created_at: string
           direccion: string | null
           documento: string | null
@@ -156,6 +211,9 @@ export type Database = {
           medical_certificate_url: string | null
           nombre: string
           notas: string | null
+          obra_social_nombre: string | null
+          obra_social_numero_socio: string | null
+          obra_social_plan: string | null
           password_set: boolean
           pause_fecha_estimada_retorno: string | null
           pause_motivo: string | null
@@ -176,7 +234,11 @@ export type Database = {
           como_se_entero?: string | null
           condicion_medica?: string | null
           contacto_emergencia_nombre?: string | null
+          contacto_emergencia_nombre_2?: string | null
+          contacto_emergencia_relacion?: string | null
+          contacto_emergencia_relacion_2?: string | null
           contacto_emergencia_telefono?: string | null
+          contacto_emergencia_telefono_2?: string | null
           created_at?: string
           direccion?: string | null
           documento?: string | null
@@ -196,6 +258,9 @@ export type Database = {
           medical_certificate_url?: string | null
           nombre: string
           notas?: string | null
+          obra_social_nombre?: string | null
+          obra_social_numero_socio?: string | null
+          obra_social_plan?: string | null
           password_set?: boolean
           pause_fecha_estimada_retorno?: string | null
           pause_motivo?: string | null
@@ -216,7 +281,11 @@ export type Database = {
           como_se_entero?: string | null
           condicion_medica?: string | null
           contacto_emergencia_nombre?: string | null
+          contacto_emergencia_nombre_2?: string | null
+          contacto_emergencia_relacion?: string | null
+          contacto_emergencia_relacion_2?: string | null
           contacto_emergencia_telefono?: string | null
+          contacto_emergencia_telefono_2?: string | null
           created_at?: string
           direccion?: string | null
           documento?: string | null
@@ -236,6 +305,9 @@ export type Database = {
           medical_certificate_url?: string | null
           nombre?: string
           notas?: string | null
+          obra_social_nombre?: string | null
+          obra_social_numero_socio?: string | null
+          obra_social_plan?: string | null
           password_set?: boolean
           pause_fecha_estimada_retorno?: string | null
           pause_motivo?: string | null
