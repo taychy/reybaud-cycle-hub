@@ -36,7 +36,30 @@ interface DescuentoAlumno {
   activo: boolean;
   nota: string | null;
   created_at: string;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
 }
+
+// Parse fecha literal (YYYY-MM-DD) sin timezone drift
+const parseFechaLocal = (s: string | null) => {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+const formatFecha = (s: string | null) => {
+  const d = parseFechaLocal(s);
+  if (!d) return "—";
+  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+const isVigente = (fi: string | null, ff: string | null, activo: boolean) => {
+  if (!activo) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const fini = parseFechaLocal(fi);
+  const ffin = parseFechaLocal(ff);
+  if (fini && fini > today) return false;
+  if (ffin && ffin < today) return false;
+  return true;
+};
 
 const categorias = [
   { value: "familiar", label: "Familiar" },
