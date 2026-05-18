@@ -140,6 +140,7 @@ export const eventFormFromRow = (ev: any): EventFormData => ({
   show_public: ev.show_public ?? false,
   type: ev.type || "otro",
   image_url: ev.image_url || "",
+  payment_mode: (ev.payment_mode === "simple" ? "simple" : "cuotas"),
   metadata: ev.metadata || {},
 });
 
