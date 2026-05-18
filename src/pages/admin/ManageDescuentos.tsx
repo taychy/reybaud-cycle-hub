@@ -600,47 +600,227 @@ const ManageDescuentos = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Assign students dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              Asignar alumnos — {selectedDescuento?.nombre}
-              <Badge className="ml-2" variant="outline">
-                {selectedDescuento?.tipo === "fijo" ? `$${selectedDescuento?.valor}` : `${selectedDescuento?.valor}%`}
-              </Badge>
-            </DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder="Buscar alumno..."
-            value={searchAlumno}
-            onChange={e => setSearchAlumno(e.target.value)}
-          />
-          <div className="overflow-y-auto flex-1 space-y-1 mt-2">
-            {filteredAlumnos.map(a => (
-              <div
-                key={a.id}
-                className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                  isAssigned(a.id) ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50"
-                }`}
-                onClick={() => toggleAssign(a.id)}
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{a.nombre} {a.apellido || ""}</p>
-                  <p className="text-xs text-muted-foreground">{a.email}</p>
-                </div>
-                {isAssigned(a.id) && (
-                  <Badge className="bg-primary/20 text-primary border-primary/30">Asignado</Badge>
-                )}
-              </div>
-            ))}
-            {filteredAlumnos.length === 0 && (
-              <p className="text-center text-muted-foreground text-sm py-4">No se encontraron alumnos</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Manage students dialog */}
+      <ManageAssignDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        selectedDescuento={selectedDescuento}
+        alumnos={alumnos}
+        asignados={asignados}
+        searchAlumno={searchAlumno}
+        setSearchAlumno={setSearchAlumno}
+        addAsignacion={addAsignacion}
+        updateAsignacion={updateAsignacion}
+        removeAsignacion={removeAsignacion}
+      />
     </div>
+  );
+};
+
+// ---------- Manage assignments sub-component ----------
+interface ManageAssignProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  selectedDescuento: Descuento | null;
+  alumnos: any[];
+  asignados: DescuentoAlumno[];
+  searchAlumno: string;
+  setSearchAlumno: (v: string) => void;
+  addAsignacion: (alumnoId: string, fechaInicio: string, fechaFin: string | null) => Promise<void>;
+  updateAsignacion: (id: string, patch: { fecha_inicio?: string; fecha_fin?: string | null; activo?: boolean }) => Promise<void>;
+  removeAsignacion: (id: string) => Promise<void>;
+}
+
+const ManageAssignDialog = ({
+  open, onOpenChange, selectedDescuento, alumnos, asignados,
+  searchAlumno, setSearchAlumno, addAsignacion, updateAsignacion, removeAsignacion
+}: ManageAssignProps) => {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [selectedAlumno, setSelectedAlumno] = useState<string | null>(null);
+  const [newFechaInicio, setNewFechaInicio] = useState(todayStr);
+  const [newFechaFin, setNewFechaFin] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFechaInicio, setEditFechaInicio] = useState("");
+  const [editFechaFin, setEditFechaFin] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setSelectedAlumno(null);
+      setNewFechaInicio(todayStr);
+      setNewFechaFin("");
+      setEditingId(null);
+    }
+  }, [open]);
+
+  const activeAsignados = asignados.filter(a => a.activo);
+  const assignedAlumnoIds = new Set(asignados.filter(a => a.activo).map(a => a.alumno_id));
+  const alumnosDisponibles = alumnos.filter(a => {
+    if (assignedAlumnoIds.has(a.id)) return false;
+    const q = searchAlumno.toLowerCase();
+    return !q || `${a.nombre} ${a.apellido || ""} ${a.email}`.toLowerCase().includes(q);
+  });
+  const alumnoMap = new Map(alumnos.map(a => [a.id, a]));
+
+  const startEdit = (asig: DescuentoAlumno) => {
+    setEditingId(asig.id);
+    setEditFechaInicio(asig.fecha_inicio || todayStr);
+    setEditFechaFin(asig.fecha_fin || "");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    await updateAsignacion(editingId, {
+      fecha_inicio: editFechaInicio,
+      fecha_fin: editFechaFin || null,
+    });
+    setEditingId(null);
+  };
+
+  const handleAdd = async () => {
+    if (!selectedAlumno) {
+      toast({ title: "Seleccioná un alumno", variant: "destructive" });
+      return;
+    }
+    if (!newFechaInicio) {
+      toast({ title: "Fecha de inicio obligatoria", variant: "destructive" });
+      return;
+    }
+    await addAsignacion(selectedAlumno, newFechaInicio, newFechaFin || null);
+    setSelectedAlumno(null);
+    setNewFechaInicio(todayStr);
+    setNewFechaFin("");
+    setSearchAlumno("");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>
+            Gestionar alumnos — {selectedDescuento?.nombre}
+            <Badge className="ml-2" variant="outline">
+              {selectedDescuento?.tipo === "fijo" ? `$${selectedDescuento?.valor}` : `${selectedDescuento?.valor}%`}
+            </Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="overflow-y-auto flex-1 space-y-5 pr-1">
+          {/* Asignados */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-foreground">Alumnos asignados</h3>
+              <Badge variant="outline" className="text-xs">{activeAsignados.length} activos</Badge>
+            </div>
+            {asignados.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Aún no hay alumnos asignados</p>
+            ) : (
+              <div className="space-y-1.5">
+                {asignados.map(asig => {
+                  const a = alumnoMap.get(asig.alumno_id);
+                  const vigente = isVigente(asig.fecha_inicio, asig.fecha_fin, asig.activo);
+                  const isEditing = editingId === asig.id;
+                  return (
+                    <div key={asig.id} className={`p-2.5 rounded-lg border ${vigente ? "border-primary/20 bg-primary/5" : "border-border bg-muted/30"}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {a?.nombre || "Alumno"} {a?.apellido || ""}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">{a?.email}</p>
+                          {!isEditing && (
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              {formatFecha(asig.fecha_inicio)} → {asig.fecha_fin ? formatFecha(asig.fecha_fin) : "sin vencimiento"}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!isEditing && (
+                            <>
+                              <Badge variant="outline" className={vigente ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "text-muted-foreground text-[10px]"}>
+                                {vigente ? "Vigente" : "Inactivo"}
+                              </Badge>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(asig)} title="Editar fechas">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAsignacion(asig.id)} title="Quitar">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {isEditing && (
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] text-muted-foreground">Desde</label>
+                            <Input type="date" value={editFechaInicio} onChange={e => setEditFechaInicio(e.target.value)} className="h-8 text-xs" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted-foreground">Hasta (opcional)</label>
+                            <Input type="date" value={editFechaFin} onChange={e => setEditFechaFin(e.target.value)} className="h-8 text-xs" />
+                          </div>
+                          <div className="col-span-2 flex gap-2 justify-end">
+                            <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancelar</Button>
+                            <Button size="sm" onClick={saveEdit}>Guardar</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Agregar */}
+          <section className="border-t border-border pt-4">
+            <h3 className="text-sm font-semibold text-foreground mb-2">Agregar alumno</h3>
+            <Input
+              placeholder="Buscar alumno..."
+              value={searchAlumno}
+              onChange={e => setSearchAlumno(e.target.value)}
+              className="mb-2"
+            />
+            <div className="max-h-48 overflow-y-auto space-y-1 mb-3 border border-border rounded-lg p-1">
+              {alumnosDisponibles.length === 0 ? (
+                <p className="text-center text-muted-foreground text-xs py-4">
+                  {searchAlumno ? "No se encontraron alumnos" : "Escribí para buscar"}
+                </p>
+              ) : (
+                alumnosDisponibles.slice(0, 20).map(a => (
+                  <div
+                    key={a.id}
+                    onClick={() => setSelectedAlumno(a.id)}
+                    className={`p-2 rounded cursor-pointer transition-colors ${
+                      selectedAlumno === a.id ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-foreground">{a.nombre} {a.apellido || ""}</p>
+                    <p className="text-[10px] text-muted-foreground">{a.email}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Fecha inicio</label>
+                <Input type="date" value={newFechaInicio} onChange={e => setNewFechaInicio(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Fecha fin (opcional)</label>
+                <Input type="date" value={newFechaFin} onChange={e => setNewFechaFin(e.target.value)} />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-3">Dejá la fecha de fin vacía si el descuento no vence</p>
+
+            <Button className="w-full" onClick={handleAdd} disabled={!selectedAlumno}>
+              <Plus className="w-4 h-4 mr-1" /> Agregar al descuento
+            </Button>
+          </section>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
