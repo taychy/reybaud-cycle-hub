@@ -1103,6 +1103,129 @@ const SuperAdminGastos = () => {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* DIALOG: Deuda */}
+      <Dialog open={deudaDialogOpen} onOpenChange={(o) => { setDeudaDialogOpen(o); if (!o) { setDeudaRec(null); setEditingDeudaMovId(null); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-destructive" />
+              Deuda — {deudaRec?.concepto}
+            </DialogTitle>
+          </DialogHeader>
+          {deudaRec && (
+            <div className="space-y-3">
+              {/* Resumen */}
+              {deudaDetalle && (
+                <div className="p-3 rounded-md bg-muted/40 space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Saldo actual</span>
+                    <span className={`font-heading font-bold text-lg ${deudaDetalle.saldo > 0 ? "text-destructive" : "text-green-500"}`}>
+                      {fmt(deudaDetalle.saldo, deudaDetalle.moneda)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground pt-1 border-t border-border/50">
+                    <div>Auto (cuotas vencidas): <b className="text-foreground">{fmt(deudaDetalle.automatica, deudaDetalle.moneda)}</b></div>
+                    <div>+ Cargos manuales: <b className="text-foreground">{fmt(deudaDetalle.cargos, deudaDetalle.moneda)}</b></div>
+                    <div>± Ajustes: <b className="text-foreground">{fmt(deudaDetalle.ajustes, deudaDetalle.moneda)}</b></div>
+                    <div>− Pagos a deuda: <b className="text-green-500">{fmt(deudaDetalle.pagos, deudaDetalle.moneda)}</b></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Historial movimientos manuales */}
+              {deudaMovs.length > 0 && (
+                <div className="border rounded-md divide-y">
+                  <div className="px-3 py-2 text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground bg-muted/30">
+                    Movimientos manuales
+                  </div>
+                  {deudaMovs.map(m => {
+                    const tipoLabel = m.tipo === "pago" ? "Pago" : m.tipo === "cargo" ? "Cargo" : "Ajuste";
+                    const color = m.tipo === "pago" ? "text-green-500" : m.tipo === "cargo" ? "text-destructive" : "text-yellow-500";
+                    return (
+                      <div key={m.id} className={`p-2.5 flex items-center justify-between gap-2 text-sm ${editingDeudaMovId === m.id ? "bg-primary/5" : ""}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium flex items-center gap-2">
+                            <Badge variant="outline" className={`text-[10px] ${color}`}>{tipoLabel}</Badge>
+                            <span className={color}>{m.tipo === "pago" ? "−" : "+"}{fmt(m.monto, deudaDetalle?.moneda || "ARS")}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {parseDate(m.fecha)!.toLocaleDateString("es-AR")}
+                            {m.forma_pago ? ` · ${FORMA_PAGO_LABELS[m.forma_pago] || m.forma_pago}` : ""}
+                            {m.concepto ? ` · ${m.concepto}` : ""}
+                            {m.notas ? ` · ${m.notas}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditDeudaMov(m)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteDeudaMov(m.id)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Formulario */}
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
+                  {editingDeudaMovId ? "Editando movimiento" : "Nuevo movimiento"}
+                </div>
+                {!editingDeudaMovId && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={deudaForm.tipo} onValueChange={(v) => setDeudaForm(f => ({ ...f, tipo: v as any }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pago">Pago a deuda (resta saldo, genera asiento)</SelectItem>
+                        <SelectItem value="cargo">Cargo (suma deuda: intereses, deuda inicial)</SelectItem>
+                        <SelectItem value="ajuste">Ajuste (corregir diferencia con el banco)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Monto</Label>
+                    <Input type="number" value={deudaForm.monto} onChange={(e) => setDeudaForm(f => ({ ...f, monto: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fecha</Label>
+                    <Input type="date" value={deudaForm.fecha} onChange={(e) => setDeudaForm(f => ({ ...f, fecha: e.target.value }))} className="text-foreground [color-scheme:dark]" />
+                  </div>
+                </div>
+                {deudaForm.tipo === "pago" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Forma de pago</Label>
+                    <Select value={deudaForm.forma_pago} onValueChange={(v) => setDeudaForm(f => ({ ...f, forma_pago: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{FORMA_PAGO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {deudaForm.tipo !== "pago" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Concepto (opcional)</Label>
+                    <Input value={deudaForm.concepto} onChange={(e) => setDeudaForm(f => ({ ...f, concepto: e.target.value }))} placeholder="Ej: Intereses mes 10" />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs">Notas (opcional)</Label>
+                  <Textarea rows={2} value={deudaForm.notas} onChange={(e) => setDeudaForm(f => ({ ...f, notas: e.target.value }))} />
+                </div>
+                <div className="flex gap-2">
+                  {editingDeudaMovId && <Button variant="outline" className="flex-1" onClick={cancelEditDeudaMov}>Cancelar</Button>}
+                  <Button onClick={confirmarDeudaMov} variant="gold" className="flex-1">
+                    {editingDeudaMovId ? "Guardar cambios" : "Confirmar"}
+                  </Button>
+                </div>
+              </div>
+
+              <Button variant="ghost" className="w-full" onClick={() => setDeudaDialogOpen(false)}>Cerrar</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
