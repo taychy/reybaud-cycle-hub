@@ -207,7 +207,7 @@ const SuperAdminGastos = () => {
     return k;
   }, [ejecuciones, recurrentes]);
 
-  // Agenda (pendientes ordenados por fecha)
+  // Agenda (pendientes + parciales ordenados por fecha). Pagadas se gestionan desde matriz o histórico.
   const agenda = useMemo(() => {
     return ejecuciones
       .filter(e => e.estado === "pendiente" || e.estado === "vencido" || e.estado === "parcial")
@@ -215,6 +215,7 @@ const SuperAdminGastos = () => {
       .filter(x => x.rec)
       .sort((a, b) => (a.e.fecha_vencimiento || "").localeCompare(b.e.fecha_vencimiento || ""));
   }, [ejecuciones, recurrentes]);
+
 
   // -------- Acciones ----------
   const loadPagosEjec = async (ejecId: string) => {
