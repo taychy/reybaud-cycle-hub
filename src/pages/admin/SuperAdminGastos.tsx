@@ -280,6 +280,43 @@ const SuperAdminGastos = () => {
     setEditingPagoId(null);
     setPagoForm(f => ({ ...f, monto: "", notas: "" }));
   };
+  const openHistoricoEdit = async (g: GastoRow) => {
+    const { data: pago } = await supabase
+      .from("gastos_ejecucion_pagos" as any)
+      .select("id,ejecucion_id,monto,fecha,forma_pago,notas")
+      .eq("gasto_id", g.id).maybeSingle();
+    if (!pago) {
+      toast({ title: "Pago no vinculado", description: "Este movimiento es histórico libre. Eliminalo y recargalo desde la agenda.", variant: "destructive" });
+      return;
+    }
+    const p: any = pago;
+    const { data: ejec } = await supabase.from("gastos_ejecuciones").select("*").eq("id", p.ejecucion_id).maybeSingle();
+    if (!ejec) { toast({ title: "Cuota no encontrada", variant: "destructive" }); return; }
+    const rec = recurrentes.find(r => r.id === ejec.recurrente_id);
+    if (!rec) { toast({ title: "Concepto no encontrado", variant: "destructive" }); return; }
+    setPayingEjec({ ejec: ejec as any, rec });
+    await loadPagosEjec(ejec.id);
+    setEditingPagoId(p.id);
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "" });
+    setPagoDialogOpen(true);
+  };
+
+  const deleteHistorico = async (g: GastoRow) => {
+    const { data: pago } = await supabase
+      .from("gastos_ejecucion_pagos" as any)
+      .select("id").eq("gasto_id", g.id).maybeSingle();
+    if (!confirm("¿Eliminar este movimiento del histórico? También se ajusta el estado de la cuota.")) return;
+    if (pago) {
+      const { error } = await supabase.rpc("delete_gasto_pago" as any, { p_pago_id: (pago as any).id });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("gastos").delete().eq("id", g.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    }
+    toast({ title: "Movimiento eliminado" });
+    loadData();
+  };
+
 
   const deletePago = async (id: string) => {
     if (!confirm("¿Eliminar este pago? El estado de la cuota se va a recalcular.")) return;
