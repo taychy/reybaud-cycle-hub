@@ -1861,6 +1861,132 @@ export type Database = {
         }
         Relationships: []
       }
+      gastos_ejecuciones: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["gasto_ejecucion_estado"]
+          fecha_pago: string | null
+          fecha_vencimiento: string | null
+          forma_pago: string | null
+          gasto_id: string | null
+          id: string
+          mes: string
+          moneda: string
+          monto_pagado: number | null
+          monto_previsto: number
+          notas: string | null
+          pagado_por: string | null
+          recurrente_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["gasto_ejecucion_estado"]
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          forma_pago?: string | null
+          gasto_id?: string | null
+          id?: string
+          mes: string
+          moneda?: string
+          monto_pagado?: number | null
+          monto_previsto?: number
+          notas?: string | null
+          pagado_por?: string | null
+          recurrente_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["gasto_ejecucion_estado"]
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          forma_pago?: string | null
+          gasto_id?: string | null
+          id?: string
+          mes?: string
+          moneda?: string
+          monto_pagado?: number | null
+          monto_previsto?: number
+          notas?: string | null
+          pagado_por?: string | null
+          recurrente_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_ejecuciones_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_ejecuciones_recurrente_id_fkey"
+            columns: ["recurrente_id"]
+            isOneToOne: false
+            referencedRelation: "gastos_recurrentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gastos_recurrentes: {
+        Row: {
+          activo: boolean
+          ambito: Database["public"]["Enums"]["gasto_ambito"]
+          categoria: string
+          concepto: string
+          created_at: string
+          dia_vencimiento: number | null
+          forma_pago_default: string | null
+          frecuencia: Database["public"]["Enums"]["gasto_frecuencia"]
+          id: string
+          meses_aplicables: number[] | null
+          moneda: string
+          monto_estimado: number
+          notas: string | null
+          proveedor: string | null
+          responsable: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          ambito?: Database["public"]["Enums"]["gasto_ambito"]
+          categoria: string
+          concepto: string
+          created_at?: string
+          dia_vencimiento?: number | null
+          forma_pago_default?: string | null
+          frecuencia?: Database["public"]["Enums"]["gasto_frecuencia"]
+          id?: string
+          meses_aplicables?: number[] | null
+          moneda?: string
+          monto_estimado?: number
+          notas?: string | null
+          proveedor?: string | null
+          responsable?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          ambito?: Database["public"]["Enums"]["gasto_ambito"]
+          categoria?: string
+          concepto?: string
+          created_at?: string
+          dia_vencimiento?: number | null
+          forma_pago_default?: string | null
+          frecuencia?: Database["public"]["Enums"]["gasto_frecuencia"]
+          id?: string
+          meses_aplicables?: number[] | null
+          moneda?: string
+          monto_estimado?: number
+          notas?: string | null
+          proveedor?: string | null
+          responsable?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       grupo_familiar: {
         Row: {
           created_at: string
@@ -4185,7 +4311,12 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      generate_gastos_ejecuciones_month: {
+        Args: { p_mes: string }
+        Returns: number
+      }
       generate_tareas_automaticas: { Args: never; Returns: number }
+      generate_tareas_gastos_pendientes: { Args: never; Returns: number }
       get_program_inscriptions_count: {
         Args: { p_plan_ids: string[] }
         Returns: {
@@ -4222,6 +4353,16 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      pay_gasto_ejecucion: {
+        Args: {
+          p_fecha: string
+          p_forma_pago: string
+          p_id: string
+          p_monto: number
+          p_notas?: string
+        }
+        Returns: string
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
       read_email_batch: {
@@ -4266,6 +4407,20 @@ export type Database = {
       estado_plan: "borrador" | "publicado"
       event_payment_mode: "cuotas" | "simple"
       event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
+      gasto_ambito: "personal" | "emprendimiento" | "mixto"
+      gasto_ejecucion_estado:
+        | "pendiente"
+        | "pagado"
+        | "vencido"
+        | "omitido"
+        | "parcial"
+      gasto_frecuencia:
+        | "mensual"
+        | "bimestral"
+        | "trimestral"
+        | "semestral"
+        | "anual"
+        | "variable"
       grupo_ciclismo:
         | "G1"
         | "G2"
@@ -4411,6 +4566,22 @@ export const Constants = {
       estado_plan: ["borrador", "publicado"],
       event_payment_mode: ["cuotas", "simple"],
       event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],
+      gasto_ambito: ["personal", "emprendimiento", "mixto"],
+      gasto_ejecucion_estado: [
+        "pendiente",
+        "pagado",
+        "vencido",
+        "omitido",
+        "parcial",
+      ],
+      gasto_frecuencia: [
+        "mensual",
+        "bimestral",
+        "trimestral",
+        "semestral",
+        "anual",
+        "variable",
+      ],
       grupo_ciclismo: [
         "G1",
         "G2",
