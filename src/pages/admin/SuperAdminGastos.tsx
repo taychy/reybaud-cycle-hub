@@ -151,6 +151,28 @@ const SuperAdminGastos = () => {
   });
 
 
+  // Deuda
+  const [deudaSaldos, setDeudaSaldos] = useState<Record<string, { saldo: number; moneda: string }>>({});
+  const [deudaDialogOpen, setDeudaDialogOpen] = useState(false);
+  const [deudaRec, setDeudaRec] = useState<Recurrente | null>(null);
+  const [deudaMovs, setDeudaMovs] = useState<Array<{ id: string; tipo: string; monto: number; fecha: string; concepto: string | null; forma_pago: string | null; notas: string | null; gasto_id: string | null }>>([]);
+  const [deudaDetalle, setDeudaDetalle] = useState<{ automatica: number; cargos: number; ajustes: number; pagos: number; saldo: number; moneda: string } | null>(null);
+  const [editingDeudaMovId, setEditingDeudaMovId] = useState<string | null>(null);
+  const [deudaForm, setDeudaForm] = useState({
+    tipo: "pago" as "pago" | "cargo" | "ajuste",
+    monto: "", fecha: new Date().toISOString().split("T")[0],
+    forma_pago: "transferencia", concepto: "", notas: "",
+  });
+
+  const loadDeudaSaldos = useCallback(async () => {
+    const { data } = await supabase.rpc("get_all_gastos_saldo_deuda" as any);
+    const map: Record<string, { saldo: number; moneda: string }> = {};
+    for (const row of (data || []) as any[]) {
+      map[row.recurrente_id] = { saldo: Number(row.saldo_total || 0), moneda: row.moneda || "ARS" };
+    }
+    setDeudaSaldos(map);
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     const [recRes, ejecRes, gastosRes] = await Promise.all([
@@ -161,8 +183,9 @@ const SuperAdminGastos = () => {
     setRecurrentes((recRes.data || []) as any);
     setEjecuciones((ejecRes.data || []) as any);
     setGastos((gastosRes.data || []) as any);
+    await loadDeudaSaldos();
     setLoading(false);
-  }, [mes]);
+  }, [mes, loadDeudaSaldos]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
