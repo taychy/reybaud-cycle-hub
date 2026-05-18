@@ -397,7 +397,7 @@ const SuperAdminGastos = () => {
           <div className="space-y-1">
             <div className="font-heading font-bold text-foreground">Cómo cargo lo que pago cada mes</div>
             <ol className="text-muted-foreground text-xs space-y-0.5 list-decimal pl-4">
-              <li>Elegí el mes arriba a la derecha. Si está vacío se generan automáticamente las cuotas del catálogo.</li>
+              <li>Elegí el mes en el selector de abajo. Si está vacío se generan automáticamente las cuotas del catálogo.</li>
               <li>En la pestaña <b>Agenda</b> tocá <b>Pagar</b> en cada concepto que pagaste y completá monto, fecha y forma de pago. Pasa a verde y queda registrado en el histórico contable.</li>
               <li>En la pestaña <b>Matriz anual</b> podés ver todo el año tipo planilla. Tocá cualquier celda pendiente para marcar el pago directo.</li>
               <li>Lo nuevo que no esté en el catálogo lo agregás desde <b>Catálogo → Nuevo</b> y reaparece automáticamente cada mes.</li>
