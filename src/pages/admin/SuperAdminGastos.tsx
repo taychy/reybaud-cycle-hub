@@ -143,10 +143,13 @@ const SuperAdminGastos = () => {
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
   const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
+  const [pagos, setPagos] = useState<Array<{ id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }>>([]);
+  const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
   const [pagoForm, setPagoForm] = useState({
     monto: "", fecha: new Date().toISOString().split("T")[0],
     forma_pago: "transferencia", notas: "",
   });
+
 
   const loadData = useCallback(async () => {
     setLoading(true);
