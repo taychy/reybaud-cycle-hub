@@ -1448,8 +1448,20 @@ const AdminEventReservations = ({
                   alumnoId={selectedRes.alumno_id}
                 />
               )}
-              {/* Installments — only when payment required */}
+              {/* Extras contratados (siempre disponible si el evento tiene addons) */}
               {!isPaymentFree && (
+                <ReservationAddonsPanel
+                  reservationId={selectedRes.id}
+                  eventId={eventId}
+                  onChanged={() => {
+                    loadReservations();
+                    loadPayments(selectedRes.id);
+                  }}
+                />
+              )}
+
+              {/* Installments — solo en modo cuotas y con pago requerido */}
+              {!isPaymentFree && !isSimplePayment && (
                 <ReservationInstallmentsPanel
                   reservationId={selectedRes.id}
                   reservationCurrency={curr(selectedRes)}
