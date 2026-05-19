@@ -51,3 +51,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.notify-incomplete-student-data]
     verify_jwt = false
+  [functions.notify-students-incomplete-data]
+    verify_jwt = false
