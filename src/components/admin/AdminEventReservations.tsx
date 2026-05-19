@@ -107,7 +107,7 @@ interface Notification {
   created_at: string;
 }
 
-type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad";
+type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad" | "recordatorio_checklist";
 
 const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; contenido: (ctx: any) => string; html: (ctx: any) => string }> = {
   pago_registrado: {
@@ -133,6 +133,12 @@ const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; 
     asunto: "Novedad sobre {{evento}}",
     contenido: (ctx) => `Hola ${ctx.nombre},\n\n${ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + "."}\n\nSaludos,\nReybaud Ciclismo`,
     html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Novedad</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>${(ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + ".").replace(/\n/g, "<br/>")}</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  recordatorio_checklist: {
+    label: "Recordatorio preparación del viaje",
+    asunto: "Falta cargar tu información para {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe escribimos para recordarte que todavía hay información pendiente en la sección "Preparación del viaje" para ${ctx.evento}.\n\nPor favor cargá lo antes posible:\n• Talle de bici y/o fitting\n• Tipo de pedales y calas\n• Pasaje o transporte\n• Seguro viajero\n\nEntrá desde el link de tu reserva y completá lo que te falte. Cualquier duda, escribinos por WhatsApp.\n\n¡Gracias!\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Falta tu información del viaje</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Todavía tenés información pendiente en la sección <strong>Preparación del viaje</strong> para <strong>${ctx.evento}</strong>.</p><ul style="line-height:1.7"><li>Talle de bici y/o fitting</li><li>Tipo de pedales y calas</li><li>Pasaje o transporte</li><li>Seguro viajero</li></ul><p>Entrá desde el link de tu reserva y completá lo que te falte. Cualquier duda, escribinos por WhatsApp.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
   },
 };
 
@@ -378,12 +384,14 @@ const AdminEventReservations = ({
       cuota_pendiente: "#d97706",
       cuota_proxima: "#2563eb",
       novedad: "#1a1a2e",
+      recordatorio_checklist: "#d97706",
     };
     const titleMap: Record<string, string> = {
       pago_registrado: "Pago registrado",
       cuota_pendiente: "Cuota pendiente",
       cuota_proxima: "Próximo vencimiento",
       novedad: "Novedad",
+      recordatorio_checklist: "Falta tu información del viaje",
     };
     const color = colorMap[tipo] || "#1a1a2e";
     const title = titleMap[tipo] || "Notificación";
@@ -458,6 +466,50 @@ const AdminEventReservations = ({
       metadata: { external_participant_id: res.external_participant_id },
     } as any);
     if (selectedRes?.id === res.id) loadNotifications(res.id);
+  };
+  const [sendingBulkReminder, setSendingBulkReminder] = useState(false);
+  const sendBulkChecklistReminder = async () => {
+    const targets = reservations.filter(r => r.reservation_status === "reserva_confirmada");
+    if (targets.length === 0) {
+      toast({ title: "Sin destinatarios", description: "No hay reservas confirmadas." });
+      return;
+    }
+    if (!confirm(`Enviar recordatorio de preparación del viaje a ${targets.length} participante${targets.length > 1 ? "s" : ""} confirmado${targets.length > 1 ? "s" : ""}?`)) return;
+    setSendingBulkReminder(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const adminEmail = sessionData?.session?.user?.email || "admin";
+    const adminId = sessionData?.session?.user?.id;
+    const tpl = notifTemplates.recordatorio_checklist;
+    let ok = 0, fail = 0;
+    for (const res of targets) {
+      const ctx = getNotifContext(res);
+      const subject = tpl.asunto.replace("{{evento}}", eventTitle);
+      const body = tpl.contenido(ctx);
+      const reservaLink = getReservaLink(res);
+      const html = buildHtmlFromText(body, "recordatorio_checklist", reservaLink);
+      const { error } = await supabase.functions.invoke("notify-reservation", {
+        body: {
+          reservation_id: res.id,
+          alumno_id: res.alumno_id,
+          tipo: "recordatorio_checklist",
+          asunto: subject,
+          contenido_html: html,
+          contenido_texto: body,
+          enviado_por: adminId,
+          enviado_por_email: adminEmail,
+          metadata: { bulk: true },
+          idempotency_key: `bulk-checklist-${res.id}-${new Date().toISOString().slice(0, 10)}`,
+          canal: "email",
+        },
+      });
+      if (error) fail++; else ok++;
+    }
+    setSendingBulkReminder(false);
+    toast({
+      title: "Recordatorios enviados",
+      description: `${ok} OK${fail > 0 ? ` · ${fail} con error` : ""}`,
+      variant: fail > 0 ? "destructive" : "default",
+    });
   };
 
   const getWhatsAppMsgForTemplate = (key: NotifTemplateKey, res: EventReservation, extra: Record<string, any> = {}) => {
@@ -1007,6 +1059,19 @@ const AdminEventReservations = ({
         <Button variant="ghost" size="icon" onClick={loadReservations} className="h-10 w-10">
           <RefreshCw className="w-4 h-4" />
         </Button>
+        {isTripLike && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10"
+            onClick={sendBulkChecklistReminder}
+            disabled={sendingBulkReminder}
+            title="Enviar recordatorio de preparación del viaje a participantes confirmados"
+          >
+            {sendingBulkReminder ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Bell className="w-4 h-4 mr-1.5" />}
+            Recordar preparación
+          </Button>
+        )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
         </Button>
