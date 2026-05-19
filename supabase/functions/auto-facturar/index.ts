@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       referencia_tipo,
       referencia_id,
       segmento,
+      origen,
     }: {
       alumno_id: string;
       concepto: string;
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
       referencia_tipo?: string;
       referencia_id?: string;
       segmento: Segmento;
+      origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
     } = body;
 
     if (!alumno_id || !concepto || !monto) {
