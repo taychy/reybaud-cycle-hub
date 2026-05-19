@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Phone, Heart, Users, Plus, Trash2, AlertTriangle, UserPlus } from "lucide-react";
+import { Phone, Heart, Users, Plus, Trash2, AlertTriangle, UserPlus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -61,11 +61,16 @@ interface Props {
   alumno: Alumno;
 }
 
-export function StudentEmergencyFamilySection({ alumno }: Props) {
+export function StudentEmergencyFamilySection({ alumno: alumnoProp }: Props) {
+  const [alumno, setAlumno] = useState<Alumno>(alumnoProp);
+  useEffect(() => setAlumno(alumnoProp), [alumnoProp]);
+
   const [familiares, setFamiliares] = useState<Familiar[]>([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Familiar | null>(null);
+  const [editContactoOpen, setEditContactoOpen] = useState(false);
+  const [editObraOpen, setEditObraOpen] = useState(false);
 
   // Add form
   const [tipo, setTipo] = useState<"alumno" | "externo">("alumno");
@@ -77,6 +82,11 @@ export function StudentEmergencyFamilySection({ alumno }: Props) {
   const [relacion, setRelacion] = useState("otro");
   const [notas, setNotas] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const refreshAlumno = useCallback(async () => {
+    const { data } = await supabase.from("alumnos").select("*").eq("id", alumno.id).maybeSingle();
+    if (data) setAlumno(data as Alumno);
+  }, [alumno.id]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -188,9 +198,15 @@ export function StudentEmergencyFamilySection({ alumno }: Props) {
 
       {/* Contacto emergencia */}
       <div className="rounded-md border border-border p-3 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Phone className="w-3.5 h-3.5 text-primary" />
-          Contacto de emergencia
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Phone className="w-3.5 h-3.5 text-primary" />
+            Contacto de emergencia
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditContactoOpen(true)}>
+            <Pencil className="w-3 h-3 mr-1" />
+            {hasContacto ? "Editar" : "Cargar"}
+          </Button>
         </div>
         {hasContacto ? (
           <div className="space-y-1.5 text-xs">
@@ -216,9 +232,15 @@ export function StudentEmergencyFamilySection({ alumno }: Props) {
 
       {/* Obra social */}
       <div className="rounded-md border border-border p-3 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Heart className="w-3.5 h-3.5 text-primary" />
-          Cobertura médica
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Heart className="w-3.5 h-3.5 text-primary" />
+            Cobertura médica
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditObraOpen(true)}>
+            <Pencil className="w-3 h-3 mr-1" />
+            {hasObraSocial ? "Editar" : "Cargar"}
+          </Button>
         </div>
         {hasObraSocial ? (
           <div className="text-xs space-y-0.5">
@@ -435,6 +457,19 @@ export function StudentEmergencyFamilySection({ alumno }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditContactoDialog
+        open={editContactoOpen}
+        onOpenChange={setEditContactoOpen}
+        alumno={alumno}
+        onSaved={refreshAlumno}
+      />
+      <EditObraSocialDialog
+        open={editObraOpen}
+        onOpenChange={setEditObraOpen}
+        alumno={alumno}
+        onSaved={refreshAlumno}
+      />
     </div>
   );
 }
@@ -459,5 +494,171 @@ function ContactoRow({
         {relacion && <span>· {relacion}</span>}
       </div>
     </div>
+  );
+}
+
+interface EditDialogProps {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  alumno: Alumno;
+  onSaved: () => void | Promise<void>;
+}
+
+function EditContactoDialog({ open, onOpenChange, alumno, onSaved }: EditDialogProps) {
+  const [nombre1, setNombre1] = useState("");
+  const [tel1, setTel1] = useState("");
+  const [rel1, setRel1] = useState("");
+  const [nombre2, setNombre2] = useState("");
+  const [tel2, setTel2] = useState("");
+  const [rel2, setRel2] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNombre1(alumno.contacto_emergencia_nombre || "");
+      setTel1(alumno.contacto_emergencia_telefono || "");
+      setRel1(alumno.contacto_emergencia_relacion || "");
+      setNombre2(alumno.contacto_emergencia_nombre_2 || "");
+      setTel2(alumno.contacto_emergencia_telefono_2 || "");
+      setRel2(alumno.contacto_emergencia_relacion_2 || "");
+    }
+  }, [open, alumno]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({
+        contacto_emergencia_nombre: nombre1.trim() || null,
+        contacto_emergencia_telefono: tel1.trim() || null,
+        contacto_emergencia_relacion: rel1.trim() || null,
+        contacto_emergencia_nombre_2: nombre2.trim() || null,
+        contacto_emergencia_telefono_2: tel2.trim() || null,
+        contacto_emergencia_relacion_2: rel2.trim() || null,
+      })
+      .eq("id", alumno.id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Contacto de emergencia actualizado");
+    await onSaved();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            Contacto de emergencia
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contacto 1</p>
+            <div>
+              <Label className="text-xs">Nombre</Label>
+              <Input value={nombre1} onChange={(e) => setNombre1(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Teléfono</Label>
+              <Input value={tel1} onChange={(e) => setTel1(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Relación</Label>
+              <Input value={rel1} onChange={(e) => setRel1(e.target.value)} placeholder="Madre, padre, pareja…" />
+            </div>
+          </div>
+          <div className="space-y-2 pt-2 border-t border-border">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contacto 2 (opcional)</p>
+            <div>
+              <Label className="text-xs">Nombre</Label>
+              <Input value={nombre2} onChange={(e) => setNombre2(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Teléfono</Label>
+              <Input value={tel2} onChange={(e) => setTel2(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Relación</Label>
+              <Input value={rel2} onChange={(e) => setRel2(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditObraSocialDialog({ open, onOpenChange, alumno, onSaved }: EditDialogProps) {
+  const [nombre, setNombre] = useState("");
+  const [plan, setPlan] = useState("");
+  const [numero, setNumero] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNombre(alumno.obra_social_nombre || "");
+      setPlan(alumno.obra_social_plan || "");
+      setNumero(alumno.obra_social_numero_socio || "");
+    }
+  }, [open, alumno]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({
+        obra_social_nombre: nombre.trim() || null,
+        obra_social_plan: plan.trim() || null,
+        obra_social_numero_socio: numero.trim() || null,
+      })
+      .eq("id", alumno.id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Cobertura médica actualizada");
+    await onSaved();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Heart className="w-4 h-4" />
+            Cobertura médica
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Obra social / Prepaga</Label>
+            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: OSDE, Swiss Medical…" />
+          </div>
+          <div>
+            <Label className="text-xs">Plan (opcional)</Label>
+            <Input value={plan} onChange={(e) => setPlan(e.target.value)} placeholder="Ej: 210, SMG30…" />
+          </div>
+          <div>
+            <Label className="text-xs">N° de socio (opcional)</Label>
+            <Input value={numero} onChange={(e) => setNumero(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
