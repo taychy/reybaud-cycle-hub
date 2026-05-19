@@ -176,6 +176,26 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
             {emisores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_fiscal}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={metodoFilter} onValueChange={setMetodoFilter}>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Método de pago" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los métodos</SelectItem>
+            <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+            <SelectItem value="transferencia">Transferencia</SelectItem>
+            <SelectItem value="efectivo">Efectivo</SelectItem>
+            <SelectItem value="otro">Otro</SelectItem>
+            <SelectItem value="sin_dato">Sin dato</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={origenFilter} onValueChange={setOrigenFilter}>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Origen" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los orígenes</SelectItem>
+            <SelectItem value="autogestion">App del alumno</SelectItem>
+            <SelectItem value="cargado_admin">Cargado por admin</SelectItem>
+            <SelectItem value="sin_dato">Sin dato</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Filtros de facturables */}
