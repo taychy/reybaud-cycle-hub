@@ -1199,7 +1199,7 @@ const AdminEventReservations = ({
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => {
-                                const url = `${window.location.origin}/viaje/mi-reserva?token=${r.access_token}`;
+                                const url = `${getShareOrigin()}/viaje/mi-reserva?token=${r.access_token}`;
                                 navigator.clipboard.writeText(url);
                                 toast({ title: "Link copiado", description: "Se copió el enlace de acceso al portapapeles" });
                               }}>
