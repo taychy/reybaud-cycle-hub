@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       .eq("status", "active");
     if (adErr) throw adErr;
 
-    const recipients = (admins || []).map((x: any) => x.email).filter(Boolean);
+    const recipients = overrideRecipients ?? (admins || []).map((x: any) => x.email).filter(Boolean);
     if (recipients.length === 0) {
       return new Response(JSON.stringify({ ok: true, count: incompletos.length, sent: 0, message: "Sin admins activos" }), {
         status: 200,
