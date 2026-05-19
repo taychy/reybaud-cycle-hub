@@ -467,6 +467,50 @@ const AdminEventReservations = ({
     } as any);
     if (selectedRes?.id === res.id) loadNotifications(res.id);
   };
+  const [sendingBulkReminder, setSendingBulkReminder] = useState(false);
+  const sendBulkChecklistReminder = async () => {
+    const targets = reservations.filter(r => r.reservation_status === "reserva_confirmada");
+    if (targets.length === 0) {
+      toast({ title: "Sin destinatarios", description: "No hay reservas confirmadas." });
+      return;
+    }
+    if (!confirm(`Enviar recordatorio de preparación del viaje a ${targets.length} participante${targets.length > 1 ? "s" : ""} confirmado${targets.length > 1 ? "s" : ""}?`)) return;
+    setSendingBulkReminder(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const adminEmail = sessionData?.session?.user?.email || "admin";
+    const adminId = sessionData?.session?.user?.id;
+    const tpl = notifTemplates.recordatorio_checklist;
+    let ok = 0, fail = 0;
+    for (const res of targets) {
+      const ctx = getNotifContext(res);
+      const subject = tpl.asunto.replace("{{evento}}", eventTitle);
+      const body = tpl.contenido(ctx);
+      const reservaLink = getReservaLink(res);
+      const html = buildHtmlFromText(body, "recordatorio_checklist", reservaLink);
+      const { error } = await supabase.functions.invoke("notify-reservation", {
+        body: {
+          reservation_id: res.id,
+          alumno_id: res.alumno_id,
+          tipo: "recordatorio_checklist",
+          asunto: subject,
+          contenido_html: html,
+          contenido_texto: body,
+          enviado_por: adminId,
+          enviado_por_email: adminEmail,
+          metadata: { bulk: true },
+          idempotency_key: `bulk-checklist-${res.id}-${new Date().toISOString().slice(0, 10)}`,
+          canal: "email",
+        },
+      });
+      if (error) fail++; else ok++;
+    }
+    setSendingBulkReminder(false);
+    toast({
+      title: "Recordatorios enviados",
+      description: `${ok} OK${fail > 0 ? ` · ${fail} con error` : ""}`,
+      variant: fail > 0 ? "destructive" : "default",
+    });
+  };
 
   const getWhatsAppMsgForTemplate = (key: NotifTemplateKey, res: EventReservation, extra: Record<string, any> = {}) => {
     const ctx = getNotifContext(res, extra);
