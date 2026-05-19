@@ -25,7 +25,19 @@ interface Emisor {
   facturacion_automatica?: boolean;
   limite_anual_ars?: number | null;
   categoria_monotributo?: string | null;
+  auto_facturar_origenes?: string[] | null;
 }
+
+export type OrigenAuto = "app_online" | "manual_admin" | "efectivo" | "transferencia";
+
+const ORIGENES: { key: OrigenAuto; label: string; desc: string; icon: typeof Smartphone }[] = [
+  { key: "app_online", label: "Pagos online por la app", desc: "Mercado Pago / tarjeta desde el checkout del alumno", icon: Smartphone },
+  { key: "manual_admin", label: "Cargas manuales del admin", desc: "Pagos que vos registrás desde el panel", icon: Hand },
+  { key: "efectivo", label: "Efectivo confirmado", desc: "Pagos en efectivo informados y validados", icon: Banknote },
+  { key: "transferencia", label: "Transferencias informadas", desc: "Transferencias bancarias validadas", icon: ArrowLeftRight },
+];
+
+const DEFAULT_ORIGENES: OrigenAuto[] = ["app_online", "manual_admin", "efectivo", "transferencia"];
 
 interface Facturado {
   emisor_id: string;
