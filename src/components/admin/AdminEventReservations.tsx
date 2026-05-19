@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { getShareOrigin } from "@/lib/eventLinks";
 import {
   Search, CheckCircle, XCircle, Clock, AlertCircle, Eye,
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
