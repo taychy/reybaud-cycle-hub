@@ -87,7 +87,6 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
   });
 
   const load = useCallback(async () => {
-    if (!alumnoId) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
       .from("reservation_checklist_data")
@@ -96,23 +95,19 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
       .order("updated_at", { ascending: true });
     setRows((data || []) as ChecklistRow[]);
     setLoading(false);
-  }, [reservationId, alumnoId]);
+  }, [reservationId]);
 
   useEffect(() => { load(); }, [load]);
 
+  const canEdit = !!alumnoId;
+
   const openEditor = (key: string) => {
+    if (!canEdit) return;
     if (key === "bici") { setBikeOpen(true); return; }
     if (key === "pedales") { setPedalsOpen(true); return; }
     const cfg = DOC_STEP_CONFIG[key] || { title: labelFor(key), description: "Cargar información", helpText: "" };
     setDocDrawer({ open: true, stepKey: key, ...cfg });
   };
-
-  if (!alumnoId) {
-    return (
-      <div className="rounded-xl border border-border p-4 text-xs text-muted-foreground">
-        El checklist de viaje sólo aplica a alumnos registrados (no a participantes externos).
-      </div>
-    );
   }
 
   if (loading) {
