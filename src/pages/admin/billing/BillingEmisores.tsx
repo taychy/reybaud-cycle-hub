@@ -419,19 +419,34 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Tope anual (ARS)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="Ej: 68000000"
-                  value={form.limite_anual_ars}
-                  onChange={(e) => setForm({ ...form, limite_anual_ars: e.target.value })}
-                />
+                <label className="text-xs font-medium text-muted-foreground">Categoría monotributo</label>
+                <Select value={form.categoria_monotributo || "none"} onValueChange={(v) => handleCategoriaChange(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin categoría</SelectItem>
+                    {MONOTRIBUTO_CATEGORIAS.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label}{c.tope_anual_ars > 0 ? ` · ${formatPrice(c.tope_anual_ars, "ARS")}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground -mt-2">
-              El tope anual es el límite de facturación de tu categoría monotributo. Dejalo vacío si no querés controlarlo.
-            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Tope anual (ARS) · override manual</label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Se autocompleta con la categoría"
+                value={form.limite_anual_ars}
+                onChange={(e) => setForm({ ...form, limite_anual_ars: e.target.value })}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Si elegís categoría, el tope se carga solo. Podés sobrescribirlo manualmente (ej: Responsable Inscripto sin tope = vacío).
+              </p>
+            </div>
+
 
             <div className="border-t border-border pt-4 space-y-1">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
