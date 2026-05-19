@@ -453,7 +453,12 @@ const TareaDrawer = ({ t, userId, onClose, onChangeState, onAsignarme }: any) =>
               <div className="flex flex-wrap gap-2">
                 {!t.asignado_user_id && <Button size="sm" variant="outline" onClick={onAsignarme}>Asignarme</Button>}
                 {t.estado === "pendiente" && (
-                  <Button size="sm" variant="outline" onClick={() => onChangeState(t, "en_curso", nota)}>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    onChangeState(t, "en_curso", nota);
+                    const route = getTareaRoute(t);
+                    if (route) window.open(route, "_blank", "noopener,noreferrer");
+                    else toast.info("No hay destino directo para esta tarea");
+                  }}>
                     <Play className="w-3.5 h-3.5 mr-1" /> Empezar
                   </Button>
                 )}
