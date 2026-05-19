@@ -243,6 +243,37 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
           );
         })}
       </div>
+
+      {alumnoId && (
+        <>
+          <TripBikeDrawer
+            open={bikeOpen}
+            onOpenChange={setBikeOpen}
+            reservationId={reservationId}
+            alumnoId={alumnoId}
+            onSaved={load}
+          />
+          <TripPedalsDrawer
+            open={pedalsOpen}
+            onOpenChange={setPedalsOpen}
+            reservationId={reservationId}
+            alumnoId={alumnoId}
+            onSaved={load}
+          />
+          <TripDocumentDrawer
+            open={docDrawer.open}
+            onOpenChange={(v) => setDocDrawer((prev) => ({ ...prev, open: v }))}
+            reservationId={reservationId}
+            alumnoId={alumnoId}
+            stepKey={docDrawer.stepKey}
+            title={docDrawer.title}
+            description={docDrawer.description}
+            helpText={docDrawer.helpText}
+            icon={<FileText className="w-5 h-5 text-primary" />}
+            onSaved={load}
+          />
+        </>
+      )}
     </div>
   );
 }
