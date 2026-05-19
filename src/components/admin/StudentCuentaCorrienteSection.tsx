@@ -84,7 +84,7 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
       console.error(movRes.error);
       toast.error("No se pudieron cargar los movimientos");
     } else {
-      setMovimientos((movRes.data || []) as Movimiento[]);
+      setMovimientos(((movRes.data || []) as unknown) as Movimiento[]);
     }
     if (saldoRes.error) {
       console.error(saldoRes.error);
