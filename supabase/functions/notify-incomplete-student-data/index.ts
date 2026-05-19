@@ -28,11 +28,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Optional dry-run flag
+    // Optional flags
     let dryRun = false;
+    let overrideRecipients: string[] | null = null;
     try {
       const body = await req.json();
       dryRun = !!body?.dry_run;
+      if (Array.isArray(body?.override_recipients) && body.override_recipients.length > 0) {
+        overrideRecipients = body.override_recipients.filter((x: any) => typeof x === "string");
+      } else if (typeof body?.override_recipients === "string") {
+        overrideRecipients = [body.override_recipients];
+      }
     } catch { /* no body */ }
 
     // 1) Alumnos activos con datos incompletos (creados hace >30 días)
@@ -69,11 +75,11 @@ Deno.serve(async (req) => {
     // 2) Admins activos
     const { data: admins, error: adErr } = await supabase
       .from("admin_profiles")
-      .select("email, full_name")
+      .select("email")
       .eq("status", "active");
     if (adErr) throw adErr;
 
-    const recipients = (admins || []).map((x: any) => x.email).filter(Boolean);
+    const recipients = overrideRecipients ?? (admins || []).map((x: any) => x.email).filter(Boolean);
     if (recipients.length === 0) {
       return new Response(JSON.stringify({ ok: true, count: incompletos.length, sent: 0, message: "Sin admins activos" }), {
         status: 200,
