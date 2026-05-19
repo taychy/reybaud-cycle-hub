@@ -386,16 +386,39 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
                 {/* Auto-facturación */}
                 {e.activo && (
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <div className="flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Facturación automática</span>
+                  <div className="space-y-1.5 pt-2 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Facturación automática</span>
+                      </div>
+                      <Switch
+                        checked={!!e.facturacion_automatica}
+                        onCheckedChange={() => handleAutoToggle(e)}
+                        disabled={!hasCerts(e)}
+                      />
                     </div>
-                    <Switch
-                      checked={!!e.facturacion_automatica}
-                      onCheckedChange={() => toggleAutoFacturacion(e)}
-                      disabled={!hasCerts(e)}
-                    />
+                    {e.facturacion_automatica && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        {((e.auto_facturar_origenes || DEFAULT_ORIGENES) as OrigenAuto[]).map((o) => {
+                          const def = ORIGENES.find((x) => x.key === o);
+                          if (!def) return null;
+                          const Icon = def.icon;
+                          return (
+                            <span key={o} className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px]">
+                              <Icon className="w-3 h-3" />
+                              {def.label}
+                            </span>
+                          );
+                        })}
+                        <button
+                          onClick={() => editAutoOrigenes(e)}
+                          className="text-[10px] text-muted-foreground hover:text-primary underline ml-1"
+                        >
+                          editar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {!hasCerts(e) && e.activo && (
@@ -403,6 +426,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                     Cargá el certificado AFIP para habilitar facturación automática
                   </p>
                 )}
+
 
                 {/* Segmentos habilitados */}
                 {e.activo && (
