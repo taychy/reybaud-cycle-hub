@@ -994,6 +994,7 @@ export type Database = {
       emisores_fiscales: {
         Row: {
           activo: boolean
+          categoria_monotributo: string | null
           cert_pem: string | null
           created_at: string
           cuit: string
@@ -1008,6 +1009,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          categoria_monotributo?: string | null
           cert_pem?: string | null
           created_at?: string
           cuit: string
@@ -1022,6 +1024,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          categoria_monotributo?: string | null
           cert_pem?: string | null
           created_at?: string
           cuit?: string
