@@ -12,11 +12,25 @@
 
 const PROD_ORIGIN = "https://reybaud-app.com";
 
-function getOrigin(): string {
-  if (typeof window !== "undefined" && window.location?.origin) {
+export function getShareOrigin(): string {
+  if (typeof window !== "undefined" && window.location?.host) {
+    const host = window.location.host;
+    // En entornos de Lovable (preview / sandbox) forzamos el dominio público
+    // para que los links que se compartan funcionen para destinatarios externos.
+    if (
+      host.includes("lovableproject.com") ||
+      host.includes("lovable.app") ||
+      host.includes("id-preview--")
+    ) {
+      return PROD_ORIGIN;
+    }
     return window.location.origin;
   }
   return PROD_ORIGIN;
+}
+
+function getOrigin(): string {
+  return getShareOrigin();
 }
 
 export function getPublicEventLink(eventId: string): string {

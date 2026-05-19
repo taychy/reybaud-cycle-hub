@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { getShareOrigin } from "@/lib/eventLinks";
 import {
   Search, CheckCircle, XCircle, Clock, AlertCircle, Eye,
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
@@ -359,7 +360,7 @@ const AdminEventReservations = ({
   };
 
   const getReservaLink = (res: EventReservation): string => {
-    const origin = window.location.origin;
+    const origin = getShareOrigin();
     if (isTripLike && res.access_token) {
       return `${origin}/viaje/mi-reserva?token=${res.access_token}`;
     }
@@ -1198,7 +1199,7 @@ const AdminEventReservations = ({
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => {
-                                const url = `${window.location.origin}/viaje/mi-reserva?token=${r.access_token}`;
+                                const url = `${getShareOrigin()}/viaje/mi-reserva?token=${r.access_token}`;
                                 navigator.clipboard.writeText(url);
                                 toast({ title: "Link copiado", description: "Se copió el enlace de acceso al portapapeles" });
                               }}>
@@ -1278,7 +1279,7 @@ const AdminEventReservations = ({
                 </Button>
                 {isTripLike && selectedRes.access_token && (
                   <Button variant="outline" size="sm" onClick={() => {
-                    const url = `${window.location.origin}/viaje/mi-reserva?token=${selectedRes.access_token}`;
+                    const url = `${getShareOrigin()}/viaje/mi-reserva?token=${selectedRes.access_token}`;
                     navigator.clipboard.writeText(url);
                     toast({ title: "Link copiado", description: "Se copió el enlace de acceso al portapapeles" });
                   }}>
