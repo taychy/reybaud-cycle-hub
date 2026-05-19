@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  CheckCircle2, Clock, FileText, AlertCircle, ExternalLink, Loader2, Image as ImageIcon,
+  CheckCircle2, Clock, FileText, AlertCircle, ExternalLink, Loader2, Image as ImageIcon, Pencil,
 } from "lucide-react";
+import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
+import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
+import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 
 interface ChecklistRow {
   id: string;
