@@ -1059,6 +1059,19 @@ const AdminEventReservations = ({
         <Button variant="ghost" size="icon" onClick={loadReservations} className="h-10 w-10">
           <RefreshCw className="w-4 h-4" />
         </Button>
+        {isTripLike && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10"
+            onClick={sendBulkChecklistReminder}
+            disabled={sendingBulkReminder}
+            title="Enviar recordatorio de preparación del viaje a participantes confirmados"
+          >
+            {sendingBulkReminder ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Bell className="w-4 h-4 mr-1.5" />}
+            Recordar preparación
+          </Button>
+        )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
         </Button>
