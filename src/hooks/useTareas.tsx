@@ -54,7 +54,15 @@ export function useTareas(scope: TareaScope, userId: string | null, isSuperAdmin
     return { count: (data as number) || 0, error };
   }, [load]);
 
-  useEffect(() => { load(); }, [load]);
+  // Al montar: auto-resolver tareas obsoletas (ej: renovación ya gestionada) antes de cargar
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try { await supabase.rpc("auto_resolve_tareas_automaticas" as any); } catch {}
+      if (!cancelled) await load();
+    })();
+    return () => { cancelled = true; };
+  }, [load]);
 
   // Realtime
   useEffect(() => {
