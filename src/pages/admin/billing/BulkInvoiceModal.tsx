@@ -406,7 +406,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
               </Button>
               <Button
                 onClick={handleEmit}
-                disabled={running || validSelected.length === 0 || !emisorId || !emisorHasCerts}
+                disabled={running || validSelected.length === 0 || !emisorValido || !cupoOk}
               >
                 {running ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Emitiendo...</>
