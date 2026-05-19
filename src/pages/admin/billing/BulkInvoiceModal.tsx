@@ -27,6 +27,8 @@ export interface BulkFacturaRow {
   condicion_fiscal: string;
   concepto: string;
   monto: number;
+  referencia_tipo?: string;
+  kind?: "sin_factura" | "error" | "manual";
 }
 
 interface DraftRow extends BulkFacturaRow {
