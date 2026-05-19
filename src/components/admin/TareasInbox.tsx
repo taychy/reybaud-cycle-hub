@@ -197,6 +197,16 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
                 <RefreshCw className={`w-3.5 h-3.5 mr-1 ${generating ? "animate-spin" : ""}`} />
                 Refrescar automáticas
               </Button>
+              <Button size="sm" variant="outline" onClick={async () => {
+                const { data, error } = await supabase.functions.invoke("notify-incomplete-student-data", { body: {} });
+                if (error) { toast.error("Error al enviar el resumen"); return; }
+                const count = (data as any)?.count ?? 0;
+                const sent = (data as any)?.sent_to ?? 0;
+                toast.success(count === 0 ? "Sin alumnos con datos incompletos" : `Resumen enviado a ${sent} admin(s): ${count} alumno(s)`);
+              }}>
+                <Inbox className="w-3.5 h-3.5 mr-1" />
+                Avisar datos incompletos
+              </Button>
               <Button size="sm" onClick={() => setNueva(true)}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Nueva tarea
               </Button>
