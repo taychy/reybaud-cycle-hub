@@ -16,6 +16,7 @@ function getTareaRoute(t: Tarea): string | null {
     case "certificado_por_vencer":
     case "suscripcion_vencida_sin_renovar":
     case "alumno_estado_intermedio_15d":
+    case "datos_emergencia_incompletos":
       return alumnoId ? `/admin/alumnos?focus=${alumnoId}` : "/admin/alumnos";
     case "pago_pendiente_validar":
     case "suscripcion_pendiente_15d":
