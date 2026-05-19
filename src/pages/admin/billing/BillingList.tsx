@@ -119,7 +119,9 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
       ) : (
         <div className="space-y-2">
           {filtered.map((f) => {
-            const badge = ESTADO_BADGES[f.estado] || ESTADO_BADGES.sin_factura;
+            const badge = getEstadoBadge(f);
+            const isAfip = f.estado === "emitida" && !!f.cae;
+            const isManualSinCae = f.estado === "emitida" && !f.cae;
             const fecha = new Date(f.created_at).toLocaleDateString("es-AR", {
               day: "numeric", month: "short", year: "numeric",
             });
@@ -132,13 +134,13 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-foreground">{f.cliente_nombre}</p>
-                    <Badge variant={badge.variant} className="text-[10px]">{badge.label}</Badge>
+                    <Badge variant={badge.variant} className="text-[10px]" title={badge.title}>{badge.label}</Badge>
                     <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                       {REF_LABELS[f.referencia_tipo] || f.referencia_tipo}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">{f.concepto}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
                     <span className="font-semibold text-foreground">
                       ${f.monto.toLocaleString("es-AR")}
@@ -151,16 +153,20 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
                     {f.numero_comprobante && (
                       <span>Nº {f.numero_comprobante}</span>
                     )}
+                    {isAfip && f.cae && (
+                      <span className="text-emerald-500">CAE {f.cae}</span>
+                    )}
                   </div>
                 </div>
                 <div className="shrink-0">
-                  {f.estado === "sin_factura" || f.estado === "error" ? (
+                  {f.estado === "sin_factura" || f.estado === "error" || isManualSinCae ? (
                     <Button size="sm" onClick={() => onGenerarFactura(f)}>
-                      <FileText className="w-4 h-4 mr-1" /> Generar factura
+                      <FileText className="w-4 h-4 mr-1" />
+                      {isManualSinCae ? "Emitir en AFIP" : "Generar factura"}
                     </Button>
                   ) : (
                     <Button size="sm" variant="outline" disabled>
-                      <FileText className="w-4 h-4 mr-1" /> Facturada
+                      <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
                     </Button>
                   )}
                 </div>
