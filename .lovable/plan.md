@@ -1,89 +1,83 @@
-## Resumen visual
+# MVP Cuenta Corriente v1 — Vista Admin
+
+Objetivo: dar a admin una vista única, por alumno, con cargos / pagos / créditos / saldo separado por moneda, leyendo de las tablas que ya existen. Mínimo de tablas nuevas, cero cambio en flujos de pago actuales.
+
+## Alcance
+
+Incluido:
+- Suscripciones (cargos + pagos)
+- Reservas de eventos/viajes (cuotas + pagos validados)
+- Ajustes manuales simples del admin (cargo o crédito)
+- Vista en ficha de alumno, separada por moneda (ARS / USD / EUR)
+- Link a la fuente original de cada movimiento
+
+Fuera de alcance (v2+):
+- Tienda / pedidos
+- Link público tokenizado `/mi-cuenta?token=…`
+- Pagos consolidados, MP multi-ítem, imputaciones
+- Recordatorios automáticos
+- Vista al alumno (logueado o público)
+
+## 1. Base de datos (mínimo)
+
+Una sola tabla nueva: **`cuenta_ajustes`** (cargos/créditos manuales).
 
 ```text
-┌────────────── /admin/facturacion ──────────────┐
-│ KPIs                                            │
-├─────────────────────────────────────────────────┤
-│ NUEVO  · Resumen por emisor                     │
-│ ┌─────────────┬─────────────┬─────────────┐    │
-│ │ Reybaud Cic │ Otro Emisor │ ...         │    │
-│ │ Facturado   │ Facturado   │             │    │
-│ │ $42.3M      │ $5.1M       │             │    │
-│ │ ████░░ 61%  │ █░░░░░  8%  │             │    │
-│ │ últ. 12 m   │ últ. 12 m   │             │    │
-│ └─────────────┴─────────────┴─────────────┘    │
-├─────────────────────────────────────────────────┤
-│ Tabs: Pendientes · Historial · Todos · Emisores │
-│                                                 │
-│ Pendientes (con multi-selección)                │
-│ ☐ Filtros: ☑ sin_factura ☑ error ☑ manual       │
-│ ┌─────────────────────────────────────────┐    │
-│ │ ☐ TODOS                                  │    │
-│ │ ☐ Juan Pérez  · sub · $48.000  [sin fac] │    │
-│ │ ☐ M. López    · sub · $48.000  [error]   │    │
-│ │ ☑ S. Gómez    · sub · $12.000  [manual]  │    │
-│ └─────────────────────────────────────────┘    │
-│       Seleccionadas: 1 · Total $12.000          │
-│       [ Facturar masivamente ▾ ]                │
-└─────────────────────────────────────────────────┘
+cuenta_ajustes
+  id, alumno_id, tipo ('cargo' | 'credito'),
+  concepto, monto, moneda ('ARS'|'USD'|'EUR'),
+  fecha, notas,
+  created_by, created_at, updated_at
 ```
 
-## Cambios
+RLS: solo admin/super_admin pueden leer/insertar/editar/borrar. Trigger `updated_at`.
 
-### 1. Base de datos (migración)
+Vista virtual **`vw_cuenta_corriente_movimientos`** (read-only, sin RLS extra: hereda de las tablas base) que hace `UNION ALL` de:
 
-- Agregar `categoria_monotributo` (text) a `emisores_fiscales`. Valores tipo `A`/`B`/`...`/`H`/`RI` opcional. UI lo usa para autocompletar `limite_anual_ars` (override manual sigue mandando).
-- Reemplazar la vista `emisor_facturado_anual` para que sume **solo facturas con CAE** (autorizadas por AFIP) de los **últimos 12 meses móviles** en lugar de año calendario. Mantiene mismas columnas (`facturado_anual`, `porcentaje_uso`, `cupo_disponible`).
+| Fuente | Tipo | Debe (cargo) | Haber (pago/cred) | Moneda |
+|---|---|---|---|---|
+| `suscripciones` (no canceladas) | cargo_suscripcion | `precio_final` | — | `moneda` |
+| `suscripciones` con `metodo_pago`/fecha pago | pago_suscripcion | — | monto pagado | `moneda` |
+| `reservation_installments` | cargo_reserva | `amount` | — | `currency` |
+| `reservation_payments` (status='validado') | pago_reserva | — | `equivalent_amount_event_currency` | `currency` |
+| `cuenta_ajustes` tipo='cargo' | ajuste_cargo | `monto` | — | `moneda` |
+| `cuenta_ajustes` tipo='credito' | ajuste_credito | — | `monto` | `moneda` |
 
-### 2. Resumen por emisor (nuevo componente)
+Columnas comunes de la vista:
+`alumno_id, fecha, tipo, concepto, fuente_tabla, fuente_id, debe, haber, moneda, estado, referencia_extra (jsonb)`
 
-`BillingEmisorSummary.tsx` montado en `AdminBilling.tsx` debajo de los KPIs. Una card horizontal por emisor activo:
-- Nombre + CUIT.
-- Facturado últimos 12 meses (verde si <75%, naranja 75-90%, rojo ≥90%).
-- Barra de progreso vs `limite_anual_ars`.
-- Disponible restante.
-- Si no tiene límite configurado: aviso "Configurar tope".
+RPC **`get_saldo_alumno(p_alumno_id uuid)`** → devuelve filas `{moneda, total_cargos, total_pagos, saldo}` agrupado por moneda. `SECURITY DEFINER`, restringe por `has_role('admin')` o `is_super_admin`.
 
-### 3. Lista con multi-selección y filtros configurables
+## 2. UI Admin
 
-En `BillingList.tsx`:
-- Cabecera con 3 checkboxes para filtrar qué estados aparecen como "facturables": `sin_factura`, `error`, `manual sin CAE`. Por defecto los tres activos.
-- Checkbox por fila + checkbox "seleccionar todas las visibles facturables".
-- Barra fija inferior con conteo seleccionado, total a facturar, selector de emisor y botón **"Previsualizar y facturar"**.
+Nuevo componente **`StudentCuentaCorrienteSection`** integrado en la ficha del alumno (`/admin/alumnos/:id`), como una sección/tab más al lado de "Plan", "Pagos", etc.
 
-### 4. Modal de previsualización y facturación masiva
+Estructura:
+- **Header con saldos por moneda** (cards): ARS / USD / EUR con saldo en color (rojo si debe, verde si a favor, gris si 0)
+- **Tabla cronológica** (filtrable por moneda y tipo):
+  - Fecha · Concepto · Origen (chip: Suscripción / Reserva / Ajuste) · Debe · Haber · Moneda · Estado · acción "Ver origen" (navega a la sub/reserva/ajuste)
+- **Botón "Agregar ajuste"** → modal pequeño: tipo (cargo/credito), concepto, monto, moneda, fecha, notas
 
-`BulkInvoiceModal.tsx`:
-- Tabla editable: cliente, CUIT/DNI (input para completar faltantes), condición fiscal (selector), concepto, monto.
-- Validación visual: filas sin DNI quedan resaltadas y se pueden deseleccionar individualmente.
-- Resumen: cantidad, monto total, emisor elegido y cupo restante de ese emisor (avisa si la operación supera el cupo disponible).
-- Botón "Emitir N facturas" → loop secuencial llamando a la edge function `emit-factura-afip` ya existente. Muestra progreso ("emitiendo 3/12"), errores por fila al final, y refresca al cerrar.
+Solo lectura sobre cargos/pagos reales — la única operación de escritura aquí es crear/editar/borrar `cuenta_ajustes`.
 
-### 5. UI de categorías en `BillingEmisores`
+## 3. Archivos nuevos / tocados
 
-En el dialog de editar emisor:
-- Selector "Categoría monotributo" con presets oficiales (A–H) que precarga el tope; campo "Tope anual (ARS)" sigue editable como override.
+- Migration: tabla `cuenta_ajustes` + vista `vw_cuenta_corriente_movimientos` + RPC `get_saldo_alumno`
+- `src/components/admin/StudentCuentaCorrienteSection.tsx` (vista principal)
+- `src/components/admin/AjusteCuentaModal.tsx` (alta/edición de ajuste)
+- `src/lib/cuentaCorriente.ts` (helpers: cargar movimientos, agrupar saldos, formatear)
+- Edit en `src/pages/admin/StudentDetail.tsx` (o donde viva la ficha) para montar la nueva sección
 
 ## Detalles técnicos
 
-- Vista nueva:
-  ```sql
-  CREATE OR REPLACE VIEW emisor_facturado_anual AS
-  SELECT e.id AS emisor_id, e.nombre_fiscal, e.cuit, e.limite_anual_ars,
-    COALESCE(SUM(CASE WHEN f.cae IS NOT NULL AND f.fecha_emision >= now() - interval '12 months'
-                      THEN f.monto ELSE 0 END), 0) AS facturado_anual,
-    CASE WHEN e.limite_anual_ars IS NULL OR e.limite_anual_ars = 0 THEN NULL
-         ELSE round(SUM(CASE WHEN f.cae IS NOT NULL AND f.fecha_emision >= now() - interval '12 months'
-                             THEN f.monto ELSE 0 END) / e.limite_anual_ars * 100, 2) END AS porcentaje_uso,
-    CASE WHEN e.limite_anual_ars IS NULL OR e.limite_anual_ars = 0 THEN NULL
-         ELSE GREATEST(e.limite_anual_ars - SUM(...), 0) END AS cupo_disponible
-  FROM emisores_fiscales e LEFT JOIN facturas f ON f.emisor_id = e.id
-  GROUP BY e.id;
-  ```
-- Presets monotributo en `src/lib/monotributo.ts` (constante actualizable, no hace falta tabla).
-- Bulk emit: frontend itera con `await` para no saturar AFIP; resultado agregado en toast + lista de errores.
-- No tocamos la edge function de emisión (la single ya está estable).
+- Saldos siempre **separados por moneda**, jamás convertidos.
+- La vista no incluye suscripciones `cancelada` ni reservas con `amount_total = 0`.
+- Para suscripciones, el "pago" se infiere cuando `estado IN ('activa','pendiente_verificacion')` y existe `fecha_pago`/`metodo_pago`. Si más adelante se introduce `subscription_payments`, la vista se actualiza sin cambiar UI.
+- Vínculo a fuente: `fuente_tabla` + `fuente_id` permiten navegar (`/admin/suscripciones/:id`, sheet de reserva, modal de ajuste).
+- Sin cambios en flujos de pago, facturación, MP, ni en el dashboard del alumno.
 
-## No incluye
-- Selector "12 meses móviles + año calendario" (solo 12m móviles, según respuesta).
-- Endpoint backend masivo dedicado (se reusa el unitario).
+## Camino a v2 (no se hace ahora)
+
+Cuando este MVP esté validado, se podrá sumar sin romper nada: tienda → agregar otro `UNION` a la vista; vista para el alumno logueado; luego link público tokenizado; finalmente `cuenta_pagos` + `cuenta_imputaciones` + MP consolidado.
+
+¿Avanzo con la migration?
