@@ -571,6 +571,55 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo: elegir qué pagos se facturan automáticamente */}
+      <Dialog open={!!autoDialogEmisor} onOpenChange={(o) => !o && setAutoDialogEmisor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" /> Facturación automática
+            </DialogTitle>
+            <DialogDescription>
+              Elegí qué tipos de pago se facturan automáticamente con <span className="font-semibold text-foreground">{autoDialogEmisor?.nombre_fiscal}</span>. Los que dejes desactivados quedarán pendientes para facturar a mano.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 pt-2">
+            {ORIGENES.map((o) => {
+              const Icon = o.icon;
+              const checked = autoOrigenes.includes(o.key);
+              return (
+                <label
+                  key={o.key}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    checked ? "border-primary/40 bg-primary/5" : "border-border bg-card hover:border-border/80"
+                  }`}
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => {
+                      setAutoOrigenes((prev) =>
+                        c ? [...prev, o.key] : prev.filter((x) => x !== o.key)
+                      );
+                    }}
+                    className="mt-0.5"
+                  />
+                  <Icon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{o.label}</p>
+                    <p className="text-xs text-muted-foreground">{o.desc}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAutoDialogEmisor(null)}>Cancelar</Button>
+            <Button onClick={confirmAutoActivacion}>
+              {autoDialogEmisor?.facturacion_automatica ? "Guardar cambios" : "Activar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
