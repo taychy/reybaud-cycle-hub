@@ -107,7 +107,7 @@ interface Notification {
   created_at: string;
 }
 
-type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad";
+type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad" | "recordatorio_checklist";
 
 const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; contenido: (ctx: any) => string; html: (ctx: any) => string }> = {
   pago_registrado: {
