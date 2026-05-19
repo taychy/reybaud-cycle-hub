@@ -457,6 +457,19 @@ export function StudentEmergencyFamilySection({ alumno: alumnoProp }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditContactoDialog
+        open={editContactoOpen}
+        onOpenChange={setEditContactoOpen}
+        alumno={alumno}
+        onSaved={refreshAlumno}
+      />
+      <EditObraSocialDialog
+        open={editObraOpen}
+        onOpenChange={setEditObraOpen}
+        alumno={alumno}
+        onSaved={refreshAlumno}
+      />
     </div>
   );
 }
