@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FileText, Search, Layers } from "lucide-react";
+import { formatPrice } from "@/lib/currency";
 
 interface Emisor {
   id: string;
@@ -34,15 +36,28 @@ interface Props {
   facturas: FacturaRow[];
   emisores: Emisor[];
   filterEstado?: string;
+  enableBulk?: boolean;
   onGenerarFactura: (factura: FacturaRow) => void;
+  onBulkRequest?: (rows: FacturaRow[]) => void;
 }
 
-// Devuelve el badge según el estado real: emitida + CAE => AFIP; emitida sin CAE => Manual sin CAE
+function isFacturable(f: FacturaRow): boolean {
+  if (f.estado === "sin_factura") return true;
+  if (f.estado === "error") return true;
+  if (f.estado === "emitida" && !f.cae) return true; // manual sin CAE
+  return false;
+}
+
+function facturableKind(f: FacturaRow): "sin_factura" | "error" | "manual" | null {
+  if (f.estado === "sin_factura") return "sin_factura";
+  if (f.estado === "error") return "error";
+  if (f.estado === "emitida" && !f.cae) return "manual";
+  return null;
+}
+
 function getEstadoBadge(f: FacturaRow): { label: string; variant: "default" | "secondary" | "destructive" | "outline"; title?: string } {
   if (f.estado === "emitida") {
-    if (f.cae) {
-      return { label: "Facturada AFIP", variant: "default", title: `CAE ${f.cae}` };
-    }
+    if (f.cae) return { label: "Facturada AFIP", variant: "default", title: `CAE ${f.cae}` };
     return { label: "Manual · sin CAE", variant: "secondary", title: "Registro interno. No fue autorizada por AFIP." };
   }
   if (f.estado === "error") return { label: "Error", variant: "destructive" };
@@ -55,26 +70,60 @@ const REF_LABELS: Record<string, string> = {
   manual: "Manual",
 };
 
-export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura }: Props) {
+export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGenerarFactura, onBulkRequest }: Props) {
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState(filterEstado || "todos");
   const [emisorFilter, setEmisorFilter] = useState("todos");
 
-  const filtered = facturas.filter((f) => {
-    if (estadoFilter !== "todos" && f.estado !== estadoFilter) return false;
-    if (emisorFilter !== "todos" && f.emisor_id !== emisorFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (
-        !f.cliente_nombre.toLowerCase().includes(q) &&
-        !f.concepto.toLowerCase().includes(q) &&
-        !(f.numero_comprobante || "").toLowerCase().includes(q)
-      ) return false;
-    }
-    return true;
-  });
+  // Filtros configurables del bulk
+  const [includeSinFactura, setIncludeSinFactura] = useState(true);
+  const [includeError, setIncludeError] = useState(true);
+  const [includeManual, setIncludeManual] = useState(true);
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const filtered = useMemo(() => {
+    return facturas.filter((f) => {
+      if (estadoFilter !== "todos" && f.estado !== estadoFilter) return false;
+      if (emisorFilter !== "todos" && f.emisor_id !== emisorFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !f.cliente_nombre.toLowerCase().includes(q) &&
+          !f.concepto.toLowerCase().includes(q) &&
+          !(f.numero_comprobante || "").toLowerCase().includes(q)
+        ) return false;
+      }
+      if (enableBulk) {
+        const k = facturableKind(f);
+        if (k === "sin_factura" && !includeSinFactura) return false;
+        if (k === "error" && !includeError) return false;
+        if (k === "manual" && !includeManual) return false;
+      }
+      return true;
+    });
+  }, [facturas, estadoFilter, emisorFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
 
   const emisorMap = new Map(emisores.map((e) => [e.id, e.nombre_fiscal]));
+  const facturablesVisibles = filtered.filter(isFacturable);
+  const allChecked = facturablesVisibles.length > 0 && facturablesVisibles.every((f) => selected.has(f.id));
+  const selectedRows = facturablesVisibles.filter((f) => selected.has(f.id));
+  const totalSelected = selectedRows.reduce((a, b) => a + Number(b.monto || 0), 0);
+
+  const toggleAll = (checked: boolean) => {
+    const next = new Set(selected);
+    facturablesVisibles.forEach((f) => {
+      if (checked) next.add(f.id);
+      else next.delete(f.id);
+    });
+    setSelected(next);
+  };
+
+  const toggleOne = (id: string, checked: boolean) => {
+    const next = new Set(selected);
+    if (checked) next.add(id); else next.delete(id);
+    setSelected(next);
+  };
 
   return (
     <div className="space-y-4">
@@ -82,17 +131,10 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar cliente, concepto..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Buscar cliente, concepto..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Estado" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos</SelectItem>
             <SelectItem value="sin_factura">Sin facturar</SelectItem>
@@ -101,36 +143,59 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
           </SelectContent>
         </Select>
         <Select value={emisorFilter} onValueChange={setEmisorFilter}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Emisor" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Emisor" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los emisores</SelectItem>
-            {emisores.map((e) => (
-              <SelectItem key={e.id} value={e.id}>{e.nombre_fiscal}</SelectItem>
-            ))}
+            {emisores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_fiscal}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
+
+      {/* Filtros de facturables */}
+      {enableBulk && (
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2">
+          <span className="font-medium">Mostrar facturables:</span>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={includeSinFactura} onCheckedChange={(v) => setIncludeSinFactura(!!v)} />
+            <span>Sin facturar</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={includeError} onCheckedChange={(v) => setIncludeError(!!v)} />
+            <span>Con error AFIP</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={includeManual} onCheckedChange={(v) => setIncludeManual(!!v)} />
+            <span>Manual sin CAE</span>
+          </label>
+        </div>
+      )}
+
+      {/* Select all */}
+      {enableBulk && facturablesVisibles.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+          <Checkbox checked={allChecked} onCheckedChange={(v) => toggleAll(!!v)} />
+          <span>Seleccionar todas las visibles facturables ({facturablesVisibles.length})</span>
+        </div>
+      )}
 
       {/* List */}
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No hay registros</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 pb-20">
           {filtered.map((f) => {
             const badge = getEstadoBadge(f);
             const isAfip = f.estado === "emitida" && !!f.cae;
             const isManualSinCae = f.estado === "emitida" && !f.cae;
-            const fecha = new Date(f.created_at).toLocaleDateString("es-AR", {
-              day: "numeric", month: "short", year: "numeric",
-            });
+            const facturable = isFacturable(f);
+            const isChecked = selected.has(f.id);
+            const fecha = new Date(f.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
 
             return (
-              <div
-                key={f.id}
-                className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-              >
+              <div key={f.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                {enableBulk && facturable && (
+                  <Checkbox checked={isChecked} onCheckedChange={(v) => toggleOne(f.id, !!v)} className="shrink-0" />
+                )}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-foreground">{f.cliente_nombre}</p>
@@ -142,24 +207,14 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
                   <p className="text-xs text-muted-foreground">{f.concepto}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
-                    <span className="font-semibold text-foreground">
-                      ${f.monto.toLocaleString("es-AR")}
-                    </span>
-                    {f.emisor_id && (
-                      <span className="text-primary">
-                        {emisorMap.get(f.emisor_id) || "—"}
-                      </span>
-                    )}
-                    {f.numero_comprobante && (
-                      <span>Nº {f.numero_comprobante}</span>
-                    )}
-                    {isAfip && f.cae && (
-                      <span className="text-emerald-500">CAE {f.cae}</span>
-                    )}
+                    <span className="font-semibold text-foreground">${f.monto.toLocaleString("es-AR")}</span>
+                    {f.emisor_id && <span className="text-primary">{emisorMap.get(f.emisor_id) || "—"}</span>}
+                    {f.numero_comprobante && <span>Nº {f.numero_comprobante}</span>}
+                    {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
                   </div>
                 </div>
                 <div className="shrink-0">
-                  {f.estado === "sin_factura" || f.estado === "error" || isManualSinCae ? (
+                  {facturable ? (
                     <Button size="sm" onClick={() => onGenerarFactura(f)}>
                       <FileText className="w-4 h-4 mr-1" />
                       {isManualSinCae ? "Emitir en AFIP" : "Generar factura"}
@@ -173,6 +228,24 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Barra fija de bulk */}
+      {enableBulk && selectedRows.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 rounded-2xl border border-border bg-card shadow-2xl px-4 py-3 flex items-center gap-4">
+          <div className="text-sm">
+            <span className="font-bold text-foreground">{selectedRows.length}</span>
+            <span className="text-muted-foreground"> seleccionada(s) · </span>
+            <span className="font-bold text-foreground">{formatPrice(totalSelected, "ARS")}</span>
+          </div>
+          <Button size="sm" onClick={() => onBulkRequest?.(selectedRows)}>
+            <Layers className="w-4 h-4 mr-1" />
+            Previsualizar y facturar
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            Limpiar
+          </Button>
         </div>
       )}
     </div>
