@@ -1798,8 +1798,10 @@ export type Database = {
           estado: string
           fecha_emision: string | null
           id: string
+          metodo_pago: string | null
           monto: number
           numero_comprobante: string | null
+          origen_registro: string | null
           referencia_id: string | null
           referencia_tipo: string
           segmento: string | null
@@ -1819,8 +1821,10 @@ export type Database = {
           estado?: string
           fecha_emision?: string | null
           id?: string
+          metodo_pago?: string | null
           monto: number
           numero_comprobante?: string | null
+          origen_registro?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
@@ -1840,8 +1844,10 @@ export type Database = {
           estado?: string
           fecha_emision?: string | null
           id?: string
+          metodo_pago?: string | null
           monto?: number
           numero_comprobante?: string | null
+          origen_registro?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
