@@ -180,6 +180,44 @@ export type Database = {
           },
         ]
       }
+      alumno_notas: {
+        Row: {
+          alumno_id: string
+          contenido: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          contenido: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          contenido?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_notas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alumnos: {
         Row: {
           apellido: string | null
