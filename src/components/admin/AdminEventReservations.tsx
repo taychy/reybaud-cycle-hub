@@ -850,6 +850,12 @@ const AdminEventReservations = ({
 
     // Auto-facturar (segmento viajes) — solo si hay alumno_id
     if (selectedRes.alumno_id) {
+      const mp = String(adminPayMethod || "").toLowerCase();
+      const metodoNormalizado =
+        mp.includes("mercado") || mp === "mp" ? "mercadopago"
+          : mp.includes("transfer") ? "transferencia"
+          : mp.includes("efectivo") || mp.includes("cash") ? "efectivo"
+          : (adminPayMethod || "otro");
       supabase.functions.invoke("auto-facturar", {
         body: {
           alumno_id: selectedRes.alumno_id,
@@ -858,6 +864,8 @@ const AdminEventReservations = ({
           referencia_tipo: "evento",
           referencia_id: selectedRes.id,
           segmento: "viajes",
+          metodo_pago: metodoNormalizado,
+          origen_registro: "cargado_admin",
         },
       }).then(({ data }) => {
         if (data?.emitted) {
