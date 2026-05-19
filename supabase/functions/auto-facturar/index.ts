@@ -184,18 +184,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!canAutoEmit) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          created: true,
-          emitted: false,
-          emisor: emisorElegido.nombre_fiscal,
-          message: "Factura creada. Emisión automática desactivada o sin certificado.",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+
+
 
     // Emitir contra AFIP
     const emitUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/emit-factura-afip`;
