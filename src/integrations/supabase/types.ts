@@ -654,6 +654,56 @@ export type Database = {
           },
         ]
       }
+      cuenta_ajustes: {
+        Row: {
+          alumno_id: string
+          concepto: string
+          created_at: string
+          created_by: string | null
+          fecha: string
+          id: string
+          moneda: string
+          monto: number
+          notas: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          concepto: string
+          created_at?: string
+          created_by?: string | null
+          fecha?: string
+          id?: string
+          moneda?: string
+          monto: number
+          notas?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          concepto?: string
+          created_at?: string
+          created_by?: string | null
+          fecha?: string
+          id?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuenta_ajustes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposito_profiles: {
         Row: {
           created_at: string
@@ -4550,6 +4600,22 @@ export type Database = {
           },
         ]
       }
+      vw_cuenta_corriente_movimientos: {
+        Row: {
+          alumno_id: string | null
+          concepto: string | null
+          debe: number | null
+          estado: string | null
+          fecha: string | null
+          fuente_id: string | null
+          fuente_tabla: string | null
+          haber: number | null
+          moneda: string | null
+          referencia_extra: Json | null
+          tipo: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
@@ -4609,6 +4675,15 @@ export type Database = {
           email: string
           id: string
           nombre: string
+        }[]
+      }
+      get_saldo_alumno: {
+        Args: { p_alumno_id: string }
+        Returns: {
+          moneda: string
+          saldo: number
+          total_cargos: number
+          total_pagos: number
         }[]
       }
       has_role: {

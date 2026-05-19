@@ -22,6 +22,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
+import { StudentCuentaCorrienteSection } from "@/components/admin/StudentCuentaCorrienteSection";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
@@ -1449,6 +1450,11 @@ const ManageStudents = () => {
                       }}
                       onAlumnoUpdate={(a) => setDrawerAlumno(a)}
                     />
+                    <Separator />
+
+                    {/* Cuenta corriente */}
+                    <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+
                     <Separator />
 
                     {/* Descuentos y grupo familiar */}
