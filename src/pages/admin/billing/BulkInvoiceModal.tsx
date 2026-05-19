@@ -246,15 +246,45 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
             </div>
           </div>
 
-          {supera && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 flex gap-2">
-              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+          {/* Avisos del emisor */}
+          {emisorId && !emisorValido && (
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 p-3 flex gap-2">
+              <ShieldAlert className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
               <div className="text-xs">
-                <p className="font-semibold text-destructive">El total seleccionado supera el cupo disponible</p>
-                <p className="text-muted-foreground">
-                  Total: {formatPrice(totalSel, "ARS")} · Disponible: {formatPrice(cupo!.disponible!, "ARS")}
-                </p>
+                <p className="font-semibold text-yellow-700">El emisor no está listo para emitir</p>
+                <ul className="text-muted-foreground list-disc ml-4 mt-1">
+                  {!emisorHasCuit && <li>Falta CUIT</li>}
+                  {!emisorHasPV && <li>Falta punto de venta</li>}
+                  {!emisorHasCerts && <li>Falta certificado AFIP</li>}
+                </ul>
               </div>
+            </div>
+          )}
+
+          {supera && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+              <div className="flex gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <div className="text-xs">
+                  <p className="font-semibold text-destructive">El total seleccionado supera el cupo disponible</p>
+                  <p className="text-muted-foreground">
+                    Total: {formatPrice(totalSel, "ARS")} · Disponible: {formatPrice(cupo!.disponible!, "ARS")}
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    El cupo puede estar mal cargado o no aplicar (RI sin tope). Confirmá para continuar.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs cursor-pointer pl-6">
+                <input
+                  type="checkbox"
+                  checked={overrideCupo}
+                  onChange={(e) => setOverrideCupo(e.target.checked)}
+                />
+                <span className="font-medium text-foreground">
+                  Confirmo emitir aunque supere el cupo
+                </span>
+              </label>
             </div>
           )}
 
