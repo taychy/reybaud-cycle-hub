@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     // 2) Admins activos
     const { data: admins, error: adErr } = await supabase
       .from("admin_profiles")
-      .select("email, full_name")
+      .select("email")
       .eq("status", "active");
     if (adErr) throw adErr;
 
