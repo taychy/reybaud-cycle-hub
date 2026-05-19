@@ -26,6 +26,8 @@ interface FacturaRow {
   fecha_emision: string | null;
   referencia_tipo: string;
   created_at: string;
+  cae?: string | null;
+  cae_vencimiento?: string | null;
 }
 
 interface Props {
@@ -35,11 +37,17 @@ interface Props {
   onGenerarFactura: (factura: FacturaRow) => void;
 }
 
-const ESTADO_BADGES: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  sin_factura: { label: "Sin facturar", variant: "outline" },
-  emitida: { label: "Facturada", variant: "default" },
-  error: { label: "Error", variant: "destructive" },
-};
+// Devuelve el badge según el estado real: emitida + CAE => AFIP; emitida sin CAE => Manual sin CAE
+function getEstadoBadge(f: FacturaRow): { label: string; variant: "default" | "secondary" | "destructive" | "outline"; title?: string } {
+  if (f.estado === "emitida") {
+    if (f.cae) {
+      return { label: "Facturada AFIP", variant: "default", title: `CAE ${f.cae}` };
+    }
+    return { label: "Manual · sin CAE", variant: "secondary", title: "Registro interno. No fue autorizada por AFIP." };
+  }
+  if (f.estado === "error") return { label: "Error", variant: "destructive" };
+  return { label: "Sin facturar", variant: "outline" };
+}
 
 const REF_LABELS: Record<string, string> = {
   suscripcion: "Suscripción",
