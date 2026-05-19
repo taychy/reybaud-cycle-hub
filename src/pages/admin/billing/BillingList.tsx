@@ -91,6 +91,8 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState(filterEstado || "todos");
   const [emisorFilter, setEmisorFilter] = useState("todos");
+  const [metodoFilter, setMetodoFilter] = useState("todos");
+  const [origenFilter, setOrigenFilter] = useState("todos");
 
   // Filtros configurables del bulk
   const [includeSinFactura, setIncludeSinFactura] = useState(true);
@@ -103,6 +105,14 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
     return facturas.filter((f) => {
       if (estadoFilter !== "todos" && f.estado !== estadoFilter) return false;
       if (emisorFilter !== "todos" && f.emisor_id !== emisorFilter) return false;
+      if (metodoFilter !== "todos") {
+        const m = (f.metodo_pago || "sin_dato").toLowerCase();
+        if (metodoFilter === "sin_dato" ? !!f.metodo_pago : m !== metodoFilter) return false;
+      }
+      if (origenFilter !== "todos") {
+        const o = f.origen_registro || "sin_dato";
+        if (origenFilter === "sin_dato" ? !!f.origen_registro : o !== origenFilter) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -119,7 +129,7 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
       }
       return true;
     });
-  }, [facturas, estadoFilter, emisorFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
+  }, [facturas, estadoFilter, emisorFilter, metodoFilter, origenFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
 
   const emisorMap = new Map(emisores.map((e) => [e.id, e.nombre_fiscal]));
   const facturablesVisibles = filtered.filter(isFacturable);
