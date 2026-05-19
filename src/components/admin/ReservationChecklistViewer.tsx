@@ -108,7 +108,8 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
     const cfg = DOC_STEP_CONFIG[key] || { title: labelFor(key), description: "Cargar información", helpText: "" };
     setDocDrawer({ open: true, stepKey: key, ...cfg });
   };
-  }
+
+
 
   if (loading) {
     return (
