@@ -136,6 +136,8 @@ Deno.serve(async (req) => {
         segmento,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
+        metodo_pago: resolvedMetodo,
+        origen_registro: resolvedOrigen,
       });
 
       if (insertErr) {
@@ -172,6 +174,8 @@ Deno.serve(async (req) => {
         emisor_id: emisorElegido.id,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
+        metodo_pago: resolvedMetodo,
+        origen_registro: resolvedOrigen,
       })
       .select("id")
       .single();
