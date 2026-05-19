@@ -96,7 +96,7 @@ export function BillingList({ facturas, emisores, filterEstado, onGenerarFactura
           <SelectContent>
             <SelectItem value="todos">Todos</SelectItem>
             <SelectItem value="sin_factura">Sin facturar</SelectItem>
-            <SelectItem value="emitida">Facturada</SelectItem>
+            <SelectItem value="emitida">Facturada AFIP / Manual</SelectItem>
             <SelectItem value="error">Error</SelectItem>
           </SelectContent>
         </Select>
