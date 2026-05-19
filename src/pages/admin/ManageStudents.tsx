@@ -1452,6 +1452,11 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
+                    {/* Cuenta corriente */}
+                    <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+
+                    <Separator />
+
                     {/* Descuentos y grupo familiar */}
                     <StudentDiscountSection alumno={drawerAlumno} />
 
