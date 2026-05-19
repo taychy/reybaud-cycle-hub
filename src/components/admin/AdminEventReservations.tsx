@@ -134,6 +134,12 @@ const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; 
     contenido: (ctx) => `Hola ${ctx.nombre},\n\n${ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + "."}\n\nSaludos,\nReybaud Ciclismo`,
     html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Novedad</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>${(ctx.mensaje || "Te compartimos una novedad sobre " + ctx.evento + ".").replace(/\n/g, "<br/>")}</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
   },
+  recordatorio_checklist: {
+    label: "Recordatorio preparación del viaje",
+    asunto: "Falta cargar tu información para {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe escribimos para recordarte que todavía hay información pendiente en la sección "Preparación del viaje" para ${ctx.evento}.\n\nPor favor cargá lo antes posible:\n• Talle de bici y/o fitting\n• Tipo de pedales y calas\n• Pasaje o transporte\n• Seguro viajero\n\nEntrá desde el link de tu reserva y completá lo que te falte. Cualquier duda, escribinos por WhatsApp.\n\n¡Gracias!\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Falta tu información del viaje</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Todavía tenés información pendiente en la sección <strong>Preparación del viaje</strong> para <strong>${ctx.evento}</strong>.</p><ul style="line-height:1.7"><li>Talle de bici y/o fitting</li><li>Tipo de pedales y calas</li><li>Pasaje o transporte</li><li>Seguro viajero</li></ul><p>Entrá desde el link de tu reserva y completá lo que te falte. Cualquier duda, escribinos por WhatsApp.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
 };
 
 /* ─── Status mappings ─── */
