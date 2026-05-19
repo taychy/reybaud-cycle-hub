@@ -30,7 +30,21 @@ interface FacturaRow {
   created_at: string;
   cae?: string | null;
   cae_vencimiento?: string | null;
+  metodo_pago?: string | null;
+  origen_registro?: string | null;
 }
+
+const METODO_LABELS: Record<string, string> = {
+  mercadopago: "Mercado Pago",
+  transferencia: "Transferencia",
+  efectivo: "Efectivo",
+  otro: "Otro",
+};
+
+const ORIGEN_LABELS: Record<string, string> = {
+  autogestion: "App del alumno",
+  cargado_admin: "Cargado por admin",
+};
 
 interface Props {
   facturas: FacturaRow[];
