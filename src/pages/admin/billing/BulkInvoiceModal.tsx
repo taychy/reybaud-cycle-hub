@@ -80,6 +80,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
     if (!open) return;
     setDrafts(rows.map((r) => ({ ...r, selected: true })));
     setProgress({ done: 0, total: 0 });
+    setOverrideCupo(false);
   }, [open, rows]);
 
   // Autocompletar DNI faltantes desde alumnos
