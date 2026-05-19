@@ -496,3 +496,169 @@ function ContactoRow({
     </div>
   );
 }
+
+interface EditDialogProps {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  alumno: Alumno;
+  onSaved: () => void | Promise<void>;
+}
+
+function EditContactoDialog({ open, onOpenChange, alumno, onSaved }: EditDialogProps) {
+  const [nombre1, setNombre1] = useState("");
+  const [tel1, setTel1] = useState("");
+  const [rel1, setRel1] = useState("");
+  const [nombre2, setNombre2] = useState("");
+  const [tel2, setTel2] = useState("");
+  const [rel2, setRel2] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNombre1(alumno.contacto_emergencia_nombre || "");
+      setTel1(alumno.contacto_emergencia_telefono || "");
+      setRel1(alumno.contacto_emergencia_relacion || "");
+      setNombre2(alumno.contacto_emergencia_nombre_2 || "");
+      setTel2(alumno.contacto_emergencia_telefono_2 || "");
+      setRel2(alumno.contacto_emergencia_relacion_2 || "");
+    }
+  }, [open, alumno]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({
+        contacto_emergencia_nombre: nombre1.trim() || null,
+        contacto_emergencia_telefono: tel1.trim() || null,
+        contacto_emergencia_relacion: rel1.trim() || null,
+        contacto_emergencia_nombre_2: nombre2.trim() || null,
+        contacto_emergencia_telefono_2: tel2.trim() || null,
+        contacto_emergencia_relacion_2: rel2.trim() || null,
+      })
+      .eq("id", alumno.id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Contacto de emergencia actualizado");
+    await onSaved();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            Contacto de emergencia
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contacto 1</p>
+            <div>
+              <Label className="text-xs">Nombre</Label>
+              <Input value={nombre1} onChange={(e) => setNombre1(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Teléfono</Label>
+              <Input value={tel1} onChange={(e) => setTel1(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Relación</Label>
+              <Input value={rel1} onChange={(e) => setRel1(e.target.value)} placeholder="Madre, padre, pareja…" />
+            </div>
+          </div>
+          <div className="space-y-2 pt-2 border-t border-border">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contacto 2 (opcional)</p>
+            <div>
+              <Label className="text-xs">Nombre</Label>
+              <Input value={nombre2} onChange={(e) => setNombre2(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Teléfono</Label>
+              <Input value={tel2} onChange={(e) => setTel2(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Relación</Label>
+              <Input value={rel2} onChange={(e) => setRel2(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditObraSocialDialog({ open, onOpenChange, alumno, onSaved }: EditDialogProps) {
+  const [nombre, setNombre] = useState("");
+  const [plan, setPlan] = useState("");
+  const [numero, setNumero] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNombre(alumno.obra_social_nombre || "");
+      setPlan(alumno.obra_social_plan || "");
+      setNumero(alumno.obra_social_numero_socio || "");
+    }
+  }, [open, alumno]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("alumnos")
+      .update({
+        obra_social_nombre: nombre.trim() || null,
+        obra_social_plan: plan.trim() || null,
+        obra_social_numero_socio: numero.trim() || null,
+      })
+      .eq("id", alumno.id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Cobertura médica actualizada");
+    await onSaved();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Heart className="w-4 h-4" />
+            Cobertura médica
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Obra social / Prepaga</Label>
+            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: OSDE, Swiss Medical…" />
+          </div>
+          <div>
+            <Label className="text-xs">Plan (opcional)</Label>
+            <Input value={plan} onChange={(e) => setPlan(e.target.value)} placeholder="Ej: 210, SMG30…" />
+          </div>
+          <div>
+            <Label className="text-xs">N° de socio (opcional)</Label>
+            <Input value={numero} onChange={(e) => setNumero(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
