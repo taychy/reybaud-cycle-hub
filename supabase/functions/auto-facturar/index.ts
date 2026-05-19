@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
       referencia_id,
       segmento,
       origen,
+      metodo_pago,
+      origen_registro,
     }: {
       alumno_id: string;
       concepto: string;
@@ -64,6 +66,8 @@ Deno.serve(async (req) => {
       referencia_id?: string;
       segmento: Segmento;
       origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
+      metodo_pago?: string | null;
+      origen_registro?: string | null;
     } = body;
 
     if (!alumno_id || !concepto || !monto) {
@@ -79,6 +83,29 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Auto-detectar metodo_pago / origen_registro desde la suscripción si no vino
+    let resolvedMetodo = metodo_pago ?? null;
+    let resolvedOrigen = origen_registro ?? null;
+    if ((!resolvedMetodo || !resolvedOrigen) && referencia_tipo === "suscripcion" && referencia_id) {
+      const { data: sub } = await adminClient
+        .from("suscripciones")
+        .select("metodo_pago, origen_registro")
+        .eq("id", referencia_id)
+        .maybeSingle();
+      if (sub) {
+        resolvedMetodo = resolvedMetodo ?? sub.metodo_pago;
+        resolvedOrigen = resolvedOrigen ?? sub.origen_registro;
+      }
+    }
+    // Mapear a `origen` (para reglas auto_facturar_origenes del emisor) si no vino
+    const origenInferido: "app_online" | "manual_admin" | "efectivo" | "transferencia" | undefined =
+      origen ??
+      (resolvedOrigen === "autogestion" && resolvedMetodo === "mercadopago" ? "app_online"
+        : resolvedMetodo === "transferencia" ? "transferencia"
+        : resolvedMetodo === "efectivo" ? "efectivo"
+        : resolvedOrigen === "cargado_admin" ? "manual_admin"
+        : undefined);
 
     // Datos del alumno
     const { data: alumno } = await adminClient
