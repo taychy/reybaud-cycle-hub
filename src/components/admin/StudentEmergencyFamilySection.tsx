@@ -232,9 +232,15 @@ export function StudentEmergencyFamilySection({ alumno: alumnoProp }: Props) {
 
       {/* Obra social */}
       <div className="rounded-md border border-border p-3 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Heart className="w-3.5 h-3.5 text-primary" />
-          Cobertura médica
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Heart className="w-3.5 h-3.5 text-primary" />
+            Cobertura médica
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditObraOpen(true)}>
+            <Pencil className="w-3 h-3 mr-1" />
+            {hasObraSocial ? "Editar" : "Cargar"}
+          </Button>
         </div>
         {hasObraSocial ? (
           <div className="text-xs space-y-0.5">
