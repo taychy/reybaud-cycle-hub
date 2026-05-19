@@ -91,7 +91,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "", limite_anual_ars: "" });
+    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "", limite_anual_ars: "", categoria_monotributo: "" });
     setDialogOpen(true);
   };
 
@@ -104,8 +104,19 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       cert_pem: e.cert_pem || "",
       key_pem: e.key_pem || "",
       limite_anual_ars: e.limite_anual_ars ? String(e.limite_anual_ars) : "",
+      categoria_monotributo: e.categoria_monotributo || "",
     });
     setDialogOpen(true);
+  };
+
+  const handleCategoriaChange = (cat: string) => {
+    const tope = getTopeByCategoria(cat);
+    setForm((prev) => ({
+      ...prev,
+      categoria_monotributo: cat,
+      // Solo precarga el tope si el usuario no había ingresado un override manual
+      limite_anual_ars: tope && !prev.limite_anual_ars ? String(tope) : prev.limite_anual_ars,
+    }));
   };
 
   const handleSave = async () => {
@@ -122,6 +133,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         cert_pem: form.cert_pem.trim() || null,
         key_pem: form.key_pem.trim() || null,
         limite_anual_ars: form.limite_anual_ars.trim() ? Number(form.limite_anual_ars) : null,
+        categoria_monotributo: form.categoria_monotributo || null,
       };
 
       let emisorId = editing?.id;
