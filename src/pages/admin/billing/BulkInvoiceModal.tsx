@@ -27,6 +27,8 @@ export interface BulkFacturaRow {
   condicion_fiscal: string;
   concepto: string;
   monto: number;
+  referencia_tipo?: string;
+  kind?: "sin_factura" | "error" | "manual";
 }
 
 interface DraftRow extends BulkFacturaRow {
@@ -49,18 +51,36 @@ const CONDICIONES = [
   { value: "exento", label: "Exento" },
 ];
 
+const REF_LABELS: Record<string, string> = {
+  suscripcion: "Suscripción",
+  pedido: "Producto",
+  evento: "Evento",
+  viaje: "Viaje",
+  ajuste: "Ajuste",
+  manual: "Manual",
+};
+
+function validateRow(d: DraftRow): string | null {
+  if (!d.cliente_cuit?.trim()) return "Falta DNI/CUIT";
+  if (!d.condicion_fiscal) return "Falta condición fiscal";
+  if (!d.monto || Number(d.monto) <= 0) return "Monto inválido";
+  return null;
+}
+
 export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }: Props) {
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [emisorId, setEmisorId] = useState<string>("");
   const [cupo, setCupo] = useState<{ disponible: number | null; pct: number | null } | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [overrideCupo, setOverrideCupo] = useState(false);
 
   // Re-init drafts cuando se abre
   useEffect(() => {
     if (!open) return;
     setDrafts(rows.map((r) => ({ ...r, selected: true })));
     setProgress({ done: 0, total: 0 });
+    setOverrideCupo(false);
   }, [open, rows]);
 
   // Autocompletar DNI faltantes desde alumnos
@@ -91,6 +111,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
 
   // Cargar cupo disponible cuando cambia emisor
   useEffect(() => {
+    setOverrideCupo(false);
     if (!emisorId) { setCupo(null); return; }
     (async () => {
       const { data } = await supabase
@@ -108,10 +129,15 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
   const activos = useMemo(() => emisores.filter((e) => e.activo), [emisores]);
   const selectedEmisor = emisores.find((e) => e.id === emisorId);
   const emisorHasCerts = selectedEmisor ? !!(selectedEmisor.cert_pem && selectedEmisor.key_pem) : false;
+  const emisorHasCuit = !!selectedEmisor?.cuit;
+  const emisorHasPV = !!selectedEmisor?.punto_venta;
+  const emisorValido = !!selectedEmisor && emisorHasCerts && emisorHasCuit && emisorHasPV;
 
-  const selected = drafts.filter((d) => d.selected);
-  const totalSel = selected.reduce((a, b) => a + Number(b.monto || 0), 0);
+  // Solo filas válidas pueden estar seleccionadas
+  const validSelected = drafts.filter((d) => d.selected && !validateRow(d));
+  const totalSel = validSelected.reduce((a, b) => a + Number(b.monto || 0), 0);
   const supera = cupo?.disponible != null && totalSel > cupo.disponible;
+  const cupoOk = !supera || overrideCupo;
 
   const updateRow = (id: string, patch: Partial<DraftRow>) => {
     setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
@@ -119,16 +145,18 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
 
   const handleEmit = async () => {
     if (!emisorId) { toast.error("Seleccioná un emisor"); return; }
-    if (!emisorHasCerts) { toast.error("El emisor no tiene certificado AFIP"); return; }
-    if (selected.length === 0) { toast.error("No hay filas seleccionadas"); return; }
+    if (!emisorValido) { toast.error("El emisor no está completo (CUIT / Punto de venta / Certificado AFIP)"); return; }
+    if (validSelected.length === 0) { toast.error("No hay filas válidas seleccionadas"); return; }
+    if (supera && !overrideCupo) { toast.error("Confirmá el override del cupo para continuar"); return; }
+
 
     setRunning(true);
-    setProgress({ done: 0, total: selected.length });
+    setProgress({ done: 0, total: validSelected.length });
     let okCount = 0;
     let errCount = 0;
 
-    for (let i = 0; i < selected.length; i++) {
-      const row = selected[i];
+    for (let i = 0; i < validSelected.length; i++) {
+      const row = validSelected[i];
       try {
         // Actualizar datos del cliente
         await supabase.from("facturas").update({
@@ -164,7 +192,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
         updateRow(row.id, { result: { ok: false, error: e?.message || "Error inesperado" } });
         errCount++;
       }
-      setProgress({ done: i + 1, total: selected.length });
+      setProgress({ done: i + 1, total: validSelected.length });
     }
 
     setRunning(false);
@@ -218,15 +246,45 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
             </div>
           </div>
 
-          {supera && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 flex gap-2">
-              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+          {/* Avisos del emisor */}
+          {emisorId && !emisorValido && (
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 p-3 flex gap-2">
+              <ShieldAlert className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
               <div className="text-xs">
-                <p className="font-semibold text-destructive">El total seleccionado supera el cupo disponible</p>
-                <p className="text-muted-foreground">
-                  Total: {formatPrice(totalSel, "ARS")} · Disponible: {formatPrice(cupo!.disponible!, "ARS")}
-                </p>
+                <p className="font-semibold text-yellow-700">El emisor no está listo para emitir</p>
+                <ul className="text-muted-foreground list-disc ml-4 mt-1">
+                  {!emisorHasCuit && <li>Falta CUIT</li>}
+                  {!emisorHasPV && <li>Falta punto de venta</li>}
+                  {!emisorHasCerts && <li>Falta certificado AFIP</li>}
+                </ul>
               </div>
+            </div>
+          )}
+
+          {supera && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+              <div className="flex gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <div className="text-xs">
+                  <p className="font-semibold text-destructive">El total seleccionado supera el cupo disponible</p>
+                  <p className="text-muted-foreground">
+                    Total: {formatPrice(totalSel, "ARS")} · Disponible: {formatPrice(cupo!.disponible!, "ARS")}
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    El cupo puede estar mal cargado o no aplicar (RI sin tope). Confirmá para continuar.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs cursor-pointer pl-6">
+                <input
+                  type="checkbox"
+                  checked={overrideCupo}
+                  onChange={(e) => setOverrideCupo(e.target.checked)}
+                />
+                <span className="font-medium text-foreground">
+                  Confirmo emitir aunque supere el cupo
+                </span>
+              </label>
             </div>
           )}
 
@@ -246,6 +304,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                       />
                     </th>
                     <th className="p-2 text-left">Cliente</th>
+                    <th className="p-2 text-left">Origen</th>
                     <th className="p-2 text-left">DNI/CUIT</th>
                     <th className="p-2 text-left">Condición</th>
                     <th className="p-2 text-left">Concepto</th>
@@ -255,18 +314,34 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                 </thead>
                 <tbody>
                   {drafts.map((d) => {
-                    const sinDoc = !d.cliente_cuit?.trim();
+                    const validationErr = validateRow(d);
+                    const isInvalid = !!validationErr;
+                    const isManual = d.kind === "manual";
                     return (
-                      <tr key={d.id} className={`border-t border-border ${sinDoc ? "bg-yellow-500/5" : ""}`}>
+                      <tr key={d.id} className={`border-t border-border ${isInvalid ? "bg-destructive/5" : isManual ? "bg-yellow-500/5" : ""}`}>
                         <td className="p-2 align-top">
                           <input
                             type="checkbox"
-                            checked={d.selected}
-                            disabled={running || !!d.result}
+                            checked={d.selected && !isInvalid}
+                            disabled={running || !!d.result || isInvalid}
                             onChange={(e) => updateRow(d.id, { selected: e.target.checked })}
+                            title={isInvalid ? validationErr! : ""}
                           />
                         </td>
-                        <td className="p-2 align-top font-medium text-foreground">{d.cliente_nombre}</td>
+                        <td className="p-2 align-top font-medium text-foreground">
+                          {d.cliente_nombre}
+                          {isInvalid && (
+                            <p className="text-[10px] text-destructive mt-0.5">{validationErr}</p>
+                          )}
+                          {isManual && !isInvalid && (
+                            <p className="text-[10px] text-yellow-600 mt-0.5">⚠ Posible facturado fuera del sistema</p>
+                          )}
+                        </td>
+                        <td className="p-2 align-top">
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {REF_LABELS[d.referencia_tipo || "manual"] || d.referencia_tipo}
+                          </span>
+                        </td>
                         <td className="p-2 align-top">
                           <Input
                             value={d.cliente_cuit || ""}
@@ -275,7 +350,6 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                             className="h-7 text-xs"
                             disabled={running || !!d.result}
                           />
-                          {sinDoc && <p className="text-[10px] text-yellow-500 mt-0.5">Consumidor Final s/identificar</p>}
                         </td>
                         <td className="p-2 align-top">
                           <Select
@@ -320,7 +394,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
           {/* Resumen + acción */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
             <div className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{selected.length}</span> seleccionada(s) ·{" "}
+              <span className="font-semibold text-foreground">{validSelected.length}</span> seleccionada(s) ·{" "}
               Total: <span className="font-semibold text-foreground">{formatPrice(totalSel, "ARS")}</span>
               {running && (
                 <span className="ml-2">· Emitiendo {progress.done}/{progress.total}</span>
@@ -332,12 +406,12 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
               </Button>
               <Button
                 onClick={handleEmit}
-                disabled={running || selected.length === 0 || !emisorId || !emisorHasCerts}
+                disabled={running || validSelected.length === 0 || !emisorValido || !cupoOk}
               >
                 {running ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Emitiendo...</>
                 ) : (
-                  `Emitir ${selected.length} en AFIP`
+                  `Emitir ${validSelected.length} en AFIP`
                 )}
               </Button>
             </div>

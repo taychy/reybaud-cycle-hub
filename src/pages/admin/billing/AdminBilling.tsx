@@ -66,14 +66,22 @@ export default function AdminBilling() {
   };
 
   const handleBulkRequest = (rows: FacturaRow[]) => {
-    setBulkRows(rows.map((r) => ({
-      id: r.id,
-      cliente_nombre: r.cliente_nombre,
-      cliente_cuit: r.cliente_cuit,
-      condicion_fiscal: r.condicion_fiscal || "consumidor_final",
-      concepto: r.concepto,
-      monto: r.monto,
-    })));
+    setBulkRows(rows.map((r) => {
+      const kind: "sin_factura" | "error" | "manual" =
+        r.estado === "sin_factura" ? "sin_factura"
+        : r.estado === "error" ? "error"
+        : "manual";
+      return {
+        id: r.id,
+        cliente_nombre: r.cliente_nombre,
+        cliente_cuit: r.cliente_cuit,
+        condicion_fiscal: r.condicion_fiscal || "consumidor_final",
+        concepto: r.concepto,
+        monto: r.monto,
+        referencia_tipo: r.referencia_tipo,
+        kind,
+      };
+    }));
     setBulkOpen(true);
   };
 
