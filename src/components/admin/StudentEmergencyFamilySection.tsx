@@ -198,9 +198,15 @@ export function StudentEmergencyFamilySection({ alumno: alumnoProp }: Props) {
 
       {/* Contacto emergencia */}
       <div className="rounded-md border border-border p-3 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Phone className="w-3.5 h-3.5 text-primary" />
-          Contacto de emergencia
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Phone className="w-3.5 h-3.5 text-primary" />
+            Contacto de emergencia
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditContactoOpen(true)}>
+            <Pencil className="w-3 h-3 mr-1" />
+            {hasContacto ? "Editar" : "Cargar"}
+          </Button>
         </div>
         {hasContacto ? (
           <div className="space-y-1.5 text-xs">
