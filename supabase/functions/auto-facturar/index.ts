@@ -157,10 +157,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    const origenPermitido =
+      !origen ||
+      !emisorElegido.auto_facturar_origenes ||
+      (Array.isArray(emisorElegido.auto_facturar_origenes) &&
+        (emisorElegido.auto_facturar_origenes as string[]).includes(origen));
+
     const canAutoEmit =
       emisorElegido.facturacion_automatica &&
       emisorElegido.cert_pem &&
-      emisorElegido.key_pem;
+      emisorElegido.key_pem &&
+      origenPermitido;
+
+    if (!canAutoEmit) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          created: true,
+          emitted: false,
+          emisor: emisorElegido.nombre_fiscal,
+          message: !origenPermitido
+            ? `Factura creada. El origen "${origen}" no está habilitado para facturación automática en este emisor.`
+            : "Factura creada. Emisión automática desactivada o sin certificado.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!canAutoEmit) {
       return new Response(
