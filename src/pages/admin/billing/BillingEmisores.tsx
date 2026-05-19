@@ -66,6 +66,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     cert_pem: "",
     key_pem: "",
     limite_anual_ars: "",
+    categoria_monotributo: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
