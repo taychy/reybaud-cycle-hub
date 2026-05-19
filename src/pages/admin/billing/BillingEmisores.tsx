@@ -6,9 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, ShieldCheck, ShieldAlert, Zap, GraduationCap, Plane, ShoppingBag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { MONOTRIBUTO_CATEGORIAS, getTopeByCategoria } from "@/lib/monotributo";
 
 interface Emisor {
   id: string;
