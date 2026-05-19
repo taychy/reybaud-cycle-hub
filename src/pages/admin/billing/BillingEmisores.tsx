@@ -6,9 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, ShieldCheck, ShieldAlert, Zap, GraduationCap, Plane, ShoppingBag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { MONOTRIBUTO_CATEGORIAS, getTopeByCategoria } from "@/lib/monotributo";
 
 interface Emisor {
   id: string;
@@ -21,6 +23,7 @@ interface Emisor {
   es_predeterminado?: boolean;
   facturacion_automatica?: boolean;
   limite_anual_ars?: number | null;
+  categoria_monotributo?: string | null;
 }
 
 interface Facturado {
@@ -63,6 +66,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     cert_pem: "",
     key_pem: "",
     limite_anual_ars: "",
+    categoria_monotributo: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -87,7 +91,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "", limite_anual_ars: "" });
+    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "", limite_anual_ars: "", categoria_monotributo: "" });
     setDialogOpen(true);
   };
 
@@ -100,8 +104,19 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       cert_pem: e.cert_pem || "",
       key_pem: e.key_pem || "",
       limite_anual_ars: e.limite_anual_ars ? String(e.limite_anual_ars) : "",
+      categoria_monotributo: e.categoria_monotributo || "",
     });
     setDialogOpen(true);
+  };
+
+  const handleCategoriaChange = (cat: string) => {
+    const tope = getTopeByCategoria(cat);
+    setForm((prev) => ({
+      ...prev,
+      categoria_monotributo: cat,
+      // Solo precarga el tope si el usuario no había ingresado un override manual
+      limite_anual_ars: tope && !prev.limite_anual_ars ? String(tope) : prev.limite_anual_ars,
+    }));
   };
 
   const handleSave = async () => {
@@ -118,6 +133,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         cert_pem: form.cert_pem.trim() || null,
         key_pem: form.key_pem.trim() || null,
         limite_anual_ars: form.limite_anual_ars.trim() ? Number(form.limite_anual_ars) : null,
+        categoria_monotributo: form.categoria_monotributo || null,
       };
 
       let emisorId = editing?.id;
@@ -403,19 +419,34 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Tope anual (ARS)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="Ej: 68000000"
-                  value={form.limite_anual_ars}
-                  onChange={(e) => setForm({ ...form, limite_anual_ars: e.target.value })}
-                />
+                <label className="text-xs font-medium text-muted-foreground">Categoría monotributo</label>
+                <Select value={form.categoria_monotributo || "none"} onValueChange={(v) => handleCategoriaChange(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin categoría</SelectItem>
+                    {MONOTRIBUTO_CATEGORIAS.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label}{c.tope_anual_ars > 0 ? ` · ${formatPrice(c.tope_anual_ars, "ARS")}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground -mt-2">
-              El tope anual es el límite de facturación de tu categoría monotributo. Dejalo vacío si no querés controlarlo.
-            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Tope anual (ARS) · override manual</label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Se autocompleta con la categoría"
+                value={form.limite_anual_ars}
+                onChange={(e) => setForm({ ...form, limite_anual_ars: e.target.value })}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Si elegís categoría, el tope se carga solo. Podés sobrescribirlo manualmente (ej: Responsable Inscripto sin tope = vacío).
+              </p>
+            </div>
+
 
             <div className="border-t border-border pt-4 space-y-1">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">

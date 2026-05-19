@@ -4,8 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BillingKPIs } from "./BillingKPIs";
 import { BillingList } from "./BillingList";
 import { BillingEmisores } from "./BillingEmisores";
+import { BillingEmisorSummary } from "./BillingEmisorSummary";
 import { InvoiceModal } from "./InvoiceModal";
 import { ManualInvoiceButton } from "./ManualInvoiceButton";
+import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 
 interface Emisor {
   id: string;
@@ -15,6 +17,7 @@ interface Emisor {
   activo: boolean;
   cert_pem?: string | null;
   key_pem?: string | null;
+  limite_anual_ars?: number | null;
 }
 
 interface FacturaRow {
@@ -31,6 +34,7 @@ interface FacturaRow {
   referencia_tipo: string;
   referencia_id: string | null;
   created_at: string;
+  cae?: string | null;
 }
 
 export default function AdminBilling() {
@@ -39,40 +43,46 @@ export default function AdminBilling() {
   const [loading, setLoading] = useState(true);
   const [invoiceTarget, setInvoiceTarget] = useState<FacturaRow | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<BulkFacturaRow[]>([]);
+  const [summaryKey, setSummaryKey] = useState(0);
 
   const loadData = useCallback(async () => {
     const [facturasRes, emisoresRes] = await Promise.all([
-      supabase
-        .from("facturas")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200),
-      supabase
-        .from("emisores_fiscales")
-        .select("*")
-        .order("created_at", { ascending: true }),
+      supabase.from("facturas").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("emisores_fiscales").select("*").order("created_at", { ascending: true }),
     ]);
-
     setFacturas((facturasRes.data as any[]) || []);
     setEmisores((emisoresRes.data as any[]) || []);
+    setSummaryKey((k) => k + 1);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleGenerarFactura = (factura: FacturaRow) => {
     setInvoiceTarget(factura);
     setModalOpen(true);
   };
 
+  const handleBulkRequest = (rows: FacturaRow[]) => {
+    setBulkRows(rows.map((r) => ({
+      id: r.id,
+      cliente_nombre: r.cliente_nombre,
+      cliente_cuit: r.cliente_cuit,
+      condicion_fiscal: r.condicion_fiscal || "consumidor_final",
+      concepto: r.concepto,
+      monto: r.monto,
+    })));
+    setBulkOpen(true);
+  };
+
   if (loading) {
     return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando facturación...</div>;
   }
 
-  const pendientes = facturas.filter((f) => f.estado === "sin_factura" || f.estado === "error");
-  const historial = facturas.filter((f) => f.estado === "emitida");
+  const pendientes = facturas.filter((f) => f.estado === "sin_factura" || f.estado === "error" || (f.estado === "emitida" && !f.cae));
+  const historial = facturas.filter((f) => f.estado === "emitida" && f.cae);
 
   return (
     <div className="space-y-6">
@@ -85,6 +95,8 @@ export default function AdminBilling() {
       </div>
 
       <BillingKPIs facturas={facturas} emisores={emisores} />
+
+      <BillingEmisorSummary refreshKey={summaryKey} />
 
       <Tabs defaultValue="pendientes" className="space-y-4">
         <TabsList>
@@ -102,7 +114,9 @@ export default function AdminBilling() {
           <BillingList
             facturas={pendientes}
             emisores={emisores}
+            enableBulk
             onGenerarFactura={handleGenerarFactura}
+            onBulkRequest={handleBulkRequest}
           />
         </TabsContent>
 
@@ -119,7 +133,9 @@ export default function AdminBilling() {
           <BillingList
             facturas={facturas}
             emisores={emisores}
+            enableBulk
             onGenerarFactura={handleGenerarFactura}
+            onBulkRequest={handleBulkRequest}
           />
         </TabsContent>
 
@@ -134,6 +150,14 @@ export default function AdminBilling() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onEmitted={loadData}
+      />
+
+      <BulkInvoiceModal
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        rows={bulkRows}
+        emisores={emisores}
+        onDone={loadData}
       />
     </div>
   );
