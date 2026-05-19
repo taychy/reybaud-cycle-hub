@@ -65,30 +65,47 @@ interface Props {
   alumnoId: string | null;
 }
 
+type DocStep = "pasaje" | "seguro" | "pasaporte" | "documentos" | "alojamiento" | "equipaje" | "alquiler";
+
+const DOC_STEP_CONFIG: Record<string, { title: string; description: string; helpText: string }> = {
+  pasaje: { title: "Pasaje o transporte", description: "Reserva de vuelo, micro o transporte", helpText: "Subí una imagen o PDF de la reserva." },
+  seguro: { title: "Seguro viajero", description: "Póliza de seguro vigente", helpText: "Subí una imagen o PDF de la póliza." },
+  pasaporte: { title: "Pasaporte / DNI", description: "Documento de identidad", helpText: "Subí una imagen o PDF del documento." },
+  documentos: { title: "Documentos", description: "Documentación general", helpText: "Subí los documentos requeridos." },
+  alojamiento: { title: "Alojamiento", description: "Reserva de alojamiento", helpText: "Subí la confirmación del alojamiento." },
+  equipaje: { title: "Equipaje", description: "Detalle del equipaje", helpText: "Adjuntá info sobre el equipaje." },
+  alquiler: { title: "Alquiler de bici", description: "Reserva del alquiler", helpText: "Adjuntá la confirmación del alquiler." },
+};
+
 export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
   const [rows, setRows] = useState<ChecklistRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bikeOpen, setBikeOpen] = useState(false);
+  const [pedalsOpen, setPedalsOpen] = useState(false);
+  const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string }>({
+    open: false, stepKey: "", title: "", description: "", helpText: "",
+  });
 
-  useEffect(() => {
-    if (!alumnoId) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("reservation_checklist_data")
-        .select("id, step_key, data, file_url, completed, needs_advice, updated_at")
-        .eq("reservation_id", reservationId)
-        .order("updated_at", { ascending: true });
-      if (!cancelled) {
-        setRows((data || []) as ChecklistRow[]);
-        setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+  const load = useCallback(async () => {
+    if (!alumnoId) { setLoading(false); return; }
+    setLoading(true);
+    const { data } = await supabase
+      .from("reservation_checklist_data")
+      .select("id, step_key, data, file_url, completed, needs_advice, updated_at")
+      .eq("reservation_id", reservationId)
+      .order("updated_at", { ascending: true });
+    setRows((data || []) as ChecklistRow[]);
+    setLoading(false);
   }, [reservationId, alumnoId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openEditor = (key: string) => {
+    if (key === "bici") { setBikeOpen(true); return; }
+    if (key === "pedales") { setPedalsOpen(true); return; }
+    const cfg = DOC_STEP_CONFIG[key] || { title: labelFor(key), description: "Cargar información", helpText: "" };
+    setDocDrawer({ open: true, stepKey: key, ...cfg });
+  };
 
   if (!alumnoId) {
     return (
