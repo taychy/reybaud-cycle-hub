@@ -1471,15 +1471,8 @@ const ManageStudents = () => {
                       }}
                     />
                     <Separator />
-                    {drawerAlumno.notas && !editingDetail && (
-                      <>
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-foreground">Notas internas</h3>
-                          <p className="text-xs text-foreground whitespace-pre-wrap bg-secondary/50 rounded-md p-3">{drawerAlumno.notas}</p>
-                        </div>
-                        <Separator />
-                      </>
-                    )}
+                    <StudentNotesSection alumnoId={drawerAlumno.id} />
+                    <Separator />
 
                     {/* Activity Log */}
                     <StudentActivityLog alumnoId={drawerAlumno.id} />
