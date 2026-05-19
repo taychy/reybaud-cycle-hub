@@ -16,6 +16,7 @@ function getTareaRoute(t: Tarea): string | null {
     case "certificado_por_vencer":
     case "suscripcion_vencida_sin_renovar":
     case "alumno_estado_intermedio_15d":
+    case "datos_emergencia_incompletos":
       return alumnoId ? `/admin/alumnos?focus=${alumnoId}` : "/admin/alumnos";
     case "pago_pendiente_validar":
     case "suscripcion_pendiente_15d":
@@ -74,6 +75,7 @@ const ORIGEN_LABEL: Record<string, string> = {
   suscripcion_vencida_sin_renovar: "Vencida sin renovar",
   renovacion_proxima_7d: "Renovación próxima",
   alumno_estado_intermedio_15d: "Revisar estado alumno",
+  datos_emergencia_incompletos: "Datos incompletos",
   manual: "Manual",
 };
 
@@ -194,6 +196,16 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
               <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
                 <RefreshCw className={`w-3.5 h-3.5 mr-1 ${generating ? "animate-spin" : ""}`} />
                 Refrescar automáticas
+              </Button>
+              <Button size="sm" variant="outline" onClick={async () => {
+                const { data, error } = await supabase.functions.invoke("notify-incomplete-student-data", { body: {} });
+                if (error) { toast.error("Error al enviar el resumen"); return; }
+                const count = (data as any)?.count ?? 0;
+                const sent = (data as any)?.sent_to ?? 0;
+                toast.success(count === 0 ? "Sin alumnos con datos incompletos" : `Resumen enviado a ${sent} admin(s): ${count} alumno(s)`);
+              }}>
+                <Inbox className="w-3.5 h-3.5 mr-1" />
+                Avisar datos incompletos
               </Button>
               <Button size="sm" onClick={() => setNueva(true)}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Nueva tarea

@@ -49,3 +49,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.event-school-checkin]
     verify_jwt = false
+  [functions.notify-incomplete-student-data]
+    verify_jwt = false
