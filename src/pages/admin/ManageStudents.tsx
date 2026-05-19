@@ -1334,10 +1334,7 @@ const ManageStudents = () => {
                               <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                             </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Notas internas</Label>
-                            <Textarea value={detailForm.notas} onChange={(e) => setDetailForm({ ...detailForm, notas: e.target.value })} className="bg-secondary border-border text-sm min-h-[60px]" />
-                          </div>
+                          {/* Las notas internas se gestionan abajo como lista (multiples notas) */}
                           <Button variant="gold" size="sm" onClick={saveDetail} className="w-full">Guardar cambios</Button>
                         </div>
                       ) : (
