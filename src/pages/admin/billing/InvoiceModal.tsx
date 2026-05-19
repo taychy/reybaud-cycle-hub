@@ -48,6 +48,35 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
   const [condicion, setCondicion] = useState(factura?.condicion_fiscal || "consumidor_final");
   const [submitting, setSubmitting] = useState(false);
 
+  // Cuando cambia la factura seleccionada, resetear y precargar DNI/CUIT desde alumno si falta
+  useEffect(() => {
+    if (!factura) return;
+    setEmisorId(factura.emisor_id || "");
+    setCondicion(factura.condicion_fiscal || "consumidor_final");
+    setClienteCuit(factura.cliente_cuit || "");
+
+    if (!factura.cliente_cuit && factura.cliente_nombre) {
+      // Buscar documento del alumno por nombre completo (case-insensitive)
+      (async () => {
+        const nombre = factura.cliente_nombre.trim();
+        const { data } = await supabase
+          .from("alumnos")
+          .select("documento, nombre, apellido")
+          .or(`nombre.ilike.${nombre},apellido.ilike.${nombre}`)
+          .limit(20);
+
+        const match = (data || []).find((a: any) => {
+          const full = `${a.nombre || ""} ${a.apellido || ""}`.trim().toLowerCase();
+          return full === nombre.toLowerCase() || (a.nombre || "").toLowerCase() === nombre.toLowerCase();
+        }) || (data || [])[0];
+
+        if (match?.documento) {
+          setClienteCuit(match.documento);
+        }
+      })();
+    }
+  }, [factura?.id]);
+
   if (!factura) return null;
 
   const activeEmisores = emisores.filter((e) => e.activo);
