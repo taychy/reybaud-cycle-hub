@@ -66,7 +66,10 @@ function getEstadoBadge(f: FacturaRow): { label: string; variant: "default" | "s
 
 const REF_LABELS: Record<string, string> = {
   suscripcion: "Suscripción",
-  pedido: "Pedido",
+  pedido: "Producto",
+  evento: "Evento",
+  viaje: "Viaje",
+  ajuste: "Ajuste",
   manual: "Manual",
 };
 
