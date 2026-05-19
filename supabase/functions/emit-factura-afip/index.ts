@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       monto: factura.monto,
       concepto: 2, // Servicios
       clienteCuit: cliente_cuit?.replace(/-/g, "") || "0",
-      condicionFiscal,
+      condicionFiscal: condicion_fiscal,
     });
 
     if (emitResult.error) {
