@@ -86,7 +86,19 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to extract the real error message from the function response body
+        let detail = error.message;
+        try {
+          const resp = (error as any)?.context?.response;
+          if (resp) {
+            const body = await resp.clone().json();
+            if (body?.error) detail = body.error;
+          }
+        } catch { /* ignore */ }
+        toast.error(detail || "Error al emitir la factura contra AFIP");
+        return;
+      }
 
       if (data?.error) {
         toast.error(data.error);

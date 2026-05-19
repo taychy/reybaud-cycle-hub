@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import forge from "npm:node-forge@1.3.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -284,52 +285,35 @@ async function authenticateWSAA(
 // CMS Signing using Web Crypto + manual PKCS#7 construction
 // ============================================================
 async function signCMS(data: string, certPem: string, keyPem: string): Promise<string> {
-  // For AFIP CMS signing we need PKCS#7, which is complex with Web Crypto alone.
-  // We'll use a subprocess approach with openssl if available, otherwise fall back.
-  
-  // Try using the built-in Deno subprocess with openssl
-  const dataBytes = new TextEncoder().encode(data);
-
-  // Write temp files
-  const tmpDir = await Deno.makeTempDir();
-  const dataFile = `${tmpDir}/tra.xml`;
-  const certFile = `${tmpDir}/cert.pem`;
-  const keyFile = `${tmpDir}/key.pem`;
-  const outFile = `${tmpDir}/tra.cms`;
-
+  // PKCS#7 / CMS signing using node-forge (works in Supabase Edge Runtime, no subprocess needed)
   try {
-    await Deno.writeTextFile(dataFile, data);
-    await Deno.writeTextFile(certFile, certPem);
-    await Deno.writeTextFile(keyFile, keyPem);
+    const cert = forge.pki.certificateFromPem(certPem);
+    const privateKey = forge.pki.privateKeyFromPem(keyPem);
 
-    // Use openssl to create CMS/PKCS#7 signature
-    const cmd = new Deno.Command("openssl", {
-      args: [
-        "smime",
-        "-sign",
-        "-signer", certFile,
-        "-inkey", keyFile,
-        "-in", dataFile,
-        "-out", outFile,
-        "-outform", "DER",
-        "-nodetach",
+    const p7 = forge.pkcs7.createSignedData();
+    p7.content = forge.util.createBuffer(data, "utf8");
+    p7.addCertificate(cert);
+    p7.addSigner({
+      key: privateKey,
+      certificate: cert,
+      digestAlgorithm: forge.pki.oids.sha256,
+      authenticatedAttributes: [
+        { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
+        { type: forge.pki.oids.messageDigest },
+        { type: forge.pki.oids.signingTime, value: new Date() as any },
       ],
-      stdout: "piped",
-      stderr: "piped",
     });
 
-    const result = await cmd.output();
+    // detached=false (nodetach equivalente al -nodetach de openssl smime)
+    p7.sign({ detached: false });
 
-    if (!result.success) {
-      const stderr = new TextDecoder().decode(result.stderr);
-      throw new Error(`OpenSSL error: ${stderr}`);
-    }
-
-    const cmsBytes = await Deno.readFile(outFile);
-    return encodeBase64(cmsBytes);
-  } finally {
-    // Cleanup
-    try { await Deno.remove(tmpDir, { recursive: true }); } catch { /* ok */ }
+    const derBytes = forge.asn1.toDer(p7.toAsn1()).getBytes();
+    // Convert forge binary string -> Uint8Array -> base64
+    const bytes = new Uint8Array(derBytes.length);
+    for (let i = 0; i < derBytes.length; i++) bytes[i] = derBytes.charCodeAt(i) & 0xff;
+    return encodeBase64(bytes);
+  } catch (err) {
+    throw new Error(`CMS sign failed: ${(err as Error).message}`);
   }
 }
 
