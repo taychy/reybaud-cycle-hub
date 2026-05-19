@@ -194,15 +194,63 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     onDataChange?.();
   };
 
-  const toggleAutoFacturacion = async (emisor: Emisor) => {
-    await supabase
+  // Dialog para elegir orígenes al activar facturación automática
+  const [autoDialogEmisor, setAutoDialogEmisor] = useState<Emisor | null>(null);
+  const [autoOrigenes, setAutoOrigenes] = useState<OrigenAuto[]>(DEFAULT_ORIGENES);
+
+  const handleAutoToggle = (emisor: Emisor) => {
+    if (emisor.facturacion_automatica) {
+      // Desactivar: directo, sin diálogo
+      supabase
+        .from("emisores_fiscales")
+        .update({ facturacion_automatica: false } as any)
+        .eq("id", emisor.id)
+        .then(() => {
+          toast.success("Facturación automática desactivada");
+          load();
+          onDataChange?.();
+        });
+      return;
+    }
+    // Activar: abrir diálogo con orígenes
+    const current = (emisor.auto_facturar_origenes && emisor.auto_facturar_origenes.length > 0
+      ? emisor.auto_facturar_origenes
+      : DEFAULT_ORIGENES) as OrigenAuto[];
+    setAutoOrigenes(current);
+    setAutoDialogEmisor(emisor);
+  };
+
+  const confirmAutoActivacion = async () => {
+    if (!autoDialogEmisor) return;
+    if (autoOrigenes.length === 0) {
+      toast.error("Elegí al menos un tipo de pago a facturar");
+      return;
+    }
+    const { error } = await supabase
       .from("emisores_fiscales")
-      .update({ facturacion_automatica: !emisor.facturacion_automatica } as any)
-      .eq("id", emisor.id);
-    toast.success(emisor.facturacion_automatica ? "Facturación automática desactivada" : "Facturación automática activada");
+      .update({
+        facturacion_automatica: true,
+        auto_facturar_origenes: autoOrigenes,
+      } as any)
+      .eq("id", autoDialogEmisor.id);
+    if (error) {
+      toast.error("Error al activar");
+      return;
+    }
+    toast.success("Facturación automática activada");
+    setAutoDialogEmisor(null);
     await load();
     onDataChange?.();
   };
+
+  const editAutoOrigenes = (emisor: Emisor) => {
+    const current = (emisor.auto_facturar_origenes && emisor.auto_facturar_origenes.length > 0
+      ? emisor.auto_facturar_origenes
+      : DEFAULT_ORIGENES) as OrigenAuto[];
+    setAutoOrigenes(current);
+    setAutoDialogEmisor(emisor);
+  };
+
 
   const toggleSegmento = async (emisorId: string, segmento: Segmento, current: boolean) => {
     const existing = configs.find((c) => c.emisor_id === emisorId && c.segmento === segmento);
