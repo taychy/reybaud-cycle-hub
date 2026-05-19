@@ -23,6 +23,7 @@ interface Emisor {
   es_predeterminado?: boolean;
   facturacion_automatica?: boolean;
   limite_anual_ars?: number | null;
+  categoria_monotributo?: string | null;
 }
 
 interface Facturado {
