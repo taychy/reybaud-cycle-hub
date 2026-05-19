@@ -384,12 +384,14 @@ const AdminEventReservations = ({
       cuota_pendiente: "#d97706",
       cuota_proxima: "#2563eb",
       novedad: "#1a1a2e",
+      recordatorio_checklist: "#d97706",
     };
     const titleMap: Record<string, string> = {
       pago_registrado: "Pago registrado",
       cuota_pendiente: "Cuota pendiente",
       cuota_proxima: "Próximo vencimiento",
       novedad: "Novedad",
+      recordatorio_checklist: "Falta tu información del viaje",
     };
     const color = colorMap[tipo] || "#1a1a2e";
     const title = titleMap[tipo] || "Notificación";
