@@ -263,7 +263,12 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
           userId={userId}
           onOpen={(t) => setOpenTarea(t)}
           onAsignarme={handleAsignarme}
-          onStart={(t) => handleStateChange(t, "en_curso")}
+          onStart={(t) => {
+            handleStateChange(t, "en_curso");
+            const route = getTareaRoute(t);
+            if (route) window.open(route, "_blank", "noopener,noreferrer");
+            else toast.info("No hay destino directo para esta tarea");
+          }}
           onDone={(t) => handleStateChange(t, "hecha")}
         />
       )}
