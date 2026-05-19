@@ -189,10 +189,10 @@ Deno.serve(async (req) => {
     }
 
     const origenPermitido =
-      !origen ||
+      !origenInferido ||
       !emisorElegido.auto_facturar_origenes ||
       (Array.isArray(emisorElegido.auto_facturar_origenes) &&
-        (emisorElegido.auto_facturar_origenes as string[]).includes(origen));
+        (emisorElegido.auto_facturar_origenes as string[]).includes(origenInferido));
 
     const canAutoEmit =
       emisorElegido.facturacion_automatica &&
@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
           emitted: false,
           emisor: emisorElegido.nombre_fiscal,
           message: !origenPermitido
-            ? `Factura creada. El origen "${origen}" no está habilitado para facturación automática en este emisor.`
+            ? `Factura creada. El origen "${origenInferido}" no está habilitado para facturación automática en este emisor.`
             : "Factura creada. Emisión automática desactivada o sin certificado.",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
