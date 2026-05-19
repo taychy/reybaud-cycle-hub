@@ -178,13 +178,24 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
                     </Badge>
                   )}
                 </div>
-                {row?.updated_at && (
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {new Date(row.updated_at).toLocaleDateString("es-AR", {
-                      day: "2-digit", month: "short",
-                    })}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {row?.updated_at && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(row.updated_at).toLocaleDateString("es-AR", {
+                        day: "2-digit", month: "short",
+                      })}
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[10px] gap-1"
+                    onClick={() => openEditor(key)}
+                  >
+                    <Pencil className="w-3 h-3" />
+                    {row ? "Editar" : "Cargar"}
+                  </Button>
+                </div>
               </div>
 
               {!row && (
