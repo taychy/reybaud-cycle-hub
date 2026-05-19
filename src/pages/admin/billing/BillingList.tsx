@@ -250,6 +250,12 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
                     <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                       {REF_LABELS[f.referencia_tipo] || f.referencia_tipo}
                     </span>
+                    {f.metodo_pago && (
+                      <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
+                        {METODO_LABELS[f.metodo_pago] || f.metodo_pago}
+                        {f.origen_registro ? ` · ${ORIGEN_LABELS[f.origen_registro] || f.origen_registro}` : ""}
+                      </span>
+                    )}
                     {isManualSinCae && (
                       <span
                         className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded"
