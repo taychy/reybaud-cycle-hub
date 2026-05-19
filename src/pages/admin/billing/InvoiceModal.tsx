@@ -104,6 +104,12 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
         toast.error(data.error);
         return;
       }
+
+      toast.success(
+        `Factura emitida: N° ${data.numero_comprobante} — CAE: ${data.cae}`
+      );
+      onOpenChange(false);
+      onEmitted();
     } catch (err: any) {
       console.error("Error emitting invoice:", err);
       toast.error(err?.message || "Error al emitir la factura contra AFIP");
