@@ -151,12 +151,12 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
 
 
     setRunning(true);
-    setProgress({ done: 0, total: selected.length });
+    setProgress({ done: 0, total: validSelected.length });
     let okCount = 0;
     let errCount = 0;
 
-    for (let i = 0; i < selected.length; i++) {
-      const row = selected[i];
+    for (let i = 0; i < validSelected.length; i++) {
+      const row = validSelected[i];
       try {
         // Actualizar datos del cliente
         await supabase.from("facturas").update({
@@ -192,7 +192,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
         updateRow(row.id, { result: { ok: false, error: e?.message || "Error inesperado" } });
         errCount++;
       }
-      setProgress({ done: i + 1, total: selected.length });
+      setProgress({ done: i + 1, total: validSelected.length });
     }
 
     setRunning(false);
@@ -348,7 +348,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
           {/* Resumen + acción */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
             <div className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{selected.length}</span> seleccionada(s) ·{" "}
+              <span className="font-semibold text-foreground">{validSelected.length}</span> seleccionada(s) ·{" "}
               Total: <span className="font-semibold text-foreground">{formatPrice(totalSel, "ARS")}</span>
               {running && (
                 <span className="ml-2">· Emitiendo {progress.done}/{progress.total}</span>
@@ -360,12 +360,12 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
               </Button>
               <Button
                 onClick={handleEmit}
-                disabled={running || selected.length === 0 || !emisorId || !emisorHasCerts}
+                disabled={running || validSelected.length === 0 || !emisorId || !emisorHasCerts}
               >
                 {running ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Emitiendo...</>
                 ) : (
-                  `Emitir ${selected.length} en AFIP`
+                  `Emitir ${validSelected.length} en AFIP`
                 )}
               </Button>
             </div>
