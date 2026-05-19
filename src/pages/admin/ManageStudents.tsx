@@ -25,6 +25,7 @@ import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
+import { StudentNotesSection } from "@/components/admin/StudentNotesSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
@@ -1334,10 +1335,7 @@ const ManageStudents = () => {
                               <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                             </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Notas internas</Label>
-                            <Textarea value={detailForm.notas} onChange={(e) => setDetailForm({ ...detailForm, notas: e.target.value })} className="bg-secondary border-border text-sm min-h-[60px]" />
-                          </div>
+                          {/* Las notas internas se gestionan abajo como lista (multiples notas) */}
                           <Button variant="gold" size="sm" onClick={saveDetail} className="w-full">Guardar cambios</Button>
                         </div>
                       ) : (
@@ -1474,15 +1472,8 @@ const ManageStudents = () => {
                       }}
                     />
                     <Separator />
-                    {drawerAlumno.notas && !editingDetail && (
-                      <>
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-foreground">Notas internas</h3>
-                          <p className="text-xs text-foreground whitespace-pre-wrap bg-secondary/50 rounded-md p-3">{drawerAlumno.notas}</p>
-                        </div>
-                        <Separator />
-                      </>
-                    )}
+                    <StudentNotesSection alumnoId={drawerAlumno.id} />
+                    <Separator />
 
                     {/* Activity Log */}
                     <StudentActivityLog alumnoId={drawerAlumno.id} />
