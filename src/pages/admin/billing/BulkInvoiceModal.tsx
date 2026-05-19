@@ -304,6 +304,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                       />
                     </th>
                     <th className="p-2 text-left">Cliente</th>
+                    <th className="p-2 text-left">Origen</th>
                     <th className="p-2 text-left">DNI/CUIT</th>
                     <th className="p-2 text-left">Condición</th>
                     <th className="p-2 text-left">Concepto</th>
@@ -313,18 +314,34 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                 </thead>
                 <tbody>
                   {drafts.map((d) => {
-                    const sinDoc = !d.cliente_cuit?.trim();
+                    const validationErr = validateRow(d);
+                    const isInvalid = !!validationErr;
+                    const isManual = d.kind === "manual";
                     return (
-                      <tr key={d.id} className={`border-t border-border ${sinDoc ? "bg-yellow-500/5" : ""}`}>
+                      <tr key={d.id} className={`border-t border-border ${isInvalid ? "bg-destructive/5" : isManual ? "bg-yellow-500/5" : ""}`}>
                         <td className="p-2 align-top">
                           <input
                             type="checkbox"
-                            checked={d.selected}
-                            disabled={running || !!d.result}
+                            checked={d.selected && !isInvalid}
+                            disabled={running || !!d.result || isInvalid}
                             onChange={(e) => updateRow(d.id, { selected: e.target.checked })}
+                            title={isInvalid ? validationErr! : ""}
                           />
                         </td>
-                        <td className="p-2 align-top font-medium text-foreground">{d.cliente_nombre}</td>
+                        <td className="p-2 align-top font-medium text-foreground">
+                          {d.cliente_nombre}
+                          {isInvalid && (
+                            <p className="text-[10px] text-destructive mt-0.5">{validationErr}</p>
+                          )}
+                          {isManual && !isInvalid && (
+                            <p className="text-[10px] text-yellow-600 mt-0.5">⚠ Posible facturado fuera del sistema</p>
+                          )}
+                        </td>
+                        <td className="p-2 align-top">
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {REF_LABELS[d.referencia_tipo || "manual"] || d.referencia_tipo}
+                          </span>
+                        </td>
                         <td className="p-2 align-top">
                           <Input
                             value={d.cliente_cuit || ""}
@@ -333,7 +350,6 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                             className="h-7 text-xs"
                             disabled={running || !!d.result}
                           />
-                          {sinDoc && <p className="text-[10px] text-yellow-500 mt-0.5">Consumidor Final s/identificar</p>}
                         </td>
                         <td className="p-2 align-top">
                           <Select
