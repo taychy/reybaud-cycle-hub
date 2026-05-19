@@ -100,7 +100,15 @@ export const TareasInbox = ({ userId, isSuperAdmin, myRoles }: Props) => {
     let arr = tareas;
     if (scope === "mias") arr = arr.filter(t => t.asignado_user_id === userId);
     else if (scope === "mi_rol") arr = arr.filter(t => myRoles.includes(t.rol_destino) || t.asignado_user_id === userId);
-    if (filtroEstado === "activas") arr = arr.filter(t => t.estado !== "hecha");
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (filtroEstado === "activas") {
+      arr = arr.filter(t => {
+        if (t.estado === "hecha") return false;
+        // Ocultar pospuestas cuya fecha de "volver a ver" aún no llegó
+        if (t.estado === "pospuesta" && t.pospuesta_hasta && t.pospuesta_hasta > todayStr) return false;
+        return true;
+      });
+    }
     else if (filtroEstado !== "todas") arr = arr.filter(t => t.estado === filtroEstado);
     if (filtroPrioridad !== "todas") arr = arr.filter(t => t.prioridad === filtroPrioridad);
     if (filtroOrigen !== "todos") arr = arr.filter(t => t.origen === filtroOrigen);
