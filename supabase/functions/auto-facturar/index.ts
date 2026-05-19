@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
       referencia_id,
       segmento,
       origen,
+      metodo_pago,
+      origen_registro,
     }: {
       alumno_id: string;
       concepto: string;
@@ -64,6 +66,8 @@ Deno.serve(async (req) => {
       referencia_id?: string;
       segmento: Segmento;
       origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
+      metodo_pago?: string | null;
+      origen_registro?: string | null;
     } = body;
 
     if (!alumno_id || !concepto || !monto) {
@@ -79,6 +83,29 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Auto-detectar metodo_pago / origen_registro desde la suscripción si no vino
+    let resolvedMetodo = metodo_pago ?? null;
+    let resolvedOrigen = origen_registro ?? null;
+    if ((!resolvedMetodo || !resolvedOrigen) && referencia_tipo === "suscripcion" && referencia_id) {
+      const { data: sub } = await adminClient
+        .from("suscripciones")
+        .select("metodo_pago, origen_registro")
+        .eq("id", referencia_id)
+        .maybeSingle();
+      if (sub) {
+        resolvedMetodo = resolvedMetodo ?? sub.metodo_pago;
+        resolvedOrigen = resolvedOrigen ?? sub.origen_registro;
+      }
+    }
+    // Mapear a `origen` (para reglas auto_facturar_origenes del emisor) si no vino
+    const origenInferido: "app_online" | "manual_admin" | "efectivo" | "transferencia" | undefined =
+      origen ??
+      (resolvedOrigen === "autogestion" && resolvedMetodo === "mercadopago" ? "app_online"
+        : resolvedMetodo === "transferencia" ? "transferencia"
+        : resolvedMetodo === "efectivo" ? "efectivo"
+        : resolvedOrigen === "cargado_admin" ? "manual_admin"
+        : undefined);
 
     // Datos del alumno
     const { data: alumno } = await adminClient
@@ -109,6 +136,8 @@ Deno.serve(async (req) => {
         segmento,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
+        metodo_pago: resolvedMetodo,
+        origen_registro: resolvedOrigen,
       });
 
       if (insertErr) {
@@ -145,6 +174,8 @@ Deno.serve(async (req) => {
         emisor_id: emisorElegido.id,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
+        metodo_pago: resolvedMetodo,
+        origen_registro: resolvedOrigen,
       })
       .select("id")
       .single();
@@ -158,10 +189,10 @@ Deno.serve(async (req) => {
     }
 
     const origenPermitido =
-      !origen ||
+      !origenInferido ||
       !emisorElegido.auto_facturar_origenes ||
       (Array.isArray(emisorElegido.auto_facturar_origenes) &&
-        (emisorElegido.auto_facturar_origenes as string[]).includes(origen));
+        (emisorElegido.auto_facturar_origenes as string[]).includes(origenInferido));
 
     const canAutoEmit =
       emisorElegido.facturacion_automatica &&
@@ -177,7 +208,7 @@ Deno.serve(async (req) => {
           emitted: false,
           emisor: emisorElegido.nombre_fiscal,
           message: !origenPermitido
-            ? `Factura creada. El origen "${origen}" no está habilitado para facturación automática en este emisor.`
+            ? `Factura creada. El origen "${origenInferido}" no está habilitado para facturación automática en este emisor.`
             : "Factura creada. Emisión automática desactivada o sin certificado.",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }

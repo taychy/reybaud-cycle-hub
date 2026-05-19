@@ -30,7 +30,21 @@ interface FacturaRow {
   created_at: string;
   cae?: string | null;
   cae_vencimiento?: string | null;
+  metodo_pago?: string | null;
+  origen_registro?: string | null;
 }
+
+const METODO_LABELS: Record<string, string> = {
+  mercadopago: "Mercado Pago",
+  transferencia: "Transferencia",
+  efectivo: "Efectivo",
+  otro: "Otro",
+};
+
+const ORIGEN_LABELS: Record<string, string> = {
+  autogestion: "App del alumno",
+  cargado_admin: "Cargado por admin",
+};
 
 interface Props {
   facturas: FacturaRow[];
@@ -77,6 +91,8 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState(filterEstado || "todos");
   const [emisorFilter, setEmisorFilter] = useState("todos");
+  const [metodoFilter, setMetodoFilter] = useState("todos");
+  const [origenFilter, setOrigenFilter] = useState("todos");
 
   // Filtros configurables del bulk
   const [includeSinFactura, setIncludeSinFactura] = useState(true);
@@ -89,6 +105,14 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
     return facturas.filter((f) => {
       if (estadoFilter !== "todos" && f.estado !== estadoFilter) return false;
       if (emisorFilter !== "todos" && f.emisor_id !== emisorFilter) return false;
+      if (metodoFilter !== "todos") {
+        const m = (f.metodo_pago || "sin_dato").toLowerCase();
+        if (metodoFilter === "sin_dato" ? !!f.metodo_pago : m !== metodoFilter) return false;
+      }
+      if (origenFilter !== "todos") {
+        const o = f.origen_registro || "sin_dato";
+        if (origenFilter === "sin_dato" ? !!f.origen_registro : o !== origenFilter) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -105,7 +129,7 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
       }
       return true;
     });
-  }, [facturas, estadoFilter, emisorFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
+  }, [facturas, estadoFilter, emisorFilter, metodoFilter, origenFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
 
   const emisorMap = new Map(emisores.map((e) => [e.id, e.nombre_fiscal]));
   const facturablesVisibles = filtered.filter(isFacturable);
@@ -150,6 +174,26 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
           <SelectContent>
             <SelectItem value="todos">Todos los emisores</SelectItem>
             {emisores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_fiscal}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={metodoFilter} onValueChange={setMetodoFilter}>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Método de pago" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los métodos</SelectItem>
+            <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+            <SelectItem value="transferencia">Transferencia</SelectItem>
+            <SelectItem value="efectivo">Efectivo</SelectItem>
+            <SelectItem value="otro">Otro</SelectItem>
+            <SelectItem value="sin_dato">Sin dato</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={origenFilter} onValueChange={setOrigenFilter}>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Origen" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los orígenes</SelectItem>
+            <SelectItem value="autogestion">App del alumno</SelectItem>
+            <SelectItem value="cargado_admin">Cargado por admin</SelectItem>
+            <SelectItem value="sin_dato">Sin dato</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -206,6 +250,12 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
                     <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                       {REF_LABELS[f.referencia_tipo] || f.referencia_tipo}
                     </span>
+                    {f.metodo_pago && (
+                      <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
+                        {METODO_LABELS[f.metodo_pago] || f.metodo_pago}
+                        {f.origen_registro ? ` · ${ORIGEN_LABELS[f.origen_registro] || f.origen_registro}` : ""}
+                      </span>
+                    )}
                     {isManualSinCae && (
                       <span
                         className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded"
