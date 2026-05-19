@@ -28,11 +28,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Optional dry-run flag
+    // Optional flags
     let dryRun = false;
+    let overrideRecipients: string[] | null = null;
     try {
       const body = await req.json();
       dryRun = !!body?.dry_run;
+      if (Array.isArray(body?.override_recipients) && body.override_recipients.length > 0) {
+        overrideRecipients = body.override_recipients.filter((x: any) => typeof x === "string");
+      } else if (typeof body?.override_recipients === "string") {
+        overrideRecipients = [body.override_recipients];
+      }
     } catch { /* no body */ }
 
     // 1) Alumnos activos con datos incompletos (creados hace >30 días)
