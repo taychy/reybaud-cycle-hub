@@ -142,6 +142,12 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
         </div>
       </div>
 
+      {!canEdit && (
+        <p className="text-[11px] text-muted-foreground italic">
+          Participante externo: solo lectura. Para editar, vinculá el alumno.
+        </p>
+      )}
+
       <div className="space-y-2">
         {knownSteps.map((key) => {
           const row = byKey.get(key);
