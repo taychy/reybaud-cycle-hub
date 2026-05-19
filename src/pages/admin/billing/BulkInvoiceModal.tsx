@@ -51,12 +51,29 @@ const CONDICIONES = [
   { value: "exento", label: "Exento" },
 ];
 
+const REF_LABELS: Record<string, string> = {
+  suscripcion: "Suscripción",
+  pedido: "Producto",
+  evento: "Evento",
+  viaje: "Viaje",
+  ajuste: "Ajuste",
+  manual: "Manual",
+};
+
+function validateRow(d: DraftRow): string | null {
+  if (!d.cliente_cuit?.trim()) return "Falta DNI/CUIT";
+  if (!d.condicion_fiscal) return "Falta condición fiscal";
+  if (!d.monto || Number(d.monto) <= 0) return "Monto inválido";
+  return null;
+}
+
 export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }: Props) {
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [emisorId, setEmisorId] = useState<string>("");
   const [cupo, setCupo] = useState<{ disponible: number | null; pct: number | null } | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [overrideCupo, setOverrideCupo] = useState(false);
 
   // Re-init drafts cuando se abre
   useEffect(() => {
