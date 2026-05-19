@@ -111,6 +111,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
 
   // Cargar cupo disponible cuando cambia emisor
   useEffect(() => {
+    setOverrideCupo(false);
     if (!emisorId) { setCupo(null); return; }
     (async () => {
       const { data } = await supabase
@@ -128,10 +129,15 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
   const activos = useMemo(() => emisores.filter((e) => e.activo), [emisores]);
   const selectedEmisor = emisores.find((e) => e.id === emisorId);
   const emisorHasCerts = selectedEmisor ? !!(selectedEmisor.cert_pem && selectedEmisor.key_pem) : false;
+  const emisorHasCuit = !!selectedEmisor?.cuit;
+  const emisorHasPV = !!selectedEmisor?.punto_venta;
+  const emisorValido = !!selectedEmisor && emisorHasCerts && emisorHasCuit && emisorHasPV;
 
-  const selected = drafts.filter((d) => d.selected);
-  const totalSel = selected.reduce((a, b) => a + Number(b.monto || 0), 0);
+  // Solo filas válidas pueden estar seleccionadas
+  const validSelected = drafts.filter((d) => d.selected && !validateRow(d));
+  const totalSel = validSelected.reduce((a, b) => a + Number(b.monto || 0), 0);
   const supera = cupo?.disponible != null && totalSel > cupo.disponible;
+  const cupoOk = !supera || overrideCupo;
 
   const updateRow = (id: string, patch: Partial<DraftRow>) => {
     setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
@@ -139,8 +145,10 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
 
   const handleEmit = async () => {
     if (!emisorId) { toast.error("Seleccioná un emisor"); return; }
-    if (!emisorHasCerts) { toast.error("El emisor no tiene certificado AFIP"); return; }
-    if (selected.length === 0) { toast.error("No hay filas seleccionadas"); return; }
+    if (!emisorValido) { toast.error("El emisor no está completo (CUIT / Punto de venta / Certificado AFIP)"); return; }
+    if (validSelected.length === 0) { toast.error("No hay filas válidas seleccionadas"); return; }
+    if (supera && !overrideCupo) { toast.error("Confirmá el override del cupo para continuar"); return; }
+
 
     setRunning(true);
     setProgress({ done: 0, total: selected.length });
