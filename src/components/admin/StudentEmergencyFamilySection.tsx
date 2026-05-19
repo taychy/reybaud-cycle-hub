@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Phone, Heart, Users, Plus, Trash2, AlertTriangle, UserPlus } from "lucide-react";
+import { Phone, Heart, Users, Plus, Trash2, AlertTriangle, UserPlus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
