@@ -61,11 +61,16 @@ interface Props {
   alumno: Alumno;
 }
 
-export function StudentEmergencyFamilySection({ alumno }: Props) {
+export function StudentEmergencyFamilySection({ alumno: alumnoProp }: Props) {
+  const [alumno, setAlumno] = useState<Alumno>(alumnoProp);
+  useEffect(() => setAlumno(alumnoProp), [alumnoProp]);
+
   const [familiares, setFamiliares] = useState<Familiar[]>([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Familiar | null>(null);
+  const [editContactoOpen, setEditContactoOpen] = useState(false);
+  const [editObraOpen, setEditObraOpen] = useState(false);
 
   // Add form
   const [tipo, setTipo] = useState<"alumno" | "externo">("alumno");
@@ -77,6 +82,11 @@ export function StudentEmergencyFamilySection({ alumno }: Props) {
   const [relacion, setRelacion] = useState("otro");
   const [notas, setNotas] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const refreshAlumno = useCallback(async () => {
+    const { data } = await supabase.from("alumnos").select("*").eq("id", alumno.id).maybeSingle();
+    if (data) setAlumno(data as Alumno);
+  }, [alumno.id]);
 
   const load = useCallback(async () => {
     setLoading(true);
