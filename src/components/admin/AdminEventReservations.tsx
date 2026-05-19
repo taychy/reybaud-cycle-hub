@@ -1279,7 +1279,7 @@ const AdminEventReservations = ({
                 </Button>
                 {isTripLike && selectedRes.access_token && (
                   <Button variant="outline" size="sm" onClick={() => {
-                    const url = `${window.location.origin}/viaje/mi-reserva?token=${selectedRes.access_token}`;
+                    const url = `${getShareOrigin()}/viaje/mi-reserva?token=${selectedRes.access_token}`;
                     navigator.clipboard.writeText(url);
                     toast({ title: "Link copiado", description: "Se copió el enlace de acceso al portapapeles" });
                   }}>
