@@ -994,6 +994,7 @@ export type Database = {
       emisores_fiscales: {
         Row: {
           activo: boolean
+          auto_facturar_origenes: string[]
           categoria_monotributo: string | null
           cert_pem: string | null
           created_at: string
@@ -1009,6 +1010,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          auto_facturar_origenes?: string[]
           categoria_monotributo?: string | null
           cert_pem?: string | null
           created_at?: string
@@ -1024,6 +1026,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          auto_facturar_origenes?: string[]
           categoria_monotributo?: string | null
           cert_pem?: string | null
           created_at?: string

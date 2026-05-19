@@ -3,11 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, ShieldCheck, ShieldAlert, Zap, GraduationCap, Plane, ShoppingBag, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, ShieldAlert, Zap, GraduationCap, Plane, ShoppingBag, AlertTriangle, Smartphone, Banknote, ArrowLeftRight, Hand } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 import { MONOTRIBUTO_CATEGORIAS, getTopeByCategoria } from "@/lib/monotributo";
@@ -24,7 +25,19 @@ interface Emisor {
   facturacion_automatica?: boolean;
   limite_anual_ars?: number | null;
   categoria_monotributo?: string | null;
+  auto_facturar_origenes?: string[] | null;
 }
+
+export type OrigenAuto = "app_online" | "manual_admin" | "efectivo" | "transferencia";
+
+const ORIGENES: { key: OrigenAuto; label: string; desc: string; icon: typeof Smartphone }[] = [
+  { key: "app_online", label: "Pagos online por la app", desc: "Mercado Pago / tarjeta desde el checkout del alumno", icon: Smartphone },
+  { key: "manual_admin", label: "Cargas manuales del admin", desc: "Pagos que vos registrás desde el panel", icon: Hand },
+  { key: "efectivo", label: "Efectivo confirmado", desc: "Pagos en efectivo informados y validados", icon: Banknote },
+  { key: "transferencia", label: "Transferencias informadas", desc: "Transferencias bancarias validadas", icon: ArrowLeftRight },
+];
+
+const DEFAULT_ORIGENES: OrigenAuto[] = ["app_online", "manual_admin", "efectivo", "transferencia"];
 
 interface Facturado {
   emisor_id: string;
@@ -181,15 +194,63 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     onDataChange?.();
   };
 
-  const toggleAutoFacturacion = async (emisor: Emisor) => {
-    await supabase
+  // Dialog para elegir orígenes al activar facturación automática
+  const [autoDialogEmisor, setAutoDialogEmisor] = useState<Emisor | null>(null);
+  const [autoOrigenes, setAutoOrigenes] = useState<OrigenAuto[]>(DEFAULT_ORIGENES);
+
+  const handleAutoToggle = (emisor: Emisor) => {
+    if (emisor.facturacion_automatica) {
+      // Desactivar: directo, sin diálogo
+      supabase
+        .from("emisores_fiscales")
+        .update({ facturacion_automatica: false } as any)
+        .eq("id", emisor.id)
+        .then(() => {
+          toast.success("Facturación automática desactivada");
+          load();
+          onDataChange?.();
+        });
+      return;
+    }
+    // Activar: abrir diálogo con orígenes
+    const current = (emisor.auto_facturar_origenes && emisor.auto_facturar_origenes.length > 0
+      ? emisor.auto_facturar_origenes
+      : DEFAULT_ORIGENES) as OrigenAuto[];
+    setAutoOrigenes(current);
+    setAutoDialogEmisor(emisor);
+  };
+
+  const confirmAutoActivacion = async () => {
+    if (!autoDialogEmisor) return;
+    if (autoOrigenes.length === 0) {
+      toast.error("Elegí al menos un tipo de pago a facturar");
+      return;
+    }
+    const { error } = await supabase
       .from("emisores_fiscales")
-      .update({ facturacion_automatica: !emisor.facturacion_automatica } as any)
-      .eq("id", emisor.id);
-    toast.success(emisor.facturacion_automatica ? "Facturación automática desactivada" : "Facturación automática activada");
+      .update({
+        facturacion_automatica: true,
+        auto_facturar_origenes: autoOrigenes,
+      } as any)
+      .eq("id", autoDialogEmisor.id);
+    if (error) {
+      toast.error("Error al activar");
+      return;
+    }
+    toast.success("Facturación automática activada");
+    setAutoDialogEmisor(null);
     await load();
     onDataChange?.();
   };
+
+  const editAutoOrigenes = (emisor: Emisor) => {
+    const current = (emisor.auto_facturar_origenes && emisor.auto_facturar_origenes.length > 0
+      ? emisor.auto_facturar_origenes
+      : DEFAULT_ORIGENES) as OrigenAuto[];
+    setAutoOrigenes(current);
+    setAutoDialogEmisor(emisor);
+  };
+
 
   const toggleSegmento = async (emisorId: string, segmento: Segmento, current: boolean) => {
     const existing = configs.find((c) => c.emisor_id === emisorId && c.segmento === segmento);
@@ -325,16 +386,39 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
                 {/* Auto-facturación */}
                 {e.activo && (
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <div className="flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Facturación automática</span>
+                  <div className="space-y-1.5 pt-2 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Facturación automática</span>
+                      </div>
+                      <Switch
+                        checked={!!e.facturacion_automatica}
+                        onCheckedChange={() => handleAutoToggle(e)}
+                        disabled={!hasCerts(e)}
+                      />
                     </div>
-                    <Switch
-                      checked={!!e.facturacion_automatica}
-                      onCheckedChange={() => toggleAutoFacturacion(e)}
-                      disabled={!hasCerts(e)}
-                    />
+                    {e.facturacion_automatica && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        {((e.auto_facturar_origenes || DEFAULT_ORIGENES) as OrigenAuto[]).map((o) => {
+                          const def = ORIGENES.find((x) => x.key === o);
+                          if (!def) return null;
+                          const Icon = def.icon;
+                          return (
+                            <span key={o} className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px]">
+                              <Icon className="w-3 h-3" />
+                              {def.label}
+                            </span>
+                          );
+                        })}
+                        <button
+                          onClick={() => editAutoOrigenes(e)}
+                          className="text-[10px] text-muted-foreground hover:text-primary underline ml-1"
+                        >
+                          editar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {!hasCerts(e) && e.activo && (
@@ -342,6 +426,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
                     Cargá el certificado AFIP para habilitar facturación automática
                   </p>
                 )}
+
 
                 {/* Segmentos habilitados */}
                 {e.activo && (
@@ -484,6 +569,55 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
               {submitting ? "Guardando..." : editing ? "Actualizar" : "Crear emisor"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo: elegir qué pagos se facturan automáticamente */}
+      <Dialog open={!!autoDialogEmisor} onOpenChange={(o) => !o && setAutoDialogEmisor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" /> Facturación automática
+            </DialogTitle>
+            <DialogDescription>
+              Elegí qué tipos de pago se facturan automáticamente con <span className="font-semibold text-foreground">{autoDialogEmisor?.nombre_fiscal}</span>. Los que dejes desactivados quedarán pendientes para facturar a mano.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 pt-2">
+            {ORIGENES.map((o) => {
+              const Icon = o.icon;
+              const checked = autoOrigenes.includes(o.key);
+              return (
+                <label
+                  key={o.key}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    checked ? "border-primary/40 bg-primary/5" : "border-border bg-card hover:border-border/80"
+                  }`}
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => {
+                      setAutoOrigenes((prev) =>
+                        c ? [...prev, o.key] : prev.filter((x) => x !== o.key)
+                      );
+                    }}
+                    className="mt-0.5"
+                  />
+                  <Icon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{o.label}</p>
+                    <p className="text-xs text-muted-foreground">{o.desc}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAutoDialogEmisor(null)}>Cancelar</Button>
+            <Button onClick={confirmAutoActivacion}>
+              {autoDialogEmisor?.facturacion_automatica ? "Guardar cambios" : "Activar"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

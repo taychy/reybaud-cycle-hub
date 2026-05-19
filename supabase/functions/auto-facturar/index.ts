@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       referencia_tipo,
       referencia_id,
       segmento,
+      origen,
     }: {
       alumno_id: string;
       concepto: string;
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
       referencia_tipo?: string;
       referencia_id?: string;
       segmento: Segmento;
+      origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
     } = body;
 
     if (!alumno_id || !concepto || !monto) {
@@ -155,10 +157,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    const origenPermitido =
+      !origen ||
+      !emisorElegido.auto_facturar_origenes ||
+      (Array.isArray(emisorElegido.auto_facturar_origenes) &&
+        (emisorElegido.auto_facturar_origenes as string[]).includes(origen));
+
     const canAutoEmit =
       emisorElegido.facturacion_automatica &&
       emisorElegido.cert_pem &&
-      emisorElegido.key_pem;
+      emisorElegido.key_pem &&
+      origenPermitido;
 
     if (!canAutoEmit) {
       return new Response(
@@ -167,11 +176,16 @@ Deno.serve(async (req) => {
           created: true,
           emitted: false,
           emisor: emisorElegido.nombre_fiscal,
-          message: "Factura creada. Emisión automática desactivada o sin certificado.",
+          message: !origenPermitido
+            ? `Factura creada. El origen "${origen}" no está habilitado para facturación automática en este emisor.`
+            : "Factura creada. Emisión automática desactivada o sin certificado.",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+
+
 
     // Emitir contra AFIP
     const emitUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/emit-factura-afip`;
