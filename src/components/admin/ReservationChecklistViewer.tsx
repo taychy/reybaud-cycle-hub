@@ -182,15 +182,17 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
                       })}
                     </span>
                   )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-[10px] gap-1"
-                    onClick={() => openEditor(key)}
-                  >
-                    <Pencil className="w-3 h-3" />
-                    {row ? "Editar" : "Cargar"}
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-[10px] gap-1"
+                      onClick={() => openEditor(key)}
+                    >
+                      <Pencil className="w-3 h-3" />
+                      {row ? "Editar" : "Cargar"}
+                    </Button>
+                  )}
                 </div>
               </div>
 
