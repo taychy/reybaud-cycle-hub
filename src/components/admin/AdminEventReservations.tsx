@@ -687,6 +687,26 @@ const AdminEventReservations = ({
     setAddingExternal(false);
   };
 
+  const deleteReservation = async (resId: string, participantName: string) => {
+    const ok = window.confirm(
+      `¿Eliminar la reserva de ${participantName}?\n\nSe eliminarán también pagos, cuotas, notificaciones e historial asociados. Esta acción no se puede deshacer.`
+    );
+    if (!ok) return;
+    setUpdatingId(resId);
+    const { error } = await supabase
+      .from("event_reservations" as any)
+      .delete()
+      .eq("id", resId);
+    setUpdatingId(null);
+    if (error) {
+      toast({ title: "Error al eliminar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Reserva eliminada", description: `Se eliminó la reserva de ${participantName}.` });
+      setReservations(prev => prev.filter(r => r.id !== resId));
+    }
+  };
+
+
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
     setUpdatingId(resId);
     const res = reservations.find(r => r.id === resId);
