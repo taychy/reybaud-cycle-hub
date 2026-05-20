@@ -55,7 +55,7 @@ const TripDocumentDrawer = ({
     if (!file) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
-    const path = `${alumnoId}/${reservationId}/${stepKey}_${Date.now()}.${ext}`;
+    const path = `${folderId}/${reservationId}/${stepKey}_${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("trip-documents").upload(path, file, { upsert: true });
     if (error) {
       toast.error("Error al subir el archivo");
