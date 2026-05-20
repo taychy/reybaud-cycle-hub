@@ -99,7 +99,7 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  const canEdit = !!alumnoId;
+  const canEdit = true;
 
   const openEditor = (key: string) => {
     if (!canEdit) return;
@@ -142,9 +142,9 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
         </div>
       </div>
 
-      {!canEdit && (
+      {!alumnoId && (
         <p className="text-[11px] text-muted-foreground italic">
-          Participante externo: solo lectura. Para editar, vinculá el alumno.
+          Participante externo: la información se guarda asociada a la reserva.
         </p>
       )}
 
@@ -248,36 +248,32 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
         })}
       </div>
 
-      {alumnoId && (
-        <>
-          <TripBikeDrawer
-            open={bikeOpen}
-            onOpenChange={setBikeOpen}
-            reservationId={reservationId}
-            alumnoId={alumnoId}
-            onSaved={load}
-          />
-          <TripPedalsDrawer
-            open={pedalsOpen}
-            onOpenChange={setPedalsOpen}
-            reservationId={reservationId}
-            alumnoId={alumnoId}
-            onSaved={load}
-          />
-          <TripDocumentDrawer
-            open={docDrawer.open}
-            onOpenChange={(v) => setDocDrawer((prev) => ({ ...prev, open: v }))}
-            reservationId={reservationId}
-            alumnoId={alumnoId}
-            stepKey={docDrawer.stepKey}
-            title={docDrawer.title}
-            description={docDrawer.description}
-            helpText={docDrawer.helpText}
-            icon={<FileText className="w-5 h-5 text-primary" />}
-            onSaved={load}
-          />
-        </>
-      )}
+      <TripBikeDrawer
+        open={bikeOpen}
+        onOpenChange={setBikeOpen}
+        reservationId={reservationId}
+        alumnoId={alumnoId}
+        onSaved={load}
+      />
+      <TripPedalsDrawer
+        open={pedalsOpen}
+        onOpenChange={setPedalsOpen}
+        reservationId={reservationId}
+        alumnoId={alumnoId}
+        onSaved={load}
+      />
+      <TripDocumentDrawer
+        open={docDrawer.open}
+        onOpenChange={(v) => setDocDrawer((prev) => ({ ...prev, open: v }))}
+        reservationId={reservationId}
+        alumnoId={alumnoId}
+        stepKey={docDrawer.stepKey}
+        title={docDrawer.title}
+        description={docDrawer.description}
+        helpText={docDrawer.helpText}
+        icon={<FileText className="w-5 h-5 text-primary" />}
+        onSaved={load}
+      />
     </div>
   );
 }

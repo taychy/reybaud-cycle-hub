@@ -12,11 +12,12 @@ interface TripBikeDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reservationId: string;
-  alumnoId: string;
+  alumnoId: string | null;
   onSaved: () => void;
 }
 
 const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }: TripBikeDrawerProps) => {
+  const folderId = alumnoId || `external/${reservationId}`;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -59,7 +60,7 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }
     if (!file) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
-    const path = `${alumnoId}/${reservationId}/fitting_${Date.now()}.${ext}`;
+    const path = `${folderId}/${reservationId}/fitting_${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("trip-documents").upload(path, file, { upsert: true });
     if (error) {
       toast.error("Error al subir el archivo");

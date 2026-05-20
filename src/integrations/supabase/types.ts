@@ -3159,7 +3159,7 @@ export type Database = {
       }
       reservation_checklist_data: {
         Row: {
-          alumno_id: string
+          alumno_id: string | null
           completed: boolean
           created_at: string
           data: Json
@@ -3171,7 +3171,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          alumno_id: string
+          alumno_id?: string | null
           completed?: boolean
           created_at?: string
           data?: Json
@@ -3183,7 +3183,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          alumno_id?: string
+          alumno_id?: string | null
           completed?: boolean
           created_at?: string
           data?: Json
