@@ -13,7 +13,7 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
-  Send, Bell, History, Copy, Pencil, Ban,
+  Send, Bell, History, Copy, Pencil, Ban, Trash2,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -687,6 +687,26 @@ const AdminEventReservations = ({
     setAddingExternal(false);
   };
 
+  const deleteReservation = async (resId: string, participantName: string) => {
+    const ok = window.confirm(
+      `¿Eliminar la reserva de ${participantName}?\n\nSe eliminarán también pagos, cuotas, notificaciones e historial asociados. Esta acción no se puede deshacer.`
+    );
+    if (!ok) return;
+    setUpdatingId(resId);
+    const { error } = await supabase
+      .from("event_reservations" as any)
+      .delete()
+      .eq("id", resId);
+    setUpdatingId(null);
+    if (error) {
+      toast({ title: "Error al eliminar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Reserva eliminada", description: `Se eliminó la reserva de ${participantName}.` });
+      setReservations(prev => prev.filter(r => r.id !== resId));
+    }
+  };
+
+
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
     setUpdatingId(resId);
     const res = reservations.find(r => r.id === resId);
@@ -1280,8 +1300,16 @@ const AdminEventReservations = ({
                               </DropdownMenuItem>
                             </>
                           )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => deleteReservation(r.id, `${p.nombre} ${p.apellido || ""}`.trim())}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Eliminar participante
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+
                     </div>
                   </div>
 
