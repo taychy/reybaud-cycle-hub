@@ -1,0 +1,1 @@
+ALTER TABLE public.reservation_checklist_data ALTER COLUMN alumno_id DROP NOT NULL;
