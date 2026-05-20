@@ -142,9 +142,9 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
         </div>
       </div>
 
-      {!canEdit && (
+      {!alumnoId && (
         <p className="text-[11px] text-muted-foreground italic">
-          Participante externo: solo lectura. Para editar, vinculá el alumno.
+          Participante externo: la información se guarda asociada a la reserva.
         </p>
       )}
 
