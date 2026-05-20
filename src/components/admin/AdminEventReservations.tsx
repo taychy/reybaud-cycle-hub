@@ -1300,8 +1300,16 @@ const AdminEventReservations = ({
                               </DropdownMenuItem>
                             </>
                           )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => deleteReservation(r.id, `${p.nombre} ${p.apellido || ""}`.trim())}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Eliminar participante
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+
                     </div>
                   </div>
 
