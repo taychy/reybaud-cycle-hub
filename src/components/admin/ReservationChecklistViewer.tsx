@@ -99,7 +99,7 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  const canEdit = !!alumnoId;
+  const canEdit = true;
 
   const openEditor = (key: string) => {
     if (!canEdit) return;
