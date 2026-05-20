@@ -12,11 +12,12 @@ interface TripBikeDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reservationId: string;
-  alumnoId: string;
+  alumnoId: string | null;
   onSaved: () => void;
 }
 
 const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }: TripBikeDrawerProps) => {
+  const folderId = alumnoId || `external/${reservationId}`;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
