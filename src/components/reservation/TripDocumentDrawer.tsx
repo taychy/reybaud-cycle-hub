@@ -9,7 +9,7 @@ interface TripDocumentDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reservationId: string;
-  alumnoId: string;
+  alumnoId: string | null;
   stepKey: string;
   title: string;
   description: string;
@@ -22,6 +22,7 @@ const TripDocumentDrawer = ({
   open, onOpenChange, reservationId, alumnoId, stepKey,
   title, description, icon, helpText, onSaved,
 }: TripDocumentDrawerProps) => {
+  const folderId = alumnoId || `external/${reservationId}`;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
