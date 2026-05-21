@@ -496,15 +496,69 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                 </div>
               )}
 
-              {/* Pausar / Reactivar / Activar */}
-              {(selectedAction === "pausar" || selectedAction === "reactivar" || selectedAction === "activar") && (
+              {/* Pausar / Reactivar */}
+              {(selectedAction === "pausar" || selectedAction === "reactivar") && (
                 <div className="space-y-3">
                   <p className="text-sm font-medium">
-                    {selectedAction === "pausar" ? "Pausar suscripción" : selectedAction === "reactivar" ? "Reactivar suscripción" : "Activar suscripción manualmente"}
+                    {selectedAction === "pausar" ? "Pausar suscripción" : "Reactivar suscripción"}
                   </p>
                   <div className="space-y-2">
                     <Label className="text-xs">Motivo (opcional)</Label>
                     <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Solicitud del alumno" className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+
+              {/* Activar manualmente — con fecha de vencimiento */}
+              {selectedAction === "activar" && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Activar suscripción manualmente</p>
+                  <div className="rounded-md bg-emerald-500/10 border border-emerald-500/30 p-2 text-xs text-emerald-300">
+                    Reactiva el acceso del alumno. Definí hasta qué fecha tiene cobertura (ej: pago cargado manualmente).
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Fecha de vencimiento</Label>
+                    <Input type="date" value={manualFechaFin} onChange={e => setManualFechaFin(e.target.value)} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Motivo (opcional)</Label>
+                    <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Pago cargado manualmente / corrección" className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+
+              {/* Editar vencimiento */}
+              {selectedAction === "editar_vencimiento" && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Editar fecha de vencimiento</p>
+                  <div className="rounded-md bg-secondary/40 border border-border p-2 text-xs text-muted-foreground">
+                    Solo modifica la fecha de vencimiento. No cambia el estado de la suscripción.
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Nueva fecha de vencimiento</Label>
+                    <Input type="date" value={manualFechaFin} onChange={e => setManualFechaFin(e.target.value)} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Motivo (obligatorio)</Label>
+                    <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Corrección administrativa / extensión por vacaciones" className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+
+              {/* Eliminar suscripción */}
+              {selectedAction === "eliminar" && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-destructive">Eliminar suscripción</p>
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 p-2 text-xs text-destructive flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Solo para errores reales de carga o duplicados. Borra el registro de forma permanente
+                      (no aparecerá en historial). Si la suscripción ya tuvo pagos asociados, usá "Cancelar" en su lugar.
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Motivo (obligatorio)</Label>
+                    <Textarea value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Duplicado generado por error / carga incorrecta" className="bg-secondary border-border text-sm min-h-[60px]" />
                   </div>
                 </div>
               )}
