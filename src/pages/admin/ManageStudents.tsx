@@ -1265,10 +1265,18 @@ const ManageStudents = () => {
               }`}
             >
               <SheetHeader>
-                <SheetTitle className="font-heading uppercase tracking-wider text-base flex items-center gap-2 pr-10">
+                <SheetTitle className="font-heading uppercase tracking-wider text-base flex items-center gap-2 pr-10 flex-wrap">
                   Ficha del Alumno
                   {drawerAlumno && getAlumnoInconsistency(drawerAlumno) && (
                     <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-3 h-3" /> Inconsistente</Badge>
+                  )}
+                  {drawerAlumno && (
+                    <StudentSaldoChip
+                      alumnoId={drawerAlumno.id}
+                      onClick={() => {
+                        document.getElementById("ficha-cuenta-corriente")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                    />
                   )}
                   <Button
                     size="icon"
