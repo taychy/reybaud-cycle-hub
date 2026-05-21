@@ -73,7 +73,7 @@ const AdminNovedades = () => {
         .select("*, events(name)")
         .order("published_at", { ascending: false }),
     ]);
-    setEvents((evs || []) as EventOpt[]);
+    setEvents(((evs || []) as unknown) as EventOpt[]);
     setItems(
       ((ann || []) as any[]).map((a) => ({
         ...a,
