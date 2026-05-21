@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE, type EffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
-import { CreditCard, Play, Pause, XCircle, Plus, ArrowRightLeft, AlertTriangle, Clock, FileText } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, Plus, ArrowRightLeft, AlertTriangle, Clock, FileText, CalendarClock, Trash2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -52,7 +52,7 @@ const VALID_SUB_TRANSITIONS: Record<string, string[]> = {
   cancelada: [],
 };
 
-type ActionType = "cambiar_plan" | "agregar_plan" | "pausar" | "reactivar" | "activar" | "marcar_pago_pendiente" | "marcar_vencida" | "cancelar" | "cambiar_estado" | null;
+type ActionType = "cambiar_plan" | "agregar_plan" | "pausar" | "reactivar" | "activar" | "marcar_pago_pendiente" | "marcar_vencida" | "cancelar" | "cambiar_estado" | "editar_vencimiento" | "eliminar" | null;
 
 export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripciones, planes, isSuperAdmin, onSuccess }: ManageSubscriptionModalProps) {
   const [selectedAction, setSelectedAction] = useState<ActionType>(null);
@@ -62,6 +62,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
   const [subChangeTarget, setSubChangeTarget] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
 
   // Reset on open
@@ -73,6 +75,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       setSubChangeTarget("");
       setSaving(false);
       setConfirmCancel(false);
+      setConfirmDelete(false);
+      setDeleteConfirmText("");
       setSelectedSubId(null);
       const now = new Date();
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -141,6 +145,10 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       actions.push({ type: "activar", label: "Activar manualmente", icon: Play });
     }
 
+    if (primarySub && effectiveStatus !== "cancelada" && effectiveStatus !== "sin_suscripcion") {
+      actions.push({ type: "editar_vencimiento", label: "Editar vencimiento", icon: CalendarClock });
+    }
+
     if (effectiveStatus === "activa" || effectiveStatus === "cancelada") {
       actions.push({ type: "marcar_pago_pendiente", label: "Marcar como impaga / pago pendiente", icon: Clock });
     }
@@ -151,6 +159,10 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
 
     if (primarySub && effectiveStatus !== "cancelada" && effectiveStatus !== "sin_suscripcion") {
       actions.push({ type: "cancelar", label: "Cancelar suscripción", icon: XCircle, destructive: true });
+    }
+
+    if (primarySub) {
+      actions.push({ type: "eliminar", label: "Eliminar suscripción (error de carga)", icon: Trash2, destructive: true });
     }
 
     return actions;
@@ -201,12 +213,45 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
           await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → pausa", description: motivo || "Pausada por admin", actorRole: getActorRole() });
           break;
         }
-        case "reactivar":
-        case "activar": {
+        case "reactivar": {
           if (!primarySub) break;
           await supabase.from("suscripciones").update({ estado: "activa" }).eq("id", primarySub.id);
           toast.success("Suscripción reactivada");
           await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → activa", description: motivo || "Reactivada por admin", actorRole: getActorRole() });
+          break;
+        }
+        case "activar": {
+          if (!primarySub) break;
+          if (!manualFechaFin) { toast.error("Ingresá una fecha de vencimiento"); setSaving(false); return; }
+          const updates: any = {
+            estado: "activa",
+            fecha_fin: manualFechaFin,
+            cancelada_at: null,
+            cancelada_motivo: null,
+          };
+          await supabase.from("suscripciones").update(updates).eq("id", primarySub.id);
+          toast.success(`Suscripción activada hasta ${manualFechaFin}`);
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Activada manualmente", description: `Vence ${manualFechaFin}${motivo ? ` — ${motivo}` : ""}`, actorRole: getActorRole() });
+          break;
+        }
+        case "editar_vencimiento": {
+          if (!primarySub) break;
+          if (!manualFechaFin) { toast.error("Ingresá una fecha de vencimiento"); setSaving(false); return; }
+          if (!motivo.trim()) { toast.error("Ingresá un motivo del cambio"); setSaving(false); return; }
+          const oldFin = primarySub.fecha_fin || "—";
+          await supabase.from("suscripciones").update({ fecha_fin: manualFechaFin } as any).eq("id", primarySub.id);
+          toast.success(`Vencimiento actualizado a ${manualFechaFin}`);
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Vencimiento editado", description: `De ${oldFin} a ${manualFechaFin} — ${motivo}`, actorRole: getActorRole() });
+          break;
+        }
+        case "eliminar": {
+          if (!primarySub) break;
+          if (!motivo.trim()) { toast.error("Motivo obligatorio"); setSaving(false); return; }
+          const subInfo = `${primarySub.planes?.nombre || "—"} (${primarySub.fecha_inicio || "—"} → ${primarySub.fecha_fin || "—"})`;
+          const { error: delErr } = await supabase.from("suscripciones").delete().eq("id", primarySub.id);
+          if (delErr) throw delErr;
+          toast.success("Suscripción eliminada");
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción eliminada (hard delete)", description: `${subInfo} — Motivo: ${motivo}`, actorRole: getActorRole() });
           break;
         }
         case "marcar_pago_pendiente": {
@@ -396,11 +441,11 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                   variant={a.destructive ? "destructive" : "ghost"}
                   className={`w-full justify-start gap-2 h-10 ${a.destructive ? "" : "hover:bg-secondary"}`}
                   onClick={() => {
-                    if (a.type === "cancelar") {
-                      setSelectedAction(a.type);
-                    } else {
-                      setSelectedAction(a.type);
+                    // Prefill fecha for activar/editar_vencimiento with current sub fecha_fin
+                    if ((a.type === "activar" || a.type === "editar_vencimiento") && primarySub?.fecha_fin) {
+                      setManualFechaFin(primarySub.fecha_fin.substring(0, 10));
                     }
+                    setSelectedAction(a.type);
                   }}
                 >
                   <a.icon className="w-4 h-4" />
@@ -451,15 +496,69 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                 </div>
               )}
 
-              {/* Pausar / Reactivar / Activar */}
-              {(selectedAction === "pausar" || selectedAction === "reactivar" || selectedAction === "activar") && (
+              {/* Pausar / Reactivar */}
+              {(selectedAction === "pausar" || selectedAction === "reactivar") && (
                 <div className="space-y-3">
                   <p className="text-sm font-medium">
-                    {selectedAction === "pausar" ? "Pausar suscripción" : selectedAction === "reactivar" ? "Reactivar suscripción" : "Activar suscripción manualmente"}
+                    {selectedAction === "pausar" ? "Pausar suscripción" : "Reactivar suscripción"}
                   </p>
                   <div className="space-y-2">
                     <Label className="text-xs">Motivo (opcional)</Label>
                     <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Solicitud del alumno" className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+
+              {/* Activar manualmente — con fecha de vencimiento */}
+              {selectedAction === "activar" && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Activar suscripción manualmente</p>
+                  <div className="rounded-md bg-emerald-500/10 border border-emerald-500/30 p-2 text-xs text-emerald-300">
+                    Reactiva el acceso del alumno. Definí hasta qué fecha tiene cobertura (ej: pago cargado manualmente).
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Fecha de vencimiento</Label>
+                    <Input type="date" value={manualFechaFin} onChange={e => setManualFechaFin(e.target.value)} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Motivo (opcional)</Label>
+                    <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Pago cargado manualmente / corrección" className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+
+              {/* Editar vencimiento */}
+              {selectedAction === "editar_vencimiento" && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Editar fecha de vencimiento</p>
+                  <div className="rounded-md bg-secondary/40 border border-border p-2 text-xs text-muted-foreground">
+                    Solo modifica la fecha de vencimiento. No cambia el estado de la suscripción.
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Nueva fecha de vencimiento</Label>
+                    <Input type="date" value={manualFechaFin} onChange={e => setManualFechaFin(e.target.value)} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Motivo (obligatorio)</Label>
+                    <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Corrección administrativa / extensión por vacaciones" className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+              )}
+
+              {/* Eliminar suscripción */}
+              {selectedAction === "eliminar" && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-destructive">Eliminar suscripción</p>
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 p-2 text-xs text-destructive flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Solo para errores reales de carga o duplicados. Borra el registro de forma permanente
+                      (no aparecerá en historial). Si la suscripción ya tuvo pagos asociados, usá "Cancelar" en su lugar.
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Motivo (obligatorio)</Label>
+                    <Textarea value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Duplicado generado por error / carga incorrecta" className="bg-secondary border-border text-sm min-h-[60px]" />
                   </div>
                 </div>
               )}
@@ -529,9 +628,23 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
             <DialogFooter>
               <Button variant="outline" onClick={() => { setSelectedAction(null); setMotivo(""); }}>Cancelar</Button>
               <Button
-                variant={selectedAction === "cancelar" ? "destructive" : "gold"}
-                disabled={saving || (selectedAction === "cancelar" && !motivo.trim()) || ((selectedAction === "cambiar_plan" || selectedAction === "agregar_plan") && !newPlanId) || (selectedAction === "cambiar_estado" && !subChangeTarget)}
-                onClick={selectedAction === "cancelar" ? () => setConfirmCancel(true) : handleExecute}
+                variant={(selectedAction === "cancelar" || selectedAction === "eliminar") ? "destructive" : "gold"}
+                disabled={
+                  saving ||
+                  (selectedAction === "cancelar" && !motivo.trim()) ||
+                  (selectedAction === "eliminar" && !motivo.trim()) ||
+                  (selectedAction === "editar_vencimiento" && (!motivo.trim() || !manualFechaFin)) ||
+                  (selectedAction === "activar" && !manualFechaFin) ||
+                  ((selectedAction === "cambiar_plan" || selectedAction === "agregar_plan") && !newPlanId) ||
+                  (selectedAction === "cambiar_estado" && !subChangeTarget)
+                }
+                onClick={
+                  selectedAction === "cancelar"
+                    ? () => setConfirmCancel(true)
+                    : selectedAction === "eliminar"
+                      ? () => setConfirmDelete(true)
+                      : handleExecute
+                }
               >
                 {saving ? "Guardando..." : "Confirmar"}
               </Button>
@@ -553,6 +666,40 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
             <AlertDialogCancel>Volver</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setConfirmCancel(false); handleExecute(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Confirmar cancelación
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete confirmation (double confirm: typed "ELIMINAR") */}
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => { setConfirmDelete(o); if (!o) setDeleteConfirmText(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar suscripción de {alumno?.nombre}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Esta acción <strong>borra el registro permanentemente</strong> y no se puede deshacer.
+                  Usar solo para errores reales de carga o duplicados.
+                </p>
+                <p className="text-xs">Para confirmar, escribí <strong>ELIMINAR</strong>:</p>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="ELIMINAR"
+                  className="bg-secondary border-border text-sm"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteConfirmText.trim().toUpperCase() !== "ELIMINAR"}
+              onClick={() => { setConfirmDelete(false); setDeleteConfirmText(""); handleExecute(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar definitivamente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
