@@ -23,6 +23,7 @@ import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { StudentCuentaCorrienteSection } from "@/components/admin/StudentCuentaCorrienteSection";
+import { StudentSaldoChip } from "@/components/admin/StudentSaldoChip";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
@@ -1264,10 +1265,18 @@ const ManageStudents = () => {
               }`}
             >
               <SheetHeader>
-                <SheetTitle className="font-heading uppercase tracking-wider text-base flex items-center gap-2 pr-10">
+                <SheetTitle className="font-heading uppercase tracking-wider text-base flex items-center gap-2 pr-10 flex-wrap">
                   Ficha del Alumno
                   {drawerAlumno && getAlumnoInconsistency(drawerAlumno) && (
                     <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-3 h-3" /> Inconsistente</Badge>
+                  )}
+                  {drawerAlumno && (
+                    <StudentSaldoChip
+                      alumnoId={drawerAlumno.id}
+                      onClick={() => {
+                        document.getElementById("ficha-cuenta-corriente")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                    />
                   )}
                   <Button
                     size="icon"
@@ -1469,7 +1478,9 @@ const ManageStudents = () => {
                     <Separator />
 
                     {/* Cuenta corriente */}
-                    <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+                    <div id="ficha-cuenta-corriente" className="scroll-mt-4">
+                      <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+                    </div>
 
                     <Separator />
 

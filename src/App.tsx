@@ -41,6 +41,7 @@ import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
 import AuditLog from "./pages/admin/AuditLog";
 import AdminPayments from "./pages/admin/AdminPayments";
+import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
 import AdminBilling from "./pages/admin/billing/AdminBilling";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
@@ -141,6 +142,7 @@ const App = () => (
             <Route path="precios" element={<ManagePrecios />} />
             <Route path="descuentos" element={<ManageDescuentos />} />
             <Route path="pagos" element={<AdminPayments />} />
+            <Route path="cuenta-corriente" element={<AdminCuentaCorriente />} />
             <Route path="facturacion" element={<AdminBilling />} />
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
