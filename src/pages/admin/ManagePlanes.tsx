@@ -26,6 +26,7 @@ interface Plan {
   acceso_entrenamientos: boolean;
   acceso_eventos: boolean;
   acceso_beneficios: boolean;
+  acceso_whatsapp: boolean;
   renovacion_auto_permitida: boolean;
   visibilidad: string;
   activo: boolean;
