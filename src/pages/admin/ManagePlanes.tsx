@@ -26,6 +26,7 @@ interface Plan {
   acceso_entrenamientos: boolean;
   acceso_eventos: boolean;
   acceso_beneficios: boolean;
+  acceso_whatsapp: boolean;
   renovacion_auto_permitida: boolean;
   visibilidad: string;
   activo: boolean;
@@ -77,6 +78,7 @@ const emptyForm = {
   acceso_entrenamientos: true,
   acceso_eventos: false,
   acceso_beneficios: false,
+  acceso_whatsapp: false,
   renovacion_auto_permitida: true,
   visibilidad: "visible",
   activo: true,
@@ -155,6 +157,7 @@ const ManagePlanes = () => {
       acceso_entrenamientos: plan.acceso_entrenamientos,
       acceso_eventos: plan.acceso_eventos,
       acceso_beneficios: plan.acceso_beneficios,
+      acceso_whatsapp: (plan as any).acceso_whatsapp ?? false,
       renovacion_auto_permitida: plan.renovacion_auto_permitida,
       visibilidad: plan.visibilidad || "visible",
       activo: plan.activo,
@@ -183,6 +186,7 @@ const ManagePlanes = () => {
       acceso_entrenamientos: plan.acceso_entrenamientos,
       acceso_eventos: plan.acceso_eventos,
       acceso_beneficios: plan.acceso_beneficios,
+      acceso_whatsapp: (plan as any).acceso_whatsapp ?? false,
       renovacion_auto_permitida: plan.renovacion_auto_permitida,
       visibilidad: "oculto",
       activo: false,
@@ -221,6 +225,7 @@ const ManagePlanes = () => {
       acceso_entrenamientos: form.acceso_entrenamientos,
       acceso_eventos: form.acceso_eventos,
       acceso_beneficios: form.acceso_beneficios,
+      acceso_whatsapp: form.acceso_whatsapp,
       renovacion_auto_permitida: isPrograma ? false : form.renovacion_auto_permitida,
       visibilidad: form.visibilidad,
       activo: form.activo,
@@ -619,6 +624,10 @@ const ManagePlanes = () => {
                 <div className="flex items-center gap-2">
                   <Checkbox checked={form.acceso_beneficios} onCheckedChange={(c) => setForm({ ...form, acceso_beneficios: !!c })} />
                   <span className="text-sm">Beneficios extra</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={form.acceso_whatsapp} onCheckedChange={(c) => setForm({ ...form, acceso_whatsapp: !!c })} />
+                  <span className="text-sm">Grupos de WhatsApp</span>
                 </div>
               </div>
             </div>

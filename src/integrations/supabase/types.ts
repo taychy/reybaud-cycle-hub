@@ -2726,6 +2726,7 @@ export type Database = {
           acceso_beneficios: boolean
           acceso_entrenamientos: boolean
           acceso_eventos: boolean
+          acceso_whatsapp: boolean
           activo: boolean
           clases_por_semana: number | null
           created_at: string
@@ -2752,6 +2753,7 @@ export type Database = {
           acceso_beneficios?: boolean
           acceso_entrenamientos?: boolean
           acceso_eventos?: boolean
+          acceso_whatsapp?: boolean
           activo?: boolean
           clases_por_semana?: number | null
           created_at?: string
@@ -2778,6 +2780,7 @@ export type Database = {
           acceso_beneficios?: boolean
           acceso_entrenamientos?: boolean
           acceso_eventos?: boolean
+          acceso_whatsapp?: boolean
           activo?: boolean
           clases_por_semana?: number | null
           created_at?: string
