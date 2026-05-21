@@ -122,6 +122,7 @@ const ManageStudents = () => {
 
   // Drawer detail
   const [drawerAlumno, setDrawerAlumno] = useState<Alumno | null>(null);
+  const [drawerExpanded, setDrawerExpanded] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
   const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "" });
 
