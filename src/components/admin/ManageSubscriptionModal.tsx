@@ -441,11 +441,11 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                   variant={a.destructive ? "destructive" : "ghost"}
                   className={`w-full justify-start gap-2 h-10 ${a.destructive ? "" : "hover:bg-secondary"}`}
                   onClick={() => {
-                    if (a.type === "cancelar") {
-                      setSelectedAction(a.type);
-                    } else {
-                      setSelectedAction(a.type);
+                    // Prefill fecha for activar/editar_vencimiento with current sub fecha_fin
+                    if ((a.type === "activar" || a.type === "editar_vencimiento") && primarySub?.fecha_fin) {
+                      setManualFechaFin(primarySub.fecha_fin.substring(0, 10));
                     }
+                    setSelectedAction(a.type);
                   }}
                 >
                   <a.icon className="w-4 h-4" />
