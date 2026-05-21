@@ -68,6 +68,9 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AjusteCuentaValue | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const PREVIEW_LIMIT = 5;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
