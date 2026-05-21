@@ -74,6 +74,7 @@ import AdminTurnera from "./pages/admin/AdminTurnera";
 import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
+import AdminNovedades from "./pages/admin/AdminNovedades";
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 const queryClient = new QueryClient();
@@ -144,6 +145,7 @@ const App = () => (
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
+            <Route path="novedades" element={<AdminNovedades />} />
             <Route path="eventos/record-de-la-hora" element={<Navigate to="/admin/eventos" replace />} />
             <Route path="eventos/record-de-la-hora/participantes" element={<EventManagement />} />
             <Route path="eventos/participantes" element={<EventManagement />} />
