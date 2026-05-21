@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, ExternalLink, RefreshCw, Wallet } from "lucide-react";
+import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
@@ -68,6 +68,9 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AjusteCuentaValue | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const PREVIEW_LIMIT = 5;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -224,13 +227,13 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
         <Table>
           <TableHeader>
             <TableRow className="bg-secondary/40">
-              <TableHead className="text-xs">Fecha</TableHead>
-              <TableHead className="text-xs">Origen</TableHead>
+              <TableHead className="text-xs w-24">Fecha</TableHead>
+              <TableHead className="text-xs w-32">Origen</TableHead>
               <TableHead className="text-xs">Concepto</TableHead>
-              <TableHead className="text-xs text-right">Debe</TableHead>
-              <TableHead className="text-xs text-right">Haber</TableHead>
-              <TableHead className="text-xs">Estado</TableHead>
-              <TableHead className="text-xs w-20"></TableHead>
+              <TableHead className="text-xs text-right w-28">Debe</TableHead>
+              <TableHead className="text-xs text-right w-28">Haber</TableHead>
+              <TableHead className="text-xs w-24">Estado</TableHead>
+              <TableHead className="text-xs w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -241,7 +244,7 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((m) => {
+              (showAll ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
                 const tipoInfo = TIPO_LABEL[m.tipo] || { label: m.tipo, className: "" };
                 const isAjuste = m.fuente_tabla === "cuenta_ajustes";
                 return (
@@ -250,18 +253,20 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
                       {formatDate(m.fecha)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={`text-[10px] ${tipoInfo.className}`}>
+                      <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${tipoInfo.className}`}>
                         {tipoInfo.label}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-foreground">{m.concepto}</TableCell>
-                    <TableCell className="text-right font-mono text-xs text-destructive">
+                    <TableCell className="text-foreground text-sm">{m.concepto}</TableCell>
+                    <TableCell className="text-right font-mono text-xs text-destructive whitespace-nowrap">
                       {m.debe > 0 ? formatPrice(Number(m.debe), m.moneda) : "—"}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-xs text-emerald-400">
+                    <TableCell className="text-right font-mono text-xs text-emerald-400 whitespace-nowrap">
                       {m.haber > 0 ? formatPrice(Number(m.haber), m.moneda) : "—"}
                     </TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground">{m.estado || "—"}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground capitalize" title={m.estado || ""}>
+                      {m.estado || "—"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
                         {isAjuste ? (
@@ -294,6 +299,22 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
             )}
           </TableBody>
         </Table>
+        {filtered.length > PREVIEW_LIMIT && (
+          <div className="border-t border-border bg-secondary/20">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full h-9 text-xs rounded-none"
+              onClick={() => setShowAll((v) => !v)}
+            >
+              {showAll ? (
+                <><ChevronUp className="h-3.5 w-3.5 mr-1" /> Ver menos</>
+              ) : (
+                <><ChevronDown className="h-3.5 w-3.5 mr-1" /> Ver los {filtered.length - PREVIEW_LIMIT} movimientos restantes</>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       <AjusteCuentaModal
