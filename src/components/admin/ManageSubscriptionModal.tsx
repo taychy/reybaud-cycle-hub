@@ -213,12 +213,45 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
           await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → pausa", description: motivo || "Pausada por admin", actorRole: getActorRole() });
           break;
         }
-        case "reactivar":
-        case "activar": {
+        case "reactivar": {
           if (!primarySub) break;
           await supabase.from("suscripciones").update({ estado: "activa" }).eq("id", primarySub.id);
           toast.success("Suscripción reactivada");
           await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → activa", description: motivo || "Reactivada por admin", actorRole: getActorRole() });
+          break;
+        }
+        case "activar": {
+          if (!primarySub) break;
+          if (!manualFechaFin) { toast.error("Ingresá una fecha de vencimiento"); setSaving(false); return; }
+          const updates: any = {
+            estado: "activa",
+            fecha_fin: manualFechaFin,
+            cancelada_at: null,
+            cancelada_motivo: null,
+          };
+          await supabase.from("suscripciones").update(updates).eq("id", primarySub.id);
+          toast.success(`Suscripción activada hasta ${manualFechaFin}`);
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Activada manualmente", description: `Vence ${manualFechaFin}${motivo ? ` — ${motivo}` : ""}`, actorRole: getActorRole() });
+          break;
+        }
+        case "editar_vencimiento": {
+          if (!primarySub) break;
+          if (!manualFechaFin) { toast.error("Ingresá una fecha de vencimiento"); setSaving(false); return; }
+          if (!motivo.trim()) { toast.error("Ingresá un motivo del cambio"); setSaving(false); return; }
+          const oldFin = primarySub.fecha_fin || "—";
+          await supabase.from("suscripciones").update({ fecha_fin: manualFechaFin } as any).eq("id", primarySub.id);
+          toast.success(`Vencimiento actualizado a ${manualFechaFin}`);
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Vencimiento editado", description: `De ${oldFin} a ${manualFechaFin} — ${motivo}`, actorRole: getActorRole() });
+          break;
+        }
+        case "eliminar": {
+          if (!primarySub) break;
+          if (!motivo.trim()) { toast.error("Motivo obligatorio"); setSaving(false); return; }
+          const subInfo = `${primarySub.planes?.nombre || "—"} (${primarySub.fecha_inicio || "—"} → ${primarySub.fecha_fin || "—"})`;
+          const { error: delErr } = await supabase.from("suscripciones").delete().eq("id", primarySub.id);
+          if (delErr) throw delErr;
+          toast.success("Suscripción eliminada");
+          await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción eliminada (hard delete)", description: `${subInfo} — Motivo: ${motivo}`, actorRole: getActorRole() });
           break;
         }
         case "marcar_pago_pendiente": {
