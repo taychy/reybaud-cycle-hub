@@ -625,6 +625,10 @@ const ManagePlanes = () => {
                   <Checkbox checked={form.acceso_beneficios} onCheckedChange={(c) => setForm({ ...form, acceso_beneficios: !!c })} />
                   <span className="text-sm">Beneficios extra</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={form.acceso_whatsapp} onCheckedChange={(c) => setForm({ ...form, acceso_whatsapp: !!c })} />
+                  <span className="text-sm">Grupos de WhatsApp</span>
+                </div>
               </div>
             </div>
 
