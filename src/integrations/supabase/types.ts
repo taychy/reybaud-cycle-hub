@@ -4689,6 +4689,25 @@ export type Database = {
           total_pagos: number
         }[]
       }
+      get_saldos_todos_alumnos: {
+        Args: never
+        Returns: {
+          alumno_id: string
+          apellido: string
+          cantidad_movimientos: number
+          email: string
+          estado: string
+          grupo: string
+          moneda: string
+          nombre: string
+          saldo: number
+          sede_id: string
+          telefono: string
+          total_cargos: number
+          total_pagos: number
+          ultimo_movimiento: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
