@@ -1,83 +1,47 @@
-# MVP Cuenta Corriente v1 — Vista Admin
+# Módulo Comunicaciones (Fase 1)
 
-Objetivo: dar a admin una vista única, por alumno, con cargos / pagos / créditos / saldo separado por moneda, leyendo de las tablas que ya existen. Mínimo de tablas nuevas, cero cambio en flujos de pago actuales.
+Crear una nueva sección en el admin que centralice los puntos de contacto con el alumno. Arrancamos chico: reorganizamos lo que ya existe y dejamos la base lista para sumar canales en fases siguientes.
 
-## Alcance
+## Alcance Fase 1 (esta tarea)
 
-Incluido:
-- Suscripciones (cargos + pagos)
-- Reservas de eventos/viajes (cuotas + pagos validados)
-- Ajustes manuales simples del admin (cargo o crédito)
-- Vista en ficha de alumno, separada por moneda (ARS / USD / EUR)
-- Link a la fuente original de cada movimiento
+1. **Nueva categoría en el sidebar admin**: "Comunicaciones" (ícono `MessageSquare`), como 5ta categoría propia — al mismo nivel que Principal, Finanzas, Configuración, Tienda.
+2. **Ruta nueva**: `/admin/comunicaciones` con layout de tabs.
+3. **Tres tabs iniciales** (todos contenido ya existente, sólo reubicado/consolidado):
+   - **Banners del home** → monta `EventAnnouncementsManager` en modo "todos los eventos" (lista plana de todas las novedades activas con badge del evento al que pertenecen, filtro por estado vigente/expirada/programada, acción rápida para desactivar). Permite editar haciendo click → navega al evento correspondiente.
+   - **Novedades por evento** → selector de evento + render del `EventAnnouncementsManager` actual con el `eventId` elegido (misma UX que hoy en EventsList, sólo accesible desde acá también).
+   - **Historial de emails** → tabla read-only sobre `email_send_log` deduplicada por `message_id`, con filtros de rango de fecha (24h/7d/30d), template y status. Stats summary arriba (total, enviados, fallidos, suprimidos). Paginada (50/pág).
+4. **No se toca**:
+   - El banner del alumno (`HomeNewsCarousel`) queda como está. Descartamos el botón "Gestionar" inline.
+   - El `EventAnnouncementsManager` actual dentro de `EventsList` queda funcionando (no rompemos el flujo existente).
+   - Nada de RLS nueva, ni edge functions, ni tablas nuevas.
 
-Fuera de alcance (v2+):
-- Tienda / pedidos
-- Link público tokenizado `/mi-cuenta?token=…`
-- Pagos consolidados, MP multi-ítem, imputaciones
-- Recordatorios automáticos
-- Vista al alumno (logueado o público)
+## Fuera de alcance (fases futuras, sólo documentar)
 
-## 1. Base de datos (mínimo)
-
-Una sola tabla nueva: **`cuenta_ajustes`** (cargos/créditos manuales).
-
-```text
-cuenta_ajustes
-  id, alumno_id, tipo ('cargo' | 'credito'),
-  concepto, monto, moneda ('ARS'|'USD'|'EUR'),
-  fecha, notas,
-  created_by, created_at, updated_at
-```
-
-RLS: solo admin/super_admin pueden leer/insertar/editar/borrar. Trigger `updated_at`.
-
-Vista virtual **`vw_cuenta_corriente_movimientos`** (read-only, sin RLS extra: hereda de las tablas base) que hace `UNION ALL` de:
-
-| Fuente | Tipo | Debe (cargo) | Haber (pago/cred) | Moneda |
-|---|---|---|---|---|
-| `suscripciones` (no canceladas) | cargo_suscripcion | `precio_final` | — | `moneda` |
-| `suscripciones` con `metodo_pago`/fecha pago | pago_suscripcion | — | monto pagado | `moneda` |
-| `reservation_installments` | cargo_reserva | `amount` | — | `currency` |
-| `reservation_payments` (status='validado') | pago_reserva | — | `equivalent_amount_event_currency` | `currency` |
-| `cuenta_ajustes` tipo='cargo' | ajuste_cargo | `monto` | — | `moneda` |
-| `cuenta_ajustes` tipo='credito' | ajuste_credito | — | `monto` | `moneda` |
-
-Columnas comunes de la vista:
-`alumno_id, fecha, tipo, concepto, fuente_tabla, fuente_id, debe, haber, moneda, estado, referencia_extra (jsonb)`
-
-RPC **`get_saldo_alumno(p_alumno_id uuid)`** → devuelve filas `{moneda, total_cargos, total_pagos, saldo}` agrupado por moneda. `SECURITY DEFINER`, restringe por `has_role('admin')` o `is_super_admin`.
-
-## 2. UI Admin
-
-Nuevo componente **`StudentCuentaCorrienteSection`** integrado en la ficha del alumno (`/admin/alumnos/:id`), como una sección/tab más al lado de "Plan", "Pagos", etc.
-
-Estructura:
-- **Header con saldos por moneda** (cards): ARS / USD / EUR con saldo en color (rojo si debe, verde si a favor, gris si 0)
-- **Tabla cronológica** (filtrable por moneda y tipo):
-  - Fecha · Concepto · Origen (chip: Suscripción / Reserva / Ajuste) · Debe · Haber · Moneda · Estado · acción "Ver origen" (navega a la sub/reserva/ajuste)
-- **Botón "Agregar ajuste"** → modal pequeño: tipo (cargo/credito), concepto, monto, moneda, fecha, notas
-
-Solo lectura sobre cargos/pagos reales — la única operación de escritura aquí es crear/editar/borrar `cuenta_ajustes`.
-
-## 3. Archivos nuevos / tocados
-
-- Migration: tabla `cuenta_ajustes` + vista `vw_cuenta_corriente_movimientos` + RPC `get_saldo_alumno`
-- `src/components/admin/StudentCuentaCorrienteSection.tsx` (vista principal)
-- `src/components/admin/AjusteCuentaModal.tsx` (alta/edición de ajuste)
-- `src/lib/cuentaCorriente.ts` (helpers: cargar movimientos, agrupar saldos, formatear)
-- Edit en `src/pages/admin/StudentDetail.tsx` (o donde viva la ficha) para montar la nueva sección
+- Fase 2: Editor de templates de email (hoy hardcoded en edge functions).
+- Fase 3: Templates de WhatsApp + automatizaciones de pagos con UI de configuración.
+- Fase 4: Timeline unificado por alumno (qué se le mandó por cada canal).
+- Atajo "Gestionar" desde banner del alumno (contextual, opcional).
 
 ## Detalles técnicos
 
-- Saldos siempre **separados por moneda**, jamás convertidos.
-- La vista no incluye suscripciones `cancelada` ni reservas con `amount_total = 0`.
-- Para suscripciones, el "pago" se infiere cuando `estado IN ('activa','pendiente_verificacion')` y existe `fecha_pago`/`metodo_pago`. Si más adelante se introduce `subscription_payments`, la vista se actualiza sin cambiar UI.
-- Vínculo a fuente: `fuente_tabla` + `fuente_id` permiten navegar (`/admin/suscripciones/:id`, sheet de reserva, modal de ajuste).
-- Sin cambios en flujos de pago, facturación, MP, ni en el dashboard del alumno.
+- **Archivos nuevos**:
+  - `src/pages/admin/AdminComunicaciones.tsx` — page con Tabs de shadcn.
+  - `src/components/admin/comunicaciones/BannersHomeTab.tsx` — lista plana de novedades cross-evento.
+  - `src/components/admin/comunicaciones/NovedadesPorEventoTab.tsx` — selector + reuso de `EventAnnouncementsManager`.
+  - `src/components/admin/comunicaciones/EmailLogTab.tsx` — dashboard de `email_send_log`.
+- **Archivos modificados**:
+  - `src/pages/admin/AdminLayout.tsx` → agregar categoría "Comunicaciones" + item.
+  - `src/App.tsx` (o router) → registrar ruta protegida `/admin/comunicaciones`.
+- **Queries clave** (cliente Supabase):
+  - Banners home: `SELECT * FROM event_announcements ORDER BY created_at DESC` con join al evento para mostrar nombre.
+  - Email log: query con `DISTINCT ON (message_id)` ordenado por `created_at DESC`, paginado.
+- **Permisos**: `ProtectedRoute` con rol `admin` (igual que el resto del módulo admin).
+- **Memoria**: actualizar `mem://navigation/admin-sidebar-hierarchy` para incluir la 5ta categoría y crear `mem://features/admin-comunicaciones` describiendo el módulo y las fases futuras.
 
-## Camino a v2 (no se hace ahora)
+## Criterios de aceptación
 
-Cuando este MVP esté validado, se podrá sumar sin romper nada: tienda → agregar otro `UNION` a la vista; vista para el alumno logueado; luego link público tokenizado; finalmente `cuenta_pagos` + `cuenta_imputaciones` + MP consolidado.
-
-¿Avanzo con la migration?
+- Admin ve "Comunicaciones" en el sidebar y puede entrar.
+- Tab "Banners del home" lista todas las novedades activas con su evento asociado.
+- Tab "Novedades por evento" permite elegir un evento y administrar sus novedades (misma UX actual).
+- Tab "Historial de emails" muestra stats + tabla filtrable de envíos sin duplicar filas por `message_id`.
+- El banner del alumno y el flujo actual en EventsList siguen funcionando sin cambios.
