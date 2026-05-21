@@ -1478,7 +1478,9 @@ const ManageStudents = () => {
                     <Separator />
 
                     {/* Cuenta corriente */}
-                    <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+                    <div id="ficha-cuenta-corriente" className="scroll-mt-4">
+                      <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+                    </div>
 
                     <Separator />
 
