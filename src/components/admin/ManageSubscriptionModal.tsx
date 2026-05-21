@@ -628,9 +628,23 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
             <DialogFooter>
               <Button variant="outline" onClick={() => { setSelectedAction(null); setMotivo(""); }}>Cancelar</Button>
               <Button
-                variant={selectedAction === "cancelar" ? "destructive" : "gold"}
-                disabled={saving || (selectedAction === "cancelar" && !motivo.trim()) || ((selectedAction === "cambiar_plan" || selectedAction === "agregar_plan") && !newPlanId) || (selectedAction === "cambiar_estado" && !subChangeTarget)}
-                onClick={selectedAction === "cancelar" ? () => setConfirmCancel(true) : handleExecute}
+                variant={(selectedAction === "cancelar" || selectedAction === "eliminar") ? "destructive" : "gold"}
+                disabled={
+                  saving ||
+                  (selectedAction === "cancelar" && !motivo.trim()) ||
+                  (selectedAction === "eliminar" && !motivo.trim()) ||
+                  (selectedAction === "editar_vencimiento" && (!motivo.trim() || !manualFechaFin)) ||
+                  (selectedAction === "activar" && !manualFechaFin) ||
+                  ((selectedAction === "cambiar_plan" || selectedAction === "agregar_plan") && !newPlanId) ||
+                  (selectedAction === "cambiar_estado" && !subChangeTarget)
+                }
+                onClick={
+                  selectedAction === "cancelar"
+                    ? () => setConfirmCancel(true)
+                    : selectedAction === "eliminar"
+                      ? () => setConfirmDelete(true)
+                      : handleExecute
+                }
               >
                 {saving ? "Guardando..." : "Confirmar"}
               </Button>
