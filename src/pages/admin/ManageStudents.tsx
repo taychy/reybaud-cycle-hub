@@ -23,6 +23,7 @@ import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 import { StudentCuentaCorrienteSection } from "@/components/admin/StudentCuentaCorrienteSection";
+import { StudentSaldoChip } from "@/components/admin/StudentSaldoChip";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
