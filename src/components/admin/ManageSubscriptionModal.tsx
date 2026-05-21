@@ -670,6 +670,40 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete confirmation (double confirm: typed "ELIMINAR") */}
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => { setConfirmDelete(o); if (!o) setDeleteConfirmText(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar suscripción de {alumno?.nombre}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Esta acción <strong>borra el registro permanentemente</strong> y no se puede deshacer.
+                  Usar solo para errores reales de carga o duplicados.
+                </p>
+                <p className="text-xs">Para confirmar, escribí <strong>ELIMINAR</strong>:</p>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="ELIMINAR"
+                  className="bg-secondary border-border text-sm"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteConfirmText.trim().toUpperCase() !== "ELIMINAR"}
+              onClick={() => { setConfirmDelete(false); setDeleteConfirmText(""); handleExecute(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
