@@ -145,6 +145,10 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       actions.push({ type: "activar", label: "Activar manualmente", icon: Play });
     }
 
+    if (primarySub && effectiveStatus !== "cancelada" && effectiveStatus !== "sin_suscripcion") {
+      actions.push({ type: "editar_vencimiento", label: "Editar vencimiento", icon: CalendarClock });
+    }
+
     if (effectiveStatus === "activa" || effectiveStatus === "cancelada") {
       actions.push({ type: "marcar_pago_pendiente", label: "Marcar como impaga / pago pendiente", icon: Clock });
     }
@@ -155,6 +159,10 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
 
     if (primarySub && effectiveStatus !== "cancelada" && effectiveStatus !== "sin_suscripcion") {
       actions.push({ type: "cancelar", label: "Cancelar suscripción", icon: XCircle, destructive: true });
+    }
+
+    if (primarySub) {
+      actions.push({ type: "eliminar", label: "Eliminar suscripción (error de carga)", icon: Trash2, destructive: true });
     }
 
     return actions;
