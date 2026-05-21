@@ -1255,14 +1255,29 @@ const ManageStudents = () => {
           ))}
 
           {/* ===== RIGHT DRAWER (Detail) ===== */}
-          <Sheet open={!!drawerAlumno} onOpenChange={(open) => { if (!open) setDrawerAlumno(null); }}>
-            <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-card border-border">
+          <Sheet open={!!drawerAlumno} onOpenChange={(open) => { if (!open) { setDrawerAlumno(null); setDrawerExpanded(false); } }}>
+            <SheetContent
+              className={`overflow-y-auto bg-card border-border transition-[max-width] duration-200 ${
+                drawerExpanded
+                  ? "w-screen sm:max-w-none"
+                  : "w-full sm:max-w-[1100px]"
+              }`}
+            >
               <SheetHeader>
-                <SheetTitle className="font-heading uppercase tracking-wider text-base flex items-center gap-2">
+                <SheetTitle className="font-heading uppercase tracking-wider text-base flex items-center gap-2 pr-10">
                   Ficha del Alumno
                   {drawerAlumno && getAlumnoInconsistency(drawerAlumno) && (
                     <Badge variant="destructive" className="text-[10px] gap-0.5"><AlertTriangle className="w-3 h-3" /> Inconsistente</Badge>
                   )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 ml-auto"
+                    onClick={() => setDrawerExpanded((v) => !v)}
+                    title={drawerExpanded ? "Contraer" : "Expandir"}
+                  >
+                    {drawerExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
                 </SheetTitle>
               </SheetHeader>
 
