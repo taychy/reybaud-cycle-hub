@@ -52,7 +52,7 @@ const VALID_SUB_TRANSITIONS: Record<string, string[]> = {
   cancelada: [],
 };
 
-type ActionType = "cambiar_plan" | "agregar_plan" | "pausar" | "reactivar" | "activar" | "marcar_pago_pendiente" | "marcar_vencida" | "cancelar" | "cambiar_estado" | null;
+type ActionType = "cambiar_plan" | "agregar_plan" | "pausar" | "reactivar" | "activar" | "marcar_pago_pendiente" | "marcar_vencida" | "cancelar" | "cambiar_estado" | "editar_vencimiento" | "eliminar" | null;
 
 export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripciones, planes, isSuperAdmin, onSuccess }: ManageSubscriptionModalProps) {
   const [selectedAction, setSelectedAction] = useState<ActionType>(null);
@@ -62,6 +62,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
   const [subChangeTarget, setSubChangeTarget] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
 
   // Reset on open
