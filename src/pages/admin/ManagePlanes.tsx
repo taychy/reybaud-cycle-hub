@@ -78,6 +78,7 @@ const emptyForm = {
   acceso_entrenamientos: true,
   acceso_eventos: false,
   acceso_beneficios: false,
+  acceso_whatsapp: false,
   renovacion_auto_permitida: true,
   visibilidad: "visible",
   activo: true,
