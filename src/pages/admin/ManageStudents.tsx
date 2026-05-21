@@ -127,6 +127,15 @@ const ManageStudents = () => {
   const [editingDetail, setEditingDetail] = useState(false);
   const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "" });
 
+  // Abrir drawer desde query ?alumno=ID
+  const alumnoQueryId = searchParams.get("alumno");
+  useEffect(() => {
+    if (!alumnoQueryId || alumnos.length === 0) return;
+    if (drawerAlumno?.id === alumnoQueryId) return;
+    const found = alumnos.find(a => a.id === alumnoQueryId);
+    if (found) setDrawerAlumno(found);
+  }, [alumnoQueryId, alumnos]);
+
   // State change dialog
   const [stateChangeAlumno, setStateChangeAlumno] = useState<Alumno | null>(null);
   const [stateChangeTarget, setStateChangeTarget] = useState<string>("");
