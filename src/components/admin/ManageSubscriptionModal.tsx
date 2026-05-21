@@ -75,6 +75,8 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
       setSubChangeTarget("");
       setSaving(false);
       setConfirmCancel(false);
+      setConfirmDelete(false);
+      setDeleteConfirmText("");
       setSelectedSubId(null);
       const now = new Date();
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
