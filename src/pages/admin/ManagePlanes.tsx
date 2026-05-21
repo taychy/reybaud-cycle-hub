@@ -186,6 +186,7 @@ const ManagePlanes = () => {
       acceso_entrenamientos: plan.acceso_entrenamientos,
       acceso_eventos: plan.acceso_eventos,
       acceso_beneficios: plan.acceso_beneficios,
+      acceso_whatsapp: (plan as any).acceso_whatsapp ?? false,
       renovacion_auto_permitida: plan.renovacion_auto_permitida,
       visibilidad: "oculto",
       activo: false,
