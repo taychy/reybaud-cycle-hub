@@ -225,6 +225,7 @@ const ManagePlanes = () => {
       acceso_entrenamientos: form.acceso_entrenamientos,
       acceso_eventos: form.acceso_eventos,
       acceso_beneficios: form.acceso_beneficios,
+      acceso_whatsapp: form.acceso_whatsapp,
       renovacion_auto_permitida: isPrograma ? false : form.renovacion_auto_permitida,
       visibilidad: form.visibilidad,
       activo: form.activo,
