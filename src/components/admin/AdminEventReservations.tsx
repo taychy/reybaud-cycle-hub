@@ -33,6 +33,7 @@ import { ReservationChecklistViewer } from "@/components/admin/ReservationCheckl
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
+import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
 
 /* ─── Types ─── */
@@ -48,6 +49,7 @@ interface EventReservation {
   amount_paid: number;
   balance_due: number | null;
   moneda: string;
+  price_snapshot: number | null;
   currency_snapshot: string | null;
   metodo_pago: string;
   notas: string | null;
@@ -1548,6 +1550,19 @@ const AdminEventReservations = ({
                 <ReservationChecklistViewer
                   reservationId={selectedRes.id}
                   alumnoId={selectedRes.alumno_id}
+                />
+              )}
+              {/* Precio base del viaje (override por participante) */}
+              {!isPaymentFree && (
+                <ReservationBasePriceEditor
+                  reservationId={selectedRes.id}
+                  eventPrice={eventPrice ?? 0}
+                  eventCurrency={curr(selectedRes)}
+                  currentPriceSnapshot={selectedRes.price_snapshot ?? null}
+                  onChanged={() => {
+                    loadReservations();
+                    loadPayments(selectedRes.id);
+                  }}
                 />
               )}
               {/* Extras contratados (siempre disponible si el evento tiene addons) */}
