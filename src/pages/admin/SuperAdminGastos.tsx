@@ -971,12 +971,24 @@ const SuperAdminGastos = () => {
         {/* HISTORICO */}
         <TabsContent value="historico" className="mt-4">
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Histórico contable</CardTitle>
+              <Input
+                placeholder="Buscar descripción, categoría o forma de pago..."
+                value={searchHistorico}
+                onChange={(e) => setSearchHistorico(e.target.value)}
+                className="h-8 w-full sm:w-80 text-xs"
+              />
             </CardHeader>
             <CardContent className="p-0">
-              {gastos.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground text-sm">Sin movimientos</div>
+              {(() => {
+                const q = searchHistorico.trim().toLowerCase();
+                const filteredG = q
+                  ? gastos.filter(g => [g.descripcion, g.categoria, g.subcategoria, g.proveedor, FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago, g.notas]
+                      .filter(Boolean).join(" ").toLowerCase().includes(q))
+                  : gastos;
+                return filteredG.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">{q ? "Sin resultados." : "Sin movimientos"}</div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -990,7 +1002,7 @@ const SuperAdminGastos = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {gastos.slice(0, 30).map(g => (
+                    {(q ? filteredG : filteredG.slice(0, 30)).map(g => (
                       <TableRow key={g.id}>
                         <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
