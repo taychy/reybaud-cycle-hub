@@ -345,6 +345,15 @@ const SuperAdminGastos = () => {
     loadData();
   };
 
+  const confirmarConciliacion = async (g: GastoRow) => {
+    const { error } = await supabase.from("gastos")
+      .update({ estado_conciliacion: "conciliado" })
+      .eq("id", g.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Gasto conciliado" });
+    loadData();
+  };
+
 
   const deletePago = async (id: string) => {
     if (!confirm("¿Eliminar este pago? El estado de la cuota se va a recalcular.")) return;
