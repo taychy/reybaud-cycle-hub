@@ -1,47 +1,64 @@
-# Módulo Comunicaciones (Fase 1)
+## Objetivo
 
-Crear una nueva sección en el admin que centralice los puntos de contacto con el alumno. Arrancamos chico: reorganizamos lo que ya existe y dejamos la base lista para sumar canales en fases siguientes.
+Recibir notificaciones de Mercado Pago (pagos salientes y entrantes), validar que vengan de MP, consultar el detalle real vía API y actualizar/crear el gasto correspondiente.
 
-## Alcance Fase 1 (esta tarea)
+## Arquitectura
 
-1. **Nueva categoría en el sidebar admin**: "Comunicaciones" (ícono `MessageSquare`), como 5ta categoría propia — al mismo nivel que Principal, Finanzas, Configuración, Tienda.
-2. **Ruta nueva**: `/admin/comunicaciones` con layout de tabs.
-3. **Tres tabs iniciales** (todos contenido ya existente, sólo reubicado/consolidado):
-   - **Banners del home** → monta `EventAnnouncementsManager` en modo "todos los eventos" (lista plana de todas las novedades activas con badge del evento al que pertenecen, filtro por estado vigente/expirada/programada, acción rápida para desactivar). Permite editar haciendo click → navega al evento correspondiente.
-   - **Novedades por evento** → selector de evento + render del `EventAnnouncementsManager` actual con el `eventId` elegido (misma UX que hoy en EventsList, sólo accesible desde acá también).
-   - **Historial de emails** → tabla read-only sobre `email_send_log` deduplicada por `message_id`, con filtros de rango de fecha (24h/7d/30d), template y status. Stats summary arriba (total, enviados, fallidos, suprimidos). Paginada (50/pág).
-4. **No se toca**:
-   - El banner del alumno (`HomeNewsCarousel`) queda como está. Descartamos el botón "Gestionar" inline.
-   - El `EventAnnouncementsManager` actual dentro de `EventsList` queda funcionando (no rompemos el flujo existente).
-   - Nada de RLS nueva, ni edge functions, ni tablas nuevas.
+```text
+MP → POST /functions/v1/mp-gastos-webhook
+        │
+        ├─ Verifica firma x-signature (HMAC)
+        ├─ GET /v1/payments/{id} con MP_ACCESS_TOKEN
+        ├─ Idempotencia por (mp_payment_id)
+        └─ Decide flujo según external_reference:
+              ├─ "gasto:<uuid>"     → conciliar gasto existente
+              ├─ "gasto_ejec:<uuid>"→ marcar ejecución pagada (RPC pay_gasto_ejecucion)
+              └─ sin ref / desconocida → crear gasto "pendiente de conciliar"
+```
 
-## Fuera de alcance (fases futuras, sólo documentar)
+## Cambios en DB (migración)
 
-- Fase 2: Editor de templates de email (hoy hardcoded en edge functions).
-- Fase 3: Templates de WhatsApp + automatizaciones de pagos con UI de configuración.
-- Fase 4: Timeline unificado por alumno (qué se le mandó por cada canal).
-- Atajo "Gestionar" desde banner del alumno (contextual, opcional).
+1. `gastos`: agregar columnas
+   - `mp_payment_id TEXT UNIQUE` (idempotencia)
+   - `mp_status TEXT`
+   - `mp_external_reference TEXT`
+   - `origen_registro TEXT DEFAULT 'manual'` (`'manual' | 'mp_webhook' | 'mp_link'`)
+   - `estado_conciliacion TEXT DEFAULT 'conciliado'` (`'conciliado' | 'pendiente_conciliar'`)
+   - índice en `mp_payment_id`
+2. Nueva tabla `gastos_mp_webhook_log` para trazabilidad (raw payload, status, error, processed_at). Grants + RLS solo super_admin.
+3. RPC `apply_mp_payment_to_gasto(p_gasto_id, p_mp_payment_id, p_mp_status, p_monto, p_fecha, p_raw jsonb)` — `SECURITY DEFINER`, actualiza gasto, fija `origen_registro='mp_link'`, marca conciliado.
+4. RPC `create_gasto_from_mp(p_mp_payment_id, p_monto, p_moneda, p_fecha, p_descripcion, p_raw)` — crea gasto en estado `pendiente_conciliar` cuando no hay external_reference.
 
-## Detalles técnicos
+## Edge function: `mp-gastos-webhook`
 
-- **Archivos nuevos**:
-  - `src/pages/admin/AdminComunicaciones.tsx` — page con Tabs de shadcn.
-  - `src/components/admin/comunicaciones/BannersHomeTab.tsx` — lista plana de novedades cross-evento.
-  - `src/components/admin/comunicaciones/NovedadesPorEventoTab.tsx` — selector + reuso de `EventAnnouncementsManager`.
-  - `src/components/admin/comunicaciones/EmailLogTab.tsx` — dashboard de `email_send_log`.
-- **Archivos modificados**:
-  - `src/pages/admin/AdminLayout.tsx` → agregar categoría "Comunicaciones" + item.
-  - `src/App.tsx` (o router) → registrar ruta protegida `/admin/comunicaciones`.
-- **Queries clave** (cliente Supabase):
-  - Banners home: `SELECT * FROM event_announcements ORDER BY created_at DESC` con join al evento para mostrar nombre.
-  - Email log: query con `DISTINCT ON (message_id)` ordenado por `created_at DESC`, paginado.
-- **Permisos**: `ProtectedRoute` con rol `admin` (igual que el resto del módulo admin).
-- **Memoria**: actualizar `mem://navigation/admin-sidebar-hierarchy` para incluir la 5ta categoría y crear `mem://features/admin-comunicaciones` describiendo el módulo y las fases futuras.
+- `verify_jwt = false` (MP no manda JWT).
+- Lee headers `x-signature` y `x-request-id`, valida HMAC con `MP_WEBHOOK_SECRET` siguiendo el formato oficial de MP (`id:<data.id>;request-id:<x-request-id>;ts:<ts>;`).
+- Si la firma falla → 401 + log.
+- Si OK: `fetch` a `https://api.mercadopago.com/v1/payments/{id}` con `MP_ACCESS_TOKEN`.
+- Resuelve `external_reference`:
+  - `gasto:<uuid>` → `apply_mp_payment_to_gasto`
+  - `gasto_ejec:<uuid>` → `pay_gasto_ejecucion`
+  - otro caso → `create_gasto_from_mp` (queda en "Pendiente de conciliar" en la UI)
+- Inserta siempre fila en `gastos_mp_webhook_log` (raw, status, decisión).
+- Devuelve 200 incluso ante duplicados (idempotencia) para que MP no reintente eternamente.
 
-## Criterios de aceptación
+## UI (SuperAdminGastos)
 
-- Admin ve "Comunicaciones" en el sidebar y puede entrar.
-- Tab "Banners del home" lista todas las novedades activas con su evento asociado.
-- Tab "Novedades por evento" permite elegir un evento y administrar sus novedades (misma UX actual).
-- Tab "Historial de emails" muestra stats + tabla filtrable de envíos sin duplicar filas por `message_id`.
-- El banner del alumno y el flujo actual en EventsList siguen funcionando sin cambios.
+- Badge "MP" + tooltip con `mp_payment_id` y status en cada fila proveniente de MP.
+- Nueva sección "Pendientes de conciliar" (filtra `estado_conciliacion = 'pendiente_conciliar'`) con acción "Vincular a un gasto existente" o "Confirmar como nuevo gasto".
+- En el formulario de gasto manual: input opcional "Generar link de pago MP" que en el futuro creará preferencia con `external_reference = "gasto:<uuid>"` (link generation queda fuera de este alcance, sólo dejo el campo `mp_external_reference` listo).
+
+## Secretos
+
+- Reusa `MP_ACCESS_TOKEN` ya configurado.
+- **Nuevo:** `MP_WEBHOOK_SECRET` (la "Clave secreta" que MP muestra al configurar el webhook). Lo pido cuando se apruebe el plan.
+
+## URL a cargar en MP
+
+`https://tgqfakfloonbunwkdoug.supabase.co/functions/v1/mp-gastos-webhook`
+Eventos a suscribir: **payment** (cubre `payment.created` y `payment.updated`).
+
+## Fuera de alcance (siguiente iteración)
+
+- Generación automática de preferencias de cobro para gastos (link de pago).
+- Reconciliación masiva histórica con pagos previos.
