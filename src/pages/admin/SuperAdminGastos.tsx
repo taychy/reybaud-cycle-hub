@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
-  CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown,
+  CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown, Link2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -66,6 +66,11 @@ interface GastoRow {
   notas: string | null;
   forma_pago: string;
   created_at: string;
+  mp_payment_id?: string | null;
+  mp_status?: string | null;
+  mp_external_reference?: string | null;
+  origen_registro?: string | null;
+  estado_conciliacion?: string | null;
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
@@ -337,6 +342,15 @@ const SuperAdminGastos = () => {
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     }
     toast({ title: "Movimiento eliminado" });
+    loadData();
+  };
+
+  const confirmarConciliacion = async (g: GastoRow) => {
+    const { error } = await supabase.from("gastos")
+      .update({ estado_conciliacion: "conciliado" })
+      .eq("id", g.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Gasto conciliado" });
     loadData();
   };
 
@@ -635,6 +649,14 @@ const SuperAdminGastos = () => {
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
           <TabsTrigger value="catalogo" className="gap-1"><Wallet className="w-4 h-4" />Catálogo</TabsTrigger>
           <TabsTrigger value="historico" className="gap-1"><Receipt className="w-4 h-4" />Histórico</TabsTrigger>
+          <TabsTrigger value="conciliar" className="gap-1 relative">
+            <Link2 className="w-4 h-4" />Conciliar MP
+            {gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar").length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">
+                {gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar").length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* AGENDA */}
@@ -904,7 +926,21 @@ const SuperAdminGastos = () => {
                       <TableRow key={g.id}>
                         <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
-                        <TableCell className="text-sm max-w-[300px] truncate">{g.descripcion}</TableCell>
+                        <TableCell className="text-sm max-w-[300px] truncate">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate">{g.descripcion}</span>
+                            {g.mp_payment_id && (
+                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0" title={`MP ${g.mp_payment_id} · ${g.mp_status ?? ""}`}>
+                                MP
+                              </Badge>
+                            )}
+                            {g.estado_conciliacion === "pendiente_conciliar" && (
+                              <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0" title="Pendiente de conciliar">
+                                ⚠
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
                         <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
                         <TableCell>
@@ -918,6 +954,62 @@ const SuperAdminGastos = () => {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* CONCILIAR MP */}
+        <TabsContent value="conciliar" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                <Link2 className="w-4 h-4" />Pagos de Mercado Pago pendientes de conciliar
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Movimientos creados automáticamente desde el webhook de MP que no pudieron vincularse a un gasto existente. Revisalos, ajustá la categoría/descripción si hace falta y confirmá la conciliación, o eliminá si es duplicado.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {(() => {
+                const pendientes = gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar");
+                if (pendientes.length === 0) {
+                  return <div className="py-12 text-center text-muted-foreground text-sm">✓ No hay pagos MP pendientes de conciliar</div>;
+                }
+                return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Proveedor / Pagador</TableHead>
+                        <TableHead>MP ID</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        <TableHead className="w-32">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendientes.map(g => (
+                        <TableRow key={g.id}>
+                          <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
+                          <TableCell className="text-sm max-w-[260px] truncate">{g.descripcion}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
+                          <TableCell className="text-[10px] font-mono">{g.mp_payment_id}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-[10px]">{g.mp_status}</Badge></TableCell>
+                          <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => confirmarConciliacion(g)} title="Confirmar conciliación"><CheckCircle2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
