@@ -907,11 +907,19 @@ const SuperAdminGastos = () => {
         {/* CATALOGO */}
         <TabsContent value="catalogo" className="mt-4">
           <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Catálogo de gastos recurrentes</CardTitle>
-              <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); resetRecForm(); setCatDialogOpen(true); }}>
-                <Plus className="w-4 h-4" /> Nuevo
-              </Button>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Buscar concepto, categoría o proveedor..."
+                  value={searchCatalogo}
+                  onChange={(e) => setSearchCatalogo(e.target.value)}
+                  className="h-8 w-full sm:w-72 text-xs"
+                />
+                <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); resetRecForm(); setCatDialogOpen(true); }}>
+                  <Plus className="w-4 h-4" /> Nuevo
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -929,7 +937,14 @@ const SuperAdminGastos = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recurrentes.map(r => (
+                  {recurrentes
+                    .filter(r => {
+                      const q = searchCatalogo.trim().toLowerCase();
+                      if (!q) return true;
+                      return [r.concepto, r.categoria, r.proveedor, r.responsable]
+                        .filter(Boolean).join(" ").toLowerCase().includes(q);
+                    })
+                    .map(r => (
                     <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
                       <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
