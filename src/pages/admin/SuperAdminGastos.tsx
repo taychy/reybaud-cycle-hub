@@ -749,7 +749,7 @@ const SuperAdminGastos = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {agenda.map(({ e, rec }) => {
+                      {filtered.map(({ e, rec }) => {
                         const d = daysTo(e.fecha_vencimiento);
                         return (
                           <TableRow key={e.id} className={e.estado === "vencido" ? "bg-destructive/5" : ""}>
@@ -783,7 +783,8 @@ const SuperAdminGastos = () => {
                     </TableBody>
                   </Table>
                 </div>
-              )}
+              );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
