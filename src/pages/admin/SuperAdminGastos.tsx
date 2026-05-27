@@ -135,6 +135,13 @@ const SuperAdminGastos = () => {
   const [ejecuciones, setEjecuciones] = useState<Ejecucion[]>([]);
   const [gastos, setGastos] = useState<GastoRow[]>([]);
 
+  // Buscadores por pestaña
+  const [searchAgenda, setSearchAgenda] = useState("");
+  const [searchMatriz, setSearchMatriz] = useState("");
+  const [searchCatalogo, setSearchCatalogo] = useState("");
+  const [searchHistorico, setSearchHistorico] = useState("");
+  const [searchConciliar, setSearchConciliar] = useState("");
+
   // Catálogo dialog
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [editingRec, setEditingRec] = useState<Recurrente | null>(null);
@@ -586,7 +593,7 @@ const SuperAdminGastos = () => {
         </CardContent>
       </Card>
         <div className="flex items-center gap-2">
-          <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-44 text-foreground [color-scheme:dark]" />
+          <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-56 pr-3 text-foreground [color-scheme:dark]" />
           <Button variant="outline" size="sm" onClick={generarMes} className="gap-1">
             <RefreshCw className="w-4 h-4" /> Generar mes
           </Button>
@@ -705,13 +712,26 @@ const SuperAdminGastos = () => {
             </Card>
           )}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Pendientes de pagar — {monthLabel(mes)}</CardTitle>
+              <Input
+                placeholder="Buscar concepto, categoría o responsable..."
+                value={searchAgenda}
+                onChange={(e) => setSearchAgenda(e.target.value)}
+                className="h-8 w-full sm:w-72 text-xs"
+              />
             </CardHeader>
             <CardContent className="p-0">
-              {agenda.length === 0 ? (
+              {(() => {
+                const q = searchAgenda.trim().toLowerCase();
+                const filtered = q
+                  ? agenda.filter(({ rec }) =>
+                      [rec.concepto, rec.categoria, rec.responsable, rec.proveedor]
+                        .filter(Boolean).join(" ").toLowerCase().includes(q))
+                  : agenda;
+                return filtered.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
-                  No hay pagos pendientes este mes. {ejecuciones.length === 0 && "Generá el mes para crear las cuotas."}
+                  {q ? "Sin resultados para tu búsqueda." : <>No hay pagos pendientes este mes. {ejecuciones.length === 0 && "Generá el mes para crear las cuotas."}</>}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -729,7 +749,7 @@ const SuperAdminGastos = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {agenda.map(({ e, rec }) => {
+                      {filtered.map(({ e, rec }) => {
                         const d = daysTo(e.fecha_vencimiento);
                         return (
                           <TableRow key={e.id} className={e.estado === "vencido" ? "bg-destructive/5" : ""}>
@@ -763,7 +783,8 @@ const SuperAdminGastos = () => {
                     </TableBody>
                   </Table>
                 </div>
-              )}
+              );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
@@ -771,14 +792,22 @@ const SuperAdminGastos = () => {
         {/* MATRIZ */}
         <TabsContent value="matriz" className="mt-4">
           <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Matriz anual</CardTitle>
-              <Select value={String(matrizYear)} onValueChange={(v) => setMatrizYear(Number(v))}>
-                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Buscar concepto o categoría..."
+                  value={searchMatriz}
+                  onChange={(e) => setSearchMatriz(e.target.value)}
+                  className="h-8 w-full sm:w-64 text-xs"
+                />
+                <Select value={String(matrizYear)} onValueChange={(v) => setMatrizYear(Number(v))}>
+                  <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -789,17 +818,37 @@ const SuperAdminGastos = () => {
                       {["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"].map((m, i) => (
                         <TableHead key={i} className="text-center text-xs">{m}</TableHead>
                       ))}
+                      <TableHead className="text-right text-xs font-heading uppercase tracking-wider bg-muted/40 sticky right-0">Total año</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recByCategoriaOrdenado.map(([cat, items]) => (
+                    {(() => {
+                      const q = searchMatriz.trim().toLowerCase();
+                      const matrizFiltered = q
+                        ? recByCategoriaOrdenado
+                            .map(([cat, items]) => [cat, items.filter(r =>
+                              [r.concepto, r.categoria, r.proveedor, r.responsable]
+                                .filter(Boolean).join(" ").toLowerCase().includes(q)
+                            )] as [string, typeof items])
+                            .filter(([, items]) => items.length > 0)
+                        : recByCategoriaOrdenado;
+                      return matrizFiltered.map(([cat, items]) => (
                       <>
                         <TableRow key={`h-${cat}`} className="bg-muted/40">
-                          <TableCell colSpan={13} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
+                          <TableCell colSpan={14} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
                         </TableRow>
                         {items.map(r => {
                           const deuda = deudaSaldos[r.id];
                           const hasDeuda = !!deuda && deuda.saldo > 0;
+                          let totalAnual = 0;
+                          let monedaRow = r.moneda;
+                          for (let mm = 1; mm <= 12; mm++) {
+                            const ej = matrizData[r.id]?.[mm];
+                            if (ej) {
+                              totalAnual += Number(ej.monto_pagado || ej.monto_previsto || 0);
+                              if (ej.moneda) monedaRow = ej.moneda;
+                            }
+                          }
                           return (
                           <TableRow key={r.id} className={hasDeuda ? "border-l-2 border-l-destructive" : ""}>
                             <TableCell className="sticky left-0 bg-card text-sm font-medium">
@@ -840,10 +889,14 @@ const SuperAdminGastos = () => {
                                 </TableCell>
                               );
                             })}
+                            <TableCell className="text-right text-xs font-heading font-bold bg-muted/30 sticky right-0">
+                              {totalAnual > 0 ? fmt(totalAnual, monedaRow) : "—"}
+                            </TableCell>
                           </TableRow>
                         );})}
                       </>
-                    ))}
+                    ));
+                    })()}
                   </TableBody>
                 </Table>
               </div>
@@ -854,11 +907,19 @@ const SuperAdminGastos = () => {
         {/* CATALOGO */}
         <TabsContent value="catalogo" className="mt-4">
           <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Catálogo de gastos recurrentes</CardTitle>
-              <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); resetRecForm(); setCatDialogOpen(true); }}>
-                <Plus className="w-4 h-4" /> Nuevo
-              </Button>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Buscar concepto, categoría o proveedor..."
+                  value={searchCatalogo}
+                  onChange={(e) => setSearchCatalogo(e.target.value)}
+                  className="h-8 w-full sm:w-72 text-xs"
+                />
+                <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); resetRecForm(); setCatDialogOpen(true); }}>
+                  <Plus className="w-4 h-4" /> Nuevo
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -876,7 +937,14 @@ const SuperAdminGastos = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recurrentes.map(r => (
+                  {recurrentes
+                    .filter(r => {
+                      const q = searchCatalogo.trim().toLowerCase();
+                      if (!q) return true;
+                      return [r.concepto, r.categoria, r.proveedor, r.responsable]
+                        .filter(Boolean).join(" ").toLowerCase().includes(q);
+                    })
+                    .map(r => (
                     <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
                       <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
@@ -903,12 +971,24 @@ const SuperAdminGastos = () => {
         {/* HISTORICO */}
         <TabsContent value="historico" className="mt-4">
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Histórico contable</CardTitle>
+              <Input
+                placeholder="Buscar descripción, categoría o forma de pago..."
+                value={searchHistorico}
+                onChange={(e) => setSearchHistorico(e.target.value)}
+                className="h-8 w-full sm:w-80 text-xs"
+              />
             </CardHeader>
             <CardContent className="p-0">
-              {gastos.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground text-sm">Sin movimientos</div>
+              {(() => {
+                const q = searchHistorico.trim().toLowerCase();
+                const filteredG = q
+                  ? gastos.filter(g => [g.descripcion, g.categoria, g.subcategoria, g.proveedor, FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago, g.notas]
+                      .filter(Boolean).join(" ").toLowerCase().includes(q))
+                  : gastos;
+                return filteredG.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">{q ? "Sin resultados." : "Sin movimientos"}</div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -922,7 +1002,7 @@ const SuperAdminGastos = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {gastos.slice(0, 30).map(g => (
+                    {(q ? filteredG : filteredG.slice(0, 30)).map(g => (
                       <TableRow key={g.id}>
                         <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
@@ -953,7 +1033,8 @@ const SuperAdminGastos = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
