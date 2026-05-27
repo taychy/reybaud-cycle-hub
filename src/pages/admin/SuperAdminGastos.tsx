@@ -926,7 +926,21 @@ const SuperAdminGastos = () => {
                       <TableRow key={g.id}>
                         <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
-                        <TableCell className="text-sm max-w-[300px] truncate">{g.descripcion}</TableCell>
+                        <TableCell className="text-sm max-w-[300px] truncate">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate">{g.descripcion}</span>
+                            {g.mp_payment_id && (
+                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0" title={`MP ${g.mp_payment_id} · ${g.mp_status ?? ""}`}>
+                                MP
+                              </Badge>
+                            )}
+                            {g.estado_conciliacion === "pendiente_conciliar" && (
+                              <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0" title="Pendiente de conciliar">
+                                ⚠
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
                         <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
                         <TableCell>
@@ -940,6 +954,62 @@ const SuperAdminGastos = () => {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* CONCILIAR MP */}
+        <TabsContent value="conciliar" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                <Link2 className="w-4 h-4" />Pagos de Mercado Pago pendientes de conciliar
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Movimientos creados automáticamente desde el webhook de MP que no pudieron vincularse a un gasto existente. Revisalos, ajustá la categoría/descripción si hace falta y confirmá la conciliación, o eliminá si es duplicado.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {(() => {
+                const pendientes = gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar");
+                if (pendientes.length === 0) {
+                  return <div className="py-12 text-center text-muted-foreground text-sm">✓ No hay pagos MP pendientes de conciliar</div>;
+                }
+                return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Proveedor / Pagador</TableHead>
+                        <TableHead>MP ID</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        <TableHead className="w-32">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendientes.map(g => (
+                        <TableRow key={g.id}>
+                          <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
+                          <TableCell className="text-sm max-w-[260px] truncate">{g.descripcion}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
+                          <TableCell className="text-[10px] font-mono">{g.mp_payment_id}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-[10px]">{g.mp_status}</Badge></TableCell>
+                          <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => confirmarConciliacion(g)} title="Confirmar conciliación"><CheckCircle2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
