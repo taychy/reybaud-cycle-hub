@@ -792,14 +792,22 @@ const SuperAdminGastos = () => {
         {/* MATRIZ */}
         <TabsContent value="matriz" className="mt-4">
           <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Matriz anual</CardTitle>
-              <Select value={String(matrizYear)} onValueChange={(v) => setMatrizYear(Number(v))}>
-                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Buscar concepto o categoría..."
+                  value={searchMatriz}
+                  onChange={(e) => setSearchMatriz(e.target.value)}
+                  className="h-8 w-full sm:w-64 text-xs"
+                />
+                <Select value={String(matrizYear)} onValueChange={(v) => setMatrizYear(Number(v))}>
+                  <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -810,17 +818,37 @@ const SuperAdminGastos = () => {
                       {["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"].map((m, i) => (
                         <TableHead key={i} className="text-center text-xs">{m}</TableHead>
                       ))}
+                      <TableHead className="text-right text-xs font-heading uppercase tracking-wider bg-muted/40 sticky right-0">Total año</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recByCategoriaOrdenado.map(([cat, items]) => (
+                    {(() => {
+                      const q = searchMatriz.trim().toLowerCase();
+                      const matrizFiltered = q
+                        ? recByCategoriaOrdenado
+                            .map(([cat, items]) => [cat, items.filter(r =>
+                              [r.concepto, r.categoria, r.proveedor, r.responsable]
+                                .filter(Boolean).join(" ").toLowerCase().includes(q)
+                            )] as [string, typeof items])
+                            .filter(([, items]) => items.length > 0)
+                        : recByCategoriaOrdenado;
+                      return matrizFiltered.map(([cat, items]) => (
                       <>
                         <TableRow key={`h-${cat}`} className="bg-muted/40">
-                          <TableCell colSpan={13} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
+                          <TableCell colSpan={14} className="font-heading font-bold uppercase text-xs tracking-wider">{cat}</TableCell>
                         </TableRow>
                         {items.map(r => {
                           const deuda = deudaSaldos[r.id];
                           const hasDeuda = !!deuda && deuda.saldo > 0;
+                          let totalAnual = 0;
+                          let monedaRow = r.moneda;
+                          for (let mm = 1; mm <= 12; mm++) {
+                            const ej = matrizData[r.id]?.[mm];
+                            if (ej) {
+                              totalAnual += Number(ej.monto_pagado || ej.monto_previsto || 0);
+                              if (ej.moneda) monedaRow = ej.moneda;
+                            }
+                          }
                           return (
                           <TableRow key={r.id} className={hasDeuda ? "border-l-2 border-l-destructive" : ""}>
                             <TableCell className="sticky left-0 bg-card text-sm font-medium">
@@ -861,10 +889,14 @@ const SuperAdminGastos = () => {
                                 </TableCell>
                               );
                             })}
+                            <TableCell className="text-right text-xs font-heading font-bold bg-muted/30 sticky right-0">
+                              {totalAnual > 0 ? fmt(totalAnual, monedaRow) : "—"}
+                            </TableCell>
                           </TableRow>
                         );})}
                       </>
-                    ))}
+                    ));
+                    })()}
                   </TableBody>
                 </Table>
               </div>
