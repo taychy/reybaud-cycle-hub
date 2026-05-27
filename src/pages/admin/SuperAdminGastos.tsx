@@ -649,6 +649,14 @@ const SuperAdminGastos = () => {
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
           <TabsTrigger value="catalogo" className="gap-1"><Wallet className="w-4 h-4" />Catálogo</TabsTrigger>
           <TabsTrigger value="historico" className="gap-1"><Receipt className="w-4 h-4" />Histórico</TabsTrigger>
+          <TabsTrigger value="conciliar" className="gap-1 relative">
+            <Link2 className="w-4 h-4" />Conciliar MP
+            {gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar").length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">
+                {gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar").length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* AGENDA */}
