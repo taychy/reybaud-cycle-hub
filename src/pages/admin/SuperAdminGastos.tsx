@@ -66,6 +66,11 @@ interface GastoRow {
   notas: string | null;
   forma_pago: string;
   created_at: string;
+  mp_payment_id?: string | null;
+  mp_status?: string | null;
+  mp_external_reference?: string | null;
+  origen_registro?: string | null;
+  estado_conciliacion?: string | null;
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
