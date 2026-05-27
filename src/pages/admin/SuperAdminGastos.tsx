@@ -135,6 +135,13 @@ const SuperAdminGastos = () => {
   const [ejecuciones, setEjecuciones] = useState<Ejecucion[]>([]);
   const [gastos, setGastos] = useState<GastoRow[]>([]);
 
+  // Buscadores por pestaña
+  const [searchAgenda, setSearchAgenda] = useState("");
+  const [searchMatriz, setSearchMatriz] = useState("");
+  const [searchCatalogo, setSearchCatalogo] = useState("");
+  const [searchHistorico, setSearchHistorico] = useState("");
+  const [searchConciliar, setSearchConciliar] = useState("");
+
   // Catálogo dialog
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [editingRec, setEditingRec] = useState<Recurrente | null>(null);
