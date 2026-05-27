@@ -1990,13 +1990,18 @@ export type Database = {
           categoria: string
           created_at: string
           descripcion: string
+          estado_conciliacion: string
           fecha: string
           forma_pago: string
           frecuencia: string | null
           id: string
           moneda: string
           monto: number
+          mp_external_reference: string | null
+          mp_payment_id: string | null
+          mp_status: string | null
           notas: string | null
+          origen_registro: string
           proveedor: string | null
           recurrente: boolean
           registrado_por: string | null
@@ -2007,13 +2012,18 @@ export type Database = {
           categoria?: string
           created_at?: string
           descripcion: string
+          estado_conciliacion?: string
           fecha?: string
           forma_pago?: string
           frecuencia?: string | null
           id?: string
           moneda?: string
           monto: number
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          mp_status?: string | null
           notas?: string | null
+          origen_registro?: string
           proveedor?: string | null
           recurrente?: boolean
           registrado_por?: string | null
@@ -2024,13 +2034,18 @@ export type Database = {
           categoria?: string
           created_at?: string
           descripcion?: string
+          estado_conciliacion?: string
           fecha?: string
           forma_pago?: string
           frecuencia?: string | null
           id?: string
           moneda?: string
           monto?: number
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          mp_status?: string | null
           notas?: string | null
+          origen_registro?: string
           proveedor?: string | null
           recurrente?: boolean
           registrado_por?: string | null
@@ -2234,6 +2249,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gastos_mp_webhook_log: {
+        Row: {
+          created_at: string
+          decision: string | null
+          error: string | null
+          gasto_id: string | null
+          http_status: number | null
+          id: string
+          mp_event_type: string | null
+          mp_payment_id: string | null
+          mp_payment_raw: Json | null
+          raw_body: Json | null
+          raw_headers: Json | null
+          signature_valid: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          decision?: string | null
+          error?: string | null
+          gasto_id?: string | null
+          http_status?: number | null
+          id?: string
+          mp_event_type?: string | null
+          mp_payment_id?: string | null
+          mp_payment_raw?: Json | null
+          raw_body?: Json | null
+          raw_headers?: Json | null
+          signature_valid?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string | null
+          error?: string | null
+          gasto_id?: string | null
+          http_status?: number | null
+          id?: string
+          mp_event_type?: string | null
+          mp_payment_id?: string | null
+          mp_payment_raw?: Json | null
+          raw_body?: Json | null
+          raw_headers?: Json | null
+          signature_valid?: boolean | null
+        }
+        Relationships: []
       }
       gastos_recurrentes: {
         Row: {
@@ -4621,11 +4681,34 @@ export type Database = {
       }
     }
     Functions: {
+      apply_mp_payment_to_gasto: {
+        Args: {
+          p_external_reference: string
+          p_fecha: string
+          p_gasto_id: string
+          p_monto: number
+          p_mp_payment_id: string
+          p_mp_status: string
+        }
+        Returns: undefined
+      }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
+      }
+      create_gasto_from_mp: {
+        Args: {
+          p_descripcion: string
+          p_fecha: string
+          p_moneda: string
+          p_monto: number
+          p_mp_payment_id: string
+          p_mp_status: string
+          p_proveedor: string
+        }
+        Returns: string
       }
       delete_email: {
         Args: { message_id: number; queue_name: string }
