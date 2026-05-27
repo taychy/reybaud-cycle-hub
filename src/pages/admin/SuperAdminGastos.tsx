@@ -1033,7 +1033,8 @@ const SuperAdminGastos = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
