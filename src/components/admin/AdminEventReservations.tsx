@@ -1550,6 +1550,19 @@ const AdminEventReservations = ({
                   alumnoId={selectedRes.alumno_id}
                 />
               )}
+              {/* Precio base del viaje (override por participante) */}
+              {!isPaymentFree && (
+                <ReservationBasePriceEditor
+                  reservationId={selectedRes.id}
+                  eventPrice={eventPrice ?? 0}
+                  eventCurrency={curr(selectedRes)}
+                  currentPriceSnapshot={selectedRes.price_snapshot ?? null}
+                  onChanged={() => {
+                    loadReservations();
+                    loadPayments(selectedRes.id);
+                  }}
+                />
+              )}
               {/* Extras contratados (siempre disponible si el evento tiene addons) */}
               {!isPaymentFree && (
                 <ReservationAddonsPanel
