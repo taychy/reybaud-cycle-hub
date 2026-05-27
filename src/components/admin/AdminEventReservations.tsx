@@ -49,6 +49,7 @@ interface EventReservation {
   amount_paid: number;
   balance_due: number | null;
   moneda: string;
+  price_snapshot: number | null;
   currency_snapshot: string | null;
   metodo_pago: string;
   notas: string | null;
