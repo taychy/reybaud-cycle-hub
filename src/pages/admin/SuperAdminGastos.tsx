@@ -712,13 +712,26 @@ const SuperAdminGastos = () => {
             </Card>
           )}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Pendientes de pagar — {monthLabel(mes)}</CardTitle>
+              <Input
+                placeholder="Buscar concepto, categoría o responsable..."
+                value={searchAgenda}
+                onChange={(e) => setSearchAgenda(e.target.value)}
+                className="h-8 w-full sm:w-72 text-xs"
+              />
             </CardHeader>
             <CardContent className="p-0">
-              {agenda.length === 0 ? (
+              {(() => {
+                const q = searchAgenda.trim().toLowerCase();
+                const filtered = q
+                  ? agenda.filter(({ rec }) =>
+                      [rec.concepto, rec.categoria, rec.responsable, rec.proveedor]
+                        .filter(Boolean).join(" ").toLowerCase().includes(q))
+                  : agenda;
+                return filtered.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
-                  No hay pagos pendientes este mes. {ejecuciones.length === 0 && "Generá el mes para crear las cuotas."}
+                  {q ? "Sin resultados para tu búsqueda." : <>No hay pagos pendientes este mes. {ejecuciones.length === 0 && "Generá el mes para crear las cuotas."}</>}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
