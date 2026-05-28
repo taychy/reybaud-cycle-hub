@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Plus, Shirt } from "lucide-react";
+import { X, Plus, Shirt, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface VariantSpec {
   name: string;
