@@ -37,6 +37,15 @@ interface Product {
   preorder_status?: string;
   preorder_variants?: any;
   currency?: string;
+  variants?: any;
+  variant_stock?: Record<string, number>;
+  checkout_mode?: string;
+  external_url?: string | null;
+  is_combo?: boolean;
+  combo_pricing_mode?: string;
+  combo_price?: number | null;
+  sena_mode?: string | null;
+  sena_valor?: number | null;
 }
 
 interface Category {
