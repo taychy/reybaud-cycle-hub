@@ -299,6 +299,13 @@ const TiendaSection = () => {
       </a>
 
       <div className="h-4" />
+
+      <PreorderReserveDialog
+        open={!!reserveProduct}
+        onOpenChange={(v) => !v && setReserveProduct(null)}
+        product={reserveProduct as any}
+        alumnoId={alumnoId}
+      />
     </div>
   );
 };
