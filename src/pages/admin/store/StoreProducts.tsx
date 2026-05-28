@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ImageUpload from "@/components/ImageUpload";
 import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
-import ComboItemsEditor from "@/components/store/ComboItemsEditor";
+import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Product {
