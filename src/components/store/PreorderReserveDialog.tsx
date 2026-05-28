@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarClock, Package, CreditCard, AlertCircle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
@@ -22,6 +24,23 @@ interface Product {
   preorder_estimated_delivery: string | null;
   preorder_variants: any;
   preorder_description: string | null;
+  is_combo?: boolean | null;
+  combo_pricing_mode?: string | null;
+  combo_price?: number | null;
+}
+
+interface ComboItem {
+  id: string;
+  component_product_id: string | null;
+  internal_name: string | null;
+  internal_variants: any;
+  internal_price: number | null;
+  precio_individual: number | null;
+  obligatorio: boolean;
+  sort_order: number;
+  // resolved
+  display_name?: string;
+  variant_specs?: { name: string; options: string[] }[];
 }
 
 interface Props {
@@ -40,22 +59,14 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
   const [reservedUnits, setReservedUnits] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // combo state
+  const [modalidad, setModalidad] = useState<"combo" | "split">("combo");
+  const [comboItems, setComboItems] = useState<ComboItem[]>([]);
+  const [comboVariants, setComboVariants] = useState<Record<string, Record<string, string>>>({}); // key -> {var:val}
+  const [splitSelected, setSplitSelected] = useState<Record<string, boolean>>({});
+
   const moneda = product?.currency || "ARS";
-
-  const senaUnit = useMemo(() => {
-    if (!product) return 0;
-    if (product.preorder_deposit_amount) return Number(product.preorder_deposit_amount);
-    if (product.preorder_deposit_percent)
-      return Math.round(Number(product.price) * (Number(product.preorder_deposit_percent) / 100));
-    return Math.round(Number(product.price) * 0.3);
-  }, [product]);
-
-  const total = product ? Number(product.price) * cantidad : 0;
-  // Cap deposit to total to prevent negative balance from misconfigured data
-  const senaRaw = senaUnit * cantidad;
-  const sena = Math.min(senaRaw, total);
-  const senaCapped = senaRaw > total;
-  const saldo = Math.max(0, total - sena);
+  const isCombo = !!product?.is_combo;
 
   const variantSpecs: { name: string; options: string[] }[] = Array.isArray(product?.preorder_variants)
     ? (product?.preorder_variants as any[]).filter((v) => v?.name && Array.isArray(v?.options) && v.options.length > 0)
@@ -67,19 +78,87 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     setVariante({});
     setFormaPago("mercadopago");
     setNotas("");
+    setModalidad("combo");
+    setComboVariants({});
+    setSplitSelected({});
+
     supabase.rpc("get_preorder_reserved_units" as any, { p_product_id: product.id }).then(({ data }) => {
       setReservedUnits(typeof data === "number" ? data : 0);
     });
+
+    if (product.is_combo) {
+      (async () => {
+        const { data: items } = await supabase
+          .from("store_combo_items" as any)
+          .select("*")
+          .eq("combo_id", product.id)
+          .order("sort_order");
+        const resolved: ComboItem[] = [];
+        for (const it of (items || []) as any[]) {
+          let display = it.internal_name || "";
+          let specs: { name: string; options: string[] }[] = Array.isArray(it.internal_variants) ? it.internal_variants : [];
+          if (it.component_product_id) {
+            const { data: cp } = await supabase
+              .from("store_products")
+              .select("name, variants, preorder_variants")
+              .eq("id", it.component_product_id)
+              .maybeSingle();
+            display = cp?.name || "Componente";
+            const v = (cp as any)?.variants?.length ? (cp as any).variants : (cp as any)?.preorder_variants || [];
+            specs = Array.isArray(v) ? v.filter((s: any) => s?.name && Array.isArray(s?.options) && s.options.length > 0) : [];
+          }
+          resolved.push({ ...it, display_name: display, variant_specs: specs });
+        }
+        setComboItems(resolved);
+        // default: all mandatory selected in split
+        const sel: Record<string, boolean> = {};
+        resolved.forEach((r) => { sel[r.id] = r.obligatorio; });
+        setSplitSelected(sel);
+      })();
+    } else {
+      setComboItems([]);
+    }
   }, [open, product]);
 
   const cupoRestante = product?.preorder_total_units
     ? product.preorder_total_units - (reservedUnits || 0)
     : null;
-
   const cupoOk = cupoRestante == null || cupoRestante >= cantidad;
   const deadlinePass = product?.preorder_deadline
     ? new Date(product.preorder_deadline).getTime() < Date.now()
     : false;
+
+  // ─── Cálculos ───
+  const priceCombo = useMemo(() => {
+    if (!product) return 0;
+    if (!isCombo) return Number(product.price);
+    if (product.combo_pricing_mode === "fixed" && product.combo_price != null) {
+      return Number(product.combo_price);
+    }
+    return comboItems.reduce((acc, it) => acc + Number(it.precio_individual || it.internal_price || 0), 0);
+  }, [product, isCombo, comboItems]);
+
+  const priceSplit = useMemo(() => {
+    return comboItems
+      .filter((it) => splitSelected[it.id])
+      .reduce((acc, it) => acc + Number(it.precio_individual || it.internal_price || 0), 0);
+  }, [comboItems, splitSelected]);
+
+  const unitPrice = isCombo ? (modalidad === "combo" ? priceCombo : priceSplit) : Number(product?.price || 0);
+  const total = unitPrice * cantidad;
+
+  const senaUnit = useMemo(() => {
+    if (!product) return 0;
+    if (product.preorder_deposit_amount) return Number(product.preorder_deposit_amount);
+    if (product.preorder_deposit_percent)
+      return Math.round(unitPrice * (Number(product.preorder_deposit_percent) / 100));
+    return Math.round(unitPrice * 0.3);
+  }, [product, unitPrice]);
+
+  const senaRaw = senaUnit * cantidad;
+  const sena = Math.min(senaRaw, total);
+  const senaCapped = senaRaw > total;
+  const saldo = Math.max(0, total - sena);
 
   const handleSubmit = async () => {
     if (!product || !alumnoId) return;
@@ -91,12 +170,45 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       toast({ title: "Sin cupo suficiente", description: `Quedan ${cupoRestante} unidades.`, variant: "destructive" });
       return;
     }
-    for (const spec of variantSpecs) {
-      if (!variante[spec.name]) {
-        toast({ title: "Falta elegir variante", description: `Seleccioná ${spec.name}.`, variant: "destructive" });
+
+    // Validar variantes
+    if (!isCombo) {
+      for (const spec of variantSpecs) {
+        if (!variante[spec.name]) {
+          toast({ title: "Falta elegir variante", description: `Seleccioná ${spec.name}.`, variant: "destructive" });
+          return;
+        }
+      }
+    } else {
+      const activeItems = comboItems.filter((it) =>
+        modalidad === "combo" ? it.obligatorio : splitSelected[it.id]
+      );
+      if (modalidad === "split" && activeItems.length === 0) {
+        toast({ title: "Elegí al menos una prenda", variant: "destructive" });
         return;
       }
+      for (const it of activeItems) {
+        for (const spec of it.variant_specs || []) {
+          if (!comboVariants[it.id]?.[spec.name]) {
+            toast({ title: `Falta variante en ${it.display_name}`, description: `Elegí ${spec.name}.`, variant: "destructive" });
+            return;
+          }
+        }
+      }
     }
+
+    // Build items[] payload
+    const itemsPayload = isCombo
+      ? comboItems
+          .filter((it) => (modalidad === "combo" ? it.obligatorio : splitSelected[it.id]))
+          .map((it) => ({
+            combo_item_id: it.id,
+            component_product_id: it.component_product_id,
+            nombre: it.display_name,
+            precio: Number(it.precio_individual || it.internal_price || 0),
+            variante: comboVariants[it.id] || {},
+          }))
+      : [];
 
     setLoading(true);
     const { data: inserted, error } = await supabase
@@ -105,9 +217,9 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
         alumno_id: alumnoId,
         product_id: product.id,
         cantidad,
-        variante,
+        variante: isCombo ? {} : variante,
         producto_nombre: product.name,
-        precio_unitario: product.price,
+        precio_unitario: unitPrice,
         moneda,
         sena_monto: sena,
         precio_total: total,
@@ -116,6 +228,8 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
         estado_pago_sena: formaPago === "mercadopago" ? "pendiente" : "pendiente_verificacion",
         forma_pago_sena: formaPago,
         notas: notas || null,
+        modalidad: isCombo ? modalidad : "individual",
+        items: itemsPayload,
       } as any)
       .select("id")
       .single();
@@ -126,7 +240,6 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       return;
     }
 
-    // Si eligió MP, abrir checkout
     if (formaPago === "mercadopago") {
       try {
         const { data: pref, error: prefErr } = await supabase.functions.invoke("create-preorder-mp-preference", {
@@ -151,21 +264,39 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     }
 
     setLoading(false);
-    toast({
-      title: "Reserva creada",
-      description: "Tu cupo se confirma cuando validemos la seña.",
-    });
+    toast({ title: "Reserva creada", description: "Tu cupo se confirma cuando validemos la seña." });
     onOpenChange(false);
   };
 
   if (!product) return null;
+
+  const renderItemVariants = (it: ComboItem) => (
+    <div className="space-y-2 mt-2">
+      {(it.variant_specs || []).map((spec) => (
+        <div key={spec.name}>
+          <label className="text-[10px] font-heading uppercase text-muted-foreground">{spec.name}</label>
+          <Select
+            value={comboVariants[it.id]?.[spec.name] || ""}
+            onValueChange={(v) =>
+              setComboVariants((p) => ({ ...p, [it.id]: { ...(p[it.id] || {}), [spec.name]: v } }))
+            }
+          >
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={`Elegí ${spec.name}`} /></SelectTrigger>
+            <SelectContent>
+              {spec.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">{product.name}</DialogTitle>
-          <DialogDescription>Reserva en preventa</DialogDescription>
+          <DialogDescription>{isCombo ? "Reserva en preventa (combo)" : "Reserva en preventa"}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -196,7 +327,46 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
             <Input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(Math.max(1, Number(e.target.value)))} />
           </div>
 
-          {variantSpecs.length > 0 ? (
+          {isCombo ? (
+            <Tabs value={modalidad} onValueChange={(v) => setModalidad(v as any)}>
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="combo">Combo completo</TabsTrigger>
+                <TabsTrigger value="split">Por separado</TabsTrigger>
+              </TabsList>
+              <TabsContent value="combo" className="space-y-2 mt-3">
+                <p className="text-[11px] text-muted-foreground">
+                  Reservás todas las prendas del combo. {product.combo_pricing_mode === "fixed" ? "Precio fijo de combo." : "Suma de los precios individuales."}
+                </p>
+                {comboItems.filter((i) => i.obligatorio).map((it) => (
+                  <div key={it.id} className="rounded-md border border-border p-2 bg-card">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">{it.display_name}</span>
+                      <span className="text-xs text-muted-foreground">{formatPrice(Number(it.precio_individual || it.internal_price || 0), moneda)}</span>
+                    </div>
+                    {renderItemVariants(it)}
+                  </div>
+                ))}
+              </TabsContent>
+              <TabsContent value="split" className="space-y-2 mt-3">
+                <p className="text-[11px] text-muted-foreground">Elegí solo las prendas que querés llevar.</p>
+                {comboItems.map((it) => (
+                  <div key={it.id} className="rounded-md border border-border p-2 bg-card">
+                    <div className="flex justify-between items-center gap-2">
+                      <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                        <Checkbox
+                          checked={!!splitSelected[it.id]}
+                          onCheckedChange={(v) => setSplitSelected((p) => ({ ...p, [it.id]: !!v }))}
+                        />
+                        <span className="text-sm font-medium">{it.display_name}</span>
+                      </label>
+                      <span className="text-xs text-muted-foreground">{formatPrice(Number(it.precio_individual || it.internal_price || 0), moneda)}</span>
+                    </div>
+                    {splitSelected[it.id] && renderItemVariants(it)}
+                  </div>
+                ))}
+              </TabsContent>
+            </Tabs>
+          ) : variantSpecs.length > 0 ? (
             variantSpecs.map((spec) => (
               <div key={spec.name}>
                 <label className="text-xs font-heading uppercase text-muted-foreground">{spec.name}</label>
@@ -233,7 +403,7 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
           )}
 
           <div className="rounded-lg border border-border p-3 space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground"><span>Precio unitario</span><span>{formatPrice(product.price, moneda)}</span></div>
+            <div className="flex justify-between text-muted-foreground"><span>Precio unitario</span><span>{formatPrice(unitPrice, moneda)}</span></div>
             <div className="flex justify-between text-muted-foreground"><span>Total</span><span>{formatPrice(total, moneda)}</span></div>
             <div className="flex justify-between font-heading text-primary"><span>Seña a pagar ahora</span><span>{formatPrice(sena, moneda)}</span></div>
             <div className="flex justify-between text-xs text-muted-foreground"><span>Saldo al retirar</span><span>{formatPrice(saldo, moneda)}</span></div>
@@ -251,7 +421,7 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass}>
+            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass || (isCombo && unitPrice <= 0)}>
               {formaPago === "mercadopago" ? <CreditCard className="w-4 h-4 mr-1" /> : null}
               {loading ? "Procesando..." : formaPago === "mercadopago" ? "Reservar y pagar" : "Reservar"}
             </Button>
