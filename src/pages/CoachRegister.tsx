@@ -29,6 +29,9 @@ const CoachRegister = () => {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password: form.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/admin/login`,
+      },
     });
 
     if (authError) {
@@ -39,6 +42,14 @@ const CoachRegister = () => {
 
     if (!authData.user) {
       setError("Error al crear la cuenta.");
+      setLoading(false);
+      return;
+    }
+
+    // Detect "user already exists" — Supabase returns a user with empty identities
+    // when email confirmations are enabled and the email is already registered.
+    if (Array.isArray(authData.user.identities) && authData.user.identities.length === 0) {
+      setError("Este email ya está registrado. Iniciá sesión o contactá al administrador para que te asigne el rol de coach.");
       setLoading(false);
       return;
     }
@@ -55,6 +66,7 @@ const CoachRegister = () => {
       setLoading(false);
       return;
     }
+
 
     await supabase.auth.signOut();
     setSuccess(true);
