@@ -125,11 +125,16 @@ Deno.serve(async (req) => {
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
     const redirectTo = `${baseAppUrl}/activar-cuenta`;
 
-    // Check if user already exists in Auth
-    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(
-      (u: any) => u.email?.toLowerCase() === normalizedEmail
-    );
+    // Check if user already exists in Auth (paginate to handle >50 users)
+    let existingUser: any = null;
+    for (let page = 1; page <= 50; page++) {
+      const { data: pageData } = await adminClient.auth.admin.listUsers({ page, perPage: 200 });
+      if (!pageData?.users?.length) break;
+      const found = pageData.users.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
+      if (found) { existingUser = found; break; }
+      if (pageData.users.length < 200) break;
+    }
+
 
     let userId: string;
     let confirmationUrl: string | undefined;
