@@ -63,6 +63,22 @@ const VariantsEditor = ({ value, onChange }: Props) => {
   const removeOption = (i: number, opt: string) =>
     update(specs.map((s, idx) => (idx === i ? { ...s, options: s.options.filter((o) => o !== opt) } : s)));
 
+  const moveOption = (i: number, from: number, dir: -1 | 1) => {
+    const opts = [...specs[i].options];
+    const to = from + dir;
+    if (to < 0 || to >= opts.length) return;
+    [opts[from], opts[to]] = [opts[to], opts[from]];
+    update(specs.map((s, idx) => (idx === i ? { ...s, options: opts } : s)));
+  };
+
+  const reorderOption = (i: number, from: number, to: number) => {
+    if (from === to) return;
+    const opts = [...specs[i].options];
+    const [moved] = opts.splice(from, 1);
+    opts.splice(to, 0, moved);
+    update(specs.map((s, idx) => (idx === i ? { ...s, options: opts } : s)));
+  };
+
   return (
     <div className="space-y-3">
       <div>
