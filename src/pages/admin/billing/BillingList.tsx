@@ -22,6 +22,7 @@ interface FacturaRow {
   condicion_fiscal: string;
   concepto: string;
   monto: number;
+  moneda?: string | null;
   estado: string;
   emisor_id: string | null;
   numero_comprobante: string | null;
@@ -41,10 +42,19 @@ const METODO_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
+// Agrupamiento de orígenes para los filtros visibles
+const ORIGEN_APP_VALUES = ["autogestion", "automatico", "informado_alumno", "mp_link"];
+const ORIGEN_ADMIN_VALUES = ["cargado_admin", "manual"];
+
 const ORIGEN_LABELS: Record<string, string> = {
   autogestion: "App del alumno",
+  automatico: "App · MP automático",
+  informado_alumno: "App · informado por alumno",
+  mp_link: "App · link MP",
   cargado_admin: "Cargado por admin",
+  manual: "Manual",
 };
+
 
 interface Props {
   facturas: FacturaRow[];
