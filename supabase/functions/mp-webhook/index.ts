@@ -66,9 +66,14 @@ Deno.serve(async (req) => {
     const externalRef: string = String(payment.external_reference);
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Validate external_reference format: either "event:<uuid>" or "<uuid>" (suscripcion)
+    // Validate external_reference format: "event:<uuid>", "preorder:<uuid>" or "<uuid>" (suscripcion)
     const isEventRef = externalRef.startsWith("event:");
-    const refUuid = isEventRef ? externalRef.slice("event:".length) : externalRef;
+    const isPreorderRef = externalRef.startsWith("preorder:");
+    const refUuid = isEventRef
+      ? externalRef.slice("event:".length)
+      : isPreorderRef
+      ? externalRef.slice("preorder:".length)
+      : externalRef;
     if (!UUID_RE.test(refUuid)) {
       console.error("[mp-webhook] Invalid external_reference format");
       return new Response(JSON.stringify({ ok: true, invalid_ref: true }), {
@@ -81,6 +86,47 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // ─── PREORDER DEPOSIT FLOW ───
+    // external_reference: "preorder:<preorder_id>"
+    if (isPreorderRef) {
+      const preorderId = refUuid;
+      const { data: preorder } = await supabaseAdmin
+        .from("store_preorders")
+        .select("id, estado, estado_pago_sena")
+        .eq("id", preorderId)
+        .maybeSingle();
+
+      if (!preorder) {
+        console.log("[mp-webhook] preorder not found:", preorderId);
+        return new Response(JSON.stringify({ ok: true, missing: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const update: Record<string, unknown> = {
+        mp_payment_id: String(payment.id),
+      };
+
+      if (payment.status === "approved") {
+        update.estado_pago_sena = "confirmada";
+        update.sena_pagada_at = new Date().toISOString();
+        if (preorder.estado === "pendiente_pago_sena") update.estado = "reservada";
+      } else if (payment.status === "rejected" || payment.status === "cancelled") {
+        update.estado_pago_sena = "rechazada";
+      } else if (payment.status === "pending" || payment.status === "in_process") {
+        update.estado_pago_sena = "pendiente";
+      }
+
+      await supabaseAdmin.from("store_preorders").update(update).eq("id", preorderId);
+
+      console.log("[mp-webhook] preorder updated:", { preorderId, mpStatus: payment.status });
+      return new Response(JSON.stringify({ ok: true, kind: "preorder", status: payment.status }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ─── EVENT RESERVATION FLOW ───
     // external_reference: "event:<reservation_id>"

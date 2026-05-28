@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
+import MisPreventas from "@/components/store/MisPreventas";
 
 // Fallback images
 import jerseyImg from "@/assets/store/jersey.jpg";
@@ -245,6 +246,9 @@ const TiendaSection = () => {
           </button>
         ))}
       </div>
+
+      {/* Mis preventas */}
+      <MisPreventas alumnoId={alumnoId} />
 
       {/* Featured products */}
       {activeCategory === "Todos" && !search && featured.length > 0 && (

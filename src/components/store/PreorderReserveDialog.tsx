@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarClock, Package } from "lucide-react";
+import { CalendarClock, Package, CreditCard, AlertCircle } from "lucide-react";
+import { formatPrice } from "@/lib/currency";
 
 interface Product {
   id: string;
@@ -30,39 +31,41 @@ interface Props {
   alumnoId: string | null;
 }
 
-const fmt = (cur: string, n: number) => `${cur} ${Number(n).toLocaleString("es-AR")}`;
-
 const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props) => {
   const { toast } = useToast();
   const [cantidad, setCantidad] = useState(1);
   const [variante, setVariante] = useState<Record<string, string>>({});
-  const [formaPago, setFormaPago] = useState<string>("transferencia");
+  const [formaPago, setFormaPago] = useState<string>("mercadopago");
   const [notas, setNotas] = useState("");
   const [reservedUnits, setReservedUnits] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   const moneda = product?.currency || "ARS";
 
-  const sena = useMemo(() => {
+  const senaUnit = useMemo(() => {
     if (!product) return 0;
-    if (product.preorder_deposit_amount) return Number(product.preorder_deposit_amount) * cantidad;
+    if (product.preorder_deposit_amount) return Number(product.preorder_deposit_amount);
     if (product.preorder_deposit_percent)
-      return Math.round(Number(product.price) * (Number(product.preorder_deposit_percent) / 100)) * cantidad;
-    return Math.round(Number(product.price) * 0.3) * cantidad;
-  }, [product, cantidad]);
+      return Math.round(Number(product.price) * (Number(product.preorder_deposit_percent) / 100));
+    return Math.round(Number(product.price) * 0.3);
+  }, [product]);
 
   const total = product ? Number(product.price) * cantidad : 0;
-  const saldo = total - sena;
+  // Cap deposit to total to prevent negative balance from misconfigured data
+  const senaRaw = senaUnit * cantidad;
+  const sena = Math.min(senaRaw, total);
+  const senaCapped = senaRaw > total;
+  const saldo = Math.max(0, total - sena);
 
   const variantSpecs: { name: string; options: string[] }[] = Array.isArray(product?.preorder_variants)
-    ? (product?.preorder_variants as any[]).filter((v) => v?.name)
+    ? (product?.preorder_variants as any[]).filter((v) => v?.name && Array.isArray(v?.options) && v.options.length > 0)
     : [];
 
   useEffect(() => {
     if (!open || !product) return;
     setCantidad(1);
     setVariante({});
-    setFormaPago("transferencia");
+    setFormaPago("mercadopago");
     setNotas("");
     supabase.rpc("get_preorder_reserved_units" as any, { p_product_id: product.id }).then(({ data }) => {
       setReservedUnits(typeof data === "number" ? data : 0);
@@ -96,30 +99,61 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     }
 
     setLoading(true);
-    const { error } = await supabase.from("store_preorders" as any).insert({
-      alumno_id: alumnoId,
-      product_id: product.id,
-      cantidad,
-      variante,
-      producto_nombre: product.name,
-      precio_unitario: product.price,
-      moneda,
-      sena_monto: sena,
-      precio_total: total,
-      saldo_pendiente: saldo,
-      estado: "pendiente_pago_sena",
-      estado_pago_sena: formaPago === "mercadopago" ? "pendiente" : "pendiente_verificacion",
-      forma_pago_sena: formaPago,
-      notas: notas || null,
-    } as any);
-    setLoading(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    const { data: inserted, error } = await supabase
+      .from("store_preorders" as any)
+      .insert({
+        alumno_id: alumnoId,
+        product_id: product.id,
+        cantidad,
+        variante,
+        producto_nombre: product.name,
+        precio_unitario: product.price,
+        moneda,
+        sena_monto: sena,
+        precio_total: total,
+        saldo_pendiente: saldo,
+        estado: "pendiente_pago_sena",
+        estado_pago_sena: formaPago === "mercadopago" ? "pendiente" : "pendiente_verificacion",
+        forma_pago_sena: formaPago,
+        notas: notas || null,
+      } as any)
+      .select("id")
+      .single();
+
+    if (error || !inserted) {
+      setLoading(false);
+      toast({ title: "Error", description: error?.message || "No se pudo crear", variant: "destructive" });
       return;
     }
+
+    // Si eligió MP, abrir checkout
+    if (formaPago === "mercadopago") {
+      try {
+        const { data: pref, error: prefErr } = await supabase.functions.invoke("create-preorder-mp-preference", {
+          body: { preorder_id: (inserted as any).id },
+        });
+        if (prefErr) throw prefErr;
+        const url = (pref as any)?.init_point || (pref as any)?.sandbox_init_point;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        throw new Error("No se recibió URL de pago");
+      } catch (e: any) {
+        setLoading(false);
+        toast({
+          title: "Reserva creada, pero falló iniciar MP",
+          description: `Podés reintentar desde "Mis preventas". ${e.message || ""}`,
+        });
+        onOpenChange(false);
+        return;
+      }
+    }
+
+    setLoading(false);
     toast({
       title: "Reserva creada",
-      description: "Tu lugar se confirma cuando validemos la seña.",
+      description: "Tu cupo se confirma cuando validemos la seña.",
     });
     onOpenChange(false);
   };
@@ -162,51 +196,64 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
             <Input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(Math.max(1, Number(e.target.value)))} />
           </div>
 
-          {variantSpecs.map((spec) => (
-            <div key={spec.name}>
-              <label className="text-xs font-heading uppercase text-muted-foreground">{spec.name}</label>
-              <Select value={variante[spec.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [spec.name]: v }))}>
-                <SelectTrigger><SelectValue placeholder={`Elegí ${spec.name}`} /></SelectTrigger>
-                <SelectContent>
-                  {spec.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+          {variantSpecs.length > 0 ? (
+            variantSpecs.map((spec) => (
+              <div key={spec.name}>
+                <label className="text-xs font-heading uppercase text-muted-foreground">{spec.name}</label>
+                <Select value={variante[spec.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [spec.name]: v }))}>
+                  <SelectTrigger><SelectValue placeholder={`Elegí ${spec.name}`} /></SelectTrigger>
+                  <SelectContent>
+                    {spec.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))
+          ) : (
+            <p className="text-[11px] text-muted-foreground italic">Este producto no requiere selección de variante.</p>
+          )}
 
           <div>
             <label className="text-xs font-heading uppercase text-muted-foreground">Forma de pago de la seña</label>
             <Select value={formaPago} onValueChange={setFormaPago}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="mercadopago">Mercado Pago (online)</SelectItem>
                 <SelectItem value="transferencia">Transferencia bancaria</SelectItem>
                 <SelectItem value="efectivo">Efectivo</SelectItem>
-                <SelectItem value="mercadopago">Mercado Pago</SelectItem>
                 <SelectItem value="otro">Otro</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div>
-            <label className="text-xs font-heading uppercase text-muted-foreground">Notas (opcional)</label>
-            <Textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, comprobante, etc." />
-          </div>
+          {formaPago !== "mercadopago" && (
+            <div>
+              <label className="text-xs font-heading uppercase text-muted-foreground">Notas (opcional)</label>
+              <Textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, comprobante, etc." />
+            </div>
+          )}
 
           <div className="rounded-lg border border-border p-3 space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground"><span>Precio unitario</span><span>{fmt(moneda, product.price)}</span></div>
-            <div className="flex justify-between text-muted-foreground"><span>Total</span><span>{fmt(moneda, total)}</span></div>
-            <div className="flex justify-between font-heading text-primary"><span>Seña a pagar ahora</span><span>{fmt(moneda, sena)}</span></div>
-            <div className="flex justify-between text-xs text-muted-foreground"><span>Saldo a pagar al retirar</span><span>{fmt(moneda, saldo)}</span></div>
+            <div className="flex justify-between text-muted-foreground"><span>Precio unitario</span><span>{formatPrice(product.price, moneda)}</span></div>
+            <div className="flex justify-between text-muted-foreground"><span>Total</span><span>{formatPrice(total, moneda)}</span></div>
+            <div className="flex justify-between font-heading text-primary"><span>Seña a pagar ahora</span><span>{formatPrice(sena, moneda)}</span></div>
+            <div className="flex justify-between text-xs text-muted-foreground"><span>Saldo al retirar</span><span>{formatPrice(saldo, moneda)}</span></div>
+            {senaCapped && (
+              <div className="flex items-center gap-1 text-[11px] text-destructive pt-1">
+                <AlertCircle className="w-3 h-3" />
+                Seña configurada mayor al total. Ajustada al 100%.
+              </div>
+            )}
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Tu cupo se confirma cuando validemos el pago de la seña. La seña no se reembolsa una vez que la preventa entra en producción; podés cancelar antes y queda como saldo a favor o se gestiona manualmente.
+            Tu cupo se confirma cuando validemos el pago de la seña. La seña no se reembolsa una vez que la preventa entra en producción; podés cancelar antes y queda como saldo a favor.
           </p>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass}>
-              {loading ? "Reservando..." : "Reservar"}
+              {formaPago === "mercadopago" ? <CreditCard className="w-4 h-4 mr-1" /> : null}
+              {loading ? "Procesando..." : formaPago === "mercadopago" ? "Reservar y pagar" : "Reservar"}
             </Button>
           </div>
         </div>
