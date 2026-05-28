@@ -19,58 +19,111 @@ export interface ComboItem {
   obligatorio: boolean;
   sort_order: number;
 }
+
 interface Props {
-  comboId: string;
+  /** Si existe, persiste cambios inmediatamente. Si no, opera en modo borrador en memoria. */
+  comboId?: string | null;
   isPreorder?: boolean;
+  /** Items en borrador (cuando aún no hay comboId). */
+  draftItems?: ComboItem[];
+  /** Callback para actualizar borrador. */
+  onDraftChange?: (items: ComboItem[]) => void;
 }
 
-const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
-  const [items, setItems] = useState<ComboItem[]>([]);
+const tmpId = () => `tmp_${Math.random().toString(36).slice(2, 10)}`;
+
+const ComboItemsEditor = ({ comboId, isPreorder = false, draftItems, onDraftChange }: Props) => {
+  const isDraft = !comboId;
+  const [items, setItems] = useState<ComboItem[]>(draftItems || []);
   const [productOptions, setProductOptions] = useState<{ id: string; name: string; price: number }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDraft);
+
+  // Sync con draftItems externos
+  useEffect(() => {
+    if (isDraft) setItems(draftItems || []);
+  }, [draftItems, isDraft]);
 
   const load = async () => {
     const [iRes, pRes] = await Promise.all([
-      supabase.from("store_combo_items" as any).select("*").eq("combo_id", comboId).order("sort_order"),
-      supabase.from("store_products").select("id, name, price").neq("id", comboId).eq("status", "active").order("name"),
+      comboId
+        ? supabase.from("store_combo_items" as any).select("*").eq("combo_id", comboId).order("sort_order")
+        : Promise.resolve({ data: [] as any[] }),
+      supabase.from("store_products").select("id, name, price").eq("status", "active").order("name"),
     ]);
     setItems(((iRes.data as any[]) || []) as ComboItem[]);
-    setProductOptions((pRes.data as any[]) || []);
+    setProductOptions(((pRes.data as any[]) || []).filter((p: any) => p.id !== comboId));
     setLoading(false);
   };
 
-  useEffect(() => { if (comboId) load(); }, [comboId]);
+  useEffect(() => {
+    if (!isDraft) load();
+    else {
+      // En modo draft sólo cargamos la lista de productos
+      supabase
+        .from("store_products")
+        .select("id, name, price")
+        .eq("status", "active")
+        .order("name")
+        .then(({ data }) => setProductOptions((data as any[]) || []));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comboId]);
+
+  const commit = (next: ComboItem[]) => {
+    setItems(next);
+    if (isDraft) onDraftChange?.(next);
+  };
 
   const addReusable = async () => {
-    const { data } = await supabase.from("store_combo_items" as any).insert({
-      combo_id: comboId,
+    const base: ComboItem = {
       component_product_id: productOptions[0]?.id || null,
       obligatorio: true,
       sort_order: items.length,
+    };
+    if (isDraft) {
+      commit([...items, { ...base, id: tmpId() }]);
+      return;
+    }
+    const { data } = await supabase.from("store_combo_items" as any).insert({
+      combo_id: comboId,
+      ...base,
     }).select().single();
     if (data) setItems([...items, data as any]);
   };
 
   const addInternal = async () => {
-    const { data } = await supabase.from("store_combo_items" as any).insert({
-      combo_id: comboId,
+    const base: ComboItem = {
       internal_name: "Nuevo componente",
       internal_variants: [],
       internal_stock: {},
       obligatorio: true,
       sort_order: items.length,
+    };
+    if (isDraft) {
+      commit([...items, { ...base, id: tmpId(), component_product_id: null }]);
+      return;
+    }
+    const { data } = await supabase.from("store_combo_items" as any).insert({
+      combo_id: comboId,
+      ...base,
     }).select().single();
     if (data) setItems([...items, data as any]);
   };
 
   const updateItem = async (id: string, patch: Partial<ComboItem>) => {
-    setItems((arr) => arr.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-    await supabase.from("store_combo_items" as any).update(patch as any).eq("id", id);
+    const next = items.map((it) => (it.id === id ? { ...it, ...patch } : it));
+    commit(next);
+    if (!isDraft && !id.startsWith("tmp_")) {
+      await supabase.from("store_combo_items" as any).update(patch as any).eq("id", id);
+    }
   };
 
   const removeItem = async (id: string) => {
-    await supabase.from("store_combo_items" as any).delete().eq("id", id);
-    setItems((arr) => arr.filter((it) => it.id !== id));
+    const next = items.filter((it) => it.id !== id);
+    commit(next);
+    if (!isDraft && !id.startsWith("tmp_")) {
+      await supabase.from("store_combo_items" as any).delete().eq("id", id);
+    }
   };
 
   if (loading) return <div className="text-xs text-muted-foreground">Cargando componentes...</div>;
@@ -90,6 +143,11 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
           </Button>
         </div>
       </div>
+      {isDraft && (
+        <p className="text-[11px] text-muted-foreground italic">
+          Estás armando el combo en borrador. Los componentes se guardan cuando apretás <b>Guardar producto</b>.
+        </p>
+      )}
       {isPreorder && (
         <p className="text-[11px] text-muted-foreground italic">
           Combo de preventa: el cupo lo gobierna el total de unidades de la preventa del combo. Los componentes pueden ser <b>productos existentes</b> (ej. chaleco y campera que también se venden sueltos, con o sin su propia preventa) o <b>sub-ítems internos</b> (sin stock propio). El stock de los componentes no se descuenta al reservar el combo.
@@ -108,7 +166,6 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
             <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
             {item.component_product_id !== null && item.component_product_id !== undefined ? (
               <>
-
                 <Select
                   value={item.component_product_id || ""}
                   onValueChange={(v) => updateItem(item.id!, { component_product_id: v })}
