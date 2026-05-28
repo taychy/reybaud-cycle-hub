@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BillingKPIs } from "./BillingKPIs";
 import { BillingList } from "./BillingList";
 import { BillingEmisores } from "./BillingEmisores";
+import { PendingPaymentsList } from "./PendingPaymentsList";
 import { BillingEmisorSummary } from "./BillingEmisorSummary";
 import { InvoiceModal } from "./InvoiceModal";
 import { ManualInvoiceButton } from "./ManualInvoiceButton";
