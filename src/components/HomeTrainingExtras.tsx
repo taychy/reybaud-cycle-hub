@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainGoalCard } from "@/components/progress/MainGoalCard";
 import { CoachFeedbackCard, type FeedbackRecord } from "@/components/progress/CoachFeedbackCard";
