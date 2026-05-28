@@ -119,7 +119,7 @@ const StorePreorders = () => {
           <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
-            {ESTADOS.map((e) => <SelectItem key={e} value={e}>{e.replaceAll("_"," ")}</SelectItem>)}
+            {ESTADOS.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -161,7 +161,7 @@ const StorePreorders = () => {
                   <Select value={r.estado_pago_sena} onValueChange={(v) => updateField(r.id, { estado_pago_sena: v } as any)}>
                     <SelectTrigger className="h-7 text-xs w-[150px] mx-auto"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ESTADOS_PAGO.map((e) => <SelectItem key={e} value={e}>{e.replaceAll("_"," ")}</SelectItem>)}
+                      {ESTADOS_PAGO.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </td>
@@ -169,7 +169,7 @@ const StorePreorders = () => {
                   <Select value={r.estado} onValueChange={(v) => updateField(r.id, { estado: v } as any)}>
                     <SelectTrigger className={`h-7 text-xs w-[170px] mx-auto ${estadoColor(r.estado)}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ESTADOS.map((e) => <SelectItem key={e} value={e}>{e.replaceAll("_"," ")}</SelectItem>)}
+                      {ESTADOS.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </td>
