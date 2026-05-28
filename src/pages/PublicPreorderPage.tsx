@@ -11,8 +11,6 @@ const PublicPreorderPage = () => {
   const navigate = useNavigate();
   const [product, setProduct] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [reservedUnits, setReservedUnits] = useState<number>(0);
   const [comboItems, setComboItems] = useState<any[]>([]);
