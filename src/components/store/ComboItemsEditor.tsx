@@ -187,10 +187,3 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
 };
 
 export default ComboItemsEditor;
-        </div>
-      ))}
-    </div>
-  );
-};
-
-export default ComboItemsEditor;
