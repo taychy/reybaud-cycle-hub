@@ -470,7 +470,7 @@ const StoreProducts = () => {
                         </div>
                       )}
                     </div>
-                    {editProduct?.id && <ComboItemsEditor comboId={editProduct.id} />}
+                    {editProduct?.id && <ComboItemsEditor comboId={editProduct.id} isPreorder={!!editProduct?.is_preorder} />}
                     {!editProduct?.id && (
                       <p className="text-xs text-muted-foreground">Guardá primero el producto para poder cargar componentes.</p>
                     )}
