@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
       alumno_id,
       concepto,
       monto,
+      moneda,
       referencia_tipo,
       referencia_id,
       segmento,
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
       alumno_id: string;
       concepto: string;
       monto: number;
+      moneda?: string;
       referencia_tipo?: string;
       referencia_id?: string;
       segmento: Segmento;
@@ -69,6 +71,7 @@ Deno.serve(async (req) => {
       metodo_pago?: string | null;
       origen_registro?: string | null;
     } = body;
+
 
     if (!alumno_id || !concepto || !monto) {
       return new Response(
