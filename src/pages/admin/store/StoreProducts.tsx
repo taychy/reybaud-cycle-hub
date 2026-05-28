@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ImageUpload from "@/components/ImageUpload";
 import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
-import ComboItemsEditor from "@/components/store/ComboItemsEditor";
+import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Product {
@@ -66,6 +66,7 @@ const StoreProducts = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [comboDraft, setComboDraft] = useState<ComboItem[]>([]);
   const { toast } = useToast();
 
   const load = async () => {
@@ -89,11 +90,13 @@ const StoreProducts = () => {
 
   const openCreate = () => {
     setEditProduct({ name: "", price: 0, stock: 0, min_stock: 5, status: "active", featured: false });
+    setComboDraft([]);
     setDialogOpen(true);
   };
 
   const openEdit = (p: Product) => {
     setEditProduct({ ...p });
+    setComboDraft([]);
     setDialogOpen(true);
   };
 
@@ -137,14 +140,31 @@ const StoreProducts = () => {
       sena_mode: editProduct.sena_mode || null,
       sena_valor: editProduct.sena_valor ?? null,
     };
-
     if (editProduct.id) {
       await supabase.from("store_products").update(payload as any).eq("id", editProduct.id);
       toast({ title: "Producto actualizado" });
     } else {
       const { data } = await supabase.from("store_products").insert(payload as any).select().single();
-      if (data) setEditProduct({ ...editProduct, id: data.id });
-      toast({ title: "Producto creado", description: "Ya podés cargar sus variantes y/o componentes." });
+      if (data) {
+        // Si es combo y hay items en borrador, los persistimos ahora
+        if (editProduct.is_combo && comboDraft.length > 0) {
+          const rows = comboDraft.map((it, idx) => ({
+            combo_id: data.id,
+            component_product_id: it.component_product_id ?? null,
+            internal_name: it.internal_name ?? null,
+            internal_variants: it.internal_variants ?? null,
+            internal_stock: it.internal_stock ?? null,
+            internal_price: it.internal_price ?? null,
+            precio_individual: it.precio_individual ?? null,
+            obligatorio: it.obligatorio ?? true,
+            sort_order: idx,
+          }));
+          await supabase.from("store_combo_items" as any).insert(rows as any);
+        }
+        setEditProduct({ ...editProduct, id: data.id });
+        setComboDraft([]);
+      }
+      toast({ title: "Producto creado", description: "Listo." });
     }
     setSaving(false);
     if (editProduct.id) setDialogOpen(false);
@@ -432,52 +452,54 @@ const StoreProducts = () => {
               </div>
             )}
 
-            {/* Combo */}
-            {!editProduct?.is_preorder && (
-              <div className="rounded-lg border border-border p-3 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-heading">
-                  <input
-                    type="checkbox"
-                    checked={!!editProduct?.is_combo}
-                    onChange={(e) => setEditProduct((p) => ({ ...p, is_combo: e.target.checked }))}
-                  />
-                  Es un combo
-                </label>
-                {editProduct?.is_combo && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs uppercase text-muted-foreground">Modo de precio</label>
-                        <Select
-                          value={editProduct?.combo_pricing_mode || "sum"}
-                          onValueChange={(v) => setEditProduct((p) => ({ ...p, combo_pricing_mode: v }))}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sum">Suma de componentes</SelectItem>
-                            <SelectItem value="fixed">Precio combo fijo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {editProduct?.combo_pricing_mode === "fixed" && (
-                        <div>
-                          <label className="text-xs uppercase text-muted-foreground">Precio combo</label>
-                          <Input
-                            type="number"
-                            value={editProduct?.combo_price ?? ""}
-                            onChange={(e) => setEditProduct((p) => ({ ...p, combo_price: e.target.value ? Number(e.target.value) : null }))}
-                          />
-                        </div>
-                      )}
+            {/* Combo (independiente de preventa: un producto puede ser combo + preventa) */}
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-heading">
+                <input
+                  type="checkbox"
+                  checked={!!editProduct?.is_combo}
+                  onChange={(e) => setEditProduct((p) => ({ ...p, is_combo: e.target.checked }))}
+                />
+                Es un combo
+              </label>
+              {editProduct?.is_combo && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs uppercase text-muted-foreground">Modo de precio</label>
+                      <Select
+                        value={editProduct?.combo_pricing_mode || "sum"}
+                        onValueChange={(v) => setEditProduct((p) => ({ ...p, combo_pricing_mode: v }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sum">Suma de componentes</SelectItem>
+                          <SelectItem value="fixed">Precio combo fijo</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {editProduct?.id && <ComboItemsEditor comboId={editProduct.id} isPreorder={!!editProduct?.is_preorder} />}
-                    {!editProduct?.id && (
-                      <p className="text-xs text-muted-foreground">Guardá primero el producto para poder cargar componentes.</p>
+                    {editProduct?.combo_pricing_mode === "fixed" && (
+                      <div>
+                        <label className="text-xs uppercase text-muted-foreground">Precio combo</label>
+                        <Input
+                          type="number"
+                          value={editProduct?.combo_price ?? ""}
+                          onChange={(e) => setEditProduct((p) => ({ ...p, combo_price: e.target.value ? Number(e.target.value) : null }))}
+                        />
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            )}
+                  <ComboItemsEditor
+                    comboId={editProduct?.id || null}
+                    isPreorder={!!editProduct?.is_preorder}
+                    draftItems={comboDraft}
+                    onDraftChange={setComboDraft}
+                  />
+                </div>
+              )}
+            </div>
+
+
 
             {/* Preventa */}
             <div className="rounded-lg border border-border p-3 space-y-3">
