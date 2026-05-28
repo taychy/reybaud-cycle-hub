@@ -66,6 +66,7 @@ const StoreProducts = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [comboDraft, setComboDraft] = useState<ComboItem[]>([]);
   const { toast } = useToast();
 
   const load = async () => {
