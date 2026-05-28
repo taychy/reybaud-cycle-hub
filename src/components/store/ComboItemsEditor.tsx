@@ -165,20 +165,28 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
               </label>
             </div>
           </div>
-
           {item.component_product_id === null && (
             <>
               <VariantsEditor
                 value={item.internal_variants}
                 onChange={(v) => updateItem(item.id!, { internal_variants: v })}
               />
-              <VariantStockEditor
-                variants={item.internal_variants}
-                stock={item.internal_stock || {}}
-                onChange={(s) => updateItem(item.id!, { internal_stock: s })}
-              />
+              {!isPreorder && (
+                <VariantStockEditor
+                  variants={item.internal_variants}
+                  stock={item.internal_stock || {}}
+                  onChange={(s) => updateItem(item.id!, { internal_stock: s })}
+                />
+              )}
             </>
           )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default ComboItemsEditor;
         </div>
       ))}
     </div>
