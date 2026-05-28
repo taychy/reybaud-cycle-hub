@@ -452,52 +452,54 @@ const StoreProducts = () => {
               </div>
             )}
 
-            {/* Combo */}
-            {!editProduct?.is_preorder && (
-              <div className="rounded-lg border border-border p-3 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-heading">
-                  <input
-                    type="checkbox"
-                    checked={!!editProduct?.is_combo}
-                    onChange={(e) => setEditProduct((p) => ({ ...p, is_combo: e.target.checked }))}
-                  />
-                  Es un combo
-                </label>
-                {editProduct?.is_combo && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs uppercase text-muted-foreground">Modo de precio</label>
-                        <Select
-                          value={editProduct?.combo_pricing_mode || "sum"}
-                          onValueChange={(v) => setEditProduct((p) => ({ ...p, combo_pricing_mode: v }))}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sum">Suma de componentes</SelectItem>
-                            <SelectItem value="fixed">Precio combo fijo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {editProduct?.combo_pricing_mode === "fixed" && (
-                        <div>
-                          <label className="text-xs uppercase text-muted-foreground">Precio combo</label>
-                          <Input
-                            type="number"
-                            value={editProduct?.combo_price ?? ""}
-                            onChange={(e) => setEditProduct((p) => ({ ...p, combo_price: e.target.value ? Number(e.target.value) : null }))}
-                          />
-                        </div>
-                      )}
+            {/* Combo (independiente de preventa: un producto puede ser combo + preventa) */}
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-heading">
+                <input
+                  type="checkbox"
+                  checked={!!editProduct?.is_combo}
+                  onChange={(e) => setEditProduct((p) => ({ ...p, is_combo: e.target.checked }))}
+                />
+                Es un combo
+              </label>
+              {editProduct?.is_combo && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs uppercase text-muted-foreground">Modo de precio</label>
+                      <Select
+                        value={editProduct?.combo_pricing_mode || "sum"}
+                        onValueChange={(v) => setEditProduct((p) => ({ ...p, combo_pricing_mode: v }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sum">Suma de componentes</SelectItem>
+                          <SelectItem value="fixed">Precio combo fijo</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {editProduct?.id && <ComboItemsEditor comboId={editProduct.id} isPreorder={!!editProduct?.is_preorder} />}
-                    {!editProduct?.id && (
-                      <p className="text-xs text-muted-foreground">Guardá primero el producto para poder cargar componentes.</p>
+                    {editProduct?.combo_pricing_mode === "fixed" && (
+                      <div>
+                        <label className="text-xs uppercase text-muted-foreground">Precio combo</label>
+                        <Input
+                          type="number"
+                          value={editProduct?.combo_price ?? ""}
+                          onChange={(e) => setEditProduct((p) => ({ ...p, combo_price: e.target.value ? Number(e.target.value) : null }))}
+                        />
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            )}
+                  <ComboItemsEditor
+                    comboId={editProduct?.id || null}
+                    isPreorder={!!editProduct?.is_preorder}
+                    draftItems={comboDraft}
+                    onDraftChange={setComboDraft}
+                  />
+                </div>
+              )}
+            </div>
+
+
 
             {/* Preventa */}
             <div className="rounded-lg border border-border p-3 space-y-3">
