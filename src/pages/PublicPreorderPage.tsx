@@ -13,6 +13,7 @@ const PublicPreorderPage = () => {
   const [loading, setLoading] = useState(true);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [reservedUnits, setReservedUnits] = useState<number>(0);
+  const [comboItems, setComboItems] = useState<any[]>([]);
   const [openReserve, setOpenReserve] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,23 @@ const PublicPreorderPage = () => {
       setProduct(pRes.data);
       const { data: r } = await supabase.rpc("get_preorder_reserved_units" as any, { p_product_id: productId });
       setReservedUnits(typeof r === "number" ? r : 0);
+      if ((pRes.data as any)?.is_combo) {
+        const { data: items } = await supabase
+          .from("store_combo_items" as any)
+          .select("id, component_product_id, internal_name, precio_individual, internal_price, obligatorio, sort_order")
+          .eq("combo_id", productId!)
+          .order("sort_order");
+        const resolved: any[] = [];
+        for (const it of (items || []) as any[]) {
+          let name = it.internal_name;
+          if (it.component_product_id) {
+            const { data: cp } = await supabase.from("store_products").select("name").eq("id", it.component_product_id).maybeSingle();
+            name = cp?.name || "Componente";
+          }
+          resolved.push({ ...it, display_name: name });
+        }
+        setComboItems(resolved);
+      }
       const uid = sess.data.user?.id;
       if (uid) {
         const { data: al } = await supabase.from("alumnos").select("id").eq("user_id", uid).maybeSingle();
@@ -101,6 +119,26 @@ const PublicPreorderPage = () => {
 
         {product.preorder_description && (
           <p className="text-sm text-muted-foreground whitespace-pre-line">{product.preorder_description}</p>
+        )}
+
+        {product.is_combo && comboItems.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <h3 className="text-sm font-heading font-bold uppercase tracking-wider">Incluye</h3>
+            <ul className="divide-y divide-border">
+              {comboItems.map((it) => (
+                <li key={it.id} className="py-2 flex justify-between items-center text-sm">
+                  <span>
+                    {it.display_name}
+                    {!it.obligatorio && <span className="ml-1 text-[10px] text-muted-foreground">(opcional)</span>}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {formatPrice(Number(it.precio_individual || it.internal_price || 0), product.currency || "ARS")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-muted-foreground">Podés reservar el combo completo o solo las prendas que quieras.</p>
+          </div>
         )}
 
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2 text-sm">
