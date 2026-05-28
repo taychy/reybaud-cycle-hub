@@ -127,17 +127,27 @@ const StoreProducts = () => {
       preorder_estimated_delivery: editProduct.preorder_estimated_delivery || null,
       preorder_status: editProduct.preorder_status || "abierta",
       preorder_variants: editProduct.preorder_variants || [],
+      variants: editProduct.variants || [],
+      variant_stock: editProduct.variant_stock || {},
+      checkout_mode: editProduct.checkout_mode || "tienda_nube",
+      external_url: editProduct.external_url || null,
+      is_combo: editProduct.is_combo || false,
+      combo_pricing_mode: editProduct.combo_pricing_mode || "sum",
+      combo_price: editProduct.combo_price ?? null,
+      sena_mode: editProduct.sena_mode || null,
+      sena_valor: editProduct.sena_valor ?? null,
     };
 
     if (editProduct.id) {
       await supabase.from("store_products").update(payload as any).eq("id", editProduct.id);
       toast({ title: "Producto actualizado" });
     } else {
-      await supabase.from("store_products").insert(payload as any);
-      toast({ title: "Producto creado" });
+      const { data } = await supabase.from("store_products").insert(payload as any).select().single();
+      if (data) setEditProduct({ ...editProduct, id: data.id });
+      toast({ title: "Producto creado", description: "Ya podés cargar sus variantes y/o componentes." });
     }
     setSaving(false);
-    setDialogOpen(false);
+    if (editProduct.id) setDialogOpen(false);
     load();
   };
 
