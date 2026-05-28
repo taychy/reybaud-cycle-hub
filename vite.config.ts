@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => ({
       injectRegister: "auto",
       includeAssets: ["favicon.png", "favicon.ico"],
       workbox: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Excluimos /~oauth y la ruta de chequeo de actualización para que
         // SIEMPRE pasen por la red (sin pasar por el SW cacheado).
         navigateFallbackDenylist: [/^\/~oauth/, /^\/__update_check/],

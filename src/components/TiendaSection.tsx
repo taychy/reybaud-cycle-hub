@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, ShoppingCart, Bell, ChevronRight, Tag, Flame, Star, Sparkles, Clock, Percent, ExternalLink } from "lucide-react";
+import { Search, ShoppingCart, Bell, ChevronRight, Tag, Flame, Star, Sparkles, Clock, Percent, ExternalLink, CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 
 // Fallback images
 import jerseyImg from "@/assets/store/jersey.jpg";
@@ -10,12 +11,23 @@ import bannerImg from "@/assets/store/banner-promo.jpg";
 
 const STORE_URL = "https://ciclismoreybaud.mitiendanube.com/";
 
-type StoreProduct = Tables<"store_products">;
+type StoreProduct = Tables<"store_products"> & {
+  is_preorder?: boolean;
+  preorder_status?: string;
+  preorder_deadline?: string | null;
+  preorder_total_units?: number | null;
+  preorder_estimated_delivery?: string | null;
+  preorder_description?: string | null;
+  preorder_deposit_amount?: number | null;
+  preorder_deposit_percent?: number | null;
+  preorder_variants?: any;
+  currency?: string | null;
+};
 type StoreCategory = Tables<"store_categories">;
 type StoreBanner = Tables<"store_banners">;
 
-const formatPrice = (n: number) =>
-  "$" + n.toLocaleString("es-AR");
+const formatPrice = (n: number, cur: string = "ARS") =>
+  (cur === "ARS" ? "$" : cur + " ") + n.toLocaleString("es-AR");
 
 const tagColor = (tag: string) => {
   switch (tag?.toUpperCase()) {
@@ -27,42 +39,62 @@ const tagColor = (tag: string) => {
   }
 };
 
-const ProductCard = ({ product }: { product: StoreProduct }) => (
-  <a
-    href={STORE_URL}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
-  >
-    <div className="relative aspect-square bg-secondary overflow-hidden">
-      <img
-        src={product.image_url || jerseyImg}
-        alt={product.name}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        loading="lazy"
-      />
-      {product.tag && (
-        <span className={`absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(product.tag)}`}>
-          {product.tag}
-        </span>
-      )}
-      {product.discount && product.discount > 0 && (
-        <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
-          -{product.discount}%
-        </span>
-      )}
-    </div>
-    <div className="p-3 flex-1 flex flex-col gap-1">
-      <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{product.name}</p>
-      <div className="mt-auto">
-        {product.old_price && (
-          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(product.old_price)}</p>
+const ProductCard = ({ product, onReserve }: { product: StoreProduct; onReserve?: (p: StoreProduct) => void }) => {
+  const isPreorder = product.is_preorder && product.preorder_status === "abierta";
+  const Wrapper: any = isPreorder ? "div" : "a";
+  const wrapperProps = isPreorder
+    ? { className: "group flex flex-col rounded-xl border border-primary/40 bg-card overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10" }
+    : { href: STORE_URL, target: "_blank", rel: "noopener noreferrer", className: "group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10" };
+  return (
+    <Wrapper {...wrapperProps}>
+      <div className="relative aspect-square bg-secondary overflow-hidden">
+        <img
+          src={product.image_url || jerseyImg}
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+        {isPreorder ? (
+          <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">
+            Preventa
+          </span>
+        ) : product.tag ? (
+          <span className={`absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(product.tag)}`}>
+            {product.tag}
+          </span>
+        ) : null}
+        {product.discount && product.discount > 0 && (
+          <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+            -{product.discount}%
+          </span>
         )}
-        <p className="text-sm font-heading font-bold text-foreground">{formatPrice(product.price)}</p>
       </div>
-    </div>
-  </a>
-);
+      <div className="p-3 flex-1 flex flex-col gap-1">
+        <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{product.name}</p>
+        {isPreorder && product.preorder_deadline && (
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <CalendarClock className="w-3 h-3" /> hasta {new Date(product.preorder_deadline).toLocaleDateString("es-AR")}
+          </p>
+        )}
+        <div className="mt-auto">
+          {product.old_price && !isPreorder && (
+            <p className="text-[10px] text-muted-foreground line-through">{formatPrice(product.old_price)}</p>
+          )}
+          <p className="text-sm font-heading font-bold text-foreground">{formatPrice(product.price, product.currency || "ARS")}</p>
+          {isPreorder && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); onReserve?.(product); }}
+              className="mt-2 w-full text-[11px] font-heading font-bold uppercase tracking-wider bg-primary text-primary-foreground py-1.5 rounded hover:opacity-90 transition-opacity"
+            >
+              Reservar
+            </button>
+          )}
+        </div>
+      </div>
+    </Wrapper>
+  );
+};
 
 const QUICK_ACCESS = [
   { label: "Ofertas", icon: Percent, color: "text-primary", filterTag: "OFERTA" },
@@ -79,22 +111,36 @@ const TiendaSection = () => {
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [banners, setBanners] = useState<StoreBanner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alumnoId, setAlumnoId] = useState<string | null>(null);
+  const [reserveProduct, setReserveProduct] = useState<StoreProduct | null>(null);
   const catRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [productsRes, categoriesRes, bannersRes] = await Promise.all([
+      const [productsRes, categoriesRes, bannersRes, sess] = await Promise.all([
         supabase.from("store_products").select("*").eq("status", "active").order("featured_order", { ascending: true, nullsFirst: false }),
         supabase.from("store_categories").select("*").eq("active", true).order("sort_order"),
         supabase.from("store_banners").select("*").eq("active", true).order("sort_order").limit(1),
+        supabase.auth.getUser(),
       ]);
       setProducts(productsRes.data || []);
       setCategories(categoriesRes.data || []);
       setBanners(bannersRes.data || []);
+      const uid = sess.data.user?.id;
+      if (uid) {
+        const { data: al } = await supabase.from("alumnos").select("id").eq("user_id", uid).maybeSingle();
+        setAlumnoId(al?.id || null);
+      }
       setLoading(false);
     };
     load();
   }, []);
+
+  const handleReserve = (p: StoreProduct) => {
+    if (!alumnoId) return;
+    setReserveProduct(p);
+  };
+
 
   const filtered = products.filter((p) => {
     const matchCat = activeCategory === "Todos" || categories.find(c => c.id === p.category_id)?.name === activeCategory;
@@ -211,7 +257,7 @@ const TiendaSection = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {featured.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} onReserve={handleReserve} />
             ))}
           </div>
         </section>
@@ -228,7 +274,7 @@ const TiendaSection = () => {
         {filtered.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} onReserve={handleReserve} />
             ))}
           </div>
         ) : (
@@ -253,6 +299,13 @@ const TiendaSection = () => {
       </a>
 
       <div className="h-4" />
+
+      <PreorderReserveDialog
+        open={!!reserveProduct}
+        onOpenChange={(v) => !v && setReserveProduct(null)}
+        product={reserveProduct as any}
+        alumnoId={alumnoId}
+      />
     </div>
   );
 };

@@ -44,6 +44,7 @@ const storeItems: NavItem[] = [
   { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
   { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
   { to: "/admin/tienda/pedidos", label: "Pedidos", icon: Boxes },
+  { to: "/admin/tienda/preventas", label: "Preventas", icon: CalendarClock },
   { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
   { to: "/admin/tienda/banners", label: "Banners", icon: Image },
   { to: "/admin/tienda/stock", label: "Stock", icon: Package },

@@ -55,6 +55,7 @@ import StoreDashboard from "./pages/admin/store/StoreDashboard";
 import StoreProducts from "./pages/admin/store/StoreProducts";
 import StoreCategories from "./pages/admin/store/StoreCategories";
 import StoreOrders from "./pages/admin/store/StoreOrders";
+import StorePreorders from "./pages/admin/store/StorePreorders";
 import StorePromotions from "./pages/admin/store/StorePromotions";
 import StoreBanners from "./pages/admin/store/StoreBanners";
 import StoreStock from "./pages/admin/store/StoreStock";
@@ -163,6 +164,7 @@ const App = () => (
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
             <Route path="tienda/pedidos" element={<StoreOrders />} />
+            <Route path="tienda/preventas" element={<StorePreorders />} />
             <Route path="tienda/promociones" element={<StorePromotions />} />
             <Route path="tienda/banners" element={<StoreBanners />} />
             <Route path="tienda/stock" element={<StoreStock />} />
