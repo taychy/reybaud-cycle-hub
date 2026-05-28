@@ -11,8 +11,11 @@ const PublicPreorderPage = () => {
   const navigate = useNavigate();
   const [product, setProduct] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [reservedUnits, setReservedUnits] = useState<number>(0);
+  const [comboItems, setComboItems] = useState<any[]>([]);
   const [openReserve, setOpenReserve] = useState(false);
 
   useEffect(() => {
@@ -24,6 +27,23 @@ const PublicPreorderPage = () => {
       setProduct(pRes.data);
       const { data: r } = await supabase.rpc("get_preorder_reserved_units" as any, { p_product_id: productId });
       setReservedUnits(typeof r === "number" ? r : 0);
+      if ((pRes.data as any)?.is_combo) {
+        const { data: items } = await supabase
+          .from("store_combo_items" as any)
+          .select("id, component_product_id, internal_name, precio_individual, internal_price, obligatorio, sort_order")
+          .eq("combo_id", productId!)
+          .order("sort_order");
+        const resolved: any[] = [];
+        for (const it of (items || []) as any[]) {
+          let name = it.internal_name;
+          if (it.component_product_id) {
+            const { data: cp } = await supabase.from("store_products").select("name").eq("id", it.component_product_id).maybeSingle();
+            name = cp?.name || "Componente";
+          }
+          resolved.push({ ...it, display_name: name });
+        }
+        setComboItems(resolved);
+      }
       const uid = sess.data.user?.id;
       if (uid) {
         const { data: al } = await supabase.from("alumnos").select("id").eq("user_id", uid).maybeSingle();
@@ -33,8 +53,6 @@ const PublicPreorderPage = () => {
     };
     if (productId) load();
   }, [productId]);
-
-  if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Cargando...</div>;
   }
 
