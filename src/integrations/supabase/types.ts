@@ -1849,6 +1849,7 @@ export type Database = {
           fecha_emision: string | null
           id: string
           metodo_pago: string | null
+          moneda: string
           monto: number
           numero_comprobante: string | null
           origen_registro: string | null
@@ -1872,6 +1873,7 @@ export type Database = {
           fecha_emision?: string | null
           id?: string
           metodo_pago?: string | null
+          moneda?: string
           monto: number
           numero_comprobante?: string | null
           origen_registro?: string | null
@@ -1895,6 +1897,7 @@ export type Database = {
           fecha_emision?: string | null
           id?: string
           metodo_pago?: string | null
+          moneda?: string
           monto?: number
           numero_comprobante?: string | null
           origen_registro?: string | null
