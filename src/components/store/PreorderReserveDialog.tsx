@@ -333,20 +333,30 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
           {isCombo ? (
             <Tabs value={modalidad} onValueChange={(v) => setModalidad(v as any)}>
               <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="combo">Combo completo</TabsTrigger>
-                <TabsTrigger value="split">Por separado</TabsTrigger>
-              </TabsList>
               <TabsContent value="combo" className="space-y-2 mt-3">
                 <p className="text-[11px] text-muted-foreground">
                   Reservás todas las prendas del combo. {product.combo_pricing_mode === "fixed" ? "Precio fijo de combo." : "Suma de los precios individuales."}
                 </p>
-                {comboItems.filter((i) => i.obligatorio).map((it) => (
+                {comboItems.length === 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px] text-destructive flex items-start gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>Este combo aún no tiene componentes cargados. Pedile al admin que los configure antes de reservar.</span>
+                  </div>
+                )}
+                {comboItems.map((it) => (
                   <div key={it.id} className="rounded-md border border-border p-2 bg-card">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">{it.display_name}</span>
+                      <span className="text-sm font-medium">
+                        {it.display_name}
+                        {!it.obligatorio && <span className="ml-1 text-[10px] text-muted-foreground">(opcional)</span>}
+                      </span>
                       <span className="text-xs text-muted-foreground">{formatPrice(Number(it.precio_individual || it.internal_price || 0), moneda)}</span>
                     </div>
-                    {renderItemVariants(it)}
+                    {it.obligatorio && renderItemVariants(it)}
+                  </div>
+                ))}
+              </TabsContent>
+
                   </div>
                 ))}
               </TabsContent>
