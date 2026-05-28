@@ -74,8 +74,24 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
   const [comboVariants, setComboVariants] = useState<Record<string, Record<string, string>>>({}); // key -> {var:val}
   const [splitSelected, setSplitSelected] = useState<Record<string, boolean>>({});
 
+  // delivery state
+  const [sedes, setSedes] = useState<Sede[]>([]);
+  const [entregaMetodo, setEntregaMetodo] = useState<"retiro_sede" | "envio_moto">("retiro_sede");
+  const [sedeRetiroId, setSedeRetiroId] = useState<string>("");
+  const [envioDireccion, setEnvioDireccion] = useState("");
+  const [envioContacto, setEnvioContacto] = useState("");
+  const [envioNotas, setEnvioNotas] = useState("");
+
   const moneda = product?.currency || "ARS";
   const isCombo = !!product?.is_combo;
+
+  const deliveryMethods: string[] = Array.isArray(product?.delivery_methods) && product?.delivery_methods?.length
+    ? (product.delivery_methods as string[])
+    : ["retiro_sede"];
+  const pickupSedeIds: string[] = Array.isArray(product?.pickup_sede_ids) ? (product?.pickup_sede_ids as string[]) : [];
+  const availableSedes = pickupSedeIds.length > 0
+    ? sedes.filter((s) => pickupSedeIds.includes(s.id))
+    : sedes;
 
   const variantSpecs: { name: string; options: string[] }[] = Array.isArray(product?.preorder_variants)
     ? (product?.preorder_variants as any[]).filter((v) => v?.name && Array.isArray(v?.options) && v.options.length > 0)
