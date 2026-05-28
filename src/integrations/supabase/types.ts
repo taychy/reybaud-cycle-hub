@@ -4140,7 +4140,13 @@ export type Database = {
           cancelada_motivo: string | null
           cantidad: number
           created_at: string
+          entrega_metodo: string | null
           entregada_at: string | null
+          envio_contacto: string | null
+          envio_costo: number | null
+          envio_direccion: string | null
+          envio_estado: string | null
+          envio_notas: string | null
           estado: string
           estado_pago_sena: string
           forma_pago_sena: string | null
@@ -4157,6 +4163,7 @@ export type Database = {
           product_id: string
           producto_nombre: string
           saldo_pendiente: number
+          sede_retiro_id: string | null
           sena_monto: number
           sena_pagada_at: string | null
           updated_at: string
@@ -4168,7 +4175,13 @@ export type Database = {
           cancelada_motivo?: string | null
           cantidad?: number
           created_at?: string
+          entrega_metodo?: string | null
           entregada_at?: string | null
+          envio_contacto?: string | null
+          envio_costo?: number | null
+          envio_direccion?: string | null
+          envio_estado?: string | null
+          envio_notas?: string | null
           estado?: string
           estado_pago_sena?: string
           forma_pago_sena?: string | null
@@ -4185,6 +4198,7 @@ export type Database = {
           product_id: string
           producto_nombre: string
           saldo_pendiente: number
+          sede_retiro_id?: string | null
           sena_monto: number
           sena_pagada_at?: string | null
           updated_at?: string
@@ -4196,7 +4210,13 @@ export type Database = {
           cancelada_motivo?: string | null
           cantidad?: number
           created_at?: string
+          entrega_metodo?: string | null
           entregada_at?: string | null
+          envio_contacto?: string | null
+          envio_costo?: number | null
+          envio_direccion?: string | null
+          envio_estado?: string | null
+          envio_notas?: string | null
           estado?: string
           estado_pago_sena?: string
           forma_pago_sena?: string | null
@@ -4213,6 +4233,7 @@ export type Database = {
           product_id?: string
           producto_nombre?: string
           saldo_pendiente?: number
+          sede_retiro_id?: string | null
           sena_monto?: number
           sena_pagada_at?: string | null
           updated_at?: string
@@ -4226,6 +4247,13 @@ export type Database = {
             referencedRelation: "store_products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "store_preorders_sede_retiro_id_fkey"
+            columns: ["sede_retiro_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       store_products: {
@@ -4236,6 +4264,7 @@ export type Database = {
           combo_pricing_mode: string
           created_at: string
           currency: string
+          delivery_methods: Json
           description: string | null
           discount: number | null
           external_url: string | null
@@ -4248,6 +4277,7 @@ export type Database = {
           min_stock: number
           name: string
           old_price: number | null
+          pickup_sede_ids: string[]
           preorder_deadline: string | null
           preorder_deposit_amount: number | null
           preorder_deposit_percent: number | null
@@ -4274,6 +4304,7 @@ export type Database = {
           combo_pricing_mode?: string
           created_at?: string
           currency?: string
+          delivery_methods?: Json
           description?: string | null
           discount?: number | null
           external_url?: string | null
@@ -4286,6 +4317,7 @@ export type Database = {
           min_stock?: number
           name: string
           old_price?: number | null
+          pickup_sede_ids?: string[]
           preorder_deadline?: string | null
           preorder_deposit_amount?: number | null
           preorder_deposit_percent?: number | null
@@ -4312,6 +4344,7 @@ export type Database = {
           combo_pricing_mode?: string
           created_at?: string
           currency?: string
+          delivery_methods?: Json
           description?: string | null
           discount?: number | null
           external_url?: string | null
@@ -4324,6 +4357,7 @@ export type Database = {
           min_stock?: number
           name?: string
           old_price?: number | null
+          pickup_sede_ids?: string[]
           preorder_deadline?: string | null
           preorder_deposit_amount?: number | null
           preorder_deposit_percent?: number | null

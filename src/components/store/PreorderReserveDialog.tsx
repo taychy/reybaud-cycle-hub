@@ -27,6 +27,15 @@ interface Product {
   is_combo?: boolean | null;
   combo_pricing_mode?: string | null;
   combo_price?: number | null;
+  delivery_methods?: string[] | null;
+  pickup_sede_ids?: string[] | null;
+}
+
+interface Sede {
+  id: string;
+  nombre: string;
+  direccion?: string | null;
+  ciudad?: string | null;
 }
 
 interface ComboItem {
@@ -65,8 +74,24 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
   const [comboVariants, setComboVariants] = useState<Record<string, Record<string, string>>>({}); // key -> {var:val}
   const [splitSelected, setSplitSelected] = useState<Record<string, boolean>>({});
 
+  // delivery state
+  const [sedes, setSedes] = useState<Sede[]>([]);
+  const [entregaMetodo, setEntregaMetodo] = useState<"retiro_sede" | "envio_moto">("retiro_sede");
+  const [sedeRetiroId, setSedeRetiroId] = useState<string>("");
+  const [envioDireccion, setEnvioDireccion] = useState("");
+  const [envioContacto, setEnvioContacto] = useState("");
+  const [envioNotas, setEnvioNotas] = useState("");
+
   const moneda = product?.currency || "ARS";
   const isCombo = !!product?.is_combo;
+
+  const deliveryMethods: string[] = Array.isArray(product?.delivery_methods) && product?.delivery_methods?.length
+    ? (product.delivery_methods as string[])
+    : ["retiro_sede"];
+  const pickupSedeIds: string[] = Array.isArray(product?.pickup_sede_ids) ? (product?.pickup_sede_ids as string[]) : [];
+  const availableSedes = pickupSedeIds.length > 0
+    ? sedes.filter((s) => pickupSedeIds.includes(s.id))
+    : sedes;
 
   const variantSpecs: { name: string; options: string[] }[] = Array.isArray(product?.preorder_variants)
     ? (product?.preorder_variants as any[]).filter((v) => v?.name && Array.isArray(v?.options) && v.options.length > 0)
@@ -81,6 +106,18 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     setModalidad("combo");
     setComboVariants({});
     setSplitSelected({});
+
+    const initialMethod = (Array.isArray(product.delivery_methods) && product.delivery_methods.length
+      ? (product.delivery_methods as string[])
+      : ["retiro_sede"])[0] as "retiro_sede" | "envio_moto";
+    setEntregaMetodo(initialMethod);
+    setSedeRetiroId("");
+    setEnvioDireccion("");
+    setEnvioContacto("");
+    setEnvioNotas("");
+
+    supabase.from("sedes").select("id, nombre, direccion, ciudad").eq("activa", true).order("nombre")
+      .then(({ data }) => setSedes((data as any[]) || []));
 
     supabase.rpc("get_preorder_reserved_units" as any, { p_product_id: product.id }).then(({ data }) => {
       setReservedUnits(typeof data === "number" ? data : 0);
@@ -200,6 +237,23 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       }
     }
 
+    // Validar entrega
+    if (entregaMetodo === "retiro_sede") {
+      if (availableSedes.length > 0 && !sedeRetiroId) {
+        toast({ title: "Elegí sede de retiro", variant: "destructive" });
+        return;
+      }
+    } else if (entregaMetodo === "envio_moto") {
+      if (!envioDireccion.trim()) {
+        toast({ title: "Falta dirección de envío", variant: "destructive" });
+        return;
+      }
+      if (!envioContacto.trim()) {
+        toast({ title: "Falta teléfono de contacto", variant: "destructive" });
+        return;
+      }
+    }
+
     // Build items[] payload
     const itemsPayload = isCombo
       ? comboItems
@@ -233,6 +287,12 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
         notas: notas || null,
         modalidad: isCombo ? modalidad : "individual",
         items: itemsPayload,
+        entrega_metodo: entregaMetodo,
+        sede_retiro_id: entregaMetodo === "retiro_sede" ? (sedeRetiroId || null) : null,
+        envio_direccion: entregaMetodo === "envio_moto" ? envioDireccion : null,
+        envio_contacto: entregaMetodo === "envio_moto" ? envioContacto : null,
+        envio_notas: entregaMetodo === "envio_moto" ? (envioNotas || null) : null,
+        envio_estado: entregaMetodo === "envio_moto" ? "a_cotizar" : null,
       } as any)
       .select("id")
       .single();
@@ -394,6 +454,69 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
           ) : (
             <p className="text-[11px] text-muted-foreground italic">Este producto no requiere selección de variante.</p>
           )}
+
+          {/* Entrega */}
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <label className="text-xs font-heading uppercase text-muted-foreground">¿Cómo querés recibirlo?</label>
+            <div className="grid grid-cols-2 gap-2">
+              {deliveryMethods.includes("retiro_sede") && (
+                <button
+                  type="button"
+                  onClick={() => setEntregaMetodo("retiro_sede")}
+                  className={`text-xs px-2 py-2 rounded border ${entregaMetodo === "retiro_sede" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                >
+                  Retiro en sede
+                </button>
+              )}
+              {deliveryMethods.includes("envio_moto") && (
+                <button
+                  type="button"
+                  onClick={() => setEntregaMetodo("envio_moto")}
+                  className={`text-xs px-2 py-2 rounded border ${entregaMetodo === "envio_moto" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                >
+                  Envío por moto
+                </button>
+              )}
+            </div>
+
+            {entregaMetodo === "retiro_sede" && availableSedes.length > 0 && (
+              <div>
+                <label className="text-[10px] font-heading uppercase text-muted-foreground">Sede de retiro</label>
+                <Select value={sedeRetiroId} onValueChange={setSedeRetiroId}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Elegí sede" /></SelectTrigger>
+                  <SelectContent>
+                    {availableSedes.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}{s.ciudad ? ` · ${s.ciudad}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {entregaMetodo === "retiro_sede" && availableSedes.length === 0 && (
+              <p className="text-[11px] text-muted-foreground italic">Te avisamos cuándo y dónde retirar.</p>
+            )}
+
+            {entregaMetodo === "envio_moto" && (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[10px] font-heading uppercase text-muted-foreground">Dirección de entrega</label>
+                  <Input value={envioDireccion} onChange={(e) => setEnvioDireccion(e.target.value)} placeholder="Calle, número, piso/depto, localidad" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-heading uppercase text-muted-foreground">Teléfono de contacto</label>
+                  <Input value={envioContacto} onChange={(e) => setEnvioContacto(e.target.value)} placeholder="Cel del que recibe" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-heading uppercase text-muted-foreground">Referencias (opcional)</label>
+                  <Textarea rows={2} value={envioNotas} onChange={(e) => setEnvioNotas(e.target.value)} placeholder="Horarios, indicaciones, etc." />
+                </div>
+                <p className="text-[11px] text-muted-foreground">El costo del envío lo coordinamos por WhatsApp según la zona.</p>
+              </div>
+            )}
+          </div>
+
 
           <div>
             <label className="text-xs font-heading uppercase text-muted-foreground">Forma de pago de la seña</label>
