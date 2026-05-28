@@ -144,7 +144,6 @@ const StoreProducts = () => {
         : ["retiro_sede"],
       pickup_sede_ids: Array.isArray(editProduct.pickup_sede_ids) ? editProduct.pickup_sede_ids : [],
     };
-    };
     if (editProduct.id) {
       await supabase.from("store_products").update(payload as any).eq("id", editProduct.id);
       toast({ title: "Producto actualizado" });
