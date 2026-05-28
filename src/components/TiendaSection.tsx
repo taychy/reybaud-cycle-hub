@@ -111,22 +111,36 @@ const TiendaSection = () => {
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [banners, setBanners] = useState<StoreBanner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alumnoId, setAlumnoId] = useState<string | null>(null);
+  const [reserveProduct, setReserveProduct] = useState<StoreProduct | null>(null);
   const catRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [productsRes, categoriesRes, bannersRes] = await Promise.all([
+      const [productsRes, categoriesRes, bannersRes, sess] = await Promise.all([
         supabase.from("store_products").select("*").eq("status", "active").order("featured_order", { ascending: true, nullsFirst: false }),
         supabase.from("store_categories").select("*").eq("active", true).order("sort_order"),
         supabase.from("store_banners").select("*").eq("active", true).order("sort_order").limit(1),
+        supabase.auth.getUser(),
       ]);
       setProducts(productsRes.data || []);
       setCategories(categoriesRes.data || []);
       setBanners(bannersRes.data || []);
+      const uid = sess.data.user?.id;
+      if (uid) {
+        const { data: al } = await supabase.from("alumnos").select("id").eq("user_id", uid).maybeSingle();
+        setAlumnoId(al?.id || null);
+      }
       setLoading(false);
     };
     load();
   }, []);
+
+  const handleReserve = (p: StoreProduct) => {
+    if (!alumnoId) return;
+    setReserveProduct(p);
+  };
+
 
   const filtered = products.filter((p) => {
     const matchCat = activeCategory === "Todos" || categories.find(c => c.id === p.category_id)?.name === activeCategory;
