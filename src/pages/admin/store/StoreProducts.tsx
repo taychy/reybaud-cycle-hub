@@ -170,7 +170,6 @@ const StoreProducts = () => {
     if (editProduct.id) setDialogOpen(false);
     load();
   };
-  };
 
   const handleDelete = async (force = false) => {
     if (!deleteId) return;
