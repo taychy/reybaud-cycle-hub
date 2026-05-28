@@ -21,6 +21,7 @@ import {
   ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 type Suscripcion = {
@@ -777,6 +778,23 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Enviar recordatorio</TooltipContent>
                                 </Tooltip>
+                                {status === "pagado" && sub.planes && (
+                                  <BillingInvoiceLauncher
+                                    source={{
+                                      alumno_id: sub.alumno_id,
+                                      cliente_nombre: [sub.alumnos?.nombre, sub.alumnos?.apellido].filter(Boolean).join(" "),
+                                      concepto: `Suscripción ${sub.planes.nombre}`,
+                                      monto: sub.planes.precio,
+                                      referencia_tipo: "suscripcion",
+                                      referencia_id: sub.id,
+                                      segmento: "escuela",
+                                      metodo_pago: sub.metodo_pago,
+                                      origen_registro: sub.origen_registro,
+                                    }}
+                                    variant="icon"
+                                    onEmitted={fetchData}
+                                  />
+                                )}
                               </div>
                             </TooltipProvider>
                           </TableCell>

@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BillingKPIs } from "./BillingKPIs";
 import { BillingList } from "./BillingList";
 import { BillingEmisores } from "./BillingEmisores";
+import { PendingPaymentsList } from "./PendingPaymentsList";
 import { BillingEmisorSummary } from "./BillingEmisorSummary";
 import { InvoiceModal } from "./InvoiceModal";
 import { ManualInvoiceButton } from "./ManualInvoiceButton";
@@ -106,8 +107,9 @@ export default function AdminBilling() {
 
       <BillingEmisorSummary refreshKey={summaryKey} />
 
-      <Tabs defaultValue="pendientes" className="space-y-4">
+      <Tabs defaultValue="pagos_sin_facturar" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="pagos_sin_facturar">Pagos sin facturar</TabsTrigger>
           <TabsTrigger value="pendientes">
             Pendientes {pendientes.length > 0 && `(${pendientes.length})`}
           </TabsTrigger>
@@ -117,6 +119,10 @@ export default function AdminBilling() {
           <TabsTrigger value="todos">Todos</TabsTrigger>
           <TabsTrigger value="emisores">Emisores</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pagos_sin_facturar">
+          <PendingPaymentsList />
+        </TabsContent>
 
         <TabsContent value="pendientes">
           <BillingList
