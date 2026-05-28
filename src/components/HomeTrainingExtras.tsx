@@ -19,7 +19,7 @@ interface Props {
 
 
 
-const HomeTrainingExtras = ({ alumnoId }: Props) => {
+const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
   const [featured, setFeatured] = useState<StoreProduct[]>([]);
 
