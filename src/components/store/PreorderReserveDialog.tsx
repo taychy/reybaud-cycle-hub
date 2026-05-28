@@ -435,7 +435,7 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass || (isCombo && unitPrice <= 0)}>
+            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass || unitPrice <= 0 || (isCombo && comboItems.length === 0)}>
               {formaPago === "mercadopago" ? <CreditCard className="w-4 h-4 mr-1" /> : null}
               {loading ? "Procesando..." : formaPago === "mercadopago" ? "Reservar y pagar" : "Reservar"}
             </Button>
