@@ -237,6 +237,23 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       }
     }
 
+    // Validar entrega
+    if (entregaMetodo === "retiro_sede") {
+      if (availableSedes.length > 0 && !sedeRetiroId) {
+        toast({ title: "Elegí sede de retiro", variant: "destructive" });
+        return;
+      }
+    } else if (entregaMetodo === "envio_moto") {
+      if (!envioDireccion.trim()) {
+        toast({ title: "Falta dirección de envío", variant: "destructive" });
+        return;
+      }
+      if (!envioContacto.trim()) {
+        toast({ title: "Falta teléfono de contacto", variant: "destructive" });
+        return;
+      }
+    }
+
     // Build items[] payload
     const itemsPayload = isCombo
       ? comboItems
@@ -270,7 +287,15 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
         notas: notas || null,
         modalidad: isCombo ? modalidad : "individual",
         items: itemsPayload,
+        entrega_metodo: entregaMetodo,
+        sede_retiro_id: entregaMetodo === "retiro_sede" ? (sedeRetiroId || null) : null,
+        envio_direccion: entregaMetodo === "envio_moto" ? envioDireccion : null,
+        envio_contacto: entregaMetodo === "envio_moto" ? envioContacto : null,
+        envio_notas: entregaMetodo === "envio_moto" ? (envioNotas || null) : null,
+        envio_estado: entregaMetodo === "envio_moto" ? "a_cotizar" : null,
       } as any)
+      .select("id")
+      .single();
       .select("id")
       .single();
 
