@@ -121,12 +121,14 @@ export function PendingPaymentsList() {
           cliente_cuit: alumno?.documento || null,
           concepto: `Suscripción ${s.planes?.nombre || ""}`.trim(),
           monto,
+          moneda: s.planes?.moneda || "ARS",
           referencia_tipo: "suscripcion",
           referencia_id: s.id,
           segmento: "escuela",
           metodo_pago: s.metodo_pago || null,
           origen_registro: s.origen_registro || null,
         },
+
         factura_estado: null,
         factura_cae: null,
       };
