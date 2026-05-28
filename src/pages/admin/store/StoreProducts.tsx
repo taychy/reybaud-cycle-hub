@@ -46,6 +46,8 @@ interface Product {
   combo_price?: number | null;
   sena_mode?: string | null;
   sena_valor?: number | null;
+  delivery_methods?: string[] | null;
+  pickup_sede_ids?: string[] | null;
 }
 
 interface Category {
