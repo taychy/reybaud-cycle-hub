@@ -90,11 +90,13 @@ const StoreProducts = () => {
 
   const openCreate = () => {
     setEditProduct({ name: "", price: 0, stock: 0, min_stock: 5, status: "active", featured: false });
+    setComboDraft([]);
     setDialogOpen(true);
   };
 
   const openEdit = (p: Product) => {
     setEditProduct({ ...p });
+    setComboDraft([]);
     setDialogOpen(true);
   };
 
