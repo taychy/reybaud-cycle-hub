@@ -66,13 +66,16 @@ Deno.serve(async (req) => {
     const externalRef: string = String(payment.external_reference);
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Validate external_reference format: "event:<uuid>", "preorder:<uuid>" or "<uuid>" (suscripcion)
+    // Validate external_reference format: "event:<uuid>", "preorder:<uuid>", "store_order:<uuid>" or "<uuid>" (suscripcion)
     const isEventRef = externalRef.startsWith("event:");
     const isPreorderRef = externalRef.startsWith("preorder:");
+    const isStoreOrderRef = externalRef.startsWith("store_order:");
     const refUuid = isEventRef
       ? externalRef.slice("event:".length)
       : isPreorderRef
       ? externalRef.slice("preorder:".length)
+      : isStoreOrderRef
+      ? externalRef.slice("store_order:".length)
       : externalRef;
     if (!UUID_RE.test(refUuid)) {
       console.error("[mp-webhook] Invalid external_reference format");
@@ -87,6 +90,73 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // ─── STORE ORDER FLOW (in-app product purchase) ───
+    if (isStoreOrderRef) {
+      const orderId = refUuid;
+      const { data: order } = await supabaseAdmin
+        .from("store_orders")
+        .select("id, status, mp_payment_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (!order) {
+        return new Response(JSON.stringify({ ok: true, missing: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const alreadyPaid = order.status === "pagado" || !!order.mp_payment_id;
+
+      const update: Record<string, unknown> = {
+        mp_payment_id: String(payment.id),
+        mp_status: payment.status,
+      };
+      if (payment.status === "approved") {
+        update.status = "pagado";
+        update.pagado_at = new Date().toISOString();
+      } else if (payment.status === "rejected" || payment.status === "cancelled") {
+        update.status = "rechazado";
+      } else if (payment.status === "pending" || payment.status === "in_process") {
+        update.status = "pendiente_pago";
+      }
+      await supabaseAdmin.from("store_orders").update(update).eq("id", orderId);
+
+      // On first approval: descontar stock por variante
+      if (payment.status === "approved" && !alreadyPaid) {
+        const { data: items } = await supabaseAdmin
+          .from("store_order_items")
+          .select("product_id, quantity, variant_selection")
+          .eq("order_id", orderId);
+        for (const it of items || []) {
+          if (!it.product_id) continue;
+          const { data: prod } = await supabaseAdmin
+            .from("store_products")
+            .select("stock, variant_stock, variants")
+            .eq("id", it.product_id)
+            .maybeSingle();
+          if (!prod) continue;
+          const specs = Array.isArray(prod.variants) ? prod.variants : [];
+          const sel = (it.variant_selection || {}) as Record<string, string>;
+          const sig = specs
+            .filter((s: any) => s?.name)
+            .map((s: any) => `${s.name}:${sel[s.name] || ""}`)
+            .join("|");
+          const qty = Number(it.quantity || 0);
+          if (sig && prod.variant_stock && typeof (prod.variant_stock as any)[sig] === "number") {
+            const newStock = { ...(prod.variant_stock as Record<string, number>) };
+            newStock[sig] = Math.max(0, (newStock[sig] || 0) - qty);
+            await supabaseAdmin.from("store_products").update({ variant_stock: newStock }).eq("id", it.product_id);
+          } else if (typeof prod.stock === "number") {
+            await supabaseAdmin
+              .from("store_products")
+              .update({ stock: Math.max(0, prod.stock - qty) })
+              .eq("id", it.product_id);
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true, kind: "store_order", status: payment.status }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     // ─── PREORDER DEPOSIT FLOW ───
     // external_reference: "preorder:<preorder_id>"
     if (isPreorderRef) {
