@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainGoalCard } from "@/components/progress/MainGoalCard";
 import { CoachFeedbackCard, type FeedbackRecord } from "@/components/progress/CoachFeedbackCard";
@@ -97,38 +98,63 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {featured.map((p) => (
-              <a
-                key={p.id}
-                href={STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
-              >
-                <div className="relative aspect-square bg-secondary overflow-hidden">
-                  <img
-                    src={p.image_url || jerseyImg}
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                  {p.discount && p.discount > 0 && (
-                    <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
-                      -{p.discount}%
-                    </span>
-                  )}
-                </div>
-                <div className="p-3 flex-1 flex flex-col gap-1">
-                  <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{p.name}</p>
-                  <div className="mt-auto">
-                    {p.old_price && (
-                      <p className="text-[10px] text-muted-foreground line-through">{formatPrice(p.old_price)}</p>
+            {featured.map((p) => {
+              const isPreorder = (p as any).is_preorder;
+              const commonContent = (
+                <>
+                  <div className="relative aspect-square bg-secondary overflow-hidden">
+                    <img
+                      src={p.image_url || jerseyImg}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                    {isPreorder && (
+                      <span className="absolute top-2 left-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded uppercase tracking-wider">
+                        Preventa
+                      </span>
                     )}
-                    <p className="text-sm font-heading font-bold text-foreground">{formatPrice(p.price)}</p>
+                    {p.discount && p.discount > 0 && (
+                      <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                        -{p.discount}%
+                      </span>
+                    )}
                   </div>
-                </div>
-              </a>
-            ))}
+                  <div className="p-3 flex-1 flex flex-col gap-1">
+                    <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{p.name}</p>
+                    <div className="mt-auto">
+                      {p.old_price && (
+                        <p className="text-[10px] text-muted-foreground line-through">{formatPrice(p.old_price)}</p>
+                      )}
+                      <p className="text-sm font-heading font-bold text-foreground">{formatPrice(p.price)}</p>
+                    </div>
+                  </div>
+                </>
+              );
+
+              const className =
+                "group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10";
+
+              if (isPreorder) {
+                return (
+                  <Link key={p.id} to={`/preventa/${p.id}`} className={className}>
+                    {commonContent}
+                  </Link>
+                );
+              }
+
+              return (
+                <a
+                  key={p.id}
+                  href={STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={className}
+                >
+                  {commonContent}
+                </a>
+              );
+            })}
           </div>
         )}
       </div>
