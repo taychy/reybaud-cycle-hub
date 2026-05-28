@@ -53,7 +53,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
   const fetchExisting = useCallback(async () => {
     const { data } = await supabase
       .from("facturas")
-      .select("id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id")
+      .select("id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id")
       .eq("referencia_tipo", source.referencia_tipo)
       .eq("referencia_id", source.referencia_id)
       .order("created_at", { ascending: false })
@@ -117,7 +117,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
         // Volver a leer la factura recién creada
         const { data: nueva } = await supabase
           .from("facturas")
-          .select("id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id")
+          .select("id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id")
           .eq("referencia_tipo", source.referencia_tipo)
           .eq("referencia_id", source.referencia_id)
           .order("created_at", { ascending: false })
