@@ -19,12 +19,12 @@ export interface ComboItem {
   obligatorio: boolean;
   sort_order: number;
 }
-
 interface Props {
   comboId: string;
+  isPreorder?: boolean;
 }
 
-const ComboItemsEditor = ({ comboId }: Props) => {
+const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
   const [items, setItems] = useState<ComboItem[]>([]);
   const [productOptions, setProductOptions] = useState<{ id: string; name: string; price: number }[]>([]);
   const [loading, setLoading] = useState(true);
