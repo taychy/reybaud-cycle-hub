@@ -82,11 +82,9 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
           Componentes del combo
         </label>
         <div className="flex gap-1">
-          {!isPreorder && (
-            <Button type="button" size="sm" variant="outline" onClick={addReusable}>
-              <Package className="w-3.5 h-3.5 mr-1" /> Producto existente
-            </Button>
-          )}
+          <Button type="button" size="sm" variant="outline" onClick={addReusable}>
+            <Package className="w-3.5 h-3.5 mr-1" /> Producto existente
+          </Button>
           <Button type="button" size="sm" variant="ghost" onClick={addInternal}>
             <FileText className="w-3.5 h-3.5 mr-1" /> Sub-ítem interno
           </Button>
@@ -94,7 +92,7 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
       </div>
       {isPreorder && (
         <p className="text-[11px] text-muted-foreground italic">
-          Combo de preventa: los componentes son solo definitorios (nombre, precio y talles disponibles). El stock es ilimitado y se gobierna por el cupo total de la preventa.
+          Combo de preventa: el cupo lo gobierna el total de unidades de la preventa del combo. Los componentes pueden ser <b>productos existentes</b> (ej. chaleco y campera que también se venden sueltos, con o sin su propia preventa) o <b>sub-ítems internos</b> (sin stock propio). El stock de los componentes no se descuenta al reservar el combo.
         </p>
       )}
 
@@ -110,6 +108,7 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
             <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
             {item.component_product_id !== null && item.component_product_id !== undefined ? (
               <>
+
                 <Select
                   value={item.component_product_id || ""}
                   onValueChange={(v) => updateItem(item.id!, { component_product_id: v })}
