@@ -157,11 +157,13 @@ export function PendingPaymentsList() {
           cliente_cuit: alumno?.documento || null,
           concepto: `Reserva ${eventoName}`,
           monto,
+          moneda: r.currency_snapshot || r.moneda || "ARS",
           referencia_tipo: "evento",
           referencia_id: r.id,
           segmento: "viajes",
           metodo_pago: r.metodo_pago || null,
         },
+
         factura_estado: null,
         factura_cae: null,
       };
