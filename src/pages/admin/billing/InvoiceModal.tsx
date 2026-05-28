@@ -25,6 +25,7 @@ interface FacturaRow {
   concepto: string;
   monto: number;
   emisor_id: string | null;
+  alumno_id?: string | null;
 }
 
 interface Props {
