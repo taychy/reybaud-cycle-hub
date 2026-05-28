@@ -135,8 +135,11 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     if (product.combo_pricing_mode === "fixed" && product.combo_price != null) {
       return Number(product.combo_price);
     }
-    return comboItems.reduce((acc, it) => acc + Number(it.precio_individual || it.internal_price || 0), 0);
+    const sum = comboItems.reduce((acc, it) => acc + Number(it.precio_individual || it.internal_price || 0), 0);
+    // Fallback al precio del producto si no hay componentes cargados o suman 0
+    return sum > 0 ? sum : Number(product.price || 0);
   }, [product, isCombo, comboItems]);
+
 
   const priceSplit = useMemo(() => {
     return comboItems
