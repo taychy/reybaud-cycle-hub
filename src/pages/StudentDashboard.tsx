@@ -624,7 +624,16 @@ const StudentDashboard = () => {
                     <MetricBar label={t("dashboard.intensity")} value={entrenamiento.intensidad ?? 0} />
                   </div>
                 )}
+
+                {/* Feedback del entrenador + objetivos + destacados tienda */}
+                {alumno && (
+                  <HomeTrainingExtras
+                    alumnoId={alumno.id}
+                    onGoToTienda={() => handleTabChange("tienda")}
+                  />
+                )}
               </>
+
             ) : (
               <>
                 {/* Day header + selector even when no training */}
