@@ -56,10 +56,11 @@ interface Category {
 }
 
 const TAGS = ["NUEVO", "OFERTA", "OUTLET", "ÚLTIMA UNIDAD", "COMBO", "TOP"];
-
 const StoreProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+  const [search, setSearch] = useState("");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
