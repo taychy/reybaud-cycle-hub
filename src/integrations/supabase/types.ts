@@ -3928,33 +3928,102 @@ export type Database = {
         }
         Relationships: []
       }
-      store_order_items: {
+      store_combo_items: {
         Row: {
+          combo_id: string
+          component_product_id: string | null
           created_at: string
           id: string
+          internal_name: string | null
+          internal_price: number | null
+          internal_stock: Json
+          internal_variants: Json
+          obligatorio: boolean
+          precio_individual: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          combo_id: string
+          component_product_id?: string | null
+          created_at?: string
+          id?: string
+          internal_name?: string | null
+          internal_price?: number | null
+          internal_stock?: Json
+          internal_variants?: Json
+          obligatorio?: boolean
+          precio_individual?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          combo_id?: string
+          component_product_id?: string | null
+          created_at?: string
+          id?: string
+          internal_name?: string | null
+          internal_price?: number | null
+          internal_stock?: Json
+          internal_variants?: Json
+          obligatorio?: boolean
+          precio_individual?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_combo_items_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_combo_items_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_order_items: {
+        Row: {
+          combo_item_id: string | null
+          created_at: string
+          id: string
+          internal_component_idx: number | null
           order_id: string
           product_id: string | null
           product_name: string
           quantity: number
           unit_price: number
+          variant_selection: Json
         }
         Insert: {
+          combo_item_id?: string | null
           created_at?: string
           id?: string
+          internal_component_idx?: number | null
           order_id: string
           product_id?: string | null
           product_name: string
           quantity?: number
           unit_price: number
+          variant_selection?: Json
         }
         Update: {
+          combo_item_id?: string | null
           created_at?: string
           id?: string
+          internal_component_idx?: number | null
           order_id?: string
           product_id?: string | null
           product_name?: string
           quantity?: number
           unit_price?: number
+          variant_selection?: Json
         }
         Relationships: [
           {
@@ -3977,39 +4046,66 @@ export type Database = {
         Row: {
           alumno_id: string | null
           created_at: string
+          currency: string
           customer_email: string | null
           customer_name: string
           id: string
+          metodo_pago: string | null
+          mp_external_reference: string | null
+          mp_payment_id: string | null
+          mp_preference_id: string | null
+          mp_status: string | null
           notes: string | null
           order_number: number
+          origen_registro: string | null
+          pagado_at: string | null
           shipping_tracking: string | null
           status: string
+          tienda_emisor_id: string | null
           total: number
           updated_at: string
         }
         Insert: {
           alumno_id?: string | null
           created_at?: string
+          currency?: string
           customer_email?: string | null
           customer_name: string
           id?: string
+          metodo_pago?: string | null
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          mp_status?: string | null
           notes?: string | null
           order_number?: number
+          origen_registro?: string | null
+          pagado_at?: string | null
           shipping_tracking?: string | null
           status?: string
+          tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
         }
         Update: {
           alumno_id?: string | null
           created_at?: string
+          currency?: string
           customer_email?: string | null
           customer_name?: string
           id?: string
+          metodo_pago?: string | null
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          mp_status?: string | null
           notes?: string | null
           order_number?: number
+          origen_registro?: string | null
+          pagado_at?: string | null
           shipping_tracking?: string | null
           status?: string
+          tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
         }
@@ -4019,6 +4115,20 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_tienda_emisor_fkey"
+            columns: ["tienda_emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "store_orders_tienda_emisor_fkey"
+            columns: ["tienda_emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
             referencedColumns: ["id"]
           },
         ]
@@ -4035,6 +4145,8 @@ export type Database = {
           estado_pago_sena: string
           forma_pago_sena: string | null
           id: string
+          items: Json
+          modalidad: string
           moneda: string
           mp_external_reference: string | null
           mp_payment_id: string | null
@@ -4061,6 +4173,8 @@ export type Database = {
           estado_pago_sena?: string
           forma_pago_sena?: string | null
           id?: string
+          items?: Json
+          modalidad?: string
           moneda?: string
           mp_external_reference?: string | null
           mp_payment_id?: string | null
@@ -4087,6 +4201,8 @@ export type Database = {
           estado_pago_sena?: string
           forma_pago_sena?: string | null
           id?: string
+          items?: Json
+          modalidad?: string
           moneda?: string
           mp_external_reference?: string | null
           mp_payment_id?: string | null
@@ -4115,14 +4231,19 @@ export type Database = {
       store_products: {
         Row: {
           category_id: string | null
+          checkout_mode: string
+          combo_price: number | null
+          combo_pricing_mode: string
           created_at: string
           currency: string
           description: string | null
           discount: number | null
+          external_url: string | null
           featured: boolean
           featured_order: number | null
           id: string
           image_url: string | null
+          is_combo: boolean
           is_preorder: boolean
           min_stock: number
           name: string
@@ -4136,21 +4257,31 @@ export type Database = {
           preorder_total_units: number | null
           preorder_variants: Json
           price: number
+          sena_mode: string | null
+          sena_valor: number | null
           status: string
           stock: number
           tag: string | null
+          tienda_emisor_id: string | null
           updated_at: string
+          variant_stock: Json
+          variants: Json
         }
         Insert: {
           category_id?: string | null
+          checkout_mode?: string
+          combo_price?: number | null
+          combo_pricing_mode?: string
           created_at?: string
           currency?: string
           description?: string | null
           discount?: number | null
+          external_url?: string | null
           featured?: boolean
           featured_order?: number | null
           id?: string
           image_url?: string | null
+          is_combo?: boolean
           is_preorder?: boolean
           min_stock?: number
           name: string
@@ -4164,21 +4295,31 @@ export type Database = {
           preorder_total_units?: number | null
           preorder_variants?: Json
           price: number
+          sena_mode?: string | null
+          sena_valor?: number | null
           status?: string
           stock?: number
           tag?: string | null
+          tienda_emisor_id?: string | null
           updated_at?: string
+          variant_stock?: Json
+          variants?: Json
         }
         Update: {
           category_id?: string | null
+          checkout_mode?: string
+          combo_price?: number | null
+          combo_pricing_mode?: string
           created_at?: string
           currency?: string
           description?: string | null
           discount?: number | null
+          external_url?: string | null
           featured?: boolean
           featured_order?: number | null
           id?: string
           image_url?: string | null
+          is_combo?: boolean
           is_preorder?: boolean
           min_stock?: number
           name?: string
@@ -4192,10 +4333,15 @@ export type Database = {
           preorder_total_units?: number | null
           preorder_variants?: Json
           price?: number
+          sena_mode?: string | null
+          sena_valor?: number | null
           status?: string
           stock?: number
           tag?: string | null
+          tienda_emisor_id?: string | null
           updated_at?: string
+          variant_stock?: Json
+          variants?: Json
         }
         Relationships: [
           {
@@ -4203,6 +4349,20 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "store_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_products_tienda_emisor_fkey"
+            columns: ["tienda_emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "store_products_tienda_emisor_fkey"
+            columns: ["tienda_emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
             referencedColumns: ["id"]
           },
         ]
@@ -4856,6 +5016,10 @@ export type Database = {
           recurrente_id: string
           saldo_total: number
         }[]
+      }
+      get_combo_available_stock: {
+        Args: { p_combo_id: string; p_selection?: Json }
+        Returns: number
       }
       get_gasto_recurrente_saldo_deuda: {
         Args: { p_rec_id: string }

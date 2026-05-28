@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ImageUpload from "@/components/ImageUpload";
 import VariantsEditor from "@/components/store/VariantsEditor";
+import VariantStockEditor from "@/components/store/VariantStockEditor";
+import ComboItemsEditor from "@/components/store/ComboItemsEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Product {
@@ -35,6 +37,15 @@ interface Product {
   preorder_status?: string;
   preorder_variants?: any;
   currency?: string;
+  variants?: any;
+  variant_stock?: Record<string, number>;
+  checkout_mode?: string;
+  external_url?: string | null;
+  is_combo?: boolean;
+  combo_pricing_mode?: string;
+  combo_price?: number | null;
+  sena_mode?: string | null;
+  sena_valor?: number | null;
 }
 
 interface Category {
@@ -116,17 +127,27 @@ const StoreProducts = () => {
       preorder_estimated_delivery: editProduct.preorder_estimated_delivery || null,
       preorder_status: editProduct.preorder_status || "abierta",
       preorder_variants: editProduct.preorder_variants || [],
+      variants: editProduct.variants || [],
+      variant_stock: editProduct.variant_stock || {},
+      checkout_mode: editProduct.checkout_mode || "tienda_nube",
+      external_url: editProduct.external_url || null,
+      is_combo: editProduct.is_combo || false,
+      combo_pricing_mode: editProduct.combo_pricing_mode || "sum",
+      combo_price: editProduct.combo_price ?? null,
+      sena_mode: editProduct.sena_mode || null,
+      sena_valor: editProduct.sena_valor ?? null,
     };
 
     if (editProduct.id) {
       await supabase.from("store_products").update(payload as any).eq("id", editProduct.id);
       toast({ title: "Producto actualizado" });
     } else {
-      await supabase.from("store_products").insert(payload as any);
-      toast({ title: "Producto creado" });
+      const { data } = await supabase.from("store_products").insert(payload as any).select().single();
+      if (data) setEditProduct({ ...editProduct, id: data.id });
+      toast({ title: "Producto creado", description: "Ya podés cargar sus variantes y/o componentes." });
     }
     setSaving(false);
-    setDialogOpen(false);
+    if (editProduct.id) setDialogOpen(false);
     load();
   };
 
@@ -356,8 +377,111 @@ const StoreProducts = () => {
               />
             </div>
 
+            {/* Moneda (siempre visible) */}
+            <div>
+              <label className="text-xs font-heading uppercase text-muted-foreground">Moneda</label>
+              <Select value={editProduct?.currency || "ARS"} onValueChange={(v) => setEditProduct((p) => ({ ...p, currency: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ARS">ARS</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Variantes (siempre disponibles para productos NO combo NO preventa) */}
+            {!editProduct?.is_preorder && !editProduct?.is_combo && (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <VariantsEditor
+                  value={editProduct?.variants}
+                  onChange={(v) => setEditProduct((p) => ({ ...p, variants: v }))}
+                />
+                <VariantStockEditor
+                  variants={editProduct?.variants}
+                  stock={(editProduct?.variant_stock as any) || {}}
+                  onChange={(s) => setEditProduct((p) => ({ ...p, variant_stock: s }))}
+                />
+              </div>
+            )}
+
+            {/* Checkout mode */}
+            {!editProduct?.is_preorder && (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <label className="text-xs font-heading uppercase text-muted-foreground">¿Cómo se compra?</label>
+                <Select
+                  value={editProduct?.checkout_mode || "tienda_nube"}
+                  onValueChange={(v) => setEditProduct((p) => ({ ...p, checkout_mode: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tienda_nube">Redirect a Tienda Nube</SelectItem>
+                    <SelectItem value="in_app">Comprar dentro de la app (Mercado Pago)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editProduct?.checkout_mode === "tienda_nube" && (
+                  <div>
+                    <label className="text-[10px] uppercase text-muted-foreground">URL Tienda Nube</label>
+                    <Input
+                      value={editProduct?.external_url || ""}
+                      onChange={(e) => setEditProduct((p) => ({ ...p, external_url: e.target.value }))}
+                      placeholder="https://tutienda.mitiendanube.com/productos/..."
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Combo */}
+            {!editProduct?.is_preorder && (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-heading">
+                  <input
+                    type="checkbox"
+                    checked={!!editProduct?.is_combo}
+                    onChange={(e) => setEditProduct((p) => ({ ...p, is_combo: e.target.checked }))}
+                  />
+                  Es un combo
+                </label>
+                {editProduct?.is_combo && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs uppercase text-muted-foreground">Modo de precio</label>
+                        <Select
+                          value={editProduct?.combo_pricing_mode || "sum"}
+                          onValueChange={(v) => setEditProduct((p) => ({ ...p, combo_pricing_mode: v }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sum">Suma de componentes</SelectItem>
+                            <SelectItem value="fixed">Precio combo fijo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {editProduct?.combo_pricing_mode === "fixed" && (
+                        <div>
+                          <label className="text-xs uppercase text-muted-foreground">Precio combo</label>
+                          <Input
+                            type="number"
+                            value={editProduct?.combo_price ?? ""}
+                            onChange={(e) => setEditProduct((p) => ({ ...p, combo_price: e.target.value ? Number(e.target.value) : null }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {editProduct?.id && <ComboItemsEditor comboId={editProduct.id} />}
+                    {!editProduct?.id && (
+                      <p className="text-xs text-muted-foreground">Guardá primero el producto para poder cargar componentes.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Preventa */}
             <div className="rounded-lg border border-border p-3 space-y-3">
+
               <label className="flex items-center gap-2 text-sm font-heading">
                 <input
                   type="checkbox"
