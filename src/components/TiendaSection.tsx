@@ -184,6 +184,21 @@ const TiendaSection = () => {
     if (!alumnoId) return;
     setBuyProduct(p);
   };
+
+
+  const filtered = products.filter((p) => {
+    const matchCat = activeCategory === "Todos" || categories.find(c => c.id === p.category_id)?.name === activeCategory;
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const featured = products.filter((p) => p.featured).slice(0, 4);
+  const banner = banners[0];
+
+  const allCategories = [{ name: "Todos", icon: "🏷️" }, ...categories.map(c => ({ name: c.name, icon: c.icon }))];
+
+  if (loading) {
+    return (
       <div className="w-full max-w-md animate-fade-in flex items-center justify-center py-12">
         <div className="animate-pulse text-muted-foreground text-sm">Cargando tienda...</div>
       </div>
