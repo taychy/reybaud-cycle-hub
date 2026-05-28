@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ImageUpload from "@/components/ImageUpload";
+import VariantsEditor from "@/components/store/VariantsEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Product {
@@ -391,22 +392,45 @@ const StoreProducts = () => {
                     <label className="text-xs font-heading uppercase text-muted-foreground">Descripción de preventa</label>
                     <Input value={editProduct?.preorder_description || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_description: e.target.value }))} placeholder="Detalle para el alumno (fechas, condiciones, etc.)" />
                   </div>
-                  <div>
-                    <label className="text-xs font-heading uppercase text-muted-foreground">
-                      Variantes (JSON) — ej. [{"{"}"name":"Talle","options":["S","M","L"]{"}"}]
-                    </label>
-                    <Input
-                      value={typeof editProduct?.preorder_variants === "string" ? editProduct.preorder_variants : JSON.stringify(editProduct?.preorder_variants || [])}
-                      onChange={(e) => {
-                        try {
-                          const parsed = JSON.parse(e.target.value || "[]");
-                          setEditProduct((p) => ({ ...p, preorder_variants: parsed }));
-                        } catch {
-                          setEditProduct((p) => ({ ...p, preorder_variants: e.target.value as any }));
-                        }
-                      }}
-                    />
-                  </div>
+                  <VariantsEditor
+                    value={editProduct?.preorder_variants}
+                    onChange={(v) => setEditProduct((p) => ({ ...p, preorder_variants: v }))}
+                  />
+                  {editProduct?.id && (
+                    <div className="rounded-lg border border-cyan/30 bg-cyan/5 p-3 space-y-2">
+                      <label className="text-xs font-heading uppercase text-cyan">Link público para compartir</label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          readOnly
+                          value={`${window.location.origin}/preventa/${editProduct.id}`}
+                          className="text-xs h-8"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/preventa/${editProduct.id}`);
+                            toast({ title: "Link copiado" });
+                          }}
+                        >
+                          <Link2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const url = `${window.location.origin}/preventa/${editProduct.id}`;
+                            const msg = `Preventa: ${editProduct.name}\n${url}`;
+                            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                          }}
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

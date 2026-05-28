@@ -68,6 +68,7 @@ import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
+import PublicPreorderPage from "./pages/PublicPreorderPage";
 import AuthCallback from "./pages/AuthCallback";
 import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
@@ -179,6 +180,7 @@ const App = () => (
           </Route>
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
+          <Route path="/preventa/:productId" element={<PublicPreorderPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
