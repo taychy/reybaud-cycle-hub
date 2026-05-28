@@ -296,8 +296,6 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       } as any)
       .select("id")
       .single();
-      .select("id")
-      .single();
 
     if (error || !inserted) {
       setLoading(false);
