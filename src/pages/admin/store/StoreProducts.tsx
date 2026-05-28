@@ -24,6 +24,16 @@ interface Product {
   tag: string | null;
   featured: boolean;
   featured_order: number | null;
+  is_preorder?: boolean;
+  preorder_description?: string | null;
+  preorder_deposit_amount?: number | null;
+  preorder_deposit_percent?: number | null;
+  preorder_total_units?: number | null;
+  preorder_deadline?: string | null;
+  preorder_estimated_delivery?: string | null;
+  preorder_status?: string;
+  preorder_variants?: any;
+  currency?: string;
 }
 
 interface Category {
