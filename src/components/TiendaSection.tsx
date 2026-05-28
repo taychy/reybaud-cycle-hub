@@ -337,6 +337,14 @@ const TiendaSection = () => {
         product={reserveProduct as any}
         alumnoId={alumnoId}
       />
+      <BuyProductDialog
+        open={!!buyProduct}
+        onOpenChange={(v) => !v && setBuyProduct(null)}
+        product={buyProduct as any}
+        alumnoId={alumnoId}
+        customerName={alumnoInfo.nombre}
+        customerEmail={alumnoInfo.email}
+      />
     </div>
   );
 };
