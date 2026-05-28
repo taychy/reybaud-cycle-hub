@@ -107,6 +107,18 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     setComboVariants({});
     setSplitSelected({});
 
+    const initialMethod = (Array.isArray(product.delivery_methods) && product.delivery_methods.length
+      ? (product.delivery_methods as string[])
+      : ["retiro_sede"])[0] as "retiro_sede" | "envio_moto";
+    setEntregaMetodo(initialMethod);
+    setSedeRetiroId("");
+    setEnvioDireccion("");
+    setEnvioContacto("");
+    setEnvioNotas("");
+
+    supabase.from("sedes").select("id, nombre, direccion, ciudad").eq("activa", true).order("nombre")
+      .then(({ data }) => setSedes((data as any[]) || []));
+
     supabase.rpc("get_preorder_reserved_units" as any, { p_product_id: product.id }).then(({ data }) => {
       setReservedUnits(typeof data === "number" ? data : 0);
     });
