@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarClock, Package, CheckCircle2, Clock, XCircle, CreditCard } from "lucide-react";
+import { CalendarClock, Package, CheckCircle2, Clock, XCircle, CreditCard, Truck, Store } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 
 interface Props {
