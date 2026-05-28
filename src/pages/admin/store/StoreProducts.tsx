@@ -576,6 +576,62 @@ const StoreProducts = () => {
                     value={editProduct?.preorder_variants}
                     onChange={(v) => setEditProduct((p) => ({ ...p, preorder_variants: v }))}
                   />
+
+                  {/* Entrega */}
+                  <div className="rounded-lg border border-border p-3 space-y-3">
+                    <label className="text-xs font-heading uppercase text-muted-foreground">Métodos de entrega habilitados</label>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      {[
+                        { v: "retiro_sede", l: "Retiro en sede" },
+                        { v: "envio_moto", l: "Envío por moto (a coordinar)" },
+                      ].map((opt) => {
+                        const list = Array.isArray(editProduct?.delivery_methods) && editProduct?.delivery_methods?.length
+                          ? (editProduct.delivery_methods as string[])
+                          : ["retiro_sede"];
+                        const checked = list.includes(opt.v);
+                        return (
+                          <label key={opt.v} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? Array.from(new Set([...list, opt.v]))
+                                  : list.filter((m) => m !== opt.v);
+                                setEditProduct((p) => ({ ...p, delivery_methods: next.length ? next : ["retiro_sede"] }));
+                              }}
+                            />
+                            {opt.l}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-heading uppercase text-muted-foreground">Sedes habilitadas para retiro (vacío = todas)</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {sedes.map((s) => {
+                          const list = Array.isArray(editProduct?.pickup_sede_ids) ? (editProduct.pickup_sede_ids as string[]) : [];
+                          const checked = list.includes(s.id);
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                const next = checked ? list.filter((x) => x !== s.id) : [...list, s.id];
+                                setEditProduct((p) => ({ ...p, pickup_sede_ids: next }));
+                              }}
+                              className={`text-xs px-2 py-1 rounded border ${checked ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                            >
+                              {s.nombre}
+                            </button>
+                          );
+                        })}
+                        {sedes.length === 0 && <span className="text-[11px] text-muted-foreground italic">No hay sedes activas cargadas.</span>}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">El costo de envío por moto se cotiza por caso al coordinar con el alumno.</p>
+                    </div>
+                  </div>
+
                   {editProduct?.id && (
                     <div className="rounded-lg border border-cyan/30 bg-cyan/5 p-3 space-y-2">
                       <label className="text-xs font-heading uppercase text-cyan">Link público para compartir</label>
