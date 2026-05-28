@@ -130,9 +130,37 @@ const StoreProducts = () => {
     load();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (force = false) => {
     if (!deleteId) return;
-    await supabase.from("store_products").delete().eq("id", deleteId);
+    const { error } = await supabase.from("store_products").delete().eq("id", deleteId);
+    if (error) {
+      // FK violation: producto tiene preventas / pedidos asociados
+      if ((error as any).code === "23503") {
+        if (force) {
+          // archive instead
+          const { error: archErr } = await supabase
+            .from("store_products")
+            .update({ status: "archived" } as any)
+            .eq("id", deleteId);
+          if (archErr) {
+            toast({ title: "No se pudo archivar", description: archErr.message, variant: "destructive" });
+            return;
+          }
+          toast({ title: "Producto archivado", description: "Se ocultó porque tenía preventas asociadas." });
+          setDeleteId(null);
+          load();
+          return;
+        }
+        toast({
+          title: "No se puede eliminar",
+          description: "Tiene preventas o pedidos asociados. Archivalo para ocultarlo sin perder los datos.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Error al eliminar", description: error.message, variant: "destructive" });
+      return;
+    }
     toast({ title: "Producto eliminado" });
     setDeleteId(null);
     load();
