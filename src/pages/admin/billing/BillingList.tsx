@@ -217,12 +217,22 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
           <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Origen" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los orígenes</SelectItem>
-            <SelectItem value="autogestion">App del alumno</SelectItem>
-            <SelectItem value="cargado_admin">Cargado por admin</SelectItem>
+            <SelectItem value="app">App del alumno</SelectItem>
+            <SelectItem value="admin">Cargado por admin</SelectItem>
             <SelectItem value="sin_dato">Sin dato</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={monedaFilter} onValueChange={setMonedaFilter}>
+          <SelectTrigger className="w-full sm:w-32"><SelectValue placeholder="Moneda" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas las monedas</SelectItem>
+            {monedasDisponibles.map((m) => (
+              <SelectItem key={m} value={m}>{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
 
       {/* Filtros de facturables */}
       {enableBulk && (
