@@ -479,7 +479,8 @@ const StoreProducts = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
+            <AlertDialogAction onClick={() => handleDelete(false)} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
+            <AlertDialogAction onClick={() => handleDelete(true)} className="bg-muted text-foreground hover:bg-muted/80">Archivar si tiene preventas</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
