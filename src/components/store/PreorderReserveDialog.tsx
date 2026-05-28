@@ -135,8 +135,11 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
     if (product.combo_pricing_mode === "fixed" && product.combo_price != null) {
       return Number(product.combo_price);
     }
-    return comboItems.reduce((acc, it) => acc + Number(it.precio_individual || it.internal_price || 0), 0);
+    const sum = comboItems.reduce((acc, it) => acc + Number(it.precio_individual || it.internal_price || 0), 0);
+    // Fallback al precio del producto si no hay componentes cargados o suman 0
+    return sum > 0 ? sum : Number(product.price || 0);
   }, [product, isCombo, comboItems]);
+
 
   const priceSplit = useMemo(() => {
     return comboItems
@@ -337,16 +340,26 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
                 <p className="text-[11px] text-muted-foreground">
                   Reservás todas las prendas del combo. {product.combo_pricing_mode === "fixed" ? "Precio fijo de combo." : "Suma de los precios individuales."}
                 </p>
-                {comboItems.filter((i) => i.obligatorio).map((it) => (
+                {comboItems.length === 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px] text-destructive flex items-start gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>Este combo aún no tiene componentes cargados. Pedile al admin que los configure antes de reservar.</span>
+                  </div>
+                )}
+                {comboItems.map((it) => (
                   <div key={it.id} className="rounded-md border border-border p-2 bg-card">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">{it.display_name}</span>
+                      <span className="text-sm font-medium">
+                        {it.display_name}
+                        {!it.obligatorio && <span className="ml-1 text-[10px] text-muted-foreground">(opcional)</span>}
+                      </span>
                       <span className="text-xs text-muted-foreground">{formatPrice(Number(it.precio_individual || it.internal_price || 0), moneda)}</span>
                     </div>
-                    {renderItemVariants(it)}
+                    {it.obligatorio && renderItemVariants(it)}
                   </div>
                 ))}
               </TabsContent>
+
               <TabsContent value="split" className="space-y-2 mt-3">
                 <p className="text-[11px] text-muted-foreground">Elegí solo las prendas que querés llevar.</p>
                 {comboItems.map((it) => (
@@ -415,13 +428,14 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
             )}
           </div>
 
+
           <p className="text-[11px] text-muted-foreground">
             Tu cupo se confirma cuando validemos el pago de la seña. La seña no se reembolsa una vez que la preventa entra en producción; podés cancelar antes y queda como saldo a favor.
           </p>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass || (isCombo && unitPrice <= 0)}>
+            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass || unitPrice <= 0 || (isCombo && comboItems.length === 0)}>
               {formaPago === "mercadopago" ? <CreditCard className="w-4 h-4 mr-1" /> : null}
               {loading ? "Procesando..." : formaPago === "mercadopago" ? "Reservar y pagar" : "Reservar"}
             </Button>
