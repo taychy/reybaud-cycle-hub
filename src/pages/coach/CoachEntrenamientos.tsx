@@ -4,13 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, ExternalLink } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ArrowLeft, FileText, ExternalLink } from "lucide-react";
+import TrainingDetailView from "@/components/TrainingDetailView";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
 const DAYS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+
 
 const CoachEntrenamientos = () => {
   const navigate = useNavigate();
