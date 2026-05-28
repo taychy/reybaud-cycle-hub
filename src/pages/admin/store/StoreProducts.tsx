@@ -105,6 +105,16 @@ const StoreProducts = () => {
       tag: editProduct.tag || null,
       featured: editProduct.featured || false,
       featured_order: editProduct.featured_order || null,
+      is_preorder: editProduct.is_preorder || false,
+      currency: editProduct.currency || "ARS",
+      preorder_description: editProduct.preorder_description || null,
+      preorder_deposit_amount: editProduct.preorder_deposit_amount || null,
+      preorder_deposit_percent: editProduct.preorder_deposit_percent || null,
+      preorder_total_units: editProduct.preorder_total_units || null,
+      preorder_deadline: editProduct.preorder_deadline || null,
+      preorder_estimated_delivery: editProduct.preorder_estimated_delivery || null,
+      preorder_status: editProduct.preorder_status || "abierta",
+      preorder_variants: editProduct.preorder_variants || [],
     };
 
     if (editProduct.id) {
