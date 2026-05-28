@@ -1,64 +1,98 @@
-## Objetivo
+# Plan: Tienda v2 + Multi-cuentas MP
 
-Recibir notificaciones de Mercado Pago (pagos salientes y entrantes), validar que vengan de MP, consultar el detalle real vía API y actualizar/crear el gasto correspondiente.
+Antes de tocar código quiero confirmar la arquitectura porque tu respuesta abrió un tema grande (multi-MP) que conviene separar en fases.
 
-## Arquitectura
+---
 
-```text
-MP → POST /functions/v1/mp-gastos-webhook
-        │
-        ├─ Verifica firma x-signature (HMAC)
-        ├─ GET /v1/payments/{id} con MP_ACCESS_TOKEN
-        ├─ Idempotencia por (mp_payment_id)
-        └─ Decide flujo según external_reference:
-              ├─ "gasto:<uuid>"     → conciliar gasto existente
-              ├─ "gasto_ejec:<uuid>"→ marcar ejecución pagada (RPC pay_gasto_ejecucion)
-              └─ sin ref / desconocida → crear gasto "pendiente de conciliar"
-```
+## Fase A — Variantes en productos normales (checkout in-app)
 
-## Cambios en DB (migración)
+### Base de datos
+- `store_products`: agregar
+  - `variants jsonb` (independiente de `preorder_variants`)
+  - `checkout_mode text` con valores `'in_app'` | `'tienda_nube'` (default `'tienda_nube'` para no romper lo actual)
+  - `tienda_emisor_id uuid` referencia a `cuentas_facturacion` (cuál CUIT usar al facturar ventas de tienda)
+- Nueva tabla `store_orders` (si no existe ya con suficiente detalle): `alumno_id`, `product_id`, `variant_selection jsonb`, `cantidad`, `precio_unitario`, `total`, `moneda`, `mp_payment_id`, `mp_status`, `estado`, `metodo_pago`, `origen_registro`, `notas`.
 
-1. `gastos`: agregar columnas
-   - `mp_payment_id TEXT UNIQUE` (idempotencia)
-   - `mp_status TEXT`
-   - `mp_external_reference TEXT`
-   - `origen_registro TEXT DEFAULT 'manual'` (`'manual' | 'mp_webhook' | 'mp_link'`)
-   - `estado_conciliacion TEXT DEFAULT 'conciliado'` (`'conciliado' | 'pendiente_conciliar'`)
-   - índice en `mp_payment_id`
-2. Nueva tabla `gastos_mp_webhook_log` para trazabilidad (raw payload, status, error, processed_at). Grants + RLS solo super_admin.
-3. RPC `apply_mp_payment_to_gasto(p_gasto_id, p_mp_payment_id, p_mp_status, p_monto, p_fecha, p_raw jsonb)` — `SECURITY DEFINER`, actualiza gasto, fija `origen_registro='mp_link'`, marca conciliado.
-4. RPC `create_gasto_from_mp(p_mp_payment_id, p_monto, p_moneda, p_fecha, p_descripcion, p_raw)` — crea gasto en estado `pendiente_conciliar` cuando no hay external_reference.
+### Frontend
+- `ProductForm` admin: `VariantsEditor` siempre visible (no solo preventa). Toggle "Checkout dentro de la app" → si activo, mostrar selector de cuenta MP/emisor.
+- Card de producto en Tienda alumno: si `checkout_mode='in_app'` y tiene variantes → abre drawer de compra con selección de variante + MP. Si `'tienda_nube'` → redirect como hoy.
+- Nuevo edge function `create-store-order-mp-preference` (gemelo de `create-preorder-mp-preference`).
 
-## Edge function: `mp-gastos-webhook`
+---
 
-- `verify_jwt = false` (MP no manda JWT).
-- Lee headers `x-signature` y `x-request-id`, valida HMAC con `MP_WEBHOOK_SECRET` siguiendo el formato oficial de MP (`id:<data.id>;request-id:<x-request-id>;ts:<ts>;`).
-- Si la firma falla → 401 + log.
-- Si OK: `fetch` a `https://api.mercadopago.com/v1/payments/{id}` con `MP_ACCESS_TOKEN`.
-- Resuelve `external_reference`:
-  - `gasto:<uuid>` → `apply_mp_payment_to_gasto`
-  - `gasto_ejec:<uuid>` → `pay_gasto_ejecucion`
-  - otro caso → `create_gasto_from_mp` (queda en "Pendiente de conciliar" en la UI)
-- Inserta siempre fila en `gastos_mp_webhook_log` (raw, status, decisión).
-- Devuelve 200 incluso ante duplicados (idempotencia) para que MP no reintente eternamente.
+## Fase B — Multi-cuentas MP + Facturación segmentada
 
-## UI (SuperAdminGastos)
+Hoy el sistema asume **una sola cuenta MP** (`MP_ACCESS_TOKEN` como secret global) y **una sola configuración de facturación**. Vos querés separar por origen: suscripciones, tienda, viajes.
 
-- Badge "MP" + tooltip con `mp_payment_id` y status en cada fila proveniente de MP.
-- Nueva sección "Pendientes de conciliar" (filtra `estado_conciliacion = 'pendiente_conciliar'`) con acción "Vincular a un gasto existente" o "Confirmar como nuevo gasto".
-- En el formulario de gasto manual: input opcional "Generar link de pago MP" que en el futuro creará preferencia con `external_reference = "gasto:<uuid>"` (link generation queda fuera de este alcance, sólo dejo el campo `mp_external_reference` listo).
+### Propuesta
+- Nueva tabla `mp_accounts`:
+  - `id`, `nombre` ("MP Cuotas", "MP Tienda", "MP Viajes")
+  - `access_token` (cifrado / vía secret name), `public_key`
+  - `cuenta_facturacion_id` (a qué CUIT factura por default)
+  - `activo bool`
+- Nueva tabla `mp_routing` (o columna en cada tabla origen):
+  - `origen text` (`'suscripcion' | 'store' | 'evento' | 'preventa'`)
+  - `mp_account_id`
+  - default por origen, pero override por producto/evento si hace falta (`store_products.mp_account_id`, `events.mp_account_id`).
+- Edge functions (`create-mp-preference`, `create-event-mp-preference`, `create-preorder-mp-preference`, `create-store-order-mp-preference`, `process-card-payment`) leen el token de `mp_accounts` según el origen en vez del secret global. El secret global queda como fallback.
+- Admin UI nueva en **Configuración → Cuentas de cobro**: alta/edición de cuentas MP, prueba de conexión (ping a `/users/me`), asignación a origen.
+- `auto-facturar` ya recibe `cuit_emisor_id`; lo sigue usando, pero ahora viene resuelto desde el `mp_account.cuenta_facturacion_id` correspondiente.
 
-## Secretos
+### Implicancias
+- Los `access_token` de MP los seguís guardando como **secrets** (no en DB plano). La tabla `mp_accounts` guarda el **nombre del secret** (ej. `MP_TOKEN_TIENDA`) y los edge functions hacen `Deno.env.get(account.secret_name)`. Vas a tener que pegar los tokens vía el modal de secrets una vez por cuenta.
+- Webhooks: cada cuenta MP tiene su propia URL de webhook. Probablemente alcance con un único `mp-webhook` que mire `external_reference` (ya identifica el origen) y resuelva la cuenta. Si MP exige webhook distinto por cuenta, configuramos URLs `mp-webhook?account=tienda`.
 
-- Reusa `MP_ACCESS_TOKEN` ya configurado.
-- **Nuevo:** `MP_WEBHOOK_SECRET` (la "Clave secreta" que MP muestra al configurar el webhook). Lo pido cuando se apruebe el plan.
+---
 
-## URL a cargar en MP
+## Fase C — Combos de preventa
 
-`https://tgqfakfloonbunwkdoug.supabase.co/functions/v1/mp-gastos-webhook`
-Eventos a suscribir: **payment** (cubre `payment.created` y `payment.updated`).
+### Modelo flexible (acepta tus dos casos)
+- `store_products.is_combo bool`
+- `store_products.combo_pricing_mode`: `'sum'` (suma componentes) | `'fixed'` (precio combo fijo con descuento implícito)
+- `store_products.combo_price numeric` (cuando `fixed`)
+- `store_products.sena_mode`: `'porcentaje'` | `'monto_fijo'`
+- `store_products.sena_valor numeric`
 
-## Fuera de alcance (siguiente iteración)
+- Nueva tabla `store_combo_items`:
+  - `combo_id` (FK a `store_products`)
+  - `component_product_id` (FK a `store_products`, **nullable** → si es null, es sub-ítem interno)
+  - `internal_name text`, `internal_variants jsonb` (cuando es sub-ítem interno sin producto propio)
+  - `precio_individual numeric` (precio si el cliente compra suelto)
+  - `obligatorio bool`
+  - `sort_order int`
 
-- Generación automática de preferencias de cobro para gastos (link de pago).
-- Reconciliación masiva histórica con pagos previos.
+→ Esto resuelve tu "¿pueden ser las dos opciones?": sí, cada item puede apuntar a un producto reusable **o** definirse inline.
+
+### Stock cruzado (clave para no sobrevender)
+- Cuando el combo **no es preventa**: stock disponible = `min(stock disponible por talle equivalente de cada componente)`.
+  - Ej. combo Campera+Chaleco talle M = `min(stock_campera_M, stock_chaleco_M)`.
+  - Esto requiere que las variantes de los componentes compartan dimensión "Talle" con el mismo nombre. Si no matchean, marcamos el combo como "configuración inválida" en admin.
+- Cuando el combo **es preventa**: stock ilimitado (pedido al proveedor), respetando `preorder_total_units` global si se setea.
+- Helper RPC `get_combo_stock(combo_id, variant_selection)` que centraliza esta lógica.
+
+### Reserva
+- `store_preorders` agrega: `modalidad ('combo' | 'individual')`, `items jsonb` (`[{component_id|internal_idx, variantes, cantidad, precio}]`), `sena_calculada numeric`.
+- `PreorderReserveDialog` con 2 tabs: **Combo completo** (configurar variante por componente, ver precio combo y seña) / **Elegir por separado** (checkboxes por componente con precio individual, total dinámico, seña proporcional).
+- Seña = `sena_valor` si `sena_mode='monto_fijo'` (cuando combo completo) o `% * total` si `'porcentaje'` (siempre que sea split, o si admin elige %).
+
+### Público `/preventa/:id`
+- Si `is_combo`: muestra componentes con foto, precio combo vs precio sumado (badge "ahorrás $X"), ambos caminos de compra.
+
+---
+
+## Orden de implementación que propongo
+
+1. **Fase A** primero (variantes + checkout in-app, usando el secret MP actual). Valor inmediato, bajo riesgo.
+2. **Fase C** (combos de preventa con stock cruzado). Independiente de B.
+3. **Fase B** (multi-cuentas MP). Es la más invasiva: toca todos los edge functions de pago + webhook + facturación. Vale la pena hacerla aislada para no mezclarla con bugs de tienda.
+
+---
+
+## Lo que necesito confirmar antes de migrar
+
+1. **Fase B ahora o después?** ¿La empezamos en este mismo ciclo o primero A+C y B queda para el próximo? (Recomiendo separarla.)
+2. **¿Cuántas cuentas MP vas a tener** al arrancar? (Para saber si la UI de cuentas vale la pena ya o hardcodeo 2-3 slots.)
+3. **Sub-ítems internos del combo**: ¿necesitan stock propio o son puramente descriptivos? (Si no tienen stock, no se pueden vender sueltos — solo dentro del combo.)
+4. **Combo no-preventa**: ¿lo vas a usar? ¿O por ahora todos los combos son preventa y el stock cruzado lo dejamos para después?
+
+Decime y arranco con las migraciones.
