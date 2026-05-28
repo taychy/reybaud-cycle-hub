@@ -12,12 +12,14 @@ export type InvoiceSource = {
   cliente_cuit?: string | null;
   concepto: string;
   monto: number;
+  moneda?: string;
   referencia_tipo: "suscripcion" | "evento" | "pedido";
   referencia_id: string;
   segmento: "escuela" | "viajes" | "tienda";
   metodo_pago?: string | null;
   origen_registro?: string | null;
 };
+
 
 interface Emisor {
   id: string;
