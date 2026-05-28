@@ -25,6 +25,7 @@ interface FacturaRow {
   concepto: string;
   monto: number;
   emisor_id: string | null;
+  alumno_id?: string | null;
 }
 
 interface Props {
@@ -55,20 +56,40 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
     setCondicion(factura.condicion_fiscal || "consumidor_final");
     setClienteCuit(factura.cliente_cuit || "");
 
-    if (!factura.cliente_cuit && factura.cliente_nombre) {
-      // Buscar documento del alumno por nombre completo (case-insensitive)
+    if (!factura.cliente_cuit) {
       (async () => {
-        const nombre = factura.cliente_nombre.trim();
+        // 1) Preferir alumno_id si está disponible
+        if (factura.alumno_id) {
+          const { data } = await supabase
+            .from("alumnos")
+            .select("documento")
+            .eq("id", factura.alumno_id)
+            .maybeSingle();
+          if (data?.documento) {
+            setClienteCuit(data.documento);
+            return;
+          }
+        }
+
+        // 2) Fallback: buscar por nombre completo
+        if (!factura.cliente_nombre) return;
+        const nombre = factura.cliente_nombre.trim().toLowerCase();
+        const parts = nombre.split(/\s+/).filter(Boolean);
+        const first = parts[0] || "";
+        const last = parts[parts.length - 1] || "";
+
         const { data } = await supabase
           .from("alumnos")
           .select("documento, nombre, apellido")
-          .or(`nombre.ilike.${nombre},apellido.ilike.${nombre}`)
-          .limit(20);
+          .or(`nombre.ilike.%${first}%,apellido.ilike.%${last}%`)
+          .limit(50);
 
         const match = (data || []).find((a: any) => {
           const full = `${a.nombre || ""} ${a.apellido || ""}`.trim().toLowerCase();
-          return full === nombre.toLowerCase() || (a.nombre || "").toLowerCase() === nombre.toLowerCase();
-        }) || (data || [])[0];
+          return full === nombre;
+        }) || (data || []).find((a: any) => {
+          return (a.nombre || "").toLowerCase() === first && (a.apellido || "").toLowerCase() === last;
+        });
 
         if (match?.documento) {
           setClienteCuit(match.documento);
