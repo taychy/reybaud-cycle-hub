@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
 import HomeNewsCarousel from "@/components/HomeNewsCarousel";
 import HomePendingResultBanner from "@/components/HomePendingResultBanner";
+import HomeTrainingExtras from "@/components/HomeTrainingExtras";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
