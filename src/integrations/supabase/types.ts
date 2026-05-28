@@ -4020,19 +4020,112 @@ export type Database = {
           },
         ]
       }
+      store_preorders: {
+        Row: {
+          alumno_id: string
+          cancelada_at: string | null
+          cancelada_motivo: string | null
+          cantidad: number
+          created_at: string
+          entregada_at: string | null
+          estado: string
+          estado_pago_sena: string
+          forma_pago_sena: string | null
+          id: string
+          moneda: string
+          mp_external_reference: string | null
+          mp_payment_id: string | null
+          notas: string | null
+          precio_total: number
+          precio_unitario: number
+          product_id: string
+          producto_nombre: string
+          saldo_pendiente: number
+          sena_monto: number
+          updated_at: string
+          variante: Json
+        }
+        Insert: {
+          alumno_id: string
+          cancelada_at?: string | null
+          cancelada_motivo?: string | null
+          cantidad?: number
+          created_at?: string
+          entregada_at?: string | null
+          estado?: string
+          estado_pago_sena?: string
+          forma_pago_sena?: string | null
+          id?: string
+          moneda?: string
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          notas?: string | null
+          precio_total: number
+          precio_unitario: number
+          product_id: string
+          producto_nombre: string
+          saldo_pendiente: number
+          sena_monto: number
+          updated_at?: string
+          variante?: Json
+        }
+        Update: {
+          alumno_id?: string
+          cancelada_at?: string | null
+          cancelada_motivo?: string | null
+          cantidad?: number
+          created_at?: string
+          entregada_at?: string | null
+          estado?: string
+          estado_pago_sena?: string
+          forma_pago_sena?: string | null
+          id?: string
+          moneda?: string
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          notas?: string | null
+          precio_total?: number
+          precio_unitario?: number
+          product_id?: string
+          producto_nombre?: string
+          saldo_pendiente?: number
+          sena_monto?: number
+          updated_at?: string
+          variante?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_preorders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_products: {
         Row: {
           category_id: string | null
           created_at: string
+          currency: string
           description: string | null
           discount: number | null
           featured: boolean
           featured_order: number | null
           id: string
           image_url: string | null
+          is_preorder: boolean
           min_stock: number
           name: string
           old_price: number | null
+          preorder_deadline: string | null
+          preorder_deposit_amount: number | null
+          preorder_deposit_percent: number | null
+          preorder_description: string | null
+          preorder_estimated_delivery: string | null
+          preorder_status: string
+          preorder_total_units: number | null
+          preorder_variants: Json
           price: number
           status: string
           stock: number
@@ -4042,15 +4135,25 @@ export type Database = {
         Insert: {
           category_id?: string | null
           created_at?: string
+          currency?: string
           description?: string | null
           discount?: number | null
           featured?: boolean
           featured_order?: number | null
           id?: string
           image_url?: string | null
+          is_preorder?: boolean
           min_stock?: number
           name: string
           old_price?: number | null
+          preorder_deadline?: string | null
+          preorder_deposit_amount?: number | null
+          preorder_deposit_percent?: number | null
+          preorder_description?: string | null
+          preorder_estimated_delivery?: string | null
+          preorder_status?: string
+          preorder_total_units?: number | null
+          preorder_variants?: Json
           price: number
           status?: string
           stock?: number
@@ -4060,15 +4163,25 @@ export type Database = {
         Update: {
           category_id?: string | null
           created_at?: string
+          currency?: string
           description?: string | null
           discount?: number | null
           featured?: boolean
           featured_order?: number | null
           id?: string
           image_url?: string | null
+          is_preorder?: boolean
           min_stock?: number
           name?: string
           old_price?: number | null
+          preorder_deadline?: string | null
+          preorder_deposit_amount?: number | null
+          preorder_deposit_percent?: number | null
+          preorder_description?: string | null
+          preorder_estimated_delivery?: string | null
+          preorder_status?: string
+          preorder_total_units?: number | null
+          preorder_variants?: Json
           price?: number
           status?: string
           stock?: number
@@ -4746,6 +4859,10 @@ export type Database = {
           recurrente_id: string
           saldo_total: number
         }[]
+      }
+      get_preorder_reserved_units: {
+        Args: { p_product_id: string }
+        Returns: number
       }
       get_program_inscriptions_count: {
         Args: { p_plan_ids: string[] }
