@@ -333,6 +333,9 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
           {isCombo ? (
             <Tabs value={modalidad} onValueChange={(v) => setModalidad(v as any)}>
               <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="combo">Combo completo</TabsTrigger>
+                <TabsTrigger value="split">Por separado</TabsTrigger>
+              </TabsList>
               <TabsContent value="combo" className="space-y-2 mt-3">
                 <p className="text-[11px] text-muted-foreground">
                   Reservás todas las prendas del combo. {product.combo_pricing_mode === "fixed" ? "Precio fijo de combo." : "Suma de los precios individuales."}
@@ -357,9 +360,6 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
                 ))}
               </TabsContent>
 
-                  </div>
-                ))}
-              </TabsContent>
               <TabsContent value="split" className="space-y-2 mt-3">
                 <p className="text-[11px] text-muted-foreground">Elegí solo las prendas que querés llevar.</p>
                 {comboItems.map((it) => (
