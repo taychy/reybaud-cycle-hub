@@ -4,13 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, ExternalLink } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ArrowLeft, FileText, ExternalLink } from "lucide-react";
+import TrainingDetailView from "@/components/TrainingDetailView";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
 const DAYS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+
 
 const CoachEntrenamientos = () => {
   const navigate = useNavigate();
@@ -187,16 +188,16 @@ const CoachEntrenamientos = () => {
               )}
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-3 gap-3">
-              <MetricCard label="Resistencia" value={todayTraining.resistencia} />
-              <MetricCard label="Técnica" value={todayTraining.tecnica} />
-              <MetricCard label="Intensidad" value={todayTraining.intensidad} />
-            </div>
 
-            {/* Description */}
+
+            {/* Description with student-style rendering and font toggle */}
             {todayTraining.descripcion && (
-              <TrainingDescription text={todayTraining.descripcion} />
+              <TrainingDetailView
+                entrenamiento={todayTraining}
+                alumnoName=""
+                selectedDayIndex={weekDates.indexOf(selectedDate)}
+                onDayChange={(i) => setSelectedDate(weekDates[i])}
+              />
             )}
 
             {/* Attachment */}
@@ -227,60 +228,5 @@ const CoachEntrenamientos = () => {
   );
 };
 
-const MetricCard = ({ label, value }: { label: string; value: number }) => (
-  <Card className="bg-card border-border">
-    <CardContent className="p-3 text-center">
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <p className="text-xl font-bold text-foreground">{value}</p>
-      <div className="flex gap-0.5 justify-center mt-1.5">
-        {Array.from({ length: 5 }, (_, i) => (
-          <div
-            key={i}
-            className={`w-2 h-2 rounded-full ${
-              i < value ? "bg-primary" : "bg-muted"
-            }`}
-          />
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-);
-
-const TrainingDescription = ({ text }: { text: string }) => {
-  const [open, setOpen] = useState(true);
-  const lines = text.split("\n").filter((l) => l.trim());
-
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="bg-card border-border">
-        <CollapsibleTrigger asChild>
-          <button className="w-full p-4 flex items-center justify-between text-left">
-            <span className="text-sm font-semibold text-foreground">Descripción del entrenamiento</span>
-            {open ? (
-              <ChevronUp className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            )}
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-1.5">
-            {lines.map((line, i) => {
-              const isBullet = line.trim().startsWith("-") || line.trim().startsWith("•");
-              const cleaned = isBullet ? line.trim().replace(/^[-•]\s*/, "") : line.trim();
-              return (
-                <p key={i} className={`text-sm leading-relaxed ${
-                  isBullet ? "text-muted-foreground pl-3 border-l-2 border-primary/30" : "text-foreground"
-                }`}>
-                  {cleaned}
-                </p>
-              );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
-  );
-};
-
 export default CoachEntrenamientos;
+
