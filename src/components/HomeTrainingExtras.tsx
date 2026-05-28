@@ -14,7 +14,10 @@ const formatPrice = (n: number) => "$" + n.toLocaleString("es-AR");
 
 interface Props {
   alumnoId: string;
+  onGoToTienda?: () => void;
 }
+
+
 
 const HomeTrainingExtras = ({ alumnoId }: Props) => {
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
