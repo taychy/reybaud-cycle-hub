@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, Package, ShoppingBag } from "lucide-react";
+import { ArrowLeft, CalendarClock, Package, ShoppingBag } from "lucide-react";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 import { formatPrice } from "@/lib/currency";
 
