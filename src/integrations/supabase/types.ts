@@ -4035,6 +4035,7 @@ export type Database = {
           moneda: string
           mp_external_reference: string | null
           mp_payment_id: string | null
+          mp_preference_id: string | null
           notas: string | null
           precio_total: number
           precio_unitario: number
@@ -4042,6 +4043,7 @@ export type Database = {
           producto_nombre: string
           saldo_pendiente: number
           sena_monto: number
+          sena_pagada_at: string | null
           updated_at: string
           variante: Json
         }
@@ -4059,6 +4061,7 @@ export type Database = {
           moneda?: string
           mp_external_reference?: string | null
           mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
           precio_total: number
           precio_unitario: number
@@ -4066,6 +4069,7 @@ export type Database = {
           producto_nombre: string
           saldo_pendiente: number
           sena_monto: number
+          sena_pagada_at?: string | null
           updated_at?: string
           variante?: Json
         }
@@ -4083,6 +4087,7 @@ export type Database = {
           moneda?: string
           mp_external_reference?: string | null
           mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notas?: string | null
           precio_total?: number
           precio_unitario?: number
@@ -4090,6 +4095,7 @@ export type Database = {
           producto_nombre?: string
           saldo_pendiente?: number
           sena_monto?: number
+          sena_pagada_at?: string | null
           updated_at?: string
           variante?: Json
         }
