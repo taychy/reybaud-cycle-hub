@@ -67,8 +67,9 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
   }, [alumnoId]);
 
   const goToTienda = () => {
-    window.dispatchEvent(new CustomEvent("student-tab-change", { detail: "tienda" }));
+    if (onGoToTienda) onGoToTienda();
   };
+
 
   return (
     <div className="space-y-4">
