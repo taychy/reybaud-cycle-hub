@@ -455,6 +455,69 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
             <p className="text-[11px] text-muted-foreground italic">Este producto no requiere selección de variante.</p>
           )}
 
+          {/* Entrega */}
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <label className="text-xs font-heading uppercase text-muted-foreground">¿Cómo querés recibirlo?</label>
+            <div className="grid grid-cols-2 gap-2">
+              {deliveryMethods.includes("retiro_sede") && (
+                <button
+                  type="button"
+                  onClick={() => setEntregaMetodo("retiro_sede")}
+                  className={`text-xs px-2 py-2 rounded border ${entregaMetodo === "retiro_sede" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                >
+                  Retiro en sede
+                </button>
+              )}
+              {deliveryMethods.includes("envio_moto") && (
+                <button
+                  type="button"
+                  onClick={() => setEntregaMetodo("envio_moto")}
+                  className={`text-xs px-2 py-2 rounded border ${entregaMetodo === "envio_moto" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                >
+                  Envío por moto
+                </button>
+              )}
+            </div>
+
+            {entregaMetodo === "retiro_sede" && availableSedes.length > 0 && (
+              <div>
+                <label className="text-[10px] font-heading uppercase text-muted-foreground">Sede de retiro</label>
+                <Select value={sedeRetiroId} onValueChange={setSedeRetiroId}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Elegí sede" /></SelectTrigger>
+                  <SelectContent>
+                    {availableSedes.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}{s.ciudad ? ` · ${s.ciudad}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {entregaMetodo === "retiro_sede" && availableSedes.length === 0 && (
+              <p className="text-[11px] text-muted-foreground italic">Te avisamos cuándo y dónde retirar.</p>
+            )}
+
+            {entregaMetodo === "envio_moto" && (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[10px] font-heading uppercase text-muted-foreground">Dirección de entrega</label>
+                  <Input value={envioDireccion} onChange={(e) => setEnvioDireccion(e.target.value)} placeholder="Calle, número, piso/depto, localidad" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-heading uppercase text-muted-foreground">Teléfono de contacto</label>
+                  <Input value={envioContacto} onChange={(e) => setEnvioContacto(e.target.value)} placeholder="Cel del que recibe" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-heading uppercase text-muted-foreground">Referencias (opcional)</label>
+                  <Textarea rows={2} value={envioNotas} onChange={(e) => setEnvioNotas(e.target.value)} placeholder="Horarios, indicaciones, etc." />
+                </div>
+                <p className="text-[11px] text-muted-foreground">El costo del envío lo coordinamos por WhatsApp según la zona.</p>
+              </div>
+            )}
+          </div>
+
+
           <div>
             <label className="text-xs font-heading uppercase text-muted-foreground">Forma de pago de la seña</label>
             <Select value={formaPago} onValueChange={setFormaPago}>
