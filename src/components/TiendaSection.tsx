@@ -132,22 +132,6 @@ const TiendaSection = () => {
   const [banners, setBanners] = useState<StoreBanner[]>([]);
   const [loading, setLoading] = useState(true);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
-  const [reserveProduct, setReserveProduct] = useState<StoreProduct | null>(null);
-  const catRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      const [productsRes, categoriesRes, bannersRes, sess] = await Promise.all([
-        supabase.from("store_products").select("*").eq("status", "active").order("featured_order", { ascending: true, nullsFirst: false }),
-        supabase.from("store_categories").select("*").eq("active", true).order("sort_order"),
-        supabase.from("store_banners").select("*").eq("active", true).order("sort_order").limit(1),
-        supabase.auth.getUser(),
-      ]);
-      setProducts(productsRes.data || []);
-      setCategories(categoriesRes.data || []);
-      setBanners(bannersRes.data || []);
-      const uid = sess.data.user?.id;
-  const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [alumnoInfo, setAlumnoInfo] = useState<{ nombre?: string; email?: string }>({});
   const [reserveProduct, setReserveProduct] = useState<StoreProduct | null>(null);
   const [buyProduct, setBuyProduct] = useState<StoreProduct | null>(null);
