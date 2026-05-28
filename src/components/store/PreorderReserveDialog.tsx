@@ -27,6 +27,15 @@ interface Product {
   is_combo?: boolean | null;
   combo_pricing_mode?: string | null;
   combo_price?: number | null;
+  delivery_methods?: string[] | null;
+  pickup_sede_ids?: string[] | null;
+}
+
+interface Sede {
+  id: string;
+  nombre: string;
+  direccion?: string | null;
+  ciudad?: string | null;
 }
 
 interface ComboItem {
