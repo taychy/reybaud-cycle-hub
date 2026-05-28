@@ -121,12 +121,14 @@ export function PendingPaymentsList() {
           cliente_cuit: alumno?.documento || null,
           concepto: `Suscripción ${s.planes?.nombre || ""}`.trim(),
           monto,
+          moneda: s.planes?.moneda || "ARS",
           referencia_tipo: "suscripcion",
           referencia_id: s.id,
           segmento: "escuela",
           metodo_pago: s.metodo_pago || null,
           origen_registro: s.origen_registro || null,
         },
+
         factura_estado: null,
         factura_cae: null,
       };
@@ -155,11 +157,13 @@ export function PendingPaymentsList() {
           cliente_cuit: alumno?.documento || null,
           concepto: `Reserva ${eventoName}`,
           monto,
+          moneda: r.currency_snapshot || r.moneda || "ARS",
           referencia_tipo: "evento",
           referencia_id: r.id,
           segmento: "viajes",
           metodo_pago: r.metodo_pago || null,
         },
+
         factura_estado: null,
         factura_cae: null,
       };
@@ -189,11 +193,13 @@ export function PendingPaymentsList() {
           cliente_cuit: alumno?.documento || null,
           concepto: conceptoBase,
           monto,
+          moneda: p.moneda || "ARS",
           referencia_tipo: "pedido",
           referencia_id: p.id,
           segmento: "tienda",
           metodo_pago: p.forma_pago_sena || null,
         },
+
         factura_estado: null,
         factura_cae: null,
       };

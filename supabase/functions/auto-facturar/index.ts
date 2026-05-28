@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
       alumno_id,
       concepto,
       monto,
+      moneda,
       referencia_tipo,
       referencia_id,
       segmento,
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
       alumno_id: string;
       concepto: string;
       monto: number;
+      moneda?: string;
       referencia_tipo?: string;
       referencia_id?: string;
       segmento: Segmento;
@@ -69,6 +71,7 @@ Deno.serve(async (req) => {
       metodo_pago?: string | null;
       origen_registro?: string | null;
     } = body;
+
 
     if (!alumno_id || !concepto || !monto) {
       return new Response(
@@ -131,6 +134,7 @@ Deno.serve(async (req) => {
         cliente_cuit: alumno?.documento || null,
         concepto,
         monto,
+        moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
         segmento,
@@ -139,6 +143,7 @@ Deno.serve(async (req) => {
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
       });
+
 
       if (insertErr) {
         console.error("Error creating factura record:", insertErr);
@@ -168,6 +173,7 @@ Deno.serve(async (req) => {
         cliente_cuit: alumno?.documento || null,
         concepto,
         monto,
+        moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
         segmento,
@@ -179,6 +185,7 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
+
 
     if (insertErr || !factura) {
       console.error("Error creating factura:", insertErr);

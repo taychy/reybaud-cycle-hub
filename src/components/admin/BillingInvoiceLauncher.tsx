@@ -12,12 +12,14 @@ export type InvoiceSource = {
   cliente_cuit?: string | null;
   concepto: string;
   monto: number;
+  moneda?: string;
   referencia_tipo: "suscripcion" | "evento" | "pedido";
   referencia_id: string;
   segmento: "escuela" | "viajes" | "tienda";
   metodo_pago?: string | null;
   origen_registro?: string | null;
 };
+
 
 interface Emisor {
   id: string;
@@ -100,6 +102,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
             alumno_id: source.alumno_id,
             concepto: source.concepto,
             monto: source.monto,
+            moneda: source.moneda ?? "ARS",
             referencia_tipo: source.referencia_tipo,
             referencia_id: source.referencia_id,
             segmento: source.segmento,
@@ -107,6 +110,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
             origen_registro: source.origen_registro ?? undefined,
           },
         });
+
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 

@@ -22,6 +22,7 @@ interface FacturaRow {
   condicion_fiscal: string;
   concepto: string;
   monto: number;
+  moneda?: string | null;
   estado: string;
   emisor_id: string | null;
   numero_comprobante: string | null;
@@ -41,10 +42,19 @@ const METODO_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
+// Agrupamiento de orígenes para los filtros visibles
+const ORIGEN_APP_VALUES = ["autogestion", "automatico", "informado_alumno", "mp_link"];
+const ORIGEN_ADMIN_VALUES = ["cargado_admin", "manual"];
+
 const ORIGEN_LABELS: Record<string, string> = {
   autogestion: "App del alumno",
+  automatico: "App · MP automático",
+  informado_alumno: "App · informado por alumno",
+  mp_link: "App · link MP",
   cargado_admin: "Cargado por admin",
+  manual: "Manual",
 };
+
 
 interface Props {
   facturas: FacturaRow[];
@@ -93,6 +103,7 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
   const [emisorFilter, setEmisorFilter] = useState("todos");
   const [metodoFilter, setMetodoFilter] = useState("todos");
   const [origenFilter, setOrigenFilter] = useState("todos");
+  const [monedaFilter, setMonedaFilter] = useState("todos");
 
   // Filtros configurables del bulk
   const [includeSinFactura, setIncludeSinFactura] = useState(true);
@@ -101,17 +112,31 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Monedas presentes en el dataset actual
+  const monedasDisponibles = useMemo(() => {
+    const set = new Set<string>();
+    facturas.forEach((f) => set.add((f.moneda || "ARS").toUpperCase()));
+    return Array.from(set).sort();
+  }, [facturas]);
+
   const filtered = useMemo(() => {
     return facturas.filter((f) => {
       if (estadoFilter !== "todos" && f.estado !== estadoFilter) return false;
       if (emisorFilter !== "todos" && f.emisor_id !== emisorFilter) return false;
+      if (monedaFilter !== "todos" && (f.moneda || "ARS").toUpperCase() !== monedaFilter) return false;
       if (metodoFilter !== "todos") {
         const m = (f.metodo_pago || "sin_dato").toLowerCase();
         if (metodoFilter === "sin_dato" ? !!f.metodo_pago : m !== metodoFilter) return false;
       }
       if (origenFilter !== "todos") {
         const o = f.origen_registro || "sin_dato";
-        if (origenFilter === "sin_dato" ? !!f.origen_registro : o !== origenFilter) return false;
+        if (origenFilter === "sin_dato") {
+          if (!!f.origen_registro) return false;
+        } else if (origenFilter === "app") {
+          if (!ORIGEN_APP_VALUES.includes(o)) return false;
+        } else if (origenFilter === "admin") {
+          if (!ORIGEN_ADMIN_VALUES.includes(o)) return false;
+        }
       }
       if (search) {
         const q = search.toLowerCase();
@@ -129,7 +154,8 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
       }
       return true;
     });
-  }, [facturas, estadoFilter, emisorFilter, metodoFilter, origenFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
+  }, [facturas, estadoFilter, emisorFilter, monedaFilter, metodoFilter, origenFilter, search, enableBulk, includeSinFactura, includeError, includeManual]);
+
 
   const emisorMap = new Map(emisores.map((e) => [e.id, e.nombre_fiscal]));
   const facturablesVisibles = filtered.filter(isFacturable);
@@ -191,12 +217,22 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
           <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Origen" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los orígenes</SelectItem>
-            <SelectItem value="autogestion">App del alumno</SelectItem>
-            <SelectItem value="cargado_admin">Cargado por admin</SelectItem>
+            <SelectItem value="app">App del alumno</SelectItem>
+            <SelectItem value="admin">Cargado por admin</SelectItem>
             <SelectItem value="sin_dato">Sin dato</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={monedaFilter} onValueChange={setMonedaFilter}>
+          <SelectTrigger className="w-full sm:w-32"><SelectValue placeholder="Moneda" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas las monedas</SelectItem>
+            {monedasDisponibles.map((m) => (
+              <SelectItem key={m} value={m}>{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
 
       {/* Filtros de facturables */}
       {enableBulk && (
@@ -268,7 +304,7 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
                   <p className="text-xs text-muted-foreground">{f.concepto}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
-                    <span className="font-semibold text-foreground">${f.monto.toLocaleString("es-AR")}</span>
+                    <span className="font-semibold text-foreground">{formatPrice(Number(f.monto || 0), (f.moneda || "ARS") as any)}</span>
                     {f.emisor_id && <span className="text-primary">{emisorMap.get(f.emisor_id) || "—"}</span>}
                     {f.numero_comprobante && <span>Nº {f.numero_comprobante}</span>}
                     {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
