@@ -149,6 +149,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
       // Abrir modal AFIP con el registro ya creado
       setModalFactura({
         ...factura,
+        alumno_id: (factura as any).alumno_id ?? source.alumno_id,
         cliente_nombre: factura.cliente_nombre || source.cliente_nombre,
         cliente_cuit: factura.cliente_cuit ?? source.cliente_cuit ?? null,
         condicion_fiscal: factura.condicion_fiscal || "consumidor_final",
