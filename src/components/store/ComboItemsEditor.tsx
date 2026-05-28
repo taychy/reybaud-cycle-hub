@@ -82,21 +82,6 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
           Componentes del combo
         </label>
         <div className="flex gap-1">
-          {!isPreorder && (
-            <Button type="button" size="sm" variant="outline" onClick={addReusable}>
-              <Package className="w-3.5 h-3.5 mr-1" /> Producto existente
-            </Button>
-          )}
-          <Button type="button" size="sm" variant="ghost" onClick={addInternal}>
-            <FileText className="w-3.5 h-3.5 mr-1" /> Sub-ítem interno
-          </Button>
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-heading uppercase text-muted-foreground">
-          Componentes del combo
-        </label>
-        <div className="flex gap-1">
           <Button type="button" size="sm" variant="outline" onClick={addReusable}>
             <Package className="w-3.5 h-3.5 mr-1" /> Producto existente
           </Button>
@@ -107,9 +92,22 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
       </div>
       {isPreorder && (
         <p className="text-[11px] text-muted-foreground italic">
-          Combo de preventa: el cupo lo gobierna el total de unidades de la preventa del combo. Los componentes pueden ser <b>productos existentes</b> (ej. chaleco y campera que también se venden sueltos) o <b>sub-ítems internos</b> (sin stock propio). El stock de los componentes no se descuenta al reservar el combo.
+          Combo de preventa: el cupo lo gobierna el total de unidades de la preventa del combo. Los componentes pueden ser <b>productos existentes</b> (ej. chaleco y campera que también se venden sueltos, con o sin su propia preventa) o <b>sub-ítems internos</b> (sin stock propio). El stock de los componentes no se descuenta al reservar el combo.
         </p>
       )}
+
+      {items.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground text-center">
+          Sin componentes. Agregá uno arriba.
+        </div>
+      )}
+
+      {items.map((item) => (
+        <div key={item.id} className="rounded-lg border border-border p-3 space-y-2 bg-muted/10">
+          <div className="flex items-center gap-2">
+            <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+            {item.component_product_id !== null && item.component_product_id !== undefined ? (
+              <>
 
                 <Select
                   value={item.component_product_id || ""}
