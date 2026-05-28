@@ -118,6 +118,17 @@ const MisPreventas = ({ alumnoId }: Props) => {
                 {r.forma_pago_sena && <> · {r.forma_pago_sena}</>}
               </div>
 
+              {r.entrega_metodo && (
+                <div className="text-[11px] text-muted-foreground flex items-start gap-1">
+                  {r.entrega_metodo === "envio_moto" ? <Truck className="w-3 h-3 mt-0.5 text-primary" /> : <Store className="w-3 h-3 mt-0.5 text-cyan" />}
+                  <span>
+                    {r.entrega_metodo === "envio_moto"
+                      ? <>Envío por moto · {r.envio_direccion || "dirección a confirmar"}{r.envio_costo != null && <> · costo {formatPrice(Number(r.envio_costo), r.moneda)}</>}</>
+                      : <>Retiro en sede</>}
+                  </span>
+                </div>
+              )}
+
               {(canPayMP || canCancel) && (
                 <div className="flex gap-2 pt-1">
                   {canPayMP && (
