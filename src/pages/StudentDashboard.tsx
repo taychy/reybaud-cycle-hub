@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
 import HomeNewsCarousel from "@/components/HomeNewsCarousel";
 import HomePendingResultBanner from "@/components/HomePendingResultBanner";
+import HomeTrainingExtras from "@/components/HomeTrainingExtras";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -623,7 +624,16 @@ const StudentDashboard = () => {
                     <MetricBar label={t("dashboard.intensity")} value={entrenamiento.intensidad ?? 0} />
                   </div>
                 )}
+
+                {/* Feedback del entrenador + objetivos + destacados tienda */}
+                {alumno && (
+                  <HomeTrainingExtras
+                    alumnoId={alumno.id}
+                    onGoToTienda={() => handleTabChange("tienda")}
+                  />
+                )}
               </>
+
             ) : (
               <>
                 {/* Day header + selector even when no training */}
