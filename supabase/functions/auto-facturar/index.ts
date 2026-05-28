@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
         cliente_cuit: alumno?.documento || null,
         concepto,
         monto,
+        moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
         segmento,
@@ -142,6 +143,7 @@ Deno.serve(async (req) => {
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
       });
+
 
       if (insertErr) {
         console.error("Error creating factura record:", insertErr);
