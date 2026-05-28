@@ -13,6 +13,7 @@ import { StudentProgressContent } from "@/pages/StudentProgress";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
+import FontSizeToggle from "@/components/FontSizeToggle";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import LanguageSelector from "@/components/LanguageSelector";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -513,7 +514,10 @@ const StudentDashboard = () => {
             )}
 
             {/* Greeting */}
-            <div className="text-center space-y-1 pt-2">
+            <div className="text-center space-y-1 pt-2 relative">
+              <div className="absolute right-0 top-2">
+                <FontSizeToggle />
+              </div>
               <h1 className="text-xl font-heading font-semibold text-foreground">
                 {getGreeting()}, <span className="gold-text-gradient">{firstName}</span>
               </h1>
