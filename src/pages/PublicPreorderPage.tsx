@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, Package, ShoppingBag } from "lucide-react";
+import { ArrowLeft, CalendarClock, Package, ShoppingBag } from "lucide-react";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 import { formatPrice } from "@/lib/currency";
 
@@ -64,6 +64,22 @@ const PublicPreorderPage = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Volver
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            className="text-sm font-heading font-semibold text-primary uppercase tracking-wider"
+          >
+            Inicio
+          </button>
+        </div>
+      </header>
       <div className="max-w-md mx-auto p-4 space-y-4">
         <div className="aspect-square rounded-xl overflow-hidden bg-secondary border border-border">
           {product.image_url ? (
