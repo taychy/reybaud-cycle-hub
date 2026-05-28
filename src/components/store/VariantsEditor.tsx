@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Plus, Shirt } from "lucide-react";
+import { X, Plus, Shirt, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface VariantSpec {
   name: string;
@@ -63,6 +63,22 @@ const VariantsEditor = ({ value, onChange }: Props) => {
   const removeOption = (i: number, opt: string) =>
     update(specs.map((s, idx) => (idx === i ? { ...s, options: s.options.filter((o) => o !== opt) } : s)));
 
+  const moveOption = (i: number, from: number, dir: -1 | 1) => {
+    const opts = [...specs[i].options];
+    const to = from + dir;
+    if (to < 0 || to >= opts.length) return;
+    [opts[from], opts[to]] = [opts[to], opts[from]];
+    update(specs.map((s, idx) => (idx === i ? { ...s, options: opts } : s)));
+  };
+
+  const reorderOption = (i: number, from: number, to: number) => {
+    if (from === to) return;
+    const opts = [...specs[i].options];
+    const [moved] = opts.splice(from, 1);
+    opts.splice(to, 0, moved);
+    update(specs.map((s, idx) => (idx === i ? { ...s, options: opts } : s)));
+  };
+
   return (
     <div className="space-y-3">
       <div>
@@ -92,9 +108,43 @@ const VariantsEditor = ({ value, onChange }: Props) => {
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            {s.options.map((o) => (
-              <span key={o} className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-xs px-2 py-0.5">
+            {s.options.map((o, oi) => (
+              <span
+                key={o}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", String(oi));
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                  if (!isNaN(from)) reorderOption(i, from, oi);
+                }}
+                className="group inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-xs pl-1 pr-2 py-0.5 cursor-move select-none"
+                title="Arrastrá para reordenar"
+              >
+                <GripVertical className="w-3 h-3 opacity-50 group-hover:opacity-100" />
+                <button
+                  type="button"
+                  onClick={() => moveOption(i, oi, -1)}
+                  disabled={oi === 0}
+                  className="opacity-0 group-hover:opacity-100 disabled:opacity-20 hover:text-foreground"
+                  title="Mover izquierda"
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                </button>
                 {o}
+                <button
+                  type="button"
+                  onClick={() => moveOption(i, oi, 1)}
+                  disabled={oi === s.options.length - 1}
+                  className="opacity-0 group-hover:opacity-100 disabled:opacity-20 hover:text-foreground"
+                  title="Mover derecha"
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </button>
                 <button type="button" onClick={() => removeOption(i, o)} className="hover:text-destructive">
                   <X className="w-3 h-3" />
                 </button>
