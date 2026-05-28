@@ -193,11 +193,13 @@ export function PendingPaymentsList() {
           cliente_cuit: alumno?.documento || null,
           concepto: conceptoBase,
           monto,
+          moneda: p.moneda || "ARS",
           referencia_tipo: "pedido",
           referencia_id: p.id,
           segmento: "tienda",
           metodo_pago: p.forma_pago_sena || null,
         },
+
         factura_estado: null,
         factura_cae: null,
       };
