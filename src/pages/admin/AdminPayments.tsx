@@ -21,6 +21,7 @@ import {
   ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 type Suscripcion = {
