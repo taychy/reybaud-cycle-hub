@@ -188,7 +188,7 @@ const CoachEntrenamientos = () => {
               )}
             </div>
 
-            </div>
+
 
             {/* Description with student-style rendering and font toggle */}
             {todayTraining.descripcion && (
