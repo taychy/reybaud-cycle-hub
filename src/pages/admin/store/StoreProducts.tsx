@@ -326,6 +326,90 @@ const StoreProducts = () => {
                 onChange={(url) => setEditProduct((p) => ({ ...p, image_url: url }))}
               />
             </div>
+
+            {/* Preventa */}
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-heading">
+                <input
+                  type="checkbox"
+                  checked={!!editProduct?.is_preorder}
+                  onChange={(e) => setEditProduct((p) => ({ ...p, is_preorder: e.target.checked }))}
+                />
+                Es producto de preventa
+              </label>
+              {editProduct?.is_preorder && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-heading uppercase text-muted-foreground">Moneda</label>
+                      <Select value={editProduct?.currency || "ARS"} onValueChange={(v) => setEditProduct((p) => ({ ...p, currency: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ARS">ARS</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-heading uppercase text-muted-foreground">Estado preventa</label>
+                      <Select value={editProduct?.preorder_status || "abierta"} onValueChange={(v) => setEditProduct((p) => ({ ...p, preorder_status: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="abierta">Abierta</SelectItem>
+                          <SelectItem value="cerrada">Cerrada</SelectItem>
+                          <SelectItem value="cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-heading uppercase text-muted-foreground">Seña ($)</label>
+                      <Input type="number" value={editProduct?.preorder_deposit_amount || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_deposit_amount: e.target.value ? Number(e.target.value) : null }))} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-heading uppercase text-muted-foreground">Seña (%) — alt.</label>
+                      <Input type="number" value={editProduct?.preorder_deposit_percent || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_deposit_percent: e.target.value ? Number(e.target.value) : null }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-heading uppercase text-muted-foreground">Cupo total de unidades</label>
+                    <Input type="number" value={editProduct?.preorder_total_units || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_total_units: e.target.value ? Number(e.target.value) : null }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-heading uppercase text-muted-foreground">Fecha límite</label>
+                      <Input type="datetime-local" value={editProduct?.preorder_deadline?.slice(0,16) || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_deadline: e.target.value || null }))} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-heading uppercase text-muted-foreground">Entrega estimada</label>
+                      <Input type="date" value={editProduct?.preorder_estimated_delivery || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_estimated_delivery: e.target.value || null }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-heading uppercase text-muted-foreground">Descripción de preventa</label>
+                    <Input value={editProduct?.preorder_description || ""} onChange={(e) => setEditProduct((p) => ({ ...p, preorder_description: e.target.value }))} placeholder="Detalle para el alumno (fechas, condiciones, etc.)" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-heading uppercase text-muted-foreground">
+                      Variantes (JSON) — ej. [{"{"}"name":"Talle","options":["S","M","L"]{"}"}]
+                    </label>
+                    <Input
+                      value={typeof editProduct?.preorder_variants === "string" ? editProduct.preorder_variants : JSON.stringify(editProduct?.preorder_variants || [])}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value || "[]");
+                          setEditProduct((p) => ({ ...p, preorder_variants: parsed }));
+                        } catch {
+                          setEditProduct((p) => ({ ...p, preorder_variants: e.target.value as any }));
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</Button>
