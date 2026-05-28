@@ -304,7 +304,7 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
                   <p className="text-xs text-muted-foreground">{f.concepto}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
-                    <span className="font-semibold text-foreground">${f.monto.toLocaleString("es-AR")}</span>
+                    <span className="font-semibold text-foreground">{formatPrice(Number(f.monto || 0), (f.moneda || "ARS") as any)}</span>
                     {f.emisor_id && <span className="text-primary">{emisorMap.get(f.emisor_id) || "—"}</span>}
                     {f.numero_comprobante && <span>Nº {f.numero_comprobante}</span>}
                     {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
