@@ -13,6 +13,7 @@ import { StudentProgressContent } from "@/pages/StudentProgress";
 import TrainingDetailView from "@/components/TrainingDetailView";
 import VacationDashboard from "@/components/VacationDashboard";
 import WeatherBar from "@/components/WeatherBar";
+import FontSizeToggle from "@/components/FontSizeToggle";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import LanguageSelector from "@/components/LanguageSelector";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
