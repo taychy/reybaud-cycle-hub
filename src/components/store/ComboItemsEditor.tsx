@@ -82,14 +82,21 @@ const ComboItemsEditor = ({ comboId, isPreorder = false }: Props) => {
           Componentes del combo
         </label>
         <div className="flex gap-1">
-          <Button type="button" size="sm" variant="outline" onClick={addReusable}>
-            <Package className="w-3.5 h-3.5 mr-1" /> Producto existente
-          </Button>
+          {!isPreorder && (
+            <Button type="button" size="sm" variant="outline" onClick={addReusable}>
+              <Package className="w-3.5 h-3.5 mr-1" /> Producto existente
+            </Button>
+          )}
           <Button type="button" size="sm" variant="ghost" onClick={addInternal}>
             <FileText className="w-3.5 h-3.5 mr-1" /> Sub-ítem interno
           </Button>
         </div>
       </div>
+      {isPreorder && (
+        <p className="text-[11px] text-muted-foreground italic">
+          Combo de preventa: los componentes son solo definitorios (nombre, precio y talles disponibles). El stock es ilimitado y se gobierna por el cupo total de la preventa.
+        </p>
+      )}
 
       {items.length === 0 && (
         <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground text-center">
