@@ -420,11 +420,12 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
             <div className="flex justify-between text-muted-foreground"><span>Total</span><span>{formatPrice(total, moneda)}</span></div>
             <div className="flex justify-between font-heading text-primary"><span>Seña a pagar ahora</span><span>{formatPrice(sena, moneda)}</span></div>
             <div className="flex justify-between text-xs text-muted-foreground"><span>Saldo al retirar</span><span>{formatPrice(saldo, moneda)}</span></div>
-            {senaCapped && (
-              <div className="flex items-center gap-1 text-[11px] text-destructive pt-1">
-                <AlertCircle className="w-3 h-3" />
-                Seña configurada mayor al total. Ajustada al 100%.
-              </div>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={loading || !cupoOk || deadlinePass || unitPrice <= 0 || (isCombo && comboItems.length === 0)}>
+              {formaPago === "mercadopago" ? <CreditCard className="w-4 h-4 mr-1" /> : null}
+              {loading ? "Procesando..." : formaPago === "mercadopago" ? "Reservar y pagar" : "Reservar"}
+            </Button>
+
             )}
           </div>
 
