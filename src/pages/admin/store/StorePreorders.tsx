@@ -177,10 +177,13 @@ const StorePreorders = () => {
     if (search) {
       const s = search.toLowerCase();
       const al = alumnosMap[r.alumno_id];
-      const fullName = `${al?.nombre || ""} ${al?.apellido || ""} ${al?.email || ""} ${al?.dni || ""}`.toLowerCase();
+      const nombre = al ? `${al.nombre || ""} ${al.apellido || ""}` : ((r as any).alumno_nombre || "");
+      const email = al?.email || (r as any).alumno_email || "";
+      const dni = al?.dni || (r as any).alumno_dni || "";
+      const fullName = `${nombre} ${email} ${dni}`.toLowerCase();
       if (!r.producto_nombre.toLowerCase().includes(s) && !fullName.includes(s)) return false;
     }
-    return true;
+
   });
 
   const updateField = async (id: string, patch: Partial<Preorder>) => {
