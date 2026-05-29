@@ -513,11 +513,11 @@ const StorePreorders = () => {
                   {/* Alumno */}
                   <section className="rounded-lg border border-border p-3 space-y-1">
                     <h4 className="text-[11px] font-heading uppercase text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Cliente</h4>
-                    <div className="font-medium">{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || "—"}</div>
+                    <div className="font-medium">{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || (detail as any).alumno_nombre || "—"}</div>
                     <div className="text-xs text-muted-foreground">
-                      {al?.dni && <>DNI {al.dni} · </>}
-                      {al?.telefono && <><Phone className="inline w-3 h-3" /> {al.telefono} · </>}
-                      {al?.email}
+                      {(al?.dni || (detail as any).alumno_dni) && <>DNI {al?.dni || (detail as any).alumno_dni} · </>}
+                      {(al?.telefono || (detail as any).alumno_telefono) && <><Phone className="inline w-3 h-3" /> {al?.telefono || (detail as any).alumno_telefono} · </>}
+                      {al?.email || (detail as any).alumno_email}
                     </div>
                   </section>
 
