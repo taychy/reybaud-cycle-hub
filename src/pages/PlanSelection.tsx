@@ -14,6 +14,7 @@ import CheckoutMethodStep from "@/components/checkout/CheckoutMethodStep";
 import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
 
 interface Plan {
   id: string;
