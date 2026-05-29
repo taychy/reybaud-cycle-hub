@@ -6,6 +6,7 @@ import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus } from "lucide-react";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { daysUntil, setEarlyRenewal, EARLY_RENEWAL_WINDOW_DAYS } from "@/lib/earlyRenewal";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
