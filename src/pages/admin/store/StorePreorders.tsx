@@ -183,7 +183,7 @@ const StorePreorders = () => {
       const fullName = `${nombre} ${email} ${dni}`.toLowerCase();
       if (!r.producto_nombre.toLowerCase().includes(s) && !fullName.includes(s)) return false;
     }
-
+    return true;
   });
 
   const updateField = async (id: string, patch: Partial<Preorder>) => {
