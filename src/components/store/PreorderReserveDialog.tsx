@@ -268,10 +268,36 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       : [];
 
     setLoading(true);
+
+    // Snapshot del cliente (para que el nombre nunca se pierda en el panel admin,
+    // incluso si el alumno luego cambia datos o si hay RLS que bloquee el join)
+    let alumnoSnap: { nombre: string; email: string | null; telefono: string | null; dni: string | null } = {
+      nombre: "", email: null, telefono: null, dni: null,
+    };
+    try {
+      const { data: al } = await supabase
+        .from("alumnos")
+        .select("nombre, apellido, email, telefono, documento")
+        .eq("id", alumnoId)
+        .maybeSingle();
+      if (al) {
+        alumnoSnap = {
+          nombre: `${(al as any).nombre || ""} ${(al as any).apellido || ""}`.trim(),
+          email: (al as any).email || null,
+          telefono: (al as any).telefono || null,
+          dni: (al as any).documento || null,
+        };
+      }
+    } catch (_e) { /* ignore, queda vacío */ }
+
     const { data: inserted, error } = await supabase
       .from("store_preorders" as any)
       .insert({
         alumno_id: alumnoId,
+        alumno_nombre: alumnoSnap.nombre || null,
+        alumno_email: alumnoSnap.email,
+        alumno_telefono: alumnoSnap.telefono,
+        alumno_dni: alumnoSnap.dni,
         product_id: product.id,
         cantidad,
         variante: isCombo ? {} : variante,
@@ -296,6 +322,7 @@ const PreorderReserveDialog = ({ open, onOpenChange, product, alumnoId }: Props)
       } as any)
       .select("id")
       .single();
+
 
     if (error || !inserted) {
       setLoading(false);
