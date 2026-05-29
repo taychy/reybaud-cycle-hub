@@ -433,6 +433,57 @@ const StudentPayments = () => {
                       )}
                     </div>
 
+                    {/* Early renewal CTA — plan activo con ≤10 días para vencer */}
+                    {effectiveStatus === "activa" && sub.fecha_fin && (() => {
+                      const dLeft = daysUntil(sub.fecha_fin);
+                      if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
+                      const startEarlyRenewal = () => {
+                        setEarlyRenewal({
+                          subId: sub.id,
+                          planId: sub.plan_id,
+                          fechaFin: sub.fecha_fin!,
+                          autoRenovacion: sub.auto_renovacion,
+                        });
+                        if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
+                        navigate("/planes");
+                      };
+                      return (
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                          <p className="text-xs text-foreground">
+                            <strong>Tu plan vence en {dLeft === 0 ? "menos de un día" : `${dLeft} día${dLeft !== 1 ? "s" : ""}`}.</strong>
+                            {" "}Podés renovar el próximo período ahora (mismo plan o cambiarlo).
+                          </p>
+                          {sub.auto_renovacion ? (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="gold" size="sm" className="w-full">Renovar próximo período</Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-card border-border">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Desactivar renovación automática</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tenés la renovación automática activada. Si pagás ahora, vamos a desactivarla
+                                    para evitar un doble cobro. Si querés que vuelva a renovarse sola, podés
+                                    reactivarla más adelante desde acá.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={startEarlyRenewal}>
+                                    Entendido, renovar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          ) : (
+                            <Button variant="gold" size="sm" className="w-full" onClick={startEarlyRenewal}>
+                              Renovar próximo período
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Per-plan actions */}
                     <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
                       {/* Toggle renewal */}
