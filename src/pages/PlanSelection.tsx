@@ -298,12 +298,28 @@ const PlanSelection = () => {
     await cancelPausedSubs();
 
     const disc = selectedDiscount;
-    const now = new Date();
-    const fechaInicio = now.toISOString().split("T")[0];
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const fechaFin = lastDay.toISOString().split("T")[0];
+    let fechaInicio: string;
+    let fechaFin: string;
+    if (earlyRenewal) {
+      fechaInicio = earlyRenewal.fechaInicio;
+      fechaFin = earlyRenewal.fechaFin;
+      // Si la sub vigente tenía auto-renovación, la desactivamos para evitar doble cobro.
+      if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
+        await supabase
+          .from("suscripciones")
+          .update({ auto_renovacion: false } as any)
+          .eq("id", earlyRenewal.subId);
+      }
+    } else {
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      fechaFin = lastDay.toISOString().split("T")[0];
+    }
 
     const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+    const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+    const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
 
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
@@ -316,7 +332,7 @@ const PlanSelection = () => {
         precio_final: disc?.final ?? plan.precio,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
-        notas: upgradeMarker,
+        notas: notasMarker,
       } as any)
       .select("id")
       .single();
