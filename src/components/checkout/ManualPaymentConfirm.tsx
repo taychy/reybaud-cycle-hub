@@ -62,24 +62,34 @@ const ManualPaymentConfirm = ({
     onProcessing(true);
     setError(null);
 
-    const now = new Date();
-    const fechaInicio = now.toISOString().split("T")[0];
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const fechaFin = lastDay.toISOString().split("T")[0];
+    const earlyRenewal = getEarlyRenewal();
+    let fechaInicio: string;
+    let fechaFin: string;
+    if (earlyRenewal) {
+      fechaInicio = earlyRenewal.fechaInicio;
+      fechaFin = earlyRenewal.fechaFin;
+      // Desactivar auto-renovación de la sub vigente para evitar doble cobro.
+      if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
+        await supabase
+          .from("suscripciones")
+          .update({ auto_renovacion: false } as any)
+          .eq("id", earlyRenewal.subId);
+      }
+    } else {
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      fechaFin = lastDay.toISOString().split("T")[0];
+    }
 
     const canonicalMethod = toCanonicalMethod(metodoPago);
     const upgradeMarker = upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+    const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
     const userNotas =
       metodoPago === "otro" && otherDetail && otherDetail.trim().length > 0
         ? `Otro medio informado por alumno: ${otherDetail.trim()}`
         : null;
-    // Prioridad al marcador de upgrade en notas (lo necesita el trigger).
-    // El detalle del medio se guarda igual concatenado.
-    const notas = upgradeMarker
-      ? userNotas
-        ? `${upgradeMarker} | ${userNotas}`
-        : upgradeMarker
-      : userNotas;
+    const notas = [upgradeMarker, earlyMarker, userNotas].filter(Boolean).join(" | ") || null;
 
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
