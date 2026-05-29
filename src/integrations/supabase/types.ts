@@ -4135,7 +4135,11 @@ export type Database = {
       }
       store_preorders: {
         Row: {
+          alumno_dni: string | null
+          alumno_email: string | null
           alumno_id: string
+          alumno_nombre: string | null
+          alumno_telefono: string | null
           cancelada_at: string | null
           cancelada_motivo: string | null
           cantidad: number
@@ -4170,7 +4174,11 @@ export type Database = {
           variante: Json
         }
         Insert: {
+          alumno_dni?: string | null
+          alumno_email?: string | null
           alumno_id: string
+          alumno_nombre?: string | null
+          alumno_telefono?: string | null
           cancelada_at?: string | null
           cancelada_motivo?: string | null
           cantidad?: number
@@ -4205,7 +4213,11 @@ export type Database = {
           variante?: Json
         }
         Update: {
+          alumno_dni?: string | null
+          alumno_email?: string | null
           alumno_id?: string
+          alumno_nombre?: string | null
+          alumno_telefono?: string | null
           cancelada_at?: string | null
           cancelada_motivo?: string | null
           cantidad?: number

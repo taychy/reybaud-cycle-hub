@@ -177,10 +177,13 @@ const StorePreorders = () => {
     if (search) {
       const s = search.toLowerCase();
       const al = alumnosMap[r.alumno_id];
-      const fullName = `${al?.nombre || ""} ${al?.apellido || ""} ${al?.email || ""} ${al?.dni || ""}`.toLowerCase();
+      const nombre = al ? `${al.nombre || ""} ${al.apellido || ""}` : ((r as any).alumno_nombre || "");
+      const email = al?.email || (r as any).alumno_email || "";
+      const dni = al?.dni || (r as any).alumno_dni || "";
+      const fullName = `${nombre} ${email} ${dni}`.toLowerCase();
       if (!r.producto_nombre.toLowerCase().includes(s) && !fullName.includes(s)) return false;
     }
-    return true;
+
   });
 
   const updateField = async (id: string, patch: Partial<Preorder>) => {
@@ -438,9 +441,10 @@ const StorePreorders = () => {
                 <tr key={r.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetail(r)}>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-3 py-2">
-                    <div>{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || "—"}</div>
-                    <div className="text-[10px] text-muted-foreground">{al?.telefono || al?.email || ""}</div>
+                    <div>{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || (r as any).alumno_nombre || "—"}</div>
+                    <div className="text-[10px] text-muted-foreground">{al?.telefono || (r as any).alumno_telefono || al?.email || (r as any).alumno_email || ""}</div>
                   </td>
+
                   <td className="px-3 py-2">
                     <div className="font-medium">{r.producto_nombre}</div>
                     <div className="text-[10px] text-muted-foreground">
@@ -509,11 +513,11 @@ const StorePreorders = () => {
                   {/* Alumno */}
                   <section className="rounded-lg border border-border p-3 space-y-1">
                     <h4 className="text-[11px] font-heading uppercase text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Cliente</h4>
-                    <div className="font-medium">{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || "—"}</div>
+                    <div className="font-medium">{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || (detail as any).alumno_nombre || "—"}</div>
                     <div className="text-xs text-muted-foreground">
-                      {al?.dni && <>DNI {al.dni} · </>}
-                      {al?.telefono && <><Phone className="inline w-3 h-3" /> {al.telefono} · </>}
-                      {al?.email}
+                      {(al?.dni || (detail as any).alumno_dni) && <>DNI {al?.dni || (detail as any).alumno_dni} · </>}
+                      {(al?.telefono || (detail as any).alumno_telefono) && <><Phone className="inline w-3 h-3" /> {al?.telefono || (detail as any).alumno_telefono} · </>}
+                      {al?.email || (detail as any).alumno_email}
                     </div>
                   </section>
 
