@@ -14,6 +14,7 @@ import CheckoutMethodStep from "@/components/checkout/CheckoutMethodStep";
 import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
 
 interface Plan {
   id: string;
@@ -55,6 +56,8 @@ const PlanSelection = () => {
   const navigate = useNavigate();
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
+  const earlyRenewal = getEarlyRenewal();
+  const isEarlyRenewal = !!earlyRenewal;
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
   const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
   const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
@@ -132,11 +135,12 @@ const PlanSelection = () => {
         );
       });
 
-      if (hasCurrentAccess) {
+      if (hasCurrentAccess && !isEarlyRenewal) {
         localStorage.removeItem("alumno_renewal");
         localStorage.removeItem("alumno_from_vacation");
         localStorage.removeItem("upgrade_from_sub_id");
         localStorage.removeItem("upgrade_preselect_plan_id");
+        clearEarlyRenewal();
         navigate("/alumno", { replace: true });
         return;
       }
@@ -294,12 +298,28 @@ const PlanSelection = () => {
     await cancelPausedSubs();
 
     const disc = selectedDiscount;
-    const now = new Date();
-    const fechaInicio = now.toISOString().split("T")[0];
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const fechaFin = lastDay.toISOString().split("T")[0];
+    let fechaInicio: string;
+    let fechaFin: string;
+    if (earlyRenewal) {
+      fechaInicio = earlyRenewal.fechaInicio;
+      fechaFin = earlyRenewal.fechaFin;
+      // Si la sub vigente tenía auto-renovación, la desactivamos para evitar doble cobro.
+      if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
+        await supabase
+          .from("suscripciones")
+          .update({ auto_renovacion: false } as any)
+          .eq("id", earlyRenewal.subId);
+      }
+    } else {
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      fechaFin = lastDay.toISOString().split("T")[0];
+    }
 
     const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+    const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+    const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
 
     const { data: sub, error: subError } = await supabase
       .from("suscripciones")
@@ -312,7 +332,7 @@ const PlanSelection = () => {
         precio_final: disc?.final ?? plan.precio,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
-        notas: upgradeMarker,
+        notas: notasMarker,
       } as any)
       .select("id")
       .single();
@@ -494,6 +514,31 @@ const PlanSelection = () => {
           <CheckoutProgress currentStep={getStepNumber()} totalSteps={totalSteps} labels={stepLabels} />
         )}
 
+        {/* Early-renewal banner */}
+        {step === "select-plan" && isEarlyRenewal && earlyRenewal && (
+          <div className="max-w-lg mx-auto rounded-lg border border-primary/30 bg-primary/5 p-5 space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0 mt-0.5">🔄</span>
+              <div className="space-y-1">
+                <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-foreground">
+                  Renovación anticipada
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Tu plan actual sigue vigente. El próximo período arranca el{" "}
+                  <strong className="text-foreground">{formatLocalDate(earlyRenewal.fechaInicio)}</strong> y va
+                  hasta el <strong className="text-foreground">{formatLocalDate(earlyRenewal.fechaFin)}</strong>.
+                  Podés mantener el mismo plan o cambiarlo.
+                </p>
+                {earlyRenewal.autoRenovacion && (
+                  <p className="text-xs text-amber-500 mt-2">
+                    ⚠️ Vas a desactivar la renovación automática del plan vigente para evitar un doble cobro.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Vacation reactivation banner */}
         {step === "select-plan" && isRenewal && isFromVacation && (
           <div className="max-w-lg mx-auto rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 space-y-4">
@@ -546,7 +591,7 @@ const PlanSelection = () => {
         )}
 
         {/* Renewal banner (non-vacation) */}
-        {step === "select-plan" && isRenewal && !isFromVacation && renewalContextLoaded && (() => {
+        {step === "select-plan" && isRenewal && !isFromVacation && !isEarlyRenewal && renewalContextLoaded && (() => {
           const wasCancelled = !!previousSub?.canceladaAt;
           const finStr = previousSub?.fechaFin?.substring(0, 10);
           let finIsFuture = false;
