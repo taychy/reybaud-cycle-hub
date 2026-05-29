@@ -437,10 +437,11 @@ const StorePreorders = () => {
             {filtered.map((r) => {
               const al = alumnosMap[r.alumno_id];
               const tieneItems = Array.isArray(r.items) && r.items.length > 0;
-              return (
-                <tr key={r.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetail(r)}>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-3 py-2">
+                    <div>{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || (r as any).alumno_nombre || "—"}</div>
+                    <div className="text-[10px] text-muted-foreground">{al?.telefono || (r as any).alumno_telefono || al?.email || (r as any).alumno_email || ""}</div>
+                  </td>
+
                     <div>{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || "—"}</div>
                     <div className="text-[10px] text-muted-foreground">{al?.telefono || al?.email || ""}</div>
                   </td>
