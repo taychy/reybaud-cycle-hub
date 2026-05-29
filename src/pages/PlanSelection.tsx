@@ -591,7 +591,7 @@ const PlanSelection = () => {
         )}
 
         {/* Renewal banner (non-vacation) */}
-        {step === "select-plan" && isRenewal && !isFromVacation && renewalContextLoaded && (() => {
+        {step === "select-plan" && isRenewal && !isFromVacation && !isEarlyRenewal && renewalContextLoaded && (() => {
           const wasCancelled = !!previousSub?.canceladaAt;
           const finStr = previousSub?.fechaFin?.substring(0, 10);
           let finIsFuture = false;
