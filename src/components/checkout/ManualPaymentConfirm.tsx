@@ -62,19 +62,15 @@ const ManualPaymentConfirm = ({
     onProcessing(true);
     setError(null);
 
+    // Renovación anticipada manual: solo reutilizamos las fechas del próximo período
+    // calculadas a partir de la fecha_fin vigente para no solaparnos con la sub actual.
+    // (No tocamos auto_renovacion: los pagos manuales nunca se cobran automáticamente.)
     const earlyRenewal = getEarlyRenewal();
     let fechaInicio: string;
     let fechaFin: string;
     if (earlyRenewal) {
       fechaInicio = earlyRenewal.fechaInicio;
       fechaFin = earlyRenewal.fechaFin;
-      // Desactivar auto-renovación de la sub vigente para evitar doble cobro.
-      if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
-        await supabase
-          .from("suscripciones")
-          .update({ auto_renovacion: false } as any)
-          .eq("id", earlyRenewal.subId);
-      }
     } else {
       const now = new Date();
       fechaInicio = now.toISOString().split("T")[0];
