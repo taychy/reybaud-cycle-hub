@@ -164,12 +164,14 @@ const ManualPaymentConfirm = ({
           variant="gold"
           size="lg"
           className="w-full gap-2"
-          onClick={() => {
+          onClick={async () => {
+            const { clearEarlyRenewal } = await import("@/lib/earlyRenewal");
             localStorage.removeItem("registro_alumno_id");
             localStorage.removeItem("alumno_renewal");
             localStorage.removeItem("alumno_from_vacation");
             localStorage.removeItem("upgrade_from_sub_id");
             localStorage.removeItem("upgrade_preselect_plan_id");
+            clearEarlyRenewal();
             navigate("/");
           }}
         >
