@@ -135,11 +135,12 @@ const PlanSelection = () => {
         );
       });
 
-      if (hasCurrentAccess) {
+      if (hasCurrentAccess && !isEarlyRenewal) {
         localStorage.removeItem("alumno_renewal");
         localStorage.removeItem("alumno_from_vacation");
         localStorage.removeItem("upgrade_from_sub_id");
         localStorage.removeItem("upgrade_preselect_plan_id");
+        clearEarlyRenewal();
         navigate("/alumno", { replace: true });
         return;
       }
