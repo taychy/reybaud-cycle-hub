@@ -514,6 +514,31 @@ const PlanSelection = () => {
           <CheckoutProgress currentStep={getStepNumber()} totalSteps={totalSteps} labels={stepLabels} />
         )}
 
+        {/* Early-renewal banner */}
+        {step === "select-plan" && isEarlyRenewal && earlyRenewal && (
+          <div className="max-w-lg mx-auto rounded-lg border border-primary/30 bg-primary/5 p-5 space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0 mt-0.5">🔄</span>
+              <div className="space-y-1">
+                <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-foreground">
+                  Renovación anticipada
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Tu plan actual sigue vigente. El próximo período arranca el{" "}
+                  <strong className="text-foreground">{formatLocalDate(earlyRenewal.fechaInicio)}</strong> y va
+                  hasta el <strong className="text-foreground">{formatLocalDate(earlyRenewal.fechaFin)}</strong>.
+                  Podés mantener el mismo plan o cambiarlo.
+                </p>
+                {earlyRenewal.autoRenovacion && (
+                  <p className="text-xs text-amber-500 mt-2">
+                    ⚠️ Vas a desactivar la renovación automática del plan vigente para evitar un doble cobro.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Vacation reactivation banner */}
         {step === "select-plan" && isRenewal && isFromVacation && (
           <div className="max-w-lg mx-auto rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 space-y-4">
