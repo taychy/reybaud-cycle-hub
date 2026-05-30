@@ -206,6 +206,7 @@ const ManagePlanes = () => {
       whatsapp_url: plan.whatsapp_url || "",
       max_inscripciones: plan.max_inscripciones ? String(plan.max_inscripciones) : "",
       imagen_url: plan.imagen_url || "",
+      features: Array.isArray(plan.features) ? plan.features : [],
     });
     setDialogOpen(true);
   };
