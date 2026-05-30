@@ -185,7 +185,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
       <nav className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md z-30">
         <div className="max-w-md mx-auto flex items-center justify-around py-2">
           <VacNavItem
-            icon={<Palmtree className="w-5 h-5" />}
+            icon={<PauseCircle className="w-5 h-5" />}
             label="Inicio"
             active={activeTab === "inicio"}
             onClick={() => setActiveTab("inicio")}
