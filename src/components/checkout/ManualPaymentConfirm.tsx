@@ -53,6 +53,7 @@ const ManualPaymentConfirm = ({
   metodoPago,
   otherDetail,
   upgradeFromSubId,
+  overrideFechaFin,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
