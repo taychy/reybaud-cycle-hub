@@ -24,6 +24,7 @@ interface Plan {
   frecuencia: string;
   moneda?: string;
   tipo?: string;
+  categoria?: string;
   precio_promocional?: number | null;
   cuotas_cantidad?: number | null;
   cuota_valor?: number | null;
@@ -33,6 +34,7 @@ interface Plan {
   imagen_url?: string | null;
   features?: { text: string; included: boolean }[] | null;
 }
+
 
 interface PreviousSubInfo {
   planId: string;
