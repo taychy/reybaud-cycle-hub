@@ -382,10 +382,18 @@ const PlanSelection = () => {
       .single();
 
     if (subError) {
-      setError("Error al procesar. Intentá nuevamente.");
+      const msg = (subError as any)?.message || "";
+      if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
+        setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
+      } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
+        setError("Ya tenés este mismo plan activo para este período.");
+      } else {
+        setError("Error al procesar. Intentá nuevamente.");
+      }
       setProcessing(false);
       return;
     }
+
 
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
