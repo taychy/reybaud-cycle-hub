@@ -31,6 +31,7 @@ interface Plan {
   max_inscripciones?: number | null;
   inscripciones_actuales?: number;
   imagen_url?: string | null;
+  features?: { text: string; included: boolean }[] | null;
 }
 
 interface PreviousSubInfo {
