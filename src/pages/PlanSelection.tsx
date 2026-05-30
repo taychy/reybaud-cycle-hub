@@ -239,6 +239,18 @@ const PlanSelection = () => {
     }
   }, [loading, isUpgradeFlow, upgradePreselectPlanId, planes, selected]);
 
+  // Reactivación 1-click desde Pausa: sugerir el último plan grupal.
+  // Solo preseleccionamos (no avanzamos pasos) para que el alumno revise antes de pagar.
+  useEffect(() => {
+    if (!loading && vacationPreselectPlanId && !selected && !isUpgradeFlow) {
+      const planExists = planes.find((p) => p.id === vacationPreselectPlanId);
+      if (planExists) {
+        setSelected(vacationPreselectPlanId);
+      }
+      localStorage.removeItem("alumno_preselect_plan_id");
+    }
+  }, [loading, vacationPreselectPlanId, planes, selected, isUpgradeFlow]);
+
   const selectedPlan = planes.find((p) => p.id === selected);
   const isSecondary = subscriptionCount > 0;
   const selectedDiscount = selectedPlan
