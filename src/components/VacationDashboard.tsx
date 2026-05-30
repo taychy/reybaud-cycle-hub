@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, ChevronRight, Palmtree, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
+import { LogOut, User, ChevronRight, PauseCircle, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
 import { EventosContent } from "@/pages/Eventos";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -44,7 +44,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 font-medium">
-                  🏖️ Vacaciones
+                  ⏸️ En pausa
                 </span>
                 {alumno.grupo !== "Sin grupo" && (
                   <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
@@ -100,12 +100,12 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <Palmtree className="w-5 h-5 text-amber-400" />
+                  <PauseCircle className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="font-heading font-semibold text-foreground text-sm">Membresía en pausa</h2>
+                  <h2 className="font-heading font-semibold text-foreground text-sm">Tu plan está en pausa</h2>
                   <p className="text-xs text-muted-foreground">
-                    Estás en modo vacaciones. Tu lugar en la escuela sigue reservado.
+                    Seguís en la comunidad. Cuando estés listo, reactivás tu plan y volvés a entrenar.
                   </p>
                 </div>
               </div>
@@ -170,7 +170,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
       <header className="flex items-center justify-between px-5 pt-5 pb-2">
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
-          <span className="text-xs text-amber-400 font-heading">🏖️ Vacaciones</span>
+          <span className="text-xs text-amber-400 font-heading">⏸️ En pausa</span>
           <Button variant="ghost" size="icon" onClick={onLogout} className="text-muted-foreground">
             <LogOut className="w-4 h-4" />
           </Button>
@@ -185,7 +185,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
       <nav className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md z-30">
         <div className="max-w-md mx-auto flex items-center justify-around py-2">
           <VacNavItem
-            icon={<Palmtree className="w-5 h-5" />}
+            icon={<PauseCircle className="w-5 h-5" />}
             label="Inicio"
             active={activeTab === "inicio"}
             onClick={() => setActiveTab("inicio")}
