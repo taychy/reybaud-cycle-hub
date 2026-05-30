@@ -77,7 +77,7 @@ const VersionBadge = () => {
 
   return (
     <div
-      className="fixed bottom-2 left-2 z-[60] flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold opacity-70 hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm pointer-events-auto"
+      className="fixed top-2 left-2 md:bottom-2 md:top-auto z-[60] flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold opacity-70 hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm pointer-events-auto"
       style={{ lineHeight: 1.2 }}
     >
       {isMobile ? (
