@@ -422,7 +422,13 @@ const PlanSelection = () => {
 
     if (subError) {
       const msg = (subError as any)?.message || "";
-      if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
+      if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
+        setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
+      } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
+        setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
+      } else if (msg.includes("PAUSA_TOO_LONG")) {
+        setError("La pausa no puede durar más de 2 meses.");
+      } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
         setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
       } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
         setError("Ya tenés este mismo plan activo para este período.");
