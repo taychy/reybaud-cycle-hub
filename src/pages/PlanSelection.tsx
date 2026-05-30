@@ -187,6 +187,31 @@ const PlanSelection = () => {
     };
   }, [alumnoId, navigate, isRenewal]);
 
+  // Cargar plan grupal activo (para bloquear selección de otro grupal)
+  useEffect(() => {
+    if (!alumnoId) return;
+    let cancel = false;
+    (async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await supabase
+        .from("suscripciones")
+        .select("plan_id, fecha_fin, estado, planes(nombre, categoria)")
+        .eq("alumno_id", alumnoId)
+        .in("estado", ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"])
+        .is("cancelada_at", null)
+        .gte("fecha_fin", today);
+      if (cancel) return;
+      const grupal = (data as any[] | null)?.find(s => s.planes?.categoria === "grupal");
+      if (grupal) {
+        // Si el upgrade flow trae preseleccionado el mismo plan, no bloqueamos
+        if (upgradeFromSubId) return;
+        setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
+      }
+    })();
+    return () => { cancel = true; };
+  }, [alumnoId, upgradeFromSubId]);
+
+
   // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
   useEffect(() => {
     if (!loading && isUpgradeFlow && upgradePreselectPlanId && !selected) {
