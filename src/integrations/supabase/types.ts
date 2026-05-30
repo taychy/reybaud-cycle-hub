@@ -2797,6 +2797,7 @@ export type Database = {
           cuotas_cantidad: number | null
           descripcion: string | null
           descripcion_corta: string | null
+          features: Json
           frecuencia: string
           id: string
           imagen_url: string | null
@@ -2824,6 +2825,7 @@ export type Database = {
           cuotas_cantidad?: number | null
           descripcion?: string | null
           descripcion_corta?: string | null
+          features?: Json
           frecuencia: string
           id?: string
           imagen_url?: string | null
@@ -2851,6 +2853,7 @@ export type Database = {
           cuotas_cantidad?: number | null
           descripcion?: string | null
           descripcion_corta?: string | null
+          features?: Json
           frecuencia?: string
           id?: string
           imagen_url?: string | null
