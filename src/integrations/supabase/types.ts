@@ -2791,6 +2791,7 @@ export type Database = {
           acceso_eventos: boolean
           acceso_whatsapp: boolean
           activo: boolean
+          categoria: string
           clases_por_semana: number | null
           created_at: string
           cuota_valor: number | null
@@ -2819,6 +2820,7 @@ export type Database = {
           acceso_eventos?: boolean
           acceso_whatsapp?: boolean
           activo?: boolean
+          categoria?: string
           clases_por_semana?: number | null
           created_at?: string
           cuota_valor?: number | null
@@ -2847,6 +2849,7 @@ export type Database = {
           acceso_eventos?: boolean
           acceso_whatsapp?: boolean
           activo?: boolean
+          categoria?: string
           clases_por_semana?: number | null
           created_at?: string
           cuota_valor?: number | null

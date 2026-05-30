@@ -24,6 +24,7 @@ interface Plan {
   frecuencia: string;
   moneda?: string;
   tipo?: string;
+  categoria?: string;
   precio_promocional?: number | null;
   cuotas_cantidad?: number | null;
   cuota_valor?: number | null;
@@ -33,6 +34,7 @@ interface Plan {
   imagen_url?: string | null;
   features?: { text: string; included: boolean }[] | null;
 }
+
 
 interface PreviousSubInfo {
   planId: string;
@@ -75,8 +77,10 @@ const PlanSelection = () => {
   const [renewalContextLoaded, setRenewalContextLoaded] = useState(!isRenewal);
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
+  const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
+
 
   useEffect(() => {
     if (!alumnoId) {
@@ -183,6 +187,31 @@ const PlanSelection = () => {
     };
   }, [alumnoId, navigate, isRenewal]);
 
+  // Cargar plan grupal activo (para bloquear selección de otro grupal)
+  useEffect(() => {
+    if (!alumnoId) return;
+    let cancel = false;
+    (async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await supabase
+        .from("suscripciones")
+        .select("plan_id, fecha_fin, estado, planes(nombre, categoria)")
+        .eq("alumno_id", alumnoId)
+        .in("estado", ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"])
+        .is("cancelada_at", null)
+        .gte("fecha_fin", today);
+      if (cancel) return;
+      const grupal = (data as any[] | null)?.find(s => s.planes?.categoria === "grupal");
+      if (grupal) {
+        // Si el upgrade flow trae preseleccionado el mismo plan, no bloqueamos
+        if (upgradeFromSubId) return;
+        setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
+      }
+    })();
+    return () => { cancel = true; };
+  }, [alumnoId, upgradeFromSubId]);
+
+
   // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
   useEffect(() => {
     if (!loading && isUpgradeFlow && upgradePreselectPlanId && !selected) {
@@ -245,6 +274,19 @@ const PlanSelection = () => {
   };
 
   const handleSelectPlan = (planId: string) => {
+    const plan = planes.find(p => p.id === planId);
+    // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
+    if (
+      plan?.categoria === "grupal" &&
+      activeGrupalPlan &&
+      activeGrupalPlan.planId !== planId
+    ) {
+      setSelected(null);
+      setError(
+        `Ya tenés un plan grupal activo (${activeGrupalPlan.planName}). Solo podés tener un plan grupal a la vez. Si querés cambiarlo, cancelá el actual o esperá a que finalice el período.`
+      );
+      return;
+    }
     setSelected(planId);
     setModality(null);
     setPaymentMethod(null);
@@ -261,6 +303,7 @@ const PlanSelection = () => {
       setStep("select-method");
     }
   };
+
 
   const handleSelectModality = (mod: "total" | "cuotas") => {
     setModality(mod);
@@ -339,10 +382,18 @@ const PlanSelection = () => {
       .single();
 
     if (subError) {
-      setError("Error al procesar. Intentá nuevamente.");
+      const msg = (subError as any)?.message || "";
+      if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
+        setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
+      } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
+        setError("Ya tenés este mismo plan activo para este período.");
+      } else {
+        setError("Error al procesar. Intentá nuevamente.");
+      }
       setProcessing(false);
       return;
     }
+
 
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
