@@ -681,7 +681,7 @@ const StudentDashboard = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center px-4 pb-24">
+      <main className="flex-1 flex flex-col items-center px-4 pb-6">
         {renderContent()}
       </main>
 
