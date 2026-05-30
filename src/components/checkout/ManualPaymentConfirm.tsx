@@ -74,6 +74,10 @@ const ManualPaymentConfirm = ({
     if (earlyRenewal) {
       fechaInicio = earlyRenewal.fechaInicio;
       fechaFin = earlyRenewal.fechaFin;
+    } else if (overrideFechaFin) {
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      fechaFin = overrideFechaFin;
     } else {
       const now = new Date();
       fechaInicio = now.toISOString().split("T")[0];
