@@ -274,6 +274,19 @@ const PlanSelection = () => {
   };
 
   const handleSelectPlan = (planId: string) => {
+    const plan = planes.find(p => p.id === planId);
+    // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
+    if (
+      plan?.categoria === "grupal" &&
+      activeGrupalPlan &&
+      activeGrupalPlan.planId !== planId
+    ) {
+      setSelected(null);
+      setError(
+        `Ya tenés un plan grupal activo (${activeGrupalPlan.planName}). Solo podés tener un plan grupal a la vez. Si querés cambiarlo, cancelá el actual o esperá a que finalice el período.`
+      );
+      return;
+    }
     setSelected(planId);
     setModality(null);
     setPaymentMethod(null);
@@ -290,6 +303,7 @@ const PlanSelection = () => {
       setStep("select-method");
     }
   };
+
 
   const handleSelectModality = (mod: "total" | "cuotas") => {
     setModality(mod);
