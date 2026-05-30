@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, ChevronRight, Palmtree, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
+import { LogOut, User, ChevronRight, PauseCircle, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
 import { EventosContent } from "@/pages/Eventos";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
