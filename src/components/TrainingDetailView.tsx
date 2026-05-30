@@ -195,13 +195,13 @@ export default function TrainingDetailView({
         </button>
       </div>
 
-      {/* Day tabs - larger touch targets */}
-      <div className="flex justify-between px-1 border-b border-border pb-2">
+      {/* Day tabs - larger touch targets, horizontal scroll on overflow */}
+      <div className="flex gap-1 px-1 border-b border-border pb-2 overflow-x-auto scrollbar-hide -mx-1">
         {DAY_NAMES.map((name, i) => (
           <button
             key={name}
             onClick={() => onDayChange(i)}
-            className={`font-heading font-semibold px-3 py-2.5 transition-all relative rounded-md ${
+            className={`font-heading font-semibold px-3 py-2.5 transition-all relative rounded-md shrink-0 ${
               comfortMode ? "text-base" : "text-sm"
             } ${
               i === selectedDayIndex
