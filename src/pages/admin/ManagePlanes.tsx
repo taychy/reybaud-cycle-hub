@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Copy, Archive, Package, GraduationCap, Filter } from "lucide-react";
+import { Plus, Pencil, Copy, Archive, Package, GraduationCap, Filter, Check, X, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Plan {
@@ -39,6 +39,12 @@ interface Plan {
   max_inscripciones: number | null;
   imagen_url: string | null;
   inscripciones_actuales: number;
+  features: PlanFeature[] | null;
+}
+
+interface PlanFeature {
+  text: string;
+  included: boolean;
 }
 
 interface Sede {
@@ -90,6 +96,7 @@ const emptyForm = {
   whatsapp_url: "",
   max_inscripciones: "",
   imagen_url: "",
+  features: [] as PlanFeature[],
 };
 
 type FilterType = "todos" | "suscripcion" | "programa";
@@ -169,6 +176,7 @@ const ManagePlanes = () => {
       whatsapp_url: plan.whatsapp_url || "",
       max_inscripciones: plan.max_inscripciones ? String(plan.max_inscripciones) : "",
       imagen_url: plan.imagen_url || "",
+      features: Array.isArray(plan.features) ? plan.features : [],
     });
     setDialogOpen(true);
   };
@@ -198,6 +206,7 @@ const ManagePlanes = () => {
       whatsapp_url: plan.whatsapp_url || "",
       max_inscripciones: plan.max_inscripciones ? String(plan.max_inscripciones) : "",
       imagen_url: plan.imagen_url || "",
+      features: Array.isArray(plan.features) ? plan.features : [],
     });
     setDialogOpen(true);
   };
@@ -236,6 +245,7 @@ const ManagePlanes = () => {
       whatsapp_url: form.whatsapp_url.trim() || null,
       max_inscripciones: form.max_inscripciones ? Number(form.max_inscripciones) : null,
       imagen_url: form.imagen_url.trim() || null,
+      features: (form.features || []).filter((f) => f.text.trim() !== ""),
     };
 
     let planId: string;
@@ -312,6 +322,29 @@ const ManagePlanes = () => {
   };
 
   const isPrograma = form.tipo === "programa";
+
+  const addFeature = (included: boolean) => {
+    setForm((prev) => ({ ...prev, features: [...(prev.features || []), { text: "", included }] }));
+  };
+  const updateFeature = (idx: number, patch: Partial<PlanFeature>) => {
+    setForm((prev) => ({
+      ...prev,
+      features: prev.features.map((f, i) => (i === idx ? { ...f, ...patch } : f)),
+    }));
+  };
+  const removeFeature = (idx: number) => {
+    setForm((prev) => ({ ...prev, features: prev.features.filter((_, i) => i !== idx) }));
+  };
+  const moveFeature = (idx: number, dir: -1 | 1) => {
+    setForm((prev) => {
+      const arr = [...prev.features];
+      const j = idx + dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return { ...prev, features: arr };
+    });
+  };
+
 
   if (loading) return <div className="animate-pulse text-muted-foreground p-8">Cargando planes...</div>;
 
@@ -523,6 +556,54 @@ const ManagePlanes = () => {
               <label className="text-sm font-medium">Descripción completa</label>
               <Textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder={isPrograma ? "Detalle del programa, qué incluye, duración, etc." : "Detalles del plan"} rows={3} />
             </div>
+
+            {/* Features (incluye / no incluye) */}
+            <div className="space-y-2 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">✓ Características del plan</label>
+                <div className="flex gap-1">
+                  <Button type="button" variant="outline" size="sm" onClick={() => addFeature(true)}>
+                    <Check className="w-3 h-3 text-emerald-500" /> Incluye
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => addFeature(false)}>
+                    <X className="w-3 h-3 text-destructive" /> No incluye
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Lista que se muestra en la card del plan al seleccionarlo. Ej: "Acceso a entrenamientos", "Acceso al WhatsApp", etc.</p>
+              {form.features.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">Sin características cargadas.</p>
+              )}
+              {form.features.map((f, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateFeature(idx, { included: !f.included })}
+                    className={`w-7 h-7 shrink-0 rounded-md border flex items-center justify-center ${f.included ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500" : "border-destructive/40 bg-destructive/10 text-destructive"}`}
+                    title={f.included ? "Incluye (click para cambiar)" : "No incluye (click para cambiar)"}
+                  >
+                    {f.included ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                  </button>
+                  <Input
+                    value={f.text}
+                    onChange={(e) => updateFeature(idx, { text: e.target.value })}
+                    placeholder="Ej: Acceso a entrenamientos"
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => moveFeature(idx, -1)} disabled={idx === 0}>
+                    <ArrowUp className="w-3 h-3" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => moveFeature(idx, 1)} disabled={idx === form.features.length - 1}>
+                    <ArrowDown className="w-3 h-3" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeFeature(idx)}>
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+
 
             {/* Imagen URL (programa) */}
             {isPrograma && (

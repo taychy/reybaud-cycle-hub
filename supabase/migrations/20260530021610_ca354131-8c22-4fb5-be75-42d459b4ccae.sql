@@ -1,0 +1,2 @@
+ALTER TABLE public.planes ADD COLUMN IF NOT EXISTS features jsonb NOT NULL DEFAULT '[]'::jsonb;
+COMMENT ON COLUMN public.planes.features IS 'Array de items {text, included} para mostrar inclusiones/exclusiones en la card del plan';

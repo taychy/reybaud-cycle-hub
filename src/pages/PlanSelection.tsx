@@ -4,7 +4,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
+import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
 import logo from "@/assets/logo.png";
 import CardPaymentForm from "@/components/CardPaymentForm";
 import CheckoutProgress from "@/components/checkout/CheckoutProgress";
@@ -31,6 +31,7 @@ interface Plan {
   max_inscripciones?: number | null;
   inscripciones_actuales?: number;
   imagen_url?: string | null;
+  features?: { text: string; included: boolean }[] | null;
 }
 
 interface PreviousSubInfo {
@@ -89,7 +90,7 @@ const PlanSelection = () => {
       .eq("activo", true)
       .order("precio", { ascending: false })
       .then(async ({ data }) => {
-        const planesData = (data as Plan[]) || [];
+        const planesData = ((data as any[]) || []) as Plan[];
         const programIds = planesData.filter(p => p.tipo === "programa" && p.max_inscripciones).map(p => p.id);
         if (programIds.length > 0) {
           const { data: counts } = await supabase.rpc("get_program_inscriptions_count", { p_plan_ids: programIds } as any);
@@ -767,10 +768,26 @@ const PlanSelection = () => {
                           {(plan.max_inscripciones - (plan.inscripciones_actuales || 0))} cupos disponibles
                         </p>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className={`w-4 h-4 ${isSelected ? "text-primary" : ""}`} />
-                        <span>Acceso a entrenamientos</span>
-                      </div>
+                      {(() => {
+                        const feats = Array.isArray(plan.features) && plan.features.length > 0
+                          ? plan.features
+                          : [{ text: "Acceso a entrenamientos", included: true }];
+                        return (
+                          <ul className="space-y-1.5">
+                            {feats.map((f, i) => (
+                              <li key={i} className={`flex items-start gap-2 text-sm ${f.included ? "text-muted-foreground" : "text-muted-foreground/70 line-through decoration-destructive/40"}`}>
+                                {f.included ? (
+                                  <Check className={`w-4 h-4 mt-0.5 shrink-0 ${isSelected ? "text-primary" : "text-emerald-500"}`} />
+                                ) : (
+                                  <X className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+                                )}
+                                <span>{f.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      })()}
+
                       {plan.tipo === "programa" && plan.whatsapp_url && (
                         <a
                           href={plan.whatsapp_url}
