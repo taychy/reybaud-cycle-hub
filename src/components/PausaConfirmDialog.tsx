@@ -96,12 +96,12 @@ const PausaConfirmDialog = ({ open, alumnoId, planNombre, onCancel, onConfirm }:
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center">
-              <Palmtree className="w-5 h-5 text-amber-400" />
+              <PauseCircle className="w-5 h-5 text-amber-400" />
             </div>
             <DialogTitle>Activar {planNombre}</DialogTitle>
           </div>
           <DialogDescription className="pt-2">
-            Tomate tu tiempo. La pausa mantiene tu lugar en la escuela y la comunidad.
+            Pausá tu plan por el motivo que necesites: vacaciones, lesión, enfermedad o simplemente un descanso. Tu lugar en la escuela y la comunidad se mantiene.
           </DialogDescription>
         </DialogHeader>
 
