@@ -797,15 +797,26 @@ const PlanSelection = () => {
               <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">{error}</div>
             )}
 
-            <div className="flex flex-col items-center gap-4">
-              <Button variant="gold" size="lg" className="w-full max-w-md" disabled={!selected} onClick={handleContinueFromPlan}>
-                Continuar
-              </Button>
+            <div className="flex flex-col items-center gap-4 pb-28">
               <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
                 <ArrowLeft className="w-3 h-3" />
                 Volver al inicio
               </button>
             </div>
+
+            {selected && (
+              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-md px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] animate-fade-in">
+                <Button
+                  variant="gold"
+                  size="lg"
+                  className="w-full max-w-md mx-auto flex"
+                  onClick={handleContinueFromPlan}
+                >
+                  Continuar con {selectedPlan?.nombre ?? "el plan"}
+                </Button>
+              </div>
+            )}
+
           </>
         )}
 
