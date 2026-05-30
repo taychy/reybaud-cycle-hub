@@ -96,6 +96,7 @@ const emptyForm = {
   whatsapp_url: "",
   max_inscripciones: "",
   imagen_url: "",
+  features: [] as PlanFeature[],
 };
 
 type FilterType = "todos" | "suscripcion" | "programa";
