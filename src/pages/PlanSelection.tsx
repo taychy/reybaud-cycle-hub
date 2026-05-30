@@ -193,7 +193,7 @@ const PlanSelection = () => {
     };
   }, [alumnoId, navigate, isRenewal]);
 
-  // Cargar plan grupal activo (para bloquear selección de otro grupal)
+  // Cargar plan grupal y pausa activos (para bloquear combinaciones incompatibles)
   useEffect(() => {
     if (!alumnoId) return;
     let cancel = false;
@@ -207,11 +207,14 @@ const PlanSelection = () => {
         .is("cancelada_at", null)
         .gte("fecha_fin", today);
       if (cancel) return;
-      const grupal = (data as any[] | null)?.find(s => s.planes?.categoria === "grupal");
-      if (grupal) {
-        // Si el upgrade flow trae preseleccionado el mismo plan, no bloqueamos
-        if (upgradeFromSubId) return;
+      const subs = (data as any[] | null) || [];
+      const grupal = subs.find((s) => s.planes?.categoria === "grupal");
+      const pausa = subs.find((s) => s.planes?.categoria === "pausa");
+      if (grupal && !upgradeFromSubId) {
         setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
+      }
+      if (pausa) {
+        setActivePausaPlan({ planId: pausa.plan_id, planName: pausa.planes?.nombre || "Pausa" });
       }
     })();
     return () => { cancel = true; };
