@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ChevronRight, PauseCircle, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
 import { EventosContent } from "@/pages/Eventos";
@@ -25,7 +26,39 @@ const VacNavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; l
 const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<VacTab>("inicio");
+  const [lastGrupalPlan, setLastGrupalPlan] = useState<{ id: string; nombre: string } | null>(null);
   const firstName = alumno.nombre?.split(" ")[0] || "";
+
+  // Buscar el último plan grupal contratado para sugerir reactivación 1-click.
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from("suscripciones")
+        .select("plan_id, created_at, planes!inner(id, nombre, categoria, activo)")
+        .eq("alumno_id", alumno.id)
+        .eq("planes.categoria", "grupal")
+        .eq("planes.activo", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancel || !data?.planes) return;
+      setLastGrupalPlan({ id: (data.planes as any).id, nombre: (data.planes as any).nombre });
+    })();
+    return () => { cancel = true; };
+  }, [alumno.id]);
+
+  const goToPlanes = (preselectPlanId?: string) => {
+    localStorage.setItem("registro_alumno_id", alumno.id);
+    localStorage.setItem("alumno_renewal", "1");
+    localStorage.setItem("alumno_from_vacation", "1");
+    if (preselectPlanId) {
+      localStorage.setItem("alumno_preselect_plan_id", preselectPlanId);
+    } else {
+      localStorage.removeItem("alumno_preselect_plan_id");
+    }
+    navigate("/planes");
+  };
 
   const renderContent = () => {
     switch (activeTab) {
