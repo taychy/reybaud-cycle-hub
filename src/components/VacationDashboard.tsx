@@ -100,12 +100,12 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <Palmtree className="w-5 h-5 text-amber-400" />
+                  <PauseCircle className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="font-heading font-semibold text-foreground text-sm">Membresía en pausa</h2>
+                  <h2 className="font-heading font-semibold text-foreground text-sm">Tu plan está en pausa</h2>
                   <p className="text-xs text-muted-foreground">
-                    Estás en modo vacaciones. Tu lugar en la escuela sigue reservado.
+                    Seguís en la comunidad. Cuando estés listo, reactivás tu plan y volvés a entrenar.
                   </p>
                 </div>
               </div>
