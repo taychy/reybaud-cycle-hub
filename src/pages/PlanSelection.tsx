@@ -1012,6 +1012,17 @@ const PlanSelection = () => {
           <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">{error}</div>
         )}
       </div>
+
+      {/* Diálogo de confirmación de Pausa */}
+      {pausaDialogPlanId && alumnoId && (
+        <PausaConfirmDialog
+          open={!!pausaDialogPlanId}
+          alumnoId={alumnoId}
+          planNombre={planes.find(p => p.id === pausaDialogPlanId)?.nombre || "Pausa"}
+          onCancel={() => setPausaDialogPlanId(null)}
+          onConfirm={handleConfirmPausa}
+        />
+      )}
     </div>
   );
 };
