@@ -25,6 +25,8 @@ interface ManualPaymentConfirmProps {
   otherDetail?: string | null;
   /** If this is an upgrade flow, the id of the subscription being replaced */
   upgradeFromSubId?: string | null;
+  /** Override fecha_fin (used for Pausa: forces sub.fecha_fin = fecha de regreso elegida). */
+  overrideFechaFin?: string | null;
   onProcessing: (v: boolean) => void;
 }
 
@@ -51,6 +53,7 @@ const ManualPaymentConfirm = ({
   metodoPago,
   otherDetail,
   upgradeFromSubId,
+  overrideFechaFin,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
@@ -71,6 +74,10 @@ const ManualPaymentConfirm = ({
     if (earlyRenewal) {
       fechaInicio = earlyRenewal.fechaInicio;
       fechaFin = earlyRenewal.fechaFin;
+    } else if (overrideFechaFin) {
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      fechaFin = overrideFechaFin;
     } else {
       const now = new Date();
       fechaInicio = now.toISOString().split("T")[0];

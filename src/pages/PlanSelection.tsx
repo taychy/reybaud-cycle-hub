@@ -15,6 +15,7 @@ import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
+import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
 interface Plan {
   id: string;
@@ -78,6 +79,11 @@ const PlanSelection = () => {
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
   const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
+  const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string } | null>(null);
+  // Cuando el alumno elige una pausa, almacenamos la fecha de regreso confirmada en el diálogo.
+  // Esto fuerza fecha_fin de la suscripción al valor elegido (en vez del fin de mes habitual).
+  const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
+  const [pausaDialogPlanId, setPausaDialogPlanId] = useState<string | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
@@ -187,7 +193,7 @@ const PlanSelection = () => {
     };
   }, [alumnoId, navigate, isRenewal]);
 
-  // Cargar plan grupal activo (para bloquear selección de otro grupal)
+  // Cargar plan grupal y pausa activos (para bloquear combinaciones incompatibles)
   useEffect(() => {
     if (!alumnoId) return;
     let cancel = false;
@@ -201,11 +207,14 @@ const PlanSelection = () => {
         .is("cancelada_at", null)
         .gte("fecha_fin", today);
       if (cancel) return;
-      const grupal = (data as any[] | null)?.find(s => s.planes?.categoria === "grupal");
-      if (grupal) {
-        // Si el upgrade flow trae preseleccionado el mismo plan, no bloqueamos
-        if (upgradeFromSubId) return;
+      const subs = (data as any[] | null) || [];
+      const grupal = subs.find((s) => s.planes?.categoria === "grupal");
+      const pausa = subs.find((s) => s.planes?.categoria === "pausa");
+      if (grupal && !upgradeFromSubId) {
         setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
+      }
+      if (pausa) {
+        setActivePausaPlan({ planId: pausa.plan_id, planName: pausa.planes?.nombre || "Pausa" });
       }
     })();
     return () => { cancel = true; };
@@ -275,6 +284,14 @@ const PlanSelection = () => {
 
   const handleSelectPlan = (planId: string) => {
     const plan = planes.find(p => p.id === planId);
+    // Si el alumno ya está en pausa, bloquear elegir cualquier otro plan distinto a su misma pausa
+    if (activePausaPlan && plan?.categoria !== "pausa") {
+      setSelected(null);
+      setError(
+        `Tu cuenta está en pausa hasta la fecha que indicaste. Para volver a entrenar tenés que esperar a que termine o cancelarla desde tu perfil.`
+      );
+      return;
+    }
     // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
     if (
       plan?.categoria === "grupal" &&
@@ -287,10 +304,27 @@ const PlanSelection = () => {
       );
       return;
     }
+    // Pausa: abrir diálogo de confirmación con fecha de regreso
+    if (plan?.categoria === "pausa") {
+      setPausaDialogPlanId(planId);
+      setError(null);
+      return;
+    }
     setSelected(planId);
     setModality(null);
     setPaymentMethod(null);
+    setPausaFechaRegreso(null);
     setError(null);
+  };
+
+  const handleConfirmPausa = (fechaRegreso: string) => {
+    if (!pausaDialogPlanId) return;
+    setPausaFechaRegreso(fechaRegreso);
+    setSelected(pausaDialogPlanId);
+    setModality("total");
+    setPaymentMethod(null);
+    setPausaDialogPlanId(null);
+    setStep("select-method");
   };
 
   const handleContinueFromPlan = () => {
@@ -354,6 +388,11 @@ const PlanSelection = () => {
           .update({ auto_renovacion: false } as any)
           .eq("id", earlyRenewal.subId);
       }
+    } else if (pausaFechaRegreso && plan.categoria === "pausa") {
+      // Pausa: fecha_fin = fecha de regreso elegida en el diálogo
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      fechaFin = pausaFechaRegreso;
     } else {
       const now = new Date();
       fechaInicio = now.toISOString().split("T")[0];
@@ -383,7 +422,13 @@ const PlanSelection = () => {
 
     if (subError) {
       const msg = (subError as any)?.message || "";
-      if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
+      if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
+        setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
+      } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
+        setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
+      } else if (msg.includes("PAUSA_TOO_LONG")) {
+        setError("La pausa no puede durar más de 2 meses.");
+      } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
         setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
       } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
         setError("Ya tenés este mismo plan activo para este período.");
@@ -546,6 +591,7 @@ const PlanSelection = () => {
             metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "otro"}
             otherDetail={otherMethodDetail}
             upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
+            overrideFechaFin={selectedPlan.categoria === "pausa" ? pausaFechaRegreso : null}
             onProcessing={setProcessing}
           />
         </div>
@@ -966,6 +1012,17 @@ const PlanSelection = () => {
           <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">{error}</div>
         )}
       </div>
+
+      {/* Diálogo de confirmación de Pausa */}
+      {pausaDialogPlanId && alumnoId && (
+        <PausaConfirmDialog
+          open={!!pausaDialogPlanId}
+          alumnoId={alumnoId}
+          planNombre={planes.find(p => p.id === pausaDialogPlanId)?.nombre || "Pausa"}
+          onCancel={() => setPausaDialogPlanId(null)}
+          onConfirm={handleConfirmPausa}
+        />
+      )}
     </div>
   );
 };
