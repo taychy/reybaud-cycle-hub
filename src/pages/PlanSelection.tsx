@@ -79,6 +79,11 @@ const PlanSelection = () => {
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
   const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
+  const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string } | null>(null);
+  // Cuando el alumno elige una pausa, almacenamos la fecha de regreso confirmada en el diálogo.
+  // Esto fuerza fecha_fin de la suscripción al valor elegido (en vez del fin de mes habitual).
+  const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
+  const [pausaDialogPlanId, setPausaDialogPlanId] = useState<string | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
 
