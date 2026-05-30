@@ -39,6 +39,12 @@ interface Plan {
   max_inscripciones: number | null;
   imagen_url: string | null;
   inscripciones_actuales: number;
+  features: PlanFeature[] | null;
+}
+
+interface PlanFeature {
+  text: string;
+  included: boolean;
 }
 
 interface Sede {
