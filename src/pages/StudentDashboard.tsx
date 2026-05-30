@@ -515,11 +515,8 @@ const StudentDashboard = () => {
             )}
 
             {/* Greeting */}
-            <div className="text-center space-y-1 pt-2 relative">
-              <div className="absolute right-0 top-2">
-                <FontSizeToggle />
-              </div>
-              <h1 className="text-xl font-heading font-semibold text-foreground">
+            <div className="text-center space-y-1 pt-2">
+              <h1 className="text-xl font-heading font-semibold text-foreground break-words">
                 {getGreeting()}, <span className="gold-text-gradient">{firstName}</span>
               </h1>
               <p className="text-xs text-muted-foreground">
