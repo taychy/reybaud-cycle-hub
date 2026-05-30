@@ -591,6 +591,7 @@ const PlanSelection = () => {
             metodoPago={paymentMethod as "efectivo" | "transferencia" | "mp_externo" | "otro"}
             otherDetail={otherMethodDetail}
             upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
+            overrideFechaFin={selectedPlan.categoria === "pausa" ? pausaFechaRegreso : null}
             onProcessing={setProcessing}
           />
         </div>
