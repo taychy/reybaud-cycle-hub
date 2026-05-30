@@ -861,6 +861,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         subscripcionId={regPaySubId}
         onSuccess={() => { fetchData(); onRefresh(); }}
       />
+
+      {/* Asignar Pausa Dialog */}
+      {pausaPlan && (
+        <PausaConfirmDialog
+          open={showPausaDialog}
+          alumnoId={alumno.id}
+          planNombre={pausaPlan.nombre}
+          onCancel={() => { setShowPausaDialog(false); setPausaPlan(null); }}
+          onConfirm={handleAssignPausa}
+        />
+      )}
     </>
   );
 }
