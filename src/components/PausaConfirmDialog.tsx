@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, Palmtree, Check, X } from "lucide-react";
+import { AlertTriangle, PauseCircle, Check, X } from "lucide-react";
 
 interface PausaConfirmDialogProps {
   open: boolean;
