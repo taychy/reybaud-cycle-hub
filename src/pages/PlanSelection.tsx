@@ -77,8 +77,10 @@ const PlanSelection = () => {
   const [renewalContextLoaded, setRenewalContextLoaded] = useState(!isRenewal);
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
+  const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
+
 
   useEffect(() => {
     if (!alumnoId) {
