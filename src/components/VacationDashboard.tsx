@@ -142,19 +142,25 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
                   </p>
                 </div>
               </div>
-              <Button
-                variant="gold"
-                className="w-full"
-                onClick={() => {
-                  localStorage.setItem("registro_alumno_id", alumno.id);
-                  localStorage.setItem("alumno_renewal", "1");
-                  localStorage.setItem("alumno_from_vacation", "1");
-                  navigate("/planes");
-                }}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reactivar mi plan
-              </Button>
+              {lastGrupalPlan ? (
+                <div className="space-y-2">
+                  <Button variant="gold" className="w-full" onClick={() => goToPlanes(lastGrupalPlan.id)}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reactivar "{lastGrupalPlan.nombre}"
+                  </Button>
+                  <button
+                    onClick={() => goToPlanes()}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                  >
+                    Ver todos los planes
+                  </button>
+                </div>
+              ) : (
+                <Button variant="gold" className="w-full" onClick={() => goToPlanes()}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reactivar mi plan
+                </Button>
+              )}
             </div>
 
             {/* Contact admin */}
