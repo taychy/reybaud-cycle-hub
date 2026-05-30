@@ -44,7 +44,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 font-medium">
-                  🏖️ Vacaciones
+                  ⏸️ En pausa
                 </span>
                 {alumno.grupo !== "Sin grupo" && (
                   <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
