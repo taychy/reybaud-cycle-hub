@@ -245,6 +245,7 @@ const ManagePlanes = () => {
       whatsapp_url: form.whatsapp_url.trim() || null,
       max_inscripciones: form.max_inscripciones ? Number(form.max_inscripciones) : null,
       imagen_url: form.imagen_url.trim() || null,
+      features: (form.features || []).filter((f) => f.text.trim() !== ""),
     };
 
     let planId: string;
