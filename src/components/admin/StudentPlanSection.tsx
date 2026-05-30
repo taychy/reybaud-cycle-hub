@@ -246,6 +246,72 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     }
   };
 
+  const openAssignPausa = () => {
+    const p = planes.find((pl: any) => pl.categoria === "pausa");
+    if (!p) {
+      toast.error("No hay plan de pausa configurado. Creá uno con categoría 'pausa' en Configuración.");
+      return;
+    }
+    setPausaPlan(p);
+    setShowPausaDialog(true);
+  };
+
+  const handleAssignPausa = async (fechaRegreso: string) => {
+    if (!pausaPlan) return;
+    setAssigningPausa(true);
+    setShowPausaDialog(false);
+    try {
+      const today = new Date();
+      const fechaInicio = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const { error } = await supabase.from("suscripciones").insert({
+        alumno_id: alumno.id,
+        plan_id: pausaPlan.id,
+        estado: "activa",
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaRegreso,
+        mp_status: "manual",
+        metodo_pago: "efectivo",
+        origen_registro: "cargado_admin",
+        precio_base: pausaPlan.precio || 0,
+        precio_final: pausaPlan.precio || 0,
+      } as any);
+      if (error) {
+        if (String(error.message || "").includes("BLOCKED_BY_ACTIVE_PAUSA")) {
+          toast.error("El alumno ya está en pausa.");
+        } else if (String(error.message || "").includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
+          toast.error("El alumno tiene un plan vigente. Cancelalo primero para asignar la pausa.");
+        } else if (String(error.message || "").includes("PAUSA_TOO_LONG")) {
+          toast.error("La pausa no puede durar más de 2 meses.");
+        } else {
+          toast.error("Error al asignar la pausa: " + error.message);
+        }
+        return;
+      }
+
+      // Email pausa_activada (fire and forget)
+      supabase.functions.invoke("notify-student-update", {
+        body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
+      }).catch(() => {});
+
+      await logStudentActivity({
+        alumnoId: alumno.id,
+        eventType: "estado_suscripcion",
+        title: "Pausa asignada",
+        description: `Pausa activada hasta ${fechaRegreso}`,
+        actorRole,
+      });
+
+      toast.success("Pausa asignada correctamente");
+      await fetchData();
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado al asignar la pausa");
+    } finally {
+      setAssigningPausa(false);
+      setPausaPlan(null);
+    }
+  };
+
   const openAddPlan = () => {
     const todayStr = new Date().toISOString().split("T")[0];
     setDialogMode("add");
