@@ -170,7 +170,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
       <header className="flex items-center justify-between px-5 pt-5 pb-2">
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
-          <span className="text-xs text-amber-400 font-heading">🏖️ Vacaciones</span>
+          <span className="text-xs text-amber-400 font-heading">⏸️ En pausa</span>
           <Button variant="ghost" size="icon" onClick={onLogout} className="text-muted-foreground">
             <LogOut className="w-4 h-4" />
           </Button>
