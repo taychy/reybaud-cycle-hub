@@ -284,6 +284,14 @@ const PlanSelection = () => {
 
   const handleSelectPlan = (planId: string) => {
     const plan = planes.find(p => p.id === planId);
+    // Si el alumno ya está en pausa, bloquear elegir cualquier otro plan distinto a su misma pausa
+    if (activePausaPlan && plan?.categoria !== "pausa") {
+      setSelected(null);
+      setError(
+        `Tu cuenta está en pausa hasta la fecha que indicaste. Para volver a entrenar tenés que esperar a que termine o cancelarla desde tu perfil.`
+      );
+      return;
+    }
     // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
     if (
       plan?.categoria === "grupal" &&
@@ -296,10 +304,27 @@ const PlanSelection = () => {
       );
       return;
     }
+    // Pausa: abrir diálogo de confirmación con fecha de regreso
+    if (plan?.categoria === "pausa") {
+      setPausaDialogPlanId(planId);
+      setError(null);
+      return;
+    }
     setSelected(planId);
     setModality(null);
     setPaymentMethod(null);
+    setPausaFechaRegreso(null);
     setError(null);
+  };
+
+  const handleConfirmPausa = (fechaRegreso: string) => {
+    if (!pausaDialogPlanId) return;
+    setPausaFechaRegreso(fechaRegreso);
+    setSelected(pausaDialogPlanId);
+    setModality("total");
+    setPaymentMethod(null);
+    setPausaDialogPlanId(null);
+    setStep("select-method");
   };
 
   const handleContinueFromPlan = () => {
