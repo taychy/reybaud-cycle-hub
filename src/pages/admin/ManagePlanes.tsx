@@ -323,6 +323,29 @@ const ManagePlanes = () => {
 
   const isPrograma = form.tipo === "programa";
 
+  const addFeature = (included: boolean) => {
+    setForm((prev) => ({ ...prev, features: [...(prev.features || []), { text: "", included }] }));
+  };
+  const updateFeature = (idx: number, patch: Partial<PlanFeature>) => {
+    setForm((prev) => ({
+      ...prev,
+      features: prev.features.map((f, i) => (i === idx ? { ...f, ...patch } : f)),
+    }));
+  };
+  const removeFeature = (idx: number) => {
+    setForm((prev) => ({ ...prev, features: prev.features.filter((_, i) => i !== idx) }));
+  };
+  const moveFeature = (idx: number, dir: -1 | 1) => {
+    setForm((prev) => {
+      const arr = [...prev.features];
+      const j = idx + dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return { ...prev, features: arr };
+    });
+  };
+
+
   if (loading) return <div className="animate-pulse text-muted-foreground p-8">Cargando planes...</div>;
 
   return (
