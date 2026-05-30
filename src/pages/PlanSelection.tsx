@@ -388,6 +388,11 @@ const PlanSelection = () => {
           .update({ auto_renovacion: false } as any)
           .eq("id", earlyRenewal.subId);
       }
+    } else if (pausaFechaRegreso && plan.categoria === "pausa") {
+      // Pausa: fecha_fin = fecha de regreso elegida en el diálogo
+      const now = new Date();
+      fechaInicio = now.toISOString().split("T")[0];
+      fechaFin = pausaFechaRegreso;
     } else {
       const now = new Date();
       fechaInicio = now.toISOString().split("T")[0];
