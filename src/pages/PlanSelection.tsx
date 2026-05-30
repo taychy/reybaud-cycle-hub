@@ -4,7 +4,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
+import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
 import logo from "@/assets/logo.png";
 import CardPaymentForm from "@/components/CardPaymentForm";
 import CheckoutProgress from "@/components/checkout/CheckoutProgress";
