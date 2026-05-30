@@ -768,10 +768,26 @@ const PlanSelection = () => {
                           {(plan.max_inscripciones - (plan.inscripciones_actuales || 0))} cupos disponibles
                         </p>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className={`w-4 h-4 ${isSelected ? "text-primary" : ""}`} />
-                        <span>Acceso a entrenamientos</span>
-                      </div>
+                      {(() => {
+                        const feats = Array.isArray(plan.features) && plan.features.length > 0
+                          ? plan.features
+                          : [{ text: "Acceso a entrenamientos", included: true }];
+                        return (
+                          <ul className="space-y-1.5">
+                            {feats.map((f, i) => (
+                              <li key={i} className={`flex items-start gap-2 text-sm ${f.included ? "text-muted-foreground" : "text-muted-foreground/70 line-through decoration-destructive/40"}`}>
+                                {f.included ? (
+                                  <Check className={`w-4 h-4 mt-0.5 shrink-0 ${isSelected ? "text-primary" : "text-emerald-500"}`} />
+                                ) : (
+                                  <X className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+                                )}
+                                <span>{f.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      })()}
+
                       {plan.tipo === "programa" && plan.whatsapp_url && (
                         <a
                           href={plan.whatsapp_url}
