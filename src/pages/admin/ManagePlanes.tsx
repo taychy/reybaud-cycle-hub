@@ -557,6 +557,54 @@ const ManagePlanes = () => {
               <Textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder={isPrograma ? "Detalle del programa, qué incluye, duración, etc." : "Detalles del plan"} rows={3} />
             </div>
 
+            {/* Features (incluye / no incluye) */}
+            <div className="space-y-2 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">✓ Características del plan</label>
+                <div className="flex gap-1">
+                  <Button type="button" variant="outline" size="sm" onClick={() => addFeature(true)}>
+                    <Check className="w-3 h-3 text-emerald-500" /> Incluye
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => addFeature(false)}>
+                    <X className="w-3 h-3 text-destructive" /> No incluye
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Lista que se muestra en la card del plan al seleccionarlo. Ej: "Acceso a entrenamientos", "Acceso al WhatsApp", etc.</p>
+              {form.features.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">Sin características cargadas.</p>
+              )}
+              {form.features.map((f, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateFeature(idx, { included: !f.included })}
+                    className={`w-7 h-7 shrink-0 rounded-md border flex items-center justify-center ${f.included ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500" : "border-destructive/40 bg-destructive/10 text-destructive"}`}
+                    title={f.included ? "Incluye (click para cambiar)" : "No incluye (click para cambiar)"}
+                  >
+                    {f.included ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                  </button>
+                  <Input
+                    value={f.text}
+                    onChange={(e) => updateFeature(idx, { text: e.target.value })}
+                    placeholder="Ej: Acceso a entrenamientos"
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => moveFeature(idx, -1)} disabled={idx === 0}>
+                    <ArrowUp className="w-3 h-3" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => moveFeature(idx, 1)} disabled={idx === form.features.length - 1}>
+                    <ArrowDown className="w-3 h-3" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeFeature(idx)}>
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+
+
             {/* Imagen URL (programa) */}
             {isPrograma && (
               <div>
