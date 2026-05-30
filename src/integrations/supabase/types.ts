@@ -5055,6 +5055,16 @@ export type Database = {
         Returns: number
       }
       expire_descuentos_alumno: { Args: never; Returns: number }
+      expire_overdue_pausas: {
+        Args: never
+        Returns: {
+          alumno_email: string
+          alumno_id: string
+          alumno_nombre: string
+          fecha_fin: string
+          suscripcion_id: string
+        }[]
+      }
       generate_gastos_ejecuciones_month: {
         Args: { p_mes: string }
         Returns: number
