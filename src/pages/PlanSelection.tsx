@@ -65,6 +65,7 @@ const PlanSelection = () => {
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
   const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
   const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
+  const vacationPreselectPlanId = localStorage.getItem("alumno_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
