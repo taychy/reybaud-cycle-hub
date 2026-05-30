@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign, PauseCircle } from "lucide-react";
+import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
@@ -88,6 +89,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
+  // Asignar Pausa
+  const [showPausaDialog, setShowPausaDialog] = useState(false);
+  const [pausaPlan, setPausaPlan] = useState<Plan | null>(null);
+  const [assigningPausa, setAssigningPausa] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
   const [removingSub, setRemovingSub] = useState(false);
   const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
@@ -238,6 +243,72 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       toast.error(err.message || "Error inesperado al quitar el plan");
     } finally {
       setRemovingSub(false);
+    }
+  };
+
+  const openAssignPausa = () => {
+    const p = planes.find((pl: any) => pl.categoria === "pausa");
+    if (!p) {
+      toast.error("No hay plan de pausa configurado. Creá uno con categoría 'pausa' en Configuración.");
+      return;
+    }
+    setPausaPlan(p);
+    setShowPausaDialog(true);
+  };
+
+  const handleAssignPausa = async (fechaRegreso: string) => {
+    if (!pausaPlan) return;
+    setAssigningPausa(true);
+    setShowPausaDialog(false);
+    try {
+      const today = new Date();
+      const fechaInicio = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const { error } = await supabase.from("suscripciones").insert({
+        alumno_id: alumno.id,
+        plan_id: pausaPlan.id,
+        estado: "activa",
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaRegreso,
+        mp_status: "manual",
+        metodo_pago: "efectivo",
+        origen_registro: "cargado_admin",
+        precio_base: pausaPlan.precio || 0,
+        precio_final: pausaPlan.precio || 0,
+      } as any);
+      if (error) {
+        if (String(error.message || "").includes("BLOCKED_BY_ACTIVE_PAUSA")) {
+          toast.error("El alumno ya está en pausa.");
+        } else if (String(error.message || "").includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
+          toast.error("El alumno tiene un plan vigente. Cancelalo primero para asignar la pausa.");
+        } else if (String(error.message || "").includes("PAUSA_TOO_LONG")) {
+          toast.error("La pausa no puede durar más de 2 meses.");
+        } else {
+          toast.error("Error al asignar la pausa: " + error.message);
+        }
+        return;
+      }
+
+      // Email pausa_activada (fire and forget)
+      supabase.functions.invoke("notify-student-update", {
+        body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
+      }).catch(() => {});
+
+      await logStudentActivity({
+        alumnoId: alumno.id,
+        eventType: "estado_suscripcion",
+        title: "Pausa asignada",
+        description: `Pausa activada hasta ${fechaRegreso}`,
+        actorRole,
+      });
+
+      toast.success("Pausa asignada correctamente");
+      await fetchData();
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado al asignar la pausa");
+    } finally {
+      setAssigningPausa(false);
+      setPausaPlan(null);
     }
   };
 
@@ -511,9 +582,14 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Badge>
             )}
           </h3>
-          <Button variant="gold" size="sm" className="text-[10px] h-6 px-2" onClick={openAddPlan}>
-            <Plus className="w-3 h-3 mr-0.5" /> Agregar plan
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 border-amber-500/40 text-amber-400 hover:bg-amber-500/10" onClick={openAssignPausa} disabled={assigningPausa}>
+              <PauseCircle className="w-3 h-3 mr-0.5" /> {assigningPausa ? "Asignando..." : "Asignar pausa"}
+            </Button>
+            <Button variant="gold" size="sm" className="text-[10px] h-6 px-2" onClick={openAddPlan}>
+              <Plus className="w-3 h-3 mr-0.5" /> Agregar plan
+            </Button>
+          </div>
         </div>
 
         {/* Duplicate alert */}
@@ -785,6 +861,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         subscripcionId={regPaySubId}
         onSuccess={() => { fetchData(); onRefresh(); }}
       />
+
+      {/* Asignar Pausa Dialog */}
+      {pausaPlan && (
+        <PausaConfirmDialog
+          open={showPausaDialog}
+          alumnoId={alumno.id}
+          planNombre={pausaPlan.nombre}
+          onCancel={() => { setShowPausaDialog(false); setPausaPlan(null); }}
+          onConfirm={handleAssignPausa}
+        />
+      )}
     </>
   );
 }

@@ -25,6 +25,8 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.process-auto-renewals]
     verify_jwt = false
+  [functions.process-pausa-expirations]
+    verify_jwt = false
   [functions.process-card-payment]
     verify_jwt = false
   [functions.resend-invite]

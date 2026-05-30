@@ -65,6 +65,7 @@ const PlanSelection = () => {
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
   const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
   const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
+  const vacationPreselectPlanId = localStorage.getItem("alumno_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -237,6 +238,18 @@ const PlanSelection = () => {
       }
     }
   }, [loading, isUpgradeFlow, upgradePreselectPlanId, planes, selected]);
+
+  // Reactivación 1-click desde Pausa: sugerir el último plan grupal.
+  // Solo preseleccionamos (no avanzamos pasos) para que el alumno revise antes de pagar.
+  useEffect(() => {
+    if (!loading && vacationPreselectPlanId && !selected && !isUpgradeFlow) {
+      const planExists = planes.find((p) => p.id === vacationPreselectPlanId);
+      if (planExists) {
+        setSelected(vacationPreselectPlanId);
+      }
+      localStorage.removeItem("alumno_preselect_plan_id");
+    }
+  }, [loading, vacationPreselectPlanId, planes, selected, isUpgradeFlow]);
 
   const selectedPlan = planes.find((p) => p.id === selected);
   const isSecondary = subscriptionCount > 0;

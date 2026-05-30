@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { alumno_id, type, grupo, fecha_vencimiento, plan_nombre, plan_precio, plan_moneda } = await req.json();
+    const { alumno_id, type, grupo, fecha_vencimiento, plan_nombre, plan_precio, plan_moneda, pausa_fecha_regreso } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -191,6 +191,49 @@ Deno.serve(async (req) => {
           <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
             Ciclismo Reybaud — Escuela de ciclismo
           </p>
+        </div>
+      `;
+    } else if (type === "pausa_activada") {
+      const fechaTxt = pausa_fecha_regreso ? new Date(pausa_fecha_regreso + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+      subject = `⏸️ Tu plan quedó en pausa`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d4820a; margin-bottom: 16px;">⏸️ Pausa activada</h2>
+          <p style="color: #333; margin-bottom: 12px;">Hola <strong>${firstName}</strong>, tu plan en Ciclismo Reybaud quedó en pausa.</p>
+          <p style="color: #333; margin-bottom: 12px;"><strong>Fecha estimada de regreso:</strong> ${fechaTxt}</p>
+          <p style="color: #333; margin-bottom: 12px;">Durante este tiempo seguís en la comunidad de WhatsApp y podés ver eventos. No tenés acceso a entrenamientos, clases, Pista ni Asesoría.</p>
+          <p style="color: #333; margin-bottom: 16px;">Cuando quieras volver antes, abrí la app y reactivá tu plan en un toque.</p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Abrir la app</a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">Ciclismo Reybaud — Escuela de ciclismo</p>
+        </div>
+      `;
+    } else if (type === "pausa_por_vencer_15d") {
+      const fechaTxt = pausa_fecha_regreso ? new Date(pausa_fecha_regreso + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+      subject = `⏰ Tu pausa vence en 15 días`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d4820a; margin-bottom: 16px;">⏰ Quedan 15 días</h2>
+          <p style="color: #333; margin-bottom: 12px;">Hola <strong>${firstName}</strong>, tu pausa vence el <strong>${fechaTxt}</strong>.</p>
+          <p style="color: #333; margin-bottom: 12px;">Si querés volver a entrenar, abrí la app y elegí tu plan. Si no reactivás antes de esa fecha, tu cuenta pasa a inactiva y vas a tener que contratar un plan nuevo.</p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Reactivar mi plan</a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">Ciclismo Reybaud — Escuela de ciclismo</p>
+        </div>
+      `;
+    } else if (type === "pausa_vencida") {
+      subject = `Tu pausa venció — elegí un plan para volver`;
+      emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d4820a; margin-bottom: 16px;">Tu pausa terminó</h2>
+          <p style="color: #333; margin-bottom: 12px;">Hola <strong>${firstName}</strong>, llegó la fecha de regreso y tu pausa quedó cerrada. Tu cuenta está inactiva.</p>
+          <p style="color: #333; margin-bottom: 16px;">Te esperamos. Elegí tu plan y volvemos a rodar.</p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Elegir un plan</a>
+          </div>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">Ciclismo Reybaud — Escuela de ciclismo</p>
         </div>
       `;
     } else {
