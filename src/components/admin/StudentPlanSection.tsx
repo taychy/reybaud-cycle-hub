@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign, PauseCircle } from "lucide-react";
+import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
@@ -88,6 +89,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
+  // Asignar Pausa
+  const [showPausaDialog, setShowPausaDialog] = useState(false);
+  const [pausaPlan, setPausaPlan] = useState<Plan | null>(null);
+  const [assigningPausa, setAssigningPausa] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
   const [removingSub, setRemovingSub] = useState(false);
   const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
