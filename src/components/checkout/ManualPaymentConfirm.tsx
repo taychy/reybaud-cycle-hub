@@ -25,6 +25,8 @@ interface ManualPaymentConfirmProps {
   otherDetail?: string | null;
   /** If this is an upgrade flow, the id of the subscription being replaced */
   upgradeFromSubId?: string | null;
+  /** Override fecha_fin (used for Pausa: forces sub.fecha_fin = fecha de regreso elegida). */
+  overrideFechaFin?: string | null;
   onProcessing: (v: boolean) => void;
 }
 
