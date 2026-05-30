@@ -515,11 +515,8 @@ const StudentDashboard = () => {
             )}
 
             {/* Greeting */}
-            <div className="text-center space-y-1 pt-2 relative">
-              <div className="absolute right-0 top-2">
-                <FontSizeToggle />
-              </div>
-              <h1 className="text-xl font-heading font-semibold text-foreground">
+            <div className="text-center space-y-1 pt-2">
+              <h1 className="text-xl font-heading font-semibold text-foreground break-words">
                 {getGreeting()}, <span className="gold-text-gradient">{firstName}</span>
               </h1>
               <p className="text-xs text-muted-foreground">
@@ -674,7 +671,8 @@ const StudentDashboard = () => {
         <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
         <div className="flex items-center gap-2">
           {!isImpersonating && <LanguageSelector />}
-          <span className="text-xs text-muted-foreground font-heading">{firstName}</span>
+          {activeTab === "hoy" && <FontSizeToggle />}
+          <span className="text-xs text-muted-foreground font-heading max-w-[80px] truncate">{firstName}</span>
           {activeTab !== "mas" && !isImpersonating && (
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground">
               <LogOut className="w-4 h-4" />
@@ -683,7 +681,7 @@ const StudentDashboard = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center px-4 pb-24">
+      <main className="flex-1 flex flex-col items-center px-4 pb-6">
         {renderContent()}
       </main>
 
