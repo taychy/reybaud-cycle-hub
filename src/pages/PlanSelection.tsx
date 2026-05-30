@@ -90,7 +90,7 @@ const PlanSelection = () => {
       .eq("activo", true)
       .order("precio", { ascending: false })
       .then(async ({ data }) => {
-        const planesData = (data as Plan[]) || [];
+        const planesData = ((data as any[]) || []) as Plan[];
         const programIds = planesData.filter(p => p.tipo === "programa" && p.max_inscripciones).map(p => p.id);
         if (programIds.length > 0) {
           const { data: counts } = await supabase.rpc("get_program_inscriptions_count", { p_plan_ids: programIds } as any);
