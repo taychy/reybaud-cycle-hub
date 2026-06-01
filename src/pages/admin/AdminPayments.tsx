@@ -204,6 +204,8 @@ const AdminPayments = () => {
   const [filterFechaDesde, setFilterFechaDesde] = useState("");
   const [filterFechaHasta, setFilterFechaHasta] = useState("");
   const [filterPeriodo, setFilterPeriodo] = useState<string>(currentPeriodKey());
+  const [filterChequeo, setFilterChequeo] = useState<string>(searchParams.get("chequeo") || "todos");
+
 
   // Expandable rows
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
