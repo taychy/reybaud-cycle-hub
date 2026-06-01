@@ -682,6 +682,17 @@ const AdminPayments = () => {
               </Select>
             </div>
             <div>
+              <Label className="text-xs mb-1 block">Chequeo admin</Label>
+              <Select value={filterChequeo} onValueChange={setFilterChequeo}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="pendientes">Pendientes de chequeo</SelectItem>
+                  <SelectItem value="chequeados">Chequeados</SelectItem>
+                </SelectContent>
+              </Select>
+
+            <div>
               <Label className="text-xs mb-1 block">Fecha desde</Label>
               <Input type="date" value={filterFechaDesde} onChange={(e) => setFilterFechaDesde(e.target.value)} className="h-9 text-sm" />
             </div>
