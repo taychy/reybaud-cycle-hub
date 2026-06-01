@@ -537,8 +537,24 @@ Deno.serve(async (req) => {
     };
 
     if (payment.status === "approved") {
-      updateData.fecha_inicio = today;
-      updateData.fecha_fin = fechaFin;
+      // Preserve existing future-dated period (early renewals) to avoid overlap
+      // with the still-active current sub — would trigger DUPLICATE_GRUPAL_CATEGORY.
+      const { data: currentSub } = await supabaseAdmin
+        .from("suscripciones")
+        .select("fecha_inicio, fecha_fin")
+        .eq("id", suscripcionId)
+        .maybeSingle();
+
+      const existingInicio = currentSub?.fecha_inicio as string | null | undefined;
+      const existingFin = currentSub?.fecha_fin as string | null | undefined;
+
+      if (existingInicio && existingFin && existingInicio > today) {
+        updateData.fecha_inicio = existingInicio;
+        updateData.fecha_fin = existingFin;
+      } else {
+        updateData.fecha_inicio = today;
+        updateData.fecha_fin = fechaFin;
+      }
     }
 
     const { error: updateError } = await supabaseAdmin
