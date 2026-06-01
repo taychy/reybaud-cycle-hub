@@ -2806,6 +2806,7 @@ export type Database = {
           max_inscripciones: number | null
           moneda: string
           nombre: string
+          permite_auto_cobro: boolean
           precio: number
           precio_promocional: number | null
           renovacion_auto_permitida: boolean
@@ -2835,6 +2836,7 @@ export type Database = {
           max_inscripciones?: number | null
           moneda?: string
           nombre: string
+          permite_auto_cobro?: boolean
           precio: number
           precio_promocional?: number | null
           renovacion_auto_permitida?: boolean
@@ -2864,6 +2866,7 @@ export type Database = {
           max_inscripciones?: number | null
           moneda?: string
           nombre?: string
+          permite_auto_cobro?: boolean
           precio?: number
           precio_promocional?: number | null
           renovacion_auto_permitida?: boolean
@@ -4521,6 +4524,7 @@ export type Database = {
       suscripciones: {
         Row: {
           alumno_id: string
+          auto_cobro_activo: boolean
           auto_renovacion: boolean
           cancelada_at: string | null
           cancelada_motivo: string | null
@@ -4530,8 +4534,11 @@ export type Database = {
           fecha_fin: string | null
           fecha_inicio: string | null
           id: string
+          intentos_cobro_fallidos: number
           metodo_pago: string
           mp_payment_id: string | null
+          mp_preapproval_id: string | null
+          mp_preapproval_status: string | null
           mp_preference_id: string | null
           mp_status: string | null
           notas: string | null
@@ -4539,10 +4546,12 @@ export type Database = {
           plan_id: string
           precio_base: number | null
           precio_final: number | null
+          ultimo_intento_cobro_at: string | null
           updated_at: string
         }
         Insert: {
           alumno_id: string
+          auto_cobro_activo?: boolean
           auto_renovacion?: boolean
           cancelada_at?: string | null
           cancelada_motivo?: string | null
@@ -4552,8 +4561,11 @@ export type Database = {
           fecha_fin?: string | null
           fecha_inicio?: string | null
           id?: string
+          intentos_cobro_fallidos?: number
           metodo_pago?: string
           mp_payment_id?: string | null
+          mp_preapproval_id?: string | null
+          mp_preapproval_status?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
           notas?: string | null
@@ -4561,10 +4573,12 @@ export type Database = {
           plan_id: string
           precio_base?: number | null
           precio_final?: number | null
+          ultimo_intento_cobro_at?: string | null
           updated_at?: string
         }
         Update: {
           alumno_id?: string
+          auto_cobro_activo?: boolean
           auto_renovacion?: boolean
           cancelada_at?: string | null
           cancelada_motivo?: string | null
@@ -4574,8 +4588,11 @@ export type Database = {
           fecha_fin?: string | null
           fecha_inicio?: string | null
           id?: string
+          intentos_cobro_fallidos?: number
           metodo_pago?: string
           mp_payment_id?: string | null
+          mp_preapproval_id?: string | null
+          mp_preapproval_status?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
           notas?: string | null
@@ -4583,6 +4600,7 @@ export type Database = {
           plan_id?: string
           precio_base?: number | null
           precio_final?: number | null
+          ultimo_intento_cobro_at?: string | null
           updated_at?: string
         }
         Relationships: [
