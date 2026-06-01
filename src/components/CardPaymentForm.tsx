@@ -218,6 +218,35 @@ const CardPaymentForm = ({
 
               // Payment approved
               if (result.status === "approved") {
+                // Opt-in to monthly auto-renewal via MP Preapproval (redirect mode)
+                if (autoRenewalChecked && allowAutoRenewal) {
+                  try {
+                    const preapprovalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`;
+                    const ppRes = await fetch(preapprovalUrl, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                      },
+                      body: JSON.stringify({
+                        payer_email: formData.cardholderEmail || "",
+                        suscripcion_id: sub.id,
+                        alumno_id: alumnoId,
+                        plan_id: planId,
+                        transaction_amount: planPrice,
+                      }),
+                    });
+                    const ppData = await ppRes.json();
+                    if (ppRes.ok && ppData?.init_point) {
+                      // Redirect to MP for the user to authorize the recurring agreement.
+                      window.location.href = ppData.init_point;
+                      return;
+                    }
+                    console.warn("Preapproval setup failed, continuing without auto-renewal:", ppData);
+                  } catch (ppErr) {
+                    console.warn("Preapproval setup error:", ppErr);
+                  }
+                }
                 navigate("/pago-resultado?status=approved");
               } else if (result.status === "in_process") {
                 navigate("/pago-resultado?status=pending");
