@@ -38,8 +38,15 @@ const CardPaymentForm = ({
   descuentoTipo,
   moneda,
   alumnoId,
+  allowAutoRenewal = false,
   onBack,
 }: CardPaymentFormProps) => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [autoRenewalChecked, setAutoRenewalChecked] = useState(false);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
