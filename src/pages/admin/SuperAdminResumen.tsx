@@ -1,28 +1,40 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Building2 } from "lucide-react";
+import { PieChart, Building2, FileText, CreditCard, AlertTriangle, ArrowRight } from "lucide-react";
 
 const fmt = (n: number) => `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+
+const currentMonthKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
 
 const SuperAdminResumen = () => {
   const [loading, setLoading] = useState(true);
   const [planDist, setPlanDist] = useState<{ name: string; count: number; revenue: number }[]>([]);
   const [sedeDist, setSedeDist] = useState<{ name: string; count: number }[]>([]);
+  const [alerts, setAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0 });
+  const [periodoBajas] = useState(currentMonthKey());
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [alumnosRes, subsRes, planesRes, sedesRes] = await Promise.all([
+    const [alumnosRes, subsRes, planesRes, sedesRes, allSubsRes, facturasRes] = await Promise.all([
       supabase.from("alumnos").select("id, estado, sede_id"),
       supabase.from("suscripciones").select("id, plan_id, estado"),
       supabase.from("planes").select("id, nombre, precio"),
       supabase.from("sedes").select("id, nombre"),
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, chequeado_admin, origen_registro, mp_status, baja_chequeada"),
+      supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
     ]);
 
     const alumnos = alumnosRes.data || [];
     const subs = subsRes.data || [];
     const planes = planesRes.data || [];
     const sedes = sedesRes.data || [];
+    const allSubs = (allSubsRes.data || []) as any[];
+    const facturas = facturasRes.data || [];
     const planesMap = new Map(planes.map(p => [p.id, p]));
 
     // Plan distribution
@@ -46,8 +58,35 @@ const SuperAdminResumen = () => {
     });
     setSedeDist(Object.entries(sedeCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
 
+    // Alerts ─────────────────────────────────────────
+    // 1. Pagos a chequear: cualquier suscripción cobrada (activa o conciliada) sin marca chequeado_admin
+    const pagosACheckar = allSubs.filter(s =>
+      (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
+    ).length;
+
+    // 2. Facturas por realizar: subs cobradas (estado activa) sin factura asociada
+    const factSet = new Set(facturas.map((f: any) => f.referencia_id));
+    const facturasPendientes = allSubs.filter(s =>
+      (s.estado === "activa" || s.estado === "conciliado") && !factSet.has(s.id)
+    ).length;
+
+    // 3. Bajas a chequear: del mes calendario actual, vencidas/canceladas sin renovación posterior y sin chequear
+    const [y, m] = periodoBajas.split("-").map(Number);
+    const monthStart = `${periodoBajas}-01`;
+    const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
+    const bajasDelMes = allSubs.filter(s => {
+      if (!s.fecha_fin || s.fecha_fin < monthStart || s.fecha_fin > monthEnd) return false;
+      if (!["vencida", "cancelada"].includes(s.estado)) return false;
+      // exclude if alumno tiene sub posterior
+      const renewed = allSubs.some(o => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
+      return !renewed;
+    });
+    const bajasPendientes = bajasDelMes.filter(s => !s.baja_chequeada).length;
+
+    setAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes });
+
     setLoading(false);
-  }, []);
+  }, [periodoBajas]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -55,11 +94,64 @@ const SuperAdminResumen = () => {
 
   const maxPlanCount = Math.max(...planDist.map(p => p.count), 1);
 
+  const alertCards = [
+    {
+      label: "Facturas por realizar",
+      count: alerts.facturas,
+      icon: FileText,
+      tone: "yellow",
+      to: "/admin/facturacion",
+      hint: "Pagos cobrados sin factura emitida",
+    },
+    {
+      label: "Pagos a chequear",
+      count: alerts.pagos,
+      icon: CreditCard,
+      tone: "orange",
+      to: "/admin/pagos?chequeo=pendientes",
+      hint: "Conciliar contra MP / transferencia / efectivo",
+    },
+    {
+      label: "Bajas a chequear",
+      count: alerts.bajas,
+      icon: AlertTriangle,
+      tone: "red",
+      to: "/admin/bajas",
+      hint: `Alumnos sin renovar en ${periodoBajas}`,
+    },
+  ];
+
+  const toneClass: Record<string, string> = {
+    yellow: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-600",
+    orange: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-600",
+    red: "border-red-500/40 bg-red-500/5 hover:bg-red-500/10 text-red-600",
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen</h1>
-        <p className="text-sm text-muted-foreground">Distribución de planes y sedes</p>
+        <p className="text-sm text-muted-foreground">Alertas pendientes y distribución</p>
+      </div>
+
+      {/* Alerts */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {alertCards.map((a) => (
+          <Link key={a.label} to={a.to} className={`group border rounded-lg p-4 transition-colors ${toneClass[a.tone]}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <a.icon className="w-4 h-4" />
+                <span className="text-[11px] font-heading uppercase tracking-wider">{a.label}</span>
+              </div>
+              <ArrowRight className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-heading font-bold">{a.count}</span>
+              {a.count === 0 && <span className="text-[11px] text-muted-foreground">Todo al día</span>}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">{a.hint}</p>
+          </Link>
+        ))}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

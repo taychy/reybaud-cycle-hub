@@ -39,6 +39,9 @@ type Suscripcion = {
   created_at: string;
   updated_at: string;
   auto_renovacion: boolean;
+  chequeado_admin?: boolean;
+  chequeado_admin_at?: string | null;
+
   alumnos: {
     id: string;
     nombre: string;
@@ -201,6 +204,8 @@ const AdminPayments = () => {
   const [filterFechaDesde, setFilterFechaDesde] = useState("");
   const [filterFechaHasta, setFilterFechaHasta] = useState("");
   const [filterPeriodo, setFilterPeriodo] = useState<string>(currentPeriodKey());
+  const [filterChequeo, setFilterChequeo] = useState<string>(searchParams.get("chequeo") || "todos");
+
 
   // Expandable rows
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -276,8 +281,11 @@ const AdminPayments = () => {
       }
       if (filterFechaDesde && s.created_at < filterFechaDesde) return false;
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
+      if (filterChequeo === "pendientes" && s.chequeado_admin) return false;
+      if (filterChequeo === "chequeados" && !s.chequeado_admin) return false;
       return true;
     });
+
 
     const dir = sortDir === "asc" ? 1 : -1;
     const cmp = (a: string | number | null | undefined, b: string | number | null | undefined) => {
@@ -306,7 +314,25 @@ const AdminPayments = () => {
       }
     });
     return list;
-  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo, sortKey, sortDir]);
+  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo, filterChequeo, sortKey, sortDir]);
+
+  const handleToggleChequeado = async (sub: Suscripcion) => {
+    const next = !sub.chequeado_admin;
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.from("suscripciones").update({
+      chequeado_admin: next,
+      chequeado_admin_at: next ? new Date().toISOString() : null,
+      chequeado_admin_by: next ? session?.user?.id ?? null : null,
+    } as any).eq("id", sub.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    await logAudit(next ? "pago_chequeado" : "pago_descheckado", sub.id, { alumno: sub.alumnos?.nombre });
+    setSuscripciones(prev => prev.map(x => x.id === sub.id ? { ...x, chequeado_admin: next } : x));
+    toast({ title: next ? "Pago chequeado" : "Chequeo removido" });
+  };
+
 
   const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -656,6 +682,19 @@ const AdminPayments = () => {
               </Select>
             </div>
             <div>
+              <Label className="text-xs mb-1 block">Chequeo admin</Label>
+              <Select value={filterChequeo} onValueChange={setFilterChequeo}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="pendientes">Pendientes de chequeo</SelectItem>
+                  <SelectItem value="chequeados">Chequeados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+
+            <div>
               <Label className="text-xs mb-1 block">Fecha desde</Label>
               <Input type="date" value={filterFechaDesde} onChange={(e) => setFilterFechaDesde(e.target.value)} className="h-9 text-sm" />
             </div>
@@ -700,9 +739,10 @@ const AdminPayments = () => {
                     return (
                       <Fragment key={sub.id}>
                         <TableRow 
-                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          className={`cursor-pointer transition-colors ${sub.chequeado_admin ? "bg-emerald-500/10 hover:bg-emerald-500/15" : "hover:bg-muted/50"}`}
                           onClick={() => setExpandedRow(isExpanded ? null : sub.id)}
                         >
+
                           <TableCell className="px-2">
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                           </TableCell>
@@ -734,6 +774,21 @@ const AdminPayments = () => {
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <TooltipProvider delayDuration={200}>
                               <div className="flex items-center gap-1 flex-wrap">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant={sub.chequeado_admin ? "default" : "outline"}
+                                      size="sm"
+                                      className={`h-7 px-2 text-[11px] ${sub.chequeado_admin ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : ""}`}
+                                      onClick={() => handleToggleChequeado(sub)}
+                                    >
+                                      <CheckCheck className="w-3 h-3 mr-1" />
+                                      {sub.chequeado_admin ? "Chequeado" : "Chequear"}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{sub.chequeado_admin ? "Quitar marca de chequeado" : "Marcar como chequeado (conciliado con MP/transferencia/efectivo)"}</TooltipContent>
+                                </Tooltip>
+
                                 {(status === "pendiente" || status === "vencido") && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>

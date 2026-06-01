@@ -74,6 +74,8 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
+import AdminBajas from "./pages/admin/AdminBajas";
+
 import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
@@ -161,7 +163,9 @@ const App = () => (
             
             <Route path="liquidaciones" element={<AdminLiquidaciones />} />
             <Route path="turnera" element={<AdminTurnera />} />
+            <Route path="bajas" element={<AdminBajas />} />
             <Route path="tienda" element={<StoreDashboard />} />
+
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
             <Route path="tienda/pedidos" element={<StoreOrders />} />
