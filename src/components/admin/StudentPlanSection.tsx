@@ -39,6 +39,8 @@ interface SuscripcionData {
   descuento_id: string | null;
   precio_base: number | null;
   precio_final: number | null;
+  auto_cobro_activo?: boolean | null;
+  mp_preapproval_id?: string | null;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
   descuentos: { id: string; nombre: string; valor: number; tipo: string } | null;
 }
