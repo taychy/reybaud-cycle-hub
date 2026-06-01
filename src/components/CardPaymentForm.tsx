@@ -47,11 +47,6 @@ const CardPaymentForm = ({
   const [error, setError] = useState<string | null>(null);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
   const [autoRenewalChecked, setAutoRenewalChecked] = useState(false);
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
   const cardFormRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
