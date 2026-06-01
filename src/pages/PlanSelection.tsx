@@ -572,6 +572,7 @@ const PlanSelection = () => {
             descuentoTipo={selectedDiscount?.discount?.tipo ?? null}
             moneda={selectedPlan.moneda || "ARS"}
             alumnoId={alumnoId}
+            allowAutoRenewal={selectedPlan.frecuencia === "mensual" && (selectedPlan as any).permite_auto_cobro === true}
             onBack={() => setStep("confirm")}
           />
         </div>
