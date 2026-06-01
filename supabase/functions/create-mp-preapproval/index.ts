@@ -71,11 +71,10 @@ Deno.serve(async (req) => {
     const currencyId = (plan.moneda || "ARS").toUpperCase();
     const amount = Number(transaction_amount);
 
-    const preapprovalPayload = {
+    const preapprovalPayload: Record<string, unknown> = {
       reason: `Renovación automática mensual — ${plan.nombre}`,
       external_reference: suscripcion_id,
       payer_email,
-      card_token_id,
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
@@ -83,10 +82,17 @@ Deno.serve(async (req) => {
         currency_id: currencyId,
       },
       back_url: `${APP_BASE_URL}/perfil?section=suscripciones`,
-      status: "authorized",
     };
 
-    console.log("Creating MP preapproval:", { suscripcion_id, amount, currencyId });
+    if (card_token_id) {
+      preapprovalPayload.card_token_id = card_token_id;
+      preapprovalPayload.status = "authorized";
+    } else {
+      // Redirect mode: user authorizes at MP via init_point
+      preapprovalPayload.status = "pending";
+    }
+
+    console.log("Creating MP preapproval:", { suscripcion_id, amount, currencyId, mode: card_token_id ? "token" : "redirect" });
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
@@ -103,6 +109,7 @@ Deno.serve(async (req) => {
       ok: mpRes.ok,
       id: mpData?.id,
       status: mpData?.status,
+      init_point: mpData?.init_point,
       message: mpData?.message,
     });
 
@@ -121,8 +128,8 @@ Deno.serve(async (req) => {
       .from("suscripciones")
       .update({
         mp_preapproval_id: String(mpData.id),
-        mp_preapproval_status: mpData.status || "authorized",
-        auto_cobro_activo: true,
+        mp_preapproval_status: mpData.status || "pending",
+        auto_cobro_activo: mpData.status === "authorized",
         intentos_cobro_fallidos: 0,
       })
       .eq("id", suscripcion_id);
@@ -132,6 +139,7 @@ Deno.serve(async (req) => {
         ok: true,
         preapproval_id: mpData.id,
         status: mpData.status,
+        init_point: mpData.init_point || null,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
