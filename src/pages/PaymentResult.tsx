@@ -22,19 +22,125 @@ const grupoOptions = [
 const PaymentResult = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const status = params.get("status") || params.get("pago") || "unknown";
+  const urlStatus = params.get("status") || params.get("pago") || "unknown";
+  const externalReference =
+    params.get("external_reference") || params.get("suscripcion_id");
+  const mpPaymentId = params.get("payment_id") || params.get("collection_id");
+  const preferenceId = params.get("preference_id");
 
-  const isApproved = status === "approved" || status === "ok";
-  const isPending = status === "pending" || status === "pendiente" || status === "in_process";
-  const isFailure = !isApproved && !isPending;
+  // Si la URL ya nos dice "failure" sin payment_id, confiamos (no hay nada que verificar contra DB).
+  const urlSaysFailure =
+    urlStatus === "failure" || urlStatus === "rejected" || urlStatus === "cancelled";
 
-  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
-
-  const showGrupoStep = isApproved || isPending;
-
-  const [step, setStep] = useState<"result" | "grupo" | "install">(
-    showGrupoStep ? (isRenewal ? "install" : "grupo") : "result"
+  // Estado verificado contra la base de datos. Mientras esté null, mostramos "confirmando…".
+  // 'unknown' = sin datos suficientes para consultar (mostramos lo que dice la URL como fallback informativo).
+  type VerifiedStatus = "approved" | "pending" | "failure" | "unknown" | null;
+  const [verifiedStatus, setVerifiedStatus] = useState<VerifiedStatus>(
+    urlSaysFailure ? "failure" : null
   );
+  const [pollAttempts, setPollAttempts] = useState(0);
+
+  // No tenemos identificadores para consultar la DB: caemos al status de la URL (caso legacy).
+  const canVerify = Boolean(externalReference || mpPaymentId || preferenceId);
+
+  useEffect(() => {
+    if (verifiedStatus !== null) return; // ya resuelto o failure por URL
+    if (!canVerify) {
+      // Sin forma de verificar: respetamos lo que diga la URL pero marcamos como unknown
+      // para no afirmar "pagado" si MP no nos dio identificadores.
+      if (urlStatus === "approved" || urlStatus === "ok") {
+        setVerifiedStatus("pending"); // forzamos UI de "confirmando" en lugar de mentir
+      } else if (urlStatus === "pending" || urlStatus === "pendiente" || urlStatus === "in_process") {
+        setVerifiedStatus("pending");
+      } else {
+        setVerifiedStatus("unknown");
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const MAX_ATTEMPTS = 8; // ~24s total
+    const INTERVAL_MS = 3000;
+
+    const checkStatus = async (attempt: number) => {
+      try {
+        const qs = new URLSearchParams();
+        if (externalReference) qs.set("external_reference", externalReference);
+        if (mpPaymentId) qs.set("mp_payment_id", mpPaymentId);
+        if (preferenceId) qs.set("preference_id", preferenceId);
+
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-subscription-status?${qs.toString()}`;
+        const res = await fetch(url, {
+          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        });
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data?.found) {
+          const estado = data.estado as string;
+          if (estado === "activa") {
+            setVerifiedStatus("approved");
+            return;
+          }
+          if (estado === "cancelada" || data.mp_status === "rejected" || data.mp_status === "cancelled") {
+            setVerifiedStatus("failure");
+            return;
+          }
+          // pendiente / pendiente_verificacion → seguir esperando
+        }
+
+        if (attempt + 1 < MAX_ATTEMPTS) {
+          setPollAttempts(attempt + 1);
+          setTimeout(() => checkStatus(attempt + 1), INTERVAL_MS);
+        } else {
+          // Timeout: dejamos al alumno en "confirmando…" con CTA para volver al inicio.
+          setVerifiedStatus("pending");
+        }
+      } catch (e) {
+        if (cancelled) return;
+        if (attempt + 1 < MAX_ATTEMPTS) {
+          setPollAttempts(attempt + 1);
+          setTimeout(() => checkStatus(attempt + 1), INTERVAL_MS);
+        } else {
+          setVerifiedStatus("pending");
+        }
+      }
+    };
+
+    checkStatus(0);
+    return () => {
+      cancelled = true;
+    };
+  }, [verifiedStatus, canVerify, externalReference, mpPaymentId, preferenceId, urlStatus]);
+
+  // Mientras esperamos la confirmación real, mostramos pantalla "confirmando…"
+  if (verifiedStatus === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center space-y-6 animate-fade-in">
+          <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto" />
+          <Clock className="w-14 h-14 text-amber-400 mx-auto animate-pulse" />
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Estamos confirmando tu pago…
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Estamos validando la operación con Mercado Pago. Esto puede tardar unos segundos.
+            No cierres esta pantalla.
+          </p>
+          {pollAttempts > 0 && (
+            <p className="text-xs text-muted-foreground/70">
+              Intento {pollAttempts + 1} de 8…
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const isApproved = verifiedStatus === "approved";
+  const isPending = verifiedStatus === "pending";
+  const isFailure = verifiedStatus === "failure" || verifiedStatus === "unknown";
+
   const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
