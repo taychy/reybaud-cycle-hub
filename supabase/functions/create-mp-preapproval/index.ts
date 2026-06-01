@@ -24,7 +24,10 @@ Deno.serve(async (req) => {
       transaction_amount,
     } = body;
 
-    if (!card_token_id || !payer_email || !suscripcion_id || !plan_id || !transaction_amount) {
+    // card_token_id is OPTIONAL:
+    //  - if provided → authorized immediately (no redirect)
+    //  - if absent   → MP returns init_point; user must authorize at MP
+    if (!payer_email || !suscripcion_id || !plan_id || !transaction_amount) {
       return new Response(
         JSON.stringify({ error: "Faltan parámetros requeridos" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
