@@ -18,25 +18,233 @@ Deno.serve(async (req) => {
 
     console.log("Webhook received:", { topic, body });
 
-    // MP sends different notification types
-    // We care about "payment" notifications
     const dataId = body?.data?.id || url.searchParams.get("data.id");
     const notificationType = topic || body?.type || body?.action;
 
-    if (!dataId || (notificationType !== "payment" && notificationType !== "payment.updated" && notificationType !== "payment.created")) {
-      console.log("Ignoring notification:", notificationType);
-      return new Response(JSON.stringify({ ok: true, ignored: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch payment details from MP API
     const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
     if (!MP_ACCESS_TOKEN) {
       console.error("MP_ACCESS_TOKEN not configured");
       return new Response(JSON.stringify({ error: "MP not configured" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ─── PREAPPROVAL FLOW (recurring agreement status change) ───
+    if (dataId && (notificationType === "preapproval" || notificationType === "subscription_preapproval")) {
+      const paRes = await fetch(`https://api.mercadopago.com/preapproval/${dataId}`, {
+        headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+      });
+      const pa = await paRes.json();
+      console.log("Preapproval details:", { id: pa?.id, status: pa?.status });
+
+      if (pa?.id) {
+        await supabaseAdmin
+          .from("suscripciones")
+          .update({
+            mp_preapproval_status: pa.status,
+            auto_cobro_activo: pa.status === "authorized",
+          })
+          .eq("mp_preapproval_id", String(pa.id));
+      }
+      return new Response(JSON.stringify({ ok: true, kind: "preapproval" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── AUTHORIZED PAYMENT FLOW (recurring charge executed by MP) ───
+    if (dataId && (notificationType === "authorized_payment" || notificationType === "subscription_authorized_payment")) {
+      const apRes = await fetch(`https://api.mercadopago.com/authorized_payments/${dataId}`, {
+        headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+      });
+      const ap = await apRes.json();
+      const preapprovalId = ap?.preapproval_id ? String(ap.preapproval_id) : null;
+      const apStatus = ap?.status; // scheduled | processed | recycling | cancelled
+      const paymentStatus = ap?.payment?.status;
+      console.log("AuthorizedPayment:", { id: ap?.id, preapprovalId, apStatus, paymentStatus });
+
+      if (!preapprovalId) {
+        return new Response(JSON.stringify({ ok: true, no_preapproval: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: parentSub } = await supabaseAdmin
+        .from("suscripciones")
+        .select("id, alumno_id, plan_id, precio_final, precio_base, moneda, intentos_cobro_fallidos")
+        .eq("mp_preapproval_id", preapprovalId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!parentSub) {
+        console.log("No parent subscription for preapproval", preapprovalId);
+        return new Response(JSON.stringify({ ok: true, no_parent: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const nowIso = new Date().toISOString();
+
+      if (paymentStatus === "approved" && apStatus === "processed") {
+        const mpPaymentId = ap?.payment?.id ? String(ap.payment.id) : null;
+        if (mpPaymentId) {
+          const { data: dup } = await supabaseAdmin
+            .from("suscripciones")
+            .select("id")
+            .eq("mp_payment_id", mpPaymentId)
+            .maybeSingle();
+          if (dup) {
+            return new Response(JSON.stringify({ ok: true, duplicate: true }), {
+              status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        const now = new Date();
+        const fechaInicio = now.toISOString().split("T")[0];
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const fechaFin = lastDay.toISOString().split("T")[0];
+        const monto = Number(ap?.payment?.transaction_amount ?? parentSub.precio_final ?? parentSub.precio_base ?? 0);
+
+        await supabaseAdmin.from("suscripciones").insert({
+          alumno_id: parentSub.alumno_id,
+          plan_id: parentSub.plan_id,
+          estado: "activa",
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          metodo_pago: "mercadopago_recurrente",
+          origen_registro: "automatico",
+          mp_payment_id: mpPaymentId,
+          mp_status: "approved",
+          mp_preapproval_id: preapprovalId,
+          mp_preapproval_status: "authorized",
+          auto_cobro_activo: true,
+          intentos_cobro_fallidos: 0,
+          ultimo_intento_cobro_at: nowIso,
+          precio_base: parentSub.precio_base,
+          precio_final: monto,
+          moneda: parentSub.moneda,
+          notas: "Renovación automática (MP)",
+        });
+
+        await supabaseAdmin
+          .from("suscripciones")
+          .update({ intentos_cobro_fallidos: 0, ultimo_intento_cobro_at: nowIso })
+          .eq("id", parentSub.id);
+
+        await supabaseAdmin
+          .from("alumnos")
+          .update({ estado: "activo" })
+          .eq("id", parentSub.alumno_id);
+
+        return new Response(JSON.stringify({ ok: true, kind: "auto_renewed" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (paymentStatus === "rejected" || apStatus === "cancelled" || apStatus === "recycling") {
+        const newFails = Number(parentSub.intentos_cobro_fallidos || 0) + 1;
+        const reachedLimit = newFails >= 3;
+
+        const update: Record<string, unknown> = {
+          ultimo_intento_cobro_at: nowIso,
+          intentos_cobro_fallidos: newFails,
+        };
+
+        if (reachedLimit) {
+          update.auto_cobro_activo = false;
+          update.mp_preapproval_status = "paused";
+          try {
+            await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+              },
+              body: JSON.stringify({ status: "paused" }),
+            });
+          } catch (e) {
+            console.error("Could not pause preapproval:", e);
+          }
+        }
+
+        await supabaseAdmin
+          .from("suscripciones")
+          .update(update)
+          .eq("id", parentSub.id);
+
+        if (reachedLimit) {
+          try {
+            const { data: alumno } = await supabaseAdmin
+              .from("alumnos").select("nombre, email").eq("id", parentSub.alumno_id).maybeSingle();
+            const { data: plan } = await supabaseAdmin
+              .from("planes").select("nombre").eq("id", parentSub.plan_id).maybeSingle();
+
+            const SENDER_DOMAIN = "notify.reybaud-app.com";
+            const FROM = `Ciclismo Reybaud <noreply@${SENDER_DOMAIN}>`;
+            const APP_URL = "https://reybaud-app.com";
+
+            if (alumno?.email) {
+              await supabaseAdmin.rpc("enqueue_email", {
+                queue_name: "transactional_emails",
+                payload: {
+                  message_id: crypto.randomUUID(),
+                  to: alumno.email,
+                  from: FROM,
+                  sender_domain: SENDER_DOMAIN,
+                  subject: "No pudimos cobrar tu renovación automática",
+                  html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><h2 style="color:#b8860b;margin-bottom:12px">Hola ${alumno.nombre || ""},</h2><p>Intentamos renovar tu plan <strong>${plan?.nombre || ""}</strong> automáticamente y la tarjeta fue rechazada en los 3 intentos.</p><p>Para no perder el acceso, podés pagar manualmente desde tu perfil o actualizar la tarjeta y volver a activar la renovación automática.</p><p style="margin:24px 0"><a href="${APP_URL}/perfil?section=suscripciones" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si necesitás ayuda, respondé este mail.</p></div>`,
+                  text: `Intentamos renovar tu plan ${plan?.nombre || ""} y la tarjeta fue rechazada 3 veces. Pagá manual desde ${APP_URL}/perfil?section=suscripciones`,
+                  purpose: "transactional",
+                  label: "auto_charge_failed_student",
+                  idempotency_key: `auto-fail-student-${parentSub.id}-${newFails}`,
+                  queued_at: nowIso,
+                },
+              });
+            }
+
+            await supabaseAdmin.rpc("enqueue_email", {
+              queue_name: "transactional_emails",
+              payload: {
+                message_id: crypto.randomUUID(),
+                to: "scarlettbonatto@gmail.com",
+                from: FROM,
+                sender_domain: SENDER_DOMAIN,
+                subject: `⚠️ Falló auto-cobro: ${alumno?.nombre || "Alumno"} — ${plan?.nombre || ""}`,
+                html: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px"><h2 style="color:#c0392b">Auto-cobro desactivado</h2><p>Mercado Pago rechazó 3 intentos consecutivos de renovación automática.</p><table style="width:100%;border-collapse:collapse"><tr><td style="padding:6px 0;color:#666">Alumno</td><td style="padding:6px 0;font-weight:600">${alumno?.nombre || ""}</td></tr><tr><td style="padding:6px 0;color:#666">Email</td><td style="padding:6px 0">${alumno?.email || ""}</td></tr><tr><td style="padding:6px 0;color:#666">Plan</td><td style="padding:6px 0">${plan?.nombre || ""}</td></tr><tr><td style="padding:6px 0;color:#666">Preapproval</td><td style="padding:6px 0;font-family:monospace;font-size:12px">${preapprovalId}</td></tr></table><p style="color:#666;font-size:13px;margin-top:16px">Se envió aviso al alumno con link de pago manual.</p></div>`,
+                text: `Falló auto-cobro de ${alumno?.nombre} (${plan?.nombre}). Preapproval ${preapprovalId} pausado.`,
+                purpose: "transactional",
+                label: "auto_charge_failed_admin",
+                idempotency_key: `auto-fail-admin-${parentSub.id}-${newFails}`,
+                queued_at: nowIso,
+              },
+            });
+          } catch (mailErr) {
+            console.error("Email enqueue failed:", mailErr);
+          }
+        }
+
+        return new Response(JSON.stringify({ ok: true, kind: "auto_failed", attempts: newFails, paused: reachedLimit }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true, kind: "ap_other", apStatus, paymentStatus }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── ONE-OFF PAYMENT FLOW (existing logic) ───
+    if (!dataId || (notificationType !== "payment" && notificationType !== "payment.updated" && notificationType !== "payment.created")) {
+      console.log("Ignoring notification:", notificationType);
+      return new Response(JSON.stringify({ ok: true, ignored: true }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -66,7 +274,6 @@ Deno.serve(async (req) => {
     const externalRef: string = String(payment.external_reference);
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Validate external_reference format: "event:<uuid>", "preorder:<uuid>", "store_order:<uuid>" or "<uuid>" (suscripcion)
     const isEventRef = externalRef.startsWith("event:");
     const isPreorderRef = externalRef.startsWith("preorder:");
     const isStoreOrderRef = externalRef.startsWith("store_order:");
@@ -84,11 +291,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     // ─── STORE ORDER FLOW (in-app product purchase) ───
     if (isStoreOrderRef) {
