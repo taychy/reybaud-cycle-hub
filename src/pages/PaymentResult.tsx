@@ -134,6 +134,17 @@ const PaymentResult = () => {
     }
   }, [verifiedStatus, isRenewal]);
 
+  useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
   // Mientras esperamos la confirmación real, mostramos pantalla "confirmando…"
   if (verifiedStatus === null) {
     return (
@@ -158,24 +169,13 @@ const PaymentResult = () => {
     );
   }
 
-
-  useEffect(() => {
-    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
   const handleInstallPrompt = async () => {
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
     await deferredPrompt.userChoice;
     setDeferredPrompt(null);
   };
+
 
   const handleSaveGrupo = () => {
     if (!selectedGrupo) return;
