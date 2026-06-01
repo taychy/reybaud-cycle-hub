@@ -367,6 +367,26 @@ const CardPaymentForm = ({
           />
         </div>
 
+        {allowAutoRenewal && (
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <Checkbox
+              id="auto-renewal"
+              checked={autoRenewalChecked}
+              onCheckedChange={(v) => setAutoRenewalChecked(v === true)}
+              className="mt-0.5"
+            />
+            <label htmlFor="auto-renewal" className="text-xs text-foreground cursor-pointer leading-snug">
+              <span className="flex items-center gap-1.5 font-medium">
+                <RefreshCw className="w-3 h-3 text-primary" />
+                Renovar automáticamente cada mes
+              </span>
+              <span className="text-muted-foreground">
+                Cobramos tu plan a esta tarjeta cada mes. Podés cancelar cuando quieras desde tu perfil.
+              </span>
+            </label>
+          </div>
+        )}
+
         <Button
           type="submit"
           variant="gold"
