@@ -465,9 +465,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       <div key={sub.id} className={`rounded-lg border p-3 space-y-2 ${isHistoric ? "border-border/50 bg-muted/20 opacity-80" : "border-border bg-secondary/30"}`}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-foreground">{sub.planes?.nombre || "Sin plan"}</span>
-          <Badge variant="outline" className={`text-[10px] ${badgeCfg.className}`}>
-            {statusLabel}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            {sub.auto_cobro_activo && (
+              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30 gap-1">
+                <RefreshCw className="w-2.5 h-2.5" />
+                Auto-cobro
+              </Badge>
+            )}
+            <Badge variant="outline" className={`text-[10px] ${badgeCfg.className}`}>
+              {statusLabel}
+            </Badge>
+          </div>
         </div>
 
         <div className="space-y-1 text-[11px]">
