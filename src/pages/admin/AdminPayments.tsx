@@ -281,8 +281,11 @@ const AdminPayments = () => {
       }
       if (filterFechaDesde && s.created_at < filterFechaDesde) return false;
       if (filterFechaHasta && s.created_at > filterFechaHasta + "T23:59:59") return false;
+      if (filterChequeo === "pendientes" && s.chequeado_admin) return false;
+      if (filterChequeo === "chequeados" && !s.chequeado_admin) return false;
       return true;
     });
+
 
     const dir = sortDir === "asc" ? 1 : -1;
     const cmp = (a: string | number | null | undefined, b: string | number | null | undefined) => {
