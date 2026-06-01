@@ -15,7 +15,7 @@
  *   alumno_early_renewal_auto_renov      = "1" | "0" (estado actual de auto-renovación)
  */
 
-export const EARLY_RENEWAL_WINDOW_DAYS = 10;
+export const EARLY_RENEWAL_WINDOW_DAYS = 20;
 
 const K_FLAG = "alumno_early_renewal";
 const K_SUB = "alumno_early_renewal_sub_id";
