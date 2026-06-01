@@ -4526,8 +4526,15 @@ export type Database = {
           alumno_id: string
           auto_cobro_activo: boolean
           auto_renovacion: boolean
+          baja_chequeada: boolean
+          baja_chequeada_at: string | null
+          baja_chequeada_by: string | null
+          baja_nota: string | null
           cancelada_at: string | null
           cancelada_motivo: string | null
+          chequeado_admin: boolean
+          chequeado_admin_at: string | null
+          chequeado_admin_by: string | null
           created_at: string
           descuento_id: string | null
           estado: string
@@ -4553,8 +4560,15 @@ export type Database = {
           alumno_id: string
           auto_cobro_activo?: boolean
           auto_renovacion?: boolean
+          baja_chequeada?: boolean
+          baja_chequeada_at?: string | null
+          baja_chequeada_by?: string | null
+          baja_nota?: string | null
           cancelada_at?: string | null
           cancelada_motivo?: string | null
+          chequeado_admin?: boolean
+          chequeado_admin_at?: string | null
+          chequeado_admin_by?: string | null
           created_at?: string
           descuento_id?: string | null
           estado?: string
@@ -4580,8 +4594,15 @@ export type Database = {
           alumno_id?: string
           auto_cobro_activo?: boolean
           auto_renovacion?: boolean
+          baja_chequeada?: boolean
+          baja_chequeada_at?: string | null
+          baja_chequeada_by?: string | null
+          baja_nota?: string | null
           cancelada_at?: string | null
           cancelada_motivo?: string | null
+          chequeado_admin?: boolean
+          chequeado_admin_at?: string | null
+          chequeado_admin_by?: string | null
           created_at?: string
           descuento_id?: string | null
           estado?: string
