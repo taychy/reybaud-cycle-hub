@@ -433,20 +433,64 @@ const StudentPayments = () => {
                       )}
                     </div>
 
-                    {/* Early renewal CTA — plan activo con ≤10 días para vencer */}
-                    {effectiveStatus === "activa" && sub.fecha_fin && (() => {
-                      const dLeft = daysUntil(sub.fecha_fin);
-                      if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
-                      const startEarlyRenewal = () => {
-                        setEarlyRenewal({
-                          subId: sub.id,
-                          planId: sub.plan_id,
-                          fechaFin: sub.fecha_fin!,
-                          autoRenovacion: sub.auto_renovacion,
-                        });
+                    {/* Pago / renovación CTA */}
+                    {(() => {
+                      const goToCheckout = () => {
+                        if (sub.fecha_fin) {
+                          setEarlyRenewal({
+                            subId: sub.id,
+                            planId: sub.plan_id,
+                            fechaFin: sub.fecha_fin,
+                            autoRenovacion: sub.auto_renovacion,
+                          });
+                        }
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
+                        localStorage.setItem("alumno_preselect_plan_id", sub.plan_id);
                         navigate("/planes");
                       };
+
+                      // Estados rotos: alumno necesita regularizar / pagar este plan
+                      if (
+                        effectiveStatus === "pendiente" ||
+                        effectiveStatus === "pago_pendiente" ||
+                        effectiveStatus === "acceso_pausado" ||
+                        effectiveStatus === "vencida"
+                      ) {
+                        const msg =
+                          effectiveStatus === "pago_pendiente"
+                            ? "Tu plan venció. Regularizá tu pago para mantener el acceso completo."
+                            : effectiveStatus === "acceso_pausado"
+                              ? "Tu acceso está pausado por falta de pago. Pagá ahora para reactivarlo."
+                              : effectiveStatus === "vencida"
+                                ? "Este plan venció. Renovalo para volver a entrenar."
+                                : "Este plan está pendiente de pago. Completalo para activarlo.";
+                        return (
+                          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                            <p className="text-xs text-foreground"><strong>{msg}</strong></p>
+                            <Button variant="gold" size="sm" className="w-full" onClick={goToCheckout}>
+                              Pagar este plan
+                            </Button>
+                          </div>
+                        );
+                      }
+
+                      // Informativo: pago en verificación
+                      if (effectiveStatus === "pendiente_verificacion") {
+                        return (
+                          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+                            <p className="text-xs text-foreground">
+                              <strong>Tu pago está siendo verificado.</strong>{" "}
+                              No necesitás volver a pagar. Te avisamos por email cuando quede acreditado.
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      // Renovación anticipada: plan activo con ≤20 días para vencer
+                      if (effectiveStatus !== "activa" || !sub.fecha_fin) return null;
+                      const dLeft = daysUntil(sub.fecha_fin);
+                      if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
+                      const startEarlyRenewal = goToCheckout;
                       return (
                         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
                           <p className="text-xs text-foreground">
