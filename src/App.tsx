@@ -163,7 +163,9 @@ const App = () => (
             
             <Route path="liquidaciones" element={<AdminLiquidaciones />} />
             <Route path="turnera" element={<AdminTurnera />} />
+            <Route path="bajas" element={<AdminBajas />} />
             <Route path="tienda" element={<StoreDashboard />} />
+
             <Route path="tienda/productos" element={<StoreProducts />} />
             <Route path="tienda/categorias" element={<StoreCategories />} />
             <Route path="tienda/pedidos" element={<StoreOrders />} />
