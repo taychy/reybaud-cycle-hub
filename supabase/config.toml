@@ -55,3 +55,7 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.notify-students-incomplete-data]
     verify_jwt = false
+  [functions.get-subscription-status]
+    verify_jwt = false
+  [functions.cleanup-pending-subscriptions]
+    verify_jwt = false
