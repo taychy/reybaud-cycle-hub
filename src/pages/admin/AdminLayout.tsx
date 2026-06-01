@@ -314,13 +314,13 @@ const AdminLayout = () => {
           </div>
 
           <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-            <NavItem item={{ to: "/admin/centro-control", label: "Centro de Control", icon: Activity }} mobile />
             {isSuperAdmin && (
               <>
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
               </>
             )}
+
             {navSections.map((section, idx) => (
               <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
                 <div className="pb-1">
