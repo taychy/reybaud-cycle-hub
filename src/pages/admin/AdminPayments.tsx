@@ -739,9 +739,10 @@ const AdminPayments = () => {
                     return (
                       <Fragment key={sub.id}>
                         <TableRow 
-                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          className={`cursor-pointer transition-colors ${sub.chequeado_admin ? "bg-emerald-500/10 hover:bg-emerald-500/15" : "hover:bg-muted/50"}`}
                           onClick={() => setExpandedRow(isExpanded ? null : sub.id)}
                         >
+
                           <TableCell className="px-2">
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                           </TableCell>
