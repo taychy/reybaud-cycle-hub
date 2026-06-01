@@ -113,6 +113,27 @@ const PaymentResult = () => {
     };
   }, [verifiedStatus, canVerify, externalReference, mpPaymentId, preferenceId, urlStatus]);
 
+  const isApproved = verifiedStatus === "approved";
+  const isPending = verifiedStatus === "pending";
+  const isFailure = verifiedStatus === "failure" || verifiedStatus === "unknown";
+
+  const isRenewal = localStorage.getItem("alumno_renewal") === "1";
+  const showGrupoStep = isApproved; // sólo pedimos grupo si MP confirmó realmente
+  const [step, setStep] = useState<"result" | "grupo" | "install">("result");
+  const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+
+  const alumnoId = localStorage.getItem("registro_alumno_id");
+
+  // Cuando el pago queda aprobado, recién ahí avanzamos al paso grupo/instalación.
+  useEffect(() => {
+    if (verifiedStatus === "approved") {
+      setStep(isRenewal ? "install" : "grupo");
+    }
+  }, [verifiedStatus, isRenewal]);
+
   // Mientras esperamos la confirmación real, mostramos pantalla "confirmando…"
   if (verifiedStatus === null) {
     return (
@@ -137,16 +158,6 @@ const PaymentResult = () => {
     );
   }
 
-  const isApproved = verifiedStatus === "approved";
-  const isPending = verifiedStatus === "pending";
-  const isFailure = verifiedStatus === "failure" || verifiedStatus === "unknown";
-
-  const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
-
-  const alumnoId = localStorage.getItem("registro_alumno_id");
 
   useEffect(() => {
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
