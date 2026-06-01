@@ -39,6 +39,9 @@ type Suscripcion = {
   created_at: string;
   updated_at: string;
   auto_renovacion: boolean;
+  chequeado_admin?: boolean;
+  chequeado_admin_at?: string | null;
+
   alumnos: {
     id: string;
     nombre: string;
