@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, Loader2, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CardPaymentFormProps {
   planId: string;
@@ -16,6 +17,7 @@ interface CardPaymentFormProps {
   descuentoTipo: string | null;
   moneda: string;
   alumnoId: string;
+  allowAutoRenewal?: boolean;
   onBack: () => void;
 }
 
@@ -36,6 +38,7 @@ const CardPaymentForm = ({
   descuentoTipo,
   moneda,
   alumnoId,
+  allowAutoRenewal = false,
   onBack,
 }: CardPaymentFormProps) => {
   const navigate = useNavigate();
@@ -43,6 +46,7 @@ const CardPaymentForm = ({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [autoRenewalChecked, setAutoRenewalChecked] = useState(false);
   const cardFormRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -214,6 +218,35 @@ const CardPaymentForm = ({
 
               // Payment approved
               if (result.status === "approved") {
+                // Opt-in to monthly auto-renewal via MP Preapproval (redirect mode)
+                if (autoRenewalChecked && allowAutoRenewal) {
+                  try {
+                    const preapprovalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`;
+                    const ppRes = await fetch(preapprovalUrl, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                      },
+                      body: JSON.stringify({
+                        payer_email: formData.cardholderEmail || "",
+                        suscripcion_id: sub.id,
+                        alumno_id: alumnoId,
+                        plan_id: planId,
+                        transaction_amount: planPrice,
+                      }),
+                    });
+                    const ppData = await ppRes.json();
+                    if (ppRes.ok && ppData?.init_point) {
+                      // Redirect to MP for the user to authorize the recurring agreement.
+                      window.location.href = ppData.init_point;
+                      return;
+                    }
+                    console.warn("Preapproval setup failed, continuing without auto-renewal:", ppData);
+                  } catch (ppErr) {
+                    console.warn("Preapproval setup error:", ppErr);
+                  }
+                }
                 navigate("/pago-resultado?status=approved");
               } else if (result.status === "in_process") {
                 navigate("/pago-resultado?status=pending");
@@ -362,6 +395,26 @@ const CardPaymentForm = ({
             className="w-full h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
+
+        {allowAutoRenewal && (
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <Checkbox
+              id="auto-renewal"
+              checked={autoRenewalChecked}
+              onCheckedChange={(v) => setAutoRenewalChecked(v === true)}
+              className="mt-0.5"
+            />
+            <label htmlFor="auto-renewal" className="text-xs text-foreground cursor-pointer leading-snug">
+              <span className="flex items-center gap-1.5 font-medium">
+                <RefreshCw className="w-3 h-3 text-primary" />
+                Renovar automáticamente cada mes
+              </span>
+              <span className="text-muted-foreground">
+                Cobramos tu plan a esta tarjeta cada mes. Podés cancelar cuando quieras desde tu perfil.
+              </span>
+            </label>
+          </div>
+        )}
 
         <Button
           type="submit"

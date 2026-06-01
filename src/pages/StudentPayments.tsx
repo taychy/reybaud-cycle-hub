@@ -37,6 +37,9 @@ interface SubscriptionRecord {
   fecha_fin: string | null;
   mp_status: string | null;
   auto_renovacion: boolean;
+  auto_cobro_activo: boolean;
+  mp_preapproval_id: string | null;
+  mp_preapproval_status: string | null;
   cancelada_at: string | null;
   descuento_id: string | null;
   precio_base: number | null;
@@ -168,7 +171,7 @@ const StudentPayments = () => {
 
       const { data: subs } = await supabase
         .from("suscripciones")
-        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, cancelada_at, plan_id, descuento_id, precio_base, precio_final, planes(nombre, precio, frecuencia), descuentos(nombre, valor, tipo, categoria)")
+        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, auto_cobro_activo, mp_preapproval_id, mp_preapproval_status, cancelada_at, plan_id, descuento_id, precio_base, precio_final, planes(nombre, precio, frecuencia), descuentos(nombre, valor, tipo, categoria)")
         .eq("alumno_id", alumnoData.id)
         .order("created_at", { ascending: false });
 
@@ -183,6 +186,9 @@ const StudentPayments = () => {
           fecha_fin: s.fecha_fin,
           mp_status: s.mp_status,
           auto_renovacion: s.auto_renovacion ?? false,
+          auto_cobro_activo: s.auto_cobro_activo ?? false,
+          mp_preapproval_id: s.mp_preapproval_id ?? null,
+          mp_preapproval_status: s.mp_preapproval_status ?? null,
           cancelada_at: s.cancelada_at,
           descuento_id: s.descuento_id,
           precio_base: s.precio_base,
@@ -530,7 +536,69 @@ const StudentPayments = () => {
 
                     {/* Per-plan actions */}
                     <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
-                      {/* Toggle renewal */}
+                      {/* MP Preapproval (real auto-charge) */}
+                      {sub.mp_preapproval_id && sub.auto_cobro_activo && (
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-primary/5">
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className="w-4 h-4 text-primary" />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium text-foreground">Cobro automático activo</span>
+                              <span className="text-[10px] text-muted-foreground">Mercado Pago renueva esta cuota cada mes</span>
+                            </div>
+                          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px]"
+                                disabled={togglingId === sub.id || readOnly}
+                              >
+                                Cancelar
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-card border-border">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Cancelar cobro automático?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará automáticamente.
+                                  Vas a tener que pagar manualmente la próxima cuota.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Volver</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={async () => {
+                                    setTogglingId(sub.id);
+                                    try {
+                                      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`;
+                                      const res = await fetch(url, {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                                        },
+                                        body: JSON.stringify({ suscripcion_id: sub.id }),
+                                      });
+                                      if (!res.ok) throw new Error("cancel failed");
+                                      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, auto_cobro_activo: false, mp_preapproval_status: "cancelled" } : s));
+                                      toast({ title: "Renovación cancelada", description: "No volveremos a cobrar este plan automáticamente." });
+                                    } catch {
+                                      toast({ title: "Error", description: "No se pudo cancelar. Intentá de nuevo.", variant: "destructive" });
+                                    } finally {
+                                      setTogglingId(null);
+                                    }
+                                  }}
+                                >
+                                  Sí, cancelar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+
+                      {/* Toggle renewal (legacy intent flag) */}
                       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
                         <div className="flex items-center gap-2">
                           <RefreshCw className="w-4 h-4 text-primary" />

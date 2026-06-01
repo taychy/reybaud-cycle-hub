@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign, PauseCircle } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign, PauseCircle, RefreshCw } from "lucide-react";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
@@ -39,6 +39,8 @@ interface SuscripcionData {
   descuento_id: string | null;
   precio_base: number | null;
   precio_final: number | null;
+  auto_cobro_activo?: boolean | null;
+  mp_preapproval_id?: string | null;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
   descuentos: { id: string; nombre: string; valor: number; tipo: string } | null;
 }
@@ -107,7 +109,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes, discountsRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, auto_cobro_activo, mp_preapproval_id, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
@@ -463,9 +465,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       <div key={sub.id} className={`rounded-lg border p-3 space-y-2 ${isHistoric ? "border-border/50 bg-muted/20 opacity-80" : "border-border bg-secondary/30"}`}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-foreground">{sub.planes?.nombre || "Sin plan"}</span>
-          <Badge variant="outline" className={`text-[10px] ${badgeCfg.className}`}>
-            {statusLabel}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            {sub.auto_cobro_activo && (
+              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30 gap-1">
+                <RefreshCw className="w-2.5 h-2.5" />
+                Auto-cobro
+              </Badge>
+            )}
+            <Badge variant="outline" className={`text-[10px] ${badgeCfg.className}`}>
+              {statusLabel}
+            </Badge>
+          </div>
         </div>
 
         <div className="space-y-1 text-[11px]">
