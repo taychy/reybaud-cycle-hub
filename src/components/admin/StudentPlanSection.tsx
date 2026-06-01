@@ -109,7 +109,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes, discountsRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, auto_cobro_activo, mp_preapproval_id, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
