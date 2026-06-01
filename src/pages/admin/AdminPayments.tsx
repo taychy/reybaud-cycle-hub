@@ -691,6 +691,8 @@ const AdminPayments = () => {
                   <SelectItem value="chequeados">Chequeados</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
 
             <div>
               <Label className="text-xs mb-1 block">Fecha desde</Label>
