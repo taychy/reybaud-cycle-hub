@@ -314,7 +314,25 @@ const AdminPayments = () => {
       }
     });
     return list;
-  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo, sortKey, sortDir]);
+  }, [suscripciones, filterEstado, filterPlan, filterSede, filterAlumno, filterMetodo, filterFechaDesde, filterFechaHasta, filterPeriodo, filterChequeo, sortKey, sortDir]);
+
+  const handleToggleChequeado = async (sub: Suscripcion) => {
+    const next = !sub.chequeado_admin;
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.from("suscripciones").update({
+      chequeado_admin: next,
+      chequeado_admin_at: next ? new Date().toISOString() : null,
+      chequeado_admin_by: next ? session?.user?.id ?? null : null,
+    } as any).eq("id", sub.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    await logAudit(next ? "pago_chequeado" : "pago_descheckado", sub.id, { alumno: sub.alumnos?.nombre });
+    setSuscripciones(prev => prev.map(x => x.id === sub.id ? { ...x, chequeado_admin: next } : x));
+    toast({ title: next ? "Pago chequeado" : "Chequeo removido" });
+  };
+
 
   const logAudit = async (action: string, entityId: string, details: Record<string, string | number | boolean | null | undefined>) => {
     const { data: { session } } = await supabase.auth.getSession();
