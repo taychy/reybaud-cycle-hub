@@ -774,6 +774,21 @@ const AdminPayments = () => {
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <TooltipProvider delayDuration={200}>
                               <div className="flex items-center gap-1 flex-wrap">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant={sub.chequeado_admin ? "default" : "outline"}
+                                      size="sm"
+                                      className={`h-7 px-2 text-[11px] ${sub.chequeado_admin ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : ""}`}
+                                      onClick={() => handleToggleChequeado(sub)}
+                                    >
+                                      <CheckCheck className="w-3 h-3 mr-1" />
+                                      {sub.chequeado_admin ? "Chequeado" : "Chequear"}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{sub.chequeado_admin ? "Quitar marca de chequeado" : "Marcar como chequeado (conciliado con MP/transferencia/efectivo)"}</TooltipContent>
+                                </Tooltip>
+
                                 {(status === "pendiente" || status === "vencido") && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
