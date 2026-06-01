@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, Loader2, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CardPaymentFormProps {
   planId: string;
@@ -16,6 +17,7 @@ interface CardPaymentFormProps {
   descuentoTipo: string | null;
   moneda: string;
   alumnoId: string;
+  allowAutoRenewal?: boolean;
   onBack: () => void;
 }
 
