@@ -37,6 +37,9 @@ interface SubscriptionRecord {
   fecha_fin: string | null;
   mp_status: string | null;
   auto_renovacion: boolean;
+  auto_cobro_activo: boolean;
+  mp_preapproval_id: string | null;
+  mp_preapproval_status: string | null;
   cancelada_at: string | null;
   descuento_id: string | null;
   precio_base: number | null;
