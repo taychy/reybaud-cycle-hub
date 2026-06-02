@@ -22,7 +22,10 @@ interface MetricCard {
   value: number | string;
   icon: React.ElementType;
   color: string;
+  to?: string;
+  hint?: string;
 }
+
 
 interface UpcomingExpiration {
   alumno_id: string;
@@ -96,6 +99,8 @@ const AdminDashboard = () => {
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
+  const [duplicadosCount, setDuplicadosCount] = useState(0);
+
 
   // Confirmation dialog state
   const [confirmAction, setConfirmAction] = useState<{
@@ -154,18 +159,25 @@ const AdminDashboard = () => {
 
       const montoPendiente = pendientes.reduce((sum, s) => sum + ((s.planes as any)?.precio || 0), 0);
 
+      // Detectar alumnos con más de una suscripción activa (explica diferencia alumnos vs subs)
+      const subsPorAlumno: Record<string, number> = {};
+      subsActivas.forEach(s => { subsPorAlumno[s.alumno_id] = (subsPorAlumno[s.alumno_id] || 0) + 1; });
+      const conMultiples = Object.values(subsPorAlumno).filter(c => c > 1).length;
+      setDuplicadosCount(conMultiples);
+
       setMetrics([
-        { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary" },
-        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent" },
-        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500" },
-        { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive" },
-        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500" },
-        { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500" },
-        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive" },
-        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500" },
-        { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground" },
-        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500" },
+        { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
+        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con 2+ planes activos` : "Ver pagos activos" },
+        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Subs sin cobrar" },
+        { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Subs vencidas sin cobrar" },
+        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes" },
+        { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Total a cobrar" },
+        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive", to: "/admin/alumnos?filter=bloqueados", hint: "Alumnos bloqueados" },
+        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500", to: "/admin/alumnos?filter=vacaciones", hint: "Alumnos en vacaciones" },
+        { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground", to: "/admin/alumnos?filter=inactivos", hint: "Alumnos inactivos" },
+        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500", to: "/admin/alumnos?filter=acceso_pausado", hint: "Suscripciones pausadas" },
       ]);
+
 
       // Upcoming expirations
       const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split("T")[0];
@@ -361,18 +373,43 @@ const AdminDashboard = () => {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {metrics.map((m) => (
-          <Card key={m.label} className="border-border">
+        {metrics.map((m) => {
+          const inner = (
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <m.icon className={`w-4 h-4 ${m.color}`} />
                 <span className="text-xs text-muted-foreground truncate">{m.label}</span>
               </div>
               <p className="text-xl font-bold font-heading">{m.value}</p>
+              {m.hint && <p className="text-[10px] text-muted-foreground mt-1 truncate">{m.hint}</p>}
             </CardContent>
-          </Card>
-        ))}
+          );
+          return m.to ? (
+            <Link key={m.label} to={m.to} className="block">
+              <Card className="border-border hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer h-full">
+                {inner}
+              </Card>
+            </Link>
+          ) : (
+            <Card key={m.label} className="border-border">{inner}</Card>
+          );
+        })}
       </div>
+
+      {/* Aviso de inconsistencia alumnos vs suscripciones */}
+      {duplicadosCount > 0 && (
+        <Link
+          to="/admin/alumnos?filter=duplicados"
+          className="flex items-center gap-3 rounded-md border border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 p-3 transition-colors"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 text-blue-500" />
+          <div className="flex-1 text-sm">
+            <span className="font-medium">{duplicadosCount} alumno(s) con más de una suscripción activa</span>
+            <p className="text-xs text-muted-foreground">Esto explica que haya más suscripciones que alumnos activos. Ver detalle →</p>
+          </div>
+        </Link>
+      )}
+
 
       {/* Alertas de chequeo (Facturas / Pagos / Bajas) */}
       <div className="space-y-2">
