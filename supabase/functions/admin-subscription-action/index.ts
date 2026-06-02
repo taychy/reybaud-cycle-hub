@@ -267,29 +267,34 @@ async function logAudit(
   }
 }
 
-// Bulk: notifica a alumnos con renovación automática que NO se cobró este mes.
-// Criterio: suscripciones con mp_preapproval_id seteado (alguna vez tuvieron auto-cobro)
-// + estado IN ('vencida','pendiente_verificacion') + fecha_fin dentro del mes actual.
+// Bulk: notifica a alumnos cuya suscripción venció/quedó pendiente este mes.
+// Por defecto incluye TODAS (no solo las que tienen mp_preapproval_id).
+// Pasá only_auto_renewal=true para limitar a las que tienen renovación automática configurada.
 async function handleBulkNotify(
   admin: any,
   userId: string,
   userEmail: string | null | undefined,
   role: string | null,
   dryRun: boolean,
+  opts: { onlyAutoRenewal?: boolean } = {},
 ) {
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
   const nowIso = now.toISOString();
 
-  const { data: subs, error } = await admin
+  let q = admin
     .from("suscripciones")
-    .select("id, alumno_id, estado, fecha_fin, mp_preapproval_id, planes(nombre), alumnos(nombre, email)")
-    .not("mp_preapproval_id", "is", null)
+    .select("id, alumno_id, estado, fecha_fin, mp_preapproval_id, auto_cobro_activo, planes(nombre), alumnos(nombre, email)")
     .in("estado", ["vencida", "pendiente_verificacion"])
     .gte("fecha_fin", firstDay)
     .lte("fecha_fin", lastDay);
 
+  if (opts.onlyAutoRenewal) {
+    q = q.not("mp_preapproval_id", "is", null);
+  }
+
+  const { data: subs, error } = await q;
   if (error) return json({ error: error.message }, 500);
 
   const candidates = (subs || []).filter((s: any) => s.alumnos?.email);
