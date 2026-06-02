@@ -805,97 +805,45 @@ const StudentPayments = () => {
                 <p className="text-sm text-muted-foreground">No hay pagos registrados.</p>
               </div>
             ) : historicSubs.length === 0 ? null : (
-              <div className="space-y-3">
+              <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-lg shadow-black/10">
                 {historicSubs.map((sub) => {
                   const effectiveStatus = getEffectiveStatus(sub);
                   const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
+                  const monto = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
+                  const factura = facturasBySub[sub.id];
 
                   return (
-                    <div key={sub.id} className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-4 space-y-3 shadow-lg shadow-black/10">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground">
-                          {sub.plan?.nombre || "Plan"}
-                        </span>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${config.badgeClass}`}>
-                          {config.icon}
-                          {config.label}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1 text-xs">
-                        {sub.descuento && sub.precio_base != null ? (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Valor original</span>
-                              <span className="text-muted-foreground line-through">{formatPrice(sub.precio_base)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-emerald-400">
-                                {sub.descuento.nombre} ({sub.descuento.tipo === "fijo" ? `$${sub.descuento.valor}` : `${sub.descuento.valor}%`})
-                              </span>
-                              <span className="text-emerald-400">
-                                -{formatPrice(sub.precio_base - (sub.precio_final ?? sub.precio_base))}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground font-medium">Total final</span>
-                              <span className="text-foreground font-medium">{formatPrice(sub.precio_final ?? sub.precio_base)}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Monto</span>
-                            <span className="text-foreground">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Fecha</span>
-                          <span className="text-foreground">{formatDate(sub.created_at)}</span>
+                    <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5">
+                      <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border ${config.badgeClass}`} title={config.label}>
+                        {config.icon}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium text-foreground truncate">{sub.plan?.nombre || "Plan"}</span>
+                          <span className="text-xs text-foreground shrink-0">{formatPrice(monto)}</span>
                         </div>
-                        {sub.fecha_inicio && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Período</span>
-                            <span className="text-foreground">
-                              {formatDate(sub.fecha_inicio)} — {formatDate(sub.fecha_fin)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-muted-foreground">{config.message}</p>
-
-                      {facturasBySub[sub.id] && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          disabled={downloadingFacturaId === facturasBySub[sub.id].id}
-                          onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
-                        >
-                          {downloadingFacturaId === facturasBySub[sub.id].id ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Download className="w-3.5 h-3.5" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-muted-foreground truncate">
+                            {config.label} · {formatDate(sub.created_at)}
+                          </span>
+                          {factura && (
+                            <button
+                              type="button"
+                              disabled={downloadingFacturaId === factura.id}
+                              onClick={() => handleDownloadFactura(factura.id)}
+                              className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 shrink-0"
+                              title={`Descargar factura${factura.numero_comprobante ? ` ${factura.numero_comprobante}` : ""}`}
+                            >
+                              {downloadingFacturaId === factura.id ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Download className="w-3 h-3" />
+                              )}
+                              Factura
+                            </button>
                           )}
-                          Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
-                        </Button>
-                      )}
-
-
-                      {effectiveStatus === "rechazada" && (
-                        <a href="https://wa.me/5491140312299?text=Hola%2C%20tengo%20un%20problema%20con%20mi%20pago" target="_blank" rel="noopener noreferrer">
-                          <Button variant="gold-outline" size="sm" className="w-full mt-1">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Contactar administración
-                          </Button>
-                        </a>
-                      )}
-
-                      {effectiveStatus === "vencida" && (
-                        <Button variant="gold" size="sm" className="w-full mt-1" onClick={handleChangePlan}>
-                          Renovar plan
-                        </Button>
-                      )}
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
