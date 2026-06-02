@@ -34,3 +34,14 @@ function formatFechaCorta(isoDate: string): string {
     return isoDate;
   }
 }
+
+/**
+ * Datos bancarios para transferencias de Asesoría Personalizada.
+ * Si cambian los datos, actualizar acá únicamente.
+ */
+export const ASESORIA_TRANSFER_INFO = {
+  titular: "Claudio Gustavo Reybaud",
+  cbu: "0070140831004034472914",
+  alias: "ciclismo.reybaud.bg",
+  cuenta: "Cuenta Asesoría Personalizada",
+} as const;
