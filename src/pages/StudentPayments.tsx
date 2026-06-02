@@ -329,6 +329,22 @@ const StudentPayments = () => {
     }
   };
 
+  const handleDownloadFactura = async (facturaId: string) => {
+    setDownloadingFacturaId(facturaId);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-factura-pdf", { body: { factura_id: facturaId } });
+      if (error) throw error;
+      const url = (data as any)?.signed_url;
+      if (!url) throw new Error("No se pudo generar el enlace de descarga");
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "No se pudo descargar la factura", variant: "destructive" });
+    } finally {
+      setDownloadingFacturaId(null);
+    }
+  };
+
+
   const handleChangePlan = () => {
     if (readOnly) return;
     if (alumno) {
