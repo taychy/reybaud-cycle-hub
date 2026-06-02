@@ -56,17 +56,19 @@ Deno.serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY")!;
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No autorizado");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("No autorizado");
 
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: caller } } = await anonClient.auth.getUser();
-    if (!caller) throw new Error("No autorizado");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    const callerId = claimsData?.claims?.sub;
+    if (claimsError || !callerId) throw new Error("No autorizado");
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: caller.id, _role: "admin" });
+    const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: callerId, _role: "admin" });
     if (!isAdmin) throw new Error("Solo un administrador puede crear usuarios de depósito");
 
     const body = await req.json();
