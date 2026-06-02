@@ -141,6 +141,8 @@ const StudentPayments = () => {
   const readOnly = isImpersonating;
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
+  const [facturasBySub, setFacturasBySub] = useState<Record<string, { id: string; numero_comprobante: string | null; estado: string }>>({});
+  const [downloadingFacturaId, setDownloadingFacturaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
