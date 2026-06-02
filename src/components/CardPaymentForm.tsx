@@ -46,6 +46,7 @@ const CardPaymentForm = ({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [payerEmail, setPayerEmail] = useState("");
   const [autoRenewalChecked, setAutoRenewalChecked] = useState(false);
   const cardFormRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,13 +55,16 @@ const CardPaymentForm = ({
   useEffect(() => {
     const fetchKey = async () => {
       try {
-        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-mp-public-key`;
-        const res = await fetch(functionUrl, {
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        });
-        const data = await res.json();
+        const [keyRes, alumnoRes] = await Promise.all([
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-mp-public-key`, {
+            headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          }),
+          supabase.from("alumnos").select("email").eq("id", alumnoId).maybeSingle(),
+        ]);
+        const data = await keyRes.json();
         if (data.public_key) {
           setMpPublicKey(data.public_key);
+          setPayerEmail((alumnoRes.data?.email || "").trim().toLowerCase());
         } else {
           setError("No se pudo obtener la configuración de pago.");
         }
@@ -69,7 +73,7 @@ const CardPaymentForm = ({
       }
     };
     fetchKey();
-  }, []);
+  }, [alumnoId]);
 
   // Load MercadoPago SDK and initialize card form
   useEffect(() => {
@@ -120,6 +124,10 @@ const CardPaymentForm = ({
             id: "mp-cardholder-name",
             placeholder: "Nombre del titular",
           },
+          cardholderEmail: {
+            id: "mp-cardholder-email",
+            placeholder: "Email",
+          },
           identificationNumber: {
             id: "mp-identification-number",
             placeholder: "DNI",
@@ -149,6 +157,13 @@ const CardPaymentForm = ({
 
             try {
               const formData = cardForm.getCardFormData();
+              const email = (formData.cardholderEmail || payerEmail || "").trim().toLowerCase();
+
+              if (!email) {
+                setError("Ingresá un email para continuar con Mercado Pago.");
+                setProcessing(false);
+                return;
+              }
 
               // Create subscription first
               const now = new Date();
@@ -192,7 +207,7 @@ const CardPaymentForm = ({
                   transaction_amount: planPrice,
                   installments: Number(formData.installments),
                   payer: {
-                    email: formData.cardholderEmail || "",
+                    email,
                     identification: {
                       type: formData.identificationType,
                       number: formData.identificationNumber,
@@ -229,7 +244,7 @@ const CardPaymentForm = ({
                         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
                       },
                       body: JSON.stringify({
-                        payer_email: formData.cardholderEmail || "",
+                        payer_email: email,
                         suscripcion_id: sub.id,
                         alumno_id: alumnoId,
                         plan_id: planId,
