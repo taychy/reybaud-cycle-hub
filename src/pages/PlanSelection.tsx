@@ -240,12 +240,22 @@ const PlanSelection = () => {
   }, [loading, isUpgradeFlow, upgradePreselectPlanId, planes, selected]);
 
   // Reactivación 1-click desde Pausa: sugerir el último plan grupal.
-  // Solo preseleccionamos (no avanzamos pasos) para que el alumno revise antes de pagar.
+  // Si viene del flujo "Pagar este plan" (sub pendiente), saltamos directo al paso de medio de pago.
   useEffect(() => {
     if (!loading && vacationPreselectPlanId && !selected && !isUpgradeFlow) {
       const planExists = planes.find((p) => p.id === vacationPreselectPlanId);
       if (planExists) {
         setSelected(vacationPreselectPlanId);
+        const skipToMethod = localStorage.getItem("alumno_pay_pending_skip") === "1";
+        if (skipToMethod) {
+          if (planExists.tipo === "programa" && planExists.cuotas_cantidad && planExists.cuota_valor) {
+            setStep("select-modality");
+          } else {
+            setModality("total");
+            setStep("select-method");
+          }
+          localStorage.removeItem("alumno_pay_pending_skip");
+        }
       }
       localStorage.removeItem("alumno_preselect_plan_id");
     }

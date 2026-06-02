@@ -546,7 +546,7 @@ const StudentPayments = () => {
 
                     {/* Pago / renovación CTA */}
                     {(() => {
-                      const goToCheckout = () => {
+                      const goToCheckout = (skipPlanPicker = false) => {
                         if (sub.fecha_fin) {
                           setEarlyRenewal({
                             subId: sub.id,
@@ -557,6 +557,11 @@ const StudentPayments = () => {
                         }
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
                         localStorage.setItem("alumno_preselect_plan_id", sub.plan_id);
+                        if (skipPlanPicker) {
+                          localStorage.setItem("alumno_pay_pending_skip", "1");
+                        } else {
+                          localStorage.removeItem("alumno_pay_pending_skip");
+                        }
                         navigate("/planes");
                       };
 
@@ -575,10 +580,12 @@ const StudentPayments = () => {
                               : effectiveStatus === "vencida"
                                 ? "Este plan venció. Renovalo para volver a entrenar."
                                 : "Este plan está pendiente de pago. Completalo para activarlo.";
+                        // Si es "pendiente" puro (nunca se pagó), saltamos directo a elegir medio de pago
+                        const skip = effectiveStatus === "pendiente";
                         return (
                           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
                             <p className="text-xs text-foreground"><strong>{msg}</strong></p>
-                            <Button variant="gold" size="sm" className="w-full" onClick={goToCheckout}>
+                            <Button variant="gold" size="sm" className="w-full" onClick={() => goToCheckout(skip)}>
                               Pagar este plan
                             </Button>
                           </div>
@@ -601,7 +608,7 @@ const StudentPayments = () => {
                       if (effectiveStatus !== "activa" || !sub.fecha_fin) return null;
                       const dLeft = daysUntil(sub.fecha_fin);
                       if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
-                      const startEarlyRenewal = goToCheckout;
+                      const startEarlyRenewal = () => goToCheckout(false);
                       return (
                         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
                           <p className="text-xs text-foreground">
