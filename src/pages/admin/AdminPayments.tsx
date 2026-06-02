@@ -452,6 +452,36 @@ const AdminPayments = () => {
     }
   };
 
+  const [bulkNotifyPreview, setBulkNotifyPreview] = useState<{ count: number; preview: any[] } | null>(null);
+  const [bulkNotifyLoading, setBulkNotifyLoading] = useState(false);
+
+  const openBulkNotify = async () => {
+    setBulkNotifyLoading(true);
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { action: "bulk_notify_failed_renewals", dry_run: true },
+    });
+    setBulkNotifyLoading(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error, variant: "destructive" });
+      return;
+    }
+    setBulkNotifyPreview({ count: (data as any).count, preview: (data as any).preview || [] });
+  };
+
+  const confirmBulkNotify = async () => {
+    setBulkNotifyLoading(true);
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { action: "bulk_notify_failed_renewals", dry_run: false },
+    });
+    setBulkNotifyLoading(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Notificación masiva enviada", description: `${(data as any).sent} / ${(data as any).total} mails encolados.` });
+    setBulkNotifyPreview(null);
+  };
+
 
 
 
