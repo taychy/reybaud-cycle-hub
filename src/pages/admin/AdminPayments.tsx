@@ -1116,6 +1116,49 @@ const AdminPayments = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk notify failed renewals */}
+      <AlertDialog open={!!bulkNotifyPreview} onOpenChange={(open) => !open && setBulkNotifyPreview(null)}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>📣 Notificar fallos de renovación</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Se enviará el mismo email del botón 🧪 a <strong>{bulkNotifyPreview?.count ?? 0}</strong> alumno(s) con renovación automática
+                  cuya suscripción vence este mes y figura <strong>vencida</strong> o <strong>pendiente de verificación</strong>.
+                </p>
+                {bulkNotifyPreview && bulkNotifyPreview.count > 0 && (
+                  <div className="border rounded-md max-h-60 overflow-y-auto text-xs">
+                    <table className="w-full">
+                      <thead className="bg-muted sticky top-0">
+                        <tr><th className="text-left p-2">Alumno</th><th className="text-left p-2">Plan</th><th className="text-left p-2">Vence</th></tr>
+                      </thead>
+                      <tbody>
+                        {bulkNotifyPreview.preview.map((p, i) => (
+                          <tr key={i} className="border-t"><td className="p-2">{p.alumno}</td><td className="p-2">{p.plan}</td><td className="p-2">{p.fecha_fin}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {bulkNotifyPreview.count > bulkNotifyPreview.preview.length && (
+                      <p className="p-2 text-muted-foreground">…y {bulkNotifyPreview.count - bulkNotifyPreview.preview.length} más</p>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Idempotente por mes: si reenvías, el sistema evita duplicados con la misma clave del periodo.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkNotifyLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkNotify} disabled={bulkNotifyLoading || !bulkNotifyPreview?.count}>
+              Enviar a {bulkNotifyPreview?.count ?? 0} alumno(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
       {/* Edit fecha dialog */}
       <Dialog open={!!editFechaDialog} onOpenChange={(open) => !open && setEditFechaDialog(null)}>
         <DialogContent className="max-w-sm">
