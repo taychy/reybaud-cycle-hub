@@ -362,6 +362,9 @@ const ManageStudents = () => {
   });
   const sinPlanCount = sinPlanIds.size;
 
+  // Alumnos activos sin suscripción activa vigente (= "sin plan activo")
+  const sinPlanActivoCount = alumnos.filter(a => a.estado === "activo" && !getActiveSub(a.id)).length;
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -388,6 +391,7 @@ const ManageStudents = () => {
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
       case "sin_plan": return sinPlanIds.has(a.id);
+      case "sin_plan_activo": return a.estado === "activo" && !getActiveSub(a.id);
       case "nuevos": return !!a.created_at && a.created_at >= thirtyDaysAgoIso;
       default:
         if (statusFilter.startsWith("plan_")) {
@@ -929,6 +933,7 @@ const ManageStudents = () => {
       key: `plan_${planId}`, label: name, count,
     })),
     { key: "sin_plan", label: "Sin plan", count: sinPlanCount },
+    ...(sinPlanActivoCount > 0 ? [{ key: "sin_plan_activo", label: "Sin plan activo", count: sinPlanActivoCount }] : []),
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
