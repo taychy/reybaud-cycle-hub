@@ -12,7 +12,7 @@ import {
 import {
   Users, CreditCard, AlertTriangle, Clock, DollarSign, TrendingUp,
   Eye, Send, CalendarClock, CheckCircle, FileText, MessageCircle,
-  Banknote, CreditCard as CardIcon, HelpCircle, Ban, Palmtree, Pause,
+  Banknote, CreditCard as CardIcon, HelpCircle, Ban, Palmtree, Pause, UserPlus,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
