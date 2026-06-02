@@ -658,7 +658,7 @@ const StudentPayments = () => {
                                 className="shrink-0"
                                 aria-label="Desactivar renovación automática"
                               >
-                                <Switch checked readOnly className="pointer-events-none" />
+                                <Switch checked onCheckedChange={() => {}} className="pointer-events-none" />
                               </button>
                             </AlertDialogTrigger>
                             <AlertDialogContent className="bg-card border-border">
