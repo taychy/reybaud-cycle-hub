@@ -139,6 +139,100 @@ const CheckoutMethodStep = ({ onSelect, processing, onBack, transferOnly = false
     );
   }
 
+  // Modo transferencia exclusivo (Asesoría Personalizada)
+  if (transferOnly) {
+    return (
+      <>
+        <div className="space-y-4 w-full max-w-md mx-auto animate-fade-in">
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-heading font-bold uppercase tracking-wider text-foreground">
+              Pago por transferencia
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Este plan se abona únicamente por transferencia bancaria.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full gap-2"
+            disabled={processing}
+            onClick={() => setShowTransferInfo(true)}
+          >
+            <Landmark className="w-4 h-4" />
+            Ver datos para transferencia
+          </Button>
+
+          <Button
+            variant="gold"
+            size="lg"
+            className="w-full gap-2"
+            disabled={processing}
+            onClick={() => onSelect("transferencia")}
+          >
+            {processing ? "Procesando..." : "Ya transferí — informar pago"}
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 mx-auto text-xs text-muted-foreground hover:text-primary transition-colors mt-2"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            Volver
+          </button>
+        </div>
+
+        <Dialog open={showTransferInfo} onOpenChange={setShowTransferInfo}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-heading uppercase tracking-wider">
+                Datos para transferir
+              </DialogTitle>
+              <DialogDescription>
+                {ASESORIA_TRANSFER_INFO.cuenta}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Titular</Label>
+                <p className="text-sm font-medium text-foreground">{ASESORIA_TRANSFER_INFO.titular}</p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">CBU</Label>
+                <button
+                  onClick={() => copyToClipboard(ASESORIA_TRANSFER_INFO.cbu, "cbu")}
+                  className="w-full flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 hover:bg-muted/60 transition"
+                >
+                  <span className="text-sm font-mono text-foreground break-all text-left">{ASESORIA_TRANSFER_INFO.cbu}</span>
+                  {copiedField === "cbu" ? <Check className="w-4 h-4 text-emerald-500 shrink-0" /> : <Copy className="w-4 h-4 text-muted-foreground shrink-0" />}
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Alias</Label>
+                <button
+                  onClick={() => copyToClipboard(ASESORIA_TRANSFER_INFO.alias, "alias")}
+                  className="w-full flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 hover:bg-muted/60 transition"
+                >
+                  <span className="text-sm font-mono text-foreground">{ASESORIA_TRANSFER_INFO.alias}</span>
+                  {copiedField === "alias" ? <Check className="w-4 h-4 text-emerald-500 shrink-0" /> : <Copy className="w-4 h-4 text-muted-foreground shrink-0" />}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground pt-1">
+                Una vez realizada la transferencia, tocá "Ya transferí — informar pago" para que administración valide tu pago.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
   return (
     <div className="space-y-4 w-full max-w-md mx-auto animate-fade-in">
       <div className="text-center space-y-2">
@@ -149,6 +243,7 @@ const CheckoutMethodStep = ({ onSelect, processing, onBack, transferOnly = false
           Elegí el medio de pago que prefieras
         </p>
       </div>
+
 
       {/* Mercado Pago */}
       <Button
