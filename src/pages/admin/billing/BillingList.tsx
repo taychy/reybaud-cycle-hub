@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Search, Layers } from "lucide-react";
+import { FileText, Search, Layers, Download, Mail, Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Emisor {
   id: string;
