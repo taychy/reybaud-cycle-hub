@@ -273,7 +273,9 @@ const AdminDashboard = () => {
         return !renewed;
       });
       const bajasPendientes = bajasDelMes.filter((s: any) => !s.baja_chequeada).length;
-      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes });
+      const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400000).toISOString();
+      const nuevosUltimos30 = allAlumnos.filter((a: any) => a.created_at && a.created_at >= thirtyDaysAgoIso).length;
+      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes, nuevos: nuevosUltimos30 });
     } catch (err) {
       console.error("Error loading dashboard:", err);
     } finally {
