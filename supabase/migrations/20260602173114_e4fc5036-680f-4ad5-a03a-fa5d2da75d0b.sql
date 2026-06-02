@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_pagos_por_cobrar SET (security_invoker = true);
