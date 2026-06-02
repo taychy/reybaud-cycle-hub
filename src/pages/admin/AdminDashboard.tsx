@@ -159,18 +159,25 @@ const AdminDashboard = () => {
 
       const montoPendiente = pendientes.reduce((sum, s) => sum + ((s.planes as any)?.precio || 0), 0);
 
+      // Detectar alumnos con más de una suscripción activa (explica diferencia alumnos vs subs)
+      const subsPorAlumno: Record<string, number> = {};
+      subsActivas.forEach(s => { subsPorAlumno[s.alumno_id] = (subsPorAlumno[s.alumno_id] || 0) + 1; });
+      const conMultiples = Object.values(subsPorAlumno).filter(c => c > 1).length;
+      setDuplicadosCount(conMultiples);
+
       setMetrics([
-        { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary" },
-        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent" },
-        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500" },
-        { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive" },
-        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500" },
-        { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500" },
-        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive" },
-        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500" },
-        { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground" },
-        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500" },
+        { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
+        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con 2+ planes activos` : "Ver pagos activos" },
+        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Subs sin cobrar" },
+        { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Subs vencidas sin cobrar" },
+        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes" },
+        { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Total a cobrar" },
+        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive", to: "/admin/alumnos?filter=bloqueados", hint: "Alumnos bloqueados" },
+        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500", to: "/admin/alumnos?filter=vacaciones", hint: "Alumnos en vacaciones" },
+        { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground", to: "/admin/alumnos?filter=inactivos", hint: "Alumnos inactivos" },
+        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500", to: "/admin/alumnos?filter=acceso_pausado", hint: "Suscripciones pausadas" },
       ]);
+
 
       // Upcoming expirations
       const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split("T")[0];
