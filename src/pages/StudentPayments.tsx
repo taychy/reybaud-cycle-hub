@@ -185,7 +185,7 @@ const StudentPayments = () => {
 
       const { data: subs } = await supabase
         .from("suscripciones")
-        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, auto_cobro_activo, mp_preapproval_id, mp_preapproval_status, cancelada_at, plan_id, descuento_id, precio_base, precio_final, planes(nombre, precio, frecuencia), descuentos(nombre, valor, tipo, categoria)")
+        .select("id, estado, created_at, fecha_inicio, fecha_fin, mp_status, auto_renovacion, auto_cobro_activo, mp_preapproval_id, mp_preapproval_status, cancelada_at, plan_id, descuento_id, precio_base, precio_final, planes(nombre, precio, frecuencia, permite_auto_cobro), descuentos(nombre, valor, tipo, categoria)")
         .eq("alumno_id", alumnoData.id)
         .order("created_at", { ascending: false });
 
