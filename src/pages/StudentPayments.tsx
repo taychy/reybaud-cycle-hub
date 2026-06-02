@@ -351,8 +351,8 @@ const StudentPayments = () => {
         mp_preapproval_status: data?.status ?? s.mp_preapproval_status,
       } : s));
       toast({ title: "Renovación autorizada", description: "Mercado Pago quedó habilitado para cobrar el próximo período." });
-    } catch {
-      toast({ title: "Error", description: "No se pudo actualizar la renovación automática.", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "No se pudo activar", description: err?.message || "No se pudo actualizar la renovación automática.", variant: "destructive" });
     } finally {
       setTogglingId(null);
     }
