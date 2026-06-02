@@ -375,11 +375,12 @@ const AdminDashboard = () => {
       </div>
 
       {/* Alertas de chequeo (Facturas / Pagos / Bajas) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion", hint: "Subs cobradas sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
           { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos?chequeo=pendientes", hint: "Conciliar contra MP / transferencia / efectivo", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
           { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas", hint: "Alumnos sin renovar este mes", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
+          { label: "Nuevos usuarios", count: chequeoAlerts.nuevos, icon: UserPlus, to: "/admin/alumnos?filter=nuevos", hint: "Registrados en los últimos 30 días", tone: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500" },
         ].map((a) => (
           <Link key={a.label} to={a.to} className={`group border rounded-lg p-4 transition-colors ${a.tone}`}>
             <div className="flex items-start justify-between">
