@@ -55,9 +55,10 @@ Deno.serve(async (req) => {
       throw new Error("El formato del email es inválido");
     }
 
-    if (!["super_admin", "admin", "support"].includes(role)) {
+    if (!["super_admin", "admin", "deposito"].includes(role)) {
       throw new Error("Rol inválido");
     }
+    const appRole = role === "deposito" ? "deposito" : "admin";
 
     // Always use public app URL to avoid auth-bridge redirects
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
