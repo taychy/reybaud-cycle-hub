@@ -207,7 +207,7 @@ const StudentPayments = () => {
           descuento_id: s.descuento_id,
           precio_base: s.precio_base,
           precio_final: s.precio_final,
-          plan: s.planes ? { nombre: s.planes.nombre, precio: s.planes.precio, frecuencia: s.planes.frecuencia } : null,
+          plan: s.planes ? { nombre: s.planes.nombre, precio: s.planes.precio, frecuencia: s.planes.frecuencia, permite_auto_cobro: s.planes.permite_auto_cobro ?? false } : null,
           descuento: s.descuentos ? { nombre: s.descuentos.nombre, valor: s.descuentos.valor, tipo: s.descuentos.tipo, categoria: s.descuentos.categoria } : null,
         }));
         setSubscriptions(mapped);
