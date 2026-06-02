@@ -48,6 +48,7 @@ interface SubscriptionRecord {
     nombre: string;
     precio: number;
     frecuencia: string;
+    permite_auto_cobro?: boolean;
   } | null;
   descuento: {
     nombre: string;
