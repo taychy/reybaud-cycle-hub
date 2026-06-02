@@ -44,6 +44,8 @@ type Suscripcion = {
   mp_preapproval_status?: string | null;
   chequeado_admin?: boolean;
   chequeado_admin_at?: string | null;
+  cancelada_at?: string | null;
+  cancelada_motivo?: string | null;
 
   alumnos: {
     id: string;
@@ -830,8 +832,8 @@ const AdminPayments = () => {
                   <TableHead className="w-8"></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("alumno")}>Alumno<SortIcon k="alumno" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("plan")}>Plan<SortIcon k="plan" /></TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("vencimiento")}>Vencimiento<SortIcon k="vencimiento" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("operacion")}>F. operación<SortIcon k="operacion" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("vencimiento")}>Vencimiento<SortIcon k="vencimiento" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("estado")}>Estado<SortIcon k="estado" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("metodo")}>Método<SortIcon k="metodo" /></TableHead>
                   <TableHead>Acciones</TableHead>
@@ -863,8 +865,8 @@ const AdminPayments = () => {
                             </span>
                           </TableCell>
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
-                          <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell className="text-sm">{formatDate(PAID_ORIGEN.includes(sub.origen_registro) ? (sub.fecha_inicio || sub.updated_at) : sub.updated_at)}</TableCell>
+                          <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>
                           <TableCell>
                             {(() => {
@@ -1001,6 +1003,41 @@ const AdminPayments = () => {
                         {isExpanded && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell colSpan={8} className="p-0">
+                              {(() => {
+                                const isCancelled = sub.estado === "cancelada" || !!sub.cancelada_at;
+                                const isRejected = sub.estado === "rechazada" || sub.mp_status === "rejected" || sub.mp_status === "cancelled";
+                                const isPending = sub.estado === "pendiente_verificacion";
+                                const wasPaid = sub.estado === "activa" || sub.estado === "conciliado" || (sub.cancelada_at && sub.fecha_inicio);
+                                let title = "";
+                                let detail = "";
+                                let tone = "bg-muted/40 text-muted-foreground border-border";
+                                if (isCancelled) {
+                                  title = wasPaid ? "Pago cobrado y luego cancelado" : "Suscripción cancelada antes del cobro";
+                                  detail = wasPaid
+                                    ? `El alumno pagó el ${formatDate(sub.fecha_inicio)} y luego canceló la renovación automática el ${formatDate(sub.cancelada_at)}. Conserva acceso hasta el vencimiento (${formatDate(sub.fecha_fin)}).`
+                                    : `Cancelada el ${formatDate(sub.cancelada_at)} sin cobro registrado.`;
+                                  if (sub.cancelada_motivo) detail += ` Motivo: "${sub.cancelada_motivo}".`;
+                                  tone = "bg-amber-500/10 text-amber-200 border-amber-500/30";
+                                } else if (isRejected) {
+                                  title = "Pago rechazado";
+                                  detail = `El intento de cobro fue rechazado${sub.mp_status ? ` (${sub.mp_status})` : ""}. La suscripción sigue sin acreditar.`;
+                                  tone = "bg-destructive/10 text-destructive border-destructive/30";
+                                } else if (isPending) {
+                                  title = "Pago informado, pendiente de verificación";
+                                  detail = "El alumno reportó haber pagado. Verificá el comprobante o el movimiento bancario y luego confirmá o rechazá.";
+                                  tone = "bg-yellow-500/10 text-yellow-200 border-yellow-500/30";
+                                } else if (wasPaid) {
+                                  title = "Pago acreditado";
+                                  detail = `Cobrado el ${formatDate(sub.fecha_inicio)}. Vigente hasta ${formatDate(sub.fecha_fin)}.`;
+                                  tone = "bg-emerald-500/10 text-emerald-200 border-emerald-500/30";
+                                }
+                                return title ? (
+                                  <div className={`mx-6 mt-4 rounded-md border px-3 py-2 text-xs ${tone}`}>
+                                    <p className="font-semibold mb-0.5">{title}</p>
+                                    <p className="opacity-90">{detail}</p>
+                                  </div>
+                                ) : null;
+                              })()}
                               <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-b border-border/50">
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Monto</p>
