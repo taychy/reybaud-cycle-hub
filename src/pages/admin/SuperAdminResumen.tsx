@@ -11,6 +11,21 @@ const currentMonthKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
+const MONTHS_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const monthLabel = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  return `${MONTHS_ES[m - 1]} ${y}`;
+};
+
+// Igual criterio que AdminPayments: pertenece al mes si cobertura (fecha_fin/inicio) cae ahí
+// o si se registró ese mes.
+const subInMonth = (s: any, monthKey: string): boolean => {
+  const coverage = s.fecha_fin || s.fecha_inicio;
+  if (coverage && coverage.substring(0, 7) === monthKey) return true;
+  const created = s.created_at ? s.created_at.substring(0, 7) : null;
+  return created === monthKey;
+};
+
 const SuperAdminResumen = () => {
   const [loading, setLoading] = useState(true);
   const [planDist, setPlanDist] = useState<{ name: string; count: number; revenue: number }[]>([]);
