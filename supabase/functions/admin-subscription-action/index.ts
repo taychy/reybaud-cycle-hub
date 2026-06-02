@@ -186,6 +186,7 @@ Deno.serve(async (req) => {
       if (upErr) return json({ error: upErr.message }, 500);
 
       if (alumno?.email) {
+        const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, alumno.email);
         await admin.rpc("enqueue_email" as any, {
           queue_name: "transactional_emails",
           payload: {
@@ -199,6 +200,7 @@ Deno.serve(async (req) => {
             purpose: "transactional",
             label: "auto_charge_failed_student_sim",
             idempotency_key: `auto-fail-sim-${subId}-${Date.now()}`,
+            unsubscribe_token,
             queued_at: nowIso,
           },
         });
