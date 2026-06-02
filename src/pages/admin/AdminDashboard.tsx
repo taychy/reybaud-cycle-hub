@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 interface MetricCard {
   label: string;
