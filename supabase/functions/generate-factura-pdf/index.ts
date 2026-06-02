@@ -162,18 +162,18 @@ async function renderInvoicePdf(args: {
   }
 
   // Comprobante box (right)
-  const boxW = 180, boxX = W - margin - boxW, boxY = headerTop - 78;
-  page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: 78, borderColor: LINE, borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
+  const boxW = 180, boxH = 96, boxX = W - margin - boxW, boxY = headerTop - boxH;
+  page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, borderColor: LINE, borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
   // Letter C
-  page.drawRectangle({ x: boxX + boxW / 2 - 14, y: boxY + 50, width: 28, height: 24, borderColor: TEXT_DARK, borderWidth: 1 });
-  drawText(page, "C", boxX + boxW / 2 - 7, boxY + 56, bold, 18, TEXT_DARK);
-  drawText(page, "Cód. 011", boxX + boxW / 2 - 18, boxY + 40, font, 8, TEXT_MUTED);
-  drawText(page, "FACTURA", boxX + 10, boxY + 26, bold, 12, TEXT_DARK);
-  drawText(page, `Nº ${factura.numero_comprobante || "—"}`, boxX + 10, boxY + 12, font, 10, TEXT_DARK);
+  page.drawRectangle({ x: boxX + boxW / 2 - 14, y: boxY + boxH - 32, width: 28, height: 24, borderColor: TEXT_DARK, borderWidth: 1 });
+  drawText(page, "C", boxX + boxW / 2 - 7, boxY + boxH - 26, bold, 18, TEXT_DARK);
+  drawText(page, "Cód. 011", boxX + boxW / 2 - 18, boxY + boxH - 42, font, 8, TEXT_MUTED);
+  drawText(page, "FACTURA", boxX + 10, boxY + 36, bold, 12, TEXT_DARK);
+  drawText(page, `Nº ${factura.numero_comprobante || "—"}`, boxX + 10, boxY + 22, font, 10, TEXT_DARK);
   const fEmis = factura.fecha_emision
     ? new Date(factura.fecha_emision).toLocaleDateString("es-AR")
     : new Date().toLocaleDateString("es-AR");
-  drawText(page, `Fecha: ${fEmis}`, boxX + 10, boxY - 0, font, 9, TEXT_MUTED);
+  drawText(page, `Fecha: ${fEmis}`, boxX + 10, boxY + 8, font, 9, TEXT_MUTED);
 
   y = Math.min(yEmisor, boxY) - 18;
 
@@ -224,10 +224,10 @@ async function renderInvoicePdf(args: {
   y -= 22;
   drawText(page, "Importe Neto:", W - margin - 220, y, font, 10, TEXT_MUTED);
   drawText(page, formatMoney(monto, moneda), W - margin - 70, y, font, 10, TEXT_DARK);
-  y -= 18;
-  page.drawRectangle({ x: W - margin - 230, y: y - 4, width: 230, height: 26, color: rgb(0.98, 0.93, 0.86) });
-  drawText(page, "TOTAL:", W - margin - 220, y + 6, bold, 12, TEXT_DARK);
-  drawText(page, formatMoney(monto, moneda), W - margin - 70, y + 6, bold, 12, BRAND_ORANGE);
+  y -= 28;
+  page.drawRectangle({ x: W - margin - 230, y: y - 6, width: 230, height: 26, color: rgb(0.98, 0.93, 0.86) });
+  drawText(page, "TOTAL:", W - margin - 220, y + 4, bold, 12, TEXT_DARK);
+  drawText(page, formatMoney(monto, moneda), W - margin - 70, y + 4, bold, 12, BRAND_ORANGE);
 
   // ===== AFIP FOOTER (CAE + QR) =====
   let footerY = 150;
@@ -270,10 +270,8 @@ async function renderInvoicePdf(args: {
   page.drawLine({ start: { x: margin, y: msgY + 32 }, end: { x: W - margin, y: msgY + 32 }, color: LINE, thickness: 0.3 });
   drawText(page, "¿Consultas? Ingresá al portal de la app:", margin, msgY + 18, font, 9, TEXT_MUTED);
   drawText(page, APP_PORTAL_URL, margin + 195, msgY + 18, bold, 9, BRAND_ORANGE);
-  if (emisor?.telefono_contacto) {
-    const wa = emisor.telefono_contacto.replace(/\D/g, "");
-    drawText(page, `WhatsApp: +${wa}`, margin, msgY + 4, font, 9, TEXT_MUTED);
-  }
+  const waNumber = (emisor?.telefono_contacto || "").replace(/\D/g, "") || "5491140312299";
+  drawText(page, `WhatsApp: +${waNumber}`, margin, msgY + 4, font, 9, TEXT_MUTED);
   drawText(page, "Documento generado electrónicamente", W - margin - 180, msgY + 4, font, 7, TEXT_MUTED);
 
   return await doc.save();

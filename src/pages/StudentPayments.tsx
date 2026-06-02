@@ -3,7 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download } from "lucide-react";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { daysUntil, setEarlyRenewal, EARLY_RENEWAL_WINDOW_DAYS } from "@/lib/earlyRenewal";
@@ -141,6 +141,8 @@ const StudentPayments = () => {
   const readOnly = isImpersonating;
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
+  const [facturasBySub, setFacturasBySub] = useState<Record<string, { id: string; numero_comprobante: string | null; estado: string }>>({});
+  const [downloadingFacturaId, setDownloadingFacturaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -197,6 +199,21 @@ const StudentPayments = () => {
           descuento: s.descuentos ? { nombre: s.descuentos.nombre, valor: s.descuentos.valor, tipo: s.descuentos.tipo, categoria: s.descuentos.categoria } : null,
         }));
         setSubscriptions(mapped);
+      }
+
+      // Cargar facturas aprobadas del alumno para mostrar botón "Descargar factura"
+      const { data: facts } = await supabase
+        .from("facturas")
+        .select("id, referencia_id, numero_comprobante, estado")
+        .eq("alumno_id", alumnoData.id)
+        .eq("referencia_tipo", "suscripcion")
+        .eq("estado", "emitida");
+      if (!cancelled && facts) {
+        const map: Record<string, { id: string; numero_comprobante: string | null; estado: string }> = {};
+        for (const f of facts as any[]) {
+          if (f.referencia_id) map[f.referencia_id] = { id: f.id, numero_comprobante: f.numero_comprobante, estado: f.estado };
+        }
+        setFacturasBySub(map);
       }
 
       setLoading(false);
@@ -311,6 +328,22 @@ const StudentPayments = () => {
       });
     }
   };
+
+  const handleDownloadFactura = async (facturaId: string) => {
+    setDownloadingFacturaId(facturaId);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-factura-pdf", { body: { factura_id: facturaId } });
+      if (error) throw error;
+      const url = (data as any)?.signed_url;
+      if (!url) throw new Error("No se pudo generar el enlace de descarga");
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "No se pudo descargar la factura", variant: "destructive" });
+    } finally {
+      setDownloadingFacturaId(null);
+    }
+  };
+
 
   const handleChangePlan = () => {
     if (readOnly) return;
@@ -665,7 +698,25 @@ const StudentPayments = () => {
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
+
+                    {facturasBySub[sub.id] && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={downloadingFacturaId === facturasBySub[sub.id].id}
+                        onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
+                      >
+                        {downloadingFacturaId === facturasBySub[sub.id].id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                        Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
+                      </Button>
+                    )}
                   </div>
+
                 );
               })}
 
@@ -765,6 +816,24 @@ const StudentPayments = () => {
                       </div>
 
                       <p className="text-xs text-muted-foreground">{config.message}</p>
+
+                      {facturasBySub[sub.id] && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={downloadingFacturaId === facturasBySub[sub.id].id}
+                          onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
+                        >
+                          {downloadingFacturaId === facturasBySub[sub.id].id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                          Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
+                        </Button>
+                      )}
+
 
                       {effectiveStatus === "rechazada" && (
                         <a href="https://wa.me/5491140312299?text=Hola%2C%20tengo%20un%20problema%20con%20mi%20pago" target="_blank" rel="noopener noreferrer">
