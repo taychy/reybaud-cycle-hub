@@ -112,6 +112,7 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
   const [includeError, setIncludeError] = useState(true);
   const [includeManual, setIncludeManual] = useState(true);
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const handleDownload = async (id: string) => {
