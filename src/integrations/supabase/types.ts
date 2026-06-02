@@ -5157,6 +5157,22 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_pagos_por_cobrar: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          alumno_telefono: string | null
+          amount: number | null
+          concepto: string | null
+          created_at: string | null
+          currency: string | null
+          due_date: string | null
+          effective_status: string | null
+          item_id: string | null
+          source: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_mp_payment_to_gasto: {
