@@ -667,6 +667,12 @@ const AdminPayments = () => {
               ))}
             </SelectContent>
           </Select>
+          {isSuperAdmin && (
+            <Button variant="outline" onClick={openBulkNotify} disabled={bulkNotifyLoading} className="gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              Notificar fallos de renovación
+            </Button>
+          )}
           <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
             <DollarSign className="w-4 h-4" />
             Registrar pago
