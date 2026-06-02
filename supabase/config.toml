@@ -23,6 +23,8 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.notify-student-update]
     verify_jwt = false
+  [functions.admin-subscription-action]
+    verify_jwt = false
   [functions.process-auto-renewals]
     verify_jwt = false
   [functions.process-pausa-expirations]
