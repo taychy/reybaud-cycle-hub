@@ -39,6 +39,9 @@ type Suscripcion = {
   created_at: string;
   updated_at: string;
   auto_renovacion: boolean;
+  auto_cobro_activo?: boolean | null;
+  mp_preapproval_id?: string | null;
+  mp_preapproval_status?: string | null;
   chequeado_admin?: boolean;
   chequeado_admin_at?: string | null;
 
@@ -887,8 +890,16 @@ const AdminPayments = () => {
                                   <p className="font-medium">{sub.alumnos?.telefono || "—"}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-0.5">Auto-renovación</p>
-                                  <p className="font-medium">{sub.auto_renovacion ? "Sí" : "No"}</p>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Cobro automático</p>
+                                  <p className="font-medium">
+                                    {sub.auto_cobro_activo && sub.mp_preapproval_id
+                                      ? "Autorizado MP"
+                                      : sub.mp_preapproval_id
+                                        ? `Pendiente (${sub.mp_preapproval_status || "MP"})`
+                                        : sub.auto_renovacion
+                                          ? "Marcado sin autorización"
+                                          : "No"}
+                                  </p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Frecuencia</p>
