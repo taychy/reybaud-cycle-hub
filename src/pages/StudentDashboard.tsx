@@ -557,6 +557,36 @@ const StudentDashboard = () => {
             {/* Failed auto-renewal banner */}
             {alumno && <FailedRenewalBanner alumnoId={alumno.id} />}
 
+            {/* Banner: completar datos de facturación */}
+            {alumno && !alumno.documento && !localStorage.getItem(`hide_billing_banner_${alumno.id}`) && (
+              <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm">
+                <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground">Completá tus datos de facturación</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Necesitamos tu DNI o CUIT para que las facturas salgan a tu nombre.
+                  </p>
+                  <button
+                    onClick={() => navigate("/alumno/mas?section=datos-facturacion")}
+                    className="text-xs font-medium text-amber-500 hover:underline mt-1"
+                  >
+                    Cargar ahora →
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(`hide_billing_banner_${alumno.id}`, "1");
+                    setAlumno({ ...alumno });
+                  }}
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+
             {/* Payment status - show all pending */}
             {pendingPayments.map((pp) => (
               <PaymentStatusCard
