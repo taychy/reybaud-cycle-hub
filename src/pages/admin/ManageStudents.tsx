@@ -933,6 +933,7 @@ const ManageStudents = () => {
       key: `plan_${planId}`, label: name, count,
     })),
     { key: "sin_plan", label: "Sin plan", count: sinPlanCount },
+    ...(sinPlanActivoCount > 0 ? [{ key: "sin_plan_activo", label: "Sin plan activo", count: sinPlanActivoCount }] : []),
   ];
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
