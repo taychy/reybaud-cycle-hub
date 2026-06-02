@@ -372,6 +372,30 @@ const AdminDashboard = () => {
         ))}
       </div>
 
+      {/* Alertas de chequeo (Facturas / Pagos / Bajas) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {[
+          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion", hint: "Subs cobradas sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
+          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos?chequeo=pendientes", hint: "Conciliar contra MP / transferencia / efectivo", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
+          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas", hint: "Alumnos sin renovar este mes", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
+        ].map((a) => (
+          <Link key={a.label} to={a.to} className={`group border rounded-lg p-4 transition-colors ${a.tone}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <a.icon className="w-4 h-4" />
+                <span className="text-[11px] font-heading uppercase tracking-wider">{a.label}</span>
+              </div>
+              <span className="text-xs opacity-70 group-hover:opacity-100">Ver →</span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-heading font-bold">{a.count}</span>
+              {a.count === 0 && <span className="text-[11px] text-muted-foreground">Todo al día</span>}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">{a.hint}</p>
+          </Link>
+        ))}
+      </div>
+
       {/* Alertas operativas - clickable */}
       {alerts.length > 0 && (
         <div className="space-y-2">
