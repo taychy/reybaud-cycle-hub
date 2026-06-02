@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
     const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
-    const redirectTo = `${baseAppUrl}/activar-cuenta`;
+    const redirectTo = `${baseAppUrl}/admin`;
 
     // Check if user already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
