@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ShieldX, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AllowedRole = "admin" | "coach" | "alumno";
+type AllowedRole = "admin" | "coach" | "alumno" | "deposito";
 
 interface ProtectedRouteProps {
   allowedRoles: AllowedRole[];
