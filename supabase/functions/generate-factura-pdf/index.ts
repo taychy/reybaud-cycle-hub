@@ -162,18 +162,18 @@ async function renderInvoicePdf(args: {
   }
 
   // Comprobante box (right)
-  const boxW = 180, boxX = W - margin - boxW, boxY = headerTop - 78;
-  page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: 78, borderColor: LINE, borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
+  const boxW = 180, boxH = 96, boxX = W - margin - boxW, boxY = headerTop - boxH;
+  page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, borderColor: LINE, borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
   // Letter C
-  page.drawRectangle({ x: boxX + boxW / 2 - 14, y: boxY + 50, width: 28, height: 24, borderColor: TEXT_DARK, borderWidth: 1 });
-  drawText(page, "C", boxX + boxW / 2 - 7, boxY + 56, bold, 18, TEXT_DARK);
-  drawText(page, "Cód. 011", boxX + boxW / 2 - 18, boxY + 40, font, 8, TEXT_MUTED);
-  drawText(page, "FACTURA", boxX + 10, boxY + 26, bold, 12, TEXT_DARK);
-  drawText(page, `Nº ${factura.numero_comprobante || "—"}`, boxX + 10, boxY + 12, font, 10, TEXT_DARK);
+  page.drawRectangle({ x: boxX + boxW / 2 - 14, y: boxY + boxH - 32, width: 28, height: 24, borderColor: TEXT_DARK, borderWidth: 1 });
+  drawText(page, "C", boxX + boxW / 2 - 7, boxY + boxH - 26, bold, 18, TEXT_DARK);
+  drawText(page, "Cód. 011", boxX + boxW / 2 - 18, boxY + boxH - 42, font, 8, TEXT_MUTED);
+  drawText(page, "FACTURA", boxX + 10, boxY + 36, bold, 12, TEXT_DARK);
+  drawText(page, `Nº ${factura.numero_comprobante || "—"}`, boxX + 10, boxY + 22, font, 10, TEXT_DARK);
   const fEmis = factura.fecha_emision
     ? new Date(factura.fecha_emision).toLocaleDateString("es-AR")
     : new Date().toLocaleDateString("es-AR");
-  drawText(page, `Fecha: ${fEmis}`, boxX + 10, boxY - 0, font, 9, TEXT_MUTED);
+  drawText(page, `Fecha: ${fEmis}`, boxX + 10, boxY + 8, font, 9, TEXT_MUTED);
 
   y = Math.min(yEmisor, boxY) - 18;
 
