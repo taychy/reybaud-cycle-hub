@@ -83,7 +83,8 @@ Deno.serve(async (req) => {
     if (action === "bulk_notify_failed_renewals") {
       if (role !== "super_admin") return json({ error: "Only super_admin" }, 403);
       const dryRun = Boolean(body?.dry_run);
-      return await handleBulkNotify(admin, userId, adminProfile?.email, role, dryRun);
+      const onlyAutoRenewal = Boolean(body?.only_auto_renewal);
+      return await handleBulkNotify(admin, userId, adminProfile?.email, role, dryRun, { onlyAutoRenewal });
     }
 
     if (!subId || !["approve", "reject", "simulate_fail"].includes(action)) {
