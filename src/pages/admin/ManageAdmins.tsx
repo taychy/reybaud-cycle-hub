@@ -18,7 +18,7 @@ interface AdminProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: "super_admin" | "admin" | "support";
+  role: "super_admin" | "admin" | "deposito";
   status: string;
   password_set: boolean;
   last_login_at: string | null;
@@ -28,7 +28,7 @@ interface AdminProfile {
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
-  support: "Soporte",
+  deposito: "Depósito",
 };
 
 const ManageAdmins = () => {
