@@ -1509,7 +1509,15 @@ const ManageStudents = () => {
 
                     {/* Cuenta corriente */}
                     <div id="ficha-cuenta-corriente" className="scroll-mt-4">
-                      <StudentCuentaCorrienteSection alumnoId={drawerAlumno.id} />
+                      <StudentCuentaCorrienteSection
+                        alumnoId={drawerAlumno.id}
+                        onSubscriptionsChanged={() => {
+                          fetchAlumnos();
+                          supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
+                            setSuscripciones((data as any) || []);
+                          });
+                        }}
+                      />
                     </div>
 
                     <Separator />

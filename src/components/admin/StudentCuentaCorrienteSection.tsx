@@ -13,13 +13,33 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select as SelectPlan, SelectContent as SelectPlanContent, SelectItem as SelectPlanItem,
+  SelectTrigger as SelectPlanTrigger, SelectValue as SelectPlanValue,
+} from "@/components/ui/select";
+import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
+import { logStudentActivity } from "@/lib/logStudentActivity";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 
 interface Props {
   alumnoId: string;
+  /** Llamado tras anular o cambiar una suscripción, para que el padre recargue secciones relacionadas. */
+  onSubscriptionsChanged?: () => void;
+}
+
+interface PlanOption {
+  id: string;
+  nombre: string;
+  precio: number | null;
+  moneda: string | null;
+  frecuencia: string | null;
 }
 
 interface Movimiento {
@@ -59,7 +79,7 @@ function formatDate(d: string): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
+export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [saldos, setSaldos] = useState<SaldoRow[]>([]);
@@ -69,6 +89,14 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
   const [editing, setEditing] = useState<AjusteCuentaValue | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+
+  // Subscription actions (cancel & change plan) launched from cargo_suscripcion rows
+  const [planes, setPlanes] = useState<PlanOption[]>([]);
+  const [cancelSub, setCancelSub] = useState<{ id: string; concepto: string } | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [changeSub, setChangeSub] = useState<{ id: string; concepto: string; currentPlanId: string | null } | null>(null);
+  const [changeNewPlanId, setChangeNewPlanId] = useState<string>("");
+  const [changeLoading, setChangeLoading] = useState(false);
 
   const PREVIEW_LIMIT = 5;
 
@@ -100,6 +128,145 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Cargar lista de planes activos (para el dialog de cambio de plan)
+  useEffect(() => {
+    let cancel = false;
+    supabase
+      .from("planes")
+      .select("id, nombre, precio, moneda, frecuencia")
+      .eq("activo", true)
+      .order("nombre")
+      .then(({ data }) => {
+        if (!cancel) setPlanes(((data as any) || []) as PlanOption[]);
+      });
+    return () => { cancel = true; };
+  }, []);
+
+  // ---- Cancelar suscripción (misma lógica que StudentPlanSection.handleRemovePlan) ----
+  const handleCancelSubscription = async () => {
+    if (!cancelSub) return;
+    setCancelLoading(true);
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          estado: "cancelada",
+          cancelada_motivo: "Anulada desde cuenta corriente",
+          cancelada_at: new Date().toISOString(),
+          auto_renovacion: false,
+          fecha_fin: todayStr,
+        } as any)
+        .eq("id", cancelSub.id);
+      if (error) {
+        toast.error("Error al anular: " + (error.message || "Error desconocido"));
+        return;
+      }
+      // Audit log
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: adminProfile } = await supabase
+          .from("admin_profiles")
+          .select("email, role")
+          .eq("user_id", session.user.id)
+          .single();
+        await supabase.from("audit_log").insert([{
+          user_id: session.user.id,
+          user_email: adminProfile?.email || session.user.email || "",
+          user_role: adminProfile?.role || "admin",
+          action: "anular_suscripcion_cc",
+          entity_type: "suscripcion",
+          entity_id: cancelSub.id,
+          details: { origen: "cuenta_corriente", concepto: cancelSub.concepto },
+        }]);
+      }
+      await logStudentActivity({
+        alumnoId,
+        eventType: "cambio_plan",
+        title: "Suscripción anulada",
+        description: `Anulada desde cuenta corriente: ${cancelSub.concepto}`,
+        actorRole: "admin",
+      });
+      toast.success("Suscripción anulada");
+      setCancelSub(null);
+      await fetchData();
+      onSubscriptionsChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  // ---- Cambiar plan de una suscripción existente ----
+  const handleChangePlan = async () => {
+    if (!changeSub || !changeNewPlanId || changeNewPlanId === changeSub.currentPlanId) {
+      setChangeSub(null);
+      return;
+    }
+    setChangeLoading(true);
+    try {
+      const newPlan = planes.find((p) => p.id === changeNewPlanId);
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          plan_id: changeNewPlanId,
+          precio_base: newPlan?.precio ?? null,
+          precio_final: newPlan?.precio ?? null,
+        } as any)
+        .eq("id", changeSub.id);
+      if (error) {
+        if (isDuplicateSubError(error)) {
+          toast.error(DUPLICATE_SUB_MSG);
+          return;
+        }
+        toast.error("Error al cambiar de plan: " + (error.message || ""));
+        return;
+      }
+      // Audit
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: adminProfile } = await supabase
+          .from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
+        await supabase.from("audit_log").insert([{
+          user_id: session.user.id,
+          user_email: adminProfile?.email || session.user.email || "",
+          user_role: adminProfile?.role || "admin",
+          action: "cambiar_plan_cc",
+          entity_type: "suscripcion",
+          entity_id: changeSub.id,
+          details: {
+            origen: "cuenta_corriente",
+            plan_anterior_id: changeSub.currentPlanId,
+            plan_nuevo_id: changeNewPlanId,
+            plan_nuevo_nombre: newPlan?.nombre,
+          },
+        }]);
+      }
+      await logStudentActivity({
+        alumnoId,
+        eventType: "cambio_plan",
+        title: "Plan cambiado",
+        description: `Desde cuenta corriente: ${changeSub.concepto} → "${newPlan?.nombre || "—"}"`,
+        actorRole: "admin",
+        referenceType: "plan",
+        referenceId: changeNewPlanId,
+        referenceLabel: newPlan?.nombre || "—",
+      });
+      toast.success("Plan actualizado");
+      setChangeSub(null);
+      setChangeNewPlanId("");
+      await fetchData();
+      onSubscriptionsChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado");
+    } finally {
+      setChangeLoading(false);
+    }
+  };
+
+
 
   const filtered = useMemo(() => {
     return movimientos.filter((m) => {
@@ -290,6 +457,34 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </>
+                        ) : m.tipo === "cargo_suscripcion" && m.estado !== "cancelada" ? (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => {
+                                setChangeSub({
+                                  id: m.fuente_id,
+                                  concepto: m.concepto,
+                                  currentPlanId: m.referencia_extra?.plan_id || null,
+                                });
+                                setChangeNewPlanId(m.referencia_extra?.plan_id || "");
+                              }}
+                              title="Cambiar plan de esta suscripción"
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => setCancelSub({ id: m.fuente_id, concepto: m.concepto })}
+                              title="Anular suscripción"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
                         ) : null}
                       </div>
                     </TableCell>
@@ -345,6 +540,73 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Anular suscripción */}
+      <AlertDialog open={!!cancelSub} onOpenChange={(o) => !o && setCancelSub(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Anular esta suscripción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se marcará como <strong>cancelada</strong> con fecha de hoy y se apagará la auto-renovación.
+              El cargo se mantiene en la cuenta corriente como histórico.
+              <br />
+              <span className="text-foreground">{cancelSub?.concepto}</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
+              disabled={cancelLoading}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {cancelLoading ? "Anulando…" : "Sí, anular"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cambiar plan */}
+      <Dialog open={!!changeSub} onOpenChange={(o) => { if (!o) { setChangeSub(null); setChangeNewPlanId(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" /> Cambiar plan
+            </DialogTitle>
+            <DialogDescription>
+              Reemplaza el plan asignado a esta suscripción. El cargo en cuenta corriente se actualiza al precio del nuevo plan.
+              <br />
+              <span className="text-foreground text-xs">{changeSub?.concepto}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs">Nuevo plan</Label>
+            <SelectPlan value={changeNewPlanId} onValueChange={setChangeNewPlanId}>
+              <SelectPlanTrigger>
+                <SelectPlanValue placeholder="Elegí un plan…" />
+              </SelectPlanTrigger>
+              <SelectPlanContent>
+                {planes.map((p) => (
+                  <SelectPlanItem key={p.id} value={p.id}>
+                    {p.nombre} {p.precio != null ? `· ${formatPrice(p.precio, p.moneda || "ARS")}` : ""}
+                  </SelectPlanItem>
+                ))}
+              </SelectPlanContent>
+            </SelectPlan>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setChangeSub(null); setChangeNewPlanId(""); }} disabled={changeLoading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleChangePlan}
+              disabled={changeLoading || !changeNewPlanId || changeNewPlanId === changeSub?.currentPlanId}
+            >
+              {changeLoading ? "Guardando…" : "Cambiar plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
