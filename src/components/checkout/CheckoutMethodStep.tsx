@@ -34,10 +34,23 @@ const ALREADY_PAID_LABELS: Record<AlreadyPaidOption, string> = {
   otro: "Otro",
 };
 
-const CheckoutMethodStep = ({ onSelect, processing, onBack }: CheckoutMethodStepProps) => {
+const CheckoutMethodStep = ({ onSelect, processing, onBack, transferOnly = false }: CheckoutMethodStepProps) => {
   const [showAlreadyPaid, setShowAlreadyPaid] = useState(false);
   const [selectedOption, setSelectedOption] = useState<AlreadyPaidOption | "">("");
   const [otherDetail, setOtherDetail] = useState("");
+  const [showTransferInfo, setShowTransferInfo] = useState(false);
+  const [copiedField, setCopiedField] = useState<"cbu" | "alias" | null>(null);
+
+  const copyToClipboard = async (value: string, field: "cbu" | "alias") => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      toast.success("Copiado al portapapeles");
+      setTimeout(() => setCopiedField(null), 1500);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  };
 
   const canConfirm =
     selectedOption !== "" &&
