@@ -118,9 +118,17 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   useEffect(() => { load(); }, []);
 
+  const emptyForm = {
+    nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "",
+    limite_anual_ars: "", categoria_monotributo: "",
+    logo_url: "", domicilio_comercial: "", condicion_iva: "Monotributista",
+    inicio_actividades: "", email_contacto: "", telefono_contacto: "",
+    website: "", ingresos_brutos: "",
+  };
+
   const openNew = () => {
     setEditing(null);
-    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "", limite_anual_ars: "", categoria_monotributo: "" });
+    setForm(emptyForm);
     setDialogOpen(true);
   };
 
@@ -134,6 +142,14 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       key_pem: e.key_pem || "",
       limite_anual_ars: e.limite_anual_ars ? String(e.limite_anual_ars) : "",
       categoria_monotributo: e.categoria_monotributo || "",
+      logo_url: e.logo_url || "",
+      domicilio_comercial: e.domicilio_comercial || "",
+      condicion_iva: e.condicion_iva || "Monotributista",
+      inicio_actividades: e.inicio_actividades || "",
+      email_contacto: e.email_contacto || "",
+      telefono_contacto: e.telefono_contacto || "",
+      website: e.website || "",
+      ingresos_brutos: e.ingresos_brutos || "",
     });
     setDialogOpen(true);
   };
@@ -143,9 +159,18 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     setForm((prev) => ({
       ...prev,
       categoria_monotributo: cat,
-      // Solo precarga el tope si el usuario no había ingresado un override manual
       limite_anual_ars: tope && !prev.limite_anual_ars ? String(tope) : prev.limite_anual_ars,
     }));
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    const ext = file.name.split(".").pop();
+    const path = `${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("emisor-logos").upload(path, file, { upsert: true });
+    if (error) { toast.error("Error al subir logo"); return; }
+    const { data } = supabase.storage.from("emisor-logos").getPublicUrl(path);
+    setForm((prev) => ({ ...prev, logo_url: data.publicUrl }));
+    toast.success("Logo subido");
   };
 
   const handleSave = async () => {
@@ -163,6 +188,14 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         key_pem: form.key_pem.trim() || null,
         limite_anual_ars: form.limite_anual_ars.trim() ? Number(form.limite_anual_ars) : null,
         categoria_monotributo: form.categoria_monotributo || null,
+        logo_url: form.logo_url.trim() || null,
+        domicilio_comercial: form.domicilio_comercial.trim() || null,
+        condicion_iva: form.condicion_iva.trim() || null,
+        inicio_actividades: form.inicio_actividades || null,
+        email_contacto: form.email_contacto.trim() || null,
+        telefono_contacto: form.telefono_contacto.trim() || null,
+        website: form.website.trim() || null,
+        ingresos_brutos: form.ingresos_brutos.trim() || null,
       };
 
       let emisorId = editing?.id;
