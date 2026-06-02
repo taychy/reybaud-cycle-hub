@@ -22,7 +22,10 @@ interface MetricCard {
   value: number | string;
   icon: React.ElementType;
   color: string;
+  to?: string;
+  hint?: string;
 }
+
 
 interface UpcomingExpiration {
   alumno_id: string;
