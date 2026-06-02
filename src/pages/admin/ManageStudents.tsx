@@ -391,6 +391,7 @@ const ManageStudents = () => {
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
       case "sin_plan": return sinPlanIds.has(a.id);
+      case "sin_plan_activo": return a.estado === "activo" && !getActiveSub(a.id);
       case "nuevos": return !!a.created_at && a.created_at >= thirtyDaysAgoIso;
       default:
         if (statusFilter.startsWith("plan_")) {
