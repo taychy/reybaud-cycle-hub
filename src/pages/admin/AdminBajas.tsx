@@ -162,7 +162,7 @@ const AdminBajas = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Chequeo de bajas</h1>
-        <p className="text-sm text-muted-foreground">Alumnos que no renovaron su plan el mes seleccionado</p>
+        <p className="text-sm text-muted-foreground">Alumnos sin suscripción activa hoy que sí tenían sub activa en el mes seleccionado</p>
       </div>
 
       <Card>
