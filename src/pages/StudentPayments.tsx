@@ -473,17 +473,32 @@ const StudentPayments = () => {
 
                 return (
                   <div key={sub.id} className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-primary">
-                        <CheckCircle2 className="w-5 h-5" />
-                        <span className="text-sm font-heading font-semibold uppercase tracking-wider">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 text-primary min-w-0">
+                        <CheckCircle2 className="w-5 h-5 shrink-0" />
+                        <span className="text-sm font-heading font-semibold uppercase tracking-wider truncate">
                           {sub.plan?.nombre || "Plan"}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="text-xs text-muted-foreground">
+                          {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
+                        </span>
+                        {hasRealAutoCharge(sub) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
+                            <RefreshCw className="w-2.5 h-2.5" />
+                            Auto-renueva
+                          </span>
+                        )}
+                        {hasPendingAutoChargeAuth(sub) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-2 py-0.5">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Autorización pendiente
+                          </span>
+                        )}
+                      </div>
                     </div>
+
 
                     <div className="space-y-2 text-sm">
                       {/* Discount breakdown */}
@@ -518,31 +533,9 @@ const StudentPayments = () => {
                       </div>
                     </div>
 
-                    {/* Auto-renewal */}
-                    <div className={`rounded-lg p-3 text-xs ${
-                      hasRealAutoCharge(sub)
-                        ? "bg-primary/5 border border-primary/20 text-primary"
-                        : hasPendingAutoChargeAuth(sub)
-                          ? "bg-yellow-500/5 border border-yellow-500/30 text-yellow-500"
-                        : "bg-muted/50 border border-border text-muted-foreground"
-                    }`}>
-                      {hasRealAutoCharge(sub) ? (
-                        <>
-                          <span className="font-semibold">Cobro automático autorizado.</span>{" "}
-                          Próximo cobro: {formatPrice(sub.plan?.precio || 0)} el {formatDate(sub.fecha_fin)}.
-                        </>
-                      ) : hasPendingAutoChargeAuth(sub) ? (
-                        <>
-                          <span className="font-semibold">Autorización pendiente.</span>{" "}
-                          Falta completar la autorización en Mercado Pago para que el próximo cobro sea automático.
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-semibold">Cobro automático desactivado.</span>{" "}
-                          Activarlo requiere autorización de Mercado Pago.
-                        </>
-                      )}
-                    </div>
+                    {/* (status compacto va como pill en el header; sin banner redundante) */}
+
+
 
                     {/* Pago / renovación CTA */}
                     {(() => {
@@ -641,85 +634,59 @@ const StudentPayments = () => {
 
                     {/* Per-plan actions */}
                     <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
-                      {/* MP Preapproval (real auto-charge) */}
-                      {sub.mp_preapproval_id && sub.auto_cobro_activo && (
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-primary/5">
-                          <div className="flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 text-primary" />
-                            <div className="flex flex-col">
-                              <span className="text-xs font-medium text-foreground">Cobro automático activo</span>
-                              <span className="text-[10px] text-muted-foreground">Mercado Pago renueva esta cuota cada mes</span>
-                            </div>
+                      {/* Renovación automática (única fila, con subtítulo contextual) */}
+                      <div className={`flex items-center justify-between px-4 py-3 border-b border-border/50 ${hasRealAutoCharge(sub) ? "bg-primary/5" : ""}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <RefreshCw className={`w-4 h-4 shrink-0 ${hasRealAutoCharge(sub) ? "text-primary" : "text-muted-foreground"}`} />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {hasRealAutoCharge(sub)
+                                ? `Próximo cobro ${formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)} el ${formatDate(sub.fecha_fin)}`
+                                : hasPendingAutoChargeAuth(sub)
+                                  ? "Falta completar la autorización en Mercado Pago"
+                                  : "Activala para que Mercado Pago renueve sola cada período"}
+                            </span>
                           </div>
+                        </div>
+                        {hasRealAutoCharge(sub) ? (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-[11px]"
+                              <button
+                                type="button"
                                 disabled={togglingId === sub.id || readOnly}
+                                className="shrink-0"
+                                aria-label="Desactivar renovación automática"
                               >
-                                Cancelar
-                              </Button>
+                                <Switch checked onCheckedChange={() => {}} className="pointer-events-none" />
+                              </button>
                             </AlertDialogTrigger>
                             <AlertDialogContent className="bg-card border-border">
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Cancelar cobro automático?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Desactivar la renovación automática?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará automáticamente.
+                                  Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará solo.
                                   Vas a tener que pagar manualmente la próxima cuota.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Volver</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={async () => {
-                                    setTogglingId(sub.id);
-                                    try {
-                                      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`;
-                                      const res = await fetch(url, {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                                        },
-                                        body: JSON.stringify({ suscripcion_id: sub.id }),
-                                      });
-                                      if (!res.ok) throw new Error("cancel failed");
-                                      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, auto_cobro_activo: false, mp_preapproval_status: "cancelled" } : s));
-                                      toast({ title: "Renovación cancelada", description: "No volveremos a cobrar este plan automáticamente." });
-                                    } catch {
-                                      toast({ title: "Error", description: "No se pudo cancelar. Intentá de nuevo.", variant: "destructive" });
-                                    } finally {
-                                      setTogglingId(null);
-                                    }
-                                  }}
-                                >
-                                  Sí, cancelar
+                                <AlertDialogAction onClick={() => handleToggleRenovacion(sub)}>
+                                  Sí, desactivar
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                        </div>
-                      )}
-
-                      {/* MP auto-charge authorization */}
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col">
-                            <span className="text-xs font-medium text-foreground">Cobro automático Mercado Pago</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {hasRealAutoCharge(sub) ? "Autorizado para el próximo período" : "Requiere autorización externa"}
-                            </span>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={hasRealAutoCharge(sub)}
-                          onCheckedChange={() => handleToggleRenovacion(sub)}
-                          disabled={togglingId === sub.id}
-                        />
+                        ) : (
+                          <Switch
+                            checked={false}
+                            onCheckedChange={() => handleToggleRenovacion(sub)}
+                            disabled={togglingId === sub.id || readOnly}
+                          />
+                        )}
                       </div>
+
+
 
                       {/* Change plan — disponible para planes activos o con pago pendiente de validación */}
                       {(effectiveStatus === "activa" || effectiveStatus === "pendiente_verificacion") && sub.fecha_inicio && sub.fecha_fin && (
