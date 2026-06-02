@@ -582,7 +582,49 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
             </div>
 
 
-            <div className="border-t border-border pt-4 space-y-1">
+            <div className="border-t border-border pt-4 space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Branding y contacto (para PDF + email)</h4>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Logo</label>
+                {form.logo_url && <img src={form.logo_url} alt="logo" className="h-12 object-contain bg-muted rounded p-1" />}
+                <Input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); }} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Condición IVA</label>
+                  <Input value={form.condicion_iva} onChange={(e) => setForm({ ...form, condicion_iva: e.target.value })} placeholder="Monotributista" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Inicio actividades</label>
+                  <Input type="date" value={form.inicio_actividades} onChange={(e) => setForm({ ...form, inicio_actividades: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Domicilio comercial</label>
+                <Input value={form.domicilio_comercial} onChange={(e) => setForm({ ...form, domicilio_comercial: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Ingresos brutos</label>
+                  <Input value={form.ingresos_brutos} onChange={(e) => setForm({ ...form, ingresos_brutos: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Web</label>
+                  <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Email contacto</label>
+                  <Input type="email" value={form.email_contacto} onChange={(e) => setForm({ ...form, email_contacto: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">WhatsApp (con cód. país)</label>
+                  <Input value={form.telefono_contacto} onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })} placeholder="5491122334455" />
+                </div>
+              </div>
+            </div>
+
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
                 Certificado digital AFIP
