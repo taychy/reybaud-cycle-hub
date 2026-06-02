@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
     const isPreviewOrPrivateUrl = /-preview--|\.lovableproject\.com/.test(origin);
     const baseAppUrl = configuredAppUrl || (origin && !isPreviewOrPrivateUrl ? origin : defaultPublicAppUrl);
-    const redirectTo = `${baseAppUrl}/activar-cuenta`;
+    // Admins log in via OTP magic link → go straight to /admin. Alumnos/coaches still set password.
+    const redirectTo = user_type === "admin" ? `${baseAppUrl}/admin` : `${baseAppUrl}/activar-cuenta`;
 
     // Look up user profile based on type
     let profileTable: string;
