@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Search, Layers } from "lucide-react";
+import { FileText, Search, Layers, Download, Mail, Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Emisor {
   id: string;
@@ -111,6 +113,32 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
   const [includeManual, setIncludeManual] = useState(true);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const handleDownload = async (id: string) => {
+    setBusyId(id + ":pdf");
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-factura-pdf", { body: { factura_id: id } });
+      if (error) throw error;
+      const url = (data as any)?.signed_url;
+      if (!url) throw new Error("Sin URL");
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast.error("Error al generar PDF", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
+  const handleResend = async (id: string) => {
+    setBusyId(id + ":mail");
+    try {
+      const { data, error } = await supabase.functions.invoke("send-factura-email", { body: { factura_id: id } });
+      if (error || (data as any)?.error) throw new Error(error?.message || (data as any).error);
+      toast.success("Email enviado al alumno");
+    } catch (e: any) {
+      toast.error("Error al enviar email", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
 
   // Monedas presentes en el dataset actual
   const monedasDisponibles = useMemo(() => {
@@ -310,16 +338,28 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
                     {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
                   </div>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 flex flex-wrap gap-2">
                   {facturable ? (
                     <Button size="sm" onClick={() => onGenerarFactura(f)}>
                       <FileText className="w-4 h-4 mr-1" />
                       {isManualSinCae ? "Emitir en AFIP" : "Generar factura"}
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" disabled>
-                      <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" disabled>
+                        <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
+                      </Button>
+                      {isAfip && (
+                        <>
+                          <Button size="sm" variant="secondary" onClick={() => handleDownload(f.id)} disabled={busyId === f.id + ":pdf"}>
+                            {busyId === f.id + ":pdf" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => handleResend(f.id)} disabled={busyId === f.id + ":mail"}>
+                            {busyId === f.id + ":mail" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                          </Button>
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

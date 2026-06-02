@@ -1047,48 +1047,72 @@ export type Database = {
           auto_facturar_origenes: string[]
           categoria_monotributo: string | null
           cert_pem: string | null
+          condicion_iva: string | null
           created_at: string
           cuit: string
+          domicilio_comercial: string | null
+          email_contacto: string | null
           es_predeterminado: boolean
           facturacion_automatica: boolean
           id: string
+          ingresos_brutos: string | null
+          inicio_actividades: string | null
           key_pem: string | null
           limite_anual_ars: number | null
+          logo_url: string | null
           nombre_fiscal: string
           punto_venta: number
+          telefono_contacto: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
           activo?: boolean
           auto_facturar_origenes?: string[]
           categoria_monotributo?: string | null
           cert_pem?: string | null
+          condicion_iva?: string | null
           created_at?: string
           cuit: string
+          domicilio_comercial?: string | null
+          email_contacto?: string | null
           es_predeterminado?: boolean
           facturacion_automatica?: boolean
           id?: string
+          ingresos_brutos?: string | null
+          inicio_actividades?: string | null
           key_pem?: string | null
           limite_anual_ars?: number | null
+          logo_url?: string | null
           nombre_fiscal: string
           punto_venta?: number
+          telefono_contacto?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
           activo?: boolean
           auto_facturar_origenes?: string[]
           categoria_monotributo?: string | null
           cert_pem?: string | null
+          condicion_iva?: string | null
           created_at?: string
           cuit?: string
+          domicilio_comercial?: string | null
+          email_contacto?: string | null
           es_predeterminado?: boolean
           facturacion_automatica?: boolean
           id?: string
+          ingresos_brutos?: string | null
+          inicio_actividades?: string | null
           key_pem?: string | null
           limite_anual_ars?: number | null
+          logo_url?: string | null
           nombre_fiscal?: string
           punto_venta?: number
+          telefono_contacto?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -1843,6 +1867,7 @@ export type Database = {
           concepto: string
           condicion_fiscal: string
           created_at: string
+          email_enviado_at: string | null
           emisor_id: string | null
           error_detalle: string | null
           estado: string
@@ -1853,6 +1878,8 @@ export type Database = {
           monto: number
           numero_comprobante: string | null
           origen_registro: string | null
+          pdf_generated_at: string | null
+          pdf_path: string | null
           referencia_id: string | null
           referencia_tipo: string
           segmento: string | null
@@ -1867,6 +1894,7 @@ export type Database = {
           concepto: string
           condicion_fiscal?: string
           created_at?: string
+          email_enviado_at?: string | null
           emisor_id?: string | null
           error_detalle?: string | null
           estado?: string
@@ -1877,6 +1905,8 @@ export type Database = {
           monto: number
           numero_comprobante?: string | null
           origen_registro?: string | null
+          pdf_generated_at?: string | null
+          pdf_path?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
@@ -1891,6 +1921,7 @@ export type Database = {
           concepto?: string
           condicion_fiscal?: string
           created_at?: string
+          email_enviado_at?: string | null
           emisor_id?: string | null
           error_detalle?: string | null
           estado?: string
@@ -1901,6 +1932,8 @@ export type Database = {
           monto?: number
           numero_comprobante?: string | null
           origen_registro?: string | null
+          pdf_generated_at?: string | null
+          pdf_path?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null

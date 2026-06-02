@@ -181,6 +181,27 @@ Deno.serve(async (req) => {
       console.error("Error updating factura:", updateErr);
     }
 
+    // Auto-dispatch: generar PDF y enviar email al alumno (fire-and-forget)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const dispatch = async () => {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/generate-factura-pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          body: JSON.stringify({ factura_id, force: true }),
+        });
+        await fetch(`${supabaseUrl}/functions/v1/send-factura-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          body: JSON.stringify({ factura_id }),
+        });
+      } catch (e) { console.error("auto-dispatch error", e); }
+    };
+    // @ts-ignore EdgeRuntime is available in Supabase edge runtime
+    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(dispatch());
+    else dispatch();
+
     return new Response(
       JSON.stringify({
         success: true,

@@ -26,6 +26,14 @@ interface Emisor {
   limite_anual_ars?: number | null;
   categoria_monotributo?: string | null;
   auto_facturar_origenes?: string[] | null;
+  logo_url?: string | null;
+  domicilio_comercial?: string | null;
+  condicion_iva?: string | null;
+  inicio_actividades?: string | null;
+  email_contacto?: string | null;
+  telefono_contacto?: string | null;
+  website?: string | null;
+  ingresos_brutos?: string | null;
 }
 
 export type OrigenAuto = "app_online" | "manual_admin" | "efectivo" | "transferencia";
@@ -80,6 +88,14 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     key_pem: "",
     limite_anual_ars: "",
     categoria_monotributo: "",
+    logo_url: "",
+    domicilio_comercial: "",
+    condicion_iva: "Monotributista",
+    inicio_actividades: "",
+    email_contacto: "",
+    telefono_contacto: "",
+    website: "",
+    ingresos_brutos: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -102,9 +118,17 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   useEffect(() => { load(); }, []);
 
+  const emptyForm = {
+    nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "",
+    limite_anual_ars: "", categoria_monotributo: "",
+    logo_url: "", domicilio_comercial: "", condicion_iva: "Monotributista",
+    inicio_actividades: "", email_contacto: "", telefono_contacto: "",
+    website: "", ingresos_brutos: "",
+  };
+
   const openNew = () => {
     setEditing(null);
-    setForm({ nombre_fiscal: "", cuit: "", punto_venta: "1", cert_pem: "", key_pem: "", limite_anual_ars: "", categoria_monotributo: "" });
+    setForm(emptyForm);
     setDialogOpen(true);
   };
 
@@ -118,6 +142,14 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       key_pem: e.key_pem || "",
       limite_anual_ars: e.limite_anual_ars ? String(e.limite_anual_ars) : "",
       categoria_monotributo: e.categoria_monotributo || "",
+      logo_url: e.logo_url || "",
+      domicilio_comercial: e.domicilio_comercial || "",
+      condicion_iva: e.condicion_iva || "Monotributista",
+      inicio_actividades: e.inicio_actividades || "",
+      email_contacto: e.email_contacto || "",
+      telefono_contacto: e.telefono_contacto || "",
+      website: e.website || "",
+      ingresos_brutos: e.ingresos_brutos || "",
     });
     setDialogOpen(true);
   };
@@ -127,9 +159,18 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     setForm((prev) => ({
       ...prev,
       categoria_monotributo: cat,
-      // Solo precarga el tope si el usuario no había ingresado un override manual
       limite_anual_ars: tope && !prev.limite_anual_ars ? String(tope) : prev.limite_anual_ars,
     }));
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    const ext = file.name.split(".").pop();
+    const path = `${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("emisor-logos").upload(path, file, { upsert: true });
+    if (error) { toast.error("Error al subir logo"); return; }
+    const { data } = supabase.storage.from("emisor-logos").getPublicUrl(path);
+    setForm((prev) => ({ ...prev, logo_url: data.publicUrl }));
+    toast.success("Logo subido");
   };
 
   const handleSave = async () => {
@@ -147,6 +188,14 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         key_pem: form.key_pem.trim() || null,
         limite_anual_ars: form.limite_anual_ars.trim() ? Number(form.limite_anual_ars) : null,
         categoria_monotributo: form.categoria_monotributo || null,
+        logo_url: form.logo_url.trim() || null,
+        domicilio_comercial: form.domicilio_comercial.trim() || null,
+        condicion_iva: form.condicion_iva.trim() || null,
+        inicio_actividades: form.inicio_actividades || null,
+        email_contacto: form.email_contacto.trim() || null,
+        telefono_contacto: form.telefono_contacto.trim() || null,
+        website: form.website.trim() || null,
+        ingresos_brutos: form.ingresos_brutos.trim() || null,
       };
 
       let emisorId = editing?.id;
@@ -532,6 +581,49 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
               </p>
             </div>
 
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Branding y contacto (para PDF + email)</h4>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Logo</label>
+                {form.logo_url && <img src={form.logo_url} alt="logo" className="h-12 object-contain bg-muted rounded p-1" />}
+                <Input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); }} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Condición IVA</label>
+                  <Input value={form.condicion_iva} onChange={(e) => setForm({ ...form, condicion_iva: e.target.value })} placeholder="Monotributista" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Inicio actividades</label>
+                  <Input type="date" value={form.inicio_actividades} onChange={(e) => setForm({ ...form, inicio_actividades: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Domicilio comercial</label>
+                <Input value={form.domicilio_comercial} onChange={(e) => setForm({ ...form, domicilio_comercial: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Ingresos brutos</label>
+                  <Input value={form.ingresos_brutos} onChange={(e) => setForm({ ...form, ingresos_brutos: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Web</label>
+                  <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Email contacto</label>
+                  <Input type="email" value={form.email_contacto} onChange={(e) => setForm({ ...form, email_contacto: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">WhatsApp (con cód. país)</label>
+                  <Input value={form.telefono_contacto} onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })} placeholder="5491122334455" />
+                </div>
+              </div>
+            </div>
 
             <div className="border-t border-border pt-4 space-y-1">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
