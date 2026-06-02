@@ -634,85 +634,59 @@ const StudentPayments = () => {
 
                     {/* Per-plan actions */}
                     <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
-                      {/* MP Preapproval (real auto-charge) */}
-                      {sub.mp_preapproval_id && sub.auto_cobro_activo && (
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-primary/5">
-                          <div className="flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 text-primary" />
-                            <div className="flex flex-col">
-                              <span className="text-xs font-medium text-foreground">Cobro automático activo</span>
-                              <span className="text-[10px] text-muted-foreground">Mercado Pago renueva esta cuota cada mes</span>
-                            </div>
+                      {/* Renovación automática (única fila, con subtítulo contextual) */}
+                      <div className={`flex items-center justify-between px-4 py-3 border-b border-border/50 ${hasRealAutoCharge(sub) ? "bg-primary/5" : ""}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <RefreshCw className={`w-4 h-4 shrink-0 ${hasRealAutoCharge(sub) ? "text-primary" : "text-muted-foreground"}`} />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {hasRealAutoCharge(sub)
+                                ? `Próximo cobro ${formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)} el ${formatDate(sub.fecha_fin)}`
+                                : hasPendingAutoChargeAuth(sub)
+                                  ? "Falta completar la autorización en Mercado Pago"
+                                  : "Activala para que Mercado Pago renueve sola cada período"}
+                            </span>
                           </div>
+                        </div>
+                        {hasRealAutoCharge(sub) ? (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-[11px]"
+                              <button
+                                type="button"
                                 disabled={togglingId === sub.id || readOnly}
+                                className="shrink-0"
+                                aria-label="Desactivar renovación automática"
                               >
-                                Cancelar
-                              </Button>
+                                <Switch checked readOnly className="pointer-events-none" />
+                              </button>
                             </AlertDialogTrigger>
                             <AlertDialogContent className="bg-card border-border">
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Cancelar cobro automático?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Desactivar la renovación automática?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará automáticamente.
+                                  Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará solo.
                                   Vas a tener que pagar manualmente la próxima cuota.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Volver</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={async () => {
-                                    setTogglingId(sub.id);
-                                    try {
-                                      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`;
-                                      const res = await fetch(url, {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                                        },
-                                        body: JSON.stringify({ suscripcion_id: sub.id }),
-                                      });
-                                      if (!res.ok) throw new Error("cancel failed");
-                                      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, auto_cobro_activo: false, mp_preapproval_status: "cancelled" } : s));
-                                      toast({ title: "Renovación cancelada", description: "No volveremos a cobrar este plan automáticamente." });
-                                    } catch {
-                                      toast({ title: "Error", description: "No se pudo cancelar. Intentá de nuevo.", variant: "destructive" });
-                                    } finally {
-                                      setTogglingId(null);
-                                    }
-                                  }}
-                                >
-                                  Sí, cancelar
+                                <AlertDialogAction onClick={() => handleToggleRenovacion(sub)}>
+                                  Sí, desactivar
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                        </div>
-                      )}
-
-                      {/* MP auto-charge authorization */}
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col">
-                            <span className="text-xs font-medium text-foreground">Cobro automático Mercado Pago</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {hasRealAutoCharge(sub) ? "Autorizado para el próximo período" : "Requiere autorización externa"}
-                            </span>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={hasRealAutoCharge(sub)}
-                          onCheckedChange={() => handleToggleRenovacion(sub)}
-                          disabled={togglingId === sub.id}
-                        />
+                        ) : (
+                          <Switch
+                            checked={false}
+                            onCheckedChange={() => handleToggleRenovacion(sub)}
+                            disabled={togglingId === sub.id || readOnly}
+                          />
+                        )}
                       </div>
+
+
 
                       {/* Change plan — disponible para planes activos o con pago pendiente de validación */}
                       {(effectiveStatus === "activa" || effectiveStatus === "pendiente_verificacion") && sub.fecha_inicio && sub.fecha_fin && (
