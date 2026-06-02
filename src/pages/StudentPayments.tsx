@@ -533,31 +533,9 @@ const StudentPayments = () => {
                       </div>
                     </div>
 
-                    {/* Auto-renewal */}
-                    <div className={`rounded-lg p-3 text-xs ${
-                      hasRealAutoCharge(sub)
-                        ? "bg-primary/5 border border-primary/20 text-primary"
-                        : hasPendingAutoChargeAuth(sub)
-                          ? "bg-yellow-500/5 border border-yellow-500/30 text-yellow-500"
-                        : "bg-muted/50 border border-border text-muted-foreground"
-                    }`}>
-                      {hasRealAutoCharge(sub) ? (
-                        <>
-                          <span className="font-semibold">Cobro automático autorizado.</span>{" "}
-                          Próximo cobro: {formatPrice(sub.plan?.precio || 0)} el {formatDate(sub.fecha_fin)}.
-                        </>
-                      ) : hasPendingAutoChargeAuth(sub) ? (
-                        <>
-                          <span className="font-semibold">Autorización pendiente.</span>{" "}
-                          Falta completar la autorización en Mercado Pago para que el próximo cobro sea automático.
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-semibold">Cobro automático desactivado.</span>{" "}
-                          Activarlo requiere autorización de Mercado Pago.
-                        </>
-                      )}
-                    </div>
+                    {/* (status compacto va como pill en el header; sin banner redundante) */}
+
+
 
                     {/* Pago / renovación CTA */}
                     {(() => {
