@@ -540,6 +540,73 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Anular suscripción */}
+      <AlertDialog open={!!cancelSub} onOpenChange={(o) => !o && setCancelSub(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Anular esta suscripción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se marcará como <strong>cancelada</strong> con fecha de hoy y se apagará la auto-renovación.
+              El cargo se mantiene en la cuenta corriente como histórico.
+              <br />
+              <span className="text-foreground">{cancelSub?.concepto}</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
+              disabled={cancelLoading}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {cancelLoading ? "Anulando…" : "Sí, anular"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cambiar plan */}
+      <Dialog open={!!changeSub} onOpenChange={(o) => { if (!o) { setChangeSub(null); setChangeNewPlanId(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" /> Cambiar plan
+            </DialogTitle>
+            <DialogDescription>
+              Reemplaza el plan asignado a esta suscripción. El cargo en cuenta corriente se actualiza al precio del nuevo plan.
+              <br />
+              <span className="text-foreground text-xs">{changeSub?.concepto}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs">Nuevo plan</Label>
+            <SelectPlan value={changeNewPlanId} onValueChange={setChangeNewPlanId}>
+              <SelectPlanTrigger>
+                <SelectPlanValue placeholder="Elegí un plan…" />
+              </SelectPlanTrigger>
+              <SelectPlanContent>
+                {planes.map((p) => (
+                  <SelectPlanItem key={p.id} value={p.id}>
+                    {p.nombre} {p.precio != null ? `· ${formatPrice(p.precio, p.moneda || "ARS")}` : ""}
+                  </SelectPlanItem>
+                ))}
+              </SelectPlanContent>
+            </SelectPlan>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setChangeSub(null); setChangeNewPlanId(""); }} disabled={changeLoading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleChangePlan}
+              disabled={changeLoading || !changeNewPlanId || changeNewPlanId === changeSub?.currentPlanId}
+            >
+              {changeLoading ? "Guardando…" : "Cambiar plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
