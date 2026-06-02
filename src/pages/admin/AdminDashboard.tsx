@@ -225,21 +225,21 @@ const AdminDashboard = () => {
       const alumnoIdsConSub = new Set(subsActivas.map(s => s.alumno_id));
       const sinPlan = alumnos.filter(a => !alumnoIdsConSub.has(a.id)).length;
       if (sinPlan > 0) {
-        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos" });
+        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos?filter=sin_plan" });
       }
       const informados = allSubs.filter(s => s.origen_registro === "informado_alumno" && s.estado === "pendiente").length;
       if (informados > 0) {
         alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
       }
       if (alumnosBloqueados > 0) {
-        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos" });
+        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos?filter=bloqueados" });
       }
       if (alumnosVacaciones > 0) {
-        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos" });
+        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos?filter=vacaciones" });
       }
       const sinGrupo = allAlumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
       if (sinGrupo > 0) {
-        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos" });
+        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos?filter=sin_grupo" });
       }
       // Inconsistency detection
       const INVALID_COMBOS: [string, string][] = [["vacaciones", "activa"], ["inactivo", "activa"], ["bloqueado", "activa"]];
@@ -248,7 +248,7 @@ const AdminDashboard = () => {
         return sub ? INVALID_COMBOS.some(([u, s]) => u === a.estado && s === sub.estado) : false;
       }).length;
       if (inconsistentCount > 0) {
-        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos" });
+        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos?filter=inconsistentes" });
       }
       setAlerts(alertsList);
 
