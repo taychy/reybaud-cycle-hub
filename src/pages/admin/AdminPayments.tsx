@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard,
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
-  ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, XCircle
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
@@ -244,6 +244,21 @@ const AdminPayments = () => {
   // Correct method dialog (for student-reported payments)
   const [correctMethodDialog, setCorrectMethodDialog] = useState<Suscripcion | null>(null);
   const [correctMethodValue, setCorrectMethodValue] = useState("efectivo");
+  // Reject pending payment dialog
+  const [rejectDialog, setRejectDialog] = useState<Suscripcion | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  // Simulate auto-renewal failure (super admin only)
+  const [simulateDialog, setSimulateDialog] = useState<Suscripcion | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from("admin_profiles").select("role").eq("user_id", session.user.id).maybeSingle();
+      setIsSuperAdmin(data?.role === "super_admin");
+    })();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -399,6 +414,45 @@ const AdminPayments = () => {
 
   // Nota: las acciones "Conciliar" y "Suspender acceso" se removieron de esta vista
   // para simplificar la operatoria diaria y evitar ruido visual.
+
+  const callSubAction = async (sub: Suscripcion, action: "approve" | "reject" | "simulate_fail", extra: Record<string, unknown> = {}) => {
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { sub_id: sub.id, action, ...extra },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error || "No se pudo procesar", variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const handleApprovePending = async (sub: Suscripcion) => {
+    if (await callSubAction(sub, "approve")) {
+      toast({ title: "Pago validado", description: `${sub.alumnos?.nombre} — ${sub.planes?.nombre}` });
+      fetchData();
+    }
+  };
+
+  const handleRejectPending = async () => {
+    if (!rejectDialog) return;
+    if (await callSubAction(rejectDialog, "reject", { reason: rejectReason })) {
+      toast({ title: "Pago rechazado", description: "Se notificó al alumno por email." });
+      setRejectDialog(null);
+      setRejectReason("");
+      fetchData();
+    }
+  };
+
+  const handleSimulateFail = async () => {
+    if (!simulateDialog) return;
+    if (await callSubAction(simulateDialog, "simulate_fail")) {
+      toast({ title: "Fallo simulado", description: "Se envió el email y se desactivó el auto-cobro." });
+      setSimulateDialog(null);
+      fetchData();
+    }
+  };
+
+
 
 
 
@@ -796,6 +850,27 @@ const AdminPayments = () => {
                                   <TooltipContent>{sub.chequeado_admin ? "Quitar marca de chequeado" : "Marcar como chequeado (conciliado con MP/transferencia/efectivo)"}</TooltipContent>
                                 </Tooltip>
 
+                                {status === "informado" && (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="default" size="sm" className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApprovePending(sub)}>
+                                          <CheckCircle className="w-3 h-3 mr-1" />Validar
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Validar pago informado y activar suscripción</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => { setRejectDialog(sub); setRejectReason(""); }}>
+                                          <XCircle className="w-3 h-3 mr-1" />Rechazar
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Rechazar pago, vencer suscripción y notificar al alumno</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                )}
+
                                 {(status === "pendiente" || status === "vencido") && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -806,6 +881,18 @@ const AdminPayments = () => {
                                     <TooltipContent>Marcar como pagado</TooltipContent>
                                   </Tooltip>
                                 )}
+
+                                {isSuperAdmin && sub.auto_cobro_activo && sub.mp_preapproval_id && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSimulateDialog(sub)}>
+                                        <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>🧪 Simular fallo de renovación (envía email de prueba)</TooltipContent>
+                                  </Tooltip>
+                                )}
+
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
@@ -940,6 +1027,52 @@ const AdminPayments = () => {
             >
               Confirmar
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject payment dialog */}
+      <Dialog open={!!rejectDialog} onOpenChange={(open) => { if (!open) { setRejectDialog(null); setRejectReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rechazar pago informado</DialogTitle>
+            <DialogDescription>
+              {rejectDialog?.alumnos?.nombre} — {rejectDialog?.planes?.nombre}. La suscripción vuelve a "vencida" y el alumno recibe un email para reintentar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Motivo (opcional, se incluye en el email)</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ej: no encontramos el depósito en la cuenta, o el comprobante adjunto no corresponde."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialog(null); setRejectReason(""); }}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRejectPending}>
+              <XCircle className="w-4 h-4 mr-1" />Rechazar y notificar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Simulate auto-renewal failure */}
+      <AlertDialog open={!!simulateDialog} onOpenChange={(open) => !open && setSimulateDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🧪 Simular fallo de renovación</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esto va a: marcar 3 intentos fallidos en la suscripción de <strong>{simulateDialog?.alumnos?.nombre}</strong> ({simulateDialog?.planes?.nombre}),
+              desactivar el auto-cobro, y enviarle un email <strong>[SIMULACIÓN]</strong> con CTA para pagar. También aparecerá el banner rojo en su dashboard.
+              <br /><br />
+              Para revertir, reactivá el auto-cobro desde el perfil del alumno o pisá el conteo de fallidos con un pago manual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSimulateFail}>Simular fallo</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

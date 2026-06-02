@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
 import HomeNewsCarousel from "@/components/HomeNewsCarousel";
 import HomePendingResultBanner from "@/components/HomePendingResultBanner";
+import FailedRenewalBanner from "@/components/FailedRenewalBanner";
 import HomeTrainingExtras from "@/components/HomeTrainingExtras";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -539,6 +540,9 @@ const StudentDashboard = () => {
 
             {/* CTA: resultado pendiente de eventos tipo Record */}
             {alumno && <HomePendingResultBanner alumnoEmail={alumno.email} />}
+
+            {/* Failed auto-renewal banner */}
+            {alumno && <FailedRenewalBanner alumnoId={alumno.id} />}
 
             {/* Payment status - show all pending */}
             {pendingPayments.map((pp) => (
