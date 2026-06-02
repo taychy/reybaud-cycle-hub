@@ -18,7 +18,7 @@ interface AdminProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: "super_admin" | "admin" | "support";
+  role: "super_admin" | "admin" | "deposito";
   status: string;
   password_set: boolean;
   last_login_at: string | null;
@@ -28,7 +28,7 @@ interface AdminProfile {
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
-  support: "Soporte",
+  deposito: "Depósito",
 };
 
 const ManageAdmins = () => {
@@ -141,11 +141,20 @@ const ManageAdmins = () => {
       .eq("id", editAdmin.id);
     if (error) {
       toast.error("Error al guardar");
-    } else {
-      toast.success(`Admin ${editAdmin.first_name} actualizado`);
-      setEditAdmin(null);
-      fetchAdmins();
+      setSaving(false);
+      return;
     }
+    // Sync user_roles: deposito ↔ admin
+    const desiredRole = editRole === "deposito" ? "deposito" : "admin";
+    const otherRole = editRole === "deposito" ? "admin" : "deposito";
+    await supabase.from("user_roles").delete().eq("user_id", editAdmin.user_id).eq("role", otherRole as any);
+    await supabase.from("user_roles").upsert(
+      { user_id: editAdmin.user_id, role: desiredRole as any },
+      { onConflict: "user_id,role" } as any
+    );
+    toast.success(`Admin ${editAdmin.first_name} actualizado`);
+    setEditAdmin(null);
+    fetchAdmins();
     setSaving(false);
   };
 
@@ -428,7 +437,7 @@ const ManageAdmins = () => {
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="support">Soporte</SelectItem>
+                  <SelectItem value="deposito">Depósito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -458,7 +467,7 @@ const ManageAdmins = () => {
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="support">Soporte</SelectItem>
+                  <SelectItem value="deposito">Depósito</SelectItem>
                 </SelectContent>
               </Select>
             </div>

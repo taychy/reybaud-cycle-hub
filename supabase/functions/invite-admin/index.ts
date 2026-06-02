@@ -55,9 +55,10 @@ Deno.serve(async (req) => {
       throw new Error("El formato del email es inválido");
     }
 
-    if (!["super_admin", "admin", "support"].includes(role)) {
+    if (!["super_admin", "admin", "deposito"].includes(role)) {
       throw new Error("Rol inválido");
     }
+    const appRole = role === "deposito" ? "deposito" : "admin";
 
     // Always use public app URL to avoid auth-bridge redirects
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
@@ -132,11 +133,25 @@ Deno.serve(async (req) => {
 
     if (profileError) throw profileError;
 
-    // Assign admin role in user_roles (ignore if exists)
+    // Remove the opposite role and assign the correct one
+    const otherRole = appRole === "deposito" ? "admin" : "deposito";
+    await adminClient.from("user_roles").delete().eq("user_id", userId).eq("role", otherRole);
     await adminClient.from("user_roles").upsert({
       user_id: userId,
-      role: "admin",
+      role: appRole,
     }, { onConflict: "user_id,role" } as any);
+
+    // Mirror deposito_profiles for the existing stock flow compatibility
+    if (appRole === "deposito") {
+      await adminClient.from("deposito_profiles").upsert({
+        user_id: userId,
+        nombre: `${first_name} ${last_name}`.trim(),
+        email,
+        estado: "activo",
+      }, { onConflict: "user_id" } as any);
+    } else {
+      await adminClient.from("deposito_profiles").delete().eq("user_id", userId);
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Outlet, NavLink } from "react-router-dom";
+import { useNavigate, Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,6 @@ const configItems: NavItem[] = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
-  { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 
@@ -60,8 +59,10 @@ const navSections: NavSection[] = [
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isDeposito, setIsDeposito] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
@@ -82,12 +83,12 @@ const AdminLayout = () => {
         return;
       }
 
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
-        _role: "admin",
-      });
+      const [{ data: isAdmin }, { data: isDepo }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "deposito" as any }),
+      ]);
 
-      if (!isAdmin) {
+      if (!isAdmin && !isDepo) {
         await supabase.auth.signOut();
         navigate("/admin/login");
         return;
@@ -102,14 +103,15 @@ const AdminLayout = () => {
         sessionStorage.setItem("admin_login_updated", "true");
       }
 
-      // Check if super_admin
+      // Load admin_profile role
       const { data: profile } = await supabase
         .from("admin_profiles")
         .select("role")
         .eq("user_id", session.user.id)
-        .single();
-      if (isMounted && profile?.role === "super_admin") {
-        setIsSuperAdmin(true);
+        .maybeSingle();
+      if (isMounted) {
+        if (profile?.role === "super_admin") setIsSuperAdmin(true);
+        if (profile?.role === "deposito" || (!isAdmin && isDepo)) setIsDeposito(true);
       }
 
       if (isMounted) setLoading(false);
@@ -131,6 +133,17 @@ const AdminLayout = () => {
       </div>
     );
   }
+
+  // Restrict deposito to Tienda section only
+  if (isDeposito && !location.pathname.startsWith("/admin/tienda")) {
+    return <Navigate to="/admin/tienda" replace />;
+  }
+
+  const visibleSections = isDeposito
+    ? navSections.filter((s) => s.label === "Tienda")
+    : navSections;
+
+
 
   const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
@@ -223,7 +236,7 @@ const AdminLayout = () => {
             </>
           )}
 
-          {navSections.map((section, idx) => (
+          {visibleSections.map((section, idx) => (
             <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
               <div className="pb-1">
                 {!collapsed && (
@@ -321,7 +334,7 @@ const AdminLayout = () => {
               </>
             )}
 
-            {navSections.map((section, idx) => (
+            {visibleSections.map((section, idx) => (
               <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
                 <div className="pb-1">
                   <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">

@@ -132,7 +132,7 @@ const App = () => (
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
             <Route path="resumen" element={<AdminDashboard />} />
             <Route path="alumnos" element={<ManageStudents />} />

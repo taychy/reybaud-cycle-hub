@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ShieldX, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AllowedRole = "admin" | "coach" | "alumno";
+type AllowedRole = "admin" | "coach" | "alumno" | "deposito";
 
 interface ProtectedRouteProps {
   allowedRoles: AllowedRole[];
@@ -31,7 +31,7 @@ const ProtectedRoute = ({
 
     const checkRoles = async (userId: string) => {
       const foundRoles: string[] = [];
-      for (const role of (["admin", "coach"] as const)) {
+      for (const role of (["admin", "coach", "deposito"] as const)) {
         const { data } = await supabase.rpc("has_role", {
           _user_id: userId,
           _role: role as any,

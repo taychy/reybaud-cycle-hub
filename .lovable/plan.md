@@ -1,77 +1,62 @@
-# Sistema de PDF + Email de facturas
+## Objetivo
 
-## Resumen
-Cuando AFIP aprueba el CAE, se genera automáticamente un PDF moderno de la factura, se guarda en storage y se envía por email al alumno con link al portal y a WhatsApp. Admin podrá descargar y reenviar desde el panel.
+1. **Eliminar el rol "Soporte"** del sistema (los admins existentes con rol `support` se borran de `admin_profiles` y pierden acceso al panel admin).
+2. **Unificar la gestión de Depósito** dentro de `/admin/admins`: al invitar se puede elegir rol `super_admin`, `admin` o `deposito`, y los usuarios depósito aparecen en la misma tabla.
+3. **Acceso del rol Depósito**: al entrar al panel solo ve las opciones del menú **Tienda** (Dashboard, Productos, Categorías, Pedidos, Preventas, Promociones, Banners, Stock, Analytics).
 
-## 1. Datos del emisor (migration)
-Agregar a `emisores_fiscales`:
-- `logo_url` (text) — logo subido por admin
-- `domicilio_comercial` (text)
-- `condicion_iva` (text) — default `'Monotributista'`
-- `inicio_actividades` (date)
-- `email_contacto` (text)
-- `telefono_contacto` (text)
-- `website` (text, opcional)
+---
 
-UI: panel admin de emisores con upload de logo (bucket público `emisor-logos`) y form para los campos nuevos.
+## Cambios
 
-## 2. Storage
-- Bucket público `emisor-logos` (logos de emisores)
-- Bucket privado `facturas-pdf` con políticas: admin lee todo, alumno lee solo sus facturas vía signed URLs generadas por edge function.
+### 1. Base de datos (migration)
+- Agregar `'deposito'` al enum `admin_role`.
+- Borrar las filas de `admin_profiles` con `role = 'support'` y sus entradas en `user_roles` con `role = 'admin'` (revoca acceso admin a quienes eran Soporte; el usuario auth queda, pueden re-invitarse).
+- Dejar el valor `'support'` en el enum (Postgres no lo elimina fácil) pero la UI ya no lo expone.
 
-## 3. Edge function `generate-factura-pdf`
-- Input: `factura_id`
-- Lee `facturas` + `emisores_fiscales` + `alumnos` + datos de la referencia (suscripcion/pedido/evento) para armar concepto automático tipo `"Plan Mensual Grupal — Junio 2026"`.
-- Usa **pdf-lib** (Deno compatible) para renderizar layout moderno A4:
-  - Header: logo + razón social + CUIT + IIBB + domicilio + condición IVA + inicio actividades
-  - Bloque "FACTURA C" + Nº comprobante + fecha + código (011)
-  - Datos del cliente (nombre, doc, condición fiscal "Consumidor Final")
-  - Tabla de ítems (1 línea con concepto auto-generado + cantidad 1 + precio + subtotal)
-  - Totales (Importe Neto, Total)
-  - Footer AFIP: CAE + vencimiento + Ley 27.743 + QR oficial AFIP (JSON base64 con ver/fecha/cuit/ptoVta/tipoCmp/nroCmp/importe/moneda/ctz/tipoDocRec/nroDocRec/tipoCodAut/codAut)
-  - Mensaje al cliente: "Accedé a tu portal: reybaud-app.com · WhatsApp: {telefono_contacto del emisor}"
-- Sube PDF a `facturas-pdf/{factura_id}.pdf`
-- Guarda en columna nueva `facturas.pdf_path`
-- Devuelve `{ path, signed_url }`
+### 2. Edge function `invite-admin`
+- Aceptar `role ∈ {super_admin, admin, deposito}` (sacar `support`).
+- Si `role = 'deposito'`:
+  - Crear/actualizar `admin_profiles` con `role='deposito'`.
+  - Asignar `user_roles` con `role='deposito'` (no `'admin'`).
+  - Crear/actualizar `deposito_profiles` con `estado='activo'` para mantener compatibilidad con el flujo actual de stock.
+- Si `role ∈ {super_admin, admin}`: igual que hoy (`user_roles.role='admin'`).
 
-## 4. Edge function `send-factura-email`
-- Input: `factura_id`
-- Resuelve email del alumno (`alumnos.email` o auth.users).
-- Genera signed URL del PDF (válida 30 días) o lo regenera si falta.
-- Llama `enqueue_email` (cola `transactional_emails`) con HTML branded (oscuro+naranja como la app):
-  - Subject: `Tu factura {numero_comprobante} de Reybaud Ciclismo`
-  - Body: saludo + resumen (concepto + total + CAE) + botón "Descargar PDF" + botón "Ir al portal" + link WhatsApp.
+### 3. Frontend `ManageAdmins.tsx`
+- `ROLE_LABELS`: sacar `support`, agregar `deposito: "Depósito"`.
+- `Select` de rol (crear y editar): opciones Super Admin / Admin / Depósito.
+- Tipos: `role: "super_admin" | "admin" | "deposito"`.
+- Al editar un usuario y cambiarle el rol entre admin↔deposito, mover su entrada en `user_roles` correspondiente (RPC o doble update).
 
-## 5. Auto-dispatch
-- Al final de `emit-factura-afip`, cuando el update con CAE es exitoso: `fetch` a `generate-factura-pdf` y luego a `send-factura-email` (fire-and-forget con `EdgeRuntime.waitUntil`, no bloquea respuesta).
+### 4. `AdminLayout.tsx` (acceso y sidebar)
+- Cambiar el check inicial: aceptar entrada si el user tiene `admin` **o** `deposito`.
+- Cargar `admin_profiles.role` y guardarlo en estado.
+- Sidebar:
+  - Si `role === 'deposito'`: mostrar **solo** la sección "Tienda" (ocultar Principal, Finanzas, Configuración, y los items Métricas/Gastos de super admin).
+  - Si entra a `/admin` sin sub-ruta y es deposito, redirigir a `/admin/tienda`.
 
-## 6. UI admin (`BillingList.tsx`)
-Por cada factura `emitida` con CAE agregar dos botones secundarios:
-- **Descargar PDF** → llama `generate-factura-pdf` si no existe y abre signed URL en pestaña nueva.
-- **Reenviar email** → llama `send-factura-email`, toast confirmación.
+### 5. `App.tsx` (route guard)
+- Cambiar `<Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}>...}` a `allowedRoles={["admin", "deposito"]}`.
+- Para que un deposito no pueda abrir rutas no-Tienda por URL directa: dejar que `AdminLayout` haga un `Navigate` a `/admin/tienda` si el `pathname` no empieza con `/admin/tienda` y `role === 'deposito'`. Opción simple y suficiente para este caso.
 
-## 7. UI alumno (`StudentPayments.tsx`)
-Al lado de cada pago con factura emitida, botón "Descargar factura" que abre signed URL.
+### 6. Limpieza menor
+- Item del sidebar "Depósito" (`/admin/deposito` → `ManageDeposito`) queda como Configuración para super admin/admin (gestionar quién es deposito) — pero como ahora se administra desde `/admin/admins`, ocultar ese item. La pantalla `ManageDeposito` y la ruta `/deposito` standalone quedan como están (no se tocan).
 
-## Detalles técnicos
-- pdf-lib via `npm:pdf-lib@1.17.1`
-- QR via `npm:qrcode@1.5.3` (genera PNG buffer → embed en PDF)
-- Concepto auto-armado:
-  - `referencia_tipo='suscripcion'` → lee plan + período → `"Plan {nombre} — {Mes Año}"`
-  - `referencia_tipo='pedido'` → `"Compra Tienda Reybaud"`
-  - `referencia_tipo='evento'/'viaje'` → `"Inscripción {nombre_evento}"`
-  - fallback: `factura.concepto` actual
-- Email HTML con fondo blanco (regla email infra) pero acento naranja Reybaud (#FF6B1A).
-- Idempotencia: si `pdf_path` ya existe, `generate-factura-pdf` reusa salvo `force=true`.
+---
 
-## Archivos a tocar
-- Migration: `add_emisor_branding_and_factura_pdf.sql` (columnas + 2 buckets + políticas)
-- `supabase/functions/generate-factura-pdf/index.ts` (nuevo)
-- `supabase/functions/send-factura-email/index.ts` (nuevo)
-- `supabase/functions/emit-factura-afip/index.ts` (hook al final)
-- `supabase/config.toml` (verify_jwt=false para las 2 nuevas, autenticadas internamente)
-- `src/pages/admin/billing/BillingEmisores.tsx` (form + upload logo)
-- `src/pages/admin/billing/BillingList.tsx` (botones PDF/Reenviar)
-- `src/pages/StudentPayments.tsx` (botón descargar factura)
+## Archivos afectados
 
-¿Avanzo con todo esto, o querés ajustar algo antes (por ejemplo dejar fuera la UI del alumno o el upload de logo para una segunda iteración)?
+- **Nueva migration** (enum + cleanup).
+- `supabase/functions/invite-admin/index.ts`
+- `src/pages/admin/ManageAdmins.tsx`
+- `src/pages/admin/AdminLayout.tsx`
+- `src/App.tsx` (un solo `allowedRoles`)
+
+---
+
+## Fuera de alcance
+
+- No se modifica el portal standalone `/deposito` (sigue funcionando).
+- No se eliminan las pantallas `ManageDeposito` ni `invite-deposito` (quedan inutilizadas pero no rompen nada).
+- No se hace migración de UI para el badge "Contraseña pendiente" (se mantiene tal cual).
+
+¿Avanzo con esto?
