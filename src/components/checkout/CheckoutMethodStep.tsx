@@ -1,9 +1,12 @@
-import { CreditCard, ArrowLeft, ChevronRight } from "lucide-react";
+import { CreditCard, ArrowLeft, ChevronRight, Landmark, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useState } from "react";
+import { ASESORIA_TRANSFER_INFO } from "@/lib/contactInfo";
+import { toast } from "sonner";
 
 // Specific payment method the student declares
 export type DeclaredPaymentMethod =
@@ -18,6 +21,8 @@ interface CheckoutMethodStepProps {
   onSelect: (method: DeclaredPaymentMethod, otherDetail?: string) => void;
   processing: boolean;
   onBack: () => void;
+  /** Cuando es true (ej: Asesoría Personalizada), oculta MP/tarjeta y solo permite transferencia bancaria. */
+  transferOnly?: boolean;
 }
 
 type AlreadyPaidOption = "mercadopago" | "transferencia" | "efectivo" | "otro";
