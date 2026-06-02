@@ -44,6 +44,8 @@ type Suscripcion = {
   mp_preapproval_status?: string | null;
   chequeado_admin?: boolean;
   chequeado_admin_at?: string | null;
+  cancelada_at?: string | null;
+  cancelada_motivo?: string | null;
 
   alumnos: {
     id: string;
