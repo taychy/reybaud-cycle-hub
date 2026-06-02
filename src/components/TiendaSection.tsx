@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 import BuyProductDialog from "@/components/store/BuyProductDialog";
-import MisPreventas from "@/components/store/MisPreventas";
+import MisComprasSection from "@/components/store/MisComprasSection";
 
 // Fallback images
 import jerseyImg from "@/assets/store/jersey.jpg";
@@ -274,8 +274,8 @@ const TiendaSection = () => {
         ))}
       </div>
 
-      {/* Mis preventas */}
-      <MisPreventas alumnoId={alumnoId} />
+      {/* Mis compras (preventas + pedidos) */}
+      <MisComprasSection alumnoId={alumnoId} />
 
       {/* Featured products */}
       {activeCategory === "Todos" && !search && featured.length > 0 && (
