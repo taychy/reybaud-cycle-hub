@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       plan_id,
     } = body;
 
-    if (!token || !suscripcion_id) {
+    if (!token || !suscripcion_id || !alumno_id || !plan_id) {
       return new Response(
         JSON.stringify({ error: "Faltan parámetros requeridos" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -45,12 +45,57 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Process payment via MP API
+    // ──────────────────────────────────────────────────────────────
+    // VALIDACIÓN SERVER-SIDE: el monto que mandó el cliente tiene
+    // que coincidir con el precio_final ya persistido en la sub.
+    // Esto evita que un cliente manipulado pague $1 por un plan caro.
+    // ──────────────────────────────────────────────────────────────
+    const { data: sub, error: subFetchErr } = await supabaseAdmin
+      .from("suscripciones")
+      .select("id, alumno_id, plan_id, precio_final, estado, mp_payment_id")
+      .eq("id", suscripcion_id)
+      .maybeSingle();
+
+    if (subFetchErr || !sub) {
+      console.error("Sub fetch error:", subFetchErr);
+      return new Response(
+        JSON.stringify({ error: "Suscripción no encontrada" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (sub.alumno_id !== alumno_id || sub.plan_id !== plan_id) {
+      console.warn("Sub mismatch:", { sub_alumno: sub.alumno_id, body_alumno: alumno_id });
+      return new Response(
+        JSON.stringify({ error: "Datos de suscripción inválidos" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (sub.estado === "activa" || sub.estado === "conciliado") {
+      return new Response(
+        JSON.stringify({ error: "Esta suscripción ya está activa" }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const expectedAmount = Number(sub.precio_final);
+    const clientAmount = Number(transaction_amount);
+    // Tolerancia de 1 centavo para evitar falsos negativos por float
+    if (!Number.isFinite(clientAmount) || Math.abs(expectedAmount - clientAmount) > 0.01) {
+      console.warn("Amount mismatch:", { expected: expectedAmount, received: clientAmount });
+      return new Response(
+        JSON.stringify({ error: "El monto no coincide con el precio del plan" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Process payment via MP API — uso el monto validado del servidor.
     const paymentBody = {
       token,
       issuer_id,
       payment_method_id,
-      transaction_amount: Number(transaction_amount),
+      transaction_amount: expectedAmount,
       installments: Number(installments),
       payer: {
         email: payer?.email || "",
@@ -61,14 +106,18 @@ Deno.serve(async (req) => {
       statement_descriptor: "CICLISMO REYBAUD",
     };
 
-    console.log("Processing card payment:", { suscripcion_id, amount: transaction_amount });
+    console.log("Processing card payment:", { suscripcion_id, amount: expectedAmount });
+
+    // Idempotency key con timestamp: permite reintentos con otra tarjeta
+    // después de un rechazo, sin que MP cachee el resultado anterior 24h.
+    const idempotencyKey = `${suscripcion_id}:${Date.now()}`;
 
     const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
-        "X-Idempotency-Key": suscripcion_id,
+        "X-Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify(paymentBody),
     });
@@ -85,7 +134,8 @@ Deno.serve(async (req) => {
     });
 
     // Si MP devuelve un 4xx sin "status" (ej. token inválido, datos faltantes),
-    // propagamos el error de forma legible sin tocar la suscripción.
+    // propagamos el error de forma legible SIN tocar la suscripción para que
+    // el alumno pueda reintentar sin que aparezca como "baja".
     if (!mpResponse.ok && !mpData?.status) {
       const mpMessage =
         mpData?.message ||
@@ -144,10 +194,14 @@ Deno.serve(async (req) => {
         })
         .eq("id", suscripcion_id);
     } else {
+      // Rechazo: dejamos la sub en "pendiente" (no "cancelada") para:
+      //  1) No contar como baja en métricas/alertas admin.
+      //  2) Permitir reintento con otra tarjeta sobre la misma sub.
+      // El detalle del rechazo queda en mp_status para auditoría.
       await supabaseAdmin
         .from("suscripciones")
         .update({
-          estado: "cancelada",
+          estado: "pendiente",
           mp_payment_id: mpData.id ? String(mpData.id) : null,
           mp_status: mpData.status || "rejected",
           metodo_pago: "mercadopago",
