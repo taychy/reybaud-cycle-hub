@@ -17,21 +17,23 @@ Deno.serve(async (req) => {
 
     // Verify caller is an admin
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No autorizado");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("No autorizado");
 
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: caller } } = await anonClient.auth.getUser();
-    if (!caller) throw new Error("No autorizado");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    const callerId = claimsData?.claims?.sub;
+    if (claimsError || !callerId) throw new Error("No autorizado");
 
     // Check caller is super_admin
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: callerProfile } = await adminClient
       .from("admin_profiles")
       .select("role")
-      .eq("user_id", caller.id)
+      .eq("user_id", callerId)
       .maybeSingle();
 
     if (!callerProfile || callerProfile.role !== "super_admin") {
