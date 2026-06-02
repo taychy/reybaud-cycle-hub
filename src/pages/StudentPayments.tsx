@@ -635,57 +635,64 @@ const StudentPayments = () => {
 
                     {/* Per-plan actions */}
                     <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
-                      {/* Renovación automática (única fila, con subtítulo contextual) */}
-                      <div className={`flex items-center justify-between px-4 py-3 border-b border-border/50 ${hasRealAutoCharge(sub) ? "bg-primary/5" : ""}`}>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <RefreshCw className={`w-4 h-4 shrink-0 ${hasRealAutoCharge(sub) ? "text-primary" : "text-muted-foreground"}`} />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-medium text-foreground">Renovación automática</span>
-                            <span className="text-[10px] text-muted-foreground truncate">
-                              {hasRealAutoCharge(sub)
-                                ? `Próximo cobro ${formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)} el ${formatDate(sub.fecha_fin)}`
-                                : hasPendingAutoChargeAuth(sub)
-                                  ? "Falta completar la autorización en Mercado Pago"
-                                  : "Activala para que Mercado Pago renueve sola cada período"}
-                            </span>
+                      {(() => {
+                        const autoEligible = !!sub.plan?.permite_auto_cobro && sub.plan?.frecuencia === "mensual";
+                        const subtitleEligible = hasRealAutoCharge(sub)
+                          ? `Próximo cobro ${formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)} el ${formatDate(sub.fecha_fin)}`
+                          : hasPendingAutoChargeAuth(sub)
+                            ? "Falta completar la autorización en Mercado Pago"
+                            : "Activala para que Mercado Pago renueve sola cada período";
+                        const subtitle = autoEligible
+                          ? subtitleEligible
+                          : "Este plan no admite renovación automática";
+                        return (
+                          <div className={`flex items-center justify-between px-4 py-3 border-b border-border/50 ${hasRealAutoCharge(sub) ? "bg-primary/5" : ""}`}>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <RefreshCw className={`w-4 h-4 shrink-0 ${hasRealAutoCharge(sub) ? "text-primary" : "text-muted-foreground"}`} />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                                <span className="text-[10px] text-muted-foreground truncate">{subtitle}</span>
+                              </div>
+                            </div>
+                            {hasRealAutoCharge(sub) ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={togglingId === sub.id || readOnly}
+                                    className="shrink-0"
+                                    aria-label="Desactivar renovación automática"
+                                  >
+                                    <Switch checked onCheckedChange={() => {}} className="pointer-events-none" />
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-card border-border">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Desactivar la renovación automática?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará solo.
+                                      Vas a tener que pagar manualmente la próxima cuota.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Volver</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleToggleRenovacion(sub)}>
+                                      Sí, desactivar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <Switch
+                                checked={false}
+                                onCheckedChange={() => handleToggleRenovacion(sub)}
+                                disabled={!autoEligible || togglingId === sub.id || readOnly}
+                              />
+                            )}
                           </div>
-                        </div>
-                        {hasRealAutoCharge(sub) ? (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <button
-                                type="button"
-                                disabled={togglingId === sub.id || readOnly}
-                                className="shrink-0"
-                                aria-label="Desactivar renovación automática"
-                              >
-                                <Switch checked onCheckedChange={() => {}} className="pointer-events-none" />
-                              </button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-card border-border">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Desactivar la renovación automática?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará solo.
-                                  Vas a tener que pagar manualmente la próxima cuota.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Volver</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleToggleRenovacion(sub)}>
-                                  Sí, desactivar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        ) : (
-                          <Switch
-                            checked={false}
-                            onCheckedChange={() => handleToggleRenovacion(sub)}
-                            disabled={togglingId === sub.id || readOnly}
-                          />
-                        )}
-                      </div>
+                        );
+                      })()}
+
 
 
 
