@@ -333,6 +333,16 @@ const ManageStudents = () => {
   };
   const duplicadosCount = alumnos.filter(isDuplicate).length;
 
+  // Alumnos con más de una suscripción activa (multi_subs)
+  const activeSubsByAlumno: Record<string, number> = {};
+  suscripciones.forEach(s => {
+    if (s.estado === "activa") {
+      activeSubsByAlumno[s.alumno_id] = (activeSubsByAlumno[s.alumno_id] || 0) + 1;
+    }
+  });
+  const hasMultiSubs = (a: Alumno) => (activeSubsByAlumno[a.id] || 0) > 1;
+  const multiSubsCount = alumnos.filter(hasMultiSubs).length;
+
   // --- Access status ---
   const conAccesoCount = alumnos.filter(a => !!a.user_id).length;
   const sinAccesoCount = alumnos.filter(a => !a.user_id).length;
@@ -374,6 +384,7 @@ const ManageStudents = () => {
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
       case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
       case "duplicados": return isDuplicate(a);
+      case "multi_subs": return hasMultiSubs(a);
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
       case "sin_plan": return sinPlanIds.has(a.id);
@@ -911,6 +922,7 @@ const ManageStudents = () => {
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
     ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
     ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
+    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Con 2+ suscripciones", count: multiSubsCount }] : []),
     { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
     { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
     ...Object.entries(planCounts).map(([planId, { name, count }]) => ({

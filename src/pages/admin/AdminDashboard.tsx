@@ -416,7 +416,7 @@ const AdminDashboard = () => {
       {/* Aviso de inconsistencia alumnos vs suscripciones */}
       {duplicadosCount > 0 && (
         <Link
-          to="/admin/alumnos?filter=duplicados"
+          to="/admin/alumnos?filter=multi_subs"
           className="flex items-center gap-3 rounded-md border border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 p-3 transition-colors"
         >
           <AlertTriangle className="w-5 h-5 shrink-0 text-blue-500" />
