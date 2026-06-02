@@ -128,6 +128,11 @@ const SuperAdminResumen = () => {
 
   const maxPlanCount = Math.max(...planDist.map(p => p.count), 1);
 
+  const curLabel = monthLabel(periodoBajas);
+  const prevDate = new Date();
+  prevDate.setMonth(prevDate.getMonth() - 1);
+  const prevLabel = monthLabel(`${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`);
+
   const alertCards = [
     {
       label: "Facturas por realizar",
@@ -135,7 +140,7 @@ const SuperAdminResumen = () => {
       icon: FileText,
       tone: "yellow",
       to: "/admin/facturacion",
-      hint: "Pagos cobrados sin factura emitida",
+      hint: `Cobrados en ${curLabel} sin factura emitida`,
     },
     {
       label: "Pagos a chequear",
@@ -143,7 +148,7 @@ const SuperAdminResumen = () => {
       icon: CreditCard,
       tone: "orange",
       to: "/admin/pagos?chequeo=pendientes",
-      hint: "Conciliar contra MP / transferencia / efectivo",
+      hint: `Cobros de ${curLabel} sin conciliar (MP / transferencia / efectivo)`,
     },
     {
       label: "Bajas a chequear",
@@ -151,7 +156,7 @@ const SuperAdminResumen = () => {
       icon: AlertTriangle,
       tone: "red",
       to: "/admin/bajas",
-      hint: `Alumnos sin renovar en ${periodoBajas}`,
+      hint: `Sin sub activa hoy (la tenían en ${prevLabel})`,
     },
   ];
 
