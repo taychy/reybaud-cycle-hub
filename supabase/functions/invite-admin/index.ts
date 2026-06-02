@@ -145,8 +145,7 @@ Deno.serve(async (req) => {
     if (appRole === "deposito") {
       await adminClient.from("deposito_profiles").upsert({
         user_id: userId,
-        first_name,
-        last_name,
+        nombre: `${first_name} ${last_name}`.trim(),
         email,
         estado: "activo",
       }, { onConflict: "user_id" } as any);
