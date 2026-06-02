@@ -270,10 +270,8 @@ async function renderInvoicePdf(args: {
   page.drawLine({ start: { x: margin, y: msgY + 32 }, end: { x: W - margin, y: msgY + 32 }, color: LINE, thickness: 0.3 });
   drawText(page, "¿Consultas? Ingresá al portal de la app:", margin, msgY + 18, font, 9, TEXT_MUTED);
   drawText(page, APP_PORTAL_URL, margin + 195, msgY + 18, bold, 9, BRAND_ORANGE);
-  if (emisor?.telefono_contacto) {
-    const wa = emisor.telefono_contacto.replace(/\D/g, "");
-    drawText(page, `WhatsApp: +${wa}`, margin, msgY + 4, font, 9, TEXT_MUTED);
-  }
+  const waNumber = (emisor?.telefono_contacto || "").replace(/\D/g, "") || "5491140312299";
+  drawText(page, `WhatsApp: +${waNumber}`, margin, msgY + 4, font, 9, TEXT_MUTED);
   drawText(page, "Documento generado electrónicamente", W - margin - 180, msgY + 4, font, 7, TEXT_MUTED);
 
   return await doc.save();
