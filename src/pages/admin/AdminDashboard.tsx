@@ -116,11 +116,12 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes] = await Promise.all([
+      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").eq("estado", "activa"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
         supabase.from("alumnos").select("id, estado, grupo"),
+        supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
       ]);
 
       const alumnos = alumnosRes.data || [];
