@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download } from "lucide-react";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
+import ChangePlanScopeDialog from "@/components/ChangePlanScopeDialog";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { daysUntil, setEarlyRenewal, EARLY_RENEWAL_WINDOW_DAYS } from "@/lib/earlyRenewal";
 import { Button } from "@/components/ui/button";
@@ -159,6 +160,7 @@ const StudentPayments = () => {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [changePlanSub, setChangePlanSub] = useState<SubscriptionRecord | null>(null);
+  const [scopeDialogSub, setScopeDialogSub] = useState<SubscriptionRecord | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -713,7 +715,7 @@ const StudentPayments = () => {
                       {(effectiveStatus === "activa" || effectiveStatus === "pendiente_verificacion") && sub.fecha_inicio && sub.fecha_fin && (
                         <button
                           className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left border-b border-border/50"
-                          onClick={() => setChangePlanSub(sub)}
+                          onClick={() => setScopeDialogSub(sub)}
                         >
                           <ArrowRightLeft className="w-4 h-4 text-primary" />
                           <span className="text-xs font-medium text-foreground">Cambiar de plan</span>
@@ -883,6 +885,38 @@ const StudentPayments = () => {
           }}
           alumnoId={alumno.id}
           onPlanChanged={() => window.location.reload()}
+        />
+      )}
+
+      {/* Scope dialog: este período vs próximo período */}
+      {scopeDialogSub && (
+        <ChangePlanScopeDialog
+          open={!!scopeDialogSub}
+          onOpenChange={(open) => { if (!open) setScopeDialogSub(null); }}
+          currentPlanName={scopeDialogSub.plan?.nombre}
+          currentFechaFin={scopeDialogSub.fecha_fin}
+          onSelectScope={(scope) => {
+            const sub = scopeDialogSub;
+            setScopeDialogSub(null);
+            if (!sub) return;
+            if (scope === "actual") {
+              setChangePlanSub(sub);
+            } else {
+              // Próximo período: pagar adelantado eligiendo el nuevo plan
+              if (sub.fecha_fin) {
+                setEarlyRenewal({
+                  subId: sub.id,
+                  planId: sub.plan_id,
+                  fechaFin: sub.fecha_fin,
+                  autoRenovacion: hasRealAutoCharge(sub),
+                });
+              }
+              if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
+              // No preseleccionamos plan: el alumno elige cuál
+              localStorage.removeItem("alumno_preselect_plan_id");
+              navigate("/planes");
+            }
+          }}
         />
       )}
 
