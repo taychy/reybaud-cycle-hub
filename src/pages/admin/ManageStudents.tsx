@@ -113,7 +113,7 @@ const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("buscar") || "");
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
