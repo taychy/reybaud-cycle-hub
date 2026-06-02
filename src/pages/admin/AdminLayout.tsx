@@ -59,8 +59,10 @@ const navSections: NavSection[] = [
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isDeposito, setIsDeposito] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
@@ -81,12 +83,12 @@ const AdminLayout = () => {
         return;
       }
 
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
-        _role: "admin",
-      });
+      const [{ data: isAdmin }, { data: isDepo }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "deposito" as any }),
+      ]);
 
-      if (!isAdmin) {
+      if (!isAdmin && !isDepo) {
         await supabase.auth.signOut();
         navigate("/admin/login");
         return;
@@ -101,14 +103,15 @@ const AdminLayout = () => {
         sessionStorage.setItem("admin_login_updated", "true");
       }
 
-      // Check if super_admin
+      // Load admin_profile role
       const { data: profile } = await supabase
         .from("admin_profiles")
         .select("role")
         .eq("user_id", session.user.id)
-        .single();
-      if (isMounted && profile?.role === "super_admin") {
-        setIsSuperAdmin(true);
+        .maybeSingle();
+      if (isMounted) {
+        if (profile?.role === "super_admin") setIsSuperAdmin(true);
+        if (profile?.role === "deposito" || (!isAdmin && isDepo)) setIsDeposito(true);
       }
 
       if (isMounted) setLoading(false);
