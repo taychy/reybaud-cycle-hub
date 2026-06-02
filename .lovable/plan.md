@@ -1,98 +1,77 @@
-# Plan: Tienda v2 + Multi-cuentas MP
+# Sistema de PDF + Email de facturas
 
-Antes de tocar código quiero confirmar la arquitectura porque tu respuesta abrió un tema grande (multi-MP) que conviene separar en fases.
+## Resumen
+Cuando AFIP aprueba el CAE, se genera automáticamente un PDF moderno de la factura, se guarda en storage y se envía por email al alumno con link al portal y a WhatsApp. Admin podrá descargar y reenviar desde el panel.
 
----
+## 1. Datos del emisor (migration)
+Agregar a `emisores_fiscales`:
+- `logo_url` (text) — logo subido por admin
+- `domicilio_comercial` (text)
+- `condicion_iva` (text) — default `'Monotributista'`
+- `inicio_actividades` (date)
+- `email_contacto` (text)
+- `telefono_contacto` (text)
+- `website` (text, opcional)
 
-## Fase A — Variantes en productos normales (checkout in-app)
+UI: panel admin de emisores con upload de logo (bucket público `emisor-logos`) y form para los campos nuevos.
 
-### Base de datos
-- `store_products`: agregar
-  - `variants jsonb` (independiente de `preorder_variants`)
-  - `checkout_mode text` con valores `'in_app'` | `'tienda_nube'` (default `'tienda_nube'` para no romper lo actual)
-  - `tienda_emisor_id uuid` referencia a `cuentas_facturacion` (cuál CUIT usar al facturar ventas de tienda)
-- Nueva tabla `store_orders` (si no existe ya con suficiente detalle): `alumno_id`, `product_id`, `variant_selection jsonb`, `cantidad`, `precio_unitario`, `total`, `moneda`, `mp_payment_id`, `mp_status`, `estado`, `metodo_pago`, `origen_registro`, `notas`.
+## 2. Storage
+- Bucket público `emisor-logos` (logos de emisores)
+- Bucket privado `facturas-pdf` con políticas: admin lee todo, alumno lee solo sus facturas vía signed URLs generadas por edge function.
 
-### Frontend
-- `ProductForm` admin: `VariantsEditor` siempre visible (no solo preventa). Toggle "Checkout dentro de la app" → si activo, mostrar selector de cuenta MP/emisor.
-- Card de producto en Tienda alumno: si `checkout_mode='in_app'` y tiene variantes → abre drawer de compra con selección de variante + MP. Si `'tienda_nube'` → redirect como hoy.
-- Nuevo edge function `create-store-order-mp-preference` (gemelo de `create-preorder-mp-preference`).
+## 3. Edge function `generate-factura-pdf`
+- Input: `factura_id`
+- Lee `facturas` + `emisores_fiscales` + `alumnos` + datos de la referencia (suscripcion/pedido/evento) para armar concepto automático tipo `"Plan Mensual Grupal — Junio 2026"`.
+- Usa **pdf-lib** (Deno compatible) para renderizar layout moderno A4:
+  - Header: logo + razón social + CUIT + IIBB + domicilio + condición IVA + inicio actividades
+  - Bloque "FACTURA C" + Nº comprobante + fecha + código (011)
+  - Datos del cliente (nombre, doc, condición fiscal "Consumidor Final")
+  - Tabla de ítems (1 línea con concepto auto-generado + cantidad 1 + precio + subtotal)
+  - Totales (Importe Neto, Total)
+  - Footer AFIP: CAE + vencimiento + Ley 27.743 + QR oficial AFIP (JSON base64 con ver/fecha/cuit/ptoVta/tipoCmp/nroCmp/importe/moneda/ctz/tipoDocRec/nroDocRec/tipoCodAut/codAut)
+  - Mensaje al cliente: "Accedé a tu portal: reybaud-app.com · WhatsApp: {telefono_contacto del emisor}"
+- Sube PDF a `facturas-pdf/{factura_id}.pdf`
+- Guarda en columna nueva `facturas.pdf_path`
+- Devuelve `{ path, signed_url }`
 
----
+## 4. Edge function `send-factura-email`
+- Input: `factura_id`
+- Resuelve email del alumno (`alumnos.email` o auth.users).
+- Genera signed URL del PDF (válida 30 días) o lo regenera si falta.
+- Llama `enqueue_email` (cola `transactional_emails`) con HTML branded (oscuro+naranja como la app):
+  - Subject: `Tu factura {numero_comprobante} de Reybaud Ciclismo`
+  - Body: saludo + resumen (concepto + total + CAE) + botón "Descargar PDF" + botón "Ir al portal" + link WhatsApp.
 
-## Fase B — Multi-cuentas MP + Facturación segmentada
+## 5. Auto-dispatch
+- Al final de `emit-factura-afip`, cuando el update con CAE es exitoso: `fetch` a `generate-factura-pdf` y luego a `send-factura-email` (fire-and-forget con `EdgeRuntime.waitUntil`, no bloquea respuesta).
 
-Hoy el sistema asume **una sola cuenta MP** (`MP_ACCESS_TOKEN` como secret global) y **una sola configuración de facturación**. Vos querés separar por origen: suscripciones, tienda, viajes.
+## 6. UI admin (`BillingList.tsx`)
+Por cada factura `emitida` con CAE agregar dos botones secundarios:
+- **Descargar PDF** → llama `generate-factura-pdf` si no existe y abre signed URL en pestaña nueva.
+- **Reenviar email** → llama `send-factura-email`, toast confirmación.
 
-### Propuesta
-- Nueva tabla `mp_accounts`:
-  - `id`, `nombre` ("MP Cuotas", "MP Tienda", "MP Viajes")
-  - `access_token` (cifrado / vía secret name), `public_key`
-  - `cuenta_facturacion_id` (a qué CUIT factura por default)
-  - `activo bool`
-- Nueva tabla `mp_routing` (o columna en cada tabla origen):
-  - `origen text` (`'suscripcion' | 'store' | 'evento' | 'preventa'`)
-  - `mp_account_id`
-  - default por origen, pero override por producto/evento si hace falta (`store_products.mp_account_id`, `events.mp_account_id`).
-- Edge functions (`create-mp-preference`, `create-event-mp-preference`, `create-preorder-mp-preference`, `create-store-order-mp-preference`, `process-card-payment`) leen el token de `mp_accounts` según el origen en vez del secret global. El secret global queda como fallback.
-- Admin UI nueva en **Configuración → Cuentas de cobro**: alta/edición de cuentas MP, prueba de conexión (ping a `/users/me`), asignación a origen.
-- `auto-facturar` ya recibe `cuit_emisor_id`; lo sigue usando, pero ahora viene resuelto desde el `mp_account.cuenta_facturacion_id` correspondiente.
+## 7. UI alumno (`StudentPayments.tsx`)
+Al lado de cada pago con factura emitida, botón "Descargar factura" que abre signed URL.
 
-### Implicancias
-- Los `access_token` de MP los seguís guardando como **secrets** (no en DB plano). La tabla `mp_accounts` guarda el **nombre del secret** (ej. `MP_TOKEN_TIENDA`) y los edge functions hacen `Deno.env.get(account.secret_name)`. Vas a tener que pegar los tokens vía el modal de secrets una vez por cuenta.
-- Webhooks: cada cuenta MP tiene su propia URL de webhook. Probablemente alcance con un único `mp-webhook` que mire `external_reference` (ya identifica el origen) y resuelva la cuenta. Si MP exige webhook distinto por cuenta, configuramos URLs `mp-webhook?account=tienda`.
+## Detalles técnicos
+- pdf-lib via `npm:pdf-lib@1.17.1`
+- QR via `npm:qrcode@1.5.3` (genera PNG buffer → embed en PDF)
+- Concepto auto-armado:
+  - `referencia_tipo='suscripcion'` → lee plan + período → `"Plan {nombre} — {Mes Año}"`
+  - `referencia_tipo='pedido'` → `"Compra Tienda Reybaud"`
+  - `referencia_tipo='evento'/'viaje'` → `"Inscripción {nombre_evento}"`
+  - fallback: `factura.concepto` actual
+- Email HTML con fondo blanco (regla email infra) pero acento naranja Reybaud (#FF6B1A).
+- Idempotencia: si `pdf_path` ya existe, `generate-factura-pdf` reusa salvo `force=true`.
 
----
+## Archivos a tocar
+- Migration: `add_emisor_branding_and_factura_pdf.sql` (columnas + 2 buckets + políticas)
+- `supabase/functions/generate-factura-pdf/index.ts` (nuevo)
+- `supabase/functions/send-factura-email/index.ts` (nuevo)
+- `supabase/functions/emit-factura-afip/index.ts` (hook al final)
+- `supabase/config.toml` (verify_jwt=false para las 2 nuevas, autenticadas internamente)
+- `src/pages/admin/billing/BillingEmisores.tsx` (form + upload logo)
+- `src/pages/admin/billing/BillingList.tsx` (botones PDF/Reenviar)
+- `src/pages/StudentPayments.tsx` (botón descargar factura)
 
-## Fase C — Combos de preventa
-
-### Modelo flexible (acepta tus dos casos)
-- `store_products.is_combo bool`
-- `store_products.combo_pricing_mode`: `'sum'` (suma componentes) | `'fixed'` (precio combo fijo con descuento implícito)
-- `store_products.combo_price numeric` (cuando `fixed`)
-- `store_products.sena_mode`: `'porcentaje'` | `'monto_fijo'`
-- `store_products.sena_valor numeric`
-
-- Nueva tabla `store_combo_items`:
-  - `combo_id` (FK a `store_products`)
-  - `component_product_id` (FK a `store_products`, **nullable** → si es null, es sub-ítem interno)
-  - `internal_name text`, `internal_variants jsonb` (cuando es sub-ítem interno sin producto propio)
-  - `precio_individual numeric` (precio si el cliente compra suelto)
-  - `obligatorio bool`
-  - `sort_order int`
-
-→ Esto resuelve tu "¿pueden ser las dos opciones?": sí, cada item puede apuntar a un producto reusable **o** definirse inline.
-
-### Stock cruzado (clave para no sobrevender)
-- Cuando el combo **no es preventa**: stock disponible = `min(stock disponible por talle equivalente de cada componente)`.
-  - Ej. combo Campera+Chaleco talle M = `min(stock_campera_M, stock_chaleco_M)`.
-  - Esto requiere que las variantes de los componentes compartan dimensión "Talle" con el mismo nombre. Si no matchean, marcamos el combo como "configuración inválida" en admin.
-- Cuando el combo **es preventa**: stock ilimitado (pedido al proveedor), respetando `preorder_total_units` global si se setea.
-- Helper RPC `get_combo_stock(combo_id, variant_selection)` que centraliza esta lógica.
-
-### Reserva
-- `store_preorders` agrega: `modalidad ('combo' | 'individual')`, `items jsonb` (`[{component_id|internal_idx, variantes, cantidad, precio}]`), `sena_calculada numeric`.
-- `PreorderReserveDialog` con 2 tabs: **Combo completo** (configurar variante por componente, ver precio combo y seña) / **Elegir por separado** (checkboxes por componente con precio individual, total dinámico, seña proporcional).
-- Seña = `sena_valor` si `sena_mode='monto_fijo'` (cuando combo completo) o `% * total` si `'porcentaje'` (siempre que sea split, o si admin elige %).
-
-### Público `/preventa/:id`
-- Si `is_combo`: muestra componentes con foto, precio combo vs precio sumado (badge "ahorrás $X"), ambos caminos de compra.
-
----
-
-## Orden de implementación que propongo
-
-1. **Fase A** primero (variantes + checkout in-app, usando el secret MP actual). Valor inmediato, bajo riesgo.
-2. **Fase C** (combos de preventa con stock cruzado). Independiente de B.
-3. **Fase B** (multi-cuentas MP). Es la más invasiva: toca todos los edge functions de pago + webhook + facturación. Vale la pena hacerla aislada para no mezclarla con bugs de tienda.
-
----
-
-## Lo que necesito confirmar antes de migrar
-
-1. **Fase B ahora o después?** ¿La empezamos en este mismo ciclo o primero A+C y B queda para el próximo? (Recomiendo separarla.)
-2. **¿Cuántas cuentas MP vas a tener** al arrancar? (Para saber si la UI de cuentas vale la pena ya o hardcodeo 2-3 slots.)
-3. **Sub-ítems internos del combo**: ¿necesitan stock propio o son puramente descriptivos? (Si no tienen stock, no se pueden vender sueltos — solo dentro del combo.)
-4. **Combo no-preventa**: ¿lo vas a usar? ¿O por ahora todos los combos son preventa y el stock cruzado lo dejamos para después?
-
-Decime y arranco con las migraciones.
+¿Avanzo con todo esto, o querés ajustar algo antes (por ejemplo dejar fuera la UI del alumno o el upload de logo para una segunda iteración)?
