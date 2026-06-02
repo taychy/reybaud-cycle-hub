@@ -490,7 +490,7 @@ export function PendingPaymentsList() {
       <p className="text-xs text-muted-foreground">
         Mostrando pagos confirmados desde el {new Date(CUTOFF_DATE).toLocaleDateString("es-AR")}.
         {" "}{counts.sin_facturar} sin factura emitida.
-        {" "}<span className="italic">Los pagos en efectivo no se facturan: se envía comprobante por mail.</span>
+        {" "}<span className="italic">Los pagos en efectivo y los pagos pendientes de verificación no aparecen acá.</span>
       </p>
 
       {loading ? (
