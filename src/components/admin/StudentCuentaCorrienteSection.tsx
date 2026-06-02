@@ -30,6 +30,16 @@ import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard"
 
 interface Props {
   alumnoId: string;
+  /** Llamado tras anular o cambiar una suscripción, para que el padre recargue secciones relacionadas. */
+  onSubscriptionsChanged?: () => void;
+}
+
+interface PlanOption {
+  id: string;
+  nombre: string;
+  precio: number | null;
+  moneda: string | null;
+  frecuencia: string | null;
 }
 
 interface Movimiento {
