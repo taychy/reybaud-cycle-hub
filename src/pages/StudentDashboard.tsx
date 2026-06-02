@@ -452,8 +452,17 @@ const StudentDashboard = () => {
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground" />
                 </button>
-              </div>
             </div>
+
+            {/* Datos de facturación (debajo de Pagos y suscripción) */}
+            {alumno && (
+              <BillingDataSelfSection
+                alumno={alumno}
+                onUpdate={(a) => setAlumno(a)}
+                readOnly={readOnly}
+              />
+            )}
+
 
             {/* Mis datos personales (emergencia + obra social) */}
             {alumno && (
