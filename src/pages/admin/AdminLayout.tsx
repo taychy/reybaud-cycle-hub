@@ -134,6 +134,17 @@ const AdminLayout = () => {
     );
   }
 
+  // Restrict deposito to Tienda section only
+  if (isDeposito && !location.pathname.startsWith("/admin/tienda")) {
+    return <Navigate to="/admin/tienda" replace />;
+  }
+
+  const visibleSections = isDeposito
+    ? navSections.filter((s) => s.label === "Tienda")
+    : navSections;
+
+
+
   const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2.5";
