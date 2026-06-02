@@ -106,6 +106,16 @@ const CardPaymentForm = ({
       const cardForm = mp.cardForm({
         amount: String(planPrice),
         iframe: true,
+        style: {
+          input: {
+            color: "#111827",
+            "font-size": "16px",
+            "font-family": "Inter, sans-serif",
+          },
+          placeholder: {
+            color: "#6b7280",
+          },
+        },
         form: {
           id: "mp-card-form",
           cardNumber: {
