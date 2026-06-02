@@ -454,11 +454,12 @@ const AdminPayments = () => {
 
   const [bulkNotifyPreview, setBulkNotifyPreview] = useState<{ count: number; preview: any[] } | null>(null);
   const [bulkNotifyLoading, setBulkNotifyLoading] = useState(false);
+  const [bulkOnlyAutoRenewal, setBulkOnlyAutoRenewal] = useState(false);
 
-  const openBulkNotify = async () => {
+  const fetchBulkPreview = async (onlyAuto: boolean) => {
     setBulkNotifyLoading(true);
     const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
-      body: { action: "bulk_notify_failed_renewals", dry_run: true },
+      body: { action: "bulk_notify_failed_renewals", dry_run: true, only_auto_renewal: onlyAuto },
     });
     setBulkNotifyLoading(false);
     if (error || (data as any)?.error) {
@@ -468,10 +469,20 @@ const AdminPayments = () => {
     setBulkNotifyPreview({ count: (data as any).count, preview: (data as any).preview || [] });
   };
 
+  const openBulkNotify = async () => {
+    setBulkOnlyAutoRenewal(false);
+    await fetchBulkPreview(false);
+  };
+
+  const toggleBulkOnlyAuto = async (checked: boolean) => {
+    setBulkOnlyAutoRenewal(checked);
+    await fetchBulkPreview(checked);
+  };
+
   const confirmBulkNotify = async () => {
     setBulkNotifyLoading(true);
     const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
-      body: { action: "bulk_notify_failed_renewals", dry_run: false },
+      body: { action: "bulk_notify_failed_renewals", dry_run: false, only_auto_renewal: bulkOnlyAutoRenewal },
     });
     setBulkNotifyLoading(false);
     if (error || (data as any)?.error) {
