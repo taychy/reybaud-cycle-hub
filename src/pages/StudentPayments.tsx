@@ -415,10 +415,14 @@ const StudentPayments = () => {
     if (readOnly) return;
     if (alumno) {
       localStorage.setItem("registro_alumno_id", alumno.id);
-      localStorage.setItem("alumno_renewal", "1");
+      // No marcamos "alumno_renewal" porque este botón es para AGREGAR otro plan,
+      // no para renovar. Si lo marcáramos y el alumno ya tiene acceso vigente,
+      // /planes lo rebotaría a /alumno.
+      localStorage.removeItem("alumno_renewal");
     }
     navigate("/planes");
   };
+
 
   if (loading) {
     return (
