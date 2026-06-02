@@ -1004,14 +1004,21 @@ const AdminPayments = () => {
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell colSpan={8} className="p-0">
                               {(() => {
-                                const isCancelled = sub.estado === "cancelada" || !!sub.cancelada_at;
-                                const isRejected = sub.estado === "rechazada" || sub.mp_status === "rejected" || sub.mp_status === "cancelled";
+                                const hasMpError = !!sub.mp_status && ["400", "rejected", "cancelled", "in_process"].includes(String(sub.mp_status).toLowerCase());
+                                const everPaid = !!sub.mp_payment_id || sub.estado === "activa" || sub.estado === "conciliado";
+                                const isFailedAttempt = sub.estado === "cancelada" && !sub.cancelada_at && !everPaid && (hasMpError || !sub.mp_payment_id);
+                                const isCancelledByUser = (sub.estado === "cancelada" || !!sub.cancelada_at) && !isFailedAttempt;
+                                const isRejected = sub.estado === "rechazada";
                                 const isPending = sub.estado === "pendiente_verificacion";
-                                const wasPaid = sub.estado === "activa" || sub.estado === "conciliado" || (sub.cancelada_at && sub.fecha_inicio);
+                                const wasPaid = sub.estado === "activa" || sub.estado === "conciliado" || (sub.cancelada_at && sub.fecha_inicio && everPaid);
                                 let title = "";
                                 let detail = "";
                                 let tone = "bg-muted/40 text-muted-foreground border-border";
-                                if (isCancelled) {
+                                if (isFailedAttempt) {
+                                  title = "Intento de pago fallido — no se cobró";
+                                  detail = `El cobro por Mercado Pago no se completó${sub.mp_status ? ` (estado: ${sub.mp_status})` : ""}. No hay payment_id, así que no se debitó dinero. Normalmente el alumno reintenta y queda otra fila acreditada.`;
+                                  tone = "bg-muted/40 text-muted-foreground border-border";
+                                } else if (isCancelledByUser) {
                                   title = wasPaid ? "Pago cobrado y luego cancelado" : "Suscripción cancelada antes del cobro";
                                   detail = wasPaid
                                     ? `El alumno pagó el ${formatDate(sub.fecha_inicio)} y luego canceló la renovación automática el ${formatDate(sub.cancelada_at)}. Conserva acceso hasta el vencimiento (${formatDate(sub.fecha_fin)}).`
@@ -1028,7 +1035,7 @@ const AdminPayments = () => {
                                   tone = "bg-yellow-500/10 text-yellow-200 border-yellow-500/30";
                                 } else if (wasPaid) {
                                   title = "Pago acreditado";
-                                  detail = `Cobrado el ${formatDate(sub.fecha_inicio)}. Vigente hasta ${formatDate(sub.fecha_fin)}.`;
+                                  detail = `Cobrado el ${formatDate(sub.fecha_inicio)}${sub.mp_payment_id ? ` (MP #${sub.mp_payment_id})` : ""}. Vigente hasta ${formatDate(sub.fecha_fin)}.`;
                                   tone = "bg-emerald-500/10 text-emerald-200 border-emerald-500/30";
                                 }
                                 return title ? (
