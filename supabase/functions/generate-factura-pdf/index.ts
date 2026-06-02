@@ -224,10 +224,10 @@ async function renderInvoicePdf(args: {
   y -= 22;
   drawText(page, "Importe Neto:", W - margin - 220, y, font, 10, TEXT_MUTED);
   drawText(page, formatMoney(monto, moneda), W - margin - 70, y, font, 10, TEXT_DARK);
-  y -= 18;
-  page.drawRectangle({ x: W - margin - 230, y: y - 4, width: 230, height: 26, color: rgb(0.98, 0.93, 0.86) });
-  drawText(page, "TOTAL:", W - margin - 220, y + 6, bold, 12, TEXT_DARK);
-  drawText(page, formatMoney(monto, moneda), W - margin - 70, y + 6, bold, 12, BRAND_ORANGE);
+  y -= 28;
+  page.drawRectangle({ x: W - margin - 230, y: y - 6, width: 230, height: 26, color: rgb(0.98, 0.93, 0.86) });
+  drawText(page, "TOTAL:", W - margin - 220, y + 4, bold, 12, TEXT_DARK);
+  drawText(page, formatMoney(monto, moneda), W - margin - 70, y + 4, bold, 12, BRAND_ORANGE);
 
   // ===== AFIP FOOTER (CAE + QR) =====
   let footerY = 150;
