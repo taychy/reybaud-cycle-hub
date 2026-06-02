@@ -39,14 +39,14 @@ export default function FailedRenewalBanner({ alumnoId }: Props) {
       const today = new Date().toISOString().split("T")[0];
       const list: FailedSub[] = data
         .filter((s: any) => {
-          // Show banner when:
-          // - Sub is vencida (period ended without pay), OR
-          // - Auto-cobro was disabled by the system after repeated fails, OR
-          // - Period not yet ended but charge failed >= 1 time (heads-up)
-          const isOverdue = s.fecha_fin && s.fecha_fin < today;
-          const autoDisabled = s.auto_cobro_activo === false;
+          // Solo mostrar si hay intentos fallidos Y la sub sigue sin pagarse
+          // (vencida o fecha_fin pasada). Si ya pagó manualmente, fecha_fin
+          // queda en el futuro y el banner se oculta automáticamente.
           const failed = (s.intentos_cobro_fallidos ?? 0) >= 1;
-          return failed && (isOverdue || autoDisabled || s.estado === "vencida");
+          const isOverdue = s.fecha_fin && s.fecha_fin < today;
+          const isVencida = s.estado === "vencida";
+          if (s.estado === "cancelada") return false;
+          return failed && (isOverdue || isVencida);
         })
         .map((s: any) => ({
           id: s.id,
