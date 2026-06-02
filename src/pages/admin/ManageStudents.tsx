@@ -113,7 +113,7 @@ const ManageStudents = () => {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("buscar") || "");
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "todos");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrupo, setEditGrupo] = useState<string>("");
   const [manualSubAlumno, setManualSubAlumno] = useState<Alumno | null>(null);
@@ -302,6 +302,8 @@ const ManageStudents = () => {
   const sinGrupoCount = alumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
   const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
+  const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400000).toISOString();
+  const nuevosCount = alumnos.filter(a => a.created_at && a.created_at >= thirtyDaysAgoIso).length;
 
   // --- Duplicates detection (by email) ---
   const duplicateEmailSet = new Set<string>();
@@ -375,6 +377,7 @@ const ManageStudents = () => {
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
       case "sin_plan": return sinPlanIds.has(a.id);
+      case "nuevos": return !!a.created_at && a.created_at >= thirtyDaysAgoIso;
       default:
         if (statusFilter.startsWith("plan_")) {
           const planId = statusFilter.replace("plan_", "");
@@ -895,6 +898,7 @@ const ManageStudents = () => {
   // --- Filter chips ---
   const filters = [
     { key: "todos", label: "Todos", count: alumnos.length },
+    { key: "nuevos", label: "Nuevos (30d)", count: nuevosCount },
     { key: "pendientes", label: "Pendientes", count: pendingCount },
     { key: "activos", label: "Activos", count: activeCount },
     { key: "vacaciones", label: "Vacaciones", count: vacacionesCount },
