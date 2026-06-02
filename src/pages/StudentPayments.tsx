@@ -201,6 +201,21 @@ const StudentPayments = () => {
         setSubscriptions(mapped);
       }
 
+      // Cargar facturas aprobadas del alumno para mostrar botón "Descargar factura"
+      const { data: facts } = await supabase
+        .from("facturas")
+        .select("id, referencia_id, numero_comprobante, estado")
+        .eq("alumno_id", alumnoData.id)
+        .eq("referencia_tipo", "suscripcion")
+        .eq("estado", "aprobada");
+      if (!cancelled && facts) {
+        const map: Record<string, { id: string; numero_comprobante: string | null; estado: string }> = {};
+        for (const f of facts as any[]) {
+          if (f.referencia_id) map[f.referencia_id] = { id: f.id, numero_comprobante: f.numero_comprobante, estado: f.estado };
+        }
+        setFacturasBySub(map);
+      }
+
       setLoading(false);
     };
 
