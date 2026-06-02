@@ -46,6 +46,7 @@ const CardPaymentForm = ({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [payerEmail, setPayerEmail] = useState("");
   const [autoRenewalChecked, setAutoRenewalChecked] = useState(false);
   const cardFormRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,13 +55,16 @@ const CardPaymentForm = ({
   useEffect(() => {
     const fetchKey = async () => {
       try {
-        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-mp-public-key`;
-        const res = await fetch(functionUrl, {
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        });
-        const data = await res.json();
+        const [keyRes, alumnoRes] = await Promise.all([
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-mp-public-key`, {
+            headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          }),
+          supabase.from("alumnos").select("email").eq("id", alumnoId).maybeSingle(),
+        ]);
+        const data = await keyRes.json();
         if (data.public_key) {
           setMpPublicKey(data.public_key);
+          setPayerEmail((alumnoRes.data?.email || "").trim().toLowerCase());
         } else {
           setError("No se pudo obtener la configuración de pago.");
         }
@@ -69,7 +73,7 @@ const CardPaymentForm = ({
       }
     };
     fetchKey();
-  }, []);
+  }, [alumnoId]);
 
   // Load MercadoPago SDK and initialize card form
   useEffect(() => {
@@ -120,6 +124,10 @@ const CardPaymentForm = ({
             id: "mp-cardholder-name",
             placeholder: "Nombre del titular",
           },
+          cardholderEmail: {
+            id: "mp-cardholder-email",
+            placeholder: "Email",
+          },
           identificationNumber: {
             id: "mp-identification-number",
             placeholder: "DNI",
@@ -149,6 +157,13 @@ const CardPaymentForm = ({
 
             try {
               const formData = cardForm.getCardFormData();
+              const email = (formData.cardholderEmail || payerEmail || "").trim().toLowerCase();
+
+              if (!email) {
+                setError("Ingresá un email para continuar con Mercado Pago.");
+                setProcessing(false);
+                return;
+              }
 
               // Create subscription first
               const now = new Date();
@@ -192,7 +207,7 @@ const CardPaymentForm = ({
                   transaction_amount: planPrice,
                   installments: Number(formData.installments),
                   payer: {
-                    email: formData.cardholderEmail || "",
+                    email,
                     identification: {
                       type: formData.identificationType,
                       number: formData.identificationNumber,
@@ -229,7 +244,7 @@ const CardPaymentForm = ({
                         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
                       },
                       body: JSON.stringify({
-                        payer_email: formData.cardholderEmail || "",
+                        payer_email: email,
                         suscripcion_id: sub.id,
                         alumno_id: alumnoId,
                         plan_id: planId,
@@ -284,6 +299,9 @@ const CardPaymentForm = ({
     }).format(precio);
   };
 
+  const mpFieldClass = "h-12 rounded-md border border-input bg-foreground px-2 shadow-inner shadow-background/30";
+  const nativeFieldClass = "w-full h-12 rounded-md border border-input bg-foreground px-3 text-sm text-background placeholder:text-background/60 focus:outline-none focus:ring-2 focus:ring-primary";
+
   return (
     <div className="max-w-md mx-auto space-y-6 animate-fade-in" ref={containerRef}>
       <div className="text-center space-y-2">
@@ -333,7 +351,7 @@ const CardPaymentForm = ({
           <label className="text-xs font-medium text-muted-foreground">Número de tarjeta</label>
           <div
             id="mp-card-number"
-            className="h-11 rounded-md border border-input bg-background px-1"
+            className={mpFieldClass}
           />
         </div>
 
@@ -343,14 +361,14 @@ const CardPaymentForm = ({
             <label className="text-xs font-medium text-muted-foreground">Vencimiento</label>
             <div
               id="mp-expiration-date"
-              className="h-11 rounded-md border border-input bg-background px-1"
+              className={mpFieldClass}
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">CVV</label>
             <div
               id="mp-security-code"
-              className="h-11 rounded-md border border-input bg-background px-1"
+              className={mpFieldClass}
             />
           </div>
         </div>
@@ -361,7 +379,18 @@ const CardPaymentForm = ({
           <input
             id="mp-cardholder-name"
             type="text"
-            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className={nativeFieldClass}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Email</label>
+          <input
+            id="mp-cardholder-email"
+            type="email"
+            value={payerEmail}
+            onChange={(event) => setPayerEmail(event.target.value)}
+            className={nativeFieldClass}
           />
         </div>
 
@@ -371,7 +400,7 @@ const CardPaymentForm = ({
             <label className="text-xs font-medium text-muted-foreground">Tipo doc.</label>
             <select
               id="mp-identification-type"
-              className="w-full h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className={nativeFieldClass}
             />
           </div>
           <div className="space-y-1.5">
@@ -379,7 +408,7 @@ const CardPaymentForm = ({
             <input
               id="mp-identification-number"
               type="text"
-              className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className={nativeFieldClass}
             />
           </div>
         </div>
@@ -392,7 +421,7 @@ const CardPaymentForm = ({
           <label className="text-xs font-medium text-muted-foreground">Cuotas</label>
           <select
             id="mp-installments"
-            className="w-full h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className={nativeFieldClass}
           />
         </div>
 

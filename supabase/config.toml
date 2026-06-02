@@ -63,3 +63,7 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.cleanup-pending-subscriptions]
     verify_jwt = false
+  [functions.create-mp-preapproval]
+    verify_jwt = false
+  [functions.cancel-mp-preapproval]
+    verify_jwt = false

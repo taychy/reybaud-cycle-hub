@@ -68,6 +68,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    const { data: sub, error: subErr } = await supabaseAdmin
+      .from("suscripciones")
+      .select("id, alumno_id, plan_id, estado, cancelada_at")
+      .eq("id", suscripcion_id)
+      .maybeSingle();
+
+    if (subErr || !sub || sub.alumno_id !== alumno_id || sub.plan_id !== plan_id || sub.cancelada_at) {
+      return new Response(
+        JSON.stringify({ error: "Suscripción inválida para activar renovación automática" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const currencyId = (plan.moneda || "ARS").toUpperCase();
     const amount = Number(transaction_amount);
 
@@ -127,6 +140,7 @@ Deno.serve(async (req) => {
     await supabaseAdmin
       .from("suscripciones")
       .update({
+        auto_renovacion: true,
         mp_preapproval_id: String(mpData.id),
         mp_preapproval_status: mpData.status || "pending",
         auto_cobro_activo: mpData.status === "authorized",

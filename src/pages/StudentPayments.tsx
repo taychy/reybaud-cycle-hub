@@ -134,6 +134,17 @@ const getEffectiveStatus = (sub: SubscriptionRecord): string => {
   });
 };
 
+const hasRealAutoCharge = (sub: SubscriptionRecord): boolean =>
+  Boolean(sub.auto_cobro_activo && sub.mp_preapproval_id);
+
+const hasPendingAutoChargeAuth = (sub: SubscriptionRecord): boolean =>
+  Boolean(
+    sub.mp_preapproval_id &&
+    !sub.auto_cobro_activo &&
+    sub.mp_preapproval_status &&
+    !["cancelled", "paused", "rejected"].includes(sub.mp_preapproval_status)
+  );
+
 const StudentPayments = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -287,20 +298,62 @@ const StudentPayments = () => {
   const handleToggleRenovacion = async (sub: SubscriptionRecord) => {
     if (readOnly) return;
     setTogglingId(sub.id);
-    const newValue = !sub.auto_renovacion;
-    const { error } = await supabase
-      .from("suscripciones")
-      .update({ auto_renovacion: newValue } as any)
-      .eq("id", sub.id);
-    setTogglingId(null);
-    if (error) {
-      toast({ title: "Error", description: "No se pudo actualizar.", variant: "destructive" });
-    } else {
-      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, auto_renovacion: newValue } : s));
-      toast({
-        title: newValue ? "Renovación activada" : "Renovación desactivada",
-        description: `${sub.plan?.nombre || "Plan"}: ${newValue ? "se renovará" : "no se renovará"} automáticamente.`,
+    try {
+      if (hasRealAutoCharge(sub) || hasPendingAutoChargeAuth(sub)) {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ suscripcion_id: sub.id }),
+        });
+        if (!res.ok) throw new Error("cancel failed");
+        setSubscriptions(prev => prev.map(s => s.id === sub.id ? {
+          ...s,
+          auto_renovacion: false,
+          auto_cobro_activo: false,
+          mp_preapproval_status: "cancelled",
+        } : s));
+        toast({ title: "Renovación desactivada", description: "No se cobrará automáticamente el próximo período." });
+        return;
+      }
+
+      const amount = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
+      if (!alumno?.email || !amount) throw new Error("missing data");
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          payer_email: alumno.email,
+          suscripcion_id: sub.id,
+          alumno_id: alumno.id,
+          plan_id: sub.plan_id,
+          transaction_amount: amount,
+        }),
       });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "No se pudo crear la autorización");
+      if (data?.init_point) {
+        toast({ title: "Autorización requerida", description: "Te llevamos a Mercado Pago para autorizar el cobro automático." });
+        window.location.href = data.init_point;
+        return;
+      }
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? {
+        ...s,
+        auto_renovacion: true,
+        auto_cobro_activo: data?.status === "authorized",
+        mp_preapproval_id: data?.preapproval_id ?? s.mp_preapproval_id,
+        mp_preapproval_status: data?.status ?? s.mp_preapproval_status,
+      } : s));
+      toast({ title: "Renovación autorizada", description: "Mercado Pago quedó habilitado para cobrar el próximo período." });
+    } catch {
+      toast({ title: "Error", description: "No se pudo actualizar la renovación automática.", variant: "destructive" });
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -308,6 +361,16 @@ const StudentPayments = () => {
     if (readOnly) return;
     setCancellingId(sub.id);
     const cancelledAt = new Date().toISOString();
+    if (hasRealAutoCharge(sub) || hasPendingAutoChargeAuth(sub)) {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ suscripcion_id: sub.id }),
+      }).catch(() => null);
+    }
     const { error } = await supabase
       .from("suscripciones")
       .update({
@@ -315,13 +378,15 @@ const StudentPayments = () => {
         cancelada_at: cancelledAt,
         cancelada_motivo: "Cancelada por el alumno",
         auto_renovacion: false,
+        auto_cobro_activo: false,
+        mp_preapproval_status: sub.mp_preapproval_id ? "cancelled" : sub.mp_preapproval_status,
       } as any)
       .eq("id", sub.id);
     setCancellingId(null);
     if (error) {
       toast({ title: "Error", description: "No se pudo cancelar.", variant: "destructive" });
     } else {
-      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "cancelada", cancelada_at: cancelledAt, auto_renovacion: false } : s));
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "cancelada", cancelada_at: cancelledAt, auto_renovacion: false, auto_cobro_activo: false, mp_preapproval_status: s.mp_preapproval_id ? "cancelled" : s.mp_preapproval_status } : s));
       toast({
         title: "Suscripción cancelada",
         description: `${sub.plan?.nombre || "Plan"}: acceso disponible hasta ${formatDate(sub.fecha_fin)}.`,
@@ -455,19 +520,26 @@ const StudentPayments = () => {
 
                     {/* Auto-renewal */}
                     <div className={`rounded-lg p-3 text-xs ${
-                      sub.auto_renovacion
+                      hasRealAutoCharge(sub)
                         ? "bg-primary/5 border border-primary/20 text-primary"
+                        : hasPendingAutoChargeAuth(sub)
+                          ? "bg-yellow-500/5 border border-yellow-500/30 text-yellow-500"
                         : "bg-muted/50 border border-border text-muted-foreground"
                     }`}>
-                      {sub.auto_renovacion ? (
+                      {hasRealAutoCharge(sub) ? (
                         <>
-                          <span className="font-semibold">Renovación automática activada.</span>{" "}
+                          <span className="font-semibold">Cobro automático autorizado.</span>{" "}
                           Próximo cobro: {formatPrice(sub.plan?.precio || 0)} el {formatDate(sub.fecha_fin)}.
+                        </>
+                      ) : hasPendingAutoChargeAuth(sub) ? (
+                        <>
+                          <span className="font-semibold">Autorización pendiente.</span>{" "}
+                          Falta completar la autorización en Mercado Pago para que el próximo cobro sea automático.
                         </>
                       ) : (
                         <>
-                          <span className="font-semibold">Renovación automática desactivada.</span>{" "}
-                          Vence el {formatDate(sub.fecha_fin)}.
+                          <span className="font-semibold">Cobro automático desactivado.</span>{" "}
+                          Activarlo requiere autorización de Mercado Pago.
                         </>
                       )}
                     </div>
@@ -480,7 +552,7 @@ const StudentPayments = () => {
                             subId: sub.id,
                             planId: sub.plan_id,
                             fechaFin: sub.fecha_fin,
-                            autoRenovacion: sub.auto_renovacion,
+                            autoRenovacion: hasRealAutoCharge(sub),
                           });
                         }
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
@@ -536,7 +608,7 @@ const StudentPayments = () => {
                             <strong>Tu plan vence en {dLeft === 0 ? "menos de un día" : `${dLeft} día${dLeft !== 1 ? "s" : ""}`}.</strong>
                             {" "}Podés renovar el próximo período ahora (mismo plan o cambiarlo).
                           </p>
-                          {sub.auto_renovacion ? (
+                          {hasRealAutoCharge(sub) ? (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="gold" size="sm" className="w-full">Renovar próximo período</Button>
@@ -631,14 +703,19 @@ const StudentPayments = () => {
                         </div>
                       )}
 
-                      {/* Toggle renewal (legacy intent flag) */}
+                      {/* MP auto-charge authorization */}
                       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
                         <div className="flex items-center gap-2">
                           <RefreshCw className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium text-foreground">Cobro automático Mercado Pago</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {hasRealAutoCharge(sub) ? "Autorizado para el próximo período" : "Requiere autorización externa"}
+                            </span>
+                          </div>
                         </div>
                         <Switch
-                          checked={sub.auto_renovacion}
+                          checked={hasRealAutoCharge(sub)}
                           onCheckedChange={() => handleToggleRenovacion(sub)}
                           disabled={togglingId === sub.id}
                         />
