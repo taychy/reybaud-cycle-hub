@@ -698,7 +698,25 @@ const StudentPayments = () => {
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
+
+                    {facturasBySub[sub.id] && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={downloadingFacturaId === facturasBySub[sub.id].id}
+                        onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
+                      >
+                        {downloadingFacturaId === facturasBySub[sub.id].id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                        Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
+                      </Button>
+                    )}
                   </div>
+
                 );
               })}
 
