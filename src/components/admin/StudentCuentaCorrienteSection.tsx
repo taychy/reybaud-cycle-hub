@@ -79,7 +79,7 @@ function formatDate(d: string): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
+export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [saldos, setSaldos] = useState<SaldoRow[]>([]);
@@ -89,6 +89,14 @@ export function StudentCuentaCorrienteSection({ alumnoId }: Props) {
   const [editing, setEditing] = useState<AjusteCuentaValue | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+
+  // Subscription actions (cancel & change plan) launched from cargo_suscripcion rows
+  const [planes, setPlanes] = useState<PlanOption[]>([]);
+  const [cancelSub, setCancelSub] = useState<{ id: string; concepto: string } | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [changeSub, setChangeSub] = useState<{ id: string; concepto: string; currentPlanId: string | null } | null>(null);
+  const [changeNewPlanId, setChangeNewPlanId] = useState<string>("");
+  const [changeLoading, setChangeLoading] = useState(false);
 
   const PREVIEW_LIMIT = 5;
 
