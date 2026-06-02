@@ -452,6 +452,36 @@ const AdminPayments = () => {
     }
   };
 
+  const [bulkNotifyPreview, setBulkNotifyPreview] = useState<{ count: number; preview: any[] } | null>(null);
+  const [bulkNotifyLoading, setBulkNotifyLoading] = useState(false);
+
+  const openBulkNotify = async () => {
+    setBulkNotifyLoading(true);
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { action: "bulk_notify_failed_renewals", dry_run: true },
+    });
+    setBulkNotifyLoading(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error, variant: "destructive" });
+      return;
+    }
+    setBulkNotifyPreview({ count: (data as any).count, preview: (data as any).preview || [] });
+  };
+
+  const confirmBulkNotify = async () => {
+    setBulkNotifyLoading(true);
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { action: "bulk_notify_failed_renewals", dry_run: false },
+    });
+    setBulkNotifyLoading(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Notificación masiva enviada", description: `${(data as any).sent} / ${(data as any).total} mails encolados.` });
+    setBulkNotifyPreview(null);
+  };
+
 
 
 
@@ -637,6 +667,12 @@ const AdminPayments = () => {
               ))}
             </SelectContent>
           </Select>
+          {isSuperAdmin && (
+            <Button variant="outline" onClick={openBulkNotify} disabled={bulkNotifyLoading} className="gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              Notificar fallos de renovación
+            </Button>
+          )}
           <Button onClick={() => setShowRegisterPayment(true)} className="gap-1.5">
             <DollarSign className="w-4 h-4" />
             Registrar pago
@@ -1079,6 +1115,49 @@ const AdminPayments = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk notify failed renewals */}
+      <AlertDialog open={!!bulkNotifyPreview} onOpenChange={(open) => !open && setBulkNotifyPreview(null)}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>📣 Notificar fallos de renovación</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Se enviará el mismo email del botón 🧪 a <strong>{bulkNotifyPreview?.count ?? 0}</strong> alumno(s) con renovación automática
+                  cuya suscripción vence este mes y figura <strong>vencida</strong> o <strong>pendiente de verificación</strong>.
+                </p>
+                {bulkNotifyPreview && bulkNotifyPreview.count > 0 && (
+                  <div className="border rounded-md max-h-60 overflow-y-auto text-xs">
+                    <table className="w-full">
+                      <thead className="bg-muted sticky top-0">
+                        <tr><th className="text-left p-2">Alumno</th><th className="text-left p-2">Plan</th><th className="text-left p-2">Vence</th></tr>
+                      </thead>
+                      <tbody>
+                        {bulkNotifyPreview.preview.map((p, i) => (
+                          <tr key={i} className="border-t"><td className="p-2">{p.alumno}</td><td className="p-2">{p.plan}</td><td className="p-2">{p.fecha_fin}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {bulkNotifyPreview.count > bulkNotifyPreview.preview.length && (
+                      <p className="p-2 text-muted-foreground">…y {bulkNotifyPreview.count - bulkNotifyPreview.preview.length} más</p>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Idempotente por mes: si reenvías, el sistema evita duplicados con la misma clave del periodo.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkNotifyLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkNotify} disabled={bulkNotifyLoading || !bulkNotifyPreview?.count}>
+              Enviar a {bulkNotifyPreview?.count ?? 0} alumno(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
 
       {/* Edit fecha dialog */}
       <Dialog open={!!editFechaDialog} onOpenChange={(open) => !open && setEditFechaDialog(null)}>

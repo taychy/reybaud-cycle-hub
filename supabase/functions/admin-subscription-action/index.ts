@@ -78,6 +78,14 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
     const subId = String(body?.sub_id || "");
+
+    // Bulk notify: NO requires sub_id. Restricted to super_admin.
+    if (action === "bulk_notify_failed_renewals") {
+      if (role !== "super_admin") return json({ error: "Only super_admin" }, 403);
+      const dryRun = Boolean(body?.dry_run);
+      return await handleBulkNotify(admin, userId, adminProfile?.email, role, dryRun);
+    }
+
     if (!subId || !["approve", "reject", "simulate_fail"].includes(action)) {
       return json({ error: "Invalid payload" }, 400);
     }
@@ -160,7 +168,7 @@ Deno.serve(async (req) => {
             sender_domain: SENDER_DOMAIN,
             subject: "No pudimos confirmar tu pago",
             html: rejectHtml(alumno.nombre || "", (sub.planes as any)?.nombre || "tu plan", reason),
-            text: `Hola ${alumno.nombre || ""}, no pudimos confirmar el pago de ${(sub.planes as any)?.nombre || "tu plan"}. ${reason ? `Motivo: ${reason}. ` : ""}Reintentá desde ${APP_URL}/perfil?section=suscripciones`,
+            text: `Hola ${alumno.nombre || ""}, no pudimos confirmar el pago de ${(sub.planes as any)?.nombre || "tu plan"}. ${reason ? `Motivo: ${reason}. ` : ""}Reintentá desde ${APP_URL}/alumno/pagos`,
             purpose: "transactional",
             label: "payment_rejected_student",
             idempotency_key: `pay-rejected-${subId}-${Date.now()}`,
@@ -195,8 +203,8 @@ Deno.serve(async (req) => {
             from: FROM,
             sender_domain: SENDER_DOMAIN,
             subject: "[SIMULACIÓN] No pudimos cobrar tu renovación automática",
-            html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><div style="background:#fff3cd;border:1px solid #ffe69c;padding:8px 12px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#664d03">⚙️ Este es un mail de prueba disparado por el equipo.</div><h2 style="color:#b8860b;margin-bottom:12px">Hola ${alumno.nombre || ""},</h2><p>Intentamos renovar tu plan <strong>${(sub.planes as any)?.nombre || ""}</strong> automáticamente y la tarjeta fue rechazada.</p><p>Para no perder el acceso, podés pagar manualmente desde tu perfil o actualizar la tarjeta y volver a activar la renovación automática.</p><p style="margin:24px 0"><a href="${APP_URL}/perfil?section=suscripciones" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si necesitás ayuda, respondé este mail.</p></div>`,
-            text: `[SIMULACIÓN] Intentamos renovar tu plan ${(sub.planes as any)?.nombre || ""} y la tarjeta fue rechazada. Pagá manual desde ${APP_URL}/perfil?section=suscripciones`,
+            html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><div style="background:#fff3cd;border:1px solid #ffe69c;padding:8px 12px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#664d03">⚙️ Este es un mail de prueba disparado por el equipo.</div><h2 style="color:#b8860b;margin-bottom:12px">Hola ${alumno.nombre || ""},</h2><p>Intentamos renovar tu plan <strong>${(sub.planes as any)?.nombre || ""}</strong> automáticamente y la tarjeta fue rechazada.</p><p>Para no perder el acceso, podés pagar manualmente desde tu perfil o actualizar la tarjeta y volver a activar la renovación automática.</p><p style="margin:24px 0"><a href="${APP_URL}/alumno/pagos" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si necesitás ayuda, respondé este mail.</p></div>`,
+            text: `[SIMULACIÓN] Intentamos renovar tu plan ${(sub.planes as any)?.nombre || ""} y la tarjeta fue rechazada. Pagá manual desde ${APP_URL}/alumno/pagos`,
             purpose: "transactional",
             label: "auto_charge_failed_student_sim",
             idempotency_key: `auto-fail-sim-${subId}-${Date.now()}`,
@@ -230,7 +238,7 @@ function rejectHtml(nombre: string, planName: string, motivo: string) {
     <p>Revisamos el pago que informaste para <strong>${planName}</strong> y no pudimos confirmarlo en nuestra cuenta.</p>
     ${motivo ? `<p style="background:#fdecea;border-left:3px solid #c0392b;padding:10px 12px;border-radius:4px;color:#7b241c"><strong>Motivo:</strong> ${motivo}</p>` : ""}
     <p>Por favor reintentá el pago o contactanos para resolverlo. Tu suscripción quedó marcada como vencida hasta que se confirme el cobro.</p>
-    <p style="margin:24px 0"><a href="${APP_URL}/perfil?section=suscripciones" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Reintentar pago</a></p>
+    <p style="margin:24px 0"><a href="${APP_URL}/alumno/pagos" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Reintentar pago</a></p>
     <p style="color:#666;font-size:13px">Si ya pagaste y creés que es un error, respondé este mail con el comprobante.</p>
   </div>`;
 }
@@ -257,4 +265,87 @@ async function logAudit(
   } catch (e) {
     console.error("audit_log insert failed:", e);
   }
+}
+
+// Bulk: notifica a alumnos con renovación automática que NO se cobró este mes.
+// Criterio: suscripciones con mp_preapproval_id seteado (alguna vez tuvieron auto-cobro)
+// + estado IN ('vencida','pendiente_verificacion') + fecha_fin dentro del mes actual.
+async function handleBulkNotify(
+  admin: any,
+  userId: string,
+  userEmail: string | null | undefined,
+  role: string | null,
+  dryRun: boolean,
+) {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  const nowIso = now.toISOString();
+
+  const { data: subs, error } = await admin
+    .from("suscripciones")
+    .select("id, alumno_id, estado, fecha_fin, mp_preapproval_id, planes(nombre), alumnos(nombre, email)")
+    .not("mp_preapproval_id", "is", null)
+    .in("estado", ["vencida", "pendiente_verificacion"])
+    .gte("fecha_fin", firstDay)
+    .lte("fecha_fin", lastDay);
+
+  if (error) return json({ error: error.message }, 500);
+
+  const candidates = (subs || []).filter((s: any) => s.alumnos?.email);
+
+  if (dryRun) {
+    return json({
+      ok: true,
+      dry_run: true,
+      count: candidates.length,
+      preview: candidates.slice(0, 10).map((s: any) => ({
+        alumno: s.alumnos?.nombre,
+        email: s.alumnos?.email,
+        plan: s.planes?.nombre,
+        fecha_fin: s.fecha_fin,
+        estado: s.estado,
+      })),
+    });
+  }
+
+  let sent = 0;
+  const failures: string[] = [];
+  for (const s of candidates) {
+    try {
+      const email = (s.alumnos as any).email as string;
+      const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, email);
+      const planName = (s.planes as any)?.nombre || "tu plan";
+      const nombre = (s.alumnos as any)?.nombre || "";
+      await admin.rpc("enqueue_email" as any, {
+        queue_name: "transactional_emails",
+        payload: {
+          message_id: crypto.randomUUID(),
+          to: email,
+          from: FROM,
+          sender_domain: SENDER_DOMAIN,
+          subject: "No pudimos cobrar tu renovación automática",
+          html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><h2 style="color:#b8860b;margin-bottom:12px">Hola ${nombre},</h2><p>Intentamos renovar tu plan <strong>${planName}</strong> automáticamente y no pudimos completar el cobro.</p><p>Para no perder el acceso, podés pagar manualmente desde tu perfil o actualizar la tarjeta y volver a activar la renovación automática.</p><p style="margin:24px 0"><a href="${APP_URL}/alumno/pagos" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si ya pagaste, ignorá este mail. Si necesitás ayuda, respondé aquí.</p></div>`,
+          text: `Hola ${nombre}, no pudimos renovar tu plan ${planName}. Pagá manual desde ${APP_URL}/alumno/pagos`,
+          purpose: "transactional",
+          label: "auto_charge_failed_bulk",
+          idempotency_key: `auto-fail-bulk-${s.id}-${firstDay}`,
+          unsubscribe_token,
+          queued_at: nowIso,
+        },
+      });
+      sent++;
+    } catch (e) {
+      failures.push(`${s.id}: ${(e as Error).message}`);
+    }
+  }
+
+  await logAudit(admin, userId, userEmail, role, "bulk_notify_failed_renewals", "bulk", {
+    period: `${firstDay}..${lastDay}`,
+    sent,
+    total: candidates.length,
+    failures: failures.length,
+  });
+
+  return json({ ok: true, sent, total: candidates.length, failures });
 }
