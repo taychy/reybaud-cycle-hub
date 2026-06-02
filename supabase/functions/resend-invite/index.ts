@@ -105,9 +105,10 @@ Deno.serve(async (req) => {
     // Generate a new invite link (always creates a new token)
     const nombre = profileData.nombre || `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
 
-    // Use "recovery" type - works for existing users and redirects to /activar-cuenta for password setup
+    // Admins → magiclink (OTP). Alumnos/coaches → recovery (password setup).
+    const linkType = user_type === "admin" ? "magiclink" : "recovery";
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
+      type: linkType,
       email: normalizedEmail,
       options: {
         redirectTo,
