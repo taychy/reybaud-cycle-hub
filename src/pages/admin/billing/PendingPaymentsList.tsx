@@ -56,6 +56,18 @@ function isEfectivo(metodo: string | null | undefined): boolean {
   return m === "efectivo" || m === "cash" || m.includes("efectivo");
 }
 
+/** Pagos no confirmados: sin método o marcados como pendientes de verificación. */
+function isPagoPendiente(metodo: string | null | undefined): boolean {
+  if (!metodo) return true;
+  const m = metodo.toLowerCase().trim();
+  return (
+    m === "pendiente" ||
+    m === "pendiente_verificacion" ||
+    m.includes("pendiente") ||
+    m.includes("verificac")
+  );
+}
+
 export function PendingPaymentsList() {
   const [rows, setRows] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,9 +243,9 @@ export function PendingPaymentsList() {
       };
     });
 
-    // ⚠️ Excluir efectivo — esos pagos NO se facturan en AFIP
+    // ⚠️ Excluir efectivo (no se factura en AFIP) y pagos pendientes de verificación.
     const allRows = [...subRows, ...evRows, ...tiendaRows].filter(
-      (r) => !isEfectivo(r.metodo_pago),
+      (r) => !isEfectivo(r.metodo_pago) && !isPagoPendiente(r.metodo_pago) && r.monto > 0,
     );
 
     // 4) Cruce con facturas existentes
@@ -478,7 +490,7 @@ export function PendingPaymentsList() {
       <p className="text-xs text-muted-foreground">
         Mostrando pagos confirmados desde el {new Date(CUTOFF_DATE).toLocaleDateString("es-AR")}.
         {" "}{counts.sin_facturar} sin factura emitida.
-        {" "}<span className="italic">Los pagos en efectivo no se facturan: se envía comprobante por mail.</span>
+        {" "}<span className="italic">Los pagos en efectivo y los pagos pendientes de verificación no aparecen acá.</span>
       </p>
 
       {loading ? (
