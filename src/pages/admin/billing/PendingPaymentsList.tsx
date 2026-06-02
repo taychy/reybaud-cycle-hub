@@ -243,9 +243,9 @@ export function PendingPaymentsList() {
       };
     });
 
-    // ⚠️ Excluir efectivo — esos pagos NO se facturan en AFIP
+    // ⚠️ Excluir efectivo (no se factura en AFIP) y pagos pendientes de verificación.
     const allRows = [...subRows, ...evRows, ...tiendaRows].filter(
-      (r) => !isEfectivo(r.metodo_pago),
+      (r) => !isEfectivo(r.metodo_pago) && !isPagoPendiente(r.metodo_pago) && r.monto > 0,
     );
 
     // 4) Cruce con facturas existentes
