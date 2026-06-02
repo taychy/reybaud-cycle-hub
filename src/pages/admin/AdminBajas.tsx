@@ -174,7 +174,7 @@ const AdminBajas = () => {
               </Button>
               <div className="min-w-[180px] text-center">
                 <p className="text-sm font-heading font-bold uppercase tracking-wider">{monthLabel(periodo)}</p>
-                <p className="text-[10px] text-muted-foreground">Período de baja</p>
+                <p className="text-[10px] text-muted-foreground">Mes con sub activa</p>
               </div>
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setPeriodo(shiftMonth(periodo, 1))} disabled={periodo >= currentMonthKey()}>
                 <ChevronRight className="w-4 h-4" />
