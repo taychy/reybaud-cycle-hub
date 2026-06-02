@@ -15,6 +15,30 @@ const SENDER_DOMAIN = "notify.reybaud-app.com";
 const FROM = `Ciclismo Reybaud <noreply@${SENDER_DOMAIN}>`;
 const APP_URL = "https://reybaud-app.com";
 
+const getOrCreateUnsubscribeToken = async (admin: any, email: string): Promise<string> => {
+  const normalized = email.trim().toLowerCase();
+  const { data: existing } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  if (existing?.token) return existing.token;
+  const newToken = crypto.randomUUID();
+  const { data: inserted, error: insErr } = await admin
+    .from("email_unsubscribe_tokens")
+    .insert({ email: normalized, token: newToken })
+    .select("token")
+    .single();
+  if (!insErr && inserted?.token) return inserted.token;
+  const { data: fallback } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  if (fallback?.token) return fallback.token;
+  throw insErr ?? new Error("Could not create unsubscribe token");
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
