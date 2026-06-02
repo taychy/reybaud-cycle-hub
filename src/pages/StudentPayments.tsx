@@ -508,19 +508,26 @@ const StudentPayments = () => {
 
                     {/* Auto-renewal */}
                     <div className={`rounded-lg p-3 text-xs ${
-                      sub.auto_renovacion
+                      hasRealAutoCharge(sub)
                         ? "bg-primary/5 border border-primary/20 text-primary"
+                        : hasPendingAutoChargeAuth(sub)
+                          ? "bg-yellow-500/5 border border-yellow-500/30 text-yellow-500"
                         : "bg-muted/50 border border-border text-muted-foreground"
                     }`}>
-                      {sub.auto_renovacion ? (
+                      {hasRealAutoCharge(sub) ? (
                         <>
-                          <span className="font-semibold">Renovación automática activada.</span>{" "}
+                          <span className="font-semibold">Cobro automático autorizado.</span>{" "}
                           Próximo cobro: {formatPrice(sub.plan?.precio || 0)} el {formatDate(sub.fecha_fin)}.
+                        </>
+                      ) : hasPendingAutoChargeAuth(sub) ? (
+                        <>
+                          <span className="font-semibold">Autorización pendiente.</span>{" "}
+                          Falta completar la autorización en Mercado Pago para que el próximo cobro sea automático.
                         </>
                       ) : (
                         <>
-                          <span className="font-semibold">Renovación automática desactivada.</span>{" "}
-                          Vence el {formatDate(sub.fecha_fin)}.
+                          <span className="font-semibold">Cobro automático desactivado.</span>{" "}
+                          Activarlo requiere autorización de Mercado Pago.
                         </>
                       )}
                     </div>
@@ -684,14 +691,19 @@ const StudentPayments = () => {
                         </div>
                       )}
 
-                      {/* Toggle renewal (legacy intent flag) */}
+                      {/* MP auto-charge authorization */}
                       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
                         <div className="flex items-center gap-2">
                           <RefreshCw className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium text-foreground">Cobro automático Mercado Pago</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {hasRealAutoCharge(sub) ? "Autorizado para el próximo período" : "Requiere autorización externa"}
+                            </span>
+                          </div>
                         </div>
                         <Switch
-                          checked={sub.auto_renovacion}
+                          checked={hasRealAutoCharge(sub)}
                           onCheckedChange={() => handleToggleRenovacion(sub)}
                           disabled={togglingId === sub.id}
                         />
