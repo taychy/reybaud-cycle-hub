@@ -134,6 +134,17 @@ const getEffectiveStatus = (sub: SubscriptionRecord): string => {
   });
 };
 
+const hasRealAutoCharge = (sub: SubscriptionRecord): boolean =>
+  Boolean(sub.auto_cobro_activo && sub.mp_preapproval_id);
+
+const hasPendingAutoChargeAuth = (sub: SubscriptionRecord): boolean =>
+  Boolean(
+    sub.mp_preapproval_id &&
+    !sub.auto_cobro_activo &&
+    sub.mp_preapproval_status &&
+    !["cancelled", "paused", "rejected"].includes(sub.mp_preapproval_status)
+  );
+
 const StudentPayments = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -287,20 +298,62 @@ const StudentPayments = () => {
   const handleToggleRenovacion = async (sub: SubscriptionRecord) => {
     if (readOnly) return;
     setTogglingId(sub.id);
-    const newValue = !sub.auto_renovacion;
-    const { error } = await supabase
-      .from("suscripciones")
-      .update({ auto_renovacion: newValue } as any)
-      .eq("id", sub.id);
-    setTogglingId(null);
-    if (error) {
-      toast({ title: "Error", description: "No se pudo actualizar.", variant: "destructive" });
-    } else {
-      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, auto_renovacion: newValue } : s));
-      toast({
-        title: newValue ? "Renovación activada" : "Renovación desactivada",
-        description: `${sub.plan?.nombre || "Plan"}: ${newValue ? "se renovará" : "no se renovará"} automáticamente.`,
+    try {
+      if (hasRealAutoCharge(sub) || hasPendingAutoChargeAuth(sub)) {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ suscripcion_id: sub.id }),
+        });
+        if (!res.ok) throw new Error("cancel failed");
+        setSubscriptions(prev => prev.map(s => s.id === sub.id ? {
+          ...s,
+          auto_renovacion: false,
+          auto_cobro_activo: false,
+          mp_preapproval_status: "cancelled",
+        } : s));
+        toast({ title: "Renovación desactivada", description: "No se cobrará automáticamente el próximo período." });
+        return;
+      }
+
+      const amount = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
+      if (!alumno?.email || !amount) throw new Error("missing data");
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          payer_email: alumno.email,
+          suscripcion_id: sub.id,
+          alumno_id: alumno.id,
+          plan_id: sub.plan_id,
+          transaction_amount: amount,
+        }),
       });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "No se pudo crear la autorización");
+      if (data?.init_point) {
+        toast({ title: "Autorización requerida", description: "Te llevamos a Mercado Pago para autorizar el cobro automático." });
+        window.location.href = data.init_point;
+        return;
+      }
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? {
+        ...s,
+        auto_renovacion: true,
+        auto_cobro_activo: data?.status === "authorized",
+        mp_preapproval_id: data?.preapproval_id ?? s.mp_preapproval_id,
+        mp_preapproval_status: data?.status ?? s.mp_preapproval_status,
+      } : s));
+      toast({ title: "Renovación autorizada", description: "Mercado Pago quedó habilitado para cobrar el próximo período." });
+    } catch {
+      toast({ title: "Error", description: "No se pudo actualizar la renovación automática.", variant: "destructive" });
+    } finally {
+      setTogglingId(null);
     }
   };
 
