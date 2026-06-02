@@ -112,7 +112,32 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
   const [includeError, setIncludeError] = useState(true);
   const [includeManual, setIncludeManual] = useState(true);
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const handleDownload = async (id: string) => {
+    setBusyId(id + ":pdf");
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-factura-pdf", { body: { factura_id: id } });
+      if (error) throw error;
+      const url = (data as any)?.signed_url;
+      if (!url) throw new Error("Sin URL");
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast.error("Error al generar PDF", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
+  const handleResend = async (id: string) => {
+    setBusyId(id + ":mail");
+    try {
+      const { data, error } = await supabase.functions.invoke("send-factura-email", { body: { factura_id: id } });
+      if (error || (data as any)?.error) throw new Error(error?.message || (data as any).error);
+      toast.success("Email enviado al alumno");
+    } catch (e: any) {
+      toast.error("Error al enviar email", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
 
   // Monedas presentes en el dataset actual
   const monedasDisponibles = useMemo(() => {
