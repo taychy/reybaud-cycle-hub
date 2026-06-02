@@ -40,7 +40,7 @@ const SuperAdminResumen = () => {
       supabase.from("suscripciones").select("id, plan_id, estado"),
       supabase.from("planes").select("id, nombre, precio"),
       supabase.from("sedes").select("id, nombre"),
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, chequeado_admin, origen_registro, mp_status, baja_chequeada"),
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, created_at, chequeado_admin, origen_registro, mp_status, baja_chequeada"),
       supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
     ]);
 
