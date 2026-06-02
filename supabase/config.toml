@@ -69,3 +69,7 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.cancel-mp-preapproval]
     verify_jwt = false
+  [functions.invite-deposito]
+    verify_jwt = false
+  [functions.consultar-padron-afip]
+    verify_jwt = false
