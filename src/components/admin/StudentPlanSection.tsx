@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign, PauseCircle, RefreshCw } from "lucide-react";
+import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertTriangle, Plus, Bell, Eye, Tag, DollarSign, PauseCircle, RefreshCw, CheckCircle } from "lucide-react";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
@@ -551,6 +551,49 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </div>
         )}
 
+        {/* Pago informado pendiente de validación → botones Validar / Rechazar */}
+        {!isHistoric && effectiveEstado === "pendiente_verificacion" && (
+          <div className="pt-1 flex gap-1">
+            <Button
+              variant="default"
+              size="sm"
+              className="text-[10px] h-6 px-2 bg-emerald-600 hover:bg-emerald-700 text-white flex-1"
+              onClick={async () => {
+                const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+                  body: { sub_id: sub.id, action: "approve" },
+                });
+                if (error || (data as any)?.error) {
+                  toast.error((data as any)?.error || error?.message || "No se pudo validar");
+                } else {
+                  toast.success("Pago validado");
+                  onRefresh();
+                }
+              }}
+            >
+              <CheckCircle className="w-3 h-3 mr-0.5" /> Validar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-6 px-2 text-destructive border-destructive/40 hover:bg-destructive/10 flex-1"
+              onClick={async () => {
+                const reason = window.prompt("Motivo del rechazo (se incluye en el email al alumno):", "") || "";
+                const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+                  body: { sub_id: sub.id, action: "reject", reason },
+                });
+                if (error || (data as any)?.error) {
+                  toast.error((data as any)?.error || error?.message || "No se pudo rechazar");
+                } else {
+                  toast.success("Pago rechazado y email enviado");
+                  onRefresh();
+                }
+              }}
+            >
+              <XCircle className="w-3 h-3 mr-0.5" /> Rechazar
+            </Button>
+          </div>
+        )}
+
         {/* Overdue actions — only for active subs, NOT history */}
         {!isHistoric && isOverdueStatus(effectiveEstado) && (
           <div className="pt-1 space-y-1">
@@ -572,6 +615,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             </Button>
           </div>
         )}
+
 
         {/* History: no action buttons except View Detail (future) */}
       </div>
