@@ -84,6 +84,20 @@ Deno.serve(async (req) => {
     const currencyId = (plan.moneda || "ARS").toUpperCase();
     const amount = Number(transaction_amount);
 
+    // Mercado Pago minimum amounts per currency (preapproval)
+    const MP_MIN_AMOUNT: Record<string, number> = { ARS: 15, USD: 1, EUR: 1 };
+    const minAmount = MP_MIN_AMOUNT[currencyId] ?? 15;
+    if (!Number.isFinite(amount) || amount < minAmount) {
+      return new Response(
+        JSON.stringify({
+          error: `El monto del plan (${currencyId} ${amount}) es menor al mínimo permitido por Mercado Pago (${currencyId} ${minAmount}). No se puede activar la renovación automática en este plan.`,
+          code: "amount_below_minimum",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+
     const preapprovalPayload: Record<string, unknown> = {
       reason: `Renovación automática mensual — ${plan.nombre}`,
       external_reference: suscripcion_id,
