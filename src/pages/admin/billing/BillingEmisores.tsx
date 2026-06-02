@@ -26,6 +26,14 @@ interface Emisor {
   limite_anual_ars?: number | null;
   categoria_monotributo?: string | null;
   auto_facturar_origenes?: string[] | null;
+  logo_url?: string | null;
+  domicilio_comercial?: string | null;
+  condicion_iva?: string | null;
+  inicio_actividades?: string | null;
+  email_contacto?: string | null;
+  telefono_contacto?: string | null;
+  website?: string | null;
+  ingresos_brutos?: string | null;
 }
 
 export type OrigenAuto = "app_online" | "manual_admin" | "efectivo" | "transferencia";
