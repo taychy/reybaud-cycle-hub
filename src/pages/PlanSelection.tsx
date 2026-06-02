@@ -994,6 +994,7 @@ const PlanSelection = () => {
               onSelect={handleSelectMethod}
               processing={processing}
               onBack={() => setStep(hasCuotas ? "select-modality" : "select-plan")}
+              transferOnly={selectedPlan?.categoria === "asesoria"}
             />
           </div>
         )}
