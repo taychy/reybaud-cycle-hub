@@ -384,6 +384,7 @@ const ManageStudents = () => {
       case "inconsistentes": return getAlumnoInconsistency(a) !== null;
       case "incompletos": return isProfileIncomplete(a, getSubEstadoLabel(a.id));
       case "duplicados": return isDuplicate(a);
+      case "multi_subs": return hasMultiSubs(a);
       case "con_acceso": return !!a.user_id;
       case "sin_acceso": return !a.user_id;
       case "sin_plan": return sinPlanIds.has(a.id);
