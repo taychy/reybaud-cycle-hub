@@ -3,7 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download } from "lucide-react";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { daysUntil, setEarlyRenewal, EARLY_RENEWAL_WINDOW_DAYS } from "@/lib/earlyRenewal";
