@@ -625,6 +625,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
               </div>
             </div>
 
+            <div className="border-t border-border pt-4 space-y-1">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
                 Certificado digital AFIP
