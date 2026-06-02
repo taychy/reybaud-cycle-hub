@@ -362,6 +362,9 @@ const ManageStudents = () => {
   });
   const sinPlanCount = sinPlanIds.size;
 
+  // Alumnos activos sin suscripción activa vigente (= "sin plan activo")
+  const sinPlanActivoCount = alumnos.filter(a => a.estado === "activo" && !getActiveSub(a.id)).length;
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const normalizedSearch = search.toLowerCase().trim();
