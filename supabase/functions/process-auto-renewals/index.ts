@@ -59,6 +59,22 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        if (!sub.auto_cobro_activo || !sub.mp_preapproval_id) {
+          results.push({
+            alumno_id: sub.alumno_id,
+            status: "skipped",
+            details: "Renovación marcada en la app, pero sin autorización real de Mercado Pago",
+          });
+          continue;
+        }
+
+        results.push({
+          alumno_id: sub.alumno_id,
+          status: "managed_by_mercadopago",
+          details: "El cobro recurrente autorizado lo procesa Mercado Pago; el webhook crea la nueva suscripción cuando el pago queda aprobado",
+        });
+        continue;
+
         // Calculate new period dates
         const currentEnd = new Date(sub.fecha_fin);
         const newStart = new Date(currentEnd);
