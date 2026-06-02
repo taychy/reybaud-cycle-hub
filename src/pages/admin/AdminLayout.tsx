@@ -35,7 +35,6 @@ const configItems: NavItem[] = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
-  { to: "/admin/deposito", label: "Depósito", icon: Warehouse },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
 
