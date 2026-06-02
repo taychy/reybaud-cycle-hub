@@ -850,6 +850,27 @@ const AdminPayments = () => {
                                   <TooltipContent>{sub.chequeado_admin ? "Quitar marca de chequeado" : "Marcar como chequeado (conciliado con MP/transferencia/efectivo)"}</TooltipContent>
                                 </Tooltip>
 
+                                {status === "informado" && (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="default" size="sm" className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApprovePending(sub)}>
+                                          <CheckCircle className="w-3 h-3 mr-1" />Validar
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Validar pago informado y activar suscripción</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => { setRejectDialog(sub); setRejectReason(""); }}>
+                                          <XCircle className="w-3 h-3 mr-1" />Rechazar
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Rechazar pago, vencer suscripción y notificar al alumno</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                )}
+
                                 {(status === "pendiente" || status === "vencido") && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -860,6 +881,18 @@ const AdminPayments = () => {
                                     <TooltipContent>Marcar como pagado</TooltipContent>
                                   </Tooltip>
                                 )}
+
+                                {isSuperAdmin && sub.auto_cobro_activo && sub.mp_preapproval_id && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSimulateDialog(sub)}>
+                                        <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>🧪 Simular fallo de renovación (envía email de prueba)</TooltipContent>
+                                  </Tooltip>
+                                )}
+
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(sub); setEditFechaValue(sub.fecha_fin || ""); }}>
