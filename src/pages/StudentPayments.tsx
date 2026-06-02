@@ -608,7 +608,7 @@ const StudentPayments = () => {
                       if (effectiveStatus !== "activa" || !sub.fecha_fin) return null;
                       const dLeft = daysUntil(sub.fecha_fin);
                       if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
-                      const startEarlyRenewal = goToCheckout;
+                      const startEarlyRenewal = () => goToCheckout(false);
                       return (
                         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
                           <p className="text-xs text-foreground">
