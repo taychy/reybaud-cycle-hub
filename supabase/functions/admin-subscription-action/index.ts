@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
             sender_domain: SENDER_DOMAIN,
             subject: "No pudimos confirmar tu pago",
             html: rejectHtml(alumno.nombre || "", (sub.planes as any)?.nombre || "tu plan", reason),
-            text: `Hola ${alumno.nombre || ""}, no pudimos confirmar el pago de ${(sub.planes as any)?.nombre || "tu plan"}. ${reason ? `Motivo: ${reason}. ` : ""}Reintentá desde ${APP_URL}/perfil?section=suscripciones`,
+            text: `Hola ${alumno.nombre || ""}, no pudimos confirmar el pago de ${(sub.planes as any)?.nombre || "tu plan"}. ${reason ? `Motivo: ${reason}. ` : ""}Reintentá desde ${APP_URL}/alumno/pagos`,
             purpose: "transactional",
             label: "payment_rejected_student",
             idempotency_key: `pay-rejected-${subId}-${Date.now()}`,
@@ -195,8 +195,8 @@ Deno.serve(async (req) => {
             from: FROM,
             sender_domain: SENDER_DOMAIN,
             subject: "[SIMULACIÓN] No pudimos cobrar tu renovación automática",
-            html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><div style="background:#fff3cd;border:1px solid #ffe69c;padding:8px 12px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#664d03">⚙️ Este es un mail de prueba disparado por el equipo.</div><h2 style="color:#b8860b;margin-bottom:12px">Hola ${alumno.nombre || ""},</h2><p>Intentamos renovar tu plan <strong>${(sub.planes as any)?.nombre || ""}</strong> automáticamente y la tarjeta fue rechazada.</p><p>Para no perder el acceso, podés pagar manualmente desde tu perfil o actualizar la tarjeta y volver a activar la renovación automática.</p><p style="margin:24px 0"><a href="${APP_URL}/perfil?section=suscripciones" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si necesitás ayuda, respondé este mail.</p></div>`,
-            text: `[SIMULACIÓN] Intentamos renovar tu plan ${(sub.planes as any)?.nombre || ""} y la tarjeta fue rechazada. Pagá manual desde ${APP_URL}/perfil?section=suscripciones`,
+            html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><div style="background:#fff3cd;border:1px solid #ffe69c;padding:8px 12px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#664d03">⚙️ Este es un mail de prueba disparado por el equipo.</div><h2 style="color:#b8860b;margin-bottom:12px">Hola ${alumno.nombre || ""},</h2><p>Intentamos renovar tu plan <strong>${(sub.planes as any)?.nombre || ""}</strong> automáticamente y la tarjeta fue rechazada.</p><p>Para no perder el acceso, podés pagar manualmente desde tu perfil o actualizar la tarjeta y volver a activar la renovación automática.</p><p style="margin:24px 0"><a href="${APP_URL}/alumno/pagos" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si necesitás ayuda, respondé este mail.</p></div>`,
+            text: `[SIMULACIÓN] Intentamos renovar tu plan ${(sub.planes as any)?.nombre || ""} y la tarjeta fue rechazada. Pagá manual desde ${APP_URL}/alumno/pagos`,
             purpose: "transactional",
             label: "auto_charge_failed_student_sim",
             idempotency_key: `auto-fail-sim-${subId}-${Date.now()}`,
@@ -230,7 +230,7 @@ function rejectHtml(nombre: string, planName: string, motivo: string) {
     <p>Revisamos el pago que informaste para <strong>${planName}</strong> y no pudimos confirmarlo en nuestra cuenta.</p>
     ${motivo ? `<p style="background:#fdecea;border-left:3px solid #c0392b;padding:10px 12px;border-radius:4px;color:#7b241c"><strong>Motivo:</strong> ${motivo}</p>` : ""}
     <p>Por favor reintentá el pago o contactanos para resolverlo. Tu suscripción quedó marcada como vencida hasta que se confirme el cobro.</p>
-    <p style="margin:24px 0"><a href="${APP_URL}/perfil?section=suscripciones" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Reintentar pago</a></p>
+    <p style="margin:24px 0"><a href="${APP_URL}/alumno/pagos" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Reintentar pago</a></p>
     <p style="color:#666;font-size:13px">Si ya pagaste y creés que es un error, respondé este mail con el comprobante.</p>
   </div>`;
 }
