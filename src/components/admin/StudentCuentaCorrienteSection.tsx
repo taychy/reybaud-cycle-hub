@@ -13,10 +13,20 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select as SelectPlan, SelectContent as SelectPlanContent, SelectItem as SelectPlanItem,
+  SelectTrigger as SelectPlanTrigger, SelectValue as SelectPlanValue,
+} from "@/components/ui/select";
+import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
+import { logStudentActivity } from "@/lib/logStudentActivity";
+import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 
 interface Props {
   alumnoId: string;
