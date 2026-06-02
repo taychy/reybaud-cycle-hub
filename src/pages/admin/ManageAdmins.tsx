@@ -141,11 +141,20 @@ const ManageAdmins = () => {
       .eq("id", editAdmin.id);
     if (error) {
       toast.error("Error al guardar");
-    } else {
-      toast.success(`Admin ${editAdmin.first_name} actualizado`);
-      setEditAdmin(null);
-      fetchAdmins();
+      setSaving(false);
+      return;
     }
+    // Sync user_roles: deposito ↔ admin
+    const desiredRole = editRole === "deposito" ? "deposito" : "admin";
+    const otherRole = editRole === "deposito" ? "admin" : "deposito";
+    await supabase.from("user_roles").delete().eq("user_id", editAdmin.user_id).eq("role", otherRole as any);
+    await supabase.from("user_roles").upsert(
+      { user_id: editAdmin.user_id, role: desiredRole as any },
+      { onConflict: "user_id,role" } as any
+    );
+    toast.success(`Admin ${editAdmin.first_name} actualizado`);
+    setEditAdmin(null);
+    fetchAdmins();
     setSaving(false);
   };
 
