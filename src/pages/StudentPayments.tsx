@@ -361,6 +361,16 @@ const StudentPayments = () => {
     if (readOnly) return;
     setCancellingId(sub.id);
     const cancelledAt = new Date().toISOString();
+    if (hasRealAutoCharge(sub) || hasPendingAutoChargeAuth(sub)) {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-mp-preapproval`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ suscripcion_id: sub.id }),
+      }).catch(() => null);
+    }
     const { error } = await supabase
       .from("suscripciones")
       .update({
@@ -368,13 +378,15 @@ const StudentPayments = () => {
         cancelada_at: cancelledAt,
         cancelada_motivo: "Cancelada por el alumno",
         auto_renovacion: false,
+        auto_cobro_activo: false,
+        mp_preapproval_status: sub.mp_preapproval_id ? "cancelled" : sub.mp_preapproval_status,
       } as any)
       .eq("id", sub.id);
     setCancellingId(null);
     if (error) {
       toast({ title: "Error", description: "No se pudo cancelar.", variant: "destructive" });
     } else {
-      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "cancelada", cancelada_at: cancelledAt, auto_renovacion: false } : s));
+      setSubscriptions(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "cancelada", cancelada_at: cancelledAt, auto_renovacion: false, auto_cobro_activo: false, mp_preapproval_status: s.mp_preapproval_id ? "cancelled" : s.mp_preapproval_status } : s));
       toast({
         title: "Suscripción cancelada",
         description: `${sub.plan?.nombre || "Plan"}: acceso disponible hasta ${formatDate(sub.fecha_fin)}.`,
@@ -540,7 +552,7 @@ const StudentPayments = () => {
                             subId: sub.id,
                             planId: sub.plan_id,
                             fechaFin: sub.fecha_fin,
-                            autoRenovacion: sub.auto_renovacion,
+                            autoRenovacion: hasRealAutoCharge(sub),
                           });
                         }
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
