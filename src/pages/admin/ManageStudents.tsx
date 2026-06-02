@@ -333,6 +333,16 @@ const ManageStudents = () => {
   };
   const duplicadosCount = alumnos.filter(isDuplicate).length;
 
+  // Alumnos con más de una suscripción activa (multi_subs)
+  const activeSubsByAlumno: Record<string, number> = {};
+  suscripciones.forEach(s => {
+    if (s.estado === "activa") {
+      activeSubsByAlumno[s.alumno_id] = (activeSubsByAlumno[s.alumno_id] || 0) + 1;
+    }
+  });
+  const hasMultiSubs = (a: Alumno) => (activeSubsByAlumno[a.id] || 0) > 1;
+  const multiSubsCount = alumnos.filter(hasMultiSubs).length;
+
   // --- Access status ---
   const conAccesoCount = alumnos.filter(a => !!a.user_id).length;
   const sinAccesoCount = alumnos.filter(a => !a.user_id).length;
