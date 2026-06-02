@@ -458,7 +458,7 @@ const ManageAdmins = () => {
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="support">Soporte</SelectItem>
+                  <SelectItem value="deposito">Depósito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
