@@ -150,7 +150,7 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
     }
 
     if (effectiveStatus === "activa" || effectiveStatus === "cancelada") {
-      actions.push({ type: "marcar_pago_pendiente", label: "Marcar como impaga / pago pendiente", icon: Clock });
+      actions.push({ type: "marcar_pago_pendiente", label: "Marcar como impaga (acceso pausado)", icon: Clock });
     }
 
     if (primarySub && effectiveStatus !== "cancelada" && effectiveStatus !== "sin_suscripcion") {
@@ -563,13 +563,17 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
                 </div>
               )}
 
-              {/* Marcar pago pendiente */}
+              {/* Marcar impaga (acceso pausado) */}
               {selectedAction === "marcar_pago_pendiente" && (
                 <div className="space-y-3">
-                  <p className="text-sm font-medium">Marcar como pago pendiente</p>
-                  <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-2 text-xs text-amber-400 flex items-center gap-2">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                    Se adelantará la fecha de vencimiento para que el sistema refleje pago pendiente.
+                  <p className="text-sm font-medium">Marcar como impaga (acceso pausado)</p>
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 p-2 text-xs text-destructive flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Se adelantará la fecha de vencimiento al día de ayer.
+                      El alumno entrará en <strong>acceso pausado</strong> (más allá del período de gracia día 1-5),
+                      perdiendo acceso a entrenamientos, reservas y home extendido hasta que regularice.
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Motivo (opcional)</Label>
