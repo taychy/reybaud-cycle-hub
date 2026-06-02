@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +95,7 @@ const AdminDashboard = () => {
   const [expirations, setExpirations] = useState<UpcomingExpiration[]>([]);
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0 });
 
   // Confirmation dialog state
   const [confirmAction, setConfirmAction] = useState<{
@@ -115,11 +116,12 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes] = await Promise.all([
+      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").eq("estado", "activa"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
         supabase.from("alumnos").select("id, estado, grupo"),
+        supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
       ]);
 
       const alumnos = alumnosRes.data || [];
@@ -249,6 +251,29 @@ const AdminDashboard = () => {
         alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos" });
       }
       setAlerts(alertsList);
+
+      // Chequeo alerts (Facturas / Pagos / Bajas)
+      const facturas = facturasRes.data || [];
+      const factSet = new Set(facturas.map((f: any) => f.referencia_id));
+      const pagosACheckar = allSubs.filter((s: any) =>
+        (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
+      ).length;
+      const facturasPendientes = allSubs.filter((s: any) =>
+        (s.estado === "activa" || s.estado === "conciliado") && !factSet.has(s.id)
+      ).length;
+      const d = new Date();
+      const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const [y, m] = periodo.split("-").map(Number);
+      const monthStart = `${periodo}-01`;
+      const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
+      const bajasDelMes = allSubs.filter((s: any) => {
+        if (!s.fecha_fin || s.fecha_fin < monthStart || s.fecha_fin > monthEnd) return false;
+        if (!["vencida", "cancelada"].includes(s.estado)) return false;
+        const renewed = allSubs.some((o: any) => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
+        return !renewed;
+      });
+      const bajasPendientes = bajasDelMes.filter((s: any) => !s.baja_chequeada).length;
+      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes });
     } catch (err) {
       console.error("Error loading dashboard:", err);
     } finally {
@@ -344,6 +369,30 @@ const AdminDashboard = () => {
               <p className="text-xl font-bold font-heading">{m.value}</p>
             </CardContent>
           </Card>
+        ))}
+      </div>
+
+      {/* Alertas de chequeo (Facturas / Pagos / Bajas) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {[
+          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion", hint: "Subs cobradas sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
+          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos?chequeo=pendientes", hint: "Conciliar contra MP / transferencia / efectivo", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
+          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas", hint: "Alumnos sin renovar este mes", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
+        ].map((a) => (
+          <Link key={a.label} to={a.to} className={`group border rounded-lg p-4 transition-colors ${a.tone}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <a.icon className="w-4 h-4" />
+                <span className="text-[11px] font-heading uppercase tracking-wider">{a.label}</span>
+              </div>
+              <span className="text-xs opacity-70 group-hover:opacity-100">Ver →</span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-heading font-bold">{a.count}</span>
+              {a.count === 0 && <span className="text-[11px] text-muted-foreground">Todo al día</span>}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">{a.hint}</p>
+          </Link>
         ))}
       </div>
 
