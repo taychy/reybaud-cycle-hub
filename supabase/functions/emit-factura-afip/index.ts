@@ -136,7 +136,8 @@ Deno.serve(async (req) => {
     const cbteNro = lastNum.number! + 1;
 
     // Step 3: Emit Factura C (cbte_tipo = 11)
-    const emitResult = await emitirFacturaC({
+    const clienteCuitClean = cliente_cuit?.replace(/\D/g, "") || "0";
+    let emitResult = await emitirFacturaC({
       token: wsaaResult.token!,
       sign: wsaaResult.sign!,
       cuit: cuitClean,
@@ -144,9 +145,29 @@ Deno.serve(async (req) => {
       cbteNro,
       monto: factura.monto,
       concepto: 2, // Servicios
-      clienteCuit: cliente_cuit?.replace(/-/g, "") || "0",
+      clienteCuit: clienteCuitClean,
       condicionFiscal: condicion_fiscal,
     });
+
+    // Retry como Consumidor Final si AFIP rechaza el CUIT/DNI por padrón
+    const padronRejected =
+      emitResult.error &&
+      /no se encuentra registrado en los padrones|no corresponde a una cuit|DocNro|DocTipo/i.test(emitResult.error);
+
+    if (padronRejected && clienteCuitClean !== "0") {
+      console.warn(`[emit-factura] CUIT/DNI ${clienteCuitClean} rechazado por padrón AFIP. Reintentando como Consumidor Final.`);
+      emitResult = await emitirFacturaC({
+        token: wsaaResult.token!,
+        sign: wsaaResult.sign!,
+        cuit: cuitClean,
+        puntoVenta: emisor.punto_venta,
+        cbteNro,
+        monto: factura.monto,
+        concepto: 2,
+        clienteCuit: "0",
+        condicionFiscal: "consumidor_final",
+      });
+    }
 
     if (emitResult.error) {
       await adminClient
