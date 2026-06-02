@@ -11,6 +11,21 @@ const currentMonthKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
+const MONTHS_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const monthLabel = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  return `${MONTHS_ES[m - 1]} ${y}`;
+};
+
+// Igual criterio que AdminPayments: pertenece al mes si cobertura (fecha_fin/inicio) cae ahí
+// o si se registró ese mes.
+const subInMonth = (s: any, monthKey: string): boolean => {
+  const coverage = s.fecha_fin || s.fecha_inicio;
+  if (coverage && coverage.substring(0, 7) === monthKey) return true;
+  const created = s.created_at ? s.created_at.substring(0, 7) : null;
+  return created === monthKey;
+};
+
 const SuperAdminResumen = () => {
   const [loading, setLoading] = useState(true);
   const [planDist, setPlanDist] = useState<{ name: string; count: number; revenue: number }[]>([]);
@@ -25,7 +40,7 @@ const SuperAdminResumen = () => {
       supabase.from("suscripciones").select("id, plan_id, estado"),
       supabase.from("planes").select("id, nombre, precio"),
       supabase.from("sedes").select("id, nombre"),
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, chequeado_admin, origen_registro, mp_status, baja_chequeada"),
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, created_at, chequeado_admin, origen_registro, mp_status, baja_chequeada"),
       supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
     ]);
 
@@ -59,29 +74,48 @@ const SuperAdminResumen = () => {
     setSedeDist(Object.entries(sedeCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
 
     // Alerts ─────────────────────────────────────────
-    // 1. Pagos a chequear: cualquier suscripción cobrada (activa o conciliada) sin marca chequeado_admin
+    const curMonth = periodoBajas; // YYYY-MM del mes actual
+    const today = new Date();
+    const todayISO = today.toISOString().split("T")[0];
+    const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const [pY, pM] = prevMonthKey.split("-").map(Number);
+    const prevMonthStart = `${prevMonthKey}-01`;
+    const prevMonthEnd = new Date(pY, pM, 0).toISOString().split("T")[0];
+
+    // 1. Pagos a chequear: subs cobradas del mes actual sin marca chequeado_admin
     const pagosACheckar = allSubs.filter(s =>
-      (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
+      (s.estado === "activa" || s.estado === "conciliado") &&
+      !s.chequeado_admin &&
+      subInMonth(s, curMonth)
     ).length;
 
-    // 2. Facturas por realizar: subs cobradas (estado activa) sin factura asociada
+    // 2. Facturas por realizar: subs cobradas del mes actual sin factura asociada
     const factSet = new Set(facturas.map((f: any) => f.referencia_id));
     const facturasPendientes = allSubs.filter(s =>
-      (s.estado === "activa" || s.estado === "conciliado") && !factSet.has(s.id)
+      (s.estado === "activa" || s.estado === "conciliado") &&
+      !factSet.has(s.id) &&
+      subInMonth(s, curMonth)
     ).length;
 
-    // 3. Bajas a chequear: del mes calendario actual, vencidas/canceladas sin renovación posterior y sin chequear
-    const [y, m] = periodoBajas.split("-").map(Number);
-    const monthStart = `${periodoBajas}-01`;
-    const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
-    const bajasDelMes = allSubs.filter(s => {
-      if (!s.fecha_fin || s.fecha_fin < monthStart || s.fecha_fin > monthEnd) return false;
-      if (!["vencida", "cancelada"].includes(s.estado)) return false;
-      // exclude if alumno tiene sub posterior
-      const renewed = allSubs.some(o => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
-      return !renewed;
-    });
-    const bajasPendientes = bajasDelMes.filter(s => !s.baja_chequeada).length;
+    // 3. Bajas: alumnos sin sub activa HOY que sí tenían sub activa el mes anterior.
+    //    "Sub activa en mes X" = cualquier sub con cobertura (fecha_inicio<=fin_mes y (fecha_fin null o >=inicio_mes))
+    //    "Sub activa hoy" = estado activa/conciliado y vigente (fecha_fin null o >= hoy)
+    const hadSubInPrev = (alumnoId: string) =>
+      allSubs.some(s =>
+        s.alumno_id === alumnoId &&
+        s.fecha_inicio && s.fecha_inicio <= prevMonthEnd &&
+        (!s.fecha_fin || s.fecha_fin >= prevMonthStart)
+      );
+    const hasActiveToday = (alumnoId: string) =>
+      allSubs.some(s =>
+        s.alumno_id === alumnoId &&
+        (s.estado === "activa" || s.estado === "conciliado") &&
+        (!s.fecha_inicio || s.fecha_inicio <= todayISO) &&
+        (!s.fecha_fin || s.fecha_fin >= todayISO)
+      );
+    const alumnoIds = Array.from(new Set(allSubs.map(s => s.alumno_id)));
+    const bajasPendientes = alumnoIds.filter(id => hadSubInPrev(id) && !hasActiveToday(id)).length;
 
     setAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes });
 
@@ -94,6 +128,11 @@ const SuperAdminResumen = () => {
 
   const maxPlanCount = Math.max(...planDist.map(p => p.count), 1);
 
+  const curLabel = monthLabel(periodoBajas);
+  const prevDate = new Date();
+  prevDate.setMonth(prevDate.getMonth() - 1);
+  const prevLabel = monthLabel(`${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`);
+
   const alertCards = [
     {
       label: "Facturas por realizar",
@@ -101,7 +140,7 @@ const SuperAdminResumen = () => {
       icon: FileText,
       tone: "yellow",
       to: "/admin/facturacion",
-      hint: "Pagos cobrados sin factura emitida",
+      hint: `Cobrados en ${curLabel} sin factura emitida`,
     },
     {
       label: "Pagos a chequear",
@@ -109,7 +148,7 @@ const SuperAdminResumen = () => {
       icon: CreditCard,
       tone: "orange",
       to: "/admin/pagos?chequeo=pendientes",
-      hint: "Conciliar contra MP / transferencia / efectivo",
+      hint: `Cobros de ${curLabel} sin conciliar (MP / transferencia / efectivo)`,
     },
     {
       label: "Bajas a chequear",
@@ -117,7 +156,7 @@ const SuperAdminResumen = () => {
       icon: AlertTriangle,
       tone: "red",
       to: "/admin/bajas",
-      hint: `Alumnos sin renovar en ${periodoBajas}`,
+      hint: `Sin sub activa hoy (la tenían en ${prevLabel})`,
     },
   ];
 

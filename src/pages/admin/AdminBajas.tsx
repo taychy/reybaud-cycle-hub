@@ -25,6 +25,14 @@ type SubRow = {
   planes: { id: string; nombre: string } | null;
 };
 
+type AnySub = {
+  id: string;
+  alumno_id: string;
+  estado: string;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+};
+
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
   const [y, m, day] = d.substring(0, 10).split("-");
@@ -48,10 +56,18 @@ const currentMonthKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
+const todayISO = () => new Date().toISOString().split("T")[0];
+
 const AdminBajas = () => {
-  const [periodo, setPeriodo] = useState<string>(currentMonthKey());
+  // Periodo = mes en el que tenían sub activa. Default: mes anterior.
+  const defaultPeriodo = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const [periodo, setPeriodo] = useState<string>(defaultPeriodo);
   const [rows, setRows] = useState<SubRow[]>([]);
-  const [allSubs, setAllSubs] = useState<{ alumno_id: string; fecha_inicio: string | null }[]>([]);
+  const [allSubs, setAllSubs] = useState<AnySub[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOnlyPending, setShowOnlyPending] = useState(true);
   const [editing, setEditing] = useState<SubRow | null>(null);
@@ -63,14 +79,15 @@ const AdminBajas = () => {
     const [y, m] = periodo.split("-").map(Number);
     const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
 
+    // 1. Subs con cobertura en el período (tuvieron sub activa ese mes)
+    //    cobertura = fecha_inicio <= monthEnd AND (fecha_fin null OR fecha_fin >= monthStart)
     const [subsRes, allRes] = await Promise.all([
       supabase
         .from("suscripciones")
         .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, baja_nota, baja_chequeada, baja_chequeada_at, alumnos(id, nombre, apellido, email, telefono), planes(id, nombre)")
-        .gte("fecha_fin", monthStart)
-        .lte("fecha_fin", monthEnd)
-        .in("estado", ["vencida", "cancelada"]),
-      supabase.from("suscripciones").select("alumno_id, fecha_inicio"),
+        .lte("fecha_inicio", monthEnd)
+        .or(`fecha_fin.is.null,fecha_fin.gte.${monthStart}`),
+      supabase.from("suscripciones").select("id, alumno_id, estado, fecha_inicio, fecha_fin"),
     ]);
 
     if (subsRes.data) setRows(subsRes.data as unknown as SubRow[]);
@@ -80,16 +97,29 @@ const AdminBajas = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Filter out students that renewed afterwards
+  // Baja = alumno sin sub activa HOY (estado activa/conciliado y vigente)
+  // que SÍ tenía sub activa en el período seleccionado.
+  // Mostramos UNA fila por alumno (la última sub que tuvo en el período).
   const bajas = useMemo(() => {
-    const [y, m] = periodo.split("-").map(Number);
-    const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
-    return rows.filter(r => {
-      // any later subscription started after this period for same alumno?
-      const renewed = allSubs.some(s => s.alumno_id === r.alumno_id && s.fecha_inicio && s.fecha_inicio > monthEnd);
-      return !renewed;
+    const today = todayISO();
+    const hasActiveToday = (alumnoId: string) =>
+      allSubs.some(s =>
+        s.alumno_id === alumnoId &&
+        (s.estado === "activa" || s.estado === "conciliado") &&
+        (!s.fecha_inicio || s.fecha_inicio <= today) &&
+        (!s.fecha_fin || s.fecha_fin >= today)
+      );
+
+    // Agrupar por alumno y quedarnos con la sub más reciente (mayor fecha_fin / fecha_inicio)
+    const byAlumno = new Map<string, SubRow>();
+    rows.forEach(r => {
+      if (hasActiveToday(r.alumno_id)) return; // tiene sub vigente hoy → no es baja
+      const prev = byAlumno.get(r.alumno_id);
+      const key = (s: SubRow) => s.fecha_fin || s.fecha_inicio || "";
+      if (!prev || key(r) > key(prev)) byAlumno.set(r.alumno_id, r);
     });
-  }, [rows, allSubs, periodo]);
+    return Array.from(byAlumno.values());
+  }, [rows, allSubs]);
 
   const visible = useMemo(
     () => (showOnlyPending ? bajas.filter(b => !b.baja_chequeada) : bajas),
@@ -132,7 +162,7 @@ const AdminBajas = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Chequeo de bajas</h1>
-        <p className="text-sm text-muted-foreground">Alumnos que no renovaron su plan el mes seleccionado</p>
+        <p className="text-sm text-muted-foreground">Alumnos sin suscripción activa hoy que sí tenían sub activa en el mes seleccionado</p>
       </div>
 
       <Card>
@@ -144,7 +174,7 @@ const AdminBajas = () => {
               </Button>
               <div className="min-w-[180px] text-center">
                 <p className="text-sm font-heading font-bold uppercase tracking-wider">{monthLabel(periodo)}</p>
-                <p className="text-[10px] text-muted-foreground">Período de baja</p>
+                <p className="text-[10px] text-muted-foreground">Mes con sub activa</p>
               </div>
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setPeriodo(shiftMonth(periodo, 1))} disabled={periodo >= currentMonthKey()}>
                 <ChevronRight className="w-4 h-4" />
