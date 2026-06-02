@@ -338,16 +338,28 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
                     {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
                   </div>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 flex flex-wrap gap-2">
                   {facturable ? (
                     <Button size="sm" onClick={() => onGenerarFactura(f)}>
                       <FileText className="w-4 h-4 mr-1" />
                       {isManualSinCae ? "Emitir en AFIP" : "Generar factura"}
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" disabled>
-                      <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" disabled>
+                        <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
+                      </Button>
+                      {isAfip && (
+                        <>
+                          <Button size="sm" variant="secondary" onClick={() => handleDownload(f.id)} disabled={busyId === f.id + ":pdf"}>
+                            {busyId === f.id + ":pdf" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => handleResend(f.id)} disabled={busyId === f.id + ":mail"}>
+                            {busyId === f.id + ":mail" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                          </Button>
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
