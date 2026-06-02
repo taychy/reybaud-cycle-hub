@@ -56,6 +56,18 @@ function isEfectivo(metodo: string | null | undefined): boolean {
   return m === "efectivo" || m === "cash" || m.includes("efectivo");
 }
 
+/** Pagos no confirmados: sin método o marcados como pendientes de verificación. */
+function isPagoPendiente(metodo: string | null | undefined): boolean {
+  if (!metodo) return true;
+  const m = metodo.toLowerCase().trim();
+  return (
+    m === "pendiente" ||
+    m === "pendiente_verificacion" ||
+    m.includes("pendiente") ||
+    m.includes("verificac")
+  );
+}
+
 export function PendingPaymentsList() {
   const [rows, setRows] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
