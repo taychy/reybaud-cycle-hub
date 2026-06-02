@@ -39,6 +39,34 @@ interface ChangePlanDrawerProps {
   onPlanChanged: () => void;
 }
 
+async function logSolicitudCambioPlan(payload: {
+  alumno_id: string;
+  sub_actual_id: string;
+  plan_actual_id: string;
+  plan_actual_nombre: string;
+  plan_nuevo_id: string;
+  plan_nuevo_nombre: string;
+  diferencia: number;
+  nota: string;
+}) {
+  try {
+    await supabase.from("solicitudes_cambio_plan" as any).insert({
+      alumno_id: payload.alumno_id,
+      sub_actual_id: payload.sub_actual_id,
+      plan_actual_id: payload.plan_actual_id,
+      plan_actual_nombre: payload.plan_actual_nombre,
+      plan_nuevo_id: payload.plan_nuevo_id,
+      plan_nuevo_nombre: payload.plan_nuevo_nombre,
+      diferencia: payload.diferencia,
+      scope: "actual",
+      estado: "pendiente",
+      nota: payload.nota,
+    } as any);
+  } catch (e) {
+    console.warn("[solicitudes_cambio_plan] No se pudo registrar la solicitud:", e);
+  }
+}
+
 function calcProrate(
   precioActual: number,
   precioNuevo: number,
