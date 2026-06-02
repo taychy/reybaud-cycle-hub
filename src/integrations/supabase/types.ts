@@ -220,9 +220,12 @@ export type Database = {
       }
       alumnos: {
         Row: {
+          afip_padron_snapshot: Json | null
+          afip_verificado_at: string | null
           apellido: string | null
           ciudad: string | null
           como_se_entero: string | null
+          condicion_fiscal: string
           condicion_medica: string | null
           contacto_emergencia_nombre: string | null
           contacto_emergencia_nombre_2: string | null
@@ -233,6 +236,7 @@ export type Database = {
           created_at: string
           direccion: string | null
           documento: string | null
+          domicilio_fiscal: string | null
           email: string
           estado: string
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -248,6 +252,7 @@ export type Database = {
           medical_certificate_uploaded_at: string | null
           medical_certificate_url: string | null
           nombre: string
+          nombre_fiscal: string | null
           notas: string | null
           obra_social_nombre: string | null
           obra_social_numero_socio: string | null
@@ -263,13 +268,17 @@ export type Database = {
           saldo_a_favor: number
           sede_id: string | null
           telefono: string | null
+          tipo_documento: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          afip_padron_snapshot?: Json | null
+          afip_verificado_at?: string | null
           apellido?: string | null
           ciudad?: string | null
           como_se_entero?: string | null
+          condicion_fiscal?: string
           condicion_medica?: string | null
           contacto_emergencia_nombre?: string | null
           contacto_emergencia_nombre_2?: string | null
@@ -280,6 +289,7 @@ export type Database = {
           created_at?: string
           direccion?: string | null
           documento?: string | null
+          domicilio_fiscal?: string | null
           email: string
           estado?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -295,6 +305,7 @@ export type Database = {
           medical_certificate_uploaded_at?: string | null
           medical_certificate_url?: string | null
           nombre: string
+          nombre_fiscal?: string | null
           notas?: string | null
           obra_social_nombre?: string | null
           obra_social_numero_socio?: string | null
@@ -310,13 +321,17 @@ export type Database = {
           saldo_a_favor?: number
           sede_id?: string | null
           telefono?: string | null
+          tipo_documento?: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          afip_padron_snapshot?: Json | null
+          afip_verificado_at?: string | null
           apellido?: string | null
           ciudad?: string | null
           como_se_entero?: string | null
+          condicion_fiscal?: string
           condicion_medica?: string | null
           contacto_emergencia_nombre?: string | null
           contacto_emergencia_nombre_2?: string | null
@@ -327,6 +342,7 @@ export type Database = {
           created_at?: string
           direccion?: string | null
           documento?: string | null
+          domicilio_fiscal?: string | null
           email?: string
           estado?: string
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -342,6 +358,7 @@ export type Database = {
           medical_certificate_uploaded_at?: string | null
           medical_certificate_url?: string | null
           nombre?: string
+          nombre_fiscal?: string | null
           notas?: string | null
           obra_social_nombre?: string | null
           obra_social_numero_socio?: string | null
@@ -357,6 +374,7 @@ export type Database = {
           saldo_a_favor?: number
           sede_id?: string | null
           telefono?: string | null
+          tipo_documento?: string
           updated_at?: string
           user_id?: string | null
         }
