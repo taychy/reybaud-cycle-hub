@@ -596,7 +596,7 @@ const StudentPayments = () => {
                             <strong>Tu plan vence en {dLeft === 0 ? "menos de un día" : `${dLeft} día${dLeft !== 1 ? "s" : ""}`}.</strong>
                             {" "}Podés renovar el próximo período ahora (mismo plan o cambiarlo).
                           </p>
-                          {sub.auto_renovacion ? (
+                          {hasRealAutoCharge(sub) ? (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="gold" size="sm" className="w-full">Renovar próximo período</Button>
