@@ -106,6 +106,16 @@ const CardPaymentForm = ({
       const cardForm = mp.cardForm({
         amount: String(planPrice),
         iframe: true,
+        style: {
+          input: {
+            color: "#111827",
+            "font-size": "16px",
+            "font-family": "Inter, sans-serif",
+          },
+          placeholder: {
+            color: "#6b7280",
+          },
+        },
         form: {
           id: "mp-card-form",
           cardNumber: {
@@ -299,7 +309,7 @@ const CardPaymentForm = ({
     }).format(precio);
   };
 
-  const mpFieldClass = "h-12 rounded-md border border-input bg-foreground px-2 shadow-inner shadow-background/30";
+  const mpFieldClass = "h-12 rounded-md border border-input bg-foreground px-2 text-background shadow-inner shadow-background/30";
   const nativeFieldClass = "w-full h-12 rounded-md border border-input bg-foreground px-3 text-sm text-background placeholder:text-background/60 focus:outline-none focus:ring-2 focus:ring-primary";
 
   return (
