@@ -454,11 +454,12 @@ const AdminPayments = () => {
 
   const [bulkNotifyPreview, setBulkNotifyPreview] = useState<{ count: number; preview: any[] } | null>(null);
   const [bulkNotifyLoading, setBulkNotifyLoading] = useState(false);
+  const [bulkOnlyAutoRenewal, setBulkOnlyAutoRenewal] = useState(false);
 
-  const openBulkNotify = async () => {
+  const fetchBulkPreview = async (onlyAuto: boolean) => {
     setBulkNotifyLoading(true);
     const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
-      body: { action: "bulk_notify_failed_renewals", dry_run: true },
+      body: { action: "bulk_notify_failed_renewals", dry_run: true, only_auto_renewal: onlyAuto },
     });
     setBulkNotifyLoading(false);
     if (error || (data as any)?.error) {
@@ -468,10 +469,20 @@ const AdminPayments = () => {
     setBulkNotifyPreview({ count: (data as any).count, preview: (data as any).preview || [] });
   };
 
+  const openBulkNotify = async () => {
+    setBulkOnlyAutoRenewal(false);
+    await fetchBulkPreview(false);
+  };
+
+  const toggleBulkOnlyAuto = async (checked: boolean) => {
+    setBulkOnlyAutoRenewal(checked);
+    await fetchBulkPreview(checked);
+  };
+
   const confirmBulkNotify = async () => {
     setBulkNotifyLoading(true);
     const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
-      body: { action: "bulk_notify_failed_renewals", dry_run: false },
+      body: { action: "bulk_notify_failed_renewals", dry_run: false, only_auto_renewal: bulkOnlyAutoRenewal },
     });
     setBulkNotifyLoading(false);
     if (error || (data as any)?.error) {
@@ -1124,9 +1135,19 @@ const AdminPayments = () => {
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  Se enviará el mismo email del botón 🧪 a <strong>{bulkNotifyPreview?.count ?? 0}</strong> alumno(s) con renovación automática
+                  Se enviará el email "No pudimos cobrar tu renovación automática" a <strong>{bulkNotifyPreview?.count ?? 0}</strong> alumno(s)
                   cuya suscripción vence este mes y figura <strong>vencida</strong> o <strong>pendiente de verificación</strong>.
                 </p>
+                <label className="flex items-center gap-2 text-sm border rounded-md px-3 py-2 cursor-pointer hover:bg-muted/50">
+                  <input
+                    type="checkbox"
+                    checked={bulkOnlyAutoRenewal}
+                    onChange={(e) => toggleBulkOnlyAuto(e.target.checked)}
+                    disabled={bulkNotifyLoading}
+                    className="rounded"
+                  />
+                  <span>Solo a los que tienen renovación automática configurada (MP preapproval)</span>
+                </label>
                 {bulkNotifyPreview && bulkNotifyPreview.count > 0 && (
                   <div className="border rounded-md max-h-60 overflow-y-auto text-xs">
                     <table className="w-full">
