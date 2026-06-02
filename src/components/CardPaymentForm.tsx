@@ -309,8 +309,10 @@ const CardPaymentForm = ({
     }).format(precio);
   };
 
-  const mpFieldClass = "h-12 rounded-md border border-input bg-foreground px-2 text-background shadow-inner shadow-background/30";
-  const nativeFieldClass = "w-full h-12 rounded-md border border-input bg-foreground px-3 text-sm text-background placeholder:text-background/60 focus:outline-none focus:ring-2 focus:ring-primary";
+  // Fondo claro fijo + texto oscuro fijo para asegurar contraste consistente en light/dark mode.
+  // El iframe de MP fuerza color #111827 (ver style.input.color), así que el contenedor debe ser claro siempre.
+  const mpFieldClass = "h-12 rounded-md border border-input bg-white px-2 text-gray-900 shadow-inner shadow-black/5";
+  const nativeFieldClass = "w-full h-12 rounded-md border border-input bg-white px-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary";
 
   return (
     <div className="max-w-md mx-auto space-y-6 animate-fade-in" ref={containerRef}>
