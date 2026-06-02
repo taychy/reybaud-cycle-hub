@@ -75,43 +75,15 @@ Deno.serve(async (req) => {
     if (existingUser) {
       userId = existingUser.id;
 
-      // Check if admin profile already exists
-      const { data: existingProfile } = await adminClient
-        .from("admin_profiles")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      // For existing users, use generateLink to avoid "email_exists" error
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "invite",
+      // Existing auth user → send magic link (OTP) to avoid email_exists from "invite"
+      const { error: linkError } = await adminClient.auth.admin.generateLink({
+        type: "magiclink",
         email,
-        options: {
-          data: { first_name, last_name, admin_role: role },
-          redirectTo,
-        },
+        options: { redirectTo },
       });
-
-      if (linkError) {
-        console.error("generateLink error:", linkError.message);
-        // If generateLink also fails, still proceed with profile creation
-      }
-
-      if (existingProfile) {
-        // Update profile with new data
-        await adminClient.from("admin_profiles").update({
-          first_name,
-          last_name,
-          role,
-          password_set: false,
-        }).eq("user_id", userId);
-
-        return new Response(JSON.stringify({ success: true, already_existed: true, message: `Invitación reenviada a ${email}` }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (linkError) console.error("magiclink error:", linkError.message);
     } else {
-      // Create new auth user with invite
+      // New user → invite by email (creates auth user + sends invite email)
       const { data: newUser, error: createError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         data: { first_name, last_name, admin_role: role },
         redirectTo,
@@ -120,7 +92,7 @@ Deno.serve(async (req) => {
       userId = newUser.user.id;
     }
 
-    // Create admin profile (upsert to handle edge cases)
+    // Upsert admin profile. password_set=true: admins entran por OTP, no por contraseña.
     const { error: profileError } = await adminClient.from("admin_profiles").upsert({
       user_id: userId,
       first_name,
@@ -128,7 +100,8 @@ Deno.serve(async (req) => {
       email,
       role,
       status: "active",
-      password_set: false,
+      password_set: true,
+      last_invite_sent_at: new Date().toISOString(),
     }, { onConflict: "user_id" });
 
     if (profileError) throw profileError;
