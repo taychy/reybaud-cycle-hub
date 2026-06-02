@@ -772,13 +772,8 @@ const StudentPayments = () => {
                 );
               })}
 
-              {/* Total summary */}
-              {activeSubs.length > 1 && (
-                <div className="rounded-xl border border-border bg-card/80 p-4 flex justify-between items-center">
-                  <span className="text-sm font-medium text-muted-foreground">Total mensual</span>
-                  <span className="text-lg font-semibold gold-text-gradient">{formatPrice(totalActivo)}</span>
-                </div>
-              )}
+
+
 
               {/* Add another plan */}
               {!readOnly && (
