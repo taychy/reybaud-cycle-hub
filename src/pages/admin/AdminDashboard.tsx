@@ -251,6 +251,29 @@ const AdminDashboard = () => {
         alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos" });
       }
       setAlerts(alertsList);
+
+      // Chequeo alerts (Facturas / Pagos / Bajas)
+      const facturas = facturasRes.data || [];
+      const factSet = new Set(facturas.map((f: any) => f.referencia_id));
+      const pagosACheckar = allSubs.filter((s: any) =>
+        (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
+      ).length;
+      const facturasPendientes = allSubs.filter((s: any) =>
+        (s.estado === "activa" || s.estado === "conciliado") && !factSet.has(s.id)
+      ).length;
+      const d = new Date();
+      const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const [y, m] = periodo.split("-").map(Number);
+      const monthStart = `${periodo}-01`;
+      const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
+      const bajasDelMes = allSubs.filter((s: any) => {
+        if (!s.fecha_fin || s.fecha_fin < monthStart || s.fecha_fin > monthEnd) return false;
+        if (!["vencida", "cancelada"].includes(s.estado)) return false;
+        const renewed = allSubs.some((o: any) => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
+        return !renewed;
+      });
+      const bajasPendientes = bajasDelMes.filter((s: any) => !s.baja_chequeada).length;
+      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes });
     } catch (err) {
       console.error("Error loading dashboard:", err);
     } finally {
