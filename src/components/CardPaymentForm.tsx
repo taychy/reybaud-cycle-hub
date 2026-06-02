@@ -299,6 +299,9 @@ const CardPaymentForm = ({
     }).format(precio);
   };
 
+  const mpFieldClass = "h-12 rounded-md border border-input bg-foreground px-2 shadow-inner shadow-background/30";
+  const nativeFieldClass = "w-full h-12 rounded-md border border-input bg-foreground px-3 text-sm text-background placeholder:text-background/60 focus:outline-none focus:ring-2 focus:ring-primary";
+
   return (
     <div className="max-w-md mx-auto space-y-6 animate-fade-in" ref={containerRef}>
       <div className="text-center space-y-2">
@@ -348,7 +351,7 @@ const CardPaymentForm = ({
           <label className="text-xs font-medium text-muted-foreground">Número de tarjeta</label>
           <div
             id="mp-card-number"
-            className="h-11 rounded-md border border-input bg-background px-1"
+            className={mpFieldClass}
           />
         </div>
 
@@ -358,14 +361,14 @@ const CardPaymentForm = ({
             <label className="text-xs font-medium text-muted-foreground">Vencimiento</label>
             <div
               id="mp-expiration-date"
-              className="h-11 rounded-md border border-input bg-background px-1"
+              className={mpFieldClass}
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">CVV</label>
             <div
               id="mp-security-code"
-              className="h-11 rounded-md border border-input bg-background px-1"
+              className={mpFieldClass}
             />
           </div>
         </div>
@@ -376,7 +379,18 @@ const CardPaymentForm = ({
           <input
             id="mp-cardholder-name"
             type="text"
-            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className={nativeFieldClass}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Email</label>
+          <input
+            id="mp-cardholder-email"
+            type="email"
+            value={payerEmail}
+            onChange={(event) => setPayerEmail(event.target.value)}
+            className={nativeFieldClass}
           />
         </div>
 
@@ -386,7 +400,7 @@ const CardPaymentForm = ({
             <label className="text-xs font-medium text-muted-foreground">Tipo doc.</label>
             <select
               id="mp-identification-type"
-              className="w-full h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className={nativeFieldClass}
             />
           </div>
           <div className="space-y-1.5">
@@ -394,7 +408,7 @@ const CardPaymentForm = ({
             <input
               id="mp-identification-number"
               type="text"
-              className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className={nativeFieldClass}
             />
           </div>
         </div>
@@ -407,7 +421,7 @@ const CardPaymentForm = ({
           <label className="text-xs font-medium text-muted-foreground">Cuotas</label>
           <select
             id="mp-installments"
-            className="w-full h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className={nativeFieldClass}
           />
         </div>
 
