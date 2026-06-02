@@ -109,14 +109,25 @@ export default function AdminBilling() {
 
       <Tabs defaultValue="pagos_sin_facturar" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="pagos_sin_facturar">Pagos sin facturar</TabsTrigger>
-          <TabsTrigger value="pendientes">
-            Pendientes {pendientes.length > 0 && `(${pendientes.length})`}
+          <TabsTrigger
+            value="pagos_sin_facturar"
+            title="Pagos cobrados que todavía no tienen factura creada en el sistema"
+          >
+            Cobros a facturar
           </TabsTrigger>
-          <TabsTrigger value="historial">
-            Historial {historial.length > 0 && `(${historial.length})`}
+          <TabsTrigger
+            value="pendientes"
+            title="Facturas ya creadas en el sistema pero aún sin CAE emitido en AFIP"
+          >
+            Sin emitir en AFIP {pendientes.length > 0 && `(${pendientes.length})`}
           </TabsTrigger>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
+          <TabsTrigger
+            value="historial"
+            title="Facturas con CAE ya emitido en AFIP"
+          >
+            Emitidas {historial.length > 0 && `(${historial.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="todos">Todas</TabsTrigger>
           <TabsTrigger value="emisores">Emisores</TabsTrigger>
         </TabsList>
 
