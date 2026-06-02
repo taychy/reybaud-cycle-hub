@@ -1,11 +1,39 @@
 /**
- * Shared subscription status logic.
+ * Shared subscription status logic — ÚNICA FUENTE DE VERDAD.
  *
  * Business rules:
  *  - Plan expires on the last day of the month (fecha_fin).
- *  - Day 1-5 of next month with no approved payment → pago_pendiente.
+ *  - Day 1-5 of next month with no approved payment → pago_pendiente (gracia).
  *  - After day 5 with no approved payment → acceso_pausado.
+ *
+ * MAPPING DB raw → effective → UI label:
+ *
+ *   DB `suscripciones.estado`  →  getEffectiveSubStatus()  →  Admin "Pagos" UI
+ *   ─────────────────────────────────────────────────────────────────────────
+ *   activa (fecha_fin >= hoy)     → activa                  → "Pagado"
+ *   activa (fecha_fin < hoy, día 1-5 mes siguiente)
+ *                                 → pago_pendiente          → "Por cobrar"
+ *   activa (fecha_fin < hoy, día >5)
+ *                                 → acceso_pausado          → "Vencido"
+ *   pendiente                     → pendiente               → "Por cobrar"
+ *   pendiente_verificacion        → pendiente_verificacion  → "Informado"
+ *   vencida                       → vencida                 → "Vencido"
+ *                                                             (excepto si origen_registro∈{automatico,cargado_admin}
+ *                                                              → "Pagado" en su período)
+ *   conciliado                    → conciliado (raw)        → "Conciliado"
+ *   cancelada / cancelada_at      → activa hasta fecha_fin
+ *                                   luego cancelada         → "Cancelado"
+ *   pausa                         → pausa                   → "Cancelado" en pagos
+ *
+ * REGLA DE ORO: NUNCA filtres "pagos por cobrar" sólo por `estado='pendiente'`.
+ * Usá siempre `isAdminPayableSubscription()` o `getEffectiveSubStatus()` para
+ * incluir también las gracia/vencidas. Cualquier KPI/alerta que use el campo
+ * raw saltará desfases respecto del módulo `/admin/pagos`.
+ *
+ * Para totales monetarios usá SIEMPRE `precio_final ?? planes.precio` para
+ * respetar descuentos aplicados a la suscripción.
  */
+
 
 export type EffectiveSubStatus =
   | "activa"

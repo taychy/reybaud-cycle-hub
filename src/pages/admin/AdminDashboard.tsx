@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
-import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscriptionStatus";
 
 interface MetricCard {
   label: string;
@@ -102,6 +102,7 @@ const AdminDashboard = () => {
   const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
   const [duplicadosCount, setDuplicadosCount] = useState(0);
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
+  const [cuotasEventos, setCuotasEventos] = useState({ count: 0, vencidas: 0, monto: 0 });
 
 
   // Confirmation dialog state
@@ -123,18 +124,21 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes] = await Promise.all([
+      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes, cuotasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").eq("estado", "activa"),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").in("estado", ["activa", "conciliado"]),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
         supabase.from("alumnos").select("id, estado, grupo, created_at"),
         supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
+        // Paso B: cuotas de eventos por cobrar (saldo > 0)
+        supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date").eq("source", "cuota_evento"),
       ]);
 
       const alumnos = alumnosRes.data || [];
       const subsActivas = subsActivasRes.data || [];
       const allSubs = allSubsRes.data || [];
       const allAlumnos = allAlumnosRes.data || [];
+      const cuotas = (cuotasRes.data as any[]) || [];
 
       const alumnosActivos = alumnos.length;
       const alumnosBloqueados = allAlumnos.filter(a => a.estado === "bloqueado").length;
@@ -142,24 +146,38 @@ const AdminDashboard = () => {
       const alumnosInactivos = allAlumnos.filter(a => a.estado === "inactivo").length;
       const suscripcionesActivas = subsActivas.length;
       const subsPausa = allSubs.filter(s => s.estado === "pausa").length;
-      const pendientes = allSubs.filter(s => s.estado === "pendiente");
-      const pagosPendientes = pendientes.length;
 
-      // Only count as "vencido" subscriptions that are truly unpaid
-      const vencidas = allSubs.filter(s => {
-        if (!s.fecha_fin) return false;
-        return s.fecha_fin < today && s.estado !== "cancelada";
-      });
-      const pagosVencidos = vencidas.filter(s =>
-        (s.estado === "pendiente" || s.estado === "vencida") &&
-        s.origen_registro !== "automatico" && s.origen_registro !== "cargado_admin"
-      ).length;
+      // Helper: precio efectivo (respeta descuentos y overrides)
+      const precioDe = (s: any) => Number(s.precio_final ?? (s.planes as any)?.precio ?? 0);
 
+      // A1 + A3: clasificamos por estado EFECTIVO (mismo motor que ve el alumno)
+      // — "Por cobrar"  = pendiente + pago_pendiente (gracia día 1-5)
+      // — "Vencidos"    = vencida + acceso_pausado (post día 5, sin pago)
+      const subsConEffect = allSubs
+        .filter(s => !(s as any).cancelada_at && s.estado !== "cancelada")
+        .map(s => ({
+          s,
+          eff: getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as any).cancelada_at }),
+        }));
+
+      const porCobrar = subsConEffect.filter(x => x.eff === "pendiente" || x.eff === "pago_pendiente");
+      const vencidas  = subsConEffect.filter(x => x.eff === "vencida"   || x.eff === "acceso_pausado");
+      const pagosPendientes = porCobrar.length;
+      const pagosVencidos   = vencidas.length;
+
+      // A2 + A5: usar precio_final y considerar 'conciliado' como cobrado
       const cobradoEsteMes = allSubs
-        .filter(s => s.estado === "activa" && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
-        .reduce((sum, s) => sum + ((s.planes as any)?.precio || 0), 0);
+        .filter(s => (s.estado === "activa" || s.estado === "conciliado") && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
+        .reduce((sum, s) => sum + precioDe(s), 0);
 
-      const montoPendiente = pendientes.reduce((sum, s) => sum + ((s.planes as any)?.precio || 0), 0);
+      const montoPendienteSubs = porCobrar.reduce((sum, x) => sum + precioDe(x.s), 0);
+      const montoVencidoSubs   = vencidas.reduce((sum, x) => sum + precioDe(x.s), 0);
+
+      // Paso B: cuotas de eventos
+      const cuotasCount = cuotas.length;
+      const cuotasVencidas = cuotas.filter(c => c.effective_status === "vencida").length;
+      const cuotasMonto = cuotas.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+      setCuotasEventos({ count: cuotasCount, vencidas: cuotasVencidas, monto: cuotasMonto });
 
       // Detectar alumnos con más de una suscripción activa (explica diferencia alumnos vs subs)
       const subsPorAlumno: Record<string, number> = {};
@@ -170,10 +188,11 @@ const AdminDashboard = () => {
       setMetrics([
         { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
         { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con 2+ planes activos` : "Ver pagos activos" },
-        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Subs sin cobrar" },
-        { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Subs vencidas sin cobrar" },
-        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes" },
-        { label: "Monto pendiente", value: `$${montoPendiente.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Total a cobrar" },
+        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Pendientes + gracia día 1-5" },
+        { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Vencidas + acceso pausado (post día 5)" },
+        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes (precio final)" },
+        { label: "Monto pendiente", value: `$${montoPendienteSubs.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: `Subs por cobrar · vencidas: $${montoVencidoSubs.toLocaleString("es-AR")}` },
+        { label: "Cuotas eventos", value: `$${cuotasMonto.toLocaleString("es-AR")}`, icon: CalendarClock, color: "text-orange-500", to: "/admin/eventos", hint: `${cuotasCount} cuota(s)${cuotasVencidas > 0 ? ` · ${cuotasVencidas} vencida(s)` : ""}` },
         { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive", to: "/admin/alumnos?filter=bloqueados", hint: "Alumnos bloqueados" },
         { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500", to: "/admin/alumnos?filter=vacaciones", hint: "Alumnos en vacaciones" },
         { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground", to: "/admin/alumnos?filter=inactivos", hint: "Alumnos inactivos" },
@@ -204,8 +223,9 @@ const AdminDashboard = () => {
         });
       setExpirations(upcoming);
 
-      // Pending payments with detailed status
-      const recentPending = pendientes
+      // Pending payments with detailed status (mismo criterio que el KPI: pendiente + pago_pendiente)
+      const recentPending = porCobrar
+        .map(x => x.s)
         .sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
         .slice(0, 10)
         .map(s => {
@@ -217,7 +237,7 @@ const AdminDashboard = () => {
             alumno_nombre: alumno?.nombre || "—",
             alumno_telefono: alumno?.telefono || null,
             plan_nombre: plan?.nombre || "—",
-            monto: plan?.precio || 0,
+            monto: Number((s as any).precio_final ?? plan?.precio ?? 0),
             fecha_inicio: s.created_at,
             estado: badge.label,
             estado_detalle: s.metodo_pago || "sin_pago",
@@ -244,6 +264,10 @@ const AdminDashboard = () => {
       const informados = allSubs.filter(s => s.origen_registro === "informado_alumno" && s.estado === "pendiente").length;
       if (informados > 0) {
         alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
+      }
+      // Paso B: alerta de cuotas de eventos vencidas
+      if (cuotasVencidas > 0) {
+        alertsList.push({ type: "danger", icon: CalendarClock, message: `${cuotasVencidas} cuota(s) de evento vencida(s) sin cobrar`, count: cuotasVencidas, link: "/admin/eventos" });
       }
       if (alumnosBloqueados > 0) {
         alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos?filter=bloqueados" });
