@@ -99,6 +99,8 @@ const AdminDashboard = () => {
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
+  const [duplicadosCount, setDuplicadosCount] = useState(0);
+
 
   // Confirmation dialog state
   const [confirmAction, setConfirmAction] = useState<{
