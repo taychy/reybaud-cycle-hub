@@ -898,6 +898,7 @@ const ManageStudents = () => {
   // --- Filter chips ---
   const filters = [
     { key: "todos", label: "Todos", count: alumnos.length },
+    { key: "nuevos", label: "Nuevos (30d)", count: nuevosCount },
     { key: "pendientes", label: "Pendientes", count: pendingCount },
     { key: "activos", label: "Activos", count: activeCount },
     { key: "vacaciones", label: "Vacaciones", count: vacacionesCount },
