@@ -12,7 +12,7 @@ import {
 import {
   Users, CreditCard, AlertTriangle, Clock, DollarSign, TrendingUp,
   Eye, Send, CalendarClock, CheckCircle, FileText, MessageCircle,
-  Banknote, CreditCard as CardIcon, HelpCircle, Ban, Palmtree, Pause, UserPlus,
+  Banknote, CreditCard as CardIcon, HelpCircle, Ban, Palmtree, Pause, UserPlus, ArrowRightLeft,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
@@ -100,6 +100,7 @@ const AdminDashboard = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
   const [duplicadosCount, setDuplicadosCount] = useState(0);
+  const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
 
 
   // Confirmation dialog state
@@ -261,6 +262,22 @@ const AdminDashboard = () => {
       }).length;
       if (inconsistentCount > 0) {
         alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos?filter=inconsistentes" });
+      }
+
+      // Solicitudes de cambio de plan pendientes (alumno pidió cambio este período)
+      const { count: solicitudesCount } = await supabase
+        .from("solicitudes_cambio_plan" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("estado", "pendiente");
+      setSolicitudesCambioCount(solicitudesCount || 0);
+      if ((solicitudesCount || 0) > 0) {
+        alertsList.push({
+          type: "warning",
+          icon: ArrowRightLeft,
+          message: `${solicitudesCount} solicitud(es) de cambio de plan pendiente(s) de revisión`,
+          count: solicitudesCount || 0,
+          link: "/admin/solicitudes-cambio-plan",
+        });
       }
       setAlerts(alertsList);
 

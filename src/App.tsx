@@ -40,6 +40,7 @@ import ManagePrecios from "./pages/admin/ManagePrecios";
 import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
 import AuditLog from "./pages/admin/AuditLog";
+import SolicitudesCambioPlan from "./pages/admin/SolicitudesCambioPlan";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
 import AdminBilling from "./pages/admin/billing/AdminBilling";
@@ -157,6 +158,7 @@ const App = () => (
             <Route path="eventos/participantes" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
+            <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
             <Route path="metricas" element={<SuperAdminDashboard />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />

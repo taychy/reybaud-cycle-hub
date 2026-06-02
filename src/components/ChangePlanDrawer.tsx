@@ -39,6 +39,34 @@ interface ChangePlanDrawerProps {
   onPlanChanged: () => void;
 }
 
+async function logSolicitudCambioPlan(payload: {
+  alumno_id: string;
+  sub_actual_id: string;
+  plan_actual_id: string;
+  plan_actual_nombre: string;
+  plan_nuevo_id: string;
+  plan_nuevo_nombre: string;
+  diferencia: number;
+  nota: string;
+}) {
+  try {
+    await supabase.from("solicitudes_cambio_plan" as any).insert({
+      alumno_id: payload.alumno_id,
+      sub_actual_id: payload.sub_actual_id,
+      plan_actual_id: payload.plan_actual_id,
+      plan_actual_nombre: payload.plan_actual_nombre,
+      plan_nuevo_id: payload.plan_nuevo_id,
+      plan_nuevo_nombre: payload.plan_nuevo_nombre,
+      diferencia: payload.diferencia,
+      scope: "actual",
+      estado: "pendiente",
+      nota: payload.nota,
+    } as any);
+  } catch (e) {
+    console.warn("[solicitudes_cambio_plan] No se pudo registrar la solicitud:", e);
+  }
+}
+
 function calcProrate(
   precioActual: number,
   precioNuevo: number,
@@ -121,8 +149,18 @@ export default function ChangePlanDrawer({
    * UPGRADE: redirige al checkout normal con el plan preseleccionado.
    * No cancela el plan viejo todavía: eso ocurre cuando se confirma el pago.
    */
-  const handleGoToCheckout = () => {
-    if (!selectedPlan) return;
+  const handleGoToCheckout = async () => {
+    if (!selectedPlan || !prorate) return;
+    await logSolicitudCambioPlan({
+      alumno_id: alumnoId,
+      sub_actual_id: currentSubscription.id,
+      plan_actual_id: currentSubscription.plan_id,
+      plan_actual_nombre: currentSubscription.plan_nombre,
+      plan_nuevo_id: selectedPlan.id,
+      plan_nuevo_nombre: selectedPlan.nombre,
+      diferencia: prorate.diferencia,
+      nota: `Cambio de plan en período actual (upgrade). Diferencia a pagar: ${formatPrice(prorate.diferencia)}. Pendiente confirmación de pago.`,
+    });
     localStorage.setItem("registro_alumno_id", alumnoId);
     localStorage.setItem("alumno_renewal", "1");
     localStorage.setItem("upgrade_from_sub_id", currentSubscription.id);
@@ -227,6 +265,19 @@ export default function ChangePlanDrawer({
           prorate.diferencia < 0
             ? `Ahora tenés ${selectedPlan.nombre}. Saldo a favor acreditado: ${formatPrice(Math.abs(prorate.diferencia))}.`
             : `Ahora tenés ${selectedPlan.nombre}.`,
+      });
+
+      await logSolicitudCambioPlan({
+        alumno_id: alumnoId,
+        sub_actual_id: currentSubscription.id,
+        plan_actual_id: currentSubscription.plan_id,
+        plan_actual_nombre: currentSubscription.plan_nombre,
+        plan_nuevo_id: selectedPlan.id,
+        plan_nuevo_nombre: selectedPlan.nombre,
+        diferencia: prorate.diferencia,
+        nota: prorate.diferencia < 0
+          ? `Downgrade aplicado automáticamente. Saldo a favor acreditado: ${formatPrice(Math.abs(prorate.diferencia))}.`
+          : `Cambio de plan sin diferencia, aplicado automáticamente.`,
       });
 
       onPlanChanged();

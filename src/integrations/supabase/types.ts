@@ -3869,6 +3869,60 @@ export type Database = {
           },
         ]
       }
+      solicitudes_cambio_plan: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          diferencia: number | null
+          estado: string
+          id: string
+          nota: string | null
+          plan_actual_id: string | null
+          plan_actual_nombre: string | null
+          plan_nuevo_id: string | null
+          plan_nuevo_nombre: string | null
+          resuelto_at: string | null
+          resuelto_por: string | null
+          scope: string
+          sub_actual_id: string | null
+          sub_nueva_id: string | null
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          diferencia?: number | null
+          estado?: string
+          id?: string
+          nota?: string | null
+          plan_actual_id?: string | null
+          plan_actual_nombre?: string | null
+          plan_nuevo_id?: string | null
+          plan_nuevo_nombre?: string | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          scope?: string
+          sub_actual_id?: string | null
+          sub_nueva_id?: string | null
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          diferencia?: number | null
+          estado?: string
+          id?: string
+          nota?: string | null
+          plan_actual_id?: string | null
+          plan_actual_nombre?: string | null
+          plan_nuevo_id?: string | null
+          plan_nuevo_nombre?: string | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          scope?: string
+          sub_actual_id?: string | null
+          sub_nueva_id?: string | null
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           cantidad: number
