@@ -78,6 +78,14 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
     const subId = String(body?.sub_id || "");
+
+    // Bulk notify: NO requires sub_id. Restricted to super_admin.
+    if (action === "bulk_notify_failed_renewals") {
+      if (role !== "super_admin") return json({ error: "Only super_admin" }, 403);
+      const dryRun = Boolean(body?.dry_run);
+      return await handleBulkNotify(admin, userId, adminProfile?.email, role, dryRun);
+    }
+
     if (!subId || !["approve", "reject", "simulate_fail"].includes(action)) {
       return json({ error: "Invalid payload" }, 400);
     }
