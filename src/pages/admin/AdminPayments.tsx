@@ -415,6 +415,45 @@ const AdminPayments = () => {
   // Nota: las acciones "Conciliar" y "Suspender acceso" se removieron de esta vista
   // para simplificar la operatoria diaria y evitar ruido visual.
 
+  const callSubAction = async (sub: Suscripcion, action: "approve" | "reject" | "simulate_fail", extra: Record<string, unknown> = {}) => {
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { sub_id: sub.id, action, ...extra },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error || "No se pudo procesar", variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const handleApprovePending = async (sub: Suscripcion) => {
+    if (await callSubAction(sub, "approve")) {
+      toast({ title: "Pago validado", description: `${sub.alumnos?.nombre} — ${sub.planes?.nombre}` });
+      fetchData();
+    }
+  };
+
+  const handleRejectPending = async () => {
+    if (!rejectDialog) return;
+    if (await callSubAction(rejectDialog, "reject", { reason: rejectReason })) {
+      toast({ title: "Pago rechazado", description: "Se notificó al alumno por email." });
+      setRejectDialog(null);
+      setRejectReason("");
+      fetchData();
+    }
+  };
+
+  const handleSimulateFail = async () => {
+    if (!simulateDialog) return;
+    if (await callSubAction(simulateDialog, "simulate_fail")) {
+      toast({ title: "Fallo simulado", description: "Se envió el email y se desactivó el auto-cobro." });
+      setSimulateDialog(null);
+      fetchData();
+    }
+  };
+
+
+
 
 
   const handleEditFecha = async () => {
