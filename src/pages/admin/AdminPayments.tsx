@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Search, Filter, CheckCircle, Eye, Pencil, Send, CreditCard,
   FileText, Bell, RefreshCw, X, DollarSign, Clock, AlertTriangle, CheckCheck,
-  ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, XCircle
 } from "lucide-react";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
@@ -244,6 +244,21 @@ const AdminPayments = () => {
   // Correct method dialog (for student-reported payments)
   const [correctMethodDialog, setCorrectMethodDialog] = useState<Suscripcion | null>(null);
   const [correctMethodValue, setCorrectMethodValue] = useState("efectivo");
+  // Reject pending payment dialog
+  const [rejectDialog, setRejectDialog] = useState<Suscripcion | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  // Simulate auto-renewal failure (super admin only)
+  const [simulateDialog, setSimulateDialog] = useState<Suscripcion | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from("admin_profiles").select("role").eq("user_id", session.user.id).maybeSingle();
+      setIsSuperAdmin(data?.role === "super_admin");
+    })();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
