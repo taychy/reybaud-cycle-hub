@@ -254,6 +254,8 @@ const StudentPayments = () => {
   })();
 
   const activeSubsRaw = subscriptions.filter(s => {
+    // Excluir canceladas (aunque sigan vigentes hasta fecha_fin): pasan a historial
+    if (s.estado === "cancelada" || s.cancelada_at) return false;
     const eff = getEffectiveStatus(s);
     return eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente" || eff === "pago_pendiente";
   });
