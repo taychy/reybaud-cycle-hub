@@ -75,10 +75,31 @@ Deno.serve(async (req) => {
 
     const mpData = await mpResponse.json();
     console.log("MP payment response:", {
-      status: mpData.status,
-      status_detail: mpData.status_detail,
-      id: mpData.id,
+      http_status: mpResponse.status,
+      status: mpData?.status,
+      status_detail: mpData?.status_detail,
+      id: mpData?.id,
+      error: mpData?.error,
+      message: mpData?.message,
+      cause: mpData?.cause,
     });
+
+    // Si MP devuelve un 4xx sin "status" (ej. token inválido, datos faltantes),
+    // propagamos el error de forma legible sin tocar la suscripción.
+    if (!mpResponse.ok && !mpData?.status) {
+      const mpMessage =
+        mpData?.message ||
+        (Array.isArray(mpData?.cause) && mpData.cause[0]?.description) ||
+        "Mercado Pago rechazó la solicitud. Revisá los datos de la tarjeta.";
+      return new Response(
+        JSON.stringify({
+          status: "rejected",
+          status_detail: mpData?.status_detail || mpData?.error || null,
+          error: mpMessage,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Update subscription based on payment result
     const now = new Date().toISOString().split("T")[0];
