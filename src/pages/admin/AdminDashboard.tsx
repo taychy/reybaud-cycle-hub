@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
+import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 
 interface MetricCard {
   label: string;
@@ -257,8 +258,14 @@ const AdminDashboard = () => {
       // Inconsistency detection
       const INVALID_COMBOS: [string, string][] = [["vacaciones", "activa"], ["inactivo", "activa"], ["bloqueado", "activa"]];
       const inconsistentCount = allAlumnos.filter(a => {
-        const sub = allSubs.find(s => s.alumno_id === a.id && (s.estado === "activa" || s.estado === "pausa"));
-        return sub ? INVALID_COMBOS.some(([u, s]) => u === a.estado && s === sub.estado) : false;
+        const sub = allSubs.find(s => {
+          if (s.alumno_id !== a.id) return false;
+          const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as any).cancelada_at });
+          return eff === "activa" || eff === "pausa";
+        });
+        if (!sub) return false;
+        const effSub = getEffectiveSubStatus({ estado: sub.estado, fecha_fin: sub.fecha_fin, cancelada_at: (sub as any).cancelada_at });
+        return INVALID_COMBOS.some(([u, s]) => u === a.estado && s === effSub);
       }).length;
       if (inconsistentCount > 0) {
         alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos?filter=inconsistentes" });
