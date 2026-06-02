@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
+import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 
 /**
  * Sólo mostramos pagos confirmados desde esta fecha en adelante.
@@ -31,6 +34,7 @@ interface PendingPayment {
   invoiceSource: InvoiceSource;
   factura_estado: string | null;
   factura_cae: string | null;
+  factura_id: string | null;
 }
 
 const SOURCE_LABEL: Record<Source, string> = {
@@ -45,15 +49,28 @@ const SOURCE_COLOR: Record<Source, string> = {
   tienda: "bg-amber-500/10 text-amber-500 border-amber-500/30",
 };
 
+/** Métodos de pago que NO se facturan (sólo comprobante interno por mail). */
+function isEfectivo(metodo: string | null | undefined): boolean {
+  if (!metodo) return false;
+  const m = metodo.toLowerCase().trim();
+  return m === "efectivo" || m === "cash" || m.includes("efectivo");
+}
+
 export function PendingPaymentsList() {
   const [rows, setRows] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"todos" | Source>("todos");
   const [showFacturadas, setShowFacturadas] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [emisores, setEmisores] = useState<any[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<BulkFacturaRow[]>([]);
+  const [preparing, setPreparing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setSelected(new Set());
 
     // 1) Suscripciones confirmadas (activa) desde cutoff
     const subsPromise = supabase
@@ -97,7 +114,17 @@ export function PendingPaymentsList() {
       .order("updated_at", { ascending: false })
       .limit(500);
 
-    const [subs, reservas, preorders] = await Promise.all([subsPromise, reservasPromise, preordersPromise]);
+    // Emisores (para el modal bulk)
+    const emisoresPromise = supabase
+      .from("emisores_fiscales")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    const [subs, reservas, preorders, emisoresRes] = await Promise.all([
+      subsPromise, reservasPromise, preordersPromise, emisoresPromise,
+    ]);
+
+    setEmisores((emisoresRes.data as any[]) || []);
 
     const subRows: PendingPayment[] = (subs.data || []).map((s: any) => {
       const alumno = s.alumnos;
@@ -128,9 +155,9 @@ export function PendingPaymentsList() {
           metodo_pago: s.metodo_pago || null,
           origen_registro: s.origen_registro || null,
         },
-
         factura_estado: null,
         factura_cae: null,
+        factura_id: null,
       };
     });
 
@@ -163,16 +190,15 @@ export function PendingPaymentsList() {
           segmento: "viajes",
           metodo_pago: r.metodo_pago || null,
         },
-
         factura_estado: null,
         factura_cae: null,
+        factura_id: null,
       };
     });
 
     const tiendaRows: PendingPayment[] = (preorders.data || []).map((p: any) => {
       const alumno = p.alumnos;
       const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
-      // Si fue entregada, facturamos el total; si todavía sólo se pagó la seña, facturamos seña.
       const monto = p.estado === "entregada" ? Number(p.precio_total) : Number(p.sena_monto);
       const conceptoBase = `${p.producto_nombre}${p.estado === "entregada" ? "" : " (seña)"}`;
       return {
@@ -199,13 +225,16 @@ export function PendingPaymentsList() {
           segmento: "tienda",
           metodo_pago: p.forma_pago_sena || null,
         },
-
         factura_estado: null,
         factura_cae: null,
+        factura_id: null,
       };
     });
 
-    const allRows = [...subRows, ...evRows, ...tiendaRows];
+    // ⚠️ Excluir efectivo — esos pagos NO se facturan en AFIP
+    const allRows = [...subRows, ...evRows, ...tiendaRows].filter(
+      (r) => !isEfectivo(r.metodo_pago),
+    );
 
     // 4) Cruce con facturas existentes
     const refsByType: Record<string, string[]> = {};
@@ -215,25 +244,31 @@ export function PendingPaymentsList() {
       refsByType[t].push(r.invoiceSource.referencia_id);
     });
 
-    const facturasMap = new Map<string, { estado: string; cae: string | null }>();
+    const facturasMap = new Map<string, { id: string; estado: string; cae: string | null }>();
     for (const [tipo, ids] of Object.entries(refsByType)) {
       if (ids.length === 0) continue;
       const { data } = await supabase
         .from("facturas")
-        .select("referencia_tipo, referencia_id, estado, cae")
+        .select("id, referencia_tipo, referencia_id, estado, cae")
         .eq("referencia_tipo", tipo)
         .in("referencia_id", ids);
       (data || []).forEach((f: any) => {
-        facturasMap.set(`${f.referencia_tipo}:${f.referencia_id}`, { estado: f.estado, cae: f.cae });
+        facturasMap.set(`${f.referencia_tipo}:${f.referencia_id}`, {
+          id: f.id, estado: f.estado, cae: f.cae,
+        });
       });
     }
 
     const enriched = allRows.map((r) => {
       const f = facturasMap.get(`${r.invoiceSource.referencia_tipo}:${r.invoiceSource.referencia_id}`);
-      return { ...r, factura_estado: f?.estado || null, factura_cae: f?.cae || null };
+      return {
+        ...r,
+        factura_estado: f?.estado || null,
+        factura_cae: f?.cae || null,
+        factura_id: f?.id || null,
+      };
     });
 
-    // Ordenar por fecha desc
     enriched.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
     setRows(enriched);
     setLoading(false);
@@ -257,6 +292,11 @@ export function PendingPaymentsList() {
     });
   }, [rows, sourceFilter, search, showFacturadas]);
 
+  const selectableFiltered = useMemo(
+    () => filtered.filter((r) => !(r.factura_estado === "emitida" && !!r.factura_cae)),
+    [filtered],
+  );
+
   const counts = useMemo(() => ({
     total: rows.length,
     sin_facturar: rows.filter((r) => !(r.factura_estado === "emitida" && !!r.factura_cae)).length,
@@ -264,6 +304,117 @@ export function PendingPaymentsList() {
     evento: rows.filter((r) => r.source === "evento").length,
     tienda: rows.filter((r) => r.source === "tienda").length,
   }), [rows]);
+
+  const allSelected = selectableFiltered.length > 0 && selectableFiltered.every((r) => selected.has(r.key));
+  const someSelected = selected.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(selectableFiltered.map((r) => r.key)));
+  };
+
+  const toggleOne = (key: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  /** Prepara facturas (crea registros si no existen) y abre BulkInvoiceModal. */
+  const handleBulkInvoice = async () => {
+    const targets = rows.filter((r) => selected.has(r.key));
+    if (targets.length === 0) return;
+    setPreparing(true);
+    try {
+      const prepared: BulkFacturaRow[] = [];
+      let createdCount = 0;
+      let alreadyEmittedCount = 0;
+
+      for (const r of targets) {
+        // Ya facturada con CAE → omitir
+        if (r.factura_estado === "emitida" && r.factura_cae) {
+          alreadyEmittedCount++;
+          continue;
+        }
+
+        let facturaId = r.factura_id;
+        let condicionFiscal = "consumidor_final";
+
+        if (!facturaId) {
+          // Crear registro vía auto-facturar (puede o no emitir según config)
+          const { data, error } = await supabase.functions.invoke("auto-facturar", {
+            body: {
+              alumno_id: r.invoiceSource.alumno_id,
+              concepto: r.invoiceSource.concepto,
+              monto: r.invoiceSource.monto,
+              moneda: r.invoiceSource.moneda ?? "ARS",
+              referencia_tipo: r.invoiceSource.referencia_tipo,
+              referencia_id: r.invoiceSource.referencia_id,
+              segmento: r.invoiceSource.segmento,
+              metodo_pago: r.invoiceSource.metodo_pago ?? undefined,
+              origen_registro: r.invoiceSource.origen_registro ?? undefined,
+            },
+          });
+          if (error || data?.error) {
+            console.warn("auto-facturar falló para", r.key, error || data?.error);
+            continue;
+          }
+          if (data?.emitted) {
+            alreadyEmittedCount++;
+            continue;
+          }
+          // Releer factura recién creada
+          const { data: nueva } = await supabase
+            .from("facturas")
+            .select("id, condicion_fiscal")
+            .eq("referencia_tipo", r.invoiceSource.referencia_tipo)
+            .eq("referencia_id", r.invoiceSource.referencia_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          facturaId = (nueva as any)?.id || null;
+          condicionFiscal = (nueva as any)?.condicion_fiscal || condicionFiscal;
+          if (facturaId) createdCount++;
+        }
+
+        if (!facturaId) continue;
+
+        prepared.push({
+          id: facturaId,
+          cliente_nombre: r.cliente_nombre,
+          cliente_cuit: r.cliente_cuit,
+          condicion_fiscal: condicionFiscal,
+          concepto: r.invoiceSource.concepto,
+          monto: r.invoiceSource.monto,
+          referencia_tipo: r.invoiceSource.referencia_tipo,
+          kind: "sin_factura",
+        });
+      }
+
+      if (prepared.length === 0) {
+        toast({
+          title: "Nada para facturar",
+          description: alreadyEmittedCount > 0
+            ? `${alreadyEmittedCount} ya tenían CAE emitido.`
+            : "No se pudieron preparar las facturas.",
+        });
+        return;
+      }
+
+      if (createdCount > 0) {
+        toast({
+          title: `${createdCount} factura(s) preparadas`,
+          description: "Elegí el emisor y emitilas en AFIP.",
+        });
+      }
+      setBulkRows(prepared);
+      setBulkOpen(true);
+    } finally {
+      setPreparing(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -295,9 +446,39 @@ export function PendingPaymentsList() {
         </Button>
       </div>
 
+      {/* Barra de acción masiva */}
+      {selectableFiltered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox
+              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+              onCheckedChange={toggleAll}
+            />
+            <span className="text-muted-foreground">
+              {selected.size > 0
+                ? `${selected.size} seleccionado(s) de ${selectableFiltered.length}`
+                : `Seleccionar todos (${selectableFiltered.length})`}
+            </span>
+          </label>
+          <Button
+            size="sm"
+            onClick={handleBulkInvoice}
+            disabled={selected.size === 0 || preparing}
+          >
+            {preparing ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-1" />
+            )}
+            Facturar seleccionados {selected.size > 0 && `(${selected.size})`}
+          </Button>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
         Mostrando pagos confirmados desde el {new Date(CUTOFF_DATE).toLocaleDateString("es-AR")}.
         {" "}{counts.sin_facturar} sin factura emitida.
+        {" "}<span className="italic">Los pagos en efectivo no se facturan: se envía comprobante por mail.</span>
       </p>
 
       {loading ? (
@@ -313,12 +494,20 @@ export function PendingPaymentsList() {
             const fecha = r.fecha
               ? new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })
               : "—";
+            const isSelected = selected.has(r.key);
 
             return (
               <div
                 key={r.key}
                 className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3"
               >
+                {!facturada && (
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleOne(r.key)}
+                    className="mt-1 sm:mt-0 shrink-0"
+                  />
+                )}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-foreground">{r.cliente_nombre}</p>
@@ -361,6 +550,14 @@ export function PendingPaymentsList() {
           })}
         </div>
       )}
+
+      <BulkInvoiceModal
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        rows={bulkRows}
+        emisores={emisores}
+        onDone={load}
+      />
     </div>
   );
 }
