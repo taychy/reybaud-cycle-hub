@@ -1031,6 +1031,52 @@ const AdminPayments = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Reject payment dialog */}
+      <Dialog open={!!rejectDialog} onOpenChange={(open) => { if (!open) { setRejectDialog(null); setRejectReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rechazar pago informado</DialogTitle>
+            <DialogDescription>
+              {rejectDialog?.alumnos?.nombre} — {rejectDialog?.planes?.nombre}. La suscripción vuelve a "vencida" y el alumno recibe un email para reintentar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Motivo (opcional, se incluye en el email)</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ej: no encontramos el depósito en la cuenta, o el comprobante adjunto no corresponde."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialog(null); setRejectReason(""); }}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRejectPending}>
+              <XCircle className="w-4 h-4 mr-1" />Rechazar y notificar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Simulate auto-renewal failure */}
+      <AlertDialog open={!!simulateDialog} onOpenChange={(open) => !open && setSimulateDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🧪 Simular fallo de renovación</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esto va a: marcar 3 intentos fallidos en la suscripción de <strong>{simulateDialog?.alumnos?.nombre}</strong> ({simulateDialog?.planes?.nombre}),
+              desactivar el auto-cobro, y enviarle un email <strong>[SIMULACIÓN]</strong> con CTA para pagar. También aparecerá el banner rojo en su dashboard.
+              <br /><br />
+              Para revertir, reactivá el auto-cobro desde el perfil del alumno o pisá el conteo de fallidos con un pago manual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSimulateFail}>Simular fallo</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Edit fecha dialog */}
       <Dialog open={!!editFechaDialog} onOpenChange={(open) => !open && setEditFechaDialog(null)}>
         <DialogContent className="max-w-sm">
