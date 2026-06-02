@@ -473,17 +473,32 @@ const StudentPayments = () => {
 
                 return (
                   <div key={sub.id} className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-primary">
-                        <CheckCircle2 className="w-5 h-5" />
-                        <span className="text-sm font-heading font-semibold uppercase tracking-wider">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 text-primary min-w-0">
+                        <CheckCircle2 className="w-5 h-5 shrink-0" />
+                        <span className="text-sm font-heading font-semibold uppercase tracking-wider truncate">
                           {sub.plan?.nombre || "Plan"}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="text-xs text-muted-foreground">
+                          {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
+                        </span>
+                        {hasRealAutoCharge(sub) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
+                            <RefreshCw className="w-2.5 h-2.5" />
+                            Auto-renueva
+                          </span>
+                        )}
+                        {hasPendingAutoChargeAuth(sub) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-2 py-0.5">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Autorización pendiente
+                          </span>
+                        )}
+                      </div>
                     </div>
+
 
                     <div className="space-y-2 text-sm">
                       {/* Discount breakdown */}
