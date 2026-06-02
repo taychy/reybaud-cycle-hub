@@ -236,7 +236,7 @@ const AdminLayout = () => {
             </>
           )}
 
-          {navSections.map((section, idx) => (
+          {visibleSections.map((section, idx) => (
             <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
               <div className="pb-1">
                 {!collapsed && (
@@ -334,7 +334,7 @@ const AdminLayout = () => {
               </>
             )}
 
-            {navSections.map((section, idx) => (
+            {visibleSections.map((section, idx) => (
               <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
                 <div className="pb-1">
                   <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
