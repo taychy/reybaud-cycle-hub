@@ -129,6 +129,145 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
     fetchData();
   }, [fetchData]);
 
+  // Cargar lista de planes activos (para el dialog de cambio de plan)
+  useEffect(() => {
+    let cancel = false;
+    supabase
+      .from("planes")
+      .select("id, nombre, precio, moneda, frecuencia")
+      .eq("activo", true)
+      .order("nombre")
+      .then(({ data }) => {
+        if (!cancel) setPlanes(((data as any) || []) as PlanOption[]);
+      });
+    return () => { cancel = true; };
+  }, []);
+
+  // ---- Cancelar suscripción (misma lógica que StudentPlanSection.handleRemovePlan) ----
+  const handleCancelSubscription = async () => {
+    if (!cancelSub) return;
+    setCancelLoading(true);
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          estado: "cancelada",
+          cancelada_motivo: "Anulada desde cuenta corriente",
+          cancelada_at: new Date().toISOString(),
+          auto_renovacion: false,
+          fecha_fin: todayStr,
+        } as any)
+        .eq("id", cancelSub.id);
+      if (error) {
+        toast.error("Error al anular: " + (error.message || "Error desconocido"));
+        return;
+      }
+      // Audit log
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: adminProfile } = await supabase
+          .from("admin_profiles")
+          .select("email, role")
+          .eq("user_id", session.user.id)
+          .single();
+        await supabase.from("audit_log").insert([{
+          user_id: session.user.id,
+          user_email: adminProfile?.email || session.user.email || "",
+          user_role: adminProfile?.role || "admin",
+          action: "anular_suscripcion_cc",
+          entity_type: "suscripcion",
+          entity_id: cancelSub.id,
+          details: { origen: "cuenta_corriente", concepto: cancelSub.concepto },
+        }]);
+      }
+      await logStudentActivity({
+        alumnoId,
+        eventType: "cambio_plan",
+        title: "Suscripción anulada",
+        description: `Anulada desde cuenta corriente: ${cancelSub.concepto}`,
+        actorRole: "admin",
+      });
+      toast.success("Suscripción anulada");
+      setCancelSub(null);
+      await fetchData();
+      onSubscriptionsChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  // ---- Cambiar plan de una suscripción existente ----
+  const handleChangePlan = async () => {
+    if (!changeSub || !changeNewPlanId || changeNewPlanId === changeSub.currentPlanId) {
+      setChangeSub(null);
+      return;
+    }
+    setChangeLoading(true);
+    try {
+      const newPlan = planes.find((p) => p.id === changeNewPlanId);
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          plan_id: changeNewPlanId,
+          precio_base: newPlan?.precio ?? null,
+          precio_final: newPlan?.precio ?? null,
+        } as any)
+        .eq("id", changeSub.id);
+      if (error) {
+        if (isDuplicateSubError(error)) {
+          toast.error(DUPLICATE_SUB_MSG);
+          return;
+        }
+        toast.error("Error al cambiar de plan: " + (error.message || ""));
+        return;
+      }
+      // Audit
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: adminProfile } = await supabase
+          .from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
+        await supabase.from("audit_log").insert([{
+          user_id: session.user.id,
+          user_email: adminProfile?.email || session.user.email || "",
+          user_role: adminProfile?.role || "admin",
+          action: "cambiar_plan_cc",
+          entity_type: "suscripcion",
+          entity_id: changeSub.id,
+          details: {
+            origen: "cuenta_corriente",
+            plan_anterior_id: changeSub.currentPlanId,
+            plan_nuevo_id: changeNewPlanId,
+            plan_nuevo_nombre: newPlan?.nombre,
+          },
+        }]);
+      }
+      await logStudentActivity({
+        alumnoId,
+        eventType: "cambio_plan",
+        title: "Plan cambiado",
+        description: `Desde cuenta corriente: ${changeSub.concepto} → "${newPlan?.nombre || "—"}"`,
+        actorRole: "admin",
+        referenceType: "plan",
+        referenceId: changeNewPlanId,
+        referenceLabel: newPlan?.nombre || "—",
+      });
+      toast.success("Plan actualizado");
+      setChangeSub(null);
+      setChangeNewPlanId("");
+      await fetchData();
+      onSubscriptionsChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Error inesperado");
+    } finally {
+      setChangeLoading(false);
+    }
+  };
+
+
+
   const filtered = useMemo(() => {
     return movimientos.filter((m) => {
       if (monedaFilter !== "all" && m.moneda !== monedaFilter) return false;
