@@ -302,6 +302,8 @@ const ManageStudents = () => {
   const sinGrupoCount = alumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
   const inconsistentCount = alumnos.filter(a => getAlumnoInconsistency(a) !== null).length;
   const incompletosCount = alumnos.filter(a => isProfileIncomplete(a, getSubEstadoLabel(a.id))).length;
+  const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400000).toISOString();
+  const nuevosCount = alumnos.filter(a => a.created_at && a.created_at >= thirtyDaysAgoIso).length;
 
   // --- Duplicates detection (by email) ---
   const duplicateEmailSet = new Set<string>();
