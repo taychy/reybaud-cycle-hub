@@ -882,14 +882,17 @@ const AdminPayments = () => {
                                   </Tooltip>
                                 )}
 
-                                {isSuperAdmin && sub.auto_cobro_activo && sub.mp_preapproval_id && (
+                                {isSuperAdmin && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSimulateDialog(sub)}>
                                         <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>🧪 Simular fallo de renovación (envía email de prueba)</TooltipContent>
+                                    <TooltipContent>
+                                      🧪 Simular fallo de renovación (envía email de prueba)
+                                      {!sub.auto_cobro_activo && " — forzará el estado aunque no haya auto-cobro real"}
+                                    </TooltipContent>
                                   </Tooltip>
                                 )}
 
