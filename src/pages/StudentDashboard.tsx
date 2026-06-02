@@ -7,6 +7,7 @@ import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy
 import TiendaSection from "@/components/TiendaSection";
 import { MedicalCertificateStudent } from "@/components/student/MedicalCertificateStudent";
 import { EmergencyMedicalSelfSection } from "@/components/student/EmergencyMedicalSelfSection";
+import { BillingDataSelfSection } from "@/components/student/BillingDataSelfSection";
 import BottomNav from "@/components/BottomNav";
 import { EventosContent } from "@/pages/Eventos";
 import { StudentProgressContent } from "@/pages/StudentProgress";
