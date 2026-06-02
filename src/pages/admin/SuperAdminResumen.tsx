@@ -74,29 +74,48 @@ const SuperAdminResumen = () => {
     setSedeDist(Object.entries(sedeCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
 
     // Alerts ─────────────────────────────────────────
-    // 1. Pagos a chequear: cualquier suscripción cobrada (activa o conciliada) sin marca chequeado_admin
+    const curMonth = periodoBajas; // YYYY-MM del mes actual
+    const today = new Date();
+    const todayISO = today.toISOString().split("T")[0];
+    const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const [pY, pM] = prevMonthKey.split("-").map(Number);
+    const prevMonthStart = `${prevMonthKey}-01`;
+    const prevMonthEnd = new Date(pY, pM, 0).toISOString().split("T")[0];
+
+    // 1. Pagos a chequear: subs cobradas del mes actual sin marca chequeado_admin
     const pagosACheckar = allSubs.filter(s =>
-      (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
+      (s.estado === "activa" || s.estado === "conciliado") &&
+      !s.chequeado_admin &&
+      subInMonth(s, curMonth)
     ).length;
 
-    // 2. Facturas por realizar: subs cobradas (estado activa) sin factura asociada
+    // 2. Facturas por realizar: subs cobradas del mes actual sin factura asociada
     const factSet = new Set(facturas.map((f: any) => f.referencia_id));
     const facturasPendientes = allSubs.filter(s =>
-      (s.estado === "activa" || s.estado === "conciliado") && !factSet.has(s.id)
+      (s.estado === "activa" || s.estado === "conciliado") &&
+      !factSet.has(s.id) &&
+      subInMonth(s, curMonth)
     ).length;
 
-    // 3. Bajas a chequear: del mes calendario actual, vencidas/canceladas sin renovación posterior y sin chequear
-    const [y, m] = periodoBajas.split("-").map(Number);
-    const monthStart = `${periodoBajas}-01`;
-    const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
-    const bajasDelMes = allSubs.filter(s => {
-      if (!s.fecha_fin || s.fecha_fin < monthStart || s.fecha_fin > monthEnd) return false;
-      if (!["vencida", "cancelada"].includes(s.estado)) return false;
-      // exclude if alumno tiene sub posterior
-      const renewed = allSubs.some(o => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
-      return !renewed;
-    });
-    const bajasPendientes = bajasDelMes.filter(s => !s.baja_chequeada).length;
+    // 3. Bajas: alumnos sin sub activa HOY que sí tenían sub activa el mes anterior.
+    //    "Sub activa en mes X" = cualquier sub con cobertura (fecha_inicio<=fin_mes y (fecha_fin null o >=inicio_mes))
+    //    "Sub activa hoy" = estado activa/conciliado y vigente (fecha_fin null o >= hoy)
+    const hadSubInPrev = (alumnoId: string) =>
+      allSubs.some(s =>
+        s.alumno_id === alumnoId &&
+        s.fecha_inicio && s.fecha_inicio <= prevMonthEnd &&
+        (!s.fecha_fin || s.fecha_fin >= prevMonthStart)
+      );
+    const hasActiveToday = (alumnoId: string) =>
+      allSubs.some(s =>
+        s.alumno_id === alumnoId &&
+        (s.estado === "activa" || s.estado === "conciliado") &&
+        (!s.fecha_inicio || s.fecha_inicio <= todayISO) &&
+        (!s.fecha_fin || s.fecha_fin >= todayISO)
+      );
+    const alumnoIds = Array.from(new Set(allSubs.map(s => s.alumno_id)));
+    const bajasPendientes = alumnoIds.filter(id => hadSubInPrev(id) && !hasActiveToday(id)).length;
 
     setAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes });
 
