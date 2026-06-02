@@ -207,7 +207,7 @@ const StudentPayments = () => {
         .select("id, referencia_id, numero_comprobante, estado")
         .eq("alumno_id", alumnoData.id)
         .eq("referencia_tipo", "suscripcion")
-        .eq("estado", "aprobada");
+        .eq("estado", "emitida");
       if (!cancelled && facts) {
         const map: Record<string, { id: string; numero_comprobante: string | null; estado: string }> = {};
         for (const f of facts as any[]) {
