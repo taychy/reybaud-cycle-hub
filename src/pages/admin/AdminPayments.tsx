@@ -116,11 +116,15 @@ const currentPeriodKey = () => {
 };
 
 // Devuelve true si la sub pertenece al período (mes) elegido. "all" = sin filtro.
+// Una sub pertenece al período si su cobertura (fecha_fin/fecha_inicio) cae ahí,
+// O si fue creada/registrada ese mes (cubre pagos adelantados del próximo período).
 const subInPeriod = (sub: Suscripcion, periodo: string): boolean => {
   if (periodo === "all") return true;
-  const ref = sub.fecha_fin || sub.fecha_inicio;
-  if (!ref) return false;
-  return ref.substring(0, 7) === periodo;
+  const coverage = sub.fecha_fin || sub.fecha_inicio;
+  if (coverage && coverage.substring(0, 7) === periodo) return true;
+  const created = sub.created_at ? sub.created_at.substring(0, 7) : null;
+  if (created && created === periodo) return true;
+  return false;
 };
 
 const getStatusBadge = (status: string) => {
