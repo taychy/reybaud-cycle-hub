@@ -80,6 +80,14 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     key_pem: "",
     limite_anual_ars: "",
     categoria_monotributo: "",
+    logo_url: "",
+    domicilio_comercial: "",
+    condicion_iva: "Monotributista",
+    inicio_actividades: "",
+    email_contacto: "",
+    telefono_contacto: "",
+    website: "",
+    ingresos_brutos: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
