@@ -457,6 +457,34 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </>
+                        ) : m.tipo === "cargo_suscripcion" && m.estado !== "cancelada" ? (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => {
+                                setChangeSub({
+                                  id: m.fuente_id,
+                                  concepto: m.concepto,
+                                  currentPlanId: m.referencia_extra?.plan_id || null,
+                                });
+                                setChangeNewPlanId(m.referencia_extra?.plan_id || "");
+                              }}
+                              title="Cambiar plan de esta suscripción"
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => setCancelSub({ id: m.fuente_id, concepto: m.concepto })}
+                              title="Anular suscripción"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
                         ) : null}
                       </div>
                     </TableCell>
