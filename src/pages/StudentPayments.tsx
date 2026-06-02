@@ -799,6 +799,24 @@ const StudentPayments = () => {
 
                       <p className="text-xs text-muted-foreground">{config.message}</p>
 
+                      {facturasBySub[sub.id] && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={downloadingFacturaId === facturasBySub[sub.id].id}
+                          onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
+                        >
+                          {downloadingFacturaId === facturasBySub[sub.id].id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                          Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
+                        </Button>
+                      )}
+
+
                       {effectiveStatus === "rechazada" && (
                         <a href="https://wa.me/5491140312299?text=Hola%2C%20tengo%20un%20problema%20con%20mi%20pago" target="_blank" rel="noopener noreferrer">
                           <Button variant="gold-outline" size="sm" className="w-full mt-1">
