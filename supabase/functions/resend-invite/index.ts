@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
 </html>`;
       }
 
-      // admin (default)
+      // admin (default) — magic link, no password setup
       return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8" /></head>
@@ -218,14 +218,14 @@ Deno.serve(async (req) => {
       Fuiste invitado a formar parte del equipo de administración de Ciclismo Reybaud.
     </p>
     <p style="font-size:14px;color:#555555;line-height:1.6;margin:0 0 16px;">
-      Hacé clic en el botón de abajo para crear tu contraseña.<br/>
-      Este enlace es válido por <strong>24 horas</strong>.
+      Hacé clic en el botón de abajo para ingresar al panel.<br/>
+      Este enlace es válido por <strong>1 hora</strong>.
     </p>
     <a href="${link}" style="background-color:#E8832A;color:#ffffff;font-size:14px;font-weight:bold;border-radius:8px;padding:14px 28px;text-decoration:none;display:block;text-align:center;margin:8px 0 24px;">
-      Crear mi contraseña
+      Ingresar al panel
     </a>
     <p style="font-size:13px;color:#777777;line-height:1.5;margin:0 0 20px;border-top:1px solid #eeeeee;padding-top:16px;">
-      Una vez que crees tu contraseña, vas a poder acceder al panel de administración con tu email y la clave que elijas.
+      Tu acceso es sin contraseña: la próxima vez podés entrar desde el login de admin pidiendo un código por email.
     </p>
     <p style="font-size:12px;color:#999999;margin:0;text-align:center;">
       Si no esperabas esta invitación, podés ignorar este email de forma segura.
