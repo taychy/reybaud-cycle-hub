@@ -1,6 +1,17 @@
-// Consulta el padrón AFIP (ws_sr_padron_a5 / getPersona) usando el
+// Consulta el padrón AFIP (ws_sr_padron_a13 / getPersona) usando el
 // certificado del emisor fiscal predeterminado. Devuelve nombre,
 // condición fiscal, domicilio fiscal y actividades para un CUIT.
+//
+// Cambios respecto a la versión previa:
+//  A) Migrado de ws_sr_padron_a5 (DEPRECADO por AFIP) a ws_sr_padron_a13.
+//     A13 es el servicio activo y devuelve la misma estructura de
+//     <persona> + <impuesto> + <categoriaMonotributo>.
+//  B) Selección robusta del emisor: exige es_predeterminado=true.
+//     Si ninguno está marcado, toma el primero activo con cert/key
+//     y avisa en el log. Mensaje de error claro al usuario.
+//  C) Persistencia con service-role + validación de "dueño o admin":
+//     el update ya no muere en silencio por RLS. Se devuelve
+//     verificado_at para que el badge se actualice sin recargar.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
@@ -14,12 +25,12 @@ const corsHeaders = {
 
 const WSAA_URL = "https://wsaa.afip.gov.ar/ws/services/LoginCms";
 const PADRON_URL =
-  "https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5";
-const SERVICE_NAME = "ws_sr_padron_a5";
+  "https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13";
+const SERVICE_NAME = "ws_sr_padron_a13";
 
 interface Body {
   cuit: string;
-  alumno_id?: string; // opcional, para persistir verificado_at + snapshot
+  alumno_id?: string;
 }
 
 Deno.serve(async (req) => {
@@ -42,6 +53,9 @@ Deno.serve(async (req) => {
     const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
     if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
 
+    const userId = claims.claims.sub as string;
+    const userEmail = (claims.claims.email as string | undefined)?.toLowerCase();
+
     const body = (await req.json()) as Body;
     const cuitClean = (body?.cuit || "").replace(/\D/g, "");
     if (cuitClean.length !== 11) {
@@ -53,30 +67,39 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Emisor predeterminado (o el primero disponible con cert)
-    const { data: emisor, error: emisorErr } = await admin
+    // -------- B) Selección robusta del emisor --------
+    // Preferencia: predeterminado + activo + con cert/key. Fallback: primero activo con cert/key.
+    const { data: emisores, error: emisorErr } = await admin
       .from("emisores_fiscales")
       .select("*")
       .eq("activo", true)
       .order("es_predeterminado", { ascending: false })
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: true });
 
-    if (emisorErr || !emisor) {
+    if (emisorErr || !emisores || emisores.length === 0) {
       return json({ error: "No hay emisor fiscal configurado para consultar AFIP." }, 400);
     }
-    if (!emisor.cert_pem || !emisor.key_pem) {
-      return json({ error: "El emisor no tiene certificado AFIP cargado." }, 400);
+
+    const usable = emisores.filter((e: any) => e.cert_pem && e.key_pem);
+    if (usable.length === 0) {
+      return json({ error: "Ningún emisor tiene certificado AFIP cargado." }, 400);
     }
 
-    // 1) WSAA
+    const preferred = usable.find((e: any) => e.es_predeterminado) || usable[0];
+    if (!preferred.es_predeterminado) {
+      console.warn(
+        `[consultar-padron-afip] Ningún emisor marcado como predeterminado. Usando "${preferred.nombre_fiscal}" (CUIT ${preferred.cuit}) por fallback.`,
+      );
+    }
+    const emisor = preferred;
+
+    // -------- 1) WSAA --------
     const wsaa = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
     if (wsaa.error || !wsaa.token || !wsaa.sign) {
       return json({ error: `WSAA: ${wsaa.error || "sin token"}` }, 502);
     }
 
-    // 2) Padron getPersona
+    // -------- 2) Padron A13 getPersona --------
     const repCuit = (emisor.cuit || "").replace(/\D/g, "");
     const padron = await getPersona(wsaa.token, wsaa.sign, repCuit, cuitClean);
     if (padron.error) {
@@ -86,27 +109,66 @@ Deno.serve(async (req) => {
       return json({ error: "El CUIT no figura en el padrón AFIP." }, 404);
     }
 
-    // 3) Persistir verificación si nos pasaron alumno_id (solo si es el propio alumno)
+    // -------- C) Persistir con service-role + validación dueño/admin --------
+    let verificado_at: string | null = null;
+    let persistWarning: string | null = null;
     if (body.alumno_id) {
       try {
-        await supabase
+        const { data: alumno } = await admin
           .from("alumnos")
-          .update({
-            documento: cuitClean,
-            tipo_documento: "cuit",
-            nombre_fiscal: padron.persona.nombre || null,
-            condicion_fiscal: padron.persona.condicion_fiscal || "consumidor_final",
-            domicilio_fiscal: padron.persona.domicilio || null,
-            afip_verificado_at: new Date().toISOString(),
-            afip_padron_snapshot: padron.persona as any,
-          } as any)
-          .eq("id", body.alumno_id);
+          .select("id, email")
+          .eq("id", body.alumno_id)
+          .maybeSingle();
+
+        if (!alumno) {
+          persistWarning = "Alumno no encontrado, snapshot no persistido.";
+        } else {
+          let allowed = !!(userEmail && alumno.email?.toLowerCase() === userEmail);
+          if (!allowed) {
+            const { data: isAdmin } = await admin.rpc("has_role", {
+              _user_id: userId,
+              _role: "admin",
+            });
+            allowed = !!isAdmin;
+          }
+
+          if (!allowed) {
+            persistWarning = "Sin permiso para actualizar este alumno.";
+          } else {
+            const nowIso = new Date().toISOString();
+            const { error: updErr } = await admin
+              .from("alumnos")
+              .update({
+                documento: cuitClean,
+                tipo_documento: "cuit",
+                nombre_fiscal: padron.persona.nombre || null,
+                condicion_fiscal: padron.persona.condicion_fiscal || "consumidor_final",
+                domicilio_fiscal: padron.persona.domicilio || null,
+                afip_verificado_at: nowIso,
+                afip_padron_snapshot: padron.persona as any,
+              } as any)
+              .eq("id", body.alumno_id);
+
+            if (updErr) {
+              persistWarning = `No se pudo persistir: ${updErr.message}`;
+              console.warn("[consultar-padron-afip]", persistWarning);
+            } else {
+              verificado_at = nowIso;
+            }
+          }
+        }
       } catch (e) {
-        console.warn("No se pudo persistir verificación:", (e as Error).message);
+        persistWarning = (e as Error).message;
+        console.warn("[consultar-padron-afip] persist error:", persistWarning);
       }
     }
 
-    return json({ ok: true, persona: padron.persona });
+    return json({
+      ok: true,
+      persona: padron.persona,
+      verificado_at,
+      ...(persistWarning ? { warning: persistWarning } : {}),
+    });
   } catch (err) {
     console.error("Unexpected error:", err);
     return json({ error: `Error inesperado: ${(err as Error).message}` }, 500);
@@ -121,7 +183,7 @@ function json(payload: unknown, status = 200) {
 }
 
 // ============================================================
-// WSAA — login CMS firmado (idéntico a emit-factura-afip pero para ws_sr_padron_a5)
+// WSAA — login CMS firmado para ws_sr_padron_a13
 // ============================================================
 async function authenticateWSAA(
   certPem: string,
@@ -168,7 +230,6 @@ async function authenticateWSAA(
       const sM = decoded.match(/<sign>([^<]+)<\/sign>/);
       if (tM && sM) return { token: tM[1], sign: sM[1] };
     }
-    // Algunos endpoints devuelven errores tipo "ns1:coe.alreadyAuthenticated"
     const faultMatch = respText.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/);
     if (faultMatch) return { error: faultMatch[1] };
 
@@ -202,7 +263,7 @@ function signCMS(data: string, certPem: string, keyPem: string): string {
 }
 
 // ============================================================
-// ws_sr_padron_a5 getPersona
+// ws_sr_padron_a13 getPersona
 // ============================================================
 async function getPersona(
   token: string,
@@ -210,15 +271,16 @@ async function getPersona(
   cuitRepresentada: string,
   cuitConsultado: string,
 ): Promise<{ persona?: PersonaPadron; error?: string }> {
+  // A13 namespace: http://a13.soap.ws.server.puc.sr/
   const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:a13="http://a13.soap.ws.server.puc.sr/">
   <soapenv:Body>
-    <a5:getPersona>
+    <a13:getPersona>
       <token>${token}</token>
       <sign>${sign}</sign>
       <cuitRepresentada>${cuitRepresentada}</cuitRepresentada>
       <idPersona>${cuitConsultado}</idPersona>
-    </a5:getPersona>
+    </a13:getPersona>
   </soapenv:Body>
 </soapenv:Envelope>`;
 
@@ -251,9 +313,9 @@ async function getPersona(
 interface PersonaPadron {
   cuit: string;
   nombre: string;
-  tipo_persona: string | null;     // FISICA | JURIDICA
-  estado: string | null;           // ACTIVO | INACTIVO
-  condicion_fiscal: string;        // monotributo | responsable_inscripto | exento | consumidor_final
+  tipo_persona: string | null;
+  estado: string | null;
+  condicion_fiscal: string;
   domicilio: string | null;
   actividades: string[];
   raw: string;
@@ -273,31 +335,31 @@ function parsePersona(xml: string): PersonaPadron | undefined {
     [pick("nombre"), pick("apellido")].filter(Boolean).join(" ").trim() ||
     "";
 
-  // Condición fiscal: monotributo (impuesto 20 o categoría), IVA inscripto (impuesto 30),
-  // exento (impuesto 32).
-  const text = xml;
+  // Condición fiscal: monotributo (impuesto 20 o categoría),
+  // IVA inscripto (impuesto 30), exento (impuesto 32).
   let condicion: PersonaPadron["condicion_fiscal"] = "consumidor_final";
-  const hasMonotributo = /<idImpuesto>20<\/idImpuesto>/.test(text) ||
-    /<categoriaMonotributo>/.test(text);
-  const hasIvaInscripto = /<idImpuesto>30<\/idImpuesto>/.test(text);
-  const hasExento = /<idImpuesto>32<\/idImpuesto>/.test(text);
+  const hasMonotributo = /<idImpuesto>20<\/idImpuesto>/.test(xml) ||
+    /<categoriaMonotributo>/.test(xml);
+  const hasIvaInscripto = /<idImpuesto>30<\/idImpuesto>/.test(xml);
+  const hasExento = /<idImpuesto>32<\/idImpuesto>/.test(xml);
   if (hasMonotributo) condicion = "monotributo";
   else if (hasIvaInscripto) condicion = "responsable_inscripto";
   else if (hasExento) condicion = "exento";
 
-  // Domicilio fiscal — tomamos el primero que parezca el "fiscal"
+  // Domicilio fiscal — preferimos <domicilioFiscal>; sino primer <domicilio>.
   const domBlock = xml.match(/<domicilioFiscal>([^]*?)<\/domicilioFiscal>/)?.[1]
     || xml.match(/<domicilio[^>]*>([^]*?)<\/domicilio>/)?.[1] || "";
+  const inBlock = (tag: string) =>
+    domBlock.match(new RegExp(`<${tag}>([^<]+)<\\/${tag}>`))?.[1];
   const parts = [
-    pick.call(null, "direccion") || domBlock.match(/<direccion>([^<]+)<\/direccion>/)?.[1],
-    domBlock.match(/<localidad>([^<]+)<\/localidad>/)?.[1],
-    domBlock.match(/<descripcionProvincia>([^<]+)<\/descripcionProvincia>/)?.[1],
-    domBlock.match(/<codPostal>([^<]+)<\/codPostal>/)?.[1],
+    inBlock("direccion"),
+    inBlock("localidad"),
+    inBlock("descripcionProvincia"),
+    inBlock("codPostal"),
   ].filter(Boolean);
   const domicilio = parts.length ? parts.join(", ") : null;
 
-  // Actividades
-  const actividades = [...text.matchAll(/<descripcionActividad>([^<]+)<\/descripcionActividad>/g)]
+  const actividades = [...xml.matchAll(/<descripcionActividad>([^<]+)<\/descripcionActividad>/g)]
     .map((m) => m[1]);
 
   return {
