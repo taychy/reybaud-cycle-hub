@@ -339,6 +339,7 @@ const ExternalTripView = () => {
         onOpenChange={setShowBikeDrawer}
         reservationId={reservation.id}
         alumnoId={participantId}
+        token={token ?? undefined}
         onSaved={reloadChecklist}
       />
       <TripPedalsDrawer
@@ -346,6 +347,7 @@ const ExternalTripView = () => {
         onOpenChange={setShowPedalsDrawer}
         reservationId={reservation.id}
         alumnoId={participantId}
+        token={token ?? undefined}
         onSaved={reloadChecklist}
       />
       <TripDocumentDrawer
@@ -358,6 +360,7 @@ const ExternalTripView = () => {
         description={docDrawer.description}
         helpText={docDrawer.helpText}
         icon={docDrawer.icon}
+        token={token ?? undefined}
         onSaved={reloadChecklist}
       />
     </div>
