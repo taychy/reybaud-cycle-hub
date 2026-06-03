@@ -823,6 +823,42 @@ const StudentPayments = () => {
             </div>
           )}
 
+          {/* ──────── Solicitud de baja ──────── */}
+          {alumno && (pendingBaja ? (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm font-medium">
+                <AlertTriangle className="w-4 h-4" /> Tu solicitud de baja está en revisión
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Administración la va a revisar y se contactará con vos. Mientras tanto tus planes siguen activos.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const { error } = await supabase.rpc("cancelar_solicitud_baja", { p_solicitud_id: pendingBaja.id });
+                  if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                  toast({ title: "Solicitud cancelada" });
+                  setPendingBaja(null);
+                }}
+              >
+                Cancelar solicitud
+              </Button>
+            </div>
+          ) : activeSubs.length > 0 && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setBajaDialogOpen(true)}
+                className="text-xs text-muted-foreground hover:text-destructive underline underline-offset-4 transition-colors"
+              >
+                Darme de baja de la escuela
+              </button>
+            </div>
+          ))}
+
+
+
           {/* ──────── Payment History ──────── */}
           <div className="space-y-3">
             <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
