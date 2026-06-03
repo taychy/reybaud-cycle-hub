@@ -49,6 +49,7 @@ const DepositoLogin = () => {
         checkedUserRef.current = null;
         return false;
       }
+      if (checkedUserRef.current === session.user.id) return true;
       checkedUserRef.current = session.user.id;
       const roleCheck = supabase.rpc("has_role", {
         _user_id: session.user.id,
@@ -64,10 +65,12 @@ const DepositoLogin = () => {
         navigate("/deposito", { replace: true });
         return true;
       }
+      checkedUserRef.current = null;
       return false;
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return;
       // No ejecutar RPCs dentro del callback de auth: puede dejar la app clavada.
       window.setTimeout(() => {
         void redirectIfDeposito(session).then((redirected) => {
