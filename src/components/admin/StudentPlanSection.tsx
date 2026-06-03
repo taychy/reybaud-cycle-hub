@@ -348,8 +348,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         let monthsToAdd = 1;
         if (freq === "trimestral") monthsToAdd = 3;
         else if (freq === "anual") monthsToAdd = 12;
-        const endDate = new Date(startY, startM - 1 + monthsToAdd, 0);
+        // Regla: fecha_fin = fecha_inicio + N meses − 1 día.
+        // Así un inicio el día 1 termina el último día del mes (1/06 → 30/06),
+        // y un inicio el día 31 termina el día anterior del mes equivalente
+        // (31/05 → 30/06), evitando que fecha_fin colapse con fecha_inicio.
+        const endDateRaw = new Date(startY, startM - 1 + monthsToAdd, startD);
+        endDateRaw.setDate(endDateRaw.getDate() - 1);
+        const endDate = endDateRaw;
         const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
+
 
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
