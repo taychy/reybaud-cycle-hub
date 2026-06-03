@@ -145,6 +145,7 @@ const StoreProducts = () => {
         ? editProduct.delivery_methods
         : ["retiro_sede"],
       pickup_sede_ids: Array.isArray(editProduct.pickup_sede_ids) ? editProduct.pickup_sede_ids : [],
+      no_admite_cambio: (editProduct as any).no_admite_cambio || false,
     };
     if (editProduct.id) {
       await supabase.from("store_products").update(payload as any).eq("id", editProduct.id);
