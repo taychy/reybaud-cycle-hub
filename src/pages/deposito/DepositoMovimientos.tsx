@@ -45,6 +45,12 @@ const DepositoMovimientos = () => {
 
     // Fetch product names for all product_ids
     const productIds = [...new Set(rawMovements.map((m: any) => m.product_id))];
+    if (productIds.length === 0) {
+      setMovements([]);
+      setLoading(false);
+      return;
+    }
+
     const { data: products } = await supabase
       .from("store_products")
       .select("id, name")
