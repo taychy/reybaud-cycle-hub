@@ -117,55 +117,36 @@ const ExternalTripView = () => {
   const loadData = useCallback(async () => {
     if (!token) { setError("Link inválido. Pedí un nuevo enlace al equipo."); setLoading(false); return; }
 
-    // Fetch reservation by token
-    const { data: res, error: resErr } = await supabase
-      .from("event_reservations")
-      .select("id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token")
-      .eq("access_token", token)
-      .maybeSingle();
-
-    if (resErr || !res) { setError("No encontramos tu reserva. Verificá el enlace o contactá al equipo."); setLoading(false); return; }
-    setReservation(res as ReservationData);
-
-    // Fetch event + participant in parallel (participant from external table OR via RPC for internal alumno)
-    const [eventRes, partRes] = await Promise.all([
-      supabase.from("events").select("id, title, date, end_date, location, currency, metadata, image_url, duration_days, duration_nights").eq("id", res.event_id).single(),
-      res.external_participant_id
-        ? supabase.from("event_external_participants").select("id, nombre, apellido, email").eq("id", res.external_participant_id).single()
-        : res.alumno_id
-          ? supabase.rpc("get_reservation_participant_by_token", { p_token: token }).maybeSingle().then((r: any) => ({ data: r.data }))
-          : Promise.resolve({ data: null }),
-    ]);
-
-    if (eventRes.data) setEvent(eventRes.data as EventData);
-    if (partRes.data) setParticipant(partRes.data as ParticipantData);
-
-    // Load checklist data
-    const { data: clData } = await supabase
-      .from("reservation_checklist_data")
-      .select("*")
-      .eq("reservation_id", res.id);
-    if (clData) {
+    try {
+      const resp = await tripTokenGet(token);
+      if (!resp.reservation || !resp.event) {
+        setError("No encontramos tu reserva. Verificá el enlace o contactá al equipo.");
+        setLoading(false);
+        return;
+      }
+      setReservation(resp.reservation as ReservationData);
+      setEvent(resp.event as EventData);
+      setParticipant((resp.participant as ParticipantData) ?? null);
       const map: Record<string, any> = {};
-      clData.forEach((row) => { map[row.step_key] = row; });
+      (resp.checklist ?? []).forEach((row) => { map[row.step_key] = row; });
       setChecklistData(map);
+    } catch (e: any) {
+      setError("No encontramos tu reserva. Verificá el enlace o contactá al equipo.");
     }
-
     setLoading(false);
   }, [token]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const reloadChecklist = async () => {
-    if (!reservation) return;
-    const { data } = await supabase
-      .from("reservation_checklist_data")
-      .select("*")
-      .eq("reservation_id", reservation.id);
-    if (data) {
+    if (!token) return;
+    try {
+      const resp = await tripTokenGet(token);
       const map: Record<string, any> = {};
-      data.forEach((row) => { map[row.step_key] = row; });
+      (resp.checklist ?? []).forEach((row) => { map[row.step_key] = row; });
       setChecklistData(map);
+    } catch {
+      // silent
     }
   };
 
