@@ -14,6 +14,11 @@ import { Package, Search, Plus, Minus, RefreshCw, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 
+interface VariantSpec {
+  name: string;
+  options: string[];
+}
+
 interface Product {
   id: string;
   name: string;
@@ -22,7 +27,23 @@ interface Product {
   status: string;
   category_id: string | null;
   image_url: string | null;
+  variants: VariantSpec[] | null;
+  variant_stock: Record<string, number> | null;
 }
+
+// Construye la clave del variant_stock en el mismo formato que usa el
+// resto de la app: "VariantName:Value|VariantName:Value" en el ORDEN
+// que define `product.variants`. Si falta alguna selección devuelve "".
+const buildVariantKey = (
+  specs: VariantSpec[],
+  selection: Record<string, string>,
+): string => {
+  if (!specs.length) return "";
+  for (const s of specs) {
+    if (!selection[s.name]) return "";
+  }
+  return specs.map((s) => `${s.name}:${selection[s.name]}`).join("|");
+};
 
 const DepositoStock = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -32,6 +53,7 @@ const DepositoStock = () => {
   const [movTipo, setMovTipo] = useState<"ingreso" | "egreso">("ingreso");
   const [movCantidad, setMovCantidad] = useState("");
   const [movMotivo, setMovMotivo] = useState("");
+  const [movVariant, setMovVariant] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   // Barcode scanner state
@@ -43,14 +65,30 @@ const DepositoStock = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("store_products")
-      .select("id, name, stock, min_stock, status, category_id, image_url")
+      .select("id, name, stock, min_stock, status, category_id, image_url, variants, variant_stock")
       .eq("status", "active")
       .order("name");
-    if (!error) setProducts(data || []);
+    if (!error) setProducts((data as any) || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchProducts(); }, []);
+
+  // Reset selección de variante al abrir/cambiar producto.
+  useEffect(() => {
+    if (movDialog) setMovVariant({});
+  }, [movDialog?.id]);
+
+  const dialogSpecs: VariantSpec[] = Array.isArray(movDialog?.variants)
+    ? (movDialog!.variants as VariantSpec[]).filter(
+        (v) => v?.name && Array.isArray(v?.options) && v.options.length > 0,
+      )
+    : [];
+  const dialogHasVariants = dialogSpecs.length > 0;
+  const dialogVariantKey = buildVariantKey(dialogSpecs, movVariant);
+  const dialogVariantStock: number | null = dialogHasVariants
+    ? (dialogVariantKey ? (movDialog?.variant_stock?.[dialogVariantKey] ?? 0) : null)
+    : (movDialog?.stock ?? 0);
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -61,30 +99,60 @@ const DepositoStock = () => {
       toast({ title: "Ingresá una cantidad válida", variant: "destructive" });
       return;
     }
+    if (dialogHasVariants && !dialogVariantKey) {
+      toast({
+        title: "Elegí la variante",
+        description: dialogSpecs.map((s) => s.name).join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
 
     const cantidad = parseInt(movCantidad);
-    const stockAnterior = movDialog.stock;
-    const stockNuevo = movTipo === "ingreso" ? stockAnterior + cantidad : stockAnterior - cantidad;
+
+    // Trabajamos sobre el stock de la VARIANTE si existe; si no, sobre el total.
+    const stockAnterior = dialogHasVariants
+      ? (movDialog.variant_stock?.[dialogVariantKey] ?? 0)
+      : movDialog.stock;
+    const stockNuevo = movTipo === "ingreso"
+      ? stockAnterior + cantidad
+      : stockAnterior - cantidad;
 
     if (stockNuevo < 0) {
-      toast({ title: "Stock insuficiente", description: "No podés egresar más de lo que hay en stock.", variant: "destructive" });
+      toast({
+        title: "Stock insuficiente",
+        description: `Sólo hay ${stockAnterior} unidades${dialogHasVariants ? ` de ${dialogVariantKey.replace(/\|/g, " · ")}` : ""}.`,
+        variant: "destructive",
+      });
       return;
+    }
+
+    // Si el producto tiene variantes, recalculamos el stock TOTAL como
+    // suma de todas las variantes (incluyendo la actualizada). Si no
+    // tiene variantes, el total es directamente stockNuevo.
+    let nextVariantStock: Record<string, number> | null = null;
+    let nextTotalStock = stockNuevo;
+    if (dialogHasVariants) {
+      nextVariantStock = { ...(movDialog.variant_stock || {}), [dialogVariantKey]: stockNuevo };
+      nextTotalStock = Object.values(nextVariantStock).reduce(
+        (acc, n) => acc + (Number(n) || 0),
+        0,
+      );
     }
 
     setSaving(true);
     try {
-      // Update product stock
+      const updatePayload: Record<string, unknown> = { stock: nextTotalStock };
+      if (nextVariantStock) updatePayload.variant_stock = nextVariantStock;
+
       const { error: updateError } = await supabase
         .from("store_products")
-        .update({ stock: stockNuevo } as any)
+        .update(updatePayload as any)
         .eq("id", movDialog.id);
-
       if (updateError) throw updateError;
 
-      // Get current user
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Record movement
       const { error: movError } = await supabase
         .from("stock_movements" as any)
         .insert({
@@ -94,19 +162,22 @@ const DepositoStock = () => {
           stock_anterior: stockAnterior,
           stock_nuevo: stockNuevo,
           motivo: movMotivo || null,
+          variante: dialogHasVariants ? dialogVariantKey : null,
           registrado_por: session?.user?.id || null,
         } as any);
-
       if (movError) throw movError;
 
       toast({
         title: movTipo === "ingreso" ? "Ingreso registrado" : "Egreso registrado",
-        description: `${movDialog.name}: ${stockAnterior} → ${stockNuevo}`,
+        description: dialogHasVariants
+          ? `${movDialog.name} (${dialogVariantKey.replace(/\|/g, " · ")}): ${stockAnterior} → ${stockNuevo}`
+          : `${movDialog.name}: ${stockAnterior} → ${stockNuevo}`,
       });
 
       setMovDialog(null);
       setMovCantidad("");
       setMovMotivo("");
+      setMovVariant({});
       fetchProducts();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -283,7 +354,9 @@ const DepositoStock = () => {
               {movTipo === "ingreso" ? "Registrar ingreso" : "Registrar egreso"}
             </DialogTitle>
             <DialogDescription>
-              {movDialog?.name} — Stock actual: {movDialog?.stock}
+              {movDialog?.name}
+              {!dialogHasVariants && ` — Stock actual: ${movDialog?.stock ?? 0}`}
+              {dialogHasVariants && ` — Stock total: ${movDialog?.stock ?? 0}`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -305,6 +378,62 @@ const DepositoStock = () => {
                 <Minus className="w-3 h-3 mr-1" /> Egreso
               </Button>
             </div>
+
+            {/* Selector de variantes (talle / color / modelo / etc.) */}
+            {dialogHasVariants && (
+              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Variante a mover
+                </p>
+                <div className={`grid gap-2 ${dialogSpecs.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {dialogSpecs.map((spec) => (
+                    <div key={spec.name}>
+                      <label className="text-xs font-medium">{spec.name}</label>
+                      <Select
+                        value={movVariant[spec.name] || ""}
+                        onValueChange={(val) =>
+                          setMovVariant((prev) => ({ ...prev, [spec.name]: val }))
+                        }
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={`Elegí ${spec.name.toLowerCase()}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {spec.options.map((opt) => {
+                            // Mostramos el stock disponible junto a cada opción
+                            // SOLO cuando se trata del último selector (más
+                            // específico) o cuando hay un único selector.
+                            const previewKey = buildVariantKey(dialogSpecs, {
+                              ...movVariant,
+                              [spec.name]: opt,
+                            });
+                            const previewStock = previewKey
+                              ? (movDialog?.variant_stock?.[previewKey] ?? 0)
+                              : null;
+                            return (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                                {previewStock !== null && (
+                                  <span className="text-muted-foreground ml-2 text-xs">
+                                    · stock {previewStock}
+                                  </span>
+                                )}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+                {dialogVariantKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Stock actual de esta variante: <b>{dialogVariantStock}</b>
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium">Cantidad</label>
               <Input
@@ -316,9 +445,12 @@ const DepositoStock = () => {
               />
               {movDialog && movCantidad && parseInt(movCantidad) > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Stock resultante: {movTipo === "ingreso"
-                    ? movDialog.stock + parseInt(movCantidad)
-                    : movDialog.stock - parseInt(movCantidad)}
+                  {dialogHasVariants && !dialogVariantKey
+                    ? "Elegí primero la variante."
+                    : `Stock ${dialogHasVariants ? "de la variante" : "resultante"}: ${
+                        (dialogVariantStock ?? 0) +
+                        (movTipo === "ingreso" ? parseInt(movCantidad) : -parseInt(movCantidad))
+                      }`}
                 </p>
               )}
             </div>
