@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { AlertTriangle, ChevronLeft, ChevronRight, CheckCheck, Pencil, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, CheckCheck, Pencil, RefreshCw, Inbox, ClipboardCheck } from "lucide-react";
+import BajasSolicitudesList from "@/components/admin/BajasSolicitudesList";
 
 type SubRow = {
   id: string;
@@ -161,9 +163,22 @@ const AdminBajas = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Chequeo de bajas</h1>
-        <p className="text-sm text-muted-foreground">Alumnos sin suscripción activa hoy que sí tenían sub activa en el mes seleccionado</p>
+        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Bajas</h1>
+        <p className="text-sm text-muted-foreground">Solicitudes de baja del alumno y chequeo de bajas históricas</p>
       </div>
+
+      <Tabs defaultValue="solicitudes" className="w-full">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="solicitudes" className="gap-1.5"><Inbox className="w-4 h-4" />Solicitudes</TabsTrigger>
+          <TabsTrigger value="chequeo" className="gap-1.5"><ClipboardCheck className="w-4 h-4" />Chequeo histórico</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="solicitudes" className="mt-4">
+          <BajasSolicitudesList />
+        </TabsContent>
+
+        <TabsContent value="chequeo" className="mt-4 space-y-4">
+
 
       <Card>
         <CardHeader className="pb-3">
@@ -296,8 +311,11 @@ const AdminBajas = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
+
 };
 
 export default AdminBajas;

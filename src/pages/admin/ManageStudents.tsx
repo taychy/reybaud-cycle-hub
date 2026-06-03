@@ -15,7 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2 } from "lucide-react";
+import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
+import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -124,6 +125,11 @@ const ManageStudents = () => {
   // Drawer detail
   const [drawerAlumno, setDrawerAlumno] = useState<Alumno | null>(null);
   const [drawerExpanded, setDrawerExpanded] = useState(false);
+  // Baja flow
+  const [bajaAdminAlumno, setBajaAdminAlumno] = useState<Alumno | null>(null);
+  const [bajaSolicitud, setBajaSolicitud] = useState<any>(null);
+  const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
   const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "" });
 
@@ -483,6 +489,10 @@ const ManageStudents = () => {
     if (estado === "activo") {
       actions.push({ label: "Pausar (vacaciones)", icon: Palmtree, action: () => openStateChange(alumno, "vacaciones") });
       actions.push({ label: "Desactivar acceso", icon: UserX, action: () => openStateChange(alumno, "inactivo") });
+      actions.push({ label: "Dar de baja", icon: LogOut, action: () => handleStartBajaAdmin(alumno), destructive: true });
+    }
+    if (estado === "inactivo") {
+      actions.push({ label: "Reactivar alumno", icon: UserCheck, action: () => setReactivateAlumno(alumno) });
     }
     if (estado === "pendiente") {
       actions.push({ label: "Aprobar (activar)", icon: UserCheck, action: () => openStateChange(alumno, "activo") });
@@ -500,6 +510,36 @@ const ManageStudents = () => {
     actions.push({ label: "Eliminar", icon: Trash2, action: () => setDeleteAlumno(alumno), destructive: true });
 
     return actions;
+  };
+
+  // Inicia la baja por admin: crea la solicitud y abre el confirm dialog
+  const handleStartBajaAdmin = async (alumno: Alumno) => {
+    const { data: solId, error } = await supabase.rpc("request_baja_alumno", {
+      p_alumno_id: alumno.id,
+      p_motivo: "otro",
+      p_motivo_otro_detalle: "Baja iniciada por administración",
+      p_origen: "admin",
+    });
+    if (error || !solId) { toast.error(error?.message || "No se pudo crear la solicitud"); return; }
+    const { data: sol } = await supabase
+      .from("bajas_solicitudes")
+      .select("id, alumno_id, motivo, motivo_otro_detalle, comentario, snapshot")
+      .eq("id", solId as unknown as string)
+      .maybeSingle();
+    if (!sol) { toast.error("No se pudo cargar la solicitud"); return; }
+    setBajaAdminAlumno(alumno);
+    setBajaSolicitud({ ...sol, alumno_nombre: `${alumno.nombre} ${alumno.apellido ?? ""}`.trim() });
+  };
+
+  const handleReactivate = async () => {
+    if (!reactivateAlumno) return;
+    setReactivateLoading(true);
+    const { error } = await supabase.rpc("reactivar_alumno", { p_alumno_id: reactivateAlumno.id });
+    setReactivateLoading(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Alumno reactivado. Deberá contratar un nuevo plan.");
+    setAlumnos((prev) => prev.map((a) => a.id === reactivateAlumno.id ? { ...a, estado: "activo" } as any : a));
+    setReactivateAlumno(null);
   };
 
   // --- Drawer ---
@@ -1887,6 +1927,37 @@ const ManageStudents = () => {
         isSuperAdmin={isSuperAdmin}
         onSuccess={() => { fetchAlumnos(); supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, metodo_pago, planes(id, nombre, precio, moneda)").order("created_at", { ascending: false }).then(({ data }) => setSuscripciones((data as any) || [])); }}
       />
+
+      {bajaSolicitud && bajaAdminAlumno && (
+        <ConfirmBajaDialog
+          open={!!bajaSolicitud}
+          onOpenChange={(v) => { if (!v) { setBajaSolicitud(null); setBajaAdminAlumno(null); } }}
+          solicitud={bajaSolicitud}
+          onConfirmed={() => {
+            setAlumnos((prev) => prev.map((a) => a.id === bajaAdminAlumno.id ? { ...a, estado: "inactivo", grupo: "Sin grupo" } as any : a));
+            setBajaSolicitud(null);
+            setBajaAdminAlumno(null);
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!reactivateAlumno} onOpenChange={(v) => { if (!v) setReactivateAlumno(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reactivar alumno</AlertDialogTitle>
+            <AlertDialogDescription>
+              El alumno volverá a estado <b>activo</b>, pero <b>no</b> se restauran las suscripciones anteriores.
+              Deberá contratar un nuevo plan para acceder a entrenamientos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reactivateLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReactivate} disabled={reactivateLoading}>
+              {reactivateLoading ? "Reactivando..." : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
