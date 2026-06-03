@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ const DepositoLogin = () => {
   const [linkSent, setLinkSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const checkedUserRef = useRef<string | null>(null);
 
   const restorePendingOtp = useCallback(() => {
     const pending = loadPendingOtpState("staff");
@@ -44,7 +45,12 @@ const DepositoLogin = () => {
     let cancelled = false;
 
     const redirectIfDeposito = async (session: any) => {
-      if (!session) return false;
+      if (!session) {
+        checkedUserRef.current = null;
+        return false;
+      }
+      if (checkedUserRef.current === session.user.id) return false;
+      checkedUserRef.current = session.user.id;
       const roleCheck = supabase.rpc("has_role", {
         _user_id: session.user.id,
         _role: "deposito" as any,
