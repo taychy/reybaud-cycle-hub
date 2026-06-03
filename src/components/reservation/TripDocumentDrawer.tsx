@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, CheckCircle, FileText, ExternalLink } from "lucide-react";
@@ -15,12 +16,13 @@ interface TripDocumentDrawerProps {
   description: string;
   icon: React.ReactNode;
   helpText: string;
+  token?: string;
   onSaved: () => void;
 }
 
 const TripDocumentDrawer = ({
   open, onOpenChange, reservationId, alumnoId, stepKey,
-  title, description, icon, helpText, onSaved,
+  title, description, icon, helpText, token, onSaved,
 }: TripDocumentDrawerProps) => {
   const folderId = alumnoId || `external/${reservationId}`;
   const [loading, setLoading] = useState(false);
@@ -32,23 +34,32 @@ const TripDocumentDrawer = ({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    supabase
-      .from("reservation_checklist_data")
-      .select("*")
-      .eq("reservation_id", reservationId)
-      .eq("step_key", stepKey)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setExistingId(data.id);
-          setFileUrl(data.file_url || null);
-        } else {
-          setExistingId(null);
-          setFileUrl(null);
-        }
-        setLoading(false);
-      });
-  }, [open, reservationId, stepKey]);
+
+    const applyRow = (row: any | null) => {
+      if (row) {
+        setExistingId(row.id);
+        setFileUrl(row.file_url || null);
+      } else {
+        setExistingId(null);
+        setFileUrl(null);
+      }
+      setLoading(false);
+    };
+
+    if (token) {
+      tripTokenGet(token)
+        .then((resp) => applyRow(resp.checklist.find((c) => c.step_key === stepKey) ?? null))
+        .catch(() => applyRow(null));
+    } else {
+      supabase
+        .from("reservation_checklist_data")
+        .select("*")
+        .eq("reservation_id", reservationId)
+        .eq("step_key", stepKey)
+        .maybeSingle()
+        .then(({ data }) => applyRow(data));
+    }
+  }, [open, reservationId, stepKey, token]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,6 +82,28 @@ const TripDocumentDrawer = ({
 
   const saveData = async (url: string | null) => {
     setSaving(true);
+
+    if (token) {
+      try {
+        const res = await tripTokenSaveStep({
+          token,
+          step_key: stepKey,
+          completed: !!url,
+          needs_advice: false,
+          data: {},
+          file_url: url,
+        });
+        if (res.id) setExistingId(res.id);
+        setSaving(false);
+        toast.success("¡Archivo guardado!");
+        onSaved();
+      } catch {
+        setSaving(false);
+        toast.error("Error al guardar");
+      }
+      return;
+    }
+
     const payload = {
       reservation_id: reservationId,
       alumno_id: alumnoId,
