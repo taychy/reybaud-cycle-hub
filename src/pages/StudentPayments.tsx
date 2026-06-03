@@ -970,6 +970,26 @@ const StudentPayments = () => {
         />
       )}
 
+      {alumno && (
+        <RequestBajaDialog
+          open={bajaDialogOpen}
+          onOpenChange={setBajaDialogOpen}
+          alumnoId={alumno.id}
+          onSubmitted={() => {
+            // recargar pending
+            supabase
+              .from("bajas_solicitudes")
+              .select("id, created_at")
+              .eq("alumno_id", alumno.id)
+              .eq("estado", "solicitada")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+              .then(({ data }) => setPendingBaja(data ?? null));
+          }}
+        />
+      )}
+
       <BottomNav />
     </div>
   );
