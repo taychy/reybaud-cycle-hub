@@ -48,6 +48,7 @@ const storeItems: NavItem[] = [
   { to: "/admin/tienda/banners", label: "Banners", icon: Image },
   { to: "/admin/tienda/stock", label: "Stock", icon: Package },
   { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/admin/tienda/cambios", label: "Cambios", icon: RefreshCw },
 ];
 
 const navSections: NavSection[] = [
