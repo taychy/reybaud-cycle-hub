@@ -1,80 +1,275 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Loader2, Eye, EyeOff } from "lucide-react";
-import { useDepositoAuth } from "@/hooks/useDepositoAuth";
-import { toast } from "@/hooks/use-toast";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { supabase } from "@/integrations/supabase/client";
+import { Package, ChevronRight, ArrowLeft, MailCheck, KeyRound } from "lucide-react";
+import { toast } from "sonner";
+import {
+  canRequestOtpAgain,
+  clearPendingOtpState,
+  finishOtpRequest,
+  getOtpErrorMessage,
+  loadPendingOtpState,
+  normalizeOtpCode,
+  OTP_LENGTH,
+  savePendingOtpState,
+  startOtpRequest,
+} from "@/lib/pendingOtp";
+
+const PRODUCTION_ORIGIN = "https://reybaud-app.com";
 
 const DepositoLogin = () => {
   const navigate = useNavigate();
-  const { login } = useDepositoAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [linkSent, setLinkSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Auto-redirect if already authenticated as deposito
+  useEffect(() => {
+    const redirectIfDeposito = async (session: any) => {
+      if (!session) return false;
+      const { data: isDeposito } = await supabase.rpc("has_role", {
+        _user_id: session.user.id,
+        _role: "deposito" as any,
+      });
+      if (isDeposito) {
+        clearPendingOtpState();
+        navigate("/deposito", { replace: true });
+        return true;
+      }
+      return false;
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void redirectIfDeposito(session);
+    });
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const redirected = await redirectIfDeposito(session);
+      if (!redirected) {
+        const pending = loadPendingOtpState("staff");
+        if (pending) {
+          setEmail(pending.email);
+          setLinkSent(true);
+        }
+        setCheckingSession(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startOtpRequest()) return;
+    setError(null);
     setLoading(true);
     try {
-      await login(email, password);
-      navigate("/deposito");
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Credenciales inválidas", variant: "destructive" });
-    } finally {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (!trimmedEmail) {
+        setError("Ingresá tu email.");
+        setLoading(false);
+        return;
+      }
+      if (!canRequestOtpAgain("staff", trimmedEmail)) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
+        _email: trimmedEmail,
+      });
+
+      if (!isValidEmail) {
+        setError("No se encontró una cuenta de depósito con ese email.");
+        setLoading(false);
+        return;
+      }
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: { emailRedirectTo: `${PRODUCTION_ORIGIN}/auth/callback` },
+      });
+
+      if (otpError) {
+        setError(otpError.message || "Error al enviar el código.");
+        setLoading(false);
+        return;
+      }
+
+      savePendingOtpState({ email: trimmedEmail, returnTo: "/deposito", context: "staff" });
+      setLinkSent(true);
       setLoading(false);
+      toast.success("Código enviado. Revisá tu email.");
+    } finally {
+      finishOtpRequest();
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm border-border">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-            <Package className="w-6 h-6 text-primary" />
-          </div>
-          <CardTitle className="font-heading uppercase tracking-wider">Depósito</CardTitle>
-          <p className="text-sm text-muted-foreground">Gestión de stock y mercadería</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              type="email"
-              name="email"
-              autoComplete="username"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="current-password"
-                placeholder="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+  const handleVerifyOtp = async () => {
+    if (verifyingOtp) return;
+    const normalized = normalizeOtpCode(otpCode);
+    if (normalized.length < OTP_LENGTH) return;
+    setVerifyingOtp(true);
+    setError(null);
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase().trim(),
+      token: normalized,
+      type: "email",
+    });
+
+    setVerifyingOtp(false);
+    if (verifyError) {
+      setError(getOtpErrorMessage(verifyError));
+      setOtpCode("");
+      return;
+    }
+    clearPendingOtpState();
+    toast.success("Sesión iniciada.");
+    // onAuthStateChange handles redirect
+  };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground text-sm">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (linkSent) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md space-y-6 animate-fade-in text-center">
+          <MailCheck className="w-14 h-14 text-primary mx-auto" />
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Revisá tu email
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Te enviamos un código a <strong className="text-foreground">{email}</strong>.<br />
+            Ingresalo acá para entrar.
+          </p>
+
+          <div className="glass-card rounded-lg p-6 space-y-4">
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <KeyRound className="w-4 h-4" />
+              <span>Código de acceso</span>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ingresar"}
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={OTP_LENGTH}
+                value={otpCode}
+                onChange={(v) => { setOtpCode(normalizeOtpCode(v)); setError(null); }}
+              >
+                <InputOTPGroup>
+                  {Array.from({ length: OTP_LENGTH }, (_, i) => (
+                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            {error && (
+              <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">{error}</div>
+            )}
+
+            <Button
+              variant="gold"
+              className="w-full"
+              size="lg"
+              disabled={verifyingOtp || otpCode.length < OTP_LENGTH}
+              onClick={handleVerifyOtp}
+            >
+              {verifyingOtp ? "Verificando..." : "Ingresar"}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                clearPendingOtpState();
+                setLinkSent(false);
+                setOtpCode("");
+                setError(null);
+              }}
+              className="w-full"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Cambiar email
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => { setOtpCode(""); handleSendOtp({ preventDefault: () => {} } as React.FormEvent); }}
+              className="w-full text-xs"
+              disabled={loading}
+            >
+              {loading ? "Reenviando..." : "Reenviar código"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md space-y-6 animate-fade-in">
+        <div className="text-center space-y-3">
+          <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Package className="w-7 h-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">
+            Acceso Depósito
+          </h1>
+          <p className="text-muted-foreground text-sm">Ciclismo Reybaud</p>
+        </div>
+
+        <form onSubmit={handleSendOtp} className="space-y-4">
+          <div className="glass-card rounded-lg p-6 space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="deposito-email" className="text-sm font-medium text-foreground">Email</label>
+              <Input
+                id="deposito-email"
+                type="email"
+                name="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="tu@email.com"
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {error && (
+              <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">{error}</div>
+            )}
+
+            <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Enviando..." : "Pedir código de acceso"}
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </form>
+
+        <div className="text-center">
+          <button
+            onClick={() => navigate("/")}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            Volver al login principal
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
