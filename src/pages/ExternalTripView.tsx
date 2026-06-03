@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { tripTokenGet } from "@/lib/tripTokenApi";
 import { formatPrice } from "@/lib/currency";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
