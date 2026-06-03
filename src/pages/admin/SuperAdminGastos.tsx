@@ -499,6 +499,7 @@ const SuperAdminGastos = () => {
       dia_vencimiento: String(r.dia_vencimiento || 10),
       forma_pago_default: r.forma_pago_default || "transferencia",
       proveedor: r.proveedor || "", notas: r.notas || "", activo: r.activo,
+      tipo: r.tipo || "fijo",
     });
     setCatDialogOpen(true);
   };
