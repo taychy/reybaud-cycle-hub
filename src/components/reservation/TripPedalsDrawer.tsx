@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,11 @@ interface TripPedalsDrawerProps {
   onOpenChange: (open: boolean) => void;
   reservationId: string;
   alumnoId: string | null;
+  token?: string;
   onSaved: () => void;
 }
 
-const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }: TripPedalsDrawerProps) => {
+const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved }: TripPedalsDrawerProps) => {
   const folderId = alumnoId || `external/${reservationId}`;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,28 +31,37 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    supabase
-      .from("reservation_checklist_data")
-      .select("*")
-      .eq("reservation_id", reservationId)
-      .eq("step_key", "pedales")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setExistingId(data.id);
-          const d = data.data as any;
-          setPedalType(d?.pedal_type || "");
-          setNeedsAdvice(data.needs_advice || false);
-          setPhotoUrl(data.file_url || null);
-        } else {
-          setExistingId(null);
-          setPedalType("");
-          setNeedsAdvice(false);
-          setPhotoUrl(null);
-        }
-        setLoading(false);
-      });
-  }, [open, reservationId]);
+
+    const applyRow = (row: any | null) => {
+      if (row) {
+        setExistingId(row.id);
+        const d = row.data as any;
+        setPedalType(d?.pedal_type || "");
+        setNeedsAdvice(row.needs_advice || false);
+        setPhotoUrl(row.file_url || null);
+      } else {
+        setExistingId(null);
+        setPedalType("");
+        setNeedsAdvice(false);
+        setPhotoUrl(null);
+      }
+      setLoading(false);
+    };
+
+    if (token) {
+      tripTokenGet(token)
+        .then((resp) => applyRow(resp.checklist.find((c) => c.step_key === "pedales") ?? null))
+        .catch(() => applyRow(null));
+    } else {
+      supabase
+        .from("reservation_checklist_data")
+        .select("*")
+        .eq("reservation_id", reservationId)
+        .eq("step_key", "pedales")
+        .maybeSingle()
+        .then(({ data }) => applyRow(data));
+    }
+  }, [open, reservationId, token]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,6 +84,28 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved
 
   const handleSave = async () => {
     setSaving(true);
+
+    if (token) {
+      try {
+        await tripTokenSaveStep({
+          token,
+          step_key: "pedales",
+          completed: isComplete,
+          needs_advice: needsAdvice,
+          data: { pedal_type: pedalType },
+          file_url: photoUrl,
+        });
+        setSaving(false);
+        toast.success("¡Información guardada!");
+        onSaved();
+        onOpenChange(false);
+      } catch {
+        setSaving(false);
+        toast.error("Error al guardar");
+      }
+      return;
+    }
+
     const payload = {
       reservation_id: reservationId,
       alumno_id: alumnoId,
