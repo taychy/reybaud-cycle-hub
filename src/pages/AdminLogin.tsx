@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,23 @@ import { toast } from "sonner";
 import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
+const ROLE_CHECK_TIMEOUT_MS = 7000;
+
+const checkAppRole = async (userId: string, role: "admin" | "coach" | "deposito") => {
+  try {
+    const roleCheck = supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: role as any,
+    });
+    const timeout = new Promise<{ data: false }>((resolve) => {
+      window.setTimeout(() => resolve({ data: false }), ROLE_CHECK_TIMEOUT_MS);
+    });
+    const { data } = await Promise.race([roleCheck, timeout]);
+    return !!data;
+  } catch {
+    return false;
+  }
+};
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -24,6 +41,44 @@ const AdminLogin = () => {
   const [searchParams] = useSearchParams();
   const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
   const [otpReturnTo, setOtpReturnTo] = useState<string | null>(returnTo);
+
+  const redirectByRole = useCallback(async (session: any) => {
+    if (!session) return false;
+    const userId = session.user.id;
+
+    if (await checkAppRole(userId, "admin")) {
+      clearPendingOtpState();
+      navigate("/admin", { replace: true });
+      return true;
+    }
+
+    if (await checkAppRole(userId, "coach")) {
+      clearPendingOtpState();
+      navigate("/coach", { replace: true });
+      return true;
+    }
+
+    if (await checkAppRole(userId, "deposito")) {
+      clearPendingOtpState();
+      const target = otpReturnTo?.startsWith("/deposito") ? otpReturnTo : "/deposito";
+      navigate(target, { replace: true });
+      return true;
+    }
+
+    const { data: alumno } = await supabase
+      .from("alumnos")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (alumno) {
+      clearPendingOtpState();
+      navigate(otpReturnTo || "/alumno", { replace: true });
+      return true;
+    }
+
+    return false;
+  }, [navigate, otpReturnTo]);
 
   // Detect callback errors from URL
   useEffect(() => {
@@ -61,52 +116,42 @@ const AdminLogin = () => {
 
   // Auto-redirect if already authenticated — check all roles
   useEffect(() => {
-    const redirectByRole = async (session: any) => {
-      if (!session) return false;
-      const userId = session.user.id;
+    let cancelled = false;
 
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin" as any,
-      });
-      if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return true; }
-
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "coach" as any,
-      });
-      if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return true; }
-
-      // Check alumno
-      const { data: alumno } = await supabase
-        .from("alumnos")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (alumno) { clearPendingOtpState(); navigate(otpReturnTo || "/alumno", { replace: true }); return true; }
-
-      return false;
+    const restorePendingOtp = () => {
+      const pendingOtp = loadPendingOtpState("staff");
+      if (pendingOtp) {
+        setEmail(pendingOtp.email);
+        setOtpReturnTo(pendingOtp.returnTo);
+        setLinkSent(true);
+      }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void redirectByRole(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return;
+      window.setTimeout(() => {
+        void redirectByRole(session).then((redirected) => {
+          if (!cancelled && !redirected) {
+            restorePendingOtp();
+            setCheckingSession(false);
+          }
+        });
+      }, 0);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const redirected = await redirectByRole(session);
-      if (!redirected) {
-        const pendingOtp = loadPendingOtpState("staff");
-        if (pendingOtp) {
-          setEmail(pendingOtp.email);
-          setOtpReturnTo(pendingOtp.returnTo);
-          setLinkSent(true);
-        }
+      if (!cancelled && !redirected) {
+        restorePendingOtp();
         setCheckingSession(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate, otpReturnTo]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [redirectByRole]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,8 +291,12 @@ const AdminLogin = () => {
       return;
     }
     clearPendingOtpState();
-    // onAuthStateChange will handle redirect
     toast.success("Sesión iniciada correctamente.");
+    const { data: { session } } = await supabase.auth.getSession();
+    const redirected = await redirectByRole(session);
+    if (!redirected) {
+      setError("Sesión iniciada, pero no se pudo confirmar el permiso de staff.");
+    }
   };
 
   // OTP sent — show code entry

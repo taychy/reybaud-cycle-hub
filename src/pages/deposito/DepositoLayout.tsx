@@ -1,28 +1,10 @@
-import { useEffect } from "react";
 import { Outlet, useNavigate, NavLink } from "react-router-dom";
-import { useDepositoAuth } from "@/hooks/useDepositoAuth";
 import { Package, BarChart3, History, LogOut, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const DepositoLayout = () => {
-  const { user, isDeposito, loading, logout } = useDepositoAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!loading && (!user || !isDeposito)) {
-      navigate("/deposito/login");
-    }
-  }, [user, isDeposito, loading, navigate]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Cargando...</div>
-      </div>
-    );
-  }
-
-  if (!user || !isDeposito) return null;
 
   const navItems = [
     { to: "/deposito/stock", icon: Package, label: "Stock" },
@@ -65,8 +47,8 @@ const DepositoLayout = () => {
             size="sm"
             className="w-full justify-start text-muted-foreground"
             onClick={async () => {
-              await logout();
-              navigate("/deposito/login");
+              await supabase.auth.signOut();
+              navigate("/admin/login?returnTo=/deposito", { replace: true });
             }}
           >
             <LogOut className="w-4 h-4 mr-2" />

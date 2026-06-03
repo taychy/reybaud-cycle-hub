@@ -64,7 +64,6 @@ import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
 import StoreCambios from "./pages/admin/store/StoreCambios";
 import DepositoCambios from "./pages/deposito/DepositoCambios";
 import ManageDeposito from "./pages/admin/ManageDeposito";
-import DepositoLogin from "./pages/deposito/DepositoLogin";
 import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
@@ -180,8 +179,8 @@ const App = () => (
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
           </Route>
-          <Route path="/deposito/login" element={<DepositoLogin />} />
-          <Route path="/deposito" element={<DepositoLayout />}>
+          <Route path="/deposito/login" element={<Navigate to="/admin/login?returnTo=/deposito" replace />} />
+          <Route path="/deposito" element={<ProtectedRoute allowedRoles={["deposito"]} loginPath="/admin/login?returnTo=/deposito"><DepositoLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/deposito/stock" replace />} />
             <Route path="stock" element={<DepositoStock />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
