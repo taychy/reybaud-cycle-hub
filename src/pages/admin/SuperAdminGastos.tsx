@@ -1127,6 +1127,16 @@ const SuperAdminGastos = () => {
               <Label className="text-xs">Concepto</Label>
               <Input value={recForm.concepto} onChange={(e) => setRecForm(f => ({ ...f, concepto: e.target.value }))} placeholder="Ej: Alquiler Oficina" />
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo de gasto (pestaña)</Label>
+              <Select value={recForm.tipo} onValueChange={(v) => setRecForm(f => ({ ...f, tipo: v as TipoGasto }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fijo">Fijo (importe y frecuencia conocidos)</SelectItem>
+                  <SelectItem value="variable">Variable (monto/frecuencia cambian)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Categoría</Label>
