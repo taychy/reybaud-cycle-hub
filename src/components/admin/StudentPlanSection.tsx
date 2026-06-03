@@ -148,11 +148,30 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
 
   // Categorize subscriptions: active operational vs history
-  const activeSubs = subs.filter(s => {
-    const eff = getEffStatus(s);
-    return ACTIVE_STATES.has(eff);
-  });
-  const historicSubs = subs.filter(s => !activeSubs.includes(s));
+  // Orden: la suscripción del período actual (vigente hoy) primero,
+  // luego próximos períodos por fecha_inicio asc, luego el resto por fecha_inicio desc.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const activeSubs = subs
+    .filter((s) => ACTIVE_STATES.has(getEffStatus(s)))
+    .sort((a, b) => {
+      const ai = (a.fecha_inicio || "").slice(0, 10);
+      const bi = (b.fecha_inicio || "").slice(0, 10);
+      const af = (a.fecha_fin || "").slice(0, 10);
+      const bf = (b.fecha_fin || "").slice(0, 10);
+      const aCurrent = ai <= todayISO && af >= todayISO;
+      const bCurrent = bi <= todayISO && bf >= todayISO;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      // Próximos (inicio > hoy) primero asc, vencidos al final desc
+      const aFuture = ai > todayISO;
+      const bFuture = bi > todayISO;
+      if (aFuture && !bFuture) return -1;
+      if (!aFuture && bFuture) return 1;
+      if (aFuture && bFuture) return ai.localeCompare(bi);
+      return bi.localeCompare(ai);
+    });
+  const historicSubs = subs.filter((s) => !activeSubs.includes(s));
+
 
   // --- Actions ---
   const handlePauseSub = async (subId: string) => {
