@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,12 @@ interface TripBikeDrawerProps {
   onOpenChange: (open: boolean) => void;
   reservationId: string;
   alumnoId: string | null;
+  /** Si está presente, el GET/SAVE se hace por edge function (flujo /viaje?token=). */
+  token?: string;
   onSaved: () => void;
 }
 
-const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }: TripBikeDrawerProps) => {
+const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved }: TripBikeDrawerProps) => {
   const folderId = alumnoId || `external/${reservationId}`;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -30,30 +33,39 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    supabase
-      .from("reservation_checklist_data")
-      .select("*")
-      .eq("reservation_id", reservationId)
-      .eq("step_key", "bici")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setExistingId(data.id);
-          const d = data.data as any;
-          setStature(d?.stature || "");
-          setBikeSize(d?.bike_size || "");
-          setNeedsAdvice(data.needs_advice || false);
-          setFittingUrl(data.file_url || null);
-        } else {
-          setExistingId(null);
-          setStature("");
-          setBikeSize("");
-          setNeedsAdvice(false);
-          setFittingUrl(null);
-        }
-        setLoading(false);
-      });
-  }, [open, reservationId]);
+
+    const applyRow = (row: any | null) => {
+      if (row) {
+        setExistingId(row.id);
+        const d = row.data as any;
+        setStature(d?.stature || "");
+        setBikeSize(d?.bike_size || "");
+        setNeedsAdvice(row.needs_advice || false);
+        setFittingUrl(row.file_url || null);
+      } else {
+        setExistingId(null);
+        setStature("");
+        setBikeSize("");
+        setNeedsAdvice(false);
+        setFittingUrl(null);
+      }
+      setLoading(false);
+    };
+
+    if (token) {
+      tripTokenGet(token)
+        .then((resp) => applyRow(resp.checklist.find((c) => c.step_key === "bici") ?? null))
+        .catch(() => applyRow(null));
+    } else {
+      supabase
+        .from("reservation_checklist_data")
+        .select("*")
+        .eq("reservation_id", reservationId)
+        .eq("step_key", "bici")
+        .maybeSingle()
+        .then(({ data }) => applyRow(data));
+    }
+  }, [open, reservationId, token]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,6 +88,28 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, onSaved }
 
   const handleSave = async () => {
     setSaving(true);
+
+    if (token) {
+      try {
+        await tripTokenSaveStep({
+          token,
+          step_key: "bici",
+          completed: isComplete,
+          needs_advice: needsAdvice,
+          data: { stature, bike_size: bikeSize },
+          file_url: fittingUrl,
+        });
+        setSaving(false);
+        toast.success("¡Información guardada!");
+        onSaved();
+        onOpenChange(false);
+      } catch {
+        setSaving(false);
+        toast.error("Error al guardar");
+      }
+      return;
+    }
+
     const payload = {
       reservation_id: reservationId,
       alumno_id: alumnoId,
