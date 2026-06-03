@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ const DepositoStock = () => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("store_products")
@@ -72,9 +72,9 @@ const DepositoStock = () => {
       .order("name");
     if (!error) setProducts((data as any) || []);
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // Reset selección de variante al abrir/cambiar producto.
   useEffect(() => {
@@ -195,7 +195,7 @@ const DepositoStock = () => {
     setScannerActive(false);
   };
 
-  const handleCameraDetected = (code: string) => {
+  const handleCameraDetected = useCallback((code: string) => {
     setCameraOpen(false);
     const trimmed = code.trim();
     // Buscar coincidencia exacta por id; si no, por nombre
@@ -213,7 +213,7 @@ const DepositoStock = () => {
         description: `Buscando "${trimmed}"...`,
       });
     }
-  };
+  }, [products]);
 
   return (
     <div className="space-y-6">

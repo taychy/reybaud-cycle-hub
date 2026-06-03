@@ -29,9 +29,14 @@ const beep = () => {
 const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  const onDetectedRef = useRef(onDetected);
   const [error, setError] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+
+  useEffect(() => {
+    onDetectedRef.current = onDetected;
+  }, [onDetected]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,7 +73,7 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
               if (text) {
                 beep();
                 ctrl.stop();
-                onDetected(text);
+                onDetectedRef.current(text);
               }
             }
           },
@@ -91,7 +96,7 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-  }, [open, onDetected]);
+  }, [open]);
 
   const toggleTorch = async () => {
     const stream = videoRef.current?.srcObject as MediaStream | null;
