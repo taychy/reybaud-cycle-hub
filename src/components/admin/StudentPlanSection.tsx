@@ -148,11 +148,30 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
 
   // Categorize subscriptions: active operational vs history
-  const activeSubs = subs.filter(s => {
-    const eff = getEffStatus(s);
-    return ACTIVE_STATES.has(eff);
-  });
-  const historicSubs = subs.filter(s => !activeSubs.includes(s));
+  // Orden: la suscripción del período actual (vigente hoy) primero,
+  // luego próximos períodos por fecha_inicio asc, luego el resto por fecha_inicio desc.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const activeSubs = subs
+    .filter((s) => ACTIVE_STATES.has(getEffStatus(s)))
+    .sort((a, b) => {
+      const ai = (a.fecha_inicio || "").slice(0, 10);
+      const bi = (b.fecha_inicio || "").slice(0, 10);
+      const af = (a.fecha_fin || "").slice(0, 10);
+      const bf = (b.fecha_fin || "").slice(0, 10);
+      const aCurrent = ai <= todayISO && af >= todayISO;
+      const bCurrent = bi <= todayISO && bf >= todayISO;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      // Próximos (inicio > hoy) primero asc, vencidos al final desc
+      const aFuture = ai > todayISO;
+      const bFuture = bi > todayISO;
+      if (aFuture && !bFuture) return -1;
+      if (!aFuture && bFuture) return 1;
+      if (aFuture && bFuture) return ai.localeCompare(bi);
+      return bi.localeCompare(ai);
+    });
+  const historicSubs = subs.filter((s) => !activeSubs.includes(s));
+
 
   // --- Actions ---
   const handlePauseSub = async (subId: string) => {
@@ -348,8 +367,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         let monthsToAdd = 1;
         if (freq === "trimestral") monthsToAdd = 3;
         else if (freq === "anual") monthsToAdd = 12;
-        const endDate = new Date(startY, startM - 1 + monthsToAdd, 0);
+        // Regla: fecha_fin = fecha_inicio + N meses − 1 día.
+        // Así un inicio el día 1 termina el último día del mes (1/06 → 30/06),
+        // y un inicio el día 31 termina el día anterior del mes equivalente
+        // (31/05 → 30/06), evitando que fecha_fin colapse con fecha_inicio.
+        const endDateRaw = new Date(startY, startM - 1 + monthsToAdd, startD);
+        endDateRaw.setDate(endDateRaw.getDate() - 1);
+        const endDate = endDateRaw;
         const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
+
 
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
@@ -398,7 +424,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       } else {
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
-        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio } as any).eq("id", dialogSubId!);
+        // Recalcular fecha_fin coherente con la nueva fecha_inicio y la frecuencia del nuevo plan.
+        const [cy, cm, cd] = changeFechaInicio.split("-").map(Number);
+        const cFreq = selectedPlan?.frecuencia || "mensual";
+        const cMonths = cFreq === "trimestral" ? 3 : cFreq === "anual" ? 12 : 1;
+        const cEnd = new Date(cy, cm - 1 + cMonths, cd);
+        cEnd.setDate(cEnd.getDate() - 1);
+        const cEndStr = `${cEnd.getFullYear()}-${String(cEnd.getMonth() + 1).padStart(2, "0")}-${String(cEnd.getDate()).padStart(2, "0")}`;
+        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio, fecha_fin: cEndStr } as any).eq("id", dialogSubId!);
+
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
           throw error;
@@ -461,10 +495,42 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       : hasLiveDiscount ? `${liveDiscount.discount!.nombre} (${liveDiscount.discount!.tipo === "fijo" ? `$${liveDiscount.discount!.valor}` : `${liveDiscount.discount!.valor}%`})` : "";
     const savings = displayBase - displayFinal;
 
+    // Etiqueta de período (sólo para activas)
+    const fiISO = (sub.fecha_inicio || "").slice(0, 10);
+    const ffISO = (sub.fecha_fin || "").slice(0, 10);
+    let periodTag: { label: string; className: string } | null = null;
+    if (!isHistoric && fiISO && ffISO) {
+      if (fiISO <= todayISO && ffISO >= todayISO) {
+        periodTag = { label: "Período actual", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
+      } else if (fiISO > todayISO) {
+        periodTag = { label: "Próximo período", className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
+      } else if (ffISO < todayISO) {
+        periodTag = { label: "Período vencido", className: "bg-destructive/15 text-destructive border-destructive/30" };
+      }
+    }
+
+    // Duración del período (para que se entienda de un vistazo)
+    let periodDays: number | null = null;
+    if (fiISO && ffISO) {
+      const [fy, fm, fd] = fiISO.split("-").map(Number);
+      const [ey, em, ed] = ffISO.split("-").map(Number);
+      const start = new Date(fy, fm - 1, fd);
+      const end = new Date(ey, em - 1, ed);
+      periodDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    }
+    const isSuspiciousPeriod = periodDays !== null && periodDays <= 1;
+
     return (
       <div key={sub.id} className={`rounded-lg border p-3 space-y-2 ${isHistoric ? "border-border/50 bg-muted/20 opacity-80" : "border-border bg-secondary/30"}`}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-foreground">{sub.planes?.nombre || "Sin plan"}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium text-foreground">{sub.planes?.nombre || "Sin plan"}</span>
+            {periodTag && (
+              <Badge variant="outline" className={`text-[10px] ${periodTag.className}`}>
+                {periodTag.label}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             {sub.auto_cobro_activo && (
               <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30 gap-1">
@@ -479,13 +545,25 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         </div>
 
         <div className="space-y-1 text-[11px]">
-          {sub.fecha_inicio && (
+          {sub.fecha_inicio && sub.fecha_fin && (
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Período</span>
+              <span className={isSuspiciousPeriod ? "text-amber-400 font-medium flex items-center gap-1" : "text-foreground"}>
+                {isSuspiciousPeriod && <AlertTriangle className="w-3 h-3" />}
+                {formatDate(sub.fecha_inicio)} → <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : ""}>{formatDate(sub.fecha_fin)}</span>
+                {periodDays !== null && (
+                  <span className="text-muted-foreground ml-1">({periodDays}d)</span>
+                )}
+              </span>
+            </div>
+          )}
+          {(!sub.fecha_inicio || !sub.fecha_fin) && sub.fecha_inicio && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Inicio</span>
               <span className="text-foreground">{formatDate(sub.fecha_inicio)}</span>
             </div>
           )}
-          {sub.fecha_fin && (
+          {(!sub.fecha_inicio || !sub.fecha_fin) && sub.fecha_fin && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Vencimiento</span>
               <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : "text-foreground"}>
@@ -493,6 +571,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </span>
             </div>
           )}
+
           {sub.metodo_pago && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Medio de pago</span>
