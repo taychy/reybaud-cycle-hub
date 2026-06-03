@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -9,6 +9,7 @@ export function useDepositoAuth() {
   const [isDeposito, setIsDeposito] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authReady, setAuthReady] = useState(false);
+  const sessionRestoredRef = useRef(false);
 
   // 1) Restauramos sesión primero. No marcamos loading=false hasta que
   //    authReady sea true; si no, el layout redirige al login antes de
@@ -19,14 +20,16 @@ export function useDepositoAuth() {
   useEffect(() => {
     let cancelled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
+      if (event === "INITIAL_SESSION") return;
       setUser(session?.user ?? null);
-      setAuthReady(true);
+      if (sessionRestoredRef.current) setAuthReady(true);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
+      sessionRestoredRef.current = true;
       setUser(session?.user ?? null);
       setAuthReady(true);
     });
