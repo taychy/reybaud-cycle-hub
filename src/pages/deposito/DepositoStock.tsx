@@ -99,30 +99,60 @@ const DepositoStock = () => {
       toast({ title: "Ingresá una cantidad válida", variant: "destructive" });
       return;
     }
+    if (dialogHasVariants && !dialogVariantKey) {
+      toast({
+        title: "Elegí la variante",
+        description: dialogSpecs.map((s) => s.name).join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
 
     const cantidad = parseInt(movCantidad);
-    const stockAnterior = movDialog.stock;
-    const stockNuevo = movTipo === "ingreso" ? stockAnterior + cantidad : stockAnterior - cantidad;
+
+    // Trabajamos sobre el stock de la VARIANTE si existe; si no, sobre el total.
+    const stockAnterior = dialogHasVariants
+      ? (movDialog.variant_stock?.[dialogVariantKey] ?? 0)
+      : movDialog.stock;
+    const stockNuevo = movTipo === "ingreso"
+      ? stockAnterior + cantidad
+      : stockAnterior - cantidad;
 
     if (stockNuevo < 0) {
-      toast({ title: "Stock insuficiente", description: "No podés egresar más de lo que hay en stock.", variant: "destructive" });
+      toast({
+        title: "Stock insuficiente",
+        description: `Sólo hay ${stockAnterior} unidades${dialogHasVariants ? ` de ${dialogVariantKey.replace(/\|/g, " · ")}` : ""}.`,
+        variant: "destructive",
+      });
       return;
+    }
+
+    // Si el producto tiene variantes, recalculamos el stock TOTAL como
+    // suma de todas las variantes (incluyendo la actualizada). Si no
+    // tiene variantes, el total es directamente stockNuevo.
+    let nextVariantStock: Record<string, number> | null = null;
+    let nextTotalStock = stockNuevo;
+    if (dialogHasVariants) {
+      nextVariantStock = { ...(movDialog.variant_stock || {}), [dialogVariantKey]: stockNuevo };
+      nextTotalStock = Object.values(nextVariantStock).reduce(
+        (acc, n) => acc + (Number(n) || 0),
+        0,
+      );
     }
 
     setSaving(true);
     try {
-      // Update product stock
+      const updatePayload: Record<string, unknown> = { stock: nextTotalStock };
+      if (nextVariantStock) updatePayload.variant_stock = nextVariantStock;
+
       const { error: updateError } = await supabase
         .from("store_products")
-        .update({ stock: stockNuevo } as any)
+        .update(updatePayload as any)
         .eq("id", movDialog.id);
-
       if (updateError) throw updateError;
 
-      // Get current user
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Record movement
       const { error: movError } = await supabase
         .from("stock_movements" as any)
         .insert({
@@ -132,19 +162,22 @@ const DepositoStock = () => {
           stock_anterior: stockAnterior,
           stock_nuevo: stockNuevo,
           motivo: movMotivo || null,
+          variante: dialogHasVariants ? dialogVariantKey : null,
           registrado_por: session?.user?.id || null,
         } as any);
-
       if (movError) throw movError;
 
       toast({
         title: movTipo === "ingreso" ? "Ingreso registrado" : "Egreso registrado",
-        description: `${movDialog.name}: ${stockAnterior} → ${stockNuevo}`,
+        description: dialogHasVariants
+          ? `${movDialog.name} (${dialogVariantKey.replace(/\|/g, " · ")}): ${stockAnterior} → ${stockNuevo}`
+          : `${movDialog.name}: ${stockAnterior} → ${stockNuevo}`,
       });
 
       setMovDialog(null);
       setMovCantidad("");
       setMovMotivo("");
+      setMovVariant({});
       fetchProducts();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
