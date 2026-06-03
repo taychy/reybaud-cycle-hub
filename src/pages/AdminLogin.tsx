@@ -291,8 +291,12 @@ const AdminLogin = () => {
       return;
     }
     clearPendingOtpState();
-    // onAuthStateChange will handle redirect
     toast.success("Sesión iniciada correctamente.");
+    const { data: { session } } = await supabase.auth.getSession();
+    const redirected = await redirectByRole(session);
+    if (!redirected) {
+      setError("Sesión iniciada, pero no se pudo confirmar el permiso de staff.");
+    }
   };
 
   // OTP sent — show code entry
