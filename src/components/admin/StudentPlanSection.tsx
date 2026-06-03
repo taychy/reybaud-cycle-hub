@@ -405,7 +405,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       } else {
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
-        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio } as any).eq("id", dialogSubId!);
+        // Recalcular fecha_fin coherente con la nueva fecha_inicio y la frecuencia del nuevo plan.
+        const [cy, cm, cd] = changeFechaInicio.split("-").map(Number);
+        const cFreq = selectedPlan?.frecuencia || "mensual";
+        const cMonths = cFreq === "trimestral" ? 3 : cFreq === "anual" ? 12 : 1;
+        const cEnd = new Date(cy, cm - 1 + cMonths, cd);
+        cEnd.setDate(cEnd.getDate() - 1);
+        const cEndStr = `${cEnd.getFullYear()}-${String(cEnd.getMonth() + 1).padStart(2, "0")}-${String(cEnd.getDate()).padStart(2, "0")}`;
+        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio, fecha_fin: cEndStr } as any).eq("id", dialogSubId!);
+
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
           throw error;
