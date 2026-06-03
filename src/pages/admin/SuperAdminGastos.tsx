@@ -487,6 +487,7 @@ const SuperAdminGastos = () => {
     responsable: "Tay", monto_estimado: "", moneda: "ARS",
     frecuencia: "mensual", dia_vencimiento: "10",
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
+    tipo: catalogoTipoTab,
   });
 
   const openEditRec = (r: Recurrente) => {
