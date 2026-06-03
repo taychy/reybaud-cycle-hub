@@ -70,8 +70,8 @@ const DepositoLogin = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       // No ejecutar RPCs dentro del callback de auth: puede dejar la app clavada.
       window.setTimeout(() => {
-        void redirectIfDeposito(session).finally(() => {
-          if (!cancelled) {
+        void redirectIfDeposito(session).then((redirected) => {
+          if (!cancelled && !redirected) {
             restorePendingOtp();
             setCheckingSession(false);
           }
