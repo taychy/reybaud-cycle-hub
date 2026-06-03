@@ -69,6 +69,106 @@ serve(async (req) => {
       return json({ ok: true, ranking: data ?? [] });
     }
 
+    // ---------- acciones trip por token (ExternalTripView) ----------
+    if (action === "trip_get" || action === "trip_save_step") {
+      const t = (body.token || "").trim();
+      if (!TOKEN_RE.test(t)) return json({ error: "invalid_token" }, 400);
+
+      const { data: reservation, error: rErr } = await supabase
+        .from("event_reservations")
+        .select(
+          "id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token"
+        )
+        .eq("access_token", t)
+        .maybeSingle();
+      if (rErr) return json({ error: "lookup_failed", detail: rErr.message }, 500);
+      if (!reservation) return json({ error: "not_found" }, 404);
+
+      if (action === "trip_get") {
+        const [eventRes, partExtRes, partAluRes, clRes] = await Promise.all([
+          supabase
+            .from("events")
+            .select("id, title, date, end_date, location, currency, metadata, image_url, duration_days, duration_nights")
+            .eq("id", reservation.event_id)
+            .maybeSingle(),
+          reservation.external_participant_id
+            ? supabase
+                .from("event_external_participants")
+                .select("id, nombre, apellido, email")
+                .eq("id", reservation.external_participant_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+          !reservation.external_participant_id && reservation.alumno_id
+            ? supabase
+                .from("alumnos")
+                .select("id, nombre, apellido, email")
+                .eq("id", reservation.alumno_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+          supabase
+            .from("reservation_checklist_data")
+            .select("id, step_key, completed, needs_advice, data, file_url")
+            .eq("reservation_id", reservation.id),
+        ]);
+
+        return json({
+          ok: true,
+          reservation,
+          event: eventRes.data ?? null,
+          participant: partExtRes.data ?? partAluRes.data ?? null,
+          checklist: clRes.data ?? [],
+        });
+      }
+
+      // trip_save_step
+      const stepKey = (body.step_key || "").trim();
+      if (!stepKey || stepKey.length > 64) return json({ error: "invalid_step_key" }, 400);
+
+      const fileUrl =
+        typeof body.file_url === "string" && body.file_url.length <= 2000
+          ? body.file_url
+          : body.file_url === null
+            ? null
+            : null;
+      const dataPayload =
+        body.data && typeof body.data === "object" && !Array.isArray(body.data) ? body.data : {};
+
+      // Upsert manual (no hay unique constraint conocida sobre reservation_id+step_key)
+      const { data: existing } = await supabase
+        .from("reservation_checklist_data")
+        .select("id")
+        .eq("reservation_id", reservation.id)
+        .eq("step_key", stepKey)
+        .maybeSingle();
+
+      const payload = {
+        reservation_id: reservation.id,
+        alumno_id: reservation.alumno_id, // sólo se guarda alumno real (no string externo)
+        step_key: stepKey,
+        completed: !!body.completed,
+        needs_advice: !!body.needs_advice,
+        data: dataPayload,
+        file_url: fileUrl,
+      };
+
+      if (existing?.id) {
+        const { error: uErr } = await supabase
+          .from("reservation_checklist_data")
+          .update(payload)
+          .eq("id", existing.id);
+        if (uErr) return json({ error: "update_failed", detail: uErr.message }, 500);
+        return json({ ok: true, id: existing.id });
+      }
+
+      const { data: ins, error: iErr } = await supabase
+        .from("reservation_checklist_data")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (iErr) return json({ error: "insert_failed", detail: iErr.message }, 500);
+      return json({ ok: true, id: ins.id });
+    }
+
     // ---------- acciones autenticadas (alumno logueado por reservation) ----------
     if (action === "get_by_reservation" || action === "submit_distance_authenticated") {
       const authHeader = req.headers.get("Authorization");
