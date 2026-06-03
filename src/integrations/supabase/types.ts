@@ -4111,6 +4111,120 @@ export type Database = {
         }
         Relationships: []
       }
+      store_cambios: {
+        Row: {
+          admin_iniciador_id: string | null
+          alumno_id: string
+          aprobado_at: string | null
+          cerrado_at: string | null
+          comentario: string | null
+          compra_id: string | null
+          created_at: string
+          diferencia_precio: number
+          en_deposito_at: string | null
+          entregado_at: string | null
+          estado: Database["public"]["Enums"]["cambio_estado"]
+          estado_pago_diferencia: string
+          fotos: string[]
+          historial: Json
+          id: string
+          iniciado_por: Database["public"]["Enums"]["cambio_iniciador"]
+          listo_retiro_at: string | null
+          moneda: string
+          motivo: Database["public"]["Enums"]["cambio_motivo"]
+          motivo_admin: string | null
+          mp_payment_id: string | null
+          notificar_alumno: boolean
+          origen_tipo: string
+          preorder_id: string | null
+          producto_id: string
+          responsable_admin_id: string | null
+          responsable_deposito_id: string | null
+          updated_at: string
+          variante_destino: Json | null
+          variante_origen: Json
+        }
+        Insert: {
+          admin_iniciador_id?: string | null
+          alumno_id: string
+          aprobado_at?: string | null
+          cerrado_at?: string | null
+          comentario?: string | null
+          compra_id?: string | null
+          created_at?: string
+          diferencia_precio?: number
+          en_deposito_at?: string | null
+          entregado_at?: string | null
+          estado?: Database["public"]["Enums"]["cambio_estado"]
+          estado_pago_diferencia?: string
+          fotos?: string[]
+          historial?: Json
+          id?: string
+          iniciado_por?: Database["public"]["Enums"]["cambio_iniciador"]
+          listo_retiro_at?: string | null
+          moneda?: string
+          motivo: Database["public"]["Enums"]["cambio_motivo"]
+          motivo_admin?: string | null
+          mp_payment_id?: string | null
+          notificar_alumno?: boolean
+          origen_tipo: string
+          preorder_id?: string | null
+          producto_id: string
+          responsable_admin_id?: string | null
+          responsable_deposito_id?: string | null
+          updated_at?: string
+          variante_destino?: Json | null
+          variante_origen?: Json
+        }
+        Update: {
+          admin_iniciador_id?: string | null
+          alumno_id?: string
+          aprobado_at?: string | null
+          cerrado_at?: string | null
+          comentario?: string | null
+          compra_id?: string | null
+          created_at?: string
+          diferencia_precio?: number
+          en_deposito_at?: string | null
+          entregado_at?: string | null
+          estado?: Database["public"]["Enums"]["cambio_estado"]
+          estado_pago_diferencia?: string
+          fotos?: string[]
+          historial?: Json
+          id?: string
+          iniciado_por?: Database["public"]["Enums"]["cambio_iniciador"]
+          listo_retiro_at?: string | null
+          moneda?: string
+          motivo?: Database["public"]["Enums"]["cambio_motivo"]
+          motivo_admin?: string | null
+          mp_payment_id?: string | null
+          notificar_alumno?: boolean
+          origen_tipo?: string
+          preorder_id?: string | null
+          producto_id?: string
+          responsable_admin_id?: string | null
+          responsable_deposito_id?: string | null
+          updated_at?: string
+          variante_destino?: Json | null
+          variante_origen?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_cambios_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_categories: {
         Row: {
           active: boolean
@@ -4501,6 +4615,7 @@ export type Database = {
           is_preorder: boolean
           min_stock: number
           name: string
+          no_admite_cambio: boolean
           old_price: number | null
           pickup_sede_ids: string[]
           preorder_deadline: string | null
@@ -4541,6 +4656,7 @@ export type Database = {
           is_preorder?: boolean
           min_stock?: number
           name: string
+          no_admite_cambio?: boolean
           old_price?: number | null
           pickup_sede_ids?: string[]
           preorder_deadline?: string | null
@@ -4581,6 +4697,7 @@ export type Database = {
           is_preorder?: boolean
           min_stock?: number
           name?: string
+          no_admite_cambio?: boolean
           old_price?: number | null
           pickup_sede_ids?: string[]
           preorder_deadline?: string | null
@@ -5289,6 +5406,21 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_cambio_indumentaria: {
+        Args: {
+          p_alumno_id: string
+          p_comentario: string
+          p_compra_id: string
+          p_motivo: Database["public"]["Enums"]["cambio_motivo"]
+          p_motivo_admin: string
+          p_origen_tipo: string
+          p_preorder_id: string
+          p_producto_id: string
+          p_variante_destino: Json
+          p_variante_origen: Json
+        }
+        Returns: string
+      }
       apply_mp_payment_to_gasto: {
         Args: {
           p_external_reference: string
@@ -5544,11 +5676,33 @@ export type Database = {
         }
         Returns: string
       }
+      request_cambio_indumentaria: {
+        Args: {
+          p_comentario: string
+          p_compra_id: string
+          p_fotos: string[]
+          p_motivo: Database["public"]["Enums"]["cambio_motivo"]
+          p_origen_tipo: string
+          p_preorder_id: string
+          p_producto_id: string
+          p_variante_destino: Json
+          p_variante_origen: Json
+        }
+        Returns: string
+      }
       reschedule_installment: {
         Args: {
           p_installment_id: string
           p_new_due_date: string
           p_reason: string
+        }
+        Returns: undefined
+      }
+      transition_cambio_estado: {
+        Args: {
+          p_id: string
+          p_nota?: string
+          p_nuevo_estado: Database["public"]["Enums"]["cambio_estado"]
         }
         Returns: undefined
       }
@@ -5584,6 +5738,17 @@ export type Database = {
     Enums: {
       admin_role: "super_admin" | "admin" | "support" | "deposito"
       app_role: "admin" | "alumno" | "coach" | "deposito"
+      cambio_estado:
+        | "solicitado"
+        | "aprobado"
+        | "en_deposito"
+        | "listo_retiro"
+        | "entregado"
+        | "rechazado"
+        | "cancelado"
+        | "devolucion_solicitada"
+      cambio_iniciador: "alumno" | "admin"
+      cambio_motivo: "talle" | "color" | "defecto" | "otro"
       estado_plan: "borrador" | "publicado"
       event_payment_mode: "cuotas" | "simple"
       event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
@@ -5744,6 +5909,18 @@ export const Constants = {
     Enums: {
       admin_role: ["super_admin", "admin", "support", "deposito"],
       app_role: ["admin", "alumno", "coach", "deposito"],
+      cambio_estado: [
+        "solicitado",
+        "aprobado",
+        "en_deposito",
+        "listo_retiro",
+        "entregado",
+        "rechazado",
+        "cancelado",
+        "devolucion_solicitada",
+      ],
+      cambio_iniciador: ["alumno", "admin"],
+      cambio_motivo: ["talle", "color", "defecto", "otro"],
       estado_plan: ["borrador", "publicado"],
       event_payment_mode: ["cuotas", "simple"],
       event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],
