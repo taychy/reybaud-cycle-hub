@@ -1927,6 +1927,37 @@ const ManageStudents = () => {
         isSuperAdmin={isSuperAdmin}
         onSuccess={() => { fetchAlumnos(); supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, metodo_pago, planes(id, nombre, precio, moneda)").order("created_at", { ascending: false }).then(({ data }) => setSuscripciones((data as any) || [])); }}
       />
+
+      {bajaSolicitud && bajaAdminAlumno && (
+        <ConfirmBajaDialog
+          open={!!bajaSolicitud}
+          onOpenChange={(v) => { if (!v) { setBajaSolicitud(null); setBajaAdminAlumno(null); } }}
+          solicitud={bajaSolicitud}
+          onConfirmed={() => {
+            setAlumnos((prev) => prev.map((a) => a.id === bajaAdminAlumno.id ? { ...a, estado: "inactivo", grupo: "Sin grupo" } as any : a));
+            setBajaSolicitud(null);
+            setBajaAdminAlumno(null);
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!reactivateAlumno} onOpenChange={(v) => { if (!v) setReactivateAlumno(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reactivar alumno</AlertDialogTitle>
+            <AlertDialogDescription>
+              El alumno volverá a estado <b>activo</b>, pero <b>no</b> se restauran las suscripciones anteriores.
+              Deberá contratar un nuevo plan para acceder a entrenamientos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reactivateLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReactivate} disabled={reactivateLoading}>
+              {reactivateLoading ? "Reactivando..." : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
