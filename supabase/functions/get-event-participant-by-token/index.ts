@@ -24,12 +24,20 @@ type Body = {
     | "submit_distance"
     | "ranking"
     | "get_by_reservation"
-    | "submit_distance_authenticated";
+    | "submit_distance_authenticated"
+    | "trip_get"
+    | "trip_save_step";
   token?: string;
   event_id?: string;
   reservation_id?: string;
   distance_km?: number;
   comment?: string | null;
+  // trip_save_step
+  step_key?: string;
+  completed?: boolean;
+  needs_advice?: boolean;
+  data?: Record<string, unknown>;
+  file_url?: string | null;
 };
 
 const TOKEN_RE = /^[a-f0-9]{32,128}$/i;
