@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
   CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown, Link2,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
