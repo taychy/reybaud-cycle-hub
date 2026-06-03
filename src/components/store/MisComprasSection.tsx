@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock } from "lucide-react";
+import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import MisPreventas from "@/components/store/MisPreventas";
+import MisCambios from "@/components/store/MisCambios";
+import RequestCambioDialog from "@/components/store/RequestCambioDialog";
 
 interface Props {
   alumnoId: string | null;
@@ -21,27 +23,51 @@ const orderStatusMeta = (s: string) => ({
   cancelado: { label: "Cancelado", color: "text-destructive", icon: Clock },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
 
+const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+
 const MisComprasSection = ({ alumnoId }: Props) => {
   const [open, setOpen] = useState(false);
   const [preorders, setPreorders] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [orderItems, setOrderItems] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
+  const [cambioTarget, setCambioTarget] = useState<{
+    productId: string; productName: string; origenTipo: "compra" | "preorder";
+    compraId?: string | null; preorderId?: string | null; varianteOrigen: Record<string, any>;
+  } | null>(null);
+  const [cambioVersion, setCambioVersion] = useState(0);
 
   useEffect(() => {
     if (!alumnoId) { setLoading(false); return; }
     let active = true;
     (async () => {
       const [pre, ord] = await Promise.all([
-        supabase.from("store_preorders" as any).select("id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
+        supabase.from("store_preorders" as any).select("id, product_id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
         supabase.from("store_orders").select("id, order_number, total, currency, status, created_at").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
+      const ordList = (ord.data as any[]) || [];
       setPreorders((pre.data as any[]) || []);
-      setOrders((ord.data as any[]) || []);
+      setOrders(ordList);
+
+      // load items for delivered orders for cambio buttons
+      const deliveredIds = ordList.filter((o) => o.status === "entregado").map((o) => o.id);
+      if (deliveredIds.length) {
+        const { data: items } = await supabase
+          .from("store_order_items")
+          .select("order_id, product_id, product_name, variant_selection")
+          .in("order_id", deliveredIds);
+        const grouped: Record<string, any[]> = {};
+        (items || []).forEach((it: any) => {
+          grouped[it.order_id] = grouped[it.order_id] || [];
+          grouped[it.order_id].push(it);
+        });
+        setOrderItems(grouped);
+      }
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [alumnoId, open]);
+  }, [alumnoId, open, cambioVersion]);
 
   if (!alumnoId) return null;
 
@@ -51,11 +77,9 @@ const MisComprasSection = ({ alumnoId }: Props) => {
   const pendientes =
     preorders.filter((p) => ["pendiente_pago_sena", "reservada"].includes(p.estado)).length +
     orders.filter((o) => ["pendiente", "pendiente_pago"].includes(o.status)).length;
-
   const activas =
     preorders.filter((p) => ["en_produccion", "lista_para_retirar"].includes(p.estado)).length +
     orders.filter((o) => ["pagado", "preparando", "enviado"].includes(o.status)).length;
-
   const entregadas =
     preorders.filter((p) => p.estado === "entregada").length +
     orders.filter((o) => o.status === "entregado").length;
@@ -91,12 +115,15 @@ const MisComprasSection = ({ alumnoId }: Props) => {
           <div className="flex-1 overflow-y-auto">
             <Tabs defaultValue={preorders.length > 0 ? "preventas" : "compras"} className="w-full">
               <div className="px-4 pt-3">
-                <TabsList className="grid grid-cols-2 w-full">
+                <TabsList className="grid grid-cols-3 w-full">
                   <TabsTrigger value="preventas">
                     Preventas {preorders.length > 0 && <span className="ml-1 text-[10px] opacity-70">({preorders.length})</span>}
                   </TabsTrigger>
                   <TabsTrigger value="compras">
                     Compras {orders.length > 0 && <span className="ml-1 text-[10px] opacity-70">({orders.length})</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="cambios">
+                    <RefreshCw className="w-3 h-3 mr-1" /> Cambios
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -105,7 +132,30 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                 {preorders.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground py-8">Todavía no tenés preventas</p>
                 ) : (
-                  <MisPreventas alumnoId={alumnoId} />
+                  <>
+                    <MisPreventas alumnoId={alumnoId} />
+                    {/* Botón cambio para preventas entregadas */}
+                    <div className="mt-3 space-y-2">
+                      {preorders.filter((p) => p.estado === "entregada" && p.product_id && daysSince(p.created_at) <= 30).map((p) => (
+                        <Button
+                          key={`pre-cambio-${p.id}`}
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between"
+                          onClick={() => setCambioTarget({
+                            productId: p.product_id,
+                            productName: p.producto_nombre || "Preventa",
+                            origenTipo: "preorder",
+                            preorderId: p.id,
+                            varianteOrigen: p.variante || {},
+                          })}
+                        >
+                          <span className="text-[11px]">Solicitar cambio · {p.producto_nombre}</span>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </Button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </TabsContent>
 
@@ -116,6 +166,8 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                   orders.map((o) => {
                     const meta = orderStatusMeta(o.status);
                     const Icon = meta.icon;
+                    const items = orderItems[o.id] || [];
+                    const eligible = o.status === "entregado" && daysSince(o.created_at) <= 30;
                     return (
                       <div key={o.id} className="rounded-xl border border-border bg-card p-3 space-y-1">
                         <div className="flex items-center justify-between gap-2">
@@ -128,10 +180,34 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                           <span>{new Date(o.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
                           <b className="text-foreground">{formatPrice(Number(o.total), o.currency || "ARS")}</b>
                         </div>
+                        {eligible && items.length > 0 && (
+                          <div className="pt-2 border-t border-border/50 space-y-1">
+                            {items.filter((it) => it.product_id).map((it) => (
+                              <button
+                                key={it.product_id + JSON.stringify(it.variant_selection)}
+                                className="w-full flex items-center justify-between text-[11px] text-primary hover:underline"
+                                onClick={() => setCambioTarget({
+                                  productId: it.product_id,
+                                  productName: it.product_name,
+                                  origenTipo: "compra",
+                                  compraId: o.id,
+                                  varianteOrigen: it.variant_selection || {},
+                                })}
+                              >
+                                <span>Solicitar cambio · {it.product_name}</span>
+                                <RefreshCw className="w-3 h-3" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })
                 )}
+              </TabsContent>
+
+              <TabsContent value="cambios" className="px-4 py-3 mt-0">
+                <MisCambios alumnoId={alumnoId} key={cambioVersion} />
               </TabsContent>
             </Tabs>
           </div>
@@ -140,6 +216,20 @@ const MisComprasSection = ({ alumnoId }: Props) => {
           </div>
         </SheetContent>
       </Sheet>
+
+      {cambioTarget && (
+        <RequestCambioDialog
+          open={!!cambioTarget}
+          onOpenChange={(v) => !v && setCambioTarget(null)}
+          productId={cambioTarget.productId}
+          productName={cambioTarget.productName}
+          origenTipo={cambioTarget.origenTipo}
+          compraId={cambioTarget.compraId}
+          preorderId={cambioTarget.preorderId}
+          varianteOrigen={cambioTarget.varianteOrigen}
+          onSubmitted={() => setCambioVersion((v) => v + 1)}
+        />
+      )}
     </section>
   );
 };
