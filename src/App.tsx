@@ -178,6 +178,7 @@ const App = () => (
             <Route path="tienda/banners" element={<StoreBanners />} />
             <Route path="tienda/stock" element={<StoreStock />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
+            <Route path="tienda/cambios" element={<StoreCambios />} />
           </Route>
           <Route path="/deposito/login" element={<DepositoLogin />} />
           <Route path="/deposito" element={<DepositoLayout />}>
@@ -185,6 +186,7 @@ const App = () => (
             <Route path="stock" element={<DepositoStock />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
+            <Route path="cambios" element={<DepositoCambios />} />
           </Route>
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
