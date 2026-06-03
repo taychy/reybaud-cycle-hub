@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ShieldX, ArrowLeft } from "lucide-react";
@@ -25,11 +25,15 @@ const ProtectedRoute = ({
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "allowed" | "denied" | "unauthenticated">("loading");
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const rolesKey = useMemo(() => allowedRoles.slice().sort().join("|"), [allowedRoles]);
 
   useEffect(() => {
     let cancelled = false;
+    let checkedUserId: string | null = null;
 
     const checkRoles = async (userId: string) => {
+      if (checkedUserId === userId) return;
+      checkedUserId = userId;
       const foundRoles: string[] = [];
       for (const role of (["admin", "coach", "deposito"] as const)) {
         const { data } = await supabase.rpc("has_role", {
@@ -57,9 +61,12 @@ const ProtectedRoute = ({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
       if (!session) {
+        checkedUserId = null;
         setStatus("unauthenticated");
       } else {
-        checkRoles(session.user.id);
+        window.setTimeout(() => {
+          if (!cancelled) void checkRoles(session.user.id);
+        }, 0);
       }
     });
 
@@ -77,7 +84,7 @@ const ProtectedRoute = ({
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [allowedRoles, loginPath]);
+  }, [rolesKey, loginPath]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
