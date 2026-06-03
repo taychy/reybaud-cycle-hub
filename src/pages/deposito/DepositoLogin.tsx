@@ -49,7 +49,6 @@ const DepositoLogin = () => {
         checkedUserRef.current = null;
         return false;
       }
-      if (checkedUserRef.current === session.user.id) return false;
       checkedUserRef.current = session.user.id;
       const roleCheck = supabase.rpc("has_role", {
         _user_id: session.user.id,
@@ -162,7 +161,22 @@ const DepositoLogin = () => {
     }
     clearPendingOtpState();
     toast.success("Sesión iniciada.");
-    // onAuthStateChange handles redirect
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const roleCheck = supabase.rpc("has_role", {
+        _user_id: session.user.id,
+        _role: "deposito" as any,
+      });
+      const timeout = new Promise<{ data: false }>((resolve) => {
+        window.setTimeout(() => resolve({ data: false }), ROLE_CHECK_TIMEOUT_MS);
+      });
+      const { data: isDeposito } = await Promise.race([roleCheck, timeout]);
+      if (isDeposito) {
+        navigate("/deposito", { replace: true });
+        return;
+      }
+    }
+    setError("Sesión iniciada, pero no se pudo confirmar el permiso de depósito.");
   };
 
   if (checkingSession) {
