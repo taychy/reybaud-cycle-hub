@@ -162,6 +162,8 @@ const StudentPayments = () => {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [changePlanSub, setChangePlanSub] = useState<SubscriptionRecord | null>(null);
   const [scopeDialogSub, setScopeDialogSub] = useState<SubscriptionRecord | null>(null);
+  const [bajaDialogOpen, setBajaDialogOpen] = useState(false);
+  const [pendingBaja, setPendingBaja] = useState<{ id: string; created_at: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,6 +232,17 @@ const StudentPayments = () => {
         }
         setFacturasBySub(map);
       }
+
+      // Verificar si hay una solicitud de baja pendiente
+      const { data: bajaPend } = await supabase
+        .from("bajas_solicitudes")
+        .select("id, created_at")
+        .eq("alumno_id", alumnoData.id)
+        .eq("estado", "solicitada")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setPendingBaja(bajaPend ?? null);
 
       setLoading(false);
     };
