@@ -100,11 +100,27 @@ export function BillingDataSelfSection({ alumno, onUpdate, readOnly }: Props) {
         return;
       }
       const persona = (data as any).persona;
+      const verificadoAt: string | null = (data as any)?.verificado_at ?? null;
+      const warning: string | undefined = (data as any)?.warning;
       if (persona?.nombre) setNombreFiscal(persona.nombre);
       if (persona?.condicion_fiscal) setCondicion(persona.condicion_fiscal);
       if (persona?.domicilio) setDomicilio(persona.domicilio);
       setVerifiedNow(true);
       toast.success("Datos verificados en AFIP ✓");
+      if (warning) toast.warning(warning);
+      // Refrescar alumno local para que el badge "Verificado en AFIP" aparezca sin reload
+      if (verificadoAt) {
+        onUpdate({
+          ...alumno,
+          tipo_documento: "cuit",
+          documento: numero,
+          nombre_fiscal: persona?.nombre ?? alumno.nombre_fiscal,
+          condicion_fiscal: persona?.condicion_fiscal ?? alumno.condicion_fiscal,
+          domicilio_fiscal: persona?.domicilio ?? alumno.domicilio_fiscal,
+          afip_verificado_at: verificadoAt,
+          afip_padron_snapshot: persona ?? alumno.afip_padron_snapshot,
+        } as Alumno);
+      }
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
