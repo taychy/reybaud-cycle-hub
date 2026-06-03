@@ -14,6 +14,11 @@ import { Package, Search, Plus, Minus, RefreshCw, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 
+interface VariantSpec {
+  name: string;
+  options: string[];
+}
+
 interface Product {
   id: string;
   name: string;
@@ -22,7 +27,23 @@ interface Product {
   status: string;
   category_id: string | null;
   image_url: string | null;
+  variants: VariantSpec[] | null;
+  variant_stock: Record<string, number> | null;
 }
+
+// Construye la clave del variant_stock en el mismo formato que usa el
+// resto de la app: "VariantName:Value|VariantName:Value" en el ORDEN
+// que define `product.variants`. Si falta alguna selección devuelve "".
+const buildVariantKey = (
+  specs: VariantSpec[],
+  selection: Record<string, string>,
+): string => {
+  if (!specs.length) return "";
+  for (const s of specs) {
+    if (!selection[s.name]) return "";
+  }
+  return specs.map((s) => `${s.name}:${selection[s.name]}`).join("|");
+};
 
 const DepositoStock = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -32,6 +53,7 @@ const DepositoStock = () => {
   const [movTipo, setMovTipo] = useState<"ingreso" | "egreso">("ingreso");
   const [movCantidad, setMovCantidad] = useState("");
   const [movMotivo, setMovMotivo] = useState("");
+  const [movVariant, setMovVariant] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   // Barcode scanner state
@@ -43,14 +65,30 @@ const DepositoStock = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("store_products")
-      .select("id, name, stock, min_stock, status, category_id, image_url")
+      .select("id, name, stock, min_stock, status, category_id, image_url, variants, variant_stock")
       .eq("status", "active")
       .order("name");
-    if (!error) setProducts(data || []);
+    if (!error) setProducts((data as any) || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchProducts(); }, []);
+
+  // Reset selección de variante al abrir/cambiar producto.
+  useEffect(() => {
+    if (movDialog) setMovVariant({});
+  }, [movDialog?.id]);
+
+  const dialogSpecs: VariantSpec[] = Array.isArray(movDialog?.variants)
+    ? (movDialog!.variants as VariantSpec[]).filter(
+        (v) => v?.name && Array.isArray(v?.options) && v.options.length > 0,
+      )
+    : [];
+  const dialogHasVariants = dialogSpecs.length > 0;
+  const dialogVariantKey = buildVariantKey(dialogSpecs, movVariant);
+  const dialogVariantStock: number | null = dialogHasVariants
+    ? (dialogVariantKey ? (movDialog?.variant_stock?.[dialogVariantKey] ?? 0) : null)
+    : (movDialog?.stock ?? 0);
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
