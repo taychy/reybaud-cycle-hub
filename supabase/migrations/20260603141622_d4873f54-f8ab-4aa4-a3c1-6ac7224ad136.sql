@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_bajas_metricas_mensuales SET (security_invoker = true);
