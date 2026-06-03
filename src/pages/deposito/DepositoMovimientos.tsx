@@ -16,6 +16,7 @@ interface Movement {
   stock_anterior: number;
   stock_nuevo: number;
   motivo: string | null;
+  variante: string | null;
   created_at: string;
   product_name?: string;
 }
