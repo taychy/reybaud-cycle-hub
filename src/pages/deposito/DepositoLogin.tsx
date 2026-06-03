@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/pendingOtp";
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
+const ROLE_CHECK_TIMEOUT_MS = 7000;
 
 const DepositoLogin = () => {
   const navigate = useNavigate();
@@ -30,14 +31,29 @@ const DepositoLogin = () => {
   const [otpCode, setOtpCode] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
+  const restorePendingOtp = useCallback(() => {
+    const pending = loadPendingOtpState("staff");
+    if (pending) {
+      setEmail(pending.email);
+      setLinkSent(true);
+    }
+  }, []);
+
   // Auto-redirect if already authenticated as deposito
   useEffect(() => {
+    let cancelled = false;
+
     const redirectIfDeposito = async (session: any) => {
       if (!session) return false;
-      const { data: isDeposito } = await supabase.rpc("has_role", {
+      const roleCheck = supabase.rpc("has_role", {
         _user_id: session.user.id,
         _role: "deposito" as any,
       });
+      const timeout = new Promise<{ data: false }>((resolve) => {
+        window.setTimeout(() => resolve({ data: false }), ROLE_CHECK_TIMEOUT_MS);
+      });
+      const { data: isDeposito } = await Promise.race([roleCheck, timeout]);
+      if (cancelled) return true;
       if (isDeposito) {
         clearPendingOtpState();
         navigate("/deposito", { replace: true });
@@ -47,23 +63,30 @@ const DepositoLogin = () => {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void redirectIfDeposito(session);
+      // No ejecutar RPCs dentro del callback de auth: puede dejar la app clavada.
+      window.setTimeout(() => {
+        void redirectIfDeposito(session).finally(() => {
+          if (!cancelled) {
+            restorePendingOtp();
+            setCheckingSession(false);
+          }
+        });
+      }, 0);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const redirected = await redirectIfDeposito(session);
-      if (!redirected) {
-        const pending = loadPendingOtpState("staff");
-        if (pending) {
-          setEmail(pending.email);
-          setLinkSent(true);
-        }
+      if (!cancelled && !redirected) {
+        restorePendingOtp();
         setCheckingSession(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [navigate, restorePendingOtp]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
