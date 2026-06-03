@@ -133,14 +133,30 @@ const ManageStudents = () => {
   const [editingDetail, setEditingDetail] = useState(false);
   const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "" });
 
-  // Abrir drawer desde query ?alumno=ID
+  // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
+  const sectionQuery = searchParams.get("section");
   useEffect(() => {
     if (!alumnoQueryId || alumnos.length === 0) return;
     if (drawerAlumno?.id === alumnoQueryId) return;
     const found = alumnos.find(a => a.id === alumnoQueryId);
     if (found) setDrawerAlumno(found);
   }, [alumnoQueryId, alumnos]);
+
+  // Scroll a la sección solicitada cuando el drawer ya está abierto
+  useEffect(() => {
+    if (!drawerAlumno || !sectionQuery) return;
+    const anchorMap: Record<string, string> = {
+      cuenta: "ficha-cuenta-corriente",
+    };
+    const id = anchorMap[sectionQuery];
+    if (!id) return;
+    // Esperar a que el drawer monte el contenido
+    const t = setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [drawerAlumno?.id, sectionQuery]);
 
   // State change dialog
   const [stateChangeAlumno, setStateChangeAlumno] = useState<Alumno | null>(null);
