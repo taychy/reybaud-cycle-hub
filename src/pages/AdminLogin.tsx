@@ -116,52 +116,42 @@ const AdminLogin = () => {
 
   // Auto-redirect if already authenticated — check all roles
   useEffect(() => {
-    const redirectByRole = async (session: any) => {
-      if (!session) return false;
-      const userId = session.user.id;
+    let cancelled = false;
 
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin" as any,
-      });
-      if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return true; }
-
-      const { data: isCoach } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "coach" as any,
-      });
-      if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return true; }
-
-      // Check alumno
-      const { data: alumno } = await supabase
-        .from("alumnos")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (alumno) { clearPendingOtpState(); navigate(otpReturnTo || "/alumno", { replace: true }); return true; }
-
-      return false;
+    const restorePendingOtp = () => {
+      const pendingOtp = loadPendingOtpState("staff");
+      if (pendingOtp) {
+        setEmail(pendingOtp.email);
+        setOtpReturnTo(pendingOtp.returnTo);
+        setLinkSent(true);
+      }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void redirectByRole(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return;
+      window.setTimeout(() => {
+        void redirectByRole(session).then((redirected) => {
+          if (!cancelled && !redirected) {
+            restorePendingOtp();
+            setCheckingSession(false);
+          }
+        });
+      }, 0);
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const redirected = await redirectByRole(session);
-      if (!redirected) {
-        const pendingOtp = loadPendingOtpState("staff");
-        if (pendingOtp) {
-          setEmail(pendingOtp.email);
-          setOtpReturnTo(pendingOtp.returnTo);
-          setLinkSent(true);
-        }
+      if (!cancelled && !redirected) {
+        restorePendingOtp();
         setCheckingSession(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate, otpReturnTo]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [redirectByRole]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
