@@ -2462,6 +2462,7 @@ export type Database = {
           notas: string | null
           proveedor: string | null
           responsable: string | null
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -2480,6 +2481,7 @@ export type Database = {
           notas?: string | null
           proveedor?: string | null
           responsable?: string | null
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -2498,6 +2500,7 @@ export type Database = {
           notas?: string | null
           proveedor?: string | null
           responsable?: string | null
+          tipo?: string
           updated_at?: string
         }
         Relationships: []
