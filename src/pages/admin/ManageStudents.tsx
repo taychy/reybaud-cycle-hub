@@ -489,6 +489,10 @@ const ManageStudents = () => {
     if (estado === "activo") {
       actions.push({ label: "Pausar (vacaciones)", icon: Palmtree, action: () => openStateChange(alumno, "vacaciones") });
       actions.push({ label: "Desactivar acceso", icon: UserX, action: () => openStateChange(alumno, "inactivo") });
+      actions.push({ label: "Dar de baja", icon: LogOut, action: () => handleStartBajaAdmin(alumno), destructive: true });
+    }
+    if (estado === "inactivo") {
+      actions.push({ label: "Reactivar alumno", icon: UserCheck, action: () => setReactivateAlumno(alumno) });
     }
     if (estado === "pendiente") {
       actions.push({ label: "Aprobar (activar)", icon: UserCheck, action: () => openStateChange(alumno, "activo") });
