@@ -519,6 +519,7 @@ const SuperAdminGastos = () => {
       proveedor: recForm.proveedor || null,
       notas: recForm.notas || null,
       activo: recForm.activo,
+      tipo: recForm.tipo,
     };
     if (editingRec) {
       const { error } = await supabase.from("gastos_recurrentes").update(payload as any).eq("id", editingRec.id);
