@@ -354,7 +354,9 @@ const DepositoStock = () => {
               {movTipo === "ingreso" ? "Registrar ingreso" : "Registrar egreso"}
             </DialogTitle>
             <DialogDescription>
-              {movDialog?.name} — Stock actual: {movDialog?.stock}
+              {movDialog?.name}
+              {!dialogHasVariants && ` — Stock actual: ${movDialog?.stock ?? 0}`}
+              {dialogHasVariants && ` — Stock total: ${movDialog?.stock ?? 0}`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -376,6 +378,62 @@ const DepositoStock = () => {
                 <Minus className="w-3 h-3 mr-1" /> Egreso
               </Button>
             </div>
+
+            {/* Selector de variantes (talle / color / modelo / etc.) */}
+            {dialogHasVariants && (
+              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Variante a mover
+                </p>
+                <div className={`grid gap-2 ${dialogSpecs.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {dialogSpecs.map((spec) => (
+                    <div key={spec.name}>
+                      <label className="text-xs font-medium">{spec.name}</label>
+                      <Select
+                        value={movVariant[spec.name] || ""}
+                        onValueChange={(val) =>
+                          setMovVariant((prev) => ({ ...prev, [spec.name]: val }))
+                        }
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={`Elegí ${spec.name.toLowerCase()}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {spec.options.map((opt) => {
+                            // Mostramos el stock disponible junto a cada opción
+                            // SOLO cuando se trata del último selector (más
+                            // específico) o cuando hay un único selector.
+                            const previewKey = buildVariantKey(dialogSpecs, {
+                              ...movVariant,
+                              [spec.name]: opt,
+                            });
+                            const previewStock = previewKey
+                              ? (movDialog?.variant_stock?.[previewKey] ?? 0)
+                              : null;
+                            return (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                                {previewStock !== null && (
+                                  <span className="text-muted-foreground ml-2 text-xs">
+                                    · stock {previewStock}
+                                  </span>
+                                )}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+                {dialogVariantKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Stock actual de esta variante: <b>{dialogVariantStock}</b>
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium">Cantidad</label>
               <Input
@@ -387,9 +445,12 @@ const DepositoStock = () => {
               />
               {movDialog && movCantidad && parseInt(movCantidad) > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Stock resultante: {movTipo === "ingreso"
-                    ? movDialog.stock + parseInt(movCantidad)
-                    : movDialog.stock - parseInt(movCantidad)}
+                  {dialogHasVariants && !dialogVariantKey
+                    ? "Elegí primero la variante."
+                    : `Stock ${dialogHasVariants ? "de la variante" : "resultante"}: ${
+                        (dialogVariantStock ?? 0) +
+                        (movTipo === "ingreso" ? parseInt(movCantidad) : -parseInt(movCantidad))
+                      }`}
                 </p>
               )}
             </div>
