@@ -73,6 +73,18 @@ const UpdatePrompt = () => {
         .join("");
     };
 
+    // Extrae SOLO los hashes determinísticos de los assets buildeados
+    // (`/assets/index-XXXX.js`, `/assets/index-XXXX.css`, etc.) en lugar
+    // de hashear el HTML completo. El HTML contiene markers dinámicos
+    // (badge de Lovable, nonces, timestamps de preview) que cambian en
+    // cada request y disparaban el cartel de "nueva versión" de forma
+    // continua aunque no hubiera deploy nuevo.
+    const extractAssetFingerprint = (html: string): string | null => {
+      const matches = html.match(/\/assets\/[A-Za-z0-9_-]+-[A-Za-z0-9]+\.(?:js|css)/g);
+      if (!matches || matches.length === 0) return null;
+      return Array.from(new Set(matches)).sort().join("|");
+    };
+
     let cancelled = false;
 
     const fetchHash = async () => {
@@ -87,7 +99,9 @@ const UpdatePrompt = () => {
         });
         if (!res.ok) return null;
         const text = await res.text();
-        return await computeHash(text);
+        const fingerprint = extractAssetFingerprint(text);
+        if (!fingerprint) return null;
+        return await computeHash(fingerprint);
       } catch {
         return null;
       }
