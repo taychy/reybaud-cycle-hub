@@ -99,7 +99,43 @@ const DepositoPedidos = () => {
         </Select>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-x-auto">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {filtered.map((o) => {
+          const st = getStatusStyle(o.status);
+          return (
+            <div key={o.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-heading font-bold text-sm">#{o.order_number} · {o.customer_name}</div>
+                  <div className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("es-AR")}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-heading font-bold text-sm">${o.total?.toLocaleString("es-AR")}</div>
+                  <span className={`inline-block mt-1 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
+                  <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" className="h-9" onClick={() => viewOrder(o)}>
+                  <Eye className="w-4 h-4 mr-1" /> Ver
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground text-sm">No hay pedidos</div>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
@@ -107,7 +143,7 @@ const DepositoPedidos = () => {
               <th className="px-4 py-3 text-left font-heading text-xs uppercase">Cliente</th>
               <th className="px-4 py-3 text-right font-heading text-xs uppercase">Total</th>
               <th className="px-4 py-3 text-center font-heading text-xs uppercase">Estado</th>
-              <th className="px-4 py-3 text-left font-heading text-xs uppercase hidden md:table-cell">Fecha</th>
+              <th className="px-4 py-3 text-left font-heading text-xs uppercase">Fecha</th>
               <th className="px-4 py-3 text-right font-heading text-xs uppercase">Acciones</th>
             </tr>
           </thead>
@@ -122,7 +158,7 @@ const DepositoPedidos = () => {
                   <td className="px-4 py-2 text-center">
                     <span className={`text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${st.color}`}>{st.label}</span>
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(o.created_at).toLocaleDateString("es-AR")}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => viewOrder(o)}><Eye className="w-4 h-4" /></Button>
@@ -141,6 +177,7 @@ const DepositoPedidos = () => {
         </table>
         {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No hay pedidos</div>}
       </div>
+
 
       <Dialog open={!!selectedOrder} onOpenChange={(v) => !v && setSelectedOrder(null)}>
         <DialogContent className="max-w-lg">

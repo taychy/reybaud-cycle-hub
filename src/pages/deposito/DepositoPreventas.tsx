@@ -117,7 +117,42 @@ const DepositoPreventas = () => {
         </Select>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-x-auto">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {filtered.map((r) => (
+          <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-heading font-bold text-sm leading-tight">{r.producto_nombre}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{nombreAlumno(r.alumno_id)} · x{r.cantidad}</div>
+                <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="font-heading font-bold text-sm">{formatPrice(r.precio_total, r.moneda)}</div>
+                <span className={`inline-block mt-1 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${estadoColor(r.estado)}`}>
+                  {labelEstado(r.estado)}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={r.estado} onValueChange={(v) => updateEstado(r.id, v)}>
+                <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ESTADOS.map((e) => <SelectItem key={e} value={e}>{labelEstado(e)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" className="h-9" onClick={() => setSelected(r)}>
+                <Eye className="w-4 h-4 mr-1" /> Ver
+              </Button>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground text-sm">No hay preventas</div>
+        )}
+      </div>
+
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
