@@ -61,6 +61,8 @@ import StorePromotions from "./pages/admin/store/StorePromotions";
 import StoreBanners from "./pages/admin/store/StoreBanners";
 import StoreStock from "./pages/admin/store/StoreStock";
 import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
+import StoreCambios from "./pages/admin/store/StoreCambios";
+import DepositoCambios from "./pages/deposito/DepositoCambios";
 import ManageDeposito from "./pages/admin/ManageDeposito";
 import DepositoLogin from "./pages/deposito/DepositoLogin";
 import DepositoLayout from "./pages/deposito/DepositoLayout";
@@ -176,6 +178,7 @@ const App = () => (
             <Route path="tienda/banners" element={<StoreBanners />} />
             <Route path="tienda/stock" element={<StoreStock />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
+            <Route path="tienda/cambios" element={<StoreCambios />} />
           </Route>
           <Route path="/deposito/login" element={<DepositoLogin />} />
           <Route path="/deposito" element={<DepositoLayout />}>
@@ -183,6 +186,7 @@ const App = () => (
             <Route path="stock" element={<DepositoStock />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
+            <Route path="cambios" element={<DepositoCambios />} />
           </Route>
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />

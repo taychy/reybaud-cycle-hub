@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Outlet, useNavigate, NavLink } from "react-router-dom";
 import { useDepositoAuth } from "@/hooks/useDepositoAuth";
-import { Package, BarChart3, History, LogOut, AlertTriangle } from "lucide-react";
+import { Package, BarChart3, History, LogOut, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DepositoLayout = () => {
@@ -28,6 +28,7 @@ const DepositoLayout = () => {
     { to: "/deposito/stock", icon: Package, label: "Stock" },
     { to: "/deposito/movimientos", icon: History, label: "Movimientos" },
     { to: "/deposito/alertas", icon: AlertTriangle, label: "Alertas" },
+    { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
   ];
 
   return (
