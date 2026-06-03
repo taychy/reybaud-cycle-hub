@@ -311,8 +311,11 @@ const AdminBajas = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
+
 };
 
 export default AdminBajas;
