@@ -923,54 +923,69 @@ const SuperAdminGastos = () => {
                   onChange={(e) => setSearchCatalogo(e.target.value)}
                   className="h-8 w-full sm:w-72 text-xs"
                 />
-                <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); resetRecForm(); setCatDialogOpen(true); }}>
+                <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); setRecForm(f => ({ ...f, concepto: "", categoria: "Otros", ambito: "emprendimiento", responsable: "Tay", monto_estimado: "", moneda: "ARS", frecuencia: catalogoTipoTab === "variable" ? "variable" : "mensual", dia_vencimiento: "10", forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true, tipo: catalogoTipoTab })); setCatDialogOpen(true); }}>
                   <Plus className="w-4 h-4" /> Nuevo
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Concepto</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Ámbito</TableHead>
-                    <TableHead>Frec.</TableHead>
-                    <TableHead>Vence día</TableHead>
-                    <TableHead>Resp.</TableHead>
-                    <TableHead className="text-right">Estimado</TableHead>
-                    <TableHead>Activo</TableHead>
-                    <TableHead className="w-20">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recurrentes
-                    .filter(r => {
-                      const q = searchCatalogo.trim().toLowerCase();
-                      if (!q) return true;
-                      return [r.concepto, r.categoria, r.proveedor, r.responsable]
-                        .filter(Boolean).join(" ").toLowerCase().includes(q);
-                    })
-                    .map(r => (
-                    <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
-                      <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
-                      <TableCell>{ambitoBadge(r.ambito)}</TableCell>
-                      <TableCell className="text-xs">{r.frecuencia}</TableCell>
-                      <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
-                      <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
-                      <TableCell>{r.activo ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)}><Edit2 className="w-3 h-3" /></Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteRec(r.id)}><Trash2 className="w-3 h-3" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Tabs value={catalogoTipoTab} onValueChange={(v) => setCatalogoTipoTab(v as TipoGasto)}>
+                <div className="px-4 pt-2">
+                  <TabsList>
+                    <TabsTrigger value="fijo">
+                      Fijos ({recurrentes.filter(r => (r.tipo || "fijo") === "fijo").length})
+                    </TabsTrigger>
+                    <TabsTrigger value="variable">
+                      Variables ({recurrentes.filter(r => r.tipo === "variable").length})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+                <TabsContent value={catalogoTipoTab} className="mt-2">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Concepto</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Ámbito</TableHead>
+                        <TableHead>Frec.</TableHead>
+                        <TableHead>Vence día</TableHead>
+                        <TableHead>Resp.</TableHead>
+                        <TableHead className="text-right">Estimado</TableHead>
+                        <TableHead>Activo</TableHead>
+                        <TableHead className="w-20">Acción</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recurrentes
+                        .filter(r => (r.tipo || "fijo") === catalogoTipoTab)
+                        .filter(r => {
+                          const q = searchCatalogo.trim().toLowerCase();
+                          if (!q) return true;
+                          return [r.concepto, r.categoria, r.proveedor, r.responsable]
+                            .filter(Boolean).join(" ").toLowerCase().includes(q);
+                        })
+                        .map(r => (
+                        <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
+                          <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
+                          <TableCell>{ambitoBadge(r.ambito)}</TableCell>
+                          <TableCell className="text-xs">{r.frecuencia}</TableCell>
+                          <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
+                          <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
+                          <TableCell>{r.activo ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)}><Edit2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteRec(r.id)}><Trash2 className="w-3 h-3" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
