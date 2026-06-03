@@ -69,6 +69,7 @@ import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import DepositoPedidos from "./pages/deposito/DepositoPedidos";
+import DepositoPreventas from "./pages/deposito/DepositoPreventas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
@@ -185,6 +186,7 @@ const App = () => (
             <Route index element={<Navigate to="/deposito/stock" replace />} />
             <Route path="stock" element={<DepositoStock />} />
             <Route path="pedidos" element={<DepositoPedidos />} />
+            <Route path="preventas" element={<DepositoPreventas />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />

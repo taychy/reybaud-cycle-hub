@@ -1,0 +1,2 @@
+CREATE POLICY "Deposito ve preorders" ON public.store_preorders FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'deposito'));
+CREATE POLICY "Deposito actualiza preorders" ON public.store_preorders FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'deposito')) WITH CHECK (public.has_role(auth.uid(), 'deposito'));

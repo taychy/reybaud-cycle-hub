@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, NavLink } from "react-router-dom";
-import { Package, History, LogOut, AlertTriangle, RefreshCw, ShoppingCart } from "lucide-react";
+import { Package, History, LogOut, AlertTriangle, RefreshCw, ShoppingCart, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,6 +9,7 @@ const DepositoLayout = () => {
   const navItems = [
     { to: "/deposito/stock", icon: Package, label: "Stock" },
     { to: "/deposito/pedidos", icon: ShoppingCart, label: "Pedidos" },
+    { to: "/deposito/preventas", icon: ClipboardList, label: "Preventas" },
     { to: "/deposito/movimientos", icon: History, label: "Movimientos" },
     { to: "/deposito/alertas", icon: AlertTriangle, label: "Alertas" },
     { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
