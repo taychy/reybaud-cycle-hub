@@ -8,26 +8,40 @@ export function useDepositoAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isDeposito, setIsDeposito] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
-  // 1) Listener SINCRÓNICO de cambios de auth. No hacemos awaits acá
+  // 1) Restauramos sesión primero. No marcamos loading=false hasta que
+  //    authReady sea true; si no, el layout redirige al login antes de
+  //    que Supabase termine de recuperar la sesión del storage.
+  //    Listener SINCRÓNICO de cambios de auth. No hacemos awaits acá
   //    (causaría deadlock con el cliente de Supabase y dejaría la app
   //    pegada en "Cargando…"). Solo guardamos el user.
   useEffect(() => {
+    let cancelled = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
       setUser(session?.user ?? null);
+      setAuthReady(true);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
       setUser(session?.user ?? null);
-      if (!session?.user) setLoading(false);
+      setAuthReady(true);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // 2) Cuando cambia el user, chequeamos el rol fuera del callback.
   useEffect(() => {
     let cancelled = false;
+    if (!authReady) return;
+
     if (!user) {
       setIsDeposito(false);
       setLoading(false);
@@ -54,7 +68,7 @@ export function useDepositoAuth() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [authReady, user]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
