@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
+const ROLE_CHECK_TIMEOUT_MS = 7000;
+
 export function useDepositoAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isDeposito, setIsDeposito] = useState(false);
@@ -31,12 +33,17 @@ export function useDepositoAuth() {
       setLoading(false);
       return;
     }
+    setLoading(true);
     (async () => {
       try {
-        const { data } = await supabase.rpc("has_role", {
+        const roleCheck = supabase.rpc("has_role", {
           _user_id: user.id,
           _role: "deposito" as any,
         });
+        const timeout = new Promise<{ data: false }>((resolve) => {
+          window.setTimeout(() => resolve({ data: false }), ROLE_CHECK_TIMEOUT_MS);
+        });
+        const { data } = await Promise.race([roleCheck, timeout]);
         if (!cancelled) setIsDeposito(!!data);
       } catch {
         if (!cancelled) setIsDeposito(false);
