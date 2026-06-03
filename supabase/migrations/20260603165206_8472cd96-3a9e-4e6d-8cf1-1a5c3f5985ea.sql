@@ -1,0 +1,2 @@
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS variante TEXT;
+COMMENT ON COLUMN public.stock_movements.variante IS 'Clave de variante afectada, formato "Variant:Value|Variant:Value" (null si producto sin variantes)';

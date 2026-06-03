@@ -4033,6 +4033,7 @@ export type Database = {
           stock_anterior: number
           stock_nuevo: number
           tipo: string
+          variante: string | null
         }
         Insert: {
           cantidad: number
@@ -4044,6 +4045,7 @@ export type Database = {
           stock_anterior: number
           stock_nuevo: number
           tipo?: string
+          variante?: string | null
         }
         Update: {
           cantidad?: number
@@ -4055,6 +4057,7 @@ export type Database = {
           stock_anterior?: number
           stock_nuevo?: number
           tipo?: string
+          variante?: string | null
         }
         Relationships: [
           {
