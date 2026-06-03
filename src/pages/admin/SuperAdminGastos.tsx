@@ -152,7 +152,9 @@ const SuperAdminGastos = () => {
     responsable: "Tay", monto_estimado: "", moneda: "ARS",
     frecuencia: "mensual" as Frecuencia, dia_vencimiento: "10",
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
+    tipo: "fijo" as TipoGasto,
   });
+  const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
 
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
