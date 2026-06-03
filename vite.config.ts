@@ -55,8 +55,13 @@ export default defineConfig(({ mode }) => ({
         // SIEMPRE pasen por la red (sin pasar por el SW cacheado).
         navigateFallbackDenylist: [/^\/~oauth/, /^\/__update_check/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        clientsClaim: true,
-        skipWaiting: true,
+        // NO usar clientsClaim/skipWaiting con registerType: "prompt".
+        // Esa combinación dispara controllerchange apenas se instala el SW
+        // nuevo, lo que provoca un loop de recarga ("titilando") en la app.
+        // El usuario activa la nueva versión manualmente desde UpdatePrompt
+        // (que llama a updateServiceWorker(true) → postMessage SKIP_WAITING).
+        clientsClaim: false,
+        skipWaiting: false,
         cleanupOutdatedCaches: true,
       },
       manifest: {
