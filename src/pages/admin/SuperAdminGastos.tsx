@@ -156,6 +156,7 @@ const SuperAdminGastos = () => {
     tipo: "fijo" as TipoGasto,
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
+  const [deudaExpanded, setDeudaExpanded] = useState(false);
 
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
