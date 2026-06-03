@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 import BottomNav from "@/components/BottomNav";
+import RequestBajaDialog from "@/components/student/RequestBajaDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
