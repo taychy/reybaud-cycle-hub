@@ -128,7 +128,14 @@ const DepositoMovimientos = () => {
                         minute: "2-digit",
                       })}
                     </TableCell>
-                    <TableCell className="font-medium">{m.product_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{m.product_name}</div>
+                      {m.variante && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {m.variante.replace(/\|/g, " · ")}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
                       {m.tipo === "ingreso" ? (
                         <Badge className="bg-green-500/10 text-green-500 border-green-500/30">
