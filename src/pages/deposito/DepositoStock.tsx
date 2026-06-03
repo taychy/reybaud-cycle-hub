@@ -10,9 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Search, Plus, Minus, RefreshCw, Upload } from "lucide-react";
+import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
+import CameraScanner from "@/components/deposito/CameraScanner";
 
 interface VariantSpec {
   name: string;
@@ -59,6 +60,7 @@ const DepositoStock = () => {
   // Barcode scanner state
   const [scannerActive, setScannerActive] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
   const fetchProducts = async () => {
@@ -193,6 +195,26 @@ const DepositoStock = () => {
     setScannerActive(false);
   };
 
+  const handleCameraDetected = (code: string) => {
+    setCameraOpen(false);
+    const trimmed = code.trim();
+    // Buscar coincidencia exacta por id; si no, por nombre
+    const match = products.find(
+      (p) => p.id === trimmed || p.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (match) {
+      toast({ title: "Producto encontrado", description: match.name });
+      setMovDialog(match);
+      setMovTipo("ingreso");
+    } else {
+      setSearch(trimmed);
+      toast({
+        title: "Código escaneado",
+        description: `Buscando "${trimmed}"...`,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -252,11 +274,14 @@ const DepositoStock = () => {
             className="pl-9"
           />
         </div>
+        <Button variant="gold" onClick={() => setCameraOpen(true)}>
+          <Camera className="w-4 h-4 mr-1" /> Cámara
+        </Button>
         <Button
           variant={scannerActive ? "default" : "outline"}
           onClick={() => setScannerActive(!scannerActive)}
         >
-          <Package className="w-4 h-4 mr-1" /> Scanner
+          <Package className="w-4 h-4 mr-1" /> Lector
         </Button>
       </div>
 
@@ -264,7 +289,7 @@ const DepositoStock = () => {
         <Card className="border-primary/50">
           <CardContent className="p-4 flex gap-2">
             <Input
-              placeholder="Escaneá o ingresá código de barras..."
+              placeholder="Escaneá con pistola USB o ingresá código..."
               value={barcodeInput}
               onChange={(e) => setBarcodeInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleBarcodeSearch()}
@@ -275,6 +300,12 @@ const DepositoStock = () => {
           </CardContent>
         </Card>
       )}
+
+      <CameraScanner
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onDetected={handleCameraDetected}
+      />
 
       {/* Products Table */}
       <Card className="border-border">
