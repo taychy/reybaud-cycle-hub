@@ -37,6 +37,7 @@ interface Recurrente {
   proveedor: string | null;
   notas: string | null;
   activo: boolean;
+  tipo: TipoGasto;
 }
 
 interface Ejecucion {
