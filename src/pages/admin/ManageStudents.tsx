@@ -512,6 +512,36 @@ const ManageStudents = () => {
     return actions;
   };
 
+  // Inicia la baja por admin: crea la solicitud y abre el confirm dialog
+  const handleStartBajaAdmin = async (alumno: Alumno) => {
+    const { data: solId, error } = await supabase.rpc("request_baja_alumno", {
+      p_alumno_id: alumno.id,
+      p_motivo: "otro",
+      p_motivo_otro_detalle: "Baja iniciada por administración",
+      p_origen: "admin",
+    });
+    if (error || !solId) { toast.error(error?.message || "No se pudo crear la solicitud"); return; }
+    const { data: sol } = await supabase
+      .from("bajas_solicitudes")
+      .select("id, alumno_id, motivo, motivo_otro_detalle, comentario, snapshot")
+      .eq("id", solId as unknown as string)
+      .maybeSingle();
+    if (!sol) { toast.error("No se pudo cargar la solicitud"); return; }
+    setBajaAdminAlumno(alumno);
+    setBajaSolicitud({ ...sol, alumno_nombre: `${alumno.nombre} ${alumno.apellido ?? ""}`.trim() });
+  };
+
+  const handleReactivate = async () => {
+    if (!reactivateAlumno) return;
+    setReactivateLoading(true);
+    const { error } = await supabase.rpc("reactivar_alumno", { p_alumno_id: reactivateAlumno.id });
+    setReactivateLoading(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Alumno reactivado. Deberá contratar un nuevo plan.");
+    setAlumnos((prev) => prev.map((a) => a.id === reactivateAlumno.id ? { ...a, estado: "activo" } as any : a));
+    setReactivateAlumno(null);
+  };
+
   // --- Drawer ---
   const openDrawer = (alumno: Alumno) => {
     setDrawerAlumno(alumno);
