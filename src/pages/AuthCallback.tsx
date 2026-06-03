@@ -86,9 +86,10 @@ const AuthCallback = () => {
       const portalContext = pendingOtp?.context; // "main" = student, "staff" = admin/coach
 
       // Gather all roles in parallel
-      const [{ data: isAdmin }, { data: isCoach }, { data: alumno }] = await Promise.all([
+      const [{ data: isAdmin }, { data: isCoach }, { data: isDeposito }, { data: alumno }] = await Promise.all([
         supabase.rpc("has_role", { _user_id: userId, _role: "admin" as any }),
         supabase.rpc("has_role", { _user_id: userId, _role: "coach" as any }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "deposito" as any }),
         supabase.from("alumnos").select("id").eq("user_id", userId).maybeSingle(),
       ]);
 
@@ -101,16 +102,26 @@ const AuthCallback = () => {
         return;
       }
 
-      // If came from staff portal, prioritize admin > coach
+      // Explicit deposito returnTo wins
+      if (returnTo === "/deposito" && isDeposito) {
+        clearPendingOtpState();
+        navigate("/deposito", { replace: true });
+        return;
+      }
+
+      // If came from staff portal, prioritize admin > coach > deposito
       if (portalContext === "staff") {
         if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return; }
         if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return; }
+        if (isDeposito) { clearPendingOtpState(); navigate("/deposito", { replace: true }); return; }
       }
 
-      // No context or fallback: admin > coach > alumno
+      // No context or fallback: admin > coach > deposito > alumno
       if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return; }
       if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return; }
+      if (isDeposito) { clearPendingOtpState(); navigate("/deposito", { replace: true }); return; }
       if (alumno) { clearPendingOtpState(); navigate(returnTo || "/alumno", { replace: true }); return; }
+
 
       // Fallback: user exists but no role matched — send to home
       if (!cancelled) {
