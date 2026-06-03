@@ -20,6 +20,7 @@ import { toast } from "@/hooks/use-toast";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
+type TipoGasto = "fijo" | "variable";
 type EstadoEjec = "pendiente" | "pagado" | "vencido" | "omitido" | "parcial";
 
 interface Recurrente {
