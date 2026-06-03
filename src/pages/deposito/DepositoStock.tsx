@@ -195,6 +195,26 @@ const DepositoStock = () => {
     setScannerActive(false);
   };
 
+  const handleCameraDetected = (code: string) => {
+    setCameraOpen(false);
+    const trimmed = code.trim();
+    // Buscar coincidencia exacta por id; si no, por nombre
+    const match = products.find(
+      (p) => p.id === trimmed || p.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (match) {
+      toast({ title: "Producto encontrado", description: match.name });
+      setMovDialog(match);
+      setMovTipo("ingreso");
+    } else {
+      setSearch(trimmed);
+      toast({
+        title: "Código escaneado",
+        description: `Buscando "${trimmed}"...`,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
