@@ -223,6 +223,8 @@ export type Database = {
           afip_padron_snapshot: Json | null
           afip_verificado_at: string | null
           apellido: string | null
+          baja_confirmada_por_user_id: string | null
+          baja_solicitud_id: string | null
           ciudad: string | null
           como_se_entero: string | null
           condicion_fiscal: string
@@ -239,6 +241,7 @@ export type Database = {
           domicilio_fiscal: string | null
           email: string
           estado: string
+          fecha_baja: string | null
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido: string | null
           id: string
@@ -251,6 +254,7 @@ export type Database = {
           medical_certificate_status: string
           medical_certificate_uploaded_at: string | null
           medical_certificate_url: string | null
+          motivo_baja: string | null
           nombre: string
           nombre_fiscal: string | null
           notas: string | null
@@ -264,6 +268,8 @@ export type Database = {
           pause_ultimo_contacto_at: string | null
           profile_complete: boolean
           provincia: string | null
+          reactivada_at: string | null
+          reactivada_por_user_id: string | null
           registration_status: string
           saldo_a_favor: number
           sede_id: string | null
@@ -276,6 +282,8 @@ export type Database = {
           afip_padron_snapshot?: Json | null
           afip_verificado_at?: string | null
           apellido?: string | null
+          baja_confirmada_por_user_id?: string | null
+          baja_solicitud_id?: string | null
           ciudad?: string | null
           como_se_entero?: string | null
           condicion_fiscal?: string
@@ -292,6 +300,7 @@ export type Database = {
           domicilio_fiscal?: string | null
           email: string
           estado?: string
+          fecha_baja?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
@@ -304,6 +313,7 @@ export type Database = {
           medical_certificate_status?: string
           medical_certificate_uploaded_at?: string | null
           medical_certificate_url?: string | null
+          motivo_baja?: string | null
           nombre: string
           nombre_fiscal?: string | null
           notas?: string | null
@@ -317,6 +327,8 @@ export type Database = {
           pause_ultimo_contacto_at?: string | null
           profile_complete?: boolean
           provincia?: string | null
+          reactivada_at?: string | null
+          reactivada_por_user_id?: string | null
           registration_status?: string
           saldo_a_favor?: number
           sede_id?: string | null
@@ -329,6 +341,8 @@ export type Database = {
           afip_padron_snapshot?: Json | null
           afip_verificado_at?: string | null
           apellido?: string | null
+          baja_confirmada_por_user_id?: string | null
+          baja_solicitud_id?: string | null
           ciudad?: string | null
           como_se_entero?: string | null
           condicion_fiscal?: string
@@ -345,6 +359,7 @@ export type Database = {
           domicilio_fiscal?: string | null
           email?: string
           estado?: string
+          fecha_baja?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
@@ -357,6 +372,7 @@ export type Database = {
           medical_certificate_status?: string
           medical_certificate_uploaded_at?: string | null
           medical_certificate_url?: string | null
+          motivo_baja?: string | null
           nombre?: string
           nombre_fiscal?: string | null
           notas?: string | null
@@ -370,6 +386,8 @@ export type Database = {
           pause_ultimo_contacto_at?: string | null
           profile_complete?: boolean
           provincia?: string | null
+          reactivada_at?: string | null
+          reactivada_por_user_id?: string | null
           registration_status?: string
           saldo_a_favor?: number
           sede_id?: string | null
@@ -379,6 +397,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "alumnos_baja_solicitud_id_fkey"
+            columns: ["baja_solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "bajas_solicitudes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "alumnos_sede_id_fkey"
             columns: ["sede_id"]
@@ -519,6 +544,77 @@ export type Database = {
           user_role?: string
         }
         Relationships: []
+      }
+      bajas_solicitudes: {
+        Row: {
+          alumno_id: string
+          comentario: string | null
+          confirmada_at: string | null
+          confirmada_notas: string | null
+          confirmada_por_user_id: string | null
+          created_at: string
+          email_notificado: boolean
+          estado: string
+          evitada_at: string | null
+          evitada_motivo: string | null
+          evitada_por_user_id: string | null
+          id: string
+          motivo: string
+          motivo_otro_detalle: string | null
+          origen: string
+          snapshot: Json
+          solicitada_por_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          comentario?: string | null
+          confirmada_at?: string | null
+          confirmada_notas?: string | null
+          confirmada_por_user_id?: string | null
+          created_at?: string
+          email_notificado?: boolean
+          estado?: string
+          evitada_at?: string | null
+          evitada_motivo?: string | null
+          evitada_por_user_id?: string | null
+          id?: string
+          motivo: string
+          motivo_otro_detalle?: string | null
+          origen: string
+          snapshot?: Json
+          solicitada_por_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          comentario?: string | null
+          confirmada_at?: string | null
+          confirmada_notas?: string | null
+          confirmada_por_user_id?: string | null
+          created_at?: string
+          email_notificado?: boolean
+          estado?: string
+          evitada_at?: string | null
+          evitada_motivo?: string | null
+          evitada_por_user_id?: string | null
+          id?: string
+          motivo?: string
+          motivo_otro_detalle?: string | null
+          origen?: string
+          snapshot?: Json
+          solicitada_por_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bajas_solicitudes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cambios_plan: {
         Row: {
@@ -5141,6 +5237,21 @@ export type Database = {
           },
         ]
       }
+      vw_bajas_metricas_mensuales: {
+        Row: {
+          antiguedad_promedio_dias: number | null
+          canceladas_por_alumno: number | null
+          con_auto_renovacion: number | null
+          con_deuda: number | null
+          confirmadas: number | null
+          evitadas: number | null
+          mes: string | null
+          pendientes: number | null
+          por_motivo: Json | null
+          solicitadas: number | null
+        }
+        Relationships: []
+      }
       vw_cuenta_corriente_movimientos: {
         Row: {
           alumno_id: string | null
@@ -5187,10 +5298,26 @@ export type Database = {
         Returns: undefined
       }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
+      build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
+      cancelar_solicitud_baja: {
+        Args: { p_solicitud_id: string }
+        Returns: undefined
+      }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
+      }
+      confirm_baja_alumno: {
+        Args: {
+          p_email_notificar?: boolean
+          p_notas?: string
+          p_solicitud_id: string
+        }
+        Returns: {
+          alumno_id: string
+          mp_preapproval_ids: string[]
+        }[]
       }
       create_gasto_from_mp: {
         Args: {
@@ -5320,6 +5447,10 @@ export type Database = {
           nombre: string
         }[]
       }
+      marcar_baja_evitada: {
+        Args: { p_motivo: string; p_solicitud_id: string }
+        Returns: undefined
+      }
       materialize_reservation_installments: {
         Args: { p_reservation_id: string }
         Returns: number
@@ -5344,6 +5475,7 @@ export type Database = {
         Returns: string
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
+      reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -5396,6 +5528,16 @@ export type Database = {
           p_forma_pago: string
           p_monto: number
           p_notas?: string
+        }
+        Returns: string
+      }
+      request_baja_alumno: {
+        Args: {
+          p_alumno_id: string
+          p_comentario?: string
+          p_motivo: string
+          p_motivo_otro_detalle?: string
+          p_origen?: string
         }
         Returns: string
       }
