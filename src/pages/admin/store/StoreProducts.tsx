@@ -631,6 +631,14 @@ const StoreProducts = () => {
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1">El costo de envío por moto se cotiza por caso al coordinar con el alumno.</p>
                     </div>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t border-border">
+                      <input
+                        type="checkbox"
+                        checked={!!(editProduct as any)?.no_admite_cambio}
+                        onChange={(e) => setEditProduct((p) => ({ ...p, no_admite_cambio: e.target.checked } as any))}
+                      />
+                      <span>No admite cambios ni devoluciones (ropa íntima, personalizada, outlet…)</span>
+                    </label>
                   </div>
 
                   {editProduct?.id && (
