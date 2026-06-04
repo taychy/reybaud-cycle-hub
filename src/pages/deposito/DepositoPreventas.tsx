@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye } from "lucide-react";
+import { Search, Eye, Tag, Printer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatPrice } from "@/lib/currency";
+import { printPreorderLabels, printSinglePreorderLabel, type PreorderLabelData } from "@/lib/preorderLabels";
 
 const ESTADOS = [
   "pendiente_pago_sena",
@@ -35,10 +37,13 @@ const labelEstado = (e: string) => e.replace(/_/g, " ");
 const DepositoPreventas = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [alumnos, setAlumnos] = useState<Record<string, any>>({});
+  const [sedes, setSedes] = useState<Record<string, any>>({});
   const [search, setSearch] = useState("");
   const [filterEstado, setFilterEstado] = useState("all");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printing, setPrinting] = useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -63,6 +68,13 @@ const DepositoPreventas = () => {
       const map: Record<string, any> = {};
       (als || []).forEach((a: any) => { map[a.id] = a; });
       setAlumnos(map);
+    }
+    const sedeIds = Array.from(new Set(list.map((r: any) => r.sede_retiro_id).filter(Boolean)));
+    if (sedeIds.length) {
+      const { data: sds } = await supabase.from("sedes").select("id, nombre").in("id", sedeIds);
+      const sm: Record<string, any> = {};
+      (sds || []).forEach((s: any) => { sm[s.id] = s; });
+      setSedes(sm);
     }
     setLoading(false);
   };
@@ -97,11 +109,94 @@ const DepositoPreventas = () => {
     return true;
   });
 
+  const toLabelData = (r: any): PreorderLabelData => {
+    const a = alumnos[r.alumno_id];
+    const sede = r.sede_retiro_id ? sedes[r.sede_retiro_id] : null;
+    return {
+      id: r.id,
+      short_number: r.id.slice(0, 8).toUpperCase(),
+      producto_nombre: r.producto_nombre,
+      cantidad: r.cantidad,
+      variante: r.variante,
+      items: r.items,
+      precio_total: r.precio_total,
+      sena_monto: r.sena_monto || 0,
+      saldo_pendiente: r.saldo_pendiente || 0,
+      moneda: r.moneda,
+      entrega_metodo: r.entrega_metodo,
+      sede_nombre: sede?.nombre || null,
+      envio_direccion: r.envio_direccion,
+      envio_contacto: r.envio_contacto,
+      envio_notas: r.envio_notas,
+      alumno_nombre: r.alumno_nombre || (a ? `${a.nombre || ""} ${a.apellido || ""}`.trim() : null),
+      alumno_email: r.alumno_email || a?.email,
+      alumno_telefono: r.alumno_telefono || a?.telefono,
+      created_at: r.created_at,
+    };
+  };
+
+  const printOne = async (r: any) => {
+    try {
+      setPrinting(true);
+      await printSinglePreorderLabel(toLabelData(r));
+    } catch (e: any) {
+      toast({ title: "Error al generar etiqueta", description: e.message, variant: "destructive" });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const printBulk = async () => {
+    const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
+    if (!list.length) return;
+    try {
+      setPrinting(true);
+      await printPreorderLabels(list);
+    } catch (e: any) {
+      toast({ title: "Error al generar etiquetas", description: e.message, variant: "destructive" });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const toggleId = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filtered.forEach((r) => next.delete(r.id));
+      } else {
+        filtered.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedCount = useMemo(
+    () => filtered.filter((r) => selectedIds.has(r.id)).length,
+    [filtered, selectedIds],
+  );
+
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando preventas...</div>;
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-heading font-bold">Preventas</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl font-heading font-bold">Preventas</h1>
+        {selectedCount > 0 && (
+          <Button onClick={printBulk} disabled={printing} className="gap-2">
+            <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
+          </Button>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
@@ -119,10 +214,21 @@ const DepositoPreventas = () => {
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
+        {filtered.length > 0 && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+            <Checkbox checked={allFilteredSelected} onCheckedChange={toggleAll} />
+            Seleccionar todas ({filtered.length})
+          </label>
+        )}
         {filtered.map((r) => (
           <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                className="mt-1"
+                checked={selectedIds.has(r.id)}
+                onCheckedChange={() => toggleId(r.id)}
+              />
+              <div className="flex-1 min-w-0">
                 <div className="font-heading font-bold text-sm leading-tight">{r.producto_nombre}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">{nombreAlumno(r.alumno_id)} · x{r.cantidad}</div>
                 <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
@@ -144,6 +250,9 @@ const DepositoPreventas = () => {
               <Button variant="outline" size="sm" className="h-9" onClick={() => setSelected(r)}>
                 <Eye className="w-4 h-4 mr-1" /> Ver
               </Button>
+              <Button variant="outline" size="sm" className="h-9" onClick={() => printOne(r)} disabled={printing}>
+                <Tag className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         ))}
@@ -156,6 +265,9 @@ const DepositoPreventas = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
+              <th className="px-3 py-3 w-8">
+                <Checkbox checked={allFilteredSelected} onCheckedChange={toggleAll} />
+              </th>
               <th className="px-4 py-3 text-left font-heading text-xs uppercase">Producto</th>
               <th className="px-4 py-3 text-left font-heading text-xs uppercase">Cliente</th>
               <th className="px-4 py-3 text-center font-heading text-xs uppercase">Cant.</th>
@@ -168,6 +280,9 @@ const DepositoPreventas = () => {
           <tbody className="divide-y divide-border">
             {filtered.map((r) => (
               <tr key={r.id} className="hover:bg-muted/30">
+                <td className="px-3 py-2">
+                  <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleId(r.id)} />
+                </td>
                 <td className="px-4 py-2">{r.producto_nombre}</td>
                 <td className="px-4 py-2 text-foreground">{nombreAlumno(r.alumno_id)}</td>
                 <td className="px-4 py-2 text-center">{r.cantidad}</td>
@@ -180,7 +295,8 @@ const DepositoPreventas = () => {
                 <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected(r)}><Eye className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOne(r)} disabled={printing} title="Etiqueta"><Tag className="w-4 h-4" /></Button>
                     <Select value={r.estado} onValueChange={(v) => updateEstado(r.id, v)}>
                       <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -203,6 +319,9 @@ const DepositoPreventas = () => {
           </SheetHeader>
           {selected && (
             <div className="space-y-4 mt-4 text-sm">
+              <Button onClick={() => printOne(selected)} disabled={printing} className="w-full gap-2">
+                <Tag className="w-4 h-4" /> Imprimir etiqueta
+              </Button>
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{nombreAlumno(selected.alumno_id)}</div></div>
                 <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{alumnos[selected.alumno_id]?.telefono || "—"}</div></div>
