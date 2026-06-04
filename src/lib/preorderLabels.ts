@@ -228,10 +228,18 @@ export const printPreorderLabels = async (preorders: PreorderLabelData[]) => {
     await drawLabel(doc, preorders[i], ox, oy);
   }
 
-  // Open in new tab
+  // Trigger download via anchor (evita el popup blocker que dispara window.open)
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const a = document.createElement("a");
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.download = preorders.length === 1
+    ? `etiqueta-preventa-${preorders[0].short_number || preorders[0].id.slice(0, 8)}.pdf`
+    : `etiquetas-preventas-${stamp}-${preorders.length}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 };
 
