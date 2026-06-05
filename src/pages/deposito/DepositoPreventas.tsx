@@ -103,7 +103,7 @@ const DepositoPreventas = () => {
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
     if (search) {
       const s = search.toLowerCase();
-      const nom = nombreAlumno(r.alumno_id).toLowerCase();
+      const nom = nombreAlumno(r.alumno_id, r).toLowerCase();
       const prod = (r.producto_nombre || "").toLowerCase();
       if (!nom.includes(s) && !prod.includes(s)) return false;
     }
@@ -231,7 +231,7 @@ const DepositoPreventas = () => {
               />
               <div className="flex-1 min-w-0">
                 <div className="font-heading font-bold text-sm leading-tight">{r.producto_nombre}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{nombreAlumno(r.alumno_id)} · x{r.cantidad}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{nombreAlumno(r.alumno_id, r)} · x{r.cantidad}</div>
                 <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
               </div>
               <div className="text-right shrink-0">
@@ -285,7 +285,7 @@ const DepositoPreventas = () => {
                   <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleId(r.id)} />
                 </td>
                 <td className="px-4 py-2">{r.producto_nombre}</td>
-                <td className="px-4 py-2 text-foreground">{nombreAlumno(r.alumno_id)}</td>
+                <td className="px-4 py-2 text-foreground">{nombreAlumno(r.alumno_id, r)}</td>
                 <td className="px-4 py-2 text-center">{r.cantidad}</td>
                 <td className="px-4 py-2 text-right font-heading font-bold">{formatPrice(r.precio_total, r.moneda)}</td>
                 <td className="px-4 py-2 text-center">
@@ -324,7 +324,7 @@ const DepositoPreventas = () => {
                 <Tag className="w-4 h-4" /> Imprimir etiqueta
               </Button>
               <div className="grid grid-cols-2 gap-3">
-                <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{selected.alumno_nombre || nombreAlumno(selected.alumno_id)}</div></div>
+                <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{selected.alumno_nombre || nombreAlumno(selected.alumno_id, selected)}</div></div>
                 <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{selected.alumno_telefono || alumnos[selected.alumno_id]?.telefono || "—"}</div></div>
                 <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{selected.alumno_email || alumnos[selected.alumno_id]?.email || "—"}</div></div>
                 <div><span className="text-muted-foreground">DNI:</span> <div className="font-medium">{selected.alumno_dni || alumnos[selected.alumno_id]?.dni || "—"}</div></div>
