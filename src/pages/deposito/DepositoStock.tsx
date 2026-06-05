@@ -331,7 +331,16 @@ const DepositoStock = () => {
               <TableBody>
                 {filtered.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col">
+                        <span>{p.name}</span>
+                        {p.sku_base && (
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            RYB-{p.sku_base}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">
                       <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>
                         {p.stock}
@@ -348,7 +357,7 @@ const DepositoStock = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex gap-1 justify-center">
+                      <div className="flex gap-1 justify-center flex-wrap">
                         <Button
                           size="sm"
                           variant="outline"
@@ -365,8 +374,16 @@ const DepositoStock = () => {
                         >
                           <Minus className="w-3 h-3 mr-1" /> Egreso
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setLabelsProduct(p)}
+                        >
+                          <Tag className="w-3 h-3 mr-1" /> Etiquetas
+                        </Button>
                       </div>
                     </TableCell>
+
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
