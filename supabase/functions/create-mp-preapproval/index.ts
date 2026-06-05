@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,18 +35,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const cuenta = await resolveCuentaMP(supabaseAdmin, { unidad_negocio: "suscripcion_escuela" });
+    if (!cuenta.access_token) {
       return new Response(
         JSON.stringify({ error: "Mercado Pago no configurado" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    console.log("[create-mp-preapproval] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
 
     // Validate plan allows auto-charge and is monthly
     const { data: plan, error: planErr } = await supabaseAdmin
@@ -125,7 +127,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${cuenta.access_token}`,
         "X-Idempotency-Key": `preapproval-${suscripcion_id}`,
       },
       body: JSON.stringify(preapprovalPayload),
@@ -159,6 +161,7 @@ Deno.serve(async (req) => {
         mp_preapproval_status: mpData.status || "pending",
         auto_cobro_activo: mpData.status === "authorized",
         intentos_cobro_fallidos: 0,
+        cuenta_mp_id: cuenta.cuenta_id,
       })
       .eq("id", suscripcion_id);
 
