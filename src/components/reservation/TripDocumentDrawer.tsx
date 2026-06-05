@@ -173,17 +173,23 @@ const TripDocumentDrawer = ({
             {fileUrl ? (
               <div className="space-y-3">
                 {isImage ? (
-                  <img src={fileUrl} alt={title} className="w-full h-40 object-cover rounded-lg border border-border" />
+                  filePreview ? (
+                    <img src={filePreview} alt={title} className="w-full h-40 object-cover rounded-lg border border-border" />
+                  ) : (
+                    <div className="w-full h-40 rounded-lg border border-border bg-muted/30 flex items-center justify-center text-xs text-muted-foreground">Cargando preview…</div>
+                  )
                 ) : (
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">Archivo cargado</p>
-                      <p className="text-xs text-muted-foreground truncate">{fileUrl.split("/").pop()}</p>
+                      <p className="text-xs text-muted-foreground truncate">{(fileUrl ?? "").split("/").pop()}</p>
                     </div>
-                    <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4 text-primary" />
-                    </a>
+                    {filePreview && (
+                      <a href={filePreview} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 text-primary" />
+                      </a>
+                    )}
                   </div>
                 )}
 
