@@ -66,12 +66,13 @@ const DepositoStock = () => {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [labelsProduct, setLabelsProduct] = useState<Product | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("store_products")
-      .select("id, name, stock, min_stock, status, category_id, image_url, variants, variant_stock")
+      .select("id, name, price, currency, sku_base, stock, min_stock, status, category_id, image_url, variants, variant_stock")
       .eq("status", "active")
       .order("name");
     if (!error) setProducts((data as any) || []);
