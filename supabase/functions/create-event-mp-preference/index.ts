@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     // Cargar el evento (para titulo y, si hace falta, precio)
     const { data: event, error: evErr } = await supabaseAdmin
       .from("events")
-      .select("id, title, price, currency")
+      .select("id, title, price, currency, is_trip")
       .eq("id", reservation.event_id)
       .single();
 
@@ -139,6 +139,14 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Error al crear preferencia de pago", detail: mpData }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Persistir cuenta MP usada en la reserva para que el webhook resuelva el token correcto
+    if (cuenta.cuenta_id) {
+      await supabaseAdmin
+        .from("event_reservations")
+        .update({ cuenta_mp_id: cuenta.cuenta_id })
+        .eq("id", reservation_id);
     }
 
     return new Response(
