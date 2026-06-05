@@ -227,32 +227,36 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
                 </div>
               )}
 
-              {row?.file_url && (
-                <div className="pl-6 mt-2">
-                  {isImage(row.file_url) ? (
-                    <a
-                      href={row.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block group"
-                    >
-                      <img
-                        src={row.file_url}
-                        alt={`Archivo ${labelFor(key)}`}
-                        className="w-20 h-20 rounded-md object-cover border border-border group-hover:border-primary transition-colors"
-                      />
-                    </a>
-                  ) : (
-                    <Button variant="outline" size="sm" asChild className="h-7 text-xs">
-                      <a href={row.file_url} target="_blank" rel="noopener noreferrer">
-                        <FileText className="w-3 h-3 mr-1" />
-                        Ver archivo
-                        <ExternalLink className="w-3 h-3 ml-1" />
+              {row?.file_url && (() => {
+                const signed = signedUrls[row.id];
+                const filename = (extractTripDocumentPath(row.file_url) || row.file_url).split("/").pop();
+                if (!signed) {
+                  return (
+                    <div className="pl-6 mt-2 text-xs text-muted-foreground italic">Cargando enlace seguro…</div>
+                  );
+                }
+                return (
+                  <div className="pl-6 mt-2">
+                    {isImage(row.file_url) ? (
+                      <a href={signed} target="_blank" rel="noopener noreferrer" className="inline-block group">
+                        <img
+                          src={signed}
+                          alt={`Archivo ${labelFor(key)}`}
+                          className="w-20 h-20 rounded-md object-cover border border-border group-hover:border-primary transition-colors"
+                        />
                       </a>
-                    </Button>
-                  )}
-                </div>
-              )}
+                    ) : (
+                      <Button variant="outline" size="sm" asChild className="h-7 text-xs">
+                        <a href={signed} target="_blank" rel="noopener noreferrer">
+                          <FileText className="w-3 h-3 mr-1" />
+                          Ver archivo {filename ? `(${filename})` : ""}
+                          <ExternalLink className="w-3 h-3 ml-1" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
