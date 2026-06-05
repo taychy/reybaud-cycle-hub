@@ -16,7 +16,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 type Modo = "test" | "prod";
