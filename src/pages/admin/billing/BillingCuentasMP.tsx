@@ -16,8 +16,31 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
+
+function SecretField({ label, value }: { label: string; value: string }) {
+  const [shown, setShown] = useState(false);
+  const masked = value.length <= 8 ? "••••••••" : `${value.slice(0, 4)}••••${value.slice(-4)}`;
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <span className="text-muted-foreground shrink-0">{label}:</span>
+      <code className="text-xs font-mono truncate min-w-0 flex-1" title={shown ? value : masked}>
+        {shown ? value : masked}
+      </code>
+      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setShown((s) => !s)}>
+        {shown ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+      </Button>
+      <Button
+        size="icon" variant="ghost" className="h-6 w-6 shrink-0"
+        onClick={() => { navigator.clipboard.writeText(value); toast.success("Copiado"); }}
+      >
+        <Copy className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
 
 type Modo = "test" | "prod";
 type Unidad =
@@ -256,10 +279,11 @@ export function BillingCuentasMP() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <div><span className="text-muted-foreground">Token:</span> <code className="text-xs">{c.secret_name_token}</code></div>
-                  {c.secret_name_pubkey && <div><span className="text-muted-foreground">Pub key:</span> <code className="text-xs">{c.secret_name_pubkey}</code></div>}
-                  {c.secret_name_webhook && <div><span className="text-muted-foreground">Webhook:</span> <code className="text-xs">{c.secret_name_webhook}</code></div>}
+                <CardContent className="text-sm space-y-1 min-w-0">
+                  <SecretField label="Token" value={c.secret_name_token} />
+                  {c.secret_name_pubkey && <SecretField label="Pub key" value={c.secret_name_pubkey} />}
+                  {c.secret_name_webhook && <SecretField label="Webhook" value={c.secret_name_webhook} />}
+
                   <div>
                     <span className="text-muted-foreground">Emisor default:</span>{" "}
                     {emisorName(c.emisor_fiscal_default_id)}
