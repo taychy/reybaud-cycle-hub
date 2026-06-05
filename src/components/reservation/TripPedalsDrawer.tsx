@@ -27,6 +27,7 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
   const [pedalType, setPedalType] = useState("");
   const [needsAdvice, setNeedsAdvice] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
 
   useEffect(() => {
