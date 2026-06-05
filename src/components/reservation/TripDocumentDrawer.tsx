@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
+import { getTripDocumentSignedUrl } from "@/lib/tripDocuments";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, CheckCircle, FileText, ExternalLink } from "lucide-react";
@@ -29,19 +30,23 @@ const TripDocumentDrawer = ({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
 
-    const applyRow = (row: any | null) => {
+    const applyRow = async (row: any | null) => {
       if (row) {
         setExistingId(row.id);
-        setFileUrl(row.file_url || null);
+        const stored = row.file_url || null;
+        setFileUrl(stored);
+        setFilePreview(await getTripDocumentSignedUrl(stored));
       } else {
         setExistingId(null);
         setFileUrl(null);
+        setFilePreview(null);
       }
       setLoading(false);
     };
@@ -73,11 +78,11 @@ const TripDocumentDrawer = ({
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("trip-documents").getPublicUrl(path);
-    setFileUrl(urlData.publicUrl);
+    setFileUrl(path);
+    setFilePreview(await getTripDocumentSignedUrl(path));
     setUploading(false);
     // Auto-save when file is uploaded
-    await saveData(urlData.publicUrl);
+    await saveData(path);
   };
 
   const saveData = async (url: string | null) => {
@@ -168,17 +173,23 @@ const TripDocumentDrawer = ({
             {fileUrl ? (
               <div className="space-y-3">
                 {isImage ? (
-                  <img src={fileUrl} alt={title} className="w-full h-40 object-cover rounded-lg border border-border" />
+                  filePreview ? (
+                    <img src={filePreview} alt={title} className="w-full h-40 object-cover rounded-lg border border-border" />
+                  ) : (
+                    <div className="w-full h-40 rounded-lg border border-border bg-muted/30 flex items-center justify-center text-xs text-muted-foreground">Cargando preview…</div>
+                  )
                 ) : (
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">Archivo cargado</p>
-                      <p className="text-xs text-muted-foreground truncate">{fileUrl.split("/").pop()}</p>
+                      <p className="text-xs text-muted-foreground truncate">{(fileUrl ?? "").split("/").pop()}</p>
                     </div>
-                    <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4 text-primary" />
-                    </a>
+                    {filePreview && (
+                      <a href={filePreview} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 text-primary" />
+                      </a>
+                    )}
                   </div>
                 )}
 

@@ -8,6 +8,7 @@ import {
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
+import { getTripDocumentSignedUrl, extractTripDocumentPath } from "@/lib/tripDocuments";
 
 interface ChecklistRow {
   id: string;
@@ -79,6 +80,7 @@ const DOC_STEP_CONFIG: Record<string, { title: string; description: string; help
 
 export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
   const [rows, setRows] = useState<ChecklistRow[]>([]);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [bikeOpen, setBikeOpen] = useState(false);
   const [pedalsOpen, setPedalsOpen] = useState(false);
@@ -93,8 +95,16 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
       .select("id, step_key, data, file_url, completed, needs_advice, updated_at")
       .eq("reservation_id", reservationId)
       .order("updated_at", { ascending: true });
-    setRows((data || []) as ChecklistRow[]);
+    const list = (data || []) as ChecklistRow[];
+    setRows(list);
     setLoading(false);
+    // Resolver signed URLs en paralelo para archivos del bucket privado
+    const entries = await Promise.all(
+      list
+        .filter((r) => r.file_url)
+        .map(async (r) => [r.id, await getTripDocumentSignedUrl(r.file_url)] as const),
+    );
+    setSignedUrls(Object.fromEntries(entries.filter(([, u]) => !!u) as [string, string][]));
   }, [reservationId]);
 
   useEffect(() => { load(); }, [load]);
@@ -217,32 +227,36 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
                 </div>
               )}
 
-              {row?.file_url && (
-                <div className="pl-6 mt-2">
-                  {isImage(row.file_url) ? (
-                    <a
-                      href={row.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block group"
-                    >
-                      <img
-                        src={row.file_url}
-                        alt={`Archivo ${labelFor(key)}`}
-                        className="w-20 h-20 rounded-md object-cover border border-border group-hover:border-primary transition-colors"
-                      />
-                    </a>
-                  ) : (
-                    <Button variant="outline" size="sm" asChild className="h-7 text-xs">
-                      <a href={row.file_url} target="_blank" rel="noopener noreferrer">
-                        <FileText className="w-3 h-3 mr-1" />
-                        Ver archivo
-                        <ExternalLink className="w-3 h-3 ml-1" />
+              {row?.file_url && (() => {
+                const signed = signedUrls[row.id];
+                const filename = (extractTripDocumentPath(row.file_url) || row.file_url).split("/").pop();
+                if (!signed) {
+                  return (
+                    <div className="pl-6 mt-2 text-xs text-muted-foreground italic">Cargando enlace seguro…</div>
+                  );
+                }
+                return (
+                  <div className="pl-6 mt-2">
+                    {isImage(row.file_url) ? (
+                      <a href={signed} target="_blank" rel="noopener noreferrer" className="inline-block group">
+                        <img
+                          src={signed}
+                          alt={`Archivo ${labelFor(key)}`}
+                          className="w-20 h-20 rounded-md object-cover border border-border group-hover:border-primary transition-colors"
+                        />
                       </a>
-                    </Button>
-                  )}
-                </div>
-              )}
+                    ) : (
+                      <Button variant="outline" size="sm" asChild className="h-7 text-xs">
+                        <a href={signed} target="_blank" rel="noopener noreferrer">
+                          <FileText className="w-3 h-3 mr-1" />
+                          Ver archivo {filename ? `(${filename})` : ""}
+                          <ExternalLink className="w-3 h-3 ml-1" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}

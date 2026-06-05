@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
+import { getTripDocumentSignedUrl } from "@/lib/tripDocuments";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,24 +27,28 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
   const [pedalType, setPedalType] = useState("");
   const [needsAdvice, setNeedsAdvice] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
 
-    const applyRow = (row: any | null) => {
+    const applyRow = async (row: any | null) => {
       if (row) {
         setExistingId(row.id);
         const d = row.data as any;
         setPedalType(d?.pedal_type || "");
         setNeedsAdvice(row.needs_advice || false);
-        setPhotoUrl(row.file_url || null);
+        const stored = row.file_url || null;
+        setPhotoUrl(stored);
+        setPhotoPreview(await getTripDocumentSignedUrl(stored));
       } else {
         setExistingId(null);
         setPedalType("");
         setNeedsAdvice(false);
         setPhotoUrl(null);
+        setPhotoPreview(null);
       }
       setLoading(false);
     };
@@ -75,8 +80,8 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("trip-documents").getPublicUrl(path);
-    setPhotoUrl(urlData.publicUrl);
+    setPhotoUrl(path);
+    setPhotoPreview(await getTripDocumentSignedUrl(path));
     setUploading(false);
   };
 
@@ -172,7 +177,11 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
               <Label>Foto de tus pedales o calas (opcional)</Label>
               {photoUrl ? (
                 <div className="space-y-2">
-                  <img src={photoUrl} alt="Pedales" className="w-full h-32 object-cover rounded-lg border border-border" />
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Pedales" className="w-full h-32 object-cover rounded-lg border border-border" />
+                  ) : (
+                    <div className="w-full h-32 rounded-lg border border-border bg-muted/30 flex items-center justify-center text-xs text-muted-foreground">Cargando preview…</div>
+                  )}
                   <label className="flex items-center justify-center text-xs text-primary cursor-pointer hover:underline">
                     Cambiar foto
                     <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />

@@ -111,12 +111,35 @@ serve(async (req) => {
             .eq("reservation_id", reservation.id),
         ]);
 
+        // Convertir file_url (path) a signed URL temporal (1h) para que el invitado
+        // externo pueda visualizar sus propios archivos del bucket privado.
+        const checklist = await Promise.all(
+          (clRes.data ?? []).map(async (row: any) => {
+            if (!row.file_url) return row;
+            const raw: string = row.file_url;
+            let path = raw;
+            if (raw.startsWith("http://") || raw.startsWith("https://")) {
+              const marker = "/trip-documents/";
+              const idx = raw.indexOf(marker);
+              if (idx < 0) return row;
+              path = raw.slice(idx + marker.length);
+              const q = path.indexOf("?");
+              if (q >= 0) path = path.slice(0, q);
+              try { path = decodeURIComponent(path); } catch { /* noop */ }
+            }
+            const { data: signed } = await supabase.storage
+              .from("trip-documents")
+              .createSignedUrl(path, 3600);
+            return { ...row, file_url: signed?.signedUrl ?? null };
+          })
+        );
+
         return json({
           ok: true,
           reservation,
           event: eventRes.data ?? null,
           participant: partExtRes.data ?? partAluRes.data ?? null,
-          checklist: clRes.data ?? [],
+          checklist,
         });
       }
 

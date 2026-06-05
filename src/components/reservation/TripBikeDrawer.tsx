@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
+
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,8 +80,8 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("trip-documents").getPublicUrl(path);
-    setFittingUrl(urlData.publicUrl);
+    // Bucket privado: guardamos el path; el preview/admin lo abre por signed URL.
+    setFittingUrl(path);
     setUploading(false);
   };
 
