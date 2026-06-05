@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
+import { getTripDocumentSignedUrl } from "@/lib/tripDocuments";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, CheckCircle, FileText, ExternalLink } from "lucide-react";
