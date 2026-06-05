@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,13 +73,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
+    // Fase 2: resolver cuenta MP por unidad de negocio
+    const cuenta = await resolveCuentaMP(supabaseAdmin, { unidad_negocio: "suscripcion_escuela" });
+    if (!cuenta.access_token) {
       return new Response(
         JSON.stringify({ error: "Mercado Pago no está configurado" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("[create-mp-preference] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
+
 
     // Build the base URL for redirects
     const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
@@ -118,7 +122,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${cuenta.access_token}`,
         },
         body: JSON.stringify(preferenceBody),
       }
@@ -134,10 +138,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update suscripcion with preference id
+    // Update suscripcion with preference id + cuenta usada
     await supabaseAdmin
       .from("suscripciones")
-      .update({ mp_preference_id: mpData.id })
+      .update({ mp_preference_id: mpData.id, cuenta_mp_id: cuenta.cuenta_id })
       .eq("id", suscripcion_id);
 
     return new Response(
