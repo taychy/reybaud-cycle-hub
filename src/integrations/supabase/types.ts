@@ -4632,6 +4632,7 @@ export type Database = {
           price: number
           sena_mode: string | null
           sena_valor: number | null
+          sku_base: string | null
           status: string
           stock: number
           tag: string | null
@@ -4673,6 +4674,7 @@ export type Database = {
           price: number
           sena_mode?: string | null
           sena_valor?: number | null
+          sku_base?: string | null
           status?: string
           stock?: number
           tag?: string | null
@@ -4714,6 +4716,7 @@ export type Database = {
           price?: number
           sena_mode?: string | null
           sena_valor?: number | null
+          sku_base?: string | null
           status?: string
           stock?: number
           tag?: string | null

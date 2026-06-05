@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera } from "lucide-react";
+import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 import CameraScanner from "@/components/deposito/CameraScanner";
+import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
 
 interface VariantSpec {
   name: string;
@@ -23,6 +24,9 @@ interface VariantSpec {
 interface Product {
   id: string;
   name: string;
+  price: number;
+  currency: string | null;
+  sku_base: string | null;
   stock: number;
   min_stock: number;
   status: string;
@@ -62,12 +66,13 @@ const DepositoStock = () => {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [labelsProduct, setLabelsProduct] = useState<Product | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("store_products")
-      .select("id, name, stock, min_stock, status, category_id, image_url, variants, variant_stock")
+      .select("id, name, price, currency, sku_base, stock, min_stock, status, category_id, image_url, variants, variant_stock")
       .eq("status", "active")
       .order("name");
     if (!error) setProducts((data as any) || []);
@@ -326,7 +331,16 @@ const DepositoStock = () => {
               <TableBody>
                 {filtered.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col">
+                        <span>{p.name}</span>
+                        {p.sku_base && (
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            RYB-{p.sku_base}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">
                       <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>
                         {p.stock}
@@ -343,7 +357,7 @@ const DepositoStock = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex gap-1 justify-center">
+                      <div className="flex gap-1 justify-center flex-wrap">
                         <Button
                           size="sm"
                           variant="outline"
@@ -360,8 +374,16 @@ const DepositoStock = () => {
                         >
                           <Minus className="w-3 h-3 mr-1" /> Egreso
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setLabelsProduct(p)}
+                        >
+                          <Tag className="w-3 h-3 mr-1" /> Etiquetas
+                        </Button>
                       </div>
                     </TableCell>
+
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
@@ -508,6 +530,12 @@ const DepositoStock = () => {
         open={showImport}
         onOpenChange={setShowImport}
         onImportComplete={fetchProducts}
+      />
+
+      <ProductLabelsDialog
+        open={!!labelsProduct}
+        product={labelsProduct}
+        onOpenChange={(o) => { if (!o) setLabelsProduct(null); }}
       />
     </div>
   );
