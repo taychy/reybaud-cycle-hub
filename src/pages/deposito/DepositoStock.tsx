@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera } from "lucide-react";
+import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 import CameraScanner from "@/components/deposito/CameraScanner";
+import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
 
 interface VariantSpec {
   name: string;
@@ -23,6 +24,9 @@ interface VariantSpec {
 interface Product {
   id: string;
   name: string;
+  price: number;
+  currency: string | null;
+  sku_base: string | null;
   stock: number;
   min_stock: number;
   status: string;
