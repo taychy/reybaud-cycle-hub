@@ -34,18 +34,21 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
     if (!open) return;
     setLoading(true);
 
-    const applyRow = (row: any | null) => {
+    const applyRow = async (row: any | null) => {
       if (row) {
         setExistingId(row.id);
         const d = row.data as any;
         setPedalType(d?.pedal_type || "");
         setNeedsAdvice(row.needs_advice || false);
-        setPhotoUrl(row.file_url || null);
+        const stored = row.file_url || null;
+        setPhotoUrl(stored);
+        setPhotoPreview(await getTripDocumentSignedUrl(stored));
       } else {
         setExistingId(null);
         setPedalType("");
         setNeedsAdvice(false);
         setPhotoUrl(null);
+        setPhotoPreview(null);
       }
       setLoading(false);
     };
@@ -77,8 +80,8 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("trip-documents").getPublicUrl(path);
-    setPhotoUrl(urlData.publicUrl);
+    setPhotoUrl(path);
+    setPhotoPreview(await getTripDocumentSignedUrl(path));
     setUploading(false);
   };
 
