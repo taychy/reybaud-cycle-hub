@@ -279,10 +279,11 @@ export function BillingCuentasMP() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <div><span className="text-muted-foreground">Token:</span> <code className="text-xs">{c.secret_name_token}</code></div>
-                  {c.secret_name_pubkey && <div><span className="text-muted-foreground">Pub key:</span> <code className="text-xs">{c.secret_name_pubkey}</code></div>}
-                  {c.secret_name_webhook && <div><span className="text-muted-foreground">Webhook:</span> <code className="text-xs">{c.secret_name_webhook}</code></div>}
+                <CardContent className="text-sm space-y-1 min-w-0">
+                  <SecretField label="Token" value={c.secret_name_token} />
+                  {c.secret_name_pubkey && <SecretField label="Pub key" value={c.secret_name_pubkey} />}
+                  {c.secret_name_webhook && <SecretField label="Webhook" value={c.secret_name_webhook} />}
+
                   <div>
                     <span className="text-muted-foreground">Emisor default:</span>{" "}
                     {emisorName(c.emisor_fiscal_default_id)}
