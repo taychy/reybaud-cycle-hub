@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${cuenta.access_token}`,
         "X-Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify(paymentBody),
@@ -173,6 +173,7 @@ Deno.serve(async (req) => {
           origen_registro: "automatico",
           fecha_inicio: now,
           fecha_fin: endOfMonth,
+          cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
 
@@ -194,6 +195,7 @@ Deno.serve(async (req) => {
           mp_status: mpData.status,
           metodo_pago: "mercadopago",
           origen_registro: "automatico",
+          cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
     } else {
@@ -209,6 +211,7 @@ Deno.serve(async (req) => {
           mp_status: mpData.status || "rejected",
           metodo_pago: "mercadopago",
           origen_registro: "automatico",
+          cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
     }
