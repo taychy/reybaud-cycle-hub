@@ -92,9 +92,10 @@ const DepositoPreventas = () => {
     load();
   };
 
-  const nombreAlumno = (id: string) => {
+  const nombreAlumno = (id: string, row?: any) => {
+    if (row?.alumno_nombre) return row.alumno_nombre;
     const a = alumnos[id];
-    if (!a) return "—";
+    if (!a) return row?.alumno_email || "—";
     return `${a.nombre || ""} ${a.apellido || ""}`.trim() || a.email || "—";
   };
 
