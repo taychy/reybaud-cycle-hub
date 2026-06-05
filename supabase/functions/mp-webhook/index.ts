@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+                Authorization: `Bearer ${resolved.token}`,
               },
               body: JSON.stringify({ status: "paused" }),
             });
