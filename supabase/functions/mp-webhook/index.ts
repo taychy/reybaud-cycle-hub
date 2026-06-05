@@ -6,6 +6,58 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Fase 2: el webhook resuelve qué token MP usar según el query param `?cuenta=<slug>`
+// que las create-mp-* incluyen en el notification_url. Si no viene, prueba con
+// cada cuenta activa hasta que MP responda OK, y como último fallback usa
+// MP_ACCESS_TOKEN legacy. Devuelve { token, slug } para auditoría.
+async function resolveWebhookToken(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  cuentaSlug: string | null,
+  fetchUrl: string,
+): Promise<{ token: string; slug: string | null; data: any | null; ok: boolean }> {
+  const legacy = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
+
+  // 1) Slug explícito desde notification_url
+  if (cuentaSlug) {
+    const { data: c } = await supabaseAdmin
+      .from("cuentas_mp")
+      .select("slug, secret_name_token")
+      .eq("slug", cuentaSlug)
+      .eq("activa", true)
+      .maybeSingle();
+    if (c?.secret_name_token) {
+      const tok = Deno.env.get(c.secret_name_token);
+      if (tok) {
+        const r = await fetch(fetchUrl, { headers: { Authorization: `Bearer ${tok}` } });
+        if (r.ok) return { token: tok, slug: c.slug, data: await r.json(), ok: true };
+        console.warn(`[mp-webhook] token de ${c.slug} devolvió ${r.status}, intento fallback`);
+      }
+    }
+  }
+
+  // 2) Probar cada cuenta activa
+  const { data: cuentas } = await supabaseAdmin
+    .from("cuentas_mp")
+    .select("slug, secret_name_token")
+    .eq("activa", true);
+  for (const c of cuentas ?? []) {
+    if (!c.secret_name_token) continue;
+    if (cuentaSlug && c.slug === cuentaSlug) continue; // ya probado
+    const tok = Deno.env.get(c.secret_name_token);
+    if (!tok) continue;
+    const r = await fetch(fetchUrl, { headers: { Authorization: `Bearer ${tok}` } });
+    if (r.ok) return { token: tok, slug: c.slug, data: await r.json(), ok: true };
+  }
+
+  // 3) Legacy
+  if (legacy) {
+    const r = await fetch(fetchUrl, { headers: { Authorization: `Bearer ${legacy}` } });
+    if (r.ok) return { token: legacy, slug: null, data: await r.json(), ok: true };
+  }
+
+  return { token: legacy, slug: null, data: null, ok: false };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -14,26 +66,23 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const topic = url.searchParams.get("topic") || url.searchParams.get("type");
+    const cuentaSlug = url.searchParams.get("cuenta");
     const body = await req.json().catch(() => ({}));
 
-    console.log("Webhook received:", { topic, body });
+    console.log("Webhook received:", { topic, cuentaSlug, body });
 
     const dataId = body?.data?.id || url.searchParams.get("data.id");
     const notificationType = topic || body?.type || body?.action;
-
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
-      console.error("MP_ACCESS_TOKEN not configured");
-      return new Response(JSON.stringify({ error: "MP not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Token "best-effort" para llamadas auxiliares (PUT preapproval pause).
+    // Las consultas que dependen del payment usarán resolveWebhookToken.
+    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
+
 
     // ─── PREAPPROVAL FLOW (recurring agreement status change) ───
     if (dataId && (notificationType === "preapproval" || notificationType === "subscription_preapproval")) {
