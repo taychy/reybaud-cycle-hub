@@ -92,9 +92,10 @@ const DepositoPreventas = () => {
     load();
   };
 
-  const nombreAlumno = (id: string) => {
+  const nombreAlumno = (id: string, row?: any) => {
+    if (row?.alumno_nombre) return row.alumno_nombre;
     const a = alumnos[id];
-    if (!a) return "—";
+    if (!a) return row?.alumno_email || "—";
     return `${a.nombre || ""} ${a.apellido || ""}`.trim() || a.email || "—";
   };
 
@@ -102,7 +103,7 @@ const DepositoPreventas = () => {
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
     if (search) {
       const s = search.toLowerCase();
-      const nom = nombreAlumno(r.alumno_id).toLowerCase();
+      const nom = nombreAlumno(r.alumno_id, r).toLowerCase();
       const prod = (r.producto_nombre || "").toLowerCase();
       if (!nom.includes(s) && !prod.includes(s)) return false;
     }
@@ -230,7 +231,7 @@ const DepositoPreventas = () => {
               />
               <div className="flex-1 min-w-0">
                 <div className="font-heading font-bold text-sm leading-tight">{r.producto_nombre}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{nombreAlumno(r.alumno_id)} · x{r.cantidad}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{nombreAlumno(r.alumno_id, r)} · x{r.cantidad}</div>
                 <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
               </div>
               <div className="text-right shrink-0">
@@ -284,7 +285,7 @@ const DepositoPreventas = () => {
                   <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleId(r.id)} />
                 </td>
                 <td className="px-4 py-2">{r.producto_nombre}</td>
-                <td className="px-4 py-2 text-foreground">{nombreAlumno(r.alumno_id)}</td>
+                <td className="px-4 py-2 text-foreground">{nombreAlumno(r.alumno_id, r)}</td>
                 <td className="px-4 py-2 text-center">{r.cantidad}</td>
                 <td className="px-4 py-2 text-right font-heading font-bold">{formatPrice(r.precio_total, r.moneda)}</td>
                 <td className="px-4 py-2 text-center">
@@ -323,16 +324,25 @@ const DepositoPreventas = () => {
                 <Tag className="w-4 h-4" /> Imprimir etiqueta
               </Button>
               <div className="grid grid-cols-2 gap-3">
-                <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{nombreAlumno(selected.alumno_id)}</div></div>
-                <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{alumnos[selected.alumno_id]?.telefono || "—"}</div></div>
-                <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{alumnos[selected.alumno_id]?.email || "—"}</div></div>
-                <div><span className="text-muted-foreground">DNI:</span> <div className="font-medium">{alumnos[selected.alumno_id]?.dni || "—"}</div></div>
+                <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{selected.alumno_nombre || nombreAlumno(selected.alumno_id, selected)}</div></div>
+                <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{selected.alumno_telefono || alumnos[selected.alumno_id]?.telefono || "—"}</div></div>
+                <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{selected.alumno_email || alumnos[selected.alumno_id]?.email || "—"}</div></div>
+                <div><span className="text-muted-foreground">DNI:</span> <div className="font-medium">{selected.alumno_dni || alumnos[selected.alumno_id]?.dni || "—"}</div></div>
                 <div><span className="text-muted-foreground">Cantidad:</span> <div className="font-medium">{selected.cantidad}</div></div>
                 <div><span className="text-muted-foreground">Modalidad:</span> <div className="font-medium">{selected.modalidad || "—"}</div></div>
                 <div><span className="text-muted-foreground">Seña:</span> <div className="font-medium">{formatPrice(selected.sena_monto, selected.moneda)}</div></div>
                 <div><span className="text-muted-foreground">Saldo:</span> <div className="font-medium">{formatPrice(selected.saldo_pendiente, selected.moneda)}</div></div>
                 <div><span className="text-muted-foreground">Pago seña:</span> <div className="font-medium">{selected.estado_pago_sena}</div></div>
-                <div><span className="text-muted-foreground">Entrega:</span> <div className="font-medium">{selected.entrega_metodo || "—"}</div></div>
+                <div>
+                  <span className="text-muted-foreground">Entrega:</span>
+                  <div className="font-medium">
+                    {selected.entrega_metodo === "retiro_sede" || selected.entrega_metodo === "retiro"
+                      ? `Retiro · ${sedes[selected.sede_retiro_id]?.nombre || "sede a confirmar"}`
+                      : selected.entrega_metodo === "envio" || selected.entrega_metodo === "envio_moto"
+                        ? "Envío"
+                        : (selected.entrega_metodo || "—")}
+                  </div>
+                </div>
               </div>
 
               {selected.variante && Object.keys(selected.variante).length > 0 && (
