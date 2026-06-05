@@ -531,6 +531,12 @@ const DepositoStock = () => {
         onOpenChange={setShowImport}
         onImportComplete={fetchProducts}
       />
+
+      <ProductLabelsDialog
+        open={!!labelsProduct}
+        product={labelsProduct}
+        onOpenChange={(o) => { if (!o) setLabelsProduct(null); }}
+      />
     </div>
   );
 };
