@@ -80,6 +80,7 @@ const DOC_STEP_CONFIG: Record<string, { title: string; description: string; help
 
 export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
   const [rows, setRows] = useState<ChecklistRow[]>([]);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [bikeOpen, setBikeOpen] = useState(false);
   const [pedalsOpen, setPedalsOpen] = useState(false);
@@ -94,8 +95,16 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
       .select("id, step_key, data, file_url, completed, needs_advice, updated_at")
       .eq("reservation_id", reservationId)
       .order("updated_at", { ascending: true });
-    setRows((data || []) as ChecklistRow[]);
+    const list = (data || []) as ChecklistRow[];
+    setRows(list);
     setLoading(false);
+    // Resolver signed URLs en paralelo para archivos del bucket privado
+    const entries = await Promise.all(
+      list
+        .filter((r) => r.file_url)
+        .map(async (r) => [r.id, await getTripDocumentSignedUrl(r.file_url)] as const),
+    );
+    setSignedUrls(Object.fromEntries(entries.filter(([, u]) => !!u) as [string, string][]));
   }, [reservationId]);
 
   useEffect(() => { load(); }, [load]);
