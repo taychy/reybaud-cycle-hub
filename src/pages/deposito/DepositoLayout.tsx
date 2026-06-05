@@ -76,7 +76,7 @@ const DepositoLayout = () => {
         className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-5">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
