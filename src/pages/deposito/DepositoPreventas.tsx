@@ -323,16 +323,25 @@ const DepositoPreventas = () => {
                 <Tag className="w-4 h-4" /> Imprimir etiqueta
               </Button>
               <div className="grid grid-cols-2 gap-3">
-                <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{nombreAlumno(selected.alumno_id)}</div></div>
-                <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{alumnos[selected.alumno_id]?.telefono || "—"}</div></div>
-                <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{alumnos[selected.alumno_id]?.email || "—"}</div></div>
-                <div><span className="text-muted-foreground">DNI:</span> <div className="font-medium">{alumnos[selected.alumno_id]?.dni || "—"}</div></div>
+                <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{selected.alumno_nombre || nombreAlumno(selected.alumno_id)}</div></div>
+                <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{selected.alumno_telefono || alumnos[selected.alumno_id]?.telefono || "—"}</div></div>
+                <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{selected.alumno_email || alumnos[selected.alumno_id]?.email || "—"}</div></div>
+                <div><span className="text-muted-foreground">DNI:</span> <div className="font-medium">{selected.alumno_dni || alumnos[selected.alumno_id]?.dni || "—"}</div></div>
                 <div><span className="text-muted-foreground">Cantidad:</span> <div className="font-medium">{selected.cantidad}</div></div>
                 <div><span className="text-muted-foreground">Modalidad:</span> <div className="font-medium">{selected.modalidad || "—"}</div></div>
                 <div><span className="text-muted-foreground">Seña:</span> <div className="font-medium">{formatPrice(selected.sena_monto, selected.moneda)}</div></div>
                 <div><span className="text-muted-foreground">Saldo:</span> <div className="font-medium">{formatPrice(selected.saldo_pendiente, selected.moneda)}</div></div>
                 <div><span className="text-muted-foreground">Pago seña:</span> <div className="font-medium">{selected.estado_pago_sena}</div></div>
-                <div><span className="text-muted-foreground">Entrega:</span> <div className="font-medium">{selected.entrega_metodo || "—"}</div></div>
+                <div>
+                  <span className="text-muted-foreground">Entrega:</span>
+                  <div className="font-medium">
+                    {selected.entrega_metodo === "retiro_sede" || selected.entrega_metodo === "retiro"
+                      ? `Retiro · ${sedes[selected.sede_retiro_id]?.nombre || "sede a confirmar"}`
+                      : selected.entrega_metodo === "envio" || selected.entrega_metodo === "envio_moto"
+                        ? "Envío"
+                        : (selected.entrega_metodo || "—")}
+                  </div>
+                </div>
               </div>
 
               {selected.variante && Object.keys(selected.variante).length > 0 && (
