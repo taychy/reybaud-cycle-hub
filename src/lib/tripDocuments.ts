@@ -35,6 +35,11 @@ export const getTripDocumentSignedUrl = async (
   value: string | null | undefined,
   expiresInSeconds = 3600,
 ): Promise<string | null> => {
+  if (!value) return null;
+  // Si ya viene una signed URL (devuelta por edge function), usarla tal cual.
+  if ((value.startsWith("http://") || value.startsWith("https://")) && value.includes("/object/sign/")) {
+    return value;
+  }
   const path = extractTripDocumentPath(value);
   if (!path) return null;
   const { data, error } = await supabase.storage
