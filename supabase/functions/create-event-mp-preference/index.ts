@@ -141,13 +141,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Persistir cuenta MP usada en la reserva para que el webhook resuelva el token correcto
-    if (cuenta.cuenta_id) {
-      await supabaseAdmin
-        .from("event_reservations")
-        .update({ cuenta_mp_id: cuenta.cuenta_id })
-        .eq("id", reservation_id);
-    }
+    // Nota: event_reservations no tiene cuenta_mp_id; el webhook resuelve por
+    // la unidad de negocio del evento (is_trip → viaje_camp, sino → evento).
 
     return new Response(
       JSON.stringify({

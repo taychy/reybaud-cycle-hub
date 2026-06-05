@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,17 +20,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
-      return new Response(JSON.stringify({ error: "Mercado Pago no configurado" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const cuenta = await resolveCuentaMP(supabaseAdmin, { unidad_negocio: "tienda" });
+    if (!cuenta.access_token) {
+      return new Response(JSON.stringify({ error: "Mercado Pago no configurado" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.log("[create-store-order-mp-preference] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
 
     const { data: order } = await supabaseAdmin
       .from("store_orders")
@@ -81,7 +83,7 @@ Deno.serve(async (req) => {
 
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cuenta.access_token}` },
       body: JSON.stringify(preferenceBody),
     });
 
@@ -100,6 +102,7 @@ Deno.serve(async (req) => {
         metodo_pago: "mercadopago",
         origen_registro: "automatico",
         status: "pendiente_pago",
+        cuenta_mp_id: cuenta.cuenta_id,
       })
       .eq("id", order.id);
 
