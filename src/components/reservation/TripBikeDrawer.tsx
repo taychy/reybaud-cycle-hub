@@ -80,8 +80,8 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("trip-documents").getPublicUrl(path);
-    setFittingUrl(urlData.publicUrl);
+    // Bucket privado: guardamos el path; el preview/admin lo abre por signed URL.
+    setFittingUrl(path);
     setUploading(false);
   };
 
