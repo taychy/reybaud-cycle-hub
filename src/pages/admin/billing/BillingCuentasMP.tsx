@@ -93,6 +93,8 @@ export function BillingCuentasMP() {
   const [cuentas, setCuentas] = useState<CuentaMP[]>([]);
   const [rutas, setRutas] = useState<Routing[]>([]);
   const [emisores, setEmisores] = useState<Emisor[]>([]);
+  const [routingEnabled, setRoutingEnabled] = useState<boolean>(true);
+  const [togglingFlag, setTogglingFlag] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [cuentaModalOpen, setCuentaModalOpen] = useState(false);
@@ -103,18 +105,33 @@ export function BillingCuentasMP() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cRes, rRes, eRes] = await Promise.all([
+    const [cRes, rRes, eRes, fRes] = await Promise.all([
       supabase.from("cuentas_mp" as any).select("*").order("created_at", { ascending: true }),
       supabase.from("cuenta_mp_routing" as any).select("*").order("unidad_negocio").order("prioridad"),
       supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, activo").order("nombre_fiscal"),
+      supabase.from("app_config" as any).select("value").eq("key", "mp_routing_enabled").maybeSingle(),
     ]);
     setCuentas((cRes.data as any) || []);
     setRutas((rRes.data as any) || []);
     setEmisores((eRes.data as any) || []);
+    setRoutingEnabled(((fRes.data as any)?.value ?? true) === true);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const toggleRoutingFlag = async (next: boolean) => {
+    setTogglingFlag(true);
+    const { error } = await supabase
+      .from("app_config" as any)
+      .update({ value: next as any })
+      .eq("key", "mp_routing_enabled");
+    setTogglingFlag(false);
+    if (error) { toast.error(error.message); return; }
+    setRoutingEnabled(next);
+    toast.success(next ? "Ruteo multi-cuenta activado" : "Volviste al modo legacy (cuenta única)");
+  };
+
 
   /* ---------- Cuentas ---------- */
   const openNewCuenta = () => {
@@ -224,13 +241,23 @@ export function BillingCuentasMP() {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex gap-2 text-sm">
-        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-        <div>
-          <strong>Fase 1:</strong> podés cargar las cuentas y definir el ruteo por unidad de negocio.
-          Los cobros siguen usando la configuración actual (legacy) hasta que activemos la Fase 2.
+      <div className={`rounded-md border px-4 py-3 flex items-start justify-between gap-3 text-sm ${routingEnabled ? "border-emerald-500/40 bg-emerald-500/10" : "border-amber-500/40 bg-amber-500/10"}`}>
+        <div className="flex gap-2">
+          <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${routingEnabled ? "text-emerald-500" : "text-amber-500"}`} />
+          <div>
+            {routingEnabled ? (
+              <><strong>Fase 2 activa:</strong> los cobros se rutean a la cuenta MP configurada para cada unidad de negocio. Si una unidad no tiene regla, se usa la cuenta default global.</>
+            ) : (
+              <><strong>Modo legacy:</strong> el ruteo está desactivado. Todos los cobros vuelven a usar <code className="font-mono text-xs">MP_ACCESS_TOKEN</code> (cuenta única).</>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Label className="text-xs">Ruteo</Label>
+          <Switch checked={routingEnabled} disabled={togglingFlag} onCheckedChange={toggleRoutingFlag} />
         </div>
       </div>
+
 
       {/* Sección A — Cuentas MP */}
       <section className="space-y-3">

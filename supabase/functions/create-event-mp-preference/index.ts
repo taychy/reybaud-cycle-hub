@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,7 +44,7 @@ Deno.serve(async (req) => {
     // Cargar el evento (para titulo y, si hace falta, precio)
     const { data: event, error: evErr } = await supabaseAdmin
       .from("events")
-      .select("id, title, price, currency")
+      .select("id, title, price, currency, is_trip")
       .eq("id", reservation.event_id)
       .single();
 
@@ -83,13 +84,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
+    const cuenta = await resolveCuentaMP(supabaseAdmin, {
+      unidad_negocio: (event as any).is_trip ? "viaje_camp" : "evento",
+    });
+    if (!cuenta.access_token) {
       return new Response(
         JSON.stringify({ error: "Mercado Pago no está configurado" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("[create-event-mp-preference] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
 
@@ -111,7 +115,7 @@ Deno.serve(async (req) => {
       auto_return: "approved",
       // Prefijo "event:" permite que mp-webhook diferencie de suscripciones
       external_reference: `event:${reservation_id}`,
-      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook`,
+      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
 
@@ -121,7 +125,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${cuenta.access_token}`,
         },
         body: JSON.stringify(preferenceBody),
       }
@@ -136,6 +140,9 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Nota: event_reservations no tiene cuenta_mp_id; el webhook resuelve por
+    // la unidad de negocio del evento (is_trip → viaje_camp, sino → evento).
 
     return new Response(
       JSON.stringify({

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,18 +33,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const cuenta = await resolveCuentaMP(supabaseAdmin, { unidad_negocio: "suscripcion_escuela" });
+    if (!cuenta.access_token) {
       return new Response(
         JSON.stringify({ error: "Mercado Pago no configurado" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("[process-card-payment] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     // ──────────────────────────────────────────────────────────────
     // VALIDACIÓN SERVER-SIDE: el monto que mandó el cliente tiene
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${cuenta.access_token}`,
         "X-Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify(paymentBody),
@@ -170,6 +173,7 @@ Deno.serve(async (req) => {
           origen_registro: "automatico",
           fecha_inicio: now,
           fecha_fin: endOfMonth,
+          cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
 
@@ -191,6 +195,7 @@ Deno.serve(async (req) => {
           mp_status: mpData.status,
           metodo_pago: "mercadopago",
           origen_registro: "automatico",
+          cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
     } else {
@@ -206,6 +211,7 @@ Deno.serve(async (req) => {
           mp_status: mpData.status || "rejected",
           metodo_pago: "mercadopago",
           origen_registro: "automatico",
+          cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
     }
