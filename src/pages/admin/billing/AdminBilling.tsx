@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BillingKPIs } from "./BillingKPIs";
 import { BillingList } from "./BillingList";
 import { BillingEmisores } from "./BillingEmisores";
+import { BillingCuentasMP } from "./BillingCuentasMP";
 import { PendingPaymentsList } from "./PendingPaymentsList";
 import { BillingEmisorSummary } from "./BillingEmisorSummary";
 import { InvoiceModal } from "./InvoiceModal";
@@ -129,6 +130,7 @@ export default function AdminBilling() {
           </TabsTrigger>
           <TabsTrigger value="todos">Todas</TabsTrigger>
           <TabsTrigger value="emisores">Emisores</TabsTrigger>
+          <TabsTrigger value="cuentas_mp">Cuentas MP</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pagos_sin_facturar">
@@ -166,6 +168,10 @@ export default function AdminBilling() {
 
         <TabsContent value="emisores">
           <BillingEmisores onDataChange={loadData} />
+        </TabsContent>
+
+        <TabsContent value="cuentas_mp">
+          <BillingCuentasMP />
         </TabsContent>
       </Tabs>
 
