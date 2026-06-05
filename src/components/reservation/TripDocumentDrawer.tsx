@@ -30,19 +30,23 @@ const TripDocumentDrawer = ({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
 
-    const applyRow = (row: any | null) => {
+    const applyRow = async (row: any | null) => {
       if (row) {
         setExistingId(row.id);
-        setFileUrl(row.file_url || null);
+        const stored = row.file_url || null;
+        setFileUrl(stored);
+        setFilePreview(await getTripDocumentSignedUrl(stored));
       } else {
         setExistingId(null);
         setFileUrl(null);
+        setFilePreview(null);
       }
       setLoading(false);
     };
@@ -74,11 +78,11 @@ const TripDocumentDrawer = ({
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("trip-documents").getPublicUrl(path);
-    setFileUrl(urlData.publicUrl);
+    setFileUrl(path);
+    setFilePreview(await getTripDocumentSignedUrl(path));
     setUploading(false);
     // Auto-save when file is uploaded
-    await saveData(urlData.publicUrl);
+    await saveData(path);
   };
 
   const saveData = async (url: string | null) => {
