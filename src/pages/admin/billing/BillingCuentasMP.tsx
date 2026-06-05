@@ -19,6 +19,29 @@ import {
 import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
 
+function SecretField({ label, value }: { label: string; value: string }) {
+  const [shown, setShown] = useState(false);
+  const masked = value.length <= 8 ? "••••••••" : `${value.slice(0, 4)}••••${value.slice(-4)}`;
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <span className="text-muted-foreground shrink-0">{label}:</span>
+      <code className="text-xs font-mono truncate min-w-0 flex-1" title={shown ? value : masked}>
+        {shown ? value : masked}
+      </code>
+      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setShown((s) => !s)}>
+        {shown ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+      </Button>
+      <Button
+        size="icon" variant="ghost" className="h-6 w-6 shrink-0"
+        onClick={() => { navigator.clipboard.writeText(value); toast.success("Copiado"); }}
+      >
+        <Copy className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
+
 type Modo = "test" | "prod";
 type Unidad =
   | "suscripcion_escuela" | "viaje_camp" | "evento" | "tienda"
