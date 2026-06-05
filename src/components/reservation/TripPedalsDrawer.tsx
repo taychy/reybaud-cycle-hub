@@ -177,7 +177,11 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
               <Label>Foto de tus pedales o calas (opcional)</Label>
               {photoUrl ? (
                 <div className="space-y-2">
-                  <img src={photoUrl} alt="Pedales" className="w-full h-32 object-cover rounded-lg border border-border" />
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Pedales" className="w-full h-32 object-cover rounded-lg border border-border" />
+                  ) : (
+                    <div className="w-full h-32 rounded-lg border border-border bg-muted/30 flex items-center justify-center text-xs text-muted-foreground">Cargando preview…</div>
+                  )}
                   <label className="flex items-center justify-center text-xs text-primary cursor-pointer hover:underline">
                     Cambiar foto
                     <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
