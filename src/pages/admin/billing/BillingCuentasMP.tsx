@@ -93,6 +93,8 @@ export function BillingCuentasMP() {
   const [cuentas, setCuentas] = useState<CuentaMP[]>([]);
   const [rutas, setRutas] = useState<Routing[]>([]);
   const [emisores, setEmisores] = useState<Emisor[]>([]);
+  const [routingEnabled, setRoutingEnabled] = useState<boolean>(true);
+  const [togglingFlag, setTogglingFlag] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [cuentaModalOpen, setCuentaModalOpen] = useState(false);
@@ -103,18 +105,33 @@ export function BillingCuentasMP() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cRes, rRes, eRes] = await Promise.all([
+    const [cRes, rRes, eRes, fRes] = await Promise.all([
       supabase.from("cuentas_mp" as any).select("*").order("created_at", { ascending: true }),
       supabase.from("cuenta_mp_routing" as any).select("*").order("unidad_negocio").order("prioridad"),
       supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, activo").order("nombre_fiscal"),
+      supabase.from("app_config" as any).select("value").eq("key", "mp_routing_enabled").maybeSingle(),
     ]);
     setCuentas((cRes.data as any) || []);
     setRutas((rRes.data as any) || []);
     setEmisores((eRes.data as any) || []);
+    setRoutingEnabled(((fRes.data as any)?.value ?? true) === true);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const toggleRoutingFlag = async (next: boolean) => {
+    setTogglingFlag(true);
+    const { error } = await supabase
+      .from("app_config" as any)
+      .update({ value: next as any })
+      .eq("key", "mp_routing_enabled");
+    setTogglingFlag(false);
+    if (error) { toast.error(error.message); return; }
+    setRoutingEnabled(next);
+    toast.success(next ? "Ruteo multi-cuenta activado" : "Volviste al modo legacy (cuenta única)");
+  };
+
 
   /* ---------- Cuentas ---------- */
   const openNewCuenta = () => {
