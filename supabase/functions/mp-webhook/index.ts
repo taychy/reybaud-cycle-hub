@@ -86,11 +86,15 @@ Deno.serve(async (req) => {
 
     // ─── PREAPPROVAL FLOW (recurring agreement status change) ───
     if (dataId && (notificationType === "preapproval" || notificationType === "subscription_preapproval")) {
-      const paRes = await fetch(`https://api.mercadopago.com/preapproval/${dataId}`, {
-        headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
-      });
-      const pa = await paRes.json();
-      console.log("Preapproval details:", { id: pa?.id, status: pa?.status });
+      const resolved = await resolveWebhookToken(supabaseAdmin, cuentaSlug, `https://api.mercadopago.com/preapproval/${dataId}`);
+      if (!resolved.ok) {
+        console.error("[mp-webhook] no se pudo obtener preapproval con ningún token");
+        return new Response(JSON.stringify({ ok: false, error: "mp_fetch_failed" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const pa = resolved.data;
+      console.log("Preapproval details:", { id: pa?.id, status: pa?.status, via: resolved.slug });
 
       if (pa?.id) {
         await supabaseAdmin
@@ -108,10 +112,14 @@ Deno.serve(async (req) => {
 
     // ─── AUTHORIZED PAYMENT FLOW (recurring charge executed by MP) ───
     if (dataId && (notificationType === "authorized_payment" || notificationType === "subscription_authorized_payment")) {
-      const apRes = await fetch(`https://api.mercadopago.com/authorized_payments/${dataId}`, {
-        headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
-      });
-      const ap = await apRes.json();
+      const resolved = await resolveWebhookToken(supabaseAdmin, cuentaSlug, `https://api.mercadopago.com/authorized_payments/${dataId}`);
+      if (!resolved.ok) {
+        console.error("[mp-webhook] no se pudo obtener authorized_payment con ningún token");
+        return new Response(JSON.stringify({ ok: false, error: "mp_fetch_failed" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const ap = resolved.data;
       const preapprovalId = ap?.preapproval_id ? String(ap.preapproval_id) : null;
       const apStatus = ap?.status; // scheduled | processed | recycling | cancelled
       const paymentStatus = ap?.payment?.status;
@@ -298,18 +306,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const paymentRes = await fetch(
-      `https://api.mercadopago.com/v1/payments/${dataId}`,
-      {
-        headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
-      }
+    const paymentResolved = await resolveWebhookToken(
+      supabaseAdmin, cuentaSlug, `https://api.mercadopago.com/v1/payments/${dataId}`
     );
-
-    const payment = await paymentRes.json();
+    if (!paymentResolved.ok) {
+      console.error("[mp-webhook] no se pudo obtener el payment con ningún token");
+      return new Response(JSON.stringify({ ok: false, error: "mp_fetch_failed" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const payment = paymentResolved.data;
     console.log("Payment details:", {
       id: payment.id,
       status: payment.status,
       external_reference: payment.external_reference,
+      via: paymentResolved.slug,
     });
 
     if (!payment.external_reference) {
