@@ -8,6 +8,7 @@ import {
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
+import { getTripDocumentSignedUrl, extractTripDocumentPath } from "@/lib/tripDocuments";
 
 interface ChecklistRow {
   id: string;
