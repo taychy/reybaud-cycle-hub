@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         product_id: preorder.product_id,
         alumno_id: preorder.alumno_id,
       },
-      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook`,
+      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
 
