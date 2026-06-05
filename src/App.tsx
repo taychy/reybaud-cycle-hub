@@ -68,8 +68,7 @@ import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
-import DepositoPedidos from "./pages/deposito/DepositoPedidos";
-import DepositoPreventas from "./pages/deposito/DepositoPreventas";
+import DepositoVentas from "./pages/deposito/DepositoVentas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
@@ -185,8 +184,9 @@ const App = () => (
           <Route path="/deposito" element={<ProtectedRoute allowedRoles={["deposito"]} loginPath="/admin/login?returnTo=/deposito"><DepositoLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/deposito/stock" replace />} />
             <Route path="stock" element={<DepositoStock />} />
-            <Route path="pedidos" element={<DepositoPedidos />} />
-            <Route path="preventas" element={<DepositoPreventas />} />
+            <Route path="ventas" element={<DepositoVentas />} />
+            <Route path="pedidos" element={<Navigate to="/deposito/ventas?tab=pedidos" replace />} />
+            <Route path="preventas" element={<Navigate to="/deposito/ventas?tab=preventas" replace />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />

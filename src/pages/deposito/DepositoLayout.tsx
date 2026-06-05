@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, NavLink } from "react-router-dom";
-import { Package, History, LogOut, AlertTriangle, RefreshCw, ShoppingCart, ClipboardList } from "lucide-react";
+import { Package, History, LogOut, AlertTriangle, RefreshCw, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -8,8 +8,7 @@ const DepositoLayout = () => {
 
   const navItems = [
     { to: "/deposito/stock", icon: Package, label: "Stock" },
-    { to: "/deposito/pedidos", icon: ShoppingCart, label: "Pedidos" },
-    { to: "/deposito/preventas", icon: ClipboardList, label: "Preventas" },
+    { to: "/deposito/ventas", icon: ShoppingBag, label: "Ventas" },
     { to: "/deposito/movimientos", icon: History, label: "Movimientos" },
     { to: "/deposito/alertas", icon: AlertTriangle, label: "Alertas" },
     { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
@@ -77,7 +76,7 @@ const DepositoLayout = () => {
         className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-5">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
