@@ -818,6 +818,130 @@ export type Database = {
           },
         ]
       }
+      cuenta_mp_routing: {
+        Row: {
+          activa: boolean
+          created_at: string
+          cuenta_mp_id: string
+          emisor_fiscal_id: string | null
+          id: string
+          notas: string | null
+          prioridad: number
+          unidad_negocio: Database["public"]["Enums"]["unidad_negocio_mp"]
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          cuenta_mp_id: string
+          emisor_fiscal_id?: string | null
+          id?: string
+          notas?: string | null
+          prioridad?: number
+          unidad_negocio: Database["public"]["Enums"]["unidad_negocio_mp"]
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          cuenta_mp_id?: string
+          emisor_fiscal_id?: string | null
+          id?: string
+          notas?: string | null
+          prioridad?: number
+          unidad_negocio?: Database["public"]["Enums"]["unidad_negocio_mp"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuenta_mp_routing_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuenta_mp_routing_emisor_fiscal_id_fkey"
+            columns: ["emisor_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "cuenta_mp_routing_emisor_fiscal_id_fkey"
+            columns: ["emisor_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuentas_mp: {
+        Row: {
+          activa: boolean
+          created_at: string
+          emisor_fiscal_default_id: string | null
+          es_default_global: boolean
+          id: string
+          limite_mensual_ars: number | null
+          modo: Database["public"]["Enums"]["modo_mp"]
+          nombre: string
+          notas: string | null
+          secret_name_pubkey: string | null
+          secret_name_token: string
+          secret_name_webhook: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          emisor_fiscal_default_id?: string | null
+          es_default_global?: boolean
+          id?: string
+          limite_mensual_ars?: number | null
+          modo?: Database["public"]["Enums"]["modo_mp"]
+          nombre: string
+          notas?: string | null
+          secret_name_pubkey?: string | null
+          secret_name_token: string
+          secret_name_webhook?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          emisor_fiscal_default_id?: string | null
+          es_default_global?: boolean
+          id?: string
+          limite_mensual_ars?: number | null
+          modo?: Database["public"]["Enums"]["modo_mp"]
+          nombre?: string
+          notas?: string | null
+          secret_name_pubkey?: string | null
+          secret_name_token?: string
+          secret_name_webhook?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuentas_mp_emisor_fiscal_default_id_fkey"
+            columns: ["emisor_fiscal_default_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "cuentas_mp_emisor_fiscal_default_id_fkey"
+            columns: ["emisor_fiscal_default_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposito_profiles: {
         Row: {
           created_at: string
@@ -1981,6 +2105,7 @@ export type Database = {
           concepto: string
           condicion_fiscal: string
           created_at: string
+          cuenta_mp_id: string | null
           email_enviado_at: string | null
           emisor_id: string | null
           error_detalle: string | null
@@ -2008,6 +2133,7 @@ export type Database = {
           concepto: string
           condicion_fiscal?: string
           created_at?: string
+          cuenta_mp_id?: string | null
           email_enviado_at?: string | null
           emisor_id?: string | null
           error_detalle?: string | null
@@ -2035,6 +2161,7 @@ export type Database = {
           concepto?: string
           condicion_fiscal?: string
           created_at?: string
+          cuenta_mp_id?: string | null
           email_enviado_at?: string | null
           emisor_id?: string | null
           error_detalle?: string | null
@@ -2059,6 +2186,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
             referencedColumns: ["id"]
           },
           {
@@ -3687,6 +3821,7 @@ export type Database = {
           anulado_motivo: string | null
           anulado_por: string | null
           created_at: string
+          cuenta_mp_id: string | null
           currency: string
           equivalent_amount_event_currency: number | null
           event_currency: string | null
@@ -3716,6 +3851,7 @@ export type Database = {
           anulado_motivo?: string | null
           anulado_por?: string | null
           created_at?: string
+          cuenta_mp_id?: string | null
           currency?: string
           equivalent_amount_event_currency?: number | null
           event_currency?: string | null
@@ -3745,6 +3881,7 @@ export type Database = {
           anulado_motivo?: string | null
           anulado_por?: string | null
           created_at?: string
+          cuenta_mp_id?: string | null
           currency?: string
           equivalent_amount_event_currency?: number | null
           event_currency?: string | null
@@ -3773,6 +3910,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_payments_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
             referencedColumns: ["id"]
           },
           {
@@ -4376,6 +4520,7 @@ export type Database = {
         Row: {
           alumno_id: string | null
           created_at: string
+          cuenta_mp_id: string | null
           currency: string
           customer_email: string | null
           customer_name: string
@@ -4398,6 +4543,7 @@ export type Database = {
         Insert: {
           alumno_id?: string | null
           created_at?: string
+          cuenta_mp_id?: string | null
           currency?: string
           customer_email?: string | null
           customer_name: string
@@ -4420,6 +4566,7 @@ export type Database = {
         Update: {
           alumno_id?: string | null
           created_at?: string
+          cuenta_mp_id?: string | null
           currency?: string
           customer_email?: string | null
           customer_name?: string
@@ -4445,6 +4592,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
             referencedColumns: ["id"]
           },
           {
@@ -4474,6 +4628,7 @@ export type Database = {
           cancelada_motivo: string | null
           cantidad: number
           created_at: string
+          cuenta_mp_id: string | null
           entrega_metodo: string | null
           entregada_at: string | null
           envio_contacto: string | null
@@ -4513,6 +4668,7 @@ export type Database = {
           cancelada_motivo?: string | null
           cantidad?: number
           created_at?: string
+          cuenta_mp_id?: string | null
           entrega_metodo?: string | null
           entregada_at?: string | null
           envio_contacto?: string | null
@@ -4552,6 +4708,7 @@ export type Database = {
           cancelada_motivo?: string | null
           cantidad?: number
           created_at?: string
+          cuenta_mp_id?: string | null
           entrega_metodo?: string | null
           entregada_at?: string | null
           envio_contacto?: string | null
@@ -4582,6 +4739,13 @@ export type Database = {
           variante?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "store_preorders_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "store_preorders_product_id_fkey"
             columns: ["product_id"]
@@ -4863,6 +5027,7 @@ export type Database = {
           chequeado_admin_at: string | null
           chequeado_admin_by: string | null
           created_at: string
+          cuenta_mp_id: string | null
           descuento_id: string | null
           estado: string
           fecha_fin: string | null
@@ -4897,6 +5062,7 @@ export type Database = {
           chequeado_admin_at?: string | null
           chequeado_admin_by?: string | null
           created_at?: string
+          cuenta_mp_id?: string | null
           descuento_id?: string | null
           estado?: string
           fecha_fin?: string | null
@@ -4931,6 +5097,7 @@ export type Database = {
           chequeado_admin_at?: string | null
           chequeado_admin_by?: string | null
           created_at?: string
+          cuenta_mp_id?: string | null
           descuento_id?: string | null
           estado?: string
           fecha_fin?: string | null
@@ -4957,6 +5124,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
             referencedColumns: ["id"]
           },
           {
@@ -5781,11 +5955,21 @@ export type Database = {
         | "Sin grupo"
         | "Principiante"
         | "Personalizado"
+      modo_mp: "test" | "prod"
       tarea_estado: "pendiente" | "en_curso" | "hecha" | "pospuesta"
       tarea_prioridad: "baja" | "media" | "alta" | "critica"
       tarea_rol: "super_admin" | "admin" | "coach" | "deposito"
       tarea_tipo: "automatica" | "manual" | "recurrente"
       tipo_entrenamiento: "ruta" | "rodillo" | "gimnasio" | "tecnica"
+      unidad_negocio_mp:
+        | "suscripcion_escuela"
+        | "viaje_camp"
+        | "evento"
+        | "tienda"
+        | "preventa"
+        | "personalizado"
+        | "turnera"
+        | "otro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5956,11 +6140,22 @@ export const Constants = {
         "Principiante",
         "Personalizado",
       ],
+      modo_mp: ["test", "prod"],
       tarea_estado: ["pendiente", "en_curso", "hecha", "pospuesta"],
       tarea_prioridad: ["baja", "media", "alta", "critica"],
       tarea_rol: ["super_admin", "admin", "coach", "deposito"],
       tarea_tipo: ["automatica", "manual", "recurrente"],
       tipo_entrenamiento: ["ruta", "rodillo", "gimnasio", "tecnica"],
+      unidad_negocio_mp: [
+        "suscripcion_escuela",
+        "viaje_camp",
+        "evento",
+        "tienda",
+        "preventa",
+        "personalizado",
+        "turnera",
+        "otro",
+      ],
     },
   },
 } as const
