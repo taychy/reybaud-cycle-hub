@@ -184,8 +184,9 @@ const App = () => (
           <Route path="/deposito" element={<ProtectedRoute allowedRoles={["deposito"]} loginPath="/admin/login?returnTo=/deposito"><DepositoLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/deposito/stock" replace />} />
             <Route path="stock" element={<DepositoStock />} />
-            <Route path="pedidos" element={<DepositoPedidos />} />
-            <Route path="preventas" element={<DepositoPreventas />} />
+            <Route path="ventas" element={<DepositoVentas />} />
+            <Route path="pedidos" element={<Navigate to="/deposito/ventas?tab=pedidos" replace />} />
+            <Route path="preventas" element={<Navigate to="/deposito/ventas?tab=preventas" replace />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
