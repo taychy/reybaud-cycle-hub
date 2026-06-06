@@ -873,10 +873,58 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs">Fecha de inicio</Label>
-              <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Fecha de inicio</Label>
+                <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Fecha de pago</Label>
+                <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Método de pago</Label>
+              <Select value={payMetodo} onValueChange={setPayMetodo}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Seleccionar método" />
+                </SelectTrigger>
+                <SelectContent className="z-[200]">
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Use current (updated) price toggle — only when changing an existing plan */}
+            {dialogMode === "change" && newPlanId && (() => {
+              const sub = subs.find(s => s.id === dialogSubId);
+              const selectedPlan = planes.find(p => p.id === newPlanId);
+              if (!sub || !selectedPlan) return null;
+              const oldPrice = sub.precio_final ?? sub.precio_base ?? 0;
+              const newPrice = selectedPlan.precio || 0;
+              if (Number(oldPrice) === Number(newPrice)) return null;
+              return (
+                <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-medium text-amber-300">Usar precio actualizado</span>
+                    </div>
+                    <Switch checked={usarPrecioActual} onCheckedChange={setUsarPrecioActual} />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Precio guardado: <span className="line-through">{selectedPlan.moneda} {Number(oldPrice).toLocaleString()}</span>
+                    {" · "}Precio actual: <span className="text-amber-300 font-semibold">{selectedPlan.moneda} {newPrice.toLocaleString()}</span>
+                  </div>
+                  {usarPrecioActual && (
+                    <p className="text-[10px] text-amber-400/80">Se reemplazará el precio guardado y se quitará cualquier descuento previo.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-2">
               <Label className="text-xs">Nota interna (opcional)</Label>
