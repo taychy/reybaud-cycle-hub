@@ -489,10 +489,21 @@ const ManagePlanes = () => {
                         <Button variant="ghost" size="icon" onClick={() => duplicatePlan(plan)} title="Duplicar">
                           <Copy className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => archivePlan(plan)} title="Archivar">
-                          <Archive className="w-4 h-4" />
+                        {isArchived(plan) ? (
+                          <Button variant="ghost" size="icon" onClick={() => restorePlan(plan)} title="Restaurar">
+                            <ArchiveRestore className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => archivePlan(plan)} title="Archivar">
+                            <Archive className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => setPlanToDelete(plan)} title="Eliminar" className="text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
                         </Button>
-                        <Switch checked={plan.activo} onCheckedChange={() => toggleActive(plan)} />
+                        {!isArchived(plan) && (
+                          <Switch checked={plan.activo} onCheckedChange={() => toggleActive(plan)} />
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
