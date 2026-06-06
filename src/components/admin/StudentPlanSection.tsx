@@ -67,6 +67,37 @@ const formatDate = (d: string | null) => {
   return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const toLocalISODate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const calculateSubscriptionEndDate = (plan: Plan | undefined, fechaInicio: string) => {
+  const [startY, startM, startD] = fechaInicio.split("-").map(Number);
+  const start = new Date(startY, startM - 1, startD);
+
+  if ((plan as any)?.tipo_consumo === "bono" && (plan as any)?.vigencia_dias) {
+    const bonoEnd = new Date(start);
+    bonoEnd.setDate(bonoEnd.getDate() + Number((plan as any).vigencia_dias));
+    return toLocalISODate(bonoEnd);
+  }
+
+  const freq = (plan as any)?.frecuencia || "mensual";
+  const monthsToAdd = freq === "trimestral" ? 3 : freq === "anual" ? 12 : 1;
+  const endDate = new Date(startY, startM - 1 + monthsToAdd, startD);
+  endDate.setDate(endDate.getDate() - 1);
+  return toLocalISODate(endDate);
+};
+
+const getBonoSnapshotFields = (plan: Plan | undefined, fechaInicio: string) => {
+  if ((plan as any)?.tipo_consumo !== "bono") {
+    return { clases_totales: null, clases_vencimiento: null, clases_consumidas: 0 };
+  }
+
+  return {
+    clases_totales: (plan as any)?.clases_incluidas ?? null,
+    clases_vencimiento: (plan as any)?.vigencia_dias ? calculateSubscriptionEndDate(plan, fechaInicio) : null,
+  };
+};
+
 const getPaymentMethodLabel = (method: string | null) => {
   if (!method) return "—";
   const map: Record<string, string> = { efectivo: "Efectivo", transferencia: "Transferencia", mercadopago: "Mercado Pago", tarjeta: "Tarjeta", plataforma_externa: "Otro" };
@@ -109,6 +140,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [lastHandledOverduePreviewToken, setLastHandledOverduePreviewToken] = useState<number | null>(null);
 
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
+  const getSubStatusEndDate = (s: SuscripcionData) =>
+    s.cancelada_at ? s.fecha_fin : s.planes?.tipo_consumo === "bono" && s.clases_vencimiento ? s.clases_vencimiento : s.fecha_fin;
 
   const fetchData = async () => {
     setLoading(true);
@@ -128,8 +161,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const operationalOnly = allSubs.filter((s: SuscripcionData) => ACTIVE_STATES.has(getEffStatus(s)) && !s.cancelada_at);
     const dupeGroups: Record<string, { plan_nombre: string; fecha_fin: string; count: number }> = {};
     for (const s of operationalOnly) {
-      const key = `${s.plan_id}|${s.fecha_fin}`;
-      if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: s.fecha_fin || "—", count: 0 };
+      const statusEndDate = getSubStatusEndDate(s);
+      const key = `${s.plan_id}|${statusEndDate}`;
+      if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: statusEndDate || "—", count: 0 };
       dupeGroups[key].count++;
     }
     setDuplicateAlert(Object.values(dupeGroups).filter(g => g.count > 1));
@@ -149,7 +183,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setLastHandledOverduePreviewToken(openOverduePreviewToken);
   }, [openOverduePreviewToken, lastHandledOverduePreviewToken, subs]);
 
-  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: getSubStatusEndDate(s), cancelada_at: s.cancelada_at });
 
   // Categorize subscriptions: active operational vs history
   // Orden: la suscripción del período actual (vigente hoy) primero,
@@ -160,8 +194,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     .sort((a, b) => {
       const ai = (a.fecha_inicio || "").slice(0, 10);
       const bi = (b.fecha_inicio || "").slice(0, 10);
-      const af = (a.fecha_fin || "").slice(0, 10);
-      const bf = (b.fecha_fin || "").slice(0, 10);
+      const af = (getSubStatusEndDate(a) || "").slice(0, 10);
+      const bf = (getSubStatusEndDate(b) || "").slice(0, 10);
       const aCurrent = ai <= todayISO && af >= todayISO;
       const bCurrent = bi <= todayISO && bf >= todayISO;
       if (aCurrent && !bCurrent) return -1;
@@ -207,17 +241,20 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setRemovingSub(true);
     try {
       const sub = subs.find(s => s.id === removeSubId);
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const { error, count } = await supabase
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const removalEndDate = toLocalISODate(yesterday);
+      const { error } = await supabase
         .from("suscripciones")
         .update({
           estado: "cancelada",
           cancelada_motivo: "Plan removido por admin",
           cancelada_at: new Date().toISOString(),
           auto_renovacion: false,
-          // Admin "Quitar" = baja inmediata: cerramos fecha_fin a hoy para que
+          auto_cobro_activo: false,
+          // Admin "Quitar" = baja inmediata: cerramos fecha_fin ayer para que
           // no siga contando como vigente por la política de cortesía.
-          fecha_fin: todayStr,
+          fecha_fin: removalEndDate,
         } as any)
         .eq("id", removeSubId)
         .select("id");
@@ -354,7 +391,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setDialogMode("change");
     setDialogSubId(subId);
     setNewPlanId(sub?.plan_id || "");
-    setChangeFechaInicio(todayStr);
+    setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
     setChangeNote("");
     setShowPlanDialog(true);
   };
@@ -366,21 +403,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
       if (dialogMode === "add") {
-        const [startY, startM, startD] = changeFechaInicio.split("-").map(Number);
-        const freq = selectedPlan?.frecuencia || "mensual";
-        let monthsToAdd = 1;
-        if (freq === "trimestral") monthsToAdd = 3;
-        else if (freq === "anual") monthsToAdd = 12;
-        // Regla: fecha_fin = fecha_inicio + N meses − 1 día.
-        // Así un inicio el día 1 termina el último día del mes (1/06 → 30/06),
-        // y un inicio el día 31 termina el día anterior del mes equivalente
-        // (31/05 → 30/06), evitando que fecha_fin colapse con fecha_inicio.
-        const endDateRaw = new Date(startY, startM - 1 + monthsToAdd, startD);
-        endDateRaw.setDate(endDateRaw.getDate() - 1);
-        const endDate = endDateRaw;
-        const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
-
-
+        const endStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
         let precioFinal = precioBase;
@@ -402,6 +425,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           descuento_id: discount?.id || null,
           precio_base: precioBase,
           precio_final: precioFinal,
+          ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
         } as any).select("id").single();
 
         if (insertError) {
@@ -428,14 +452,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       } else {
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
-        // Recalcular fecha_fin coherente con la nueva fecha_inicio y la frecuencia del nuevo plan.
-        const [cy, cm, cd] = changeFechaInicio.split("-").map(Number);
-        const cFreq = selectedPlan?.frecuencia || "mensual";
-        const cMonths = cFreq === "trimestral" ? 3 : cFreq === "anual" ? 12 : 1;
-        const cEnd = new Date(cy, cm - 1 + cMonths, cd);
-        cEnd.setDate(cEnd.getDate() - 1);
-        const cEndStr = `${cEnd.getFullYear()}-${String(cEnd.getMonth() + 1).padStart(2, "0")}-${String(cEnd.getDate()).padStart(2, "0")}`;
-        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio, fecha_fin: cEndStr } as any).eq("id", dialogSubId!);
+        const cEndStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
+        const { error } = await supabase.from("suscripciones").update({
+          plan_id: newPlanId,
+          fecha_inicio: changeFechaInicio,
+          fecha_fin: cEndStr,
+          estado: "activa",
+          cancelada_at: null,
+          cancelada_motivo: null,
+          ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
+        } as any).eq("id", dialogSubId!);
 
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
@@ -501,7 +527,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
     // Etiqueta de período (sólo para activas)
     const fiISO = (sub.fecha_inicio || "").slice(0, 10);
-    const ffISO = (sub.fecha_fin || "").slice(0, 10);
+    const displayEndDate = getSubStatusEndDate(sub);
+    const ffISO = (displayEndDate || "").slice(0, 10);
     let periodTag: { label: string; className: string } | null = null;
     if (!isHistoric && fiISO && ffISO) {
       if (fiISO <= todayISO && ffISO >= todayISO) {
@@ -554,7 +581,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <span className="text-muted-foreground">Período</span>
               <span className={isSuspiciousPeriod ? "text-amber-400 font-medium flex items-center gap-1" : "text-foreground"}>
                 {isSuspiciousPeriod && <AlertTriangle className="w-3 h-3" />}
-                {formatDate(sub.fecha_inicio)} → <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : ""}>{formatDate(sub.fecha_fin)}</span>
+                {formatDate(sub.fecha_inicio)} → <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : ""}>{formatDate(displayEndDate)}</span>
                 {periodDays !== null && (
                   <span className="text-muted-foreground ml-1">({periodDays}d)</span>
                 )}
@@ -622,7 +649,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               clases_vencimiento: sub.clases_vencimiento ?? null,
             }}
             planNombre={sub.planes?.nombre || "Plan"}
-            onChange={onRefresh}
+            onChange={() => { fetchData(); onRefresh(); }}
           />
         )}
 
