@@ -313,6 +313,30 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
+  const restorePlan = async (plan: Plan) => {
+    await supabase.from("planes").update({ visibilidad: "oculto" } as any).eq("id", plan.id);
+    toast({ title: "Plan restaurado", description: "Quedó como Oculto. Cambialo a Visible cuando quieras publicarlo." });
+    fetchAll();
+  };
+
+  const deletePlan = async (plan: Plan) => {
+    const inscriptos = alumnoCount[plan.id] || 0;
+    if (inscriptos > 0) {
+      toast({ title: "No se puede eliminar", description: `Tiene ${inscriptos} suscripciones activas. Archivalo en su lugar.`, variant: "destructive" });
+      setPlanToDelete(null);
+      return;
+    }
+    await supabase.from("planes_sedes").delete().eq("plan_id", plan.id);
+    const { error } = await supabase.from("planes").delete().eq("id", plan.id);
+    if (error) {
+      toast({ title: "No se pudo eliminar", description: error.message + ". Probá archivarlo.", variant: "destructive" });
+    } else {
+      toast({ title: "Plan eliminado" });
+    }
+    setPlanToDelete(null);
+    fetchAll();
+  };
+
   const toggleActive = async (plan: Plan) => {
     await supabase.from("planes").update({ activo: !plan.activo } as any).eq("id", plan.id);
     fetchAll();
