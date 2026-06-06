@@ -623,7 +623,8 @@ export function BillingCuentasMP() {
                 />
               </div>
             </div>
-          )}
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCuentaModalOpen(false)}>Cancelar</Button>
             <Button onClick={saveCuenta}>Guardar</Button>
