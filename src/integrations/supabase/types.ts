@@ -739,6 +739,67 @@ export type Database = {
           },
         ]
       }
+      clases_consumidas: {
+        Row: {
+          alumno_id: string
+          coach_id: string | null
+          creada_por: string | null
+          created_at: string
+          fecha: string
+          id: string
+          notas: string | null
+          reserva_id: string | null
+          suscripcion_id: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          coach_id?: string | null
+          creada_por?: string | null
+          created_at?: string
+          fecha?: string
+          id?: string
+          notas?: string | null
+          reserva_id?: string | null
+          suscripcion_id: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          coach_id?: string | null
+          creada_por?: string | null
+          created_at?: string
+          fecha?: string
+          id?: string
+          notas?: string | null
+          reserva_id?: string | null
+          suscripcion_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clases_consumidas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaches: {
         Row: {
           created_at: string
@@ -3103,6 +3164,7 @@ export type Database = {
           acceso_whatsapp: boolean
           activo: boolean
           categoria: string
+          clases_incluidas: number | null
           clases_por_semana: number | null
           created_at: string
           cuota_valor: number | null
@@ -3122,7 +3184,9 @@ export type Database = {
           precio_promocional: number | null
           renovacion_auto_permitida: boolean
           tipo: string
+          tipo_consumo: string
           updated_at: string
+          vigencia_dias: number | null
           visibilidad: string
           whatsapp_url: string | null
         }
@@ -3133,6 +3197,7 @@ export type Database = {
           acceso_whatsapp?: boolean
           activo?: boolean
           categoria?: string
+          clases_incluidas?: number | null
           clases_por_semana?: number | null
           created_at?: string
           cuota_valor?: number | null
@@ -3152,7 +3217,9 @@ export type Database = {
           precio_promocional?: number | null
           renovacion_auto_permitida?: boolean
           tipo?: string
+          tipo_consumo?: string
           updated_at?: string
+          vigencia_dias?: number | null
           visibilidad?: string
           whatsapp_url?: string | null
         }
@@ -3163,6 +3230,7 @@ export type Database = {
           acceso_whatsapp?: boolean
           activo?: boolean
           categoria?: string
+          clases_incluidas?: number | null
           clases_por_semana?: number | null
           created_at?: string
           cuota_valor?: number | null
@@ -3182,7 +3250,9 @@ export type Database = {
           precio_promocional?: number | null
           renovacion_auto_permitida?: boolean
           tipo?: string
+          tipo_consumo?: string
           updated_at?: string
+          vigencia_dias?: number | null
           visibilidad?: string
           whatsapp_url?: string | null
         }
@@ -5053,6 +5123,9 @@ export type Database = {
           chequeado_admin: boolean
           chequeado_admin_at: string | null
           chequeado_admin_by: string | null
+          clases_consumidas: number
+          clases_totales: number | null
+          clases_vencimiento: string | null
           created_at: string
           cuenta_mp_id: string | null
           descuento_id: string | null
@@ -5088,6 +5161,9 @@ export type Database = {
           chequeado_admin?: boolean
           chequeado_admin_at?: string | null
           chequeado_admin_by?: string | null
+          clases_consumidas?: number
+          clases_totales?: number | null
+          clases_vencimiento?: string | null
           created_at?: string
           cuenta_mp_id?: string | null
           descuento_id?: string | null
@@ -5123,6 +5199,9 @@ export type Database = {
           chequeado_admin?: boolean
           chequeado_admin_at?: string | null
           chequeado_admin_by?: string | null
+          clases_consumidas?: number
+          clases_totales?: number | null
+          clases_vencimiento?: string | null
           created_at?: string
           cuenta_mp_id?: string | null
           descuento_id?: string | null
@@ -5661,6 +5740,15 @@ export type Database = {
           mp_preapproval_ids: string[]
         }[]
       }
+      consumir_clase_bono: {
+        Args: {
+          p_coach_id?: string
+          p_fecha?: string
+          p_notas?: string
+          p_suscripcion_id: string
+        }
+        Returns: string
+      }
       create_gasto_from_mp: {
         Args: {
           p_descripcion: string
@@ -5905,6 +5993,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
       transition_cambio_estado: {
         Args: {
           p_id: string

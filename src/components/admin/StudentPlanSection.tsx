@@ -19,6 +19,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { BonoClasesCard } from "@/components/admin/BonoClasesCard";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -41,7 +42,10 @@ interface SuscripcionData {
   precio_final: number | null;
   auto_cobro_activo?: boolean | null;
   mp_preapproval_id?: string | null;
-  planes: { id: string; nombre: string; precio: number; moneda: string } | null;
+  clases_totales?: number | null;
+  clases_consumidas?: number | null;
+  clases_vencimiento?: string | null;
+  planes: { id: string; nombre: string; precio: number; moneda: string; tipo_consumo?: string | null } | null;
   descuentos: { id: string; nombre: string; valor: number; tipo: string } | null;
 }
 
@@ -109,7 +113,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const fetchData = async () => {
     setLoading(true);
     const [subsRes, planesRes, discountsRes] = await Promise.all([
-      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, auto_cobro_activo, mp_preapproval_id, planes(id, nombre, precio, moneda), descuentos(id, nombre, valor, tipo)")
+      supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, auto_cobro_activo, mp_preapproval_id, clases_totales, clases_consumidas, clases_vencimiento, planes(id, nombre, precio, moneda, tipo_consumo), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
@@ -607,6 +611,20 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             </div>
           )}
         </div>
+
+        {/* Bono de clases — Fase 1 */}
+        {sub.planes?.tipo_consumo === "bono" && sub.clases_totales != null && (
+          <BonoClasesCard
+            sub={{
+              id: sub.id,
+              clases_totales: sub.clases_totales,
+              clases_consumidas: sub.clases_consumidas ?? 0,
+              clases_vencimiento: sub.clases_vencimiento ?? null,
+            }}
+            planNombre={sub.planes?.nombre || "Plan"}
+            onChange={onRefresh}
+          />
+        )}
 
         {/* Actions for ACTIVE subs only */}
         {!isHistoric && isActive && (
