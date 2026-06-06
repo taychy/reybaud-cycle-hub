@@ -402,6 +402,25 @@ export function RegisterPaymentModal({
                         <span className="text-destructive font-medium">{selectedSub.fecha_fin}</span>
                       </div>
                     )}
+                    {(() => {
+                      const storedBase = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
+                      const currentBase = selectedSub.planes?.precio ?? storedBase;
+                      if (currentBase === storedBase) return null;
+                      return (
+                        <div className="mt-2 pt-2 border-t border-border/50 flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 text-xs font-medium">
+                              <RefreshCw className="w-3 h-3 text-primary" />
+                              Usar precio actualizado
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {moneda} {storedBase} → <span className="text-primary font-medium">{moneda} {currentBase}</span>
+                            </p>
+                          </div>
+                          <Switch checked={usarPrecioActual} onCheckedChange={setUsarPrecioActual} />
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
