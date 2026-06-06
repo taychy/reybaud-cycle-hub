@@ -1113,6 +1113,10 @@ const AdminPayments = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
+
+
 
       {/* Confirm action dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
