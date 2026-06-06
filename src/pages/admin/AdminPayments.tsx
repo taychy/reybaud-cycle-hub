@@ -23,6 +23,8 @@ import {
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AllOperationsTab from "@/components/admin/AllOperationsTab";
 
 type Suscripcion = {
   id: string;
