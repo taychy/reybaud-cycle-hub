@@ -66,6 +66,7 @@ export function RegisterPaymentModal({
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [fechaFin, setFechaFin] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  const [usarPrecioActual, setUsarPrecioActual] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Reset state when modal opens/closes or alumnoId changes
