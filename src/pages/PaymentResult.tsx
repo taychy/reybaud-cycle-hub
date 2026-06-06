@@ -59,8 +59,11 @@ const PaymentResult = () => {
     }
 
     let cancelled = false;
-    const MAX_ATTEMPTS = 8; // ~24s total
-    const INTERVAL_MS = 3000;
+    // Polling más ágil: 1.2s entre intentos, hasta ~18s en total.
+    // El primer intento dispara inmediato (sin esperar) para aprovechar
+    // si el webhook ya llegó antes de que el usuario vuelva de MP.
+    const MAX_ATTEMPTS = 15;
+    const INTERVAL_MS = 1200;
 
     const checkStatus = async (attempt: number) => {
       try {
@@ -156,12 +159,11 @@ const PaymentResult = () => {
             Estamos confirmando tu pago…
           </h1>
           <p className="text-muted-foreground text-sm">
-            Estamos validando la operación con Mercado Pago. Esto puede tardar unos segundos.
-            No cierres esta pantalla.
+            Esto suele tardar entre 3 y 5 segundos. No cierres esta pantalla — te llevamos al inicio apenas Mercado Pago confirme.
           </p>
-          {pollAttempts > 0 && (
+          {pollAttempts >= 6 && (
             <p className="text-xs text-muted-foreground/70">
-              Intento {pollAttempts + 1} de 8…
+              Estamos tardando un poquito más de lo normal. En breve te respondemos…
             </p>
           )}
         </div>
