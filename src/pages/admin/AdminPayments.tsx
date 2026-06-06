@@ -23,6 +23,8 @@ import {
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AllOperationsTab from "@/components/admin/AllOperationsTab";
 
 type Suscripcion = {
   id: string;
@@ -693,6 +695,18 @@ const AdminPayments = () => {
         </div>
       </div>
 
+      <Tabs defaultValue="suscripciones" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
+          <TabsTrigger value="todas">Todas las operaciones</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="todas" className="space-y-6">
+          <AllOperationsTab />
+        </TabsContent>
+
+        <TabsContent value="suscripciones" className="space-y-6">
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="cursor-pointer hover:border-emerald-500/50 transition-colors" onClick={() => setFilterEstado("pagado")}>
@@ -1099,6 +1113,10 @@ const AdminPayments = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
+
+
 
       {/* Confirm action dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
