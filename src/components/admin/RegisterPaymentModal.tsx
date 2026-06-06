@@ -194,11 +194,13 @@ export function RegisterPaymentModal({
       const sub = pendingSubs.find(s => s.id === selectedSubId);
       const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
       const isParcial = montoNum > 0 && montoNum < expectedAmount;
+      const excedente = montoNum > expectedAmount ? montoNum - expectedAmount : 0;
 
       const newEstado = isParcial ? "pendiente" : "activa";
       const notasParts: string[] = [];
       if (observaciones.trim()) notasParts.push(observaciones.trim());
       if (isParcial) notasParts.push(`Pago parcial: ${montoNum} de ${expectedAmount}`);
+      if (excedente > 0) notasParts.push(`Excedente acreditado a cuenta: ${excedente}`);
       notasParts.push(`Registrado por admin el ${fechaPago}`);
 
       const { error } = await supabase
@@ -276,7 +278,30 @@ export function RegisterPaymentModal({
         }).catch(() => {});
       }
 
-      toast.success(isParcial ? "Pago parcial registrado" : "Pago registrado correctamente");
+      // Registrar excedente como saldo a favor (cuenta_ajustes credito)
+      if (excedente > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const moneda = sub?.planes?.moneda || "ARS";
+        const { error: ajusteErr } = await supabase.from("cuenta_ajustes").insert({
+          alumno_id: selectedAlumnoId,
+          tipo: "credito",
+          concepto: `Excedente de pago — ${planName}`,
+          monto: excedente,
+          moneda,
+          fecha: fechaPago,
+          notas: `Pago de ${montoNum} sobre esperado ${expectedAmount}`,
+          created_by: user?.id || null,
+        });
+        if (ajusteErr) console.error("No se pudo registrar saldo a favor:", ajusteErr);
+      }
+
+      toast.success(
+        isParcial
+          ? "Pago parcial registrado"
+          : excedente > 0
+            ? `Pago registrado · saldo a favor $${excedente}`
+            : "Pago registrado correctamente"
+      );
       onOpenChange(false);
       onSuccess?.();
     } catch (err: any) {
