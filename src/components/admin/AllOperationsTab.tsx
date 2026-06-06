@@ -11,11 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import {
   Search, Filter, RefreshCw, X, ShoppingBag, Calendar, MapPin,
   CreditCard, Tag, ExternalLink, CheckCircle, Clock, FileText,
-  CheckCheck, AlertTriangle, XCircle,
+  CheckCheck, AlertTriangle, XCircle, Pencil,
 } from "lucide-react";
 
 type OpTipo = "suscripcion" | "evento" | "tienda" | "preventa" | "turnera";
