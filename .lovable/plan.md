@@ -1,85 +1,75 @@
-# Cambio de indumentaria
+## Fase 1 — Bono de clases personalizadas
 
-Reglas confirmadas:
-- Plazo: 30 días desde entrega.
-- Cambio sólo dentro del **mismo producto** (otra talla/color). Si no hay stock → opción "Solicitar devolución" que notifica admin.
-- Preventa: puede cambiarse a stock normal **o** a otra variante de la misma preventa si sigue abierta.
-- Retiro/entrega: **presencial en sede**.
-- Diferencia de precio: pagable desde la app en el momento (MP o efectivo en sede).
-- Admin puede iniciar cambio en nombre del alumno (queda registrado `iniciado_por='admin'` + motivo obligatorio).
-- Exclusiones por producto: configurables vía flag `no_admite_cambio` en `store_products` (ya existe el patrón).
+Objetivo: que un plan tipo "8 clases personalizadas" (caso Maia) funcione hoy mismo, sin depender aún de la turnera. Cada vez que el alumno toma una clase, se descuenta del bono. Cuando llega a 0 o vence, el alumno queda sin saldo y tenés que renovarle.
 
----
+Diseño explícito: **no creamos tabla nueva**. Reutilizamos `suscripciones` agregándole 3 campos. Esto deja un único lugar de verdad (igual que los planes grupales) y permite que el bono conviva con el resto del sistema (cuenta corriente, pagos MP, AFIP, dashboard alumno) sin tocar nada más.
 
-## 1. Base de datos
+### 1. Cambios de base de datos
 
-**Nueva tabla `store_cambios`**
-- `id`, `alumno_id`, `producto_id`, `variante_origen` (jsonb {size, color, sku}), `variante_destino` (jsonb)
-- `origen_tipo` ('compra' | 'preorder'), `compra_id`, `preorder_id`
-- `motivo` (text enum: talle, color, defecto, otro), `comentario`, `fotos` (text[])
-- `estado` enum: `solicitado`, `aprobado`, `en_deposito`, `listo_retiro`, `entregado`, `rechazado`, `cancelado`, `devolucion_solicitada`
-- `diferencia_precio` numeric, `moneda`, `estado_pago_diferencia` ('no_aplica'|'pendiente'|'pagado'), `mp_payment_id`
-- `iniciado_por` ('alumno'|'admin'), `admin_iniciador_id`, `motivo_admin`
-- `responsable_admin_id`, `responsable_deposito_id`
-- `historial` jsonb[] (cada cambio de estado con autor + timestamp + nota)
-- `created_at`, `updated_at`, timestamps por estado
-- `notificar_alumno` bool
+**Tabla `planes`** — para identificar qué planes son "bono":
+- `tipo_consumo` text: `'mensual'` (default) | `'bono'`
+- `clases_incluidas` int — cuántas clases trae el bono (ej: 8)
+- `vigencia_dias` int — días de validez desde el alta (ej: 60). Si es null, no vence.
 
-**Campo nuevo en `store_products`:** `no_admite_cambio bool default false`.
+**Tabla `suscripciones`** — estado del bono de cada alumno:
+- `clases_totales` int — copia de `planes.clases_incluidas` al activar (snapshot, por si después cambia el plan)
+- `clases_consumidas` int default 0
+- `clases_vencimiento` date — calculado en el alta como `fecha_inicio + vigencia_dias`
 
-**RLS:**
-- Alumno: SELECT/INSERT/UPDATE (cancelar) sólo los propios.
-- Admin / depósito: full según rol.
-- Trigger `updated_at` + trigger que appendea entrada al `historial` en cada update de estado.
+**Nueva tabla `clases_consumidas`** — log auditable de cada clase tomada:
+- `suscripcion_id`, `alumno_id`, `coach_id` (opcional, para Fase 3), `fecha`, `notas`, `creada_por`, `reserva_id` (null en Fase 1, lo usa la turnera en Fase 2)
+- RLS: admin/coach/super_admin escriben; alumno lee solo las suyas.
 
-**RPC:**
-- `request_cambio_indumentaria(...)` valida ventana 30 días, producto no excluido, variante distinta, sin solicitud abierta.
-- `admin_create_cambio_indumentaria(...)` versión admin con motivo.
-- `transition_cambio_estado(p_id, p_nuevo_estado, p_nota)` con guardas por rol.
+**Función RPC `consumir_clase_bono(p_suscripcion_id, p_fecha, p_notas, p_coach_id)`**:
+- Valida saldo > 0 y no vencido.
+- Inserta en `clases_consumidas`.
+- Incrementa `suscripciones.clases_consumidas`.
+- Si llega al total, marca la sub como `vencida`.
+- Todo en una transacción.
 
-## 2. Edge function
+**Función RPC `revertir_clase_bono(p_clase_id)`**:
+- Borra el registro y decrementa el contador (por si admin se equivoca).
 
-`process-cambio-indumentaria`: maneja pago de diferencia vía MP (crea preference) y aplica cambio de stock cuando depósito confirma.
+### 2. UI Admin
 
-## 3. Frontend
+**Editor de plan** (`AdminPlanes` o donde se editen planes): selector "Tipo de consumo" con dos opciones:
+- Mensual / recurrente (default actual)
+- Bono de N clases → al elegir esto aparecen los campos `clases_incluidas` y `vigencia_dias`.
 
-### Alumno
-- En `MisComprasSection`: botón **"Solicitar cambio"** sólo en ítems entregados, dentro de 30 días, sin solicitud abierta y `no_admite_cambio=false`.
-- Nuevo componente `RequestCambioDialog.tsx`: 3 pasos (motivo+fotos → nueva variante o "no hay stock → devolución" → confirmar + pago de diferencia si aplica).
-- Sub-tab **"Mis cambios"** dentro de Mis Compras con timeline por estado y CTA contextual ("Pagar diferencia", "Retirar en sede").
+**Ficha de alumno → sección Suscripciones**: cuando la sub es tipo bono, se ve:
+```
+🎯 Personalizado x 8 clases
+Consumidas: 3 / 8 · Restantes: 5
+Vence: 12 ago 2026 (en 42 días)
+[ + Registrar clase tomada ]   [ Ver historial ]
+```
+Botón "Registrar clase" abre un mini-form: fecha (default hoy), coach (select opcional), notas. Llama al RPC. Al volver, refresca el contador.
 
-### Admin
-- Nueva sección `/admin/tienda/cambios` con tabs Pendientes / En curso / Cerrados.
-- Componentes: `CambiosList.tsx`, `CambioDetailDrawer.tsx`, `AdminCreateCambioDialog.tsx` (selector alumno+compra, motivo obligatorio).
-- Acciones: aprobar/rechazar, marcar listo, gestionar devolución.
+"Ver historial" muestra una lista de las clases tomadas con opción "Deshacer" en cada una.
 
-### Depósito
-- En `DepositoLayout` agregar entrada **"Cambios"**.
-- Nueva página `DepositoCambios.tsx`: cola de tareas (recibir prenda original + preparar destino), checklist, marcar `listo_retiro`.
+### 3. UI Alumno
 
-### Producto admin
-- Toggle "No admite cambio" en `AdminProductForm`.
+En su dashboard, si tiene un bono activo, ve una tarjeta clara:
+```
+Personalizado · 5 clases restantes de 8
+Vence el 12 ago 2026
+```
+Sin botón de "registrar" (la carga sigue siendo manual desde admin en Fase 1). En Fase 2 será automático desde la turnera.
 
-## 4. Stock
+### 4. Compatibilidad con lo existente
 
-- Al aprobar: reservar variante destino (decremento `variant_stock`).
-- Al confirmar entrega en depósito: variante origen vuelve a `disponible` (incremento) salvo que se marque "no reutilizable".
-- Si se cancela/rechaza antes de entrega: revertir reserva destino.
+- Los planes mensuales siguen funcionando exactamente igual (default `tipo_consumo = 'mensual'`).
+- El flujo de checkout MP, AFIP, cuenta corriente, descuentos, cancelaciones — sin cambios.
+- El bono respeta `cancellation grace policy`: si lo cancelás, mantiene saldo hasta `fecha_fin` o hasta agotarse.
 
-## 5. Notificaciones
+### 5. Fuera de alcance (Fase 1)
 
-- Email al alumno en cada cambio de estado relevante (configurable con checkbox por admin).
-- Tarea automática para admin si hay solicitud `solicitado` >24h sin atender.
+- Vincular reserva de turnera con consumo de clase → Fase 2.
+- Generar honorarios al coach automáticamente → Fase 3.
+- Vista en cuenta corriente del alumno con detalle por clase → Fase 4.
 
----
+### Resultado de la fase
 
-## Orden de entrega
+Hoy mismo podés crear el plan "8 clases personalizadas — Maia", asignárselo, cobrarle con MP y empezar a descontarle clases una por una desde la ficha. El sistema te avisa cuando se le acaba o se le vence.
 
-1. Migración DB (tabla + flag producto + triggers + RPC).
-2. Edge function pago diferencia.
-3. UI alumno (botón + dialog + mis cambios).
-4. UI admin (sección + crear en nombre del alumno).
-5. UI depósito (cola + acciones).
-6. Notificaciones email.
-
-¿Avanzo con la migración?
+¿Avanzo con la migración + los campos del plan + RPC + UI admin de "Registrar clase"?
