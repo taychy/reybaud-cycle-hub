@@ -12,7 +12,8 @@ import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { toast } from "sonner";
-import { DollarSign } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { DollarSign, RefreshCw } from "lucide-react";
 
 interface RegisterPaymentModalProps {
   open: boolean;
