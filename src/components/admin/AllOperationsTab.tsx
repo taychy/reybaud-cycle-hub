@@ -10,34 +10,35 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 import {
   Search, Filter, RefreshCw, X, ShoppingBag, Calendar, MapPin,
-  CreditCard, Package, Tag, ExternalLink,
+  CreditCard, Tag, ExternalLink, CheckCircle, Clock, FileText,
+  CheckCheck, AlertTriangle, XCircle,
 } from "lucide-react";
 
-/** Tipos de operación unificada */
 type OpTipo = "suscripcion" | "evento" | "tienda" | "preventa" | "turnera";
-
 type OpEstado = "pagado" | "informado" | "pendiente" | "parcial" | "cancelado" | "vencido" | "reembolsado";
 
 type UnifiedOp = {
-  key: string;                       // id único: `${tipo}:${id}`
+  key: string;
   tipo: OpTipo;
-  id: string;                        // id de la fila origen
+  id: string;
   alumno_id?: string | null;
   alumno_nombre: string;
   alumno_email?: string | null;
-  concepto: string;                  // qué se cobra
+  concepto: string;
   monto: number;
   moneda: string;
-  fecha: string;                     // F. operación (created_at o pagado_at)
+  fecha: string;
   fecha_vencimiento?: string | null;
   estado: OpEstado;
-  metodo: string;                    // método de pago label
-  origen?: string | null;            // origen del registro (mp, alumno, admin)
-  ref?: string | null;               // ref ext (mp_payment_id, order_number, etc)
-  rawStatus?: string | null;         // estado crudo de la tabla origen
-  link?: string | null;              // navegar a detalle
+  metodo: string;
+  origen?: string | null;
+  ref?: string | null;
+  rawStatus?: string | null;
+  link?: string | null;
 };
 
 const TIPO_LABEL: Record<OpTipo, string> = {
@@ -64,14 +65,23 @@ const TIPO_COLOR: Record<OpTipo, string> = {
   turnera: "bg-amber-500/15 text-amber-700 border-amber-500/30",
 };
 
-const ESTADO_BADGE: Record<OpEstado, { label: string; className: string }> = {
-  pagado:      { label: "Pagado",      className: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" },
-  informado:   { label: "Informado",   className: "bg-blue-500/15 text-blue-700 border-blue-500/30" },
-  pendiente:   { label: "Pendiente",   className: "bg-amber-500/15 text-amber-700 border-amber-500/30" },
-  parcial:     { label: "Parcial",     className: "bg-indigo-500/15 text-indigo-700 border-indigo-500/30" },
-  vencido:     { label: "Vencido",     className: "bg-red-500/15 text-red-700 border-red-500/30" },
-  cancelado:   { label: "Cancelado",   className: "bg-muted text-muted-foreground border-border" },
-  reembolsado: { label: "Reembolsado", className: "bg-slate-500/15 text-slate-700 border-slate-500/30" },
+const getStatusBadge = (estado: OpEstado) => {
+  switch (estado) {
+    case "pagado":
+      return <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 gap-1" variant="outline"><CheckCircle className="w-3 h-3" />Pagado</Badge>;
+    case "informado":
+      return <Badge className="bg-blue-500/15 text-blue-700 border-blue-500/30 gap-1" variant="outline"><FileText className="w-3 h-3" />Informado</Badge>;
+    case "pendiente":
+      return <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30 gap-1" variant="outline"><Clock className="w-3 h-3" />Pendiente</Badge>;
+    case "parcial":
+      return <Badge className="bg-indigo-500/15 text-indigo-700 border-indigo-500/30 gap-1" variant="outline"><Clock className="w-3 h-3" />Parcial</Badge>;
+    case "vencido":
+      return <Badge className="bg-red-500/15 text-red-700 border-red-500/30 gap-1" variant="outline"><AlertTriangle className="w-3 h-3" />Vencido</Badge>;
+    case "cancelado":
+      return <Badge variant="outline" className="bg-muted text-muted-foreground border-border gap-1"><XCircle className="w-3 h-3" />Cancelado</Badge>;
+    case "reembolsado":
+      return <Badge variant="outline" className="bg-slate-500/15 text-slate-700 border-slate-500/30">Reembolsado</Badge>;
+  }
 };
 
 const formatDate = (d?: string | null) => {
@@ -89,7 +99,7 @@ const inPeriod = (op: UnifiedOp, periodo: string) => {
   return (op.fecha || "").substring(0, 7) === periodo;
 };
 
-/* =========================== Loaders por origen =========================== */
+/* =========================== Loaders =========================== */
 
 async function loadSuscripciones(): Promise<UnifiedOp[]> {
   const { data } = await supabase
@@ -263,7 +273,7 @@ async function loadTurnera(): Promise<UnifiedOp[]> {
       alumno_id: r.alumno_id,
       alumno_nombre: [r.nombre, r.apellido].filter(Boolean).join(" ") || r.email || "—",
       alumno_email: r.email,
-      concepto: `${r.servicios_turnera?.nombre || "Reserva"} · ${formatDate(r.fecha)}${r.hora_inicio ? " " + r.hora_inicio.slice(0,5) : ""}`,
+      concepto: `${r.servicios_turnera?.nombre || "Reserva"} · ${formatDate(r.fecha)}${r.hora_inicio ? " " + r.hora_inicio.slice(0, 5) : ""}`,
       monto: Number(r.precio_snapshot || 0),
       moneda: r.moneda_snapshot || "ARS",
       fecha: r.created_at,
@@ -278,6 +288,48 @@ async function loadTurnera(): Promise<UnifiedOp[]> {
   });
 }
 
+/* =========================== Actions =========================== */
+
+async function validateOp(op: UnifiedOp): Promise<boolean> {
+  if (op.tipo === "suscripcion") {
+    const { error } = await supabase.from("suscripciones").update({ estado: "activa" }).eq("id", op.id);
+    return !error;
+  }
+  if (op.tipo === "evento") {
+    const { error } = await supabase.from("reservation_payments").update({ status: "validado" }).eq("id", op.id);
+    return !error;
+  }
+  if (op.tipo === "preventa") {
+    const { error } = await supabase.from("store_preorders").update({ estado_pago_sena: "confirmada" }).eq("id", op.id);
+    return !error;
+  }
+  if (op.tipo === "tienda") {
+    const { error } = await supabase.from("store_orders").update({ status: "pagado", pagado_at: new Date().toISOString() }).eq("id", op.id);
+    return !error;
+  }
+  return false;
+}
+
+async function rejectOp(op: UnifiedOp): Promise<boolean> {
+  if (op.tipo === "suscripcion") {
+    const { error } = await supabase.from("suscripciones").update({ estado: "rechazada" }).eq("id", op.id);
+    return !error;
+  }
+  if (op.tipo === "evento") {
+    const { error } = await supabase.from("reservation_payments").update({ status: "rechazado" }).eq("id", op.id);
+    return !error;
+  }
+  if (op.tipo === "preventa") {
+    const { error } = await supabase.from("store_preorders").update({ estado_pago_sena: "rechazada" }).eq("id", op.id);
+    return !error;
+  }
+  if (op.tipo === "tienda") {
+    const { error } = await supabase.from("store_orders").update({ status: "cancelado" }).eq("id", op.id);
+    return !error;
+  }
+  return false;
+}
+
 /* =================================== UI =================================== */
 
 export default function AllOperationsTab() {
@@ -285,7 +337,6 @@ export default function AllOperationsTab() {
   const [loading, setLoading] = useState(true);
   const [ops, setOps] = useState<UnifiedOp[]>([]);
 
-  // Filtros
   const [filterTipo, setFilterTipo] = useState<"todos" | OpTipo>("todos");
   const [filterEstado, setFilterEstado] = useState<"todos" | OpEstado>("todos");
   const [filterPeriodo, setFilterPeriodo] = useState<string>(currentPeriodKey());
@@ -324,21 +375,15 @@ export default function AllOperationsTab() {
     });
   }, [ops, filterTipo, filterEstado, filterPeriodo, filterAlumno, filterDesde, filterHasta]);
 
-  // KPIs por estado
   const summary = useMemo(() => {
-    const acc: Record<string, { count: number; byCurrency: Record<string, number> }> = {};
-    for (const o of filtered) {
-      const k = o.estado;
-      if (!acc[k]) acc[k] = { count: 0, byCurrency: {} };
-      acc[k].count++;
-      acc[k].byCurrency[o.moneda] = (acc[k].byCurrency[o.moneda] || 0) + (o.monto || 0);
-    }
+    const acc: Record<OpEstado, number> = { pagado: 0, informado: 0, pendiente: 0, parcial: 0, vencido: 0, cancelado: 0, reembolsado: 0 };
+    for (const o of filtered) acc[o.estado]++;
     return acc;
   }, [filtered]);
 
   const periodOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: "all", label: "Todos los períodos" }];
-    const monthNames = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
     const now = new Date();
     for (let i = 0; i < 12; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -357,17 +402,29 @@ export default function AllOperationsTab() {
     setFilterPeriodo(currentPeriodKey());
   };
 
+  const handleValidate = async (op: UnifiedOp) => {
+    const ok = await validateOp(op);
+    if (ok) {
+      toast({ title: "Pago validado" });
+      fetchAll();
+    } else {
+      toast({ title: "Error", description: "No se pudo validar", variant: "destructive" });
+    }
+  };
+
+  const handleReject = async (op: UnifiedOp) => {
+    const ok = await rejectOp(op);
+    if (ok) {
+      toast({ title: "Pago rechazado" });
+      fetchAll();
+    } else {
+      toast({ title: "Error", description: "No se pudo rechazar", variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground">Cargando operaciones…</div>;
   }
-
-  const summaryCards: { key: OpEstado; label: string; color: string }[] = [
-    { key: "pagado",    label: "Pagados",    color: "emerald" },
-    { key: "informado", label: "Informados", color: "blue" },
-    { key: "pendiente", label: "Pendientes", color: "amber" },
-    { key: "parcial",   label: "Parciales",  color: "indigo" },
-    { key: "vencido",   label: "Vencidos",   color: "red" },
-  ];
 
   return (
     <div className="space-y-6">
@@ -389,23 +446,38 @@ export default function AllOperationsTab() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs con íconos, mismo estilo que Suscripciones */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {summaryCards.map((c) => {
-          const s = summary[c.key];
-          const totals = s ? Object.entries(s.byCurrency).map(([m, v]) => formatPrice(v, m)).join(" · ") : "—";
-          return (
-            <Card key={c.key} className={`cursor-pointer hover:border-${c.color}-500/50 transition-colors`} onClick={() => setFilterEstado(c.key)}>
-              <CardContent className="p-4">
-                <div className={`flex items-center gap-2 text-${c.color}-600`}>
-                  <span className="text-xs font-medium">{c.label}</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">{s?.count || 0}</p>
-                <p className="text-[10px] text-muted-foreground truncate" title={totals}>{totals}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
+        <Card className="cursor-pointer hover:border-emerald-500/50 transition-colors" onClick={() => setFilterEstado("pagado")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-emerald-600"><CheckCircle className="w-4 h-4" /><span className="text-xs font-medium">Pagados</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.pagado}</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("pendiente")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Pendientes</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.pendiente}</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-blue-500/50 transition-colors" onClick={() => setFilterEstado("informado")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-blue-600"><FileText className="w-4 h-4" /><span className="text-xs font-medium">Informados</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.informado}</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-indigo-500/50 transition-colors" onClick={() => setFilterEstado("parcial")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-indigo-600"><CheckCheck className="w-4 h-4" /><span className="text-xs font-medium">Parciales</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.parcial}</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-red-500/50 transition-colors" onClick={() => setFilterEstado("vencido")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="text-xs font-medium">Vencidos</span></div>
+            <p className="text-2xl font-bold mt-1">{summary.vencido}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
@@ -443,9 +515,13 @@ export default function AllOperationsTab() {
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  {(Object.keys(ESTADO_BADGE) as OpEstado[]).map(e => (
-                    <SelectItem key={e} value={e}>{ESTADO_BADGE[e].label}</SelectItem>
-                  ))}
+                  <SelectItem value="pagado">Pagado</SelectItem>
+                  <SelectItem value="informado">Informado</SelectItem>
+                  <SelectItem value="pendiente">Pendiente</SelectItem>
+                  <SelectItem value="parcial">Parcial</SelectItem>
+                  <SelectItem value="vencido">Vencido</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                  <SelectItem value="reembolsado">Reembolsado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -463,7 +539,7 @@ export default function AllOperationsTab() {
         </CardContent>
       </Card>
 
-      {/* Tabla */}
+      {/* Tabla — mismas columnas que Suscripciones + Tipo */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Operaciones ({filtered.length})</CardTitle>
@@ -474,18 +550,19 @@ export default function AllOperationsTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Alumno / Cliente</TableHead>
-                  <TableHead>Concepto</TableHead>
+                  <TableHead>Alumno</TableHead>
+                  <TableHead>Plan / Concepto</TableHead>
                   <TableHead className="text-right">Monto</TableHead>
                   <TableHead>F. operación</TableHead>
+                  <TableHead>Vencimiento</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Método / Origen</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead>Método</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay operaciones con los filtros seleccionados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay operaciones con los filtros seleccionados</TableCell></TableRow>
                 ) : (
                   filtered.map((o) => (
                     <TableRow key={o.key} className="hover:bg-muted/40">
@@ -495,11 +572,16 @@ export default function AllOperationsTab() {
                           {TIPO_LABEL[o.tipo]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">
-                        <div className="font-medium">{o.alumno_nombre}</div>
+                      <TableCell className="font-medium text-sm">
+                        <span
+                          className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                          onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(o.alumno_nombre)}`)}
+                        >
+                          {o.alumno_nombre}
+                        </span>
                         {o.alumno_email && <div className="text-[11px] text-muted-foreground">{o.alumno_email}</div>}
                       </TableCell>
-                      <TableCell className="text-sm max-w-[280px]">
+                      <TableCell className="text-sm max-w-[260px]">
                         <div className="truncate" title={o.concepto}>{o.concepto}</div>
                         {o.ref && <div className="text-[11px] text-muted-foreground truncate" title={o.ref}>{o.ref}</div>}
                       </TableCell>
@@ -507,25 +589,51 @@ export default function AllOperationsTab() {
                         {formatPrice(o.monto, o.moneda)}
                       </TableCell>
                       <TableCell className="text-sm">{formatDate(o.fecha)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={ESTADO_BADGE[o.estado].className}>
-                          {ESTADO_BADGE[o.estado].label}
-                        </Badge>
-                      </TableCell>
+                      <TableCell className="text-sm">{formatDate(o.fecha_vencimiento)}</TableCell>
+                      <TableCell>{getStatusBadge(o.estado)}</TableCell>
                       <TableCell className="text-sm">
                         <div className="leading-tight">
-                          <span>{o.metodo}</span>
+                          <span className="font-medium">{o.metodo}</span>
                           {o.origen && (
                             <span className="block text-[11px] text-muted-foreground capitalize">{o.origen.replace(/_/g, " ")}</span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {o.link && (
-                          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => navigate(o.link!)}>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TooltipProvider delayDuration={200}>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {o.estado === "informado" && o.tipo !== "turnera" && (
+                              <>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="default" size="sm" className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleValidate(o)}>
+                                      <CheckCircle className="w-3 h-3 mr-1" />Validar
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Validar pago informado</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => handleReject(o)}>
+                                      <XCircle className="w-3 h-3 mr-1" />Rechazar
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Rechazar pago</TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                            {o.link && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(o.link!)}>
+                                    <ExternalLink className="w-3.5 h-3.5 text-foreground/70" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver detalle</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))
