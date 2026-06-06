@@ -276,9 +276,35 @@ const SuperAdminGastos = () => {
     const totalPagado = (await supabase
       .from("gastos_ejecucion_pagos" as any)
       .select("monto").eq("ejecucion_id", e.id)).data?.reduce((s: number, p: any) => s + Number(p.monto || 0), 0) || 0;
-    const restante = Math.max((e.monto_previsto || rec.monto_estimado) - totalPagado, 0);
+
+    // "Previsto" dinámico = sumatoria de pagos de la última ejecución anterior pagada/parcial
+    let previstoBase = e.monto_previsto || rec.monto_estimado || 0;
+    let prevInfo: { mes: string; total: number } | null = null;
+    const { data: prevEjecs } = await supabase
+      .from("gastos_ejecuciones")
+      .select("id, mes, estado")
+      .eq("recurrente_id", rec.id)
+      .lt("mes", e.mes)
+      .in("estado", ["pagado", "parcial"])
+      .order("mes", { ascending: false })
+      .limit(1);
+    const prevEjec = prevEjecs?.[0];
+    if (prevEjec) {
+      const { data: prevPagos } = await supabase
+        .from("gastos_ejecucion_pagos" as any)
+        .select("monto")
+        .eq("ejecucion_id", prevEjec.id);
+      const sum = (prevPagos || []).reduce((s: number, p: any) => s + Number(p.monto || 0), 0);
+      if (sum > 0) {
+        previstoBase = sum;
+        prevInfo = { mes: prevEjec.mes, total: sum };
+      }
+    }
+    setPrevPeriodInfo(prevInfo);
+
+    const restante = Math.max(previstoBase - totalPagado, 0);
     setPagoForm({
-      monto: String(restante || e.monto_previsto || rec.monto_estimado),
+      monto: String(restante || previstoBase),
       fecha: new Date().toISOString().split("T")[0],
       forma_pago: rec.forma_pago_default || "transferencia",
       notas: "",
