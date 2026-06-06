@@ -11,11 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import {
   Search, Filter, RefreshCw, X, ShoppingBag, Calendar, MapPin,
   CreditCard, Tag, ExternalLink, CheckCircle, Clock, FileText,
-  CheckCheck, AlertTriangle, XCircle,
+  CheckCheck, AlertTriangle, XCircle, Pencil,
 } from "lucide-react";
 
 type OpTipo = "suscripcion" | "evento" | "tienda" | "preventa" | "turnera";
@@ -39,6 +42,7 @@ type UnifiedOp = {
   ref?: string | null;
   rawStatus?: string | null;
   link?: string | null;
+  raw?: any;
 };
 
 const TIPO_LABEL: Record<OpTipo, string> = {
@@ -104,7 +108,7 @@ const inPeriod = (op: UnifiedOp, periodo: string) => {
 async function loadSuscripciones(): Promise<UnifiedOp[]> {
   const { data } = await supabase
     .from("suscripciones")
-    .select("id, alumno_id, estado, fecha_inicio, fecha_fin, mp_payment_id, metodo_pago, origen_registro, created_at, updated_at, cancelada_at, alumnos(nombre, apellido, email), planes(nombre, precio, moneda)")
+    .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_payment_id, metodo_pago, origen_registro, created_at, updated_at, cancelada_at, chequeado_admin, alumnos(nombre, apellido, email), planes(id, nombre, precio, moneda)")
     .order("created_at", { ascending: false })
     .limit(2000);
 
@@ -136,6 +140,7 @@ async function loadSuscripciones(): Promise<UnifiedOp[]> {
       ref: s.mp_payment_id,
       rawStatus: s.estado,
       link: `/admin/pagos?suscripcion=${s.id}`,
+      raw: s,
     };
   });
 }
@@ -344,6 +349,13 @@ export default function AllOperationsTab() {
   const [filterDesde, setFilterDesde] = useState("");
   const [filterHasta, setFilterHasta] = useState("");
 
+  // Acciones sobre suscripciones
+  const [editFechaDialog, setEditFechaDialog] = useState<UnifiedOp | null>(null);
+  const [editFechaValue, setEditFechaValue] = useState("");
+  const [savingFecha, setSavingFecha] = useState(false);
+  const [registerPayOp, setRegisterPayOp] = useState<UnifiedOp | null>(null);
+  const [markPaidOp, setMarkPaidOp] = useState<UnifiedOp | null>(null);
+
   const fetchAll = async () => {
     setLoading(true);
     try {
@@ -419,6 +431,55 @@ export default function AllOperationsTab() {
       fetchAll();
     } else {
       toast({ title: "Error", description: "No se pudo rechazar", variant: "destructive" });
+    }
+  };
+
+  const handleToggleChequeado = async (op: UnifiedOp) => {
+    if (op.tipo !== "suscripcion") return;
+    const current = !!op.raw?.chequeado_admin;
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({ chequeado_admin: !current, chequeado_admin_at: !current ? new Date().toISOString() : null })
+      .eq("id", op.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: !current ? "Marcado como chequeado" : "Marca de chequeado quitada" });
+      fetchAll();
+    }
+  };
+
+  const handleSaveFecha = async () => {
+    if (!editFechaDialog) return;
+    setSavingFecha(true);
+    const { error } = await supabase.from("suscripciones").update({ fecha_fin: editFechaValue }).eq("id", editFechaDialog.id);
+    setSavingFecha(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Vencimiento actualizado" });
+      setEditFechaDialog(null);
+      fetchAll();
+    }
+  };
+
+  const handleMarkPagado = async () => {
+    if (!markPaidOp) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({
+        estado: "activa",
+        origen_registro: "cargado_admin",
+        fecha_inicio: today,
+      })
+      .eq("id", markPaidOp.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Pago registrado" });
+      setMarkPaidOp(null);
+      fetchAll();
     }
   };
 
@@ -602,6 +663,25 @@ export default function AllOperationsTab() {
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <TooltipProvider delayDuration={200}>
                           <div className="flex items-center gap-1 flex-wrap">
+                            {/* Chequear — solo suscripcion */}
+                            {o.tipo === "suscripcion" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant={o.raw?.chequeado_admin ? "default" : "outline"}
+                                    size="sm"
+                                    className={`h-7 px-2 text-[11px] ${o.raw?.chequeado_admin ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : ""}`}
+                                    onClick={() => handleToggleChequeado(o)}
+                                  >
+                                    <CheckCheck className="w-3 h-3 mr-1" />
+                                    {o.raw?.chequeado_admin ? "Chequeado" : "Chequear"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{o.raw?.chequeado_admin ? "Quitar marca de chequeado" : "Marcar como chequeado"}</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Validar / Rechazar — para informado en todos los tipos cobrables */}
                             {o.estado === "informado" && o.tipo !== "turnera" && (
                               <>
                                 <Tooltip>
@@ -622,6 +702,63 @@ export default function AllOperationsTab() {
                                 </Tooltip>
                               </>
                             )}
+
+                            {/* Marcar pagado — pendiente/vencido en suscripciones */}
+                            {o.tipo === "suscripcion" && (o.estado === "pendiente" || o.estado === "vencido") && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMarkPaidOp(o)}>
+                                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Marcar como pagado</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Editar vencimiento — suscripcion */}
+                            {o.tipo === "suscripcion" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(o); setEditFechaValue(o.fecha_vencimiento || ""); }}>
+                                    <Pencil className="w-3.5 h-3.5 text-foreground/70" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar vencimiento</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Registrar pago manual — suscripcion */}
+                            {o.tipo === "suscripcion" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRegisterPayOp(o)}>
+                                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Registrar pago manual</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Factura — suscripcion pagada */}
+                            {o.tipo === "suscripcion" && o.estado === "pagado" && o.raw?.planes && (
+                              <BillingInvoiceLauncher
+                                source={{
+                                  alumno_id: o.alumno_id || undefined,
+                                  cliente_nombre: o.alumno_nombre,
+                                  concepto: `Suscripción ${o.raw.planes.nombre}`,
+                                  monto: o.raw.planes.precio,
+                                  referencia_tipo: "suscripcion",
+                                  referencia_id: o.id,
+                                  segmento: "escuela",
+                                  metodo_pago: o.raw.metodo_pago,
+                                  origen_registro: o.raw.origen_registro,
+                                }}
+                                variant="icon"
+                                onEmitted={fetchAll}
+                              />
+                            )}
+
+                            {/* Ver detalle */}
                             {o.link && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -643,6 +780,53 @@ export default function AllOperationsTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog editar vencimiento */}
+      <Dialog open={!!editFechaDialog} onOpenChange={(o) => !o && setEditFechaDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar vencimiento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-sm">Nueva fecha de vencimiento</Label>
+            <Input type="date" value={editFechaValue} onChange={(e) => setEditFechaValue(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditFechaDialog(null)}>Cancelar</Button>
+            <Button onClick={handleSaveFecha} disabled={!editFechaValue || savingFecha}>
+              {savingFecha ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog marcar pagado */}
+      <Dialog open={!!markPaidOp} onOpenChange={(o) => !o && setMarkPaidOp(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Marcar suscripción como pagada</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se marcará como pagada la suscripción de <strong>{markPaidOp?.alumno_nombre}</strong> ({markPaidOp?.concepto}) con fecha de hoy.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setMarkPaidOp(null)}>Cancelar</Button>
+            <Button onClick={handleMarkPagado}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal registrar pago manual */}
+      {registerPayOp && (
+        <RegisterPaymentModal
+          open={!!registerPayOp}
+          onOpenChange={(o) => !o && setRegisterPayOp(null)}
+          alumnoId={registerPayOp.alumno_id || null}
+          alumnoNombre={registerPayOp.alumno_nombre}
+          subscripcionId={registerPayOp.id}
+          onSuccess={() => { setRegisterPayOp(null); fetchAll(); }}
+        />
+      )}
     </div>
   );
 }
