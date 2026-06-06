@@ -20,6 +20,7 @@ import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/li
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BonoClasesCard } from "@/components/admin/BonoClasesCard";
+import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
@@ -123,6 +124,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [changeNote, setChangeNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [applySecondActivityDiscount, setApplySecondActivityDiscount] = useState(false);
+  const [payMetodo, setPayMetodo] = useState<string>("efectivo");
+  const [payFecha, setPayFecha] = useState<string>("");
+  const [usarPrecioActual, setUsarPrecioActual] = useState(false);
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
@@ -382,6 +386,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setChangeFechaInicio(todayStr);
     setChangeNote("");
     setApplySecondActivityDiscount(false);
+    setPayMetodo("efectivo");
+    setPayFecha(todayStr);
+    setUsarPrecioActual(true);
     setShowPlanDialog(true);
   };
 
@@ -393,6 +400,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setNewPlanId(sub?.plan_id || "");
     setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
     setChangeNote("");
+    setPayMetodo(sub?.metodo_pago || "efectivo");
+    setPayFecha(todayStr);
+    setUsarPrecioActual(false);
     setShowPlanDialog(true);
   };
 
@@ -401,6 +411,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setSaving(true);
     try {
       const selectedPlan = planes.find(p => p.id === newPlanId);
+
+      // Compose internal note with payment data
+      const fechaPagoLabel = payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
+      const metodoLabel = PAYMENT_METHODS.find(m => m.key === payMetodo)?.label || payMetodo;
+      const payTagParts: string[] = [];
+      if (fechaPagoLabel) payTagParts.push(`Pagado el ${fechaPagoLabel}`);
+      payTagParts.push(`vía ${metodoLabel}`);
+      const payTag = `[${payTagParts.join(" ")}]`;
+      const composedNote = [changeNote?.trim() || null, payTag].filter(Boolean).join(" ");
 
       if (dialogMode === "add") {
         const endStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
@@ -419,12 +438,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           estado: "activa",
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
-          mp_status: "manual",
-          metodo_pago: "efectivo",
+          mp_status: payMetodo,
+          metodo_pago: payMetodo,
           origen_registro: "cargado_admin",
           descuento_id: discount?.id || null,
           precio_base: precioBase,
           precio_final: precioFinal,
+          notas: composedNote || null,
           ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
         } as any).select("id").single();
 
@@ -446,22 +466,32 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
         const cEndStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
-        const { error } = await supabase.from("suscripciones").update({
+        const updatePayload: any = {
           plan_id: newPlanId,
           fecha_inicio: changeFechaInicio,
           fecha_fin: cEndStr,
           estado: "activa",
           cancelada_at: null,
           cancelada_motivo: null,
+          mp_status: payMetodo,
+          metodo_pago: payMetodo,
+          notas: composedNote || null,
           ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
-        } as any).eq("id", dialogSubId!);
+        };
+        if (usarPrecioActual) {
+          const newBase = selectedPlan?.precio || 0;
+          updatePayload.precio_base = newBase;
+          updatePayload.precio_final = newBase;
+          updatePayload.descuento_id = null;
+        }
+        const { error } = await supabase.from("suscripciones").update(updatePayload).eq("id", dialogSubId!);
 
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
@@ -470,7 +500,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         toast.success(`Plan actualizado`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Cambio de plan",
-          description: `Cambió de "${oldPlanName}" a "${selectedPlan?.nombre || "—"}"${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Cambió de "${oldPlanName}" a "${selectedPlan?.nombre || "—"}"${usarPrecioActual ? ` · Precio actualizado a ${selectedPlan?.moneda} ${(selectedPlan?.precio || 0).toLocaleString()}` : ""}${fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       }
@@ -843,10 +873,58 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs">Fecha de inicio</Label>
-              <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Fecha de inicio</Label>
+                <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Fecha de pago</Label>
+                <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Método de pago</Label>
+              <Select value={payMetodo} onValueChange={setPayMetodo}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Seleccionar método" />
+                </SelectTrigger>
+                <SelectContent className="z-[200]">
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Use current (updated) price toggle — only when changing an existing plan */}
+            {dialogMode === "change" && newPlanId && (() => {
+              const sub = subs.find(s => s.id === dialogSubId);
+              const selectedPlan = planes.find(p => p.id === newPlanId);
+              if (!sub || !selectedPlan) return null;
+              const oldPrice = sub.precio_final ?? sub.precio_base ?? 0;
+              const newPrice = selectedPlan.precio || 0;
+              if (Number(oldPrice) === Number(newPrice)) return null;
+              return (
+                <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-medium text-amber-300">Usar precio actualizado</span>
+                    </div>
+                    <Switch checked={usarPrecioActual} onCheckedChange={setUsarPrecioActual} />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Precio guardado: <span className="line-through">{selectedPlan.moneda} {Number(oldPrice).toLocaleString()}</span>
+                    {" · "}Precio actual: <span className="text-amber-300 font-semibold">{selectedPlan.moneda} {newPrice.toLocaleString()}</span>
+                  </div>
+                  {usarPrecioActual && (
+                    <p className="text-[10px] text-amber-400/80">Se reemplazará el precio guardado y se quitará cualquier descuento previo.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-2">
               <Label className="text-xs">Nota interna (opcional)</Label>
