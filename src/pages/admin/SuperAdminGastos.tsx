@@ -162,6 +162,7 @@ const SuperAdminGastos = () => {
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
   const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
   const [pagos, setPagos] = useState<Array<{ id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }>>([]);
+  const [prevPeriodInfo, setPrevPeriodInfo] = useState<{ mes: string; total: number } | null>(null);
   const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
   const [pagoForm, setPagoForm] = useState({
     monto: "", fecha: new Date().toISOString().split("T")[0],
@@ -275,9 +276,35 @@ const SuperAdminGastos = () => {
     const totalPagado = (await supabase
       .from("gastos_ejecucion_pagos" as any)
       .select("monto").eq("ejecucion_id", e.id)).data?.reduce((s: number, p: any) => s + Number(p.monto || 0), 0) || 0;
-    const restante = Math.max((e.monto_previsto || rec.monto_estimado) - totalPagado, 0);
+
+    // "Previsto" dinámico = sumatoria de pagos de la última ejecución anterior pagada/parcial
+    let previstoBase = e.monto_previsto || rec.monto_estimado || 0;
+    let prevInfo: { mes: string; total: number } | null = null;
+    const { data: prevEjecs } = await supabase
+      .from("gastos_ejecuciones")
+      .select("id, mes, estado")
+      .eq("recurrente_id", rec.id)
+      .lt("mes", e.mes)
+      .in("estado", ["pagado", "parcial"])
+      .order("mes", { ascending: false })
+      .limit(1);
+    const prevEjec = prevEjecs?.[0];
+    if (prevEjec) {
+      const { data: prevPagos } = await supabase
+        .from("gastos_ejecucion_pagos" as any)
+        .select("monto")
+        .eq("ejecucion_id", prevEjec.id);
+      const sum = (prevPagos || []).reduce((s: number, p: any) => s + Number(p.monto || 0), 0);
+      if (sum > 0) {
+        previstoBase = sum;
+        prevInfo = { mes: prevEjec.mes, total: sum };
+      }
+    }
+    setPrevPeriodInfo(prevInfo);
+
+    const restante = Math.max(previstoBase - totalPagado, 0);
     setPagoForm({
-      monto: String(restante || e.monto_previsto || rec.monto_estimado),
+      monto: String(restante || previstoBase),
       fecha: new Date().toISOString().split("T")[0],
       forma_pago: rec.forma_pago_default || "transferencia",
       notas: "",
@@ -1266,7 +1293,8 @@ const SuperAdminGastos = () => {
           <DialogHeader><DialogTitle>{editingPagoId ? "Editar pago" : "Registrar pago"}</DialogTitle></DialogHeader>
           {payingEjec && (() => {
             const totalPagado = pagos.reduce((s, p) => s + Number(p.monto || 0), 0);
-            const previsto = payingEjec.ejec.monto_previsto || 0;
+            const previstoOriginal = payingEjec.ejec.monto_previsto || 0;
+            const previsto = prevPeriodInfo?.total ?? previstoOriginal;
             const restante = Math.max(previsto - totalPagado, 0);
             return (
               <div className="space-y-3">
@@ -1280,6 +1308,15 @@ const SuperAdminGastos = () => {
                     <span className="text-green-500">Pagado: <b>{fmt(totalPagado, payingEjec.ejec.moneda)}</b></span>
                     <span className={restante > 0 ? "text-orange-500" : "text-muted-foreground"}>Resta: <b>{fmt(restante, payingEjec.ejec.moneda)}</b></span>
                   </div>
+                  {prevPeriodInfo ? (
+                    <div className="text-[11px] text-muted-foreground italic pt-0.5">
+                      Basado en lo pagado en {monthLabel(prevPeriodInfo.mes)} ({fmt(prevPeriodInfo.total, payingEjec.ejec.moneda)}). Estimado original: {fmt(previstoOriginal, payingEjec.ejec.moneda)}.
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-muted-foreground italic pt-0.5">
+                      Sin pagos previos: se usa el monto estimado del concepto.
+                    </div>
+                  )}
                 </div>
 
                 {pagos.length > 0 && (
