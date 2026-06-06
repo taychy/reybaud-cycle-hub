@@ -3,11 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw } from "lucide-react";
+import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import MisPreventas from "@/components/store/MisPreventas";
 import MisCambios from "@/components/store/MisCambios";
 import RequestCambioDialog from "@/components/store/RequestCambioDialog";
+import OrderDetailDialog from "@/components/store/OrderDetailDialog";
 
 interface Props {
   alumnoId: string | null;
