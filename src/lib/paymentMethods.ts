@@ -3,6 +3,9 @@ export type PaymentMethodKey =
   | "transferencia"
   | "mercadopago"
   | "mp_externo"
+  | "mp_externo_josi"
+  | "mp_externo_scarlett"
+  | "mp_externo_claudio"
   | "tarjeta"
   | "plataforma_externa";
 
@@ -16,7 +19,9 @@ export const PAYMENT_METHODS: PaymentMethodDef[] = [
   { key: "efectivo", label: "Efectivo", shortLabel: "Efectivo" },
   { key: "transferencia", label: "Transferencia bancaria", shortLabel: "Transferencia" },
   { key: "mercadopago", label: "MercadoPago (automático)", shortLabel: "MP auto" },
-  { key: "mp_externo", label: "MercadoPago (externo)", shortLabel: "MP externo" },
+  { key: "mp_externo_josi", label: "MP externo Josi", shortLabel: "MP Josi" },
+  { key: "mp_externo_scarlett", label: "MP externo Scarlett", shortLabel: "MP Scarlett" },
+  { key: "mp_externo_claudio", label: "MP externo Claudio", shortLabel: "MP Claudio" },
   { key: "tarjeta", label: "Tarjeta de crédito/débito", shortLabel: "Tarjeta" },
   { key: "plataforma_externa", label: "Plataforma de pago externa", shortLabel: "Externo" },
 ];
