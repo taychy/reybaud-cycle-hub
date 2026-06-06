@@ -165,7 +165,7 @@ export function RegisterPaymentModal({
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       setFechaFin(lastDay.toISOString().split("T")[0]);
     }
-  }, [selectedSubId, pendingSubs, subscriptionCount]);
+  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
