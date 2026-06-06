@@ -388,7 +388,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setDialogMode("change");
     setDialogSubId(subId);
     setNewPlanId(sub?.plan_id || "");
-    setChangeFechaInicio(todayStr);
+    setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
     setChangeNote("");
     setShowPlanDialog(true);
   };
