@@ -238,7 +238,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setRemovingSub(true);
     try {
       const sub = subs.find(s => s.id === removeSubId);
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const removalEndDate = toLocalISODate(yesterday);
       const { error, count } = await supabase
         .from("suscripciones")
         .update({
@@ -246,9 +248,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           cancelada_motivo: "Plan removido por admin",
           cancelada_at: new Date().toISOString(),
           auto_renovacion: false,
+          auto_cobro_activo: false,
           // Admin "Quitar" = baja inmediata: cerramos fecha_fin a hoy para que
           // no siga contando como vigente por la política de cortesía.
-          fecha_fin: todayStr,
+          fecha_fin: removalEndDate,
         } as any)
         .eq("id", removeSubId)
         .select("id");
