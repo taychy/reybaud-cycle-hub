@@ -174,20 +174,32 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                     const Icon = meta.icon;
                     const items = orderItems[o.id] || [];
                     const eligible = o.status === "entregado" && daysSince(o.created_at) <= 30;
+                    const editable = isWithinEditWindow(o.created_at, o.status);
                     return (
-                      <div key={o.id} className="rounded-xl border border-border bg-card p-3 space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-heading font-bold text-sm">Pedido #{o.order_number}</p>
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-heading font-bold uppercase ${meta.color}`}>
-                            <Icon className="w-3 h-3" /> {meta.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{new Date(o.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
-                          <b className="text-foreground">{formatPrice(Number(o.total), o.currency || "ARS")}</b>
-                        </div>
+                      <div key={o.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full text-left p-3 space-y-1 hover:bg-card/70 transition-colors"
+                          onClick={() => setDetailOrder(o)}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-heading font-bold text-sm">Pedido #{o.order_number}</p>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-heading font-bold uppercase ${meta.color}`}>
+                              <Icon className="w-3 h-3" /> {meta.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>{new Date(o.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            <b className="text-foreground">{formatPrice(Number(o.total), o.currency || "ARS")}</b>
+                          </div>
+                          {editable && (
+                            <p className="text-[10px] text-primary font-medium pt-1">
+                              Editable · podés cancelar o agregar productos (12 hs)
+                            </p>
+                          )}
+                        </button>
                         {eligible && items.length > 0 && (
-                          <div className="pt-2 border-t border-border/50 space-y-1">
+                          <div className="px-3 pb-3 pt-2 border-t border-border/50 space-y-1">
                             {items.filter((it) => it.product_id).map((it) => (
                               <button
                                 key={it.product_id + JSON.stringify(it.variant_selection)}
