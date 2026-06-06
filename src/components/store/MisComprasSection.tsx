@@ -21,10 +21,14 @@ const orderStatusMeta = (s: string) => ({
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
-  cancelado: { label: "Cancelado", color: "text-destructive", icon: Clock },
+  cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
 
 const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+const WINDOW_MS = 12 * 60 * 60 * 1000;
+const isWithinEditWindow = (createdAt: string, status: string) =>
+  ["pendiente", "pendiente_pago"].includes(status) &&
+  Date.now() - new Date(createdAt).getTime() < WINDOW_MS;
 
 const MisComprasSection = ({ alumnoId }: Props) => {
   const [open, setOpen] = useState(false);
