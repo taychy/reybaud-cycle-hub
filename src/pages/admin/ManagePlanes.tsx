@@ -554,15 +554,24 @@ const ManagePlanes = () => {
                     {alumnoCount[plan.id] || 0}{tipo === "programa" && plan.max_inscripciones ? `/${plan.max_inscripciones}` : ""} {tipo === "programa" ? "inscriptos" : "alumnos"}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(plan)}>
                     <Pencil className="w-3 h-3" /> Editar
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => duplicatePlan(plan)}>
                     <Copy className="w-3 h-3" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => archivePlan(plan)}>
-                    <Archive className="w-3 h-3" />
+                  {isArchived(plan) ? (
+                    <Button variant="outline" size="sm" onClick={() => restorePlan(plan)}>
+                      <ArchiveRestore className="w-3 h-3" />
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => archivePlan(plan)}>
+                      <Archive className="w-3 h-3" />
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setPlanToDelete(plan)} className="text-destructive">
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
               </CardContent>
