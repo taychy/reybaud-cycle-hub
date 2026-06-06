@@ -108,7 +108,7 @@ const inPeriod = (op: UnifiedOp, periodo: string) => {
 async function loadSuscripciones(): Promise<UnifiedOp[]> {
   const { data } = await supabase
     .from("suscripciones")
-    .select("id, alumno_id, estado, fecha_inicio, fecha_fin, mp_payment_id, metodo_pago, origen_registro, created_at, updated_at, cancelada_at, alumnos(nombre, apellido, email), planes(nombre, precio, moneda)")
+    .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_payment_id, metodo_pago, origen_registro, created_at, updated_at, cancelada_at, chequeado_admin, alumnos(nombre, apellido, email), planes(id, nombre, precio, moneda)")
     .order("created_at", { ascending: false })
     .limit(2000);
 
@@ -140,6 +140,7 @@ async function loadSuscripciones(): Promise<UnifiedOp[]> {
       ref: s.mp_payment_id,
       rawStatus: s.estado,
       link: `/admin/pagos?suscripcion=${s.id}`,
+      raw: s,
     };
   });
 }
