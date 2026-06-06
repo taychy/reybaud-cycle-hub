@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Copy, Archive, Package, GraduationCap, Filter, Check, X, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Copy, Archive, ArchiveRestore, Package, GraduationCap, Filter, Check, X, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Plan {
   id: string;
@@ -105,7 +106,7 @@ const emptyForm = {
   vigencia_dias: "",
 };
 
-type FilterType = "todos" | "suscripcion" | "programa";
+type FilterType = "todos" | "suscripcion" | "programa" | "archivo";
 
 const ManagePlanes = () => {
   const [planes, setPlanes] = useState<Plan[]>([]);
@@ -117,6 +118,7 @@ const ManagePlanes = () => {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [filterType, setFilterType] = useState<FilterType>("todos");
+  const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
 
   const fetchAll = async () => {
     const [planesRes, sedesRes, psRes, subsRes] = await Promise.all([
@@ -147,9 +149,12 @@ const ManagePlanes = () => {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const filteredPlanes = filterType === "todos" 
-    ? planes 
-    : planes.filter(p => (p.tipo || "suscripcion") === filterType);
+  const isArchived = (p: Plan) => (p.visibilidad === "archivado");
+  const filteredPlanes = filterType === "archivo"
+    ? planes.filter(isArchived)
+    : filterType === "todos"
+      ? planes.filter(p => !isArchived(p))
+      : planes.filter(p => !isArchived(p) && (p.tipo || "suscripcion") === filterType);
 
   const openCreate = (tipo: string = "suscripcion") => {
     setEditingPlan(null);
@@ -308,6 +313,30 @@ const ManagePlanes = () => {
     fetchAll();
   };
 
+  const restorePlan = async (plan: Plan) => {
+    await supabase.from("planes").update({ visibilidad: "oculto" } as any).eq("id", plan.id);
+    toast({ title: "Plan restaurado", description: "Quedó como Oculto. Cambialo a Visible cuando quieras publicarlo." });
+    fetchAll();
+  };
+
+  const deletePlan = async (plan: Plan) => {
+    const inscriptos = alumnoCount[plan.id] || 0;
+    if (inscriptos > 0) {
+      toast({ title: "No se puede eliminar", description: `Tiene ${inscriptos} suscripciones activas. Archivalo en su lugar.`, variant: "destructive" });
+      setPlanToDelete(null);
+      return;
+    }
+    await supabase.from("planes_sedes").delete().eq("plan_id", plan.id);
+    const { error } = await supabase.from("planes").delete().eq("id", plan.id);
+    if (error) {
+      toast({ title: "No se pudo eliminar", description: error.message + ". Probá archivarlo.", variant: "destructive" });
+    } else {
+      toast({ title: "Plan eliminado" });
+    }
+    setPlanToDelete(null);
+    fetchAll();
+  };
+
   const toggleActive = async (plan: Plan) => {
     await supabase.from("planes").update({ activo: !plan.activo } as any).eq("id", plan.id);
     fetchAll();
@@ -383,17 +412,23 @@ const ManagePlanes = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2">
-        {(["todos", "suscripcion", "programa"] as FilterType[]).map((f) => (
-          <Button
-            key={f}
-            variant={filterType === f ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterType(f)}
-          >
-            {f === "todos" ? <><Filter className="w-3 h-3" /> Todos</> : f === "suscripcion" ? <><Package className="w-3 h-3" /> Suscripciones</> : <><GraduationCap className="w-3 h-3" /> Programas</>}
-          </Button>
-        ))}
+      <div className="flex gap-2 flex-wrap">
+        {(["todos", "suscripcion", "programa", "archivo"] as FilterType[]).map((f) => {
+          const count = f === "archivo" ? planes.filter(isArchived).length : undefined;
+          return (
+            <Button
+              key={f}
+              variant={filterType === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterType(f)}
+            >
+              {f === "todos" ? <><Filter className="w-3 h-3" /> Todos</>
+                : f === "suscripcion" ? <><Package className="w-3 h-3" /> Suscripciones</>
+                : f === "programa" ? <><GraduationCap className="w-3 h-3" /> Programas</>
+                : <><Archive className="w-3 h-3" /> Archivo{count ? ` (${count})` : ""}</>}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Desktop table */}
@@ -454,10 +489,21 @@ const ManagePlanes = () => {
                         <Button variant="ghost" size="icon" onClick={() => duplicatePlan(plan)} title="Duplicar">
                           <Copy className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => archivePlan(plan)} title="Archivar">
-                          <Archive className="w-4 h-4" />
+                        {isArchived(plan) ? (
+                          <Button variant="ghost" size="icon" onClick={() => restorePlan(plan)} title="Restaurar">
+                            <ArchiveRestore className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => archivePlan(plan)} title="Archivar">
+                            <Archive className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => setPlanToDelete(plan)} title="Eliminar" className="text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
                         </Button>
-                        <Switch checked={plan.activo} onCheckedChange={() => toggleActive(plan)} />
+                        {!isArchived(plan) && (
+                          <Switch checked={plan.activo} onCheckedChange={() => toggleActive(plan)} />
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -508,15 +554,24 @@ const ManagePlanes = () => {
                     {alumnoCount[plan.id] || 0}{tipo === "programa" && plan.max_inscripciones ? `/${plan.max_inscripciones}` : ""} {tipo === "programa" ? "inscriptos" : "alumnos"}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(plan)}>
                     <Pencil className="w-3 h-3" /> Editar
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => duplicatePlan(plan)}>
                     <Copy className="w-3 h-3" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => archivePlan(plan)}>
-                    <Archive className="w-3 h-3" />
+                  {isArchived(plan) ? (
+                    <Button variant="outline" size="sm" onClick={() => restorePlan(plan)}>
+                      <ArchiveRestore className="w-3 h-3" />
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => archivePlan(plan)}>
+                      <Archive className="w-3 h-3" />
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setPlanToDelete(plan)} className="text-destructive">
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
               </CardContent>
@@ -836,6 +891,28 @@ const ManagePlanes = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!planToDelete} onOpenChange={(o) => !o && setPlanToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar plan</AlertDialogTitle>
+            <AlertDialogDescription>
+              {planToDelete && (alumnoCount[planToDelete.id] || 0) > 0
+                ? `Este plan tiene ${alumnoCount[planToDelete!.id]} suscripciones activas. No se puede eliminar; te recomendamos archivarlo.`
+                : `Vas a eliminar "${planToDelete?.nombre}" de forma permanente. Esta acción no se puede deshacer. Si tiene historial de pagos, mejor archivalo.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => planToDelete && deletePlan(planToDelete)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
