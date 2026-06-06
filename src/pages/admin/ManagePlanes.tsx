@@ -891,6 +891,28 @@ const ManagePlanes = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!planToDelete} onOpenChange={(o) => !o && setPlanToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar plan</AlertDialogTitle>
+            <AlertDialogDescription>
+              {planToDelete && (alumnoCount[planToDelete.id] || 0) > 0
+                ? `Este plan tiene ${alumnoCount[planToDelete!.id]} suscripciones activas. No se puede eliminar; te recomendamos archivarlo.`
+                : `Vas a eliminar "${planToDelete?.nombre}" de forma permanente. Esta acción no se puede deshacer. Si tiene historial de pagos, mejor archivalo.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => planToDelete && deletePlan(planToDelete)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
