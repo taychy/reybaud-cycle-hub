@@ -321,8 +321,7 @@ const AdminPayments = () => {
       if (av > bv) return 1 * dir;
       return 0;
     };
-    const getOperacion = (s: Suscripcion) =>
-      (PAID_ORIGEN.includes(s.origen_registro) ? (s.fecha_inicio || s.updated_at) : s.updated_at) || s.created_at;
+    const getOperacion = (s: Suscripcion) => s.updated_at || s.created_at;
 
     list.sort((a, b) => {
       switch (sortKey) {
