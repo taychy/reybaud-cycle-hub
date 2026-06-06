@@ -106,7 +106,7 @@ const emptyForm = {
   vigencia_dias: "",
 };
 
-type FilterType = "todos" | "suscripcion" | "programa";
+type FilterType = "todos" | "suscripcion" | "programa" | "archivo";
 
 const ManagePlanes = () => {
   const [planes, setPlanes] = useState<Plan[]>([]);
