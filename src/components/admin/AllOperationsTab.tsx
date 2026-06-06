@@ -42,6 +42,7 @@ type UnifiedOp = {
   ref?: string | null;
   rawStatus?: string | null;
   link?: string | null;
+  raw?: any;
 };
 
 const TIPO_LABEL: Record<OpTipo, string> = {
