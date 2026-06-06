@@ -527,7 +527,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
     // Etiqueta de período (sólo para activas)
     const fiISO = (sub.fecha_inicio || "").slice(0, 10);
-    const ffISO = (sub.fecha_fin || "").slice(0, 10);
+    const displayEndDate = getSubStatusEndDate(sub);
+    const ffISO = (displayEndDate || "").slice(0, 10);
     let periodTag: { label: string; className: string } | null = null;
     if (!isHistoric && fiISO && ffISO) {
       if (fiISO <= todayISO && ffISO >= todayISO) {
@@ -580,7 +581,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <span className="text-muted-foreground">Período</span>
               <span className={isSuspiciousPeriod ? "text-amber-400 font-medium flex items-center gap-1" : "text-foreground"}>
                 {isSuspiciousPeriod && <AlertTriangle className="w-3 h-3" />}
-                {formatDate(sub.fecha_inicio)} → <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : ""}>{formatDate(sub.fecha_fin)}</span>
+                {formatDate(sub.fecha_inicio)} → <span className={isOverdueStatus(effectiveEstado) ? "text-destructive font-medium" : ""}>{formatDate(displayEndDate)}</span>
                 {periodDays !== null && (
                   <span className="text-muted-foreground ml-1">({periodDays}d)</span>
                 )}
