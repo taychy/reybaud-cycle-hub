@@ -12,7 +12,8 @@ import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { toast } from "sonner";
-import { DollarSign } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { DollarSign, RefreshCw } from "lucide-react";
 
 interface RegisterPaymentModalProps {
   open: boolean;
@@ -65,6 +66,7 @@ export function RegisterPaymentModal({
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [fechaFin, setFechaFin] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  const [usarPrecioActual, setUsarPrecioActual] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Reset state when modal opens/closes or alumnoId changes
@@ -78,6 +80,7 @@ export function RegisterPaymentModal({
       setFechaPago(new Date().toISOString().split("T")[0]);
       setFechaFin("");
       setObservaciones("");
+      setUsarPrecioActual(false);
       setSearchQuery("");
       setSearchResults([]);
     }
@@ -132,15 +135,22 @@ export function RegisterPaymentModal({
   // Compute effective price for a sub: respect saved discount, else apply live student discount
   const getEffectivePrice = (sub: PendingSub | undefined): { price: number; discountId: string | null; baseUsed: number } => {
     if (!sub) return { price: 0, discountId: null, baseUsed: 0 };
-    const base = sub.precio_base ?? sub.planes?.precio ?? 0;
+    const storedBase = sub.precio_base ?? sub.planes?.precio ?? 0;
+    const currentBase = sub.planes?.precio ?? storedBase;
+    // If toggle on → use current plan price, ignore stored discount
+    if (usarPrecioActual) {
+      const isSecondary = subscriptionCount > 1;
+      const result = applyDiscount(currentBase, "planes", isSecondary);
+      return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: currentBase };
+    }
     // If sub already has saved discount → respect precio_final
     if (sub.descuento_id) {
-      return { price: sub.precio_final ?? base, discountId: sub.descuento_id, baseUsed: base };
+      return { price: sub.precio_final ?? storedBase, discountId: sub.descuento_id, baseUsed: storedBase };
     }
     // No saved discount → try to apply live student discount
     const isSecondary = subscriptionCount > 1;
-    const result = applyDiscount(base, "planes", isSecondary);
-    return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: base };
+    const result = applyDiscount(storedBase, "planes", isSecondary);
+    return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: storedBase };
   };
 
   // When sub is selected, pre-fill amount and fecha_fin
@@ -155,7 +165,7 @@ export function RegisterPaymentModal({
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       setFechaFin(lastDay.toISOString().split("T")[0]);
     }
-  }, [selectedSubId, pendingSubs, subscriptionCount]);
+  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
@@ -392,6 +402,25 @@ export function RegisterPaymentModal({
                         <span className="text-destructive font-medium">{selectedSub.fecha_fin}</span>
                       </div>
                     )}
+                    {(() => {
+                      const storedBase = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
+                      const currentBase = selectedSub.planes?.precio ?? storedBase;
+                      if (currentBase === storedBase) return null;
+                      return (
+                        <div className="mt-2 pt-2 border-t border-border/50 flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 text-xs font-medium">
+                              <RefreshCw className="w-3 h-3 text-primary" />
+                              Usar precio actualizado
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {moneda} {storedBase} → <span className="text-primary font-medium">{moneda} {currentBase}</span>
+                            </p>
+                          </div>
+                          <Switch checked={usarPrecioActual} onCheckedChange={setUsarPrecioActual} />
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
