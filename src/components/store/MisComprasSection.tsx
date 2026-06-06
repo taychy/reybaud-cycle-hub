@@ -248,6 +248,13 @@ const MisComprasSection = ({ alumnoId }: Props) => {
           onSubmitted={() => setCambioVersion((v) => v + 1)}
         />
       )}
+
+      <OrderDetailDialog
+        open={!!detailOrder}
+        onOpenChange={(v) => !v && setDetailOrder(null)}
+        order={detailOrder}
+        onChanged={() => setCambioVersion((v) => v + 1)}
+      />
     </section>
   );
 };
