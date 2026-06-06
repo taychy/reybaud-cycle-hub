@@ -434,6 +434,55 @@ export default function AllOperationsTab() {
     }
   };
 
+  const handleToggleChequeado = async (op: UnifiedOp) => {
+    if (op.tipo !== "suscripcion") return;
+    const current = !!op.raw?.chequeado_admin;
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({ chequeado_admin: !current, chequeado_admin_at: !current ? new Date().toISOString() : null })
+      .eq("id", op.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: !current ? "Marcado como chequeado" : "Marca de chequeado quitada" });
+      fetchAll();
+    }
+  };
+
+  const handleSaveFecha = async () => {
+    if (!editFechaDialog) return;
+    setSavingFecha(true);
+    const { error } = await supabase.from("suscripciones").update({ fecha_fin: editFechaValue }).eq("id", editFechaDialog.id);
+    setSavingFecha(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Vencimiento actualizado" });
+      setEditFechaDialog(null);
+      fetchAll();
+    }
+  };
+
+  const handleMarkPagado = async () => {
+    if (!markPaidOp) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({
+        estado: "activa",
+        origen_registro: "cargado_admin",
+        fecha_inicio: today,
+      })
+      .eq("id", markPaidOp.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Pago registrado" });
+      setMarkPaidOp(null);
+      fetchAll();
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground">Cargando operaciones…</div>;
   }
