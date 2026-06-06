@@ -80,6 +80,7 @@ export function RegisterPaymentModal({
       setFechaPago(new Date().toISOString().split("T")[0]);
       setFechaFin("");
       setObservaciones("");
+      setUsarPrecioActual(false);
       setSearchQuery("");
       setSearchResults([]);
     }
