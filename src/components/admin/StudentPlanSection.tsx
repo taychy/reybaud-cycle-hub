@@ -140,6 +140,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [lastHandledOverduePreviewToken, setLastHandledOverduePreviewToken] = useState<number | null>(null);
 
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
+  const getSubStatusEndDate = (s: SuscripcionData) =>
+    s.planes?.tipo_consumo === "bono" && s.clases_vencimiento ? s.clases_vencimiento : s.fecha_fin;
 
   const fetchData = async () => {
     setLoading(true);
@@ -159,8 +161,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const operationalOnly = allSubs.filter((s: SuscripcionData) => ACTIVE_STATES.has(getEffStatus(s)) && !s.cancelada_at);
     const dupeGroups: Record<string, { plan_nombre: string; fecha_fin: string; count: number }> = {};
     for (const s of operationalOnly) {
-      const key = `${s.plan_id}|${s.fecha_fin}`;
-      if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: s.fecha_fin || "—", count: 0 };
+      const statusEndDate = getSubStatusEndDate(s);
+      const key = `${s.plan_id}|${statusEndDate}`;
+      if (!dupeGroups[key]) dupeGroups[key] = { plan_nombre: s.planes?.nombre || "—", fecha_fin: statusEndDate || "—", count: 0 };
       dupeGroups[key].count++;
     }
     setDuplicateAlert(Object.values(dupeGroups).filter(g => g.count > 1));
@@ -180,7 +183,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setLastHandledOverduePreviewToken(openOverduePreviewToken);
   }, [openOverduePreviewToken, lastHandledOverduePreviewToken, subs]);
 
-  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: getSubStatusEndDate(s), cancelada_at: s.cancelada_at });
 
   // Categorize subscriptions: active operational vs history
   // Orden: la suscripción del período actual (vigente hoy) primero,
@@ -191,8 +194,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     .sort((a, b) => {
       const ai = (a.fecha_inicio || "").slice(0, 10);
       const bi = (b.fecha_inicio || "").slice(0, 10);
-      const af = (a.fecha_fin || "").slice(0, 10);
-      const bf = (b.fecha_fin || "").slice(0, 10);
+      const af = (getSubStatusEndDate(a) || "").slice(0, 10);
+      const bf = (getSubStatusEndDate(b) || "").slice(0, 10);
       const aCurrent = ai <= todayISO && af >= todayISO;
       const bCurrent = bi <= todayISO && bf >= todayISO;
       if (aCurrent && !bCurrent) return -1;
