@@ -3,11 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw } from "lucide-react";
+import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import MisPreventas from "@/components/store/MisPreventas";
 import MisCambios from "@/components/store/MisCambios";
 import RequestCambioDialog from "@/components/store/RequestCambioDialog";
+import OrderDetailDialog from "@/components/store/OrderDetailDialog";
 
 interface Props {
   alumnoId: string | null;
@@ -20,10 +21,14 @@ const orderStatusMeta = (s: string) => ({
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
-  cancelado: { label: "Cancelado", color: "text-destructive", icon: Clock },
+  cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
 
 const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+const WINDOW_MS = 12 * 60 * 60 * 1000;
+const isWithinEditWindow = (createdAt: string, status: string) =>
+  ["pendiente", "pendiente_pago"].includes(status) &&
+  Date.now() - new Date(createdAt).getTime() < WINDOW_MS;
 
 const MisComprasSection = ({ alumnoId }: Props) => {
   const [open, setOpen] = useState(false);
@@ -36,6 +41,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     compraId?: string | null; preorderId?: string | null; varianteOrigen: Record<string, any>;
   } | null>(null);
   const [cambioVersion, setCambioVersion] = useState(0);
+  const [detailOrder, setDetailOrder] = useState<any | null>(null);
 
   useEffect(() => {
     if (!alumnoId) { setLoading(false); return; }
@@ -168,20 +174,32 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                     const Icon = meta.icon;
                     const items = orderItems[o.id] || [];
                     const eligible = o.status === "entregado" && daysSince(o.created_at) <= 30;
+                    const editable = isWithinEditWindow(o.created_at, o.status);
                     return (
-                      <div key={o.id} className="rounded-xl border border-border bg-card p-3 space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-heading font-bold text-sm">Pedido #{o.order_number}</p>
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-heading font-bold uppercase ${meta.color}`}>
-                            <Icon className="w-3 h-3" /> {meta.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{new Date(o.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
-                          <b className="text-foreground">{formatPrice(Number(o.total), o.currency || "ARS")}</b>
-                        </div>
+                      <div key={o.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full text-left p-3 space-y-1 hover:bg-card/70 transition-colors"
+                          onClick={() => setDetailOrder(o)}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-heading font-bold text-sm">Pedido #{o.order_number}</p>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-heading font-bold uppercase ${meta.color}`}>
+                              <Icon className="w-3 h-3" /> {meta.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>{new Date(o.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            <b className="text-foreground">{formatPrice(Number(o.total), o.currency || "ARS")}</b>
+                          </div>
+                          {editable && (
+                            <p className="text-[10px] text-primary font-medium pt-1">
+                              Editable · podés cancelar o agregar productos (12 hs)
+                            </p>
+                          )}
+                        </button>
                         {eligible && items.length > 0 && (
-                          <div className="pt-2 border-t border-border/50 space-y-1">
+                          <div className="px-3 pb-3 pt-2 border-t border-border/50 space-y-1">
                             {items.filter((it) => it.product_id).map((it) => (
                               <button
                                 key={it.product_id + JSON.stringify(it.variant_selection)}
@@ -230,6 +248,13 @@ const MisComprasSection = ({ alumnoId }: Props) => {
           onSubmitted={() => setCambioVersion((v) => v + 1)}
         />
       )}
+
+      <OrderDetailDialog
+        open={!!detailOrder}
+        onOpenChange={(v) => !v && setDetailOrder(null)}
+        order={detailOrder}
+        onChanged={() => setCambioVersion((v) => v + 1)}
+      />
     </section>
   );
 };
