@@ -67,6 +67,37 @@ const formatDate = (d: string | null) => {
   return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const toLocalISODate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const calculateSubscriptionEndDate = (plan: Plan | undefined, fechaInicio: string) => {
+  const [startY, startM, startD] = fechaInicio.split("-").map(Number);
+  const start = new Date(startY, startM - 1, startD);
+
+  if ((plan as any)?.tipo_consumo === "bono" && (plan as any)?.vigencia_dias) {
+    const bonoEnd = new Date(start);
+    bonoEnd.setDate(bonoEnd.getDate() + Number((plan as any).vigencia_dias));
+    return toLocalISODate(bonoEnd);
+  }
+
+  const freq = (plan as any)?.frecuencia || "mensual";
+  const monthsToAdd = freq === "trimestral" ? 3 : freq === "anual" ? 12 : 1;
+  const endDate = new Date(startY, startM - 1 + monthsToAdd, startD);
+  endDate.setDate(endDate.getDate() - 1);
+  return toLocalISODate(endDate);
+};
+
+const getBonoSnapshotFields = (plan: Plan | undefined, fechaInicio: string) => {
+  if ((plan as any)?.tipo_consumo !== "bono") {
+    return { clases_totales: null, clases_vencimiento: null, clases_consumidas: 0 };
+  }
+
+  return {
+    clases_totales: (plan as any)?.clases_incluidas ?? null,
+    clases_vencimiento: (plan as any)?.vigencia_dias ? calculateSubscriptionEndDate(plan, fechaInicio) : null,
+  };
+};
+
 const getPaymentMethodLabel = (method: string | null) => {
   if (!method) return "—";
   const map: Record<string, string> = { efectivo: "Efectivo", transferencia: "Transferencia", mercadopago: "Mercado Pago", tarjeta: "Tarjeta", plataforma_externa: "Otro" };
