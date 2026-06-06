@@ -158,6 +158,23 @@ export function BillingCuentasMP() {
       toast.error("Nombre, slug y nombre del secret del token son obligatorios");
       return;
     }
+    // Validar que los 3 campos tengan formato de NOMBRE de secret, no el valor real
+    const fields = [
+      { k: "Access Token", v: editingCuenta.secret_name_token },
+      { k: "Public Key", v: editingCuenta.secret_name_pubkey },
+      { k: "Webhook", v: editingCuenta.secret_name_webhook },
+    ];
+    for (const f of fields) {
+      if (!f.v) continue;
+      if (looksLikeRealValue(f.v)) {
+        toast.error(`El campo "${f.k}" parece ser el VALOR real (APP_USR-…). Acá va el NOMBRE del secret, ej: MP_ACCESS_TOKEN_JUAN`);
+        return;
+      }
+      if (!SECRET_NAME_REGEX.test(f.v)) {
+        toast.error(`"${f.k}" debe ser MAYÚSCULAS, números y guiones bajos (ej: MP_ACCESS_TOKEN_JUAN)`);
+        return;
+      }
+    }
     const payload: any = {
       nombre: editingCuenta.nombre,
       slug: editingCuenta.slug,
@@ -176,7 +193,7 @@ export function BillingCuentasMP() {
       : supabase.from("cuentas_mp" as any).insert(payload);
     const { error } = await q;
     if (error) { toast.error(error.message); return; }
-    toast.success("Cuenta guardada");
+    toast.success("Cuenta guardada. Ahora cargá los 3 secrets si todavía no lo hiciste.");
     setCuentaModalOpen(false);
     setEditingCuenta(null);
     load();
