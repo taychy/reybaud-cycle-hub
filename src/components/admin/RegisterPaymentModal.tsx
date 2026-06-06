@@ -194,11 +194,13 @@ export function RegisterPaymentModal({
       const sub = pendingSubs.find(s => s.id === selectedSubId);
       const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
       const isParcial = montoNum > 0 && montoNum < expectedAmount;
+      const excedente = montoNum > expectedAmount ? montoNum - expectedAmount : 0;
 
       const newEstado = isParcial ? "pendiente" : "activa";
       const notasParts: string[] = [];
       if (observaciones.trim()) notasParts.push(observaciones.trim());
       if (isParcial) notasParts.push(`Pago parcial: ${montoNum} de ${expectedAmount}`);
+      if (excedente > 0) notasParts.push(`Excedente acreditado a cuenta: ${excedente}`);
       notasParts.push(`Registrado por admin el ${fechaPago}`);
 
       const { error } = await supabase
