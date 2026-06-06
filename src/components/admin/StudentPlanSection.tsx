@@ -612,6 +612,20 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           )}
         </div>
 
+        {/* Bono de clases — Fase 1 */}
+        {sub.planes?.tipo_consumo === "bono" && sub.clases_totales != null && (
+          <BonoClasesCard
+            sub={{
+              id: sub.id,
+              clases_totales: sub.clases_totales,
+              clases_consumidas: sub.clases_consumidas ?? 0,
+              clases_vencimiento: sub.clases_vencimiento ?? null,
+            }}
+            planNombre={sub.planes?.nombre || "Plan"}
+            onChange={onRefresh}
+          />
+        )}
+
         {/* Actions for ACTIVE subs only */}
         {!isHistoric && isActive && (
           <div className="flex flex-wrap gap-1 pt-1">
