@@ -118,6 +118,7 @@ const ManagePlanes = () => {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [filterType, setFilterType] = useState<FilterType>("todos");
+  const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
 
   const fetchAll = async () => {
     const [planesRes, sedesRes, psRes, subsRes] = await Promise.all([
