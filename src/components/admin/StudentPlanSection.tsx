@@ -386,6 +386,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setChangeFechaInicio(todayStr);
     setChangeNote("");
     setApplySecondActivityDiscount(false);
+    setPayMetodo("efectivo");
+    setPayFecha(todayStr);
+    setUsarPrecioActual(true);
     setShowPlanDialog(true);
   };
 
@@ -397,6 +400,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setNewPlanId(sub?.plan_id || "");
     setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
     setChangeNote("");
+    setPayMetodo(sub?.metodo_pago || "efectivo");
+    setPayFecha(todayStr);
+    setUsarPrecioActual(false);
     setShowPlanDialog(true);
   };
 
