@@ -128,7 +128,7 @@ async function loadSuscripciones(): Promise<UnifiedOp[]> {
       concepto: s.planes?.nombre || "Suscripción",
       monto: Number(s.planes?.precio || 0),
       moneda: s.planes?.moneda || "ARS",
-      fecha: (paid ? s.fecha_inicio : null) || s.updated_at || s.created_at,
+      fecha: s.updated_at || s.created_at,
       fecha_vencimiento: s.fecha_fin,
       estado,
       metodo: getPaymentMethodLabel(s.metodo_pago),
