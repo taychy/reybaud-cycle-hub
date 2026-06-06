@@ -258,6 +258,11 @@ const ManagePlanes = () => {
       max_inscripciones: form.max_inscripciones ? Number(form.max_inscripciones) : null,
       imagen_url: form.imagen_url.trim() || null,
       features: (form.features || []).filter((f) => f.text.trim() !== ""),
+      tipo_consumo: isPrograma ? "mensual" : (form.tipo_consumo || "mensual"),
+      clases_incluidas: !isPrograma && form.tipo_consumo === "bono" && form.clases_incluidas
+        ? Number(form.clases_incluidas) : null,
+      vigencia_dias: !isPrograma && form.tipo_consumo === "bono" && form.vigencia_dias
+        ? Number(form.vigencia_dias) : null,
     };
 
     let planId: string;
