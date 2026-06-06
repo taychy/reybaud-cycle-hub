@@ -663,6 +663,25 @@ export default function AllOperationsTab() {
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <TooltipProvider delayDuration={200}>
                           <div className="flex items-center gap-1 flex-wrap">
+                            {/* Chequear — solo suscripcion */}
+                            {o.tipo === "suscripcion" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant={o.raw?.chequeado_admin ? "default" : "outline"}
+                                    size="sm"
+                                    className={`h-7 px-2 text-[11px] ${o.raw?.chequeado_admin ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : ""}`}
+                                    onClick={() => handleToggleChequeado(o)}
+                                  >
+                                    <CheckCheck className="w-3 h-3 mr-1" />
+                                    {o.raw?.chequeado_admin ? "Chequeado" : "Chequear"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{o.raw?.chequeado_admin ? "Quitar marca de chequeado" : "Marcar como chequeado"}</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Validar / Rechazar — para informado en todos los tipos cobrables */}
                             {o.estado === "informado" && o.tipo !== "turnera" && (
                               <>
                                 <Tooltip>
@@ -683,6 +702,63 @@ export default function AllOperationsTab() {
                                 </Tooltip>
                               </>
                             )}
+
+                            {/* Marcar pagado — pendiente/vencido en suscripciones */}
+                            {o.tipo === "suscripcion" && (o.estado === "pendiente" || o.estado === "vencido") && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMarkPaidOp(o)}>
+                                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Marcar como pagado</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Editar vencimiento — suscripcion */}
+                            {o.tipo === "suscripcion" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditFechaDialog(o); setEditFechaValue(o.fecha_vencimiento || ""); }}>
+                                    <Pencil className="w-3.5 h-3.5 text-foreground/70" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar vencimiento</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Registrar pago manual — suscripcion */}
+                            {o.tipo === "suscripcion" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRegisterPayOp(o)}>
+                                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Registrar pago manual</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Factura — suscripcion pagada */}
+                            {o.tipo === "suscripcion" && o.estado === "pagado" && o.raw?.planes && (
+                              <BillingInvoiceLauncher
+                                source={{
+                                  alumno_id: o.alumno_id || undefined,
+                                  cliente_nombre: o.alumno_nombre,
+                                  concepto: `Suscripción ${o.raw.planes.nombre}`,
+                                  monto: o.raw.planes.precio,
+                                  referencia_tipo: "suscripcion",
+                                  referencia_id: o.id,
+                                  segmento: "escuela",
+                                  metodo_pago: o.raw.metodo_pago,
+                                  origen_registro: o.raw.origen_registro,
+                                }}
+                                variant="icon"
+                                onEmitted={fetchAll}
+                              />
+                            )}
+
+                            {/* Ver detalle */}
                             {o.link && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -704,6 +780,53 @@ export default function AllOperationsTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog editar vencimiento */}
+      <Dialog open={!!editFechaDialog} onOpenChange={(o) => !o && setEditFechaDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar vencimiento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-sm">Nueva fecha de vencimiento</Label>
+            <Input type="date" value={editFechaValue} onChange={(e) => setEditFechaValue(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditFechaDialog(null)}>Cancelar</Button>
+            <Button onClick={handleSaveFecha} disabled={!editFechaValue || savingFecha}>
+              {savingFecha ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog marcar pagado */}
+      <Dialog open={!!markPaidOp} onOpenChange={(o) => !o && setMarkPaidOp(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Marcar suscripción como pagada</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se marcará como pagada la suscripción de <strong>{markPaidOp?.alumno_nombre}</strong> ({markPaidOp?.concepto}) con fecha de hoy.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setMarkPaidOp(null)}>Cancelar</Button>
+            <Button onClick={handleMarkPagado}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal registrar pago manual */}
+      {registerPayOp && (
+        <RegisterPaymentModal
+          open={!!registerPayOp}
+          onOpenChange={(o) => !o && setRegisterPayOp(null)}
+          alumnoId={registerPayOp.alumno_id || null}
+          alumnoNombre={registerPayOp.alumno_nombre}
+          subscripcionId={registerPayOp.id}
+          onSuccess={() => { setRegisterPayOp(null); fetchAll(); }}
+        />
+      )}
     </div>
   );
 }
