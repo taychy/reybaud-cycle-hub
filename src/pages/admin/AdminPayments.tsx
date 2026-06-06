@@ -321,8 +321,7 @@ const AdminPayments = () => {
       if (av > bv) return 1 * dir;
       return 0;
     };
-    const getOperacion = (s: Suscripcion) =>
-      (PAID_ORIGEN.includes(s.origen_registro) ? (s.fecha_inicio || s.updated_at) : s.updated_at) || s.created_at;
+    const getOperacion = (s: Suscripcion) => s.updated_at || s.created_at;
 
     list.sort((a, b) => {
       switch (sortKey) {
@@ -879,7 +878,7 @@ const AdminPayments = () => {
                             </span>
                           </TableCell>
                           <TableCell className="text-sm">{sub.planes?.nombre || "—"}</TableCell>
-                          <TableCell className="text-sm">{formatDate(PAID_ORIGEN.includes(sub.origen_registro) ? (sub.fecha_inicio || sub.updated_at) : sub.updated_at)}</TableCell>
+                          <TableCell className="text-sm">{formatDate(sub.updated_at || sub.created_at)}</TableCell>
                           <TableCell className="text-sm">{formatDate(sub.fecha_fin)}</TableCell>
                           <TableCell>{getStatusBadge(status)}</TableCell>
                           <TableCell>
