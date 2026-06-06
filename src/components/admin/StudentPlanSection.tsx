@@ -19,6 +19,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { BonoClasesCard } from "@/components/admin/BonoClasesCard";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
