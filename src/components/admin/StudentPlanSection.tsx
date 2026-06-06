@@ -124,6 +124,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [changeNote, setChangeNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [applySecondActivityDiscount, setApplySecondActivityDiscount] = useState(false);
+  const [payMetodo, setPayMetodo] = useState<string>("efectivo");
+  const [payFecha, setPayFecha] = useState<string>("");
+  const [usarPrecioActual, setUsarPrecioActual] = useState(false);
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
