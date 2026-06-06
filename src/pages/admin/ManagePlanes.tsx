@@ -149,9 +149,12 @@ const ManagePlanes = () => {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const filteredPlanes = filterType === "todos" 
-    ? planes 
-    : planes.filter(p => (p.tipo || "suscripcion") === filterType);
+  const isArchived = (p: Plan) => (p.visibilidad === "archivado");
+  const filteredPlanes = filterType === "archivo"
+    ? planes.filter(isArchived)
+    : filterType === "todos"
+      ? planes.filter(p => !isArchived(p))
+      : planes.filter(p => !isArchived(p) && (p.tipo || "suscripcion") === filterType);
 
   const openCreate = (tipo: string = "suscripcion") => {
     setEditingPlan(null);
