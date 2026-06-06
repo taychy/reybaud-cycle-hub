@@ -400,21 +400,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
       if (dialogMode === "add") {
-        const [startY, startM, startD] = changeFechaInicio.split("-").map(Number);
-        const freq = selectedPlan?.frecuencia || "mensual";
-        let monthsToAdd = 1;
-        if (freq === "trimestral") monthsToAdd = 3;
-        else if (freq === "anual") monthsToAdd = 12;
-        // Regla: fecha_fin = fecha_inicio + N meses − 1 día.
-        // Así un inicio el día 1 termina el último día del mes (1/06 → 30/06),
-        // y un inicio el día 31 termina el día anterior del mes equivalente
-        // (31/05 → 30/06), evitando que fecha_fin colapse con fecha_inicio.
-        const endDateRaw = new Date(startY, startM - 1 + monthsToAdd, startD);
-        endDateRaw.setDate(endDateRaw.getDate() - 1);
-        const endDate = endDateRaw;
-        const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
-
-
+        const endStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
         let precioFinal = precioBase;
@@ -436,6 +422,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           descuento_id: discount?.id || null,
           precio_base: precioBase,
           precio_final: precioFinal,
+          ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
         } as any).select("id").single();
 
         if (insertError) {
@@ -462,14 +449,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       } else {
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
-        // Recalcular fecha_fin coherente con la nueva fecha_inicio y la frecuencia del nuevo plan.
-        const [cy, cm, cd] = changeFechaInicio.split("-").map(Number);
-        const cFreq = selectedPlan?.frecuencia || "mensual";
-        const cMonths = cFreq === "trimestral" ? 3 : cFreq === "anual" ? 12 : 1;
-        const cEnd = new Date(cy, cm - 1 + cMonths, cd);
-        cEnd.setDate(cEnd.getDate() - 1);
-        const cEndStr = `${cEnd.getFullYear()}-${String(cEnd.getMonth() + 1).padStart(2, "0")}-${String(cEnd.getDate()).padStart(2, "0")}`;
-        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio, fecha_fin: cEndStr } as any).eq("id", dialogSubId!);
+        const cEndStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
+        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio, fecha_fin: cEndStr, estado: "activa", cancelada_at: null, cancelada_motivo: null, ...getBonoSnapshotFields(selectedPlan, changeFechaInicio) } as any).eq("id", dialogSubId!);
 
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
