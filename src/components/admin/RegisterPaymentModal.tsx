@@ -135,15 +135,22 @@ export function RegisterPaymentModal({
   // Compute effective price for a sub: respect saved discount, else apply live student discount
   const getEffectivePrice = (sub: PendingSub | undefined): { price: number; discountId: string | null; baseUsed: number } => {
     if (!sub) return { price: 0, discountId: null, baseUsed: 0 };
-    const base = sub.precio_base ?? sub.planes?.precio ?? 0;
+    const storedBase = sub.precio_base ?? sub.planes?.precio ?? 0;
+    const currentBase = sub.planes?.precio ?? storedBase;
+    // If toggle on → use current plan price, ignore stored discount
+    if (usarPrecioActual) {
+      const isSecondary = subscriptionCount > 1;
+      const result = applyDiscount(currentBase, "planes", isSecondary);
+      return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: currentBase };
+    }
     // If sub already has saved discount → respect precio_final
     if (sub.descuento_id) {
-      return { price: sub.precio_final ?? base, discountId: sub.descuento_id, baseUsed: base };
+      return { price: sub.precio_final ?? storedBase, discountId: sub.descuento_id, baseUsed: storedBase };
     }
     // No saved discount → try to apply live student discount
     const isSecondary = subscriptionCount > 1;
-    const result = applyDiscount(base, "planes", isSecondary);
-    return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: base };
+    const result = applyDiscount(storedBase, "planes", isSecondary);
+    return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: storedBase };
   };
 
   // When sub is selected, pre-fill amount and fecha_fin
