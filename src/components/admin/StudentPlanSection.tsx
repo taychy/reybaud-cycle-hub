@@ -141,7 +141,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
   const getSubStatusEndDate = (s: SuscripcionData) =>
-    s.planes?.tipo_consumo === "bono" && s.clases_vencimiento ? s.clases_vencimiento : s.fecha_fin;
+    s.cancelada_at ? s.fecha_fin : s.planes?.tipo_consumo === "bono" && s.clases_vencimiento ? s.clases_vencimiento : s.fecha_fin;
 
   const fetchData = async () => {
     setLoading(true);
