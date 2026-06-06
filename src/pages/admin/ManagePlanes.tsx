@@ -693,6 +693,64 @@ const ManagePlanes = () => {
               </div>
             )}
 
+            {/* Tipo de consumo (solo suscripciones) */}
+            {!isPrograma && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <label className="text-sm font-medium">🎯 Tipo de consumo</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, tipo_consumo: "mensual" })}
+                    className={`p-3 rounded-lg border text-sm text-left transition-all ${
+                      form.tipo_consumo === "mensual"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-muted-foreground text-muted-foreground"
+                    }`}
+                  >
+                    <div className="font-medium">Mensual / recurrente</div>
+                    <div className="text-[11px] opacity-80">Acceso ilimitado dentro del período del plan.</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, tipo_consumo: "bono" })}
+                    className={`p-3 rounded-lg border text-sm text-left transition-all ${
+                      form.tipo_consumo === "bono"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-muted-foreground text-muted-foreground"
+                    }`}
+                  >
+                    <div className="font-medium">Bono de clases</div>
+                    <div className="text-[11px] opacity-80">N clases personalizadas, se descuentan al tomarlas.</div>
+                  </button>
+                </div>
+
+                {form.tipo_consumo === "bono" && (
+                  <div className="grid grid-cols-2 gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Clases incluidas *</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={form.clases_incluidas}
+                        onChange={(e) => setForm({ ...form, clases_incluidas: e.target.value })}
+                        placeholder="Ej: 8"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Vigencia (días)</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={form.vigencia_dias}
+                        onChange={(e) => setForm({ ...form, vigencia_dias: e.target.value })}
+                        placeholder="Ej: 60 (vacío = sin vencimiento)"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Program-specific fields */}
             {isPrograma && (
               <div className="space-y-3 border-t border-border pt-4">
