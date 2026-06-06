@@ -100,6 +100,9 @@ const emptyForm = {
   max_inscripciones: "",
   imagen_url: "",
   features: [] as PlanFeature[],
+  tipo_consumo: "mensual",
+  clases_incluidas: "",
+  vigencia_dias: "",
 };
 
 type FilterType = "todos" | "suscripcion" | "programa";
