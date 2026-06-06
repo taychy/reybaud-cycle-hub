@@ -59,8 +59,11 @@ const PaymentResult = () => {
     }
 
     let cancelled = false;
-    const MAX_ATTEMPTS = 8; // ~24s total
-    const INTERVAL_MS = 3000;
+    // Polling más ágil: 1.2s entre intentos, hasta ~18s en total.
+    // El primer intento dispara inmediato (sin esperar) para aprovechar
+    // si el webhook ya llegó antes de que el usuario vuelva de MP.
+    const MAX_ATTEMPTS = 15;
+    const INTERVAL_MS = 1200;
 
     const checkStatus = async (attempt: number) => {
       try {
