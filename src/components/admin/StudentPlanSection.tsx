@@ -412,6 +412,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     try {
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
+      // Compose internal note with payment data
+      const fechaPagoLabel = payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
+      const metodoLabel = PAYMENT_METHODS.find(m => m.key === payMetodo)?.label || payMetodo;
+      const payTagParts: string[] = [];
+      if (fechaPagoLabel) payTagParts.push(`Pagado el ${fechaPagoLabel}`);
+      payTagParts.push(`vía ${metodoLabel}`);
+      const payTag = `[${payTagParts.join(" ")}]`;
+      const composedNote = [changeNote?.trim() || null, payTag].filter(Boolean).join(" ");
+
       if (dialogMode === "add") {
         const endStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
         const precioBase = selectedPlan?.precio || 0;
@@ -429,12 +438,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           estado: "activa",
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
-          mp_status: "manual",
-          metodo_pago: "efectivo",
+          mp_status: payMetodo,
+          metodo_pago: payMetodo,
           origen_registro: "cargado_admin",
           descuento_id: discount?.id || null,
           precio_base: precioBase,
           precio_final: precioFinal,
+          notas: composedNote || null,
           ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
         } as any).select("id").single();
 
@@ -456,22 +466,32 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
         const cEndStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
-        const { error } = await supabase.from("suscripciones").update({
+        const updatePayload: any = {
           plan_id: newPlanId,
           fecha_inicio: changeFechaInicio,
           fecha_fin: cEndStr,
           estado: "activa",
           cancelada_at: null,
           cancelada_motivo: null,
+          mp_status: payMetodo,
+          metodo_pago: payMetodo,
+          notas: composedNote || null,
           ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
-        } as any).eq("id", dialogSubId!);
+        };
+        if (usarPrecioActual) {
+          const newBase = selectedPlan?.precio || 0;
+          updatePayload.precio_base = newBase;
+          updatePayload.precio_final = newBase;
+          updatePayload.descuento_id = null;
+        }
+        const { error } = await supabase.from("suscripciones").update(updatePayload).eq("id", dialogSubId!);
 
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
@@ -480,7 +500,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         toast.success(`Plan actualizado`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Cambio de plan",
-          description: `Cambió de "${oldPlanName}" a "${selectedPlan?.nombre || "—"}"${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Cambió de "${oldPlanName}" a "${selectedPlan?.nombre || "—"}"${usarPrecioActual ? ` · Precio actualizado a ${selectedPlan?.moneda} ${(selectedPlan?.precio || 0).toLocaleString()}` : ""}${fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       }
