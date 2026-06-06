@@ -412,17 +412,23 @@ const ManagePlanes = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2">
-        {(["todos", "suscripcion", "programa"] as FilterType[]).map((f) => (
-          <Button
-            key={f}
-            variant={filterType === f ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterType(f)}
-          >
-            {f === "todos" ? <><Filter className="w-3 h-3" /> Todos</> : f === "suscripcion" ? <><Package className="w-3 h-3" /> Suscripciones</> : <><GraduationCap className="w-3 h-3" /> Programas</>}
-          </Button>
-        ))}
+      <div className="flex gap-2 flex-wrap">
+        {(["todos", "suscripcion", "programa", "archivo"] as FilterType[]).map((f) => {
+          const count = f === "archivo" ? planes.filter(isArchived).length : undefined;
+          return (
+            <Button
+              key={f}
+              variant={filterType === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterType(f)}
+            >
+              {f === "todos" ? <><Filter className="w-3 h-3" /> Todos</>
+                : f === "suscripcion" ? <><Package className="w-3 h-3" /> Suscripciones</>
+                : f === "programa" ? <><GraduationCap className="w-3 h-3" /> Programas</>
+                : <><Archive className="w-3 h-3" /> Archivo{count ? ` (${count})` : ""}</>}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Desktop table */}
