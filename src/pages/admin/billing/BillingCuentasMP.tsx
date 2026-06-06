@@ -16,8 +16,13 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy, Info, CheckCircle2, Settings2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+
+const SECRET_NAME_REGEX = /^[A-Z_][A-Z0-9_]*$/;
+const looksLikeRealValue = (s: string) =>
+  /^(APP_USR-|TEST-|APP-USR-)/i.test(s) || (s.length > 40 && /[a-z]/.test(s) && /[0-9]/.test(s) && s.includes("-"));
 
 function SecretField({ label, value }: { label: string; value: string }) {
   const [shown, setShown] = useState(false);
