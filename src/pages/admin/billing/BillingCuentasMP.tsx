@@ -16,8 +16,13 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, Route, AlertTriangle, Eye, EyeOff, Copy, Info, CheckCircle2, Settings2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+
+const SECRET_NAME_REGEX = /^[A-Z_][A-Z0-9_]*$/;
+const looksLikeRealValue = (s: string) =>
+  /^(APP_USR-|TEST-|APP-USR-)/i.test(s) || (s.length > 40 && /[a-z]/.test(s) && /[0-9]/.test(s) && s.includes("-"));
 
 function SecretField({ label, value }: { label: string; value: string }) {
   const [shown, setShown] = useState(false);
@@ -153,6 +158,23 @@ export function BillingCuentasMP() {
       toast.error("Nombre, slug y nombre del secret del token son obligatorios");
       return;
     }
+    // Validar que los 3 campos tengan formato de NOMBRE de secret, no el valor real
+    const fields = [
+      { k: "Access Token", v: editingCuenta.secret_name_token },
+      { k: "Public Key", v: editingCuenta.secret_name_pubkey },
+      { k: "Webhook", v: editingCuenta.secret_name_webhook },
+    ];
+    for (const f of fields) {
+      if (!f.v) continue;
+      if (looksLikeRealValue(f.v)) {
+        toast.error(`El campo "${f.k}" parece ser el VALOR real (APP_USR-…). Acá va el NOMBRE del secret, ej: MP_ACCESS_TOKEN_JUAN`);
+        return;
+      }
+      if (!SECRET_NAME_REGEX.test(f.v)) {
+        toast.error(`"${f.k}" debe ser MAYÚSCULAS, números y guiones bajos (ej: MP_ACCESS_TOKEN_JUAN)`);
+        return;
+      }
+    }
     const payload: any = {
       nombre: editingCuenta.nombre,
       slug: editingCuenta.slug,
@@ -171,7 +193,7 @@ export function BillingCuentasMP() {
       : supabase.from("cuentas_mp" as any).insert(payload);
     const { error } = await q;
     if (error) { toast.error(error.message); return; }
-    toast.success("Cuenta guardada");
+    toast.success("Cuenta guardada. Ahora cargá los 3 secrets si todavía no lo hiciste.");
     setCuentaModalOpen(false);
     setEditingCuenta(null);
     load();
@@ -393,69 +415,134 @@ export function BillingCuentasMP() {
               Los tokens reales se guardan como secrets de la backend. Acá solo se referencian por nombre.
             </DialogDescription>
           </DialogHeader>
-          {editingCuenta && (
-            <div className="space-y-3">
+          {editingCuenta && (() => {
+            const slugUpper = (editingCuenta.slug || "").toUpperCase();
+            const expectedToken = slugUpper ? `MP_ACCESS_TOKEN_${slugUpper}` : "";
+            const expectedPub = slugUpper ? `MP_PUBLIC_KEY_${slugUpper}` : "";
+            const expectedHook = slugUpper ? `MP_WEBHOOK_SECRET_${slugUpper}` : "";
+            const tokenLooksWrong = !!editingCuenta.secret_name_token && looksLikeRealValue(editingCuenta.secret_name_token);
+            const pubLooksWrong = !!editingCuenta.secret_name_pubkey && looksLikeRealValue(editingCuenta.secret_name_pubkey);
+            const hookLooksWrong = !!editingCuenta.secret_name_webhook && looksLikeRealValue(editingCuenta.secret_name_webhook);
+            const regenerateNames = () => setEditingCuenta((p) => ({
+              ...p!,
+              secret_name_token: expectedToken,
+              secret_name_pubkey: expectedPub,
+              secret_name_webhook: expectedHook,
+            }));
+            return (
+            <div className="space-y-4">
+              {/* Banner explicativo del flujo de 2 pasos */}
+              {!editingCuenta.id && (
+                <Alert className="border-primary/40 bg-primary/5">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertTitle className="text-sm">Cómo conectar una cuenta MP — 2 pasos</AlertTitle>
+                  <AlertDescription className="text-xs space-y-1.5 mt-2">
+                    <div className="flex gap-2"><span className="font-semibold text-primary">1.</span><span><strong>Acá</strong> solo cargás los <strong>nombres</strong> de los 3 secrets (se autogeneran del slug). No pegues acá el Access Token real.</span></div>
+                    <div className="flex gap-2"><span className="font-semibold text-primary">2.</span><span>Después, pedile a Lovable que <strong>cargue los valores reales</strong> (Access Token, Public Key, Webhook Secret) en esos 3 nombres. Lovable abrirá un formulario seguro para pegar las keys.</span></div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Nombre</Label>
+                  <Label>Nombre visible</Label>
                   <Input
                     value={editingCuenta.nombre || ""}
                     onChange={(e) => {
                       const nombre = e.target.value;
+                      const newSlug = editingCuenta.id ? editingCuenta.slug : slugify(nombre);
+                      const u = (newSlug || "").toUpperCase();
                       setEditingCuenta((p) => ({
                         ...p!,
                         nombre,
-                        slug: p?.id ? p.slug : slugify(nombre),
-                        secret_name_token: p?.id
-                          ? p.secret_name_token
-                          : `MP_ACCESS_TOKEN_${slugify(nombre).toUpperCase()}`,
+                        slug: newSlug,
+                        secret_name_token: p?.id ? p.secret_name_token : `MP_ACCESS_TOKEN_${u}`,
+                        secret_name_pubkey: p?.id ? p.secret_name_pubkey : `MP_PUBLIC_KEY_${u}`,
+                        secret_name_webhook: p?.id ? p.secret_name_webhook : `MP_WEBHOOK_SECRET_${u}`,
                       }));
                     }}
                     placeholder="Cuenta Juan"
                   />
                 </div>
                 <div>
-                  <Label>Slug</Label>
+                  <Label>Slug interno</Label>
                   <Input
                     value={editingCuenta.slug || ""}
-                    onChange={(e) => setEditingCuenta((p) => ({ ...p!, slug: slugify(e.target.value) }))}
+                    onChange={(e) => {
+                      const newSlug = slugify(e.target.value);
+                      const u = newSlug.toUpperCase();
+                      setEditingCuenta((p) => ({
+                        ...p!,
+                        slug: newSlug,
+                        secret_name_token: p?.id ? p.secret_name_token : `MP_ACCESS_TOKEN_${u}`,
+                        secret_name_pubkey: p?.id ? p.secret_name_pubkey : `MP_PUBLIC_KEY_${u}`,
+                        secret_name_webhook: p?.id ? p.secret_name_webhook : `MP_WEBHOOK_SECRET_${u}`,
+                      }));
+                    }}
                     placeholder="juan"
                   />
                 </div>
               </div>
 
-              <div>
-                <Label>Secret name — Access Token *</Label>
-                <Input
-                  value={editingCuenta.secret_name_token || ""}
-                  onChange={(e) => setEditingCuenta((p) => ({ ...p!, secret_name_token: e.target.value }))}
-                  placeholder="MP_ACCESS_TOKEN_JUAN"
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Nombre del secret en backend. Cargalo antes en Configuración → Secrets.
+              {/* Bloque de NOMBRES de secrets */}
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Nombres de los secrets en backend</span>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={regenerateNames}>
+                    Regenerar del slug
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Estos son <strong>nombres de variables</strong>, no las keys de MP. Se autogeneran al escribir el nombre. Solo letras MAYÚSCULAS, números y <code className="font-mono">_</code>.
                 </p>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Secret name — Public Key</Label>
+                  <Label className="text-xs">Access Token — nombre del secret *</Label>
                   <Input
-                    value={editingCuenta.secret_name_pubkey || ""}
-                    onChange={(e) => setEditingCuenta((p) => ({ ...p!, secret_name_pubkey: e.target.value }))}
-                    placeholder="MP_PUBLIC_KEY_JUAN"
-                    className="font-mono text-sm"
+                    value={editingCuenta.secret_name_token || ""}
+                    onChange={(e) => setEditingCuenta((p) => ({ ...p!, secret_name_token: e.target.value.toUpperCase() }))}
+                    placeholder={expectedToken || "MP_ACCESS_TOKEN_JUAN"}
+                    className={`font-mono text-sm ${tokenLooksWrong ? "border-destructive" : ""}`}
                   />
+                  {tokenLooksWrong && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Esto parece la KEY real de MP. Acá va solo el nombre (ej: {expectedToken}).
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <Label>Secret name — Webhook</Label>
-                  <Input
-                    value={editingCuenta.secret_name_webhook || ""}
-                    onChange={(e) => setEditingCuenta((p) => ({ ...p!, secret_name_webhook: e.target.value }))}
-                    placeholder="MP_WEBHOOK_SECRET_JUAN"
-                    className="font-mono text-sm"
-                  />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Public Key — nombre</Label>
+                    <Input
+                      value={editingCuenta.secret_name_pubkey || ""}
+                      onChange={(e) => setEditingCuenta((p) => ({ ...p!, secret_name_pubkey: e.target.value.toUpperCase() }))}
+                      placeholder={expectedPub || "MP_PUBLIC_KEY_JUAN"}
+                      className={`font-mono text-sm ${pubLooksWrong ? "border-destructive" : ""}`}
+                    />
+                    {pubLooksWrong && <p className="text-xs text-destructive mt-1">Parece el valor real.</p>}
+                  </div>
+                  <div>
+                    <Label className="text-xs">Webhook Secret — nombre</Label>
+                    <Input
+                      value={editingCuenta.secret_name_webhook || ""}
+                      onChange={(e) => setEditingCuenta((p) => ({ ...p!, secret_name_webhook: e.target.value.toUpperCase() }))}
+                      placeholder={expectedHook || "MP_WEBHOOK_SECRET_JUAN"}
+                      className={`font-mono text-sm ${hookLooksWrong ? "border-destructive" : ""}`}
+                    />
+                    {hookLooksWrong && <p className="text-xs text-destructive mt-1">Parece el valor real.</p>}
+                  </div>
                 </div>
+
+                <Alert className="border-amber-500/40 bg-amber-500/5 py-2">
+                  <CheckCircle2 className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-xs">
+                    Después de guardar, pedile a Lovable: <em>"cargá los secrets <code className="font-mono">{expectedToken || "MP_ACCESS_TOKEN_…"}</code>, <code className="font-mono">{expectedPub || "MP_PUBLIC_KEY_…"}</code> y <code className="font-mono">{expectedHook || "MP_WEBHOOK_SECRET_…"}</code>"</em>. Te va a abrir un formulario seguro para pegar las keys reales.
+                  </AlertDescription>
+                </Alert>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -536,7 +623,8 @@ export function BillingCuentasMP() {
                 />
               </div>
             </div>
-          )}
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCuentaModalOpen(false)}>Cancelar</Button>
             <Button onClick={saveCuenta}>Guardar</Button>
