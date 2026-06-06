@@ -41,6 +41,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     compraId?: string | null; preorderId?: string | null; varianteOrigen: Record<string, any>;
   } | null>(null);
   const [cambioVersion, setCambioVersion] = useState(0);
+  const [detailOrder, setDetailOrder] = useState<any | null>(null);
 
   useEffect(() => {
     if (!alumnoId) { setLoading(false); return; }
