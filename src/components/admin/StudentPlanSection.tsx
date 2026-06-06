@@ -41,7 +41,10 @@ interface SuscripcionData {
   precio_final: number | null;
   auto_cobro_activo?: boolean | null;
   mp_preapproval_id?: string | null;
-  planes: { id: string; nombre: string; precio: number; moneda: string } | null;
+  clases_totales?: number | null;
+  clases_consumidas?: number | null;
+  clases_vencimiento?: string | null;
+  planes: { id: string; nombre: string; precio: number; moneda: string; tipo_consumo?: string | null } | null;
   descuentos: { id: string; nombre: string; valor: number; tipo: string } | null;
 }
 
