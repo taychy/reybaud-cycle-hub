@@ -349,6 +349,13 @@ export default function AllOperationsTab() {
   const [filterDesde, setFilterDesde] = useState("");
   const [filterHasta, setFilterHasta] = useState("");
 
+  // Acciones sobre suscripciones
+  const [editFechaDialog, setEditFechaDialog] = useState<UnifiedOp | null>(null);
+  const [editFechaValue, setEditFechaValue] = useState("");
+  const [savingFecha, setSavingFecha] = useState(false);
+  const [registerPayOp, setRegisterPayOp] = useState<UnifiedOp | null>(null);
+  const [markPaidOp, setMarkPaidOp] = useState<UnifiedOp | null>(null);
+
   const fetchAll = async () => {
     setLoading(true);
     try {
