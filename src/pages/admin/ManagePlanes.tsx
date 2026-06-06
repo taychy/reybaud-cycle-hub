@@ -40,6 +40,9 @@ interface Plan {
   imagen_url: string | null;
   inscripciones_actuales: number;
   features: PlanFeature[] | null;
+  tipo_consumo?: string | null;
+  clases_incluidas?: number | null;
+  vigencia_dias?: number | null;
 }
 
 interface PlanFeature {
