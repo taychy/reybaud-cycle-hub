@@ -1293,7 +1293,8 @@ const SuperAdminGastos = () => {
           <DialogHeader><DialogTitle>{editingPagoId ? "Editar pago" : "Registrar pago"}</DialogTitle></DialogHeader>
           {payingEjec && (() => {
             const totalPagado = pagos.reduce((s, p) => s + Number(p.monto || 0), 0);
-            const previsto = payingEjec.ejec.monto_previsto || 0;
+            const previstoOriginal = payingEjec.ejec.monto_previsto || 0;
+            const previsto = prevPeriodInfo?.total ?? previstoOriginal;
             const restante = Math.max(previsto - totalPagado, 0);
             return (
               <div className="space-y-3">
@@ -1307,6 +1308,15 @@ const SuperAdminGastos = () => {
                     <span className="text-green-500">Pagado: <b>{fmt(totalPagado, payingEjec.ejec.moneda)}</b></span>
                     <span className={restante > 0 ? "text-orange-500" : "text-muted-foreground"}>Resta: <b>{fmt(restante, payingEjec.ejec.moneda)}</b></span>
                   </div>
+                  {prevPeriodInfo ? (
+                    <div className="text-[11px] text-muted-foreground italic pt-0.5">
+                      Basado en lo pagado en {monthLabel(prevPeriodInfo.mes)} ({fmt(prevPeriodInfo.total, payingEjec.ejec.moneda)}). Estimado original: {fmt(previstoOriginal, payingEjec.ejec.moneda)}.
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-muted-foreground italic pt-0.5">
+                      Sin pagos previos: se usa el monto estimado del concepto.
+                    </div>
+                  )}
                 </div>
 
                 {pagos.length > 0 && (
