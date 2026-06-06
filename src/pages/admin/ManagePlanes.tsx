@@ -216,6 +216,9 @@ const ManagePlanes = () => {
       max_inscripciones: plan.max_inscripciones ? String(plan.max_inscripciones) : "",
       imagen_url: plan.imagen_url || "",
       features: Array.isArray(plan.features) ? plan.features : [],
+      tipo_consumo: plan.tipo_consumo || "mensual",
+      clases_incluidas: plan.clases_incluidas ? String(plan.clases_incluidas) : "",
+      vigencia_dias: plan.vigencia_dias ? String(plan.vigencia_dias) : "",
     });
     setDialogOpen(true);
   };
