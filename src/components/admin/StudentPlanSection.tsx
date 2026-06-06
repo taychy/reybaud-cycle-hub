@@ -249,7 +249,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           cancelada_at: new Date().toISOString(),
           auto_renovacion: false,
           auto_cobro_activo: false,
-          // Admin "Quitar" = baja inmediata: cerramos fecha_fin a hoy para que
+          // Admin "Quitar" = baja inmediata: cerramos fecha_fin ayer para que
           // no siga contando como vigente por la política de cortesía.
           fecha_fin: removalEndDate,
         } as any)
@@ -450,7 +450,15 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         const sub = subs.find(s => s.id === dialogSubId);
         const oldPlanName = sub?.planes?.nombre || "Sin plan";
         const cEndStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
-        const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId, fecha_inicio: changeFechaInicio, fecha_fin: cEndStr, estado: "activa", cancelada_at: null, cancelada_motivo: null, ...getBonoSnapshotFields(selectedPlan, changeFechaInicio) } as any).eq("id", dialogSubId!);
+        const { error } = await supabase.from("suscripciones").update({
+          plan_id: newPlanId,
+          fecha_inicio: changeFechaInicio,
+          fecha_fin: cEndStr,
+          estado: "activa",
+          cancelada_at: null,
+          cancelada_motivo: null,
+          ...getBonoSnapshotFields(selectedPlan, changeFechaInicio),
+        } as any).eq("id", dialogSubId!);
 
         if (error) {
           if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
