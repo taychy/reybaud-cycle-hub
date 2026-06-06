@@ -20,6 +20,7 @@ import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/li
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BonoClasesCard } from "@/components/admin/BonoClasesCard";
+import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 
 type Alumno = Tables<"alumnos">;
 type Plan = Tables<"planes">;
