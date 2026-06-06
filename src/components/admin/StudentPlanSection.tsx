@@ -244,7 +244,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const removalEndDate = toLocalISODate(yesterday);
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("suscripciones")
         .update({
           estado: "cancelada",
@@ -649,7 +649,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               clases_vencimiento: sub.clases_vencimiento ?? null,
             }}
             planNombre={sub.planes?.nombre || "Plan"}
-            onChange={onRefresh}
+            onChange={() => { fetchData(); onRefresh(); }}
           />
         )}
 
