@@ -24,6 +24,8 @@ type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual"
 type TipoGasto = "fijo" | "variable";
 type EstadoEjec = "pendiente" | "pagado" | "vencido" | "omitido" | "parcial";
 
+type ModalidadPago = "anticipado" | "vencido";
+
 interface Recurrente {
   id: string;
   concepto: string;
@@ -39,6 +41,7 @@ interface Recurrente {
   notas: string | null;
   activo: boolean;
   tipo: TipoGasto;
+  modalidad_pago: ModalidadPago;
 }
 
 interface Ejecucion {
