@@ -2367,6 +2367,7 @@ export type Database = {
           forma_pago: string
           frecuencia: string | null
           id: string
+          liquidacion_id: string | null
           moneda: string
           monto: number
           mp_external_reference: string | null
@@ -2389,6 +2390,7 @@ export type Database = {
           forma_pago?: string
           frecuencia?: string | null
           id?: string
+          liquidacion_id?: string | null
           moneda?: string
           monto: number
           mp_external_reference?: string | null
@@ -2411,6 +2413,7 @@ export type Database = {
           forma_pago?: string
           frecuencia?: string | null
           id?: string
+          liquidacion_id?: string | null
           moneda?: string
           monto?: number
           mp_external_reference?: string | null
@@ -2424,7 +2427,15 @@ export type Database = {
           subcategoria?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gastos_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones_mensuales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gastos_deuda_movimientos: {
         Row: {
@@ -2503,11 +2514,13 @@ export type Database = {
         Row: {
           created_at: string
           ejecucion_id: string
+          es_excedente: boolean
           fecha: string
           forma_pago: string
           gasto_id: string | null
           id: string
           monto: number
+          motivo_excedente: string | null
           notas: string | null
           pagado_por: string | null
           updated_at: string
@@ -2515,11 +2528,13 @@ export type Database = {
         Insert: {
           created_at?: string
           ejecucion_id: string
+          es_excedente?: boolean
           fecha: string
           forma_pago: string
           gasto_id?: string | null
           id?: string
           monto: number
+          motivo_excedente?: string | null
           notas?: string | null
           pagado_por?: string | null
           updated_at?: string
@@ -2527,11 +2542,13 @@ export type Database = {
         Update: {
           created_at?: string
           ejecucion_id?: string
+          es_excedente?: boolean
           fecha?: string
           forma_pago?: string
           gasto_id?: string | null
           id?: string
           monto?: number
+          motivo_excedente?: string | null
           notas?: string | null
           pagado_por?: string | null
           updated_at?: string
@@ -2679,6 +2696,7 @@ export type Database = {
           frecuencia: Database["public"]["Enums"]["gasto_frecuencia"]
           id: string
           meses_aplicables: number[] | null
+          modalidad_pago: string
           moneda: string
           monto_estimado: number
           notas: string | null
@@ -2698,6 +2716,7 @@ export type Database = {
           frecuencia?: Database["public"]["Enums"]["gasto_frecuencia"]
           id?: string
           meses_aplicables?: number[] | null
+          modalidad_pago?: string
           moneda?: string
           monto_estimado?: number
           notas?: string | null
@@ -2717,6 +2736,7 @@ export type Database = {
           frecuencia?: Database["public"]["Enums"]["gasto_frecuencia"]
           id?: string
           meses_aplicables?: number[] | null
+          modalidad_pago?: string
           moneda?: string
           monto_estimado?: number
           notas?: string | null
@@ -5692,6 +5712,16 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_ejec_previsto_range: {
+        Args: {
+          p_mes_desde: string
+          p_mes_hasta: string
+          p_motivo?: string
+          p_nuevo_previsto: number
+          p_rec_id: string
+        }
+        Returns: number
+      }
       admin_create_cambio_indumentaria: {
         Args: {
           p_alumno_id: string
@@ -5958,6 +5988,19 @@ export type Database = {
           p_forma_pago: string
           p_monto: number
           p_notas?: string
+        }
+        Returns: string
+      }
+      register_gasto_pago_v2: {
+        Args: {
+          p_ejec_id: string
+          p_es_excedente?: boolean
+          p_fecha: string
+          p_forma_pago: string
+          p_monto: number
+          p_motivo_excedente?: string
+          p_notas?: string
+          p_nuevo_previsto?: number
         }
         Returns: string
       }
