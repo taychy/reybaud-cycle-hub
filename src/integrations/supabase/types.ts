@@ -5712,16 +5712,28 @@ export type Database = {
       }
     }
     Functions: {
-      adjust_ejec_previsto_range: {
-        Args: {
-          p_mes_desde: string
-          p_mes_hasta: string
-          p_motivo?: string
-          p_nuevo_previsto: number
-          p_rec_id: string
-        }
-        Returns: number
-      }
+      adjust_ejec_previsto_range:
+        | {
+            Args: {
+              p_mes_desde: string
+              p_mes_hasta: string
+              p_motivo?: string
+              p_nuevo_previsto: number
+              p_rec_id: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_mes_desde: string
+              p_mes_hasta: string
+              p_motivo?: string
+              p_nuevo_previsto: number
+              p_rec_id: string
+              p_sync_catalogo?: boolean
+            }
+            Returns: number
+          }
       admin_create_cambio_indumentaria: {
         Args: {
           p_alumno_id: string
@@ -5991,19 +6003,34 @@ export type Database = {
         }
         Returns: string
       }
-      register_gasto_pago_v2: {
-        Args: {
-          p_ejec_id: string
-          p_es_excedente?: boolean
-          p_fecha: string
-          p_forma_pago: string
-          p_monto: number
-          p_motivo_excedente?: string
-          p_notas?: string
-          p_nuevo_previsto?: number
-        }
-        Returns: string
-      }
+      register_gasto_pago_v2:
+        | {
+            Args: {
+              p_ejec_id: string
+              p_es_excedente?: boolean
+              p_fecha: string
+              p_forma_pago: string
+              p_monto: number
+              p_motivo_excedente?: string
+              p_notas?: string
+              p_nuevo_previsto?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_ejec_id: string
+              p_es_excedente?: boolean
+              p_fecha: string
+              p_forma_pago: string
+              p_monto: number
+              p_motivo_excedente?: string
+              p_notas?: string
+              p_nuevo_previsto?: number
+              p_sync_catalogo?: boolean
+            }
+            Returns: string
+          }
       request_baja_alumno: {
         Args: {
           p_alumno_id: string
