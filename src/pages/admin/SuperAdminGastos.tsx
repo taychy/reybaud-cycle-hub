@@ -174,6 +174,7 @@ const SuperAdminGastos = () => {
     nuevo_previsto: "", // si != original, ajusta previsto en el mismo paso
     es_excedente: false,
     motivo_excedente: "",
+    sync_catalogo: true, // si se ajusta previsto, actualiza también el catálogo
   });
 
 
