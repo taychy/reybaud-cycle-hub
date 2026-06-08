@@ -174,6 +174,7 @@ const SuperAdminGastos = () => {
     nuevo_previsto: "", // si != original, ajusta previsto en el mismo paso
     es_excedente: false,
     motivo_excedente: "",
+    sync_catalogo: true, // si se ajusta previsto, actualiza también el catálogo
   });
 
 
@@ -318,6 +319,7 @@ const SuperAdminGastos = () => {
       nuevo_previsto: String(previstoBase),
       es_excedente: false,
       motivo_excedente: "",
+      sync_catalogo: true,
     });
     setPagoDialogOpen(true);
   };
@@ -347,20 +349,46 @@ const SuperAdminGastos = () => {
         p_es_excedente: pagoForm.es_excedente,
         p_motivo_excedente: pagoForm.es_excedente ? (pagoForm.motivo_excedente || null) : null,
         p_nuevo_previsto: ajustaPrev ? nuevoPrev : null,
+        p_sync_catalogo: ajustaPrev ? pagoForm.sync_catalogo : false,
       });
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: pagoForm.es_excedente ? "Excedente registrado" : "Pago registrado", description: payingEjec.rec.concepto });
     }
 
     await loadPagosEjec(payingEjec.ejec.id);
+    // Re-fetch de la ejecución y del recurrente para refrescar el header sin cerrar el diálogo
+    const { data: freshEjec } = await supabase.from("gastos_ejecuciones").select("*").eq("id", payingEjec.ejec.id).maybeSingle();
+    const { data: freshRec } = await supabase.from("gastos_recurrentes").select("*").eq("id", payingEjec.ejec.recurrente_id).maybeSingle();
+    if (freshEjec && freshRec) {
+      setPayingEjec({ ejec: freshEjec as any, rec: freshRec as any });
+      // Recalcular prevPeriodInfo con datos frescos del mes anterior
+      const { data: prevEjecs } = await supabase
+        .from("gastos_ejecuciones")
+        .select("id, mes, estado")
+        .eq("recurrente_id", (freshRec as any).id)
+        .lt("mes", (freshEjec as any).mes)
+        .in("estado", ["pagado", "parcial"])
+        .order("mes", { ascending: false })
+        .limit(1);
+      const prevEjec = prevEjecs?.[0];
+      if (prevEjec) {
+        const { data: prevPagos } = await supabase
+          .from("gastos_ejecucion_pagos" as any)
+          .select("monto").eq("ejecucion_id", prevEjec.id);
+        const sum = (prevPagos || []).reduce((s: number, p: any) => s + Number(p.monto || 0), 0);
+        setPrevPeriodInfo(sum > 0 ? { mes: prevEjec.mes, total: sum } : null);
+      } else {
+        setPrevPeriodInfo(null);
+      }
+    }
     setEditingPagoId(null);
-    setPagoForm(f => ({ ...f, monto: "", notas: "", es_excedente: false, motivo_excedente: "" }));
+    setPagoForm(f => ({ ...f, monto: "", notas: "", es_excedente: false, motivo_excedente: "", nuevo_previsto: String((freshEjec as any)?.monto_previsto ?? f.nuevo_previsto) }));
     loadData();
   };
 
   const startEditPago = (p: { id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }) => {
     setEditingPagoId(p.id);
-    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "" });
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "", sync_catalogo: true });
   };
 
   const cancelEditPago = () => {
@@ -384,7 +412,7 @@ const SuperAdminGastos = () => {
     setPayingEjec({ ejec: ejec as any, rec });
     await loadPagosEjec(ejec.id);
     setEditingPagoId(p.id);
-    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "" });
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "", sync_catalogo: true });
     setPagoDialogOpen(true);
   };
 
@@ -1401,6 +1429,21 @@ const SuperAdminGastos = () => {
                         placeholder={`Actual: ${previstoOriginal}`}
                       />
                       <p className="text-[10px] text-muted-foreground">Si el costo real cambió este mes, ajustá el previsto antes de confirmar el pago.</p>
+                      {Number(pagoForm.nuevo_previsto) > 0 && Number(pagoForm.nuevo_previsto) !== previstoOriginal && (
+                        <label className="flex items-start gap-2 pt-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 accent-primary"
+                            checked={pagoForm.sync_catalogo}
+                            onChange={(e) => setPagoForm(f => ({ ...f, sync_catalogo: e.target.checked }))}
+                          />
+                          <span className="text-[11px] leading-snug">
+                            Actualizar también el <b>catálogo</b> (próximas cuotas heredarán <b>{fmt(Number(pagoForm.nuevo_previsto), payingEjec.ejec.moneda)}</b>).
+                            <br/>
+                            <span className="text-muted-foreground">Desactivá si es un cambio excepcional de este mes.</span>
+                          </span>
+                        </label>
+                      )}
                     </div>
                   )}
 
