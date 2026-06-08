@@ -24,6 +24,8 @@ type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual"
 type TipoGasto = "fijo" | "variable";
 type EstadoEjec = "pendiente" | "pagado" | "vencido" | "omitido" | "parcial";
 
+type ModalidadPago = "anticipado" | "vencido";
+
 interface Recurrente {
   id: string;
   concepto: string;
@@ -39,6 +41,7 @@ interface Recurrente {
   notas: string | null;
   activo: boolean;
   tipo: TipoGasto;
+  modalidad_pago: ModalidadPago;
 }
 
 interface Ejecucion {
@@ -154,6 +157,7 @@ const SuperAdminGastos = () => {
     frecuencia: "mensual" as Frecuencia, dia_vencimiento: "10",
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
     tipo: "fijo" as TipoGasto,
+    modalidad_pago: "anticipado" as ModalidadPago,
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
   const [deudaExpanded, setDeudaExpanded] = useState(false);
@@ -161,12 +165,15 @@ const SuperAdminGastos = () => {
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
   const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
-  const [pagos, setPagos] = useState<Array<{ id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }>>([]);
+  const [pagos, setPagos] = useState<Array<{ id: string; monto: number; fecha: string; forma_pago: string; notas: string | null; es_excedente?: boolean; motivo_excedente?: string | null }>>([]);
   const [prevPeriodInfo, setPrevPeriodInfo] = useState<{ mes: string; total: number } | null>(null);
   const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
   const [pagoForm, setPagoForm] = useState({
     monto: "", fecha: new Date().toISOString().split("T")[0],
     forma_pago: "transferencia", notas: "",
+    nuevo_previsto: "", // si != original, ajusta previsto en el mismo paso
+    es_excedente: false,
+    motivo_excedente: "",
   });
 
 
@@ -263,7 +270,7 @@ const SuperAdminGastos = () => {
   const loadPagosEjec = async (ejecId: string) => {
     const { data } = await supabase
       .from("gastos_ejecucion_pagos" as any)
-      .select("id,monto,fecha,forma_pago,notas")
+      .select("id,monto,fecha,forma_pago,notas,es_excedente,motivo_excedente")
       .eq("ejecucion_id", ejecId)
       .order("fecha", { ascending: true });
     setPagos((data || []) as any);
@@ -308,6 +315,9 @@ const SuperAdminGastos = () => {
       fecha: new Date().toISOString().split("T")[0],
       forma_pago: rec.forma_pago_default || "transferencia",
       notas: "",
+      nuevo_previsto: String(previstoBase),
+      es_excedente: false,
+      motivo_excedente: "",
     });
     setPagoDialogOpen(true);
   };
@@ -325,23 +335,32 @@ const SuperAdminGastos = () => {
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Pago actualizado" });
     } else {
-      const { error } = await supabase.rpc("register_gasto_pago" as any, {
-        p_ejec_id: payingEjec.ejec.id, p_monto: monto, p_fecha: pagoForm.fecha,
-        p_forma_pago: pagoForm.forma_pago, p_notas: pagoForm.notas || null,
+      const previstoOriginal = payingEjec.ejec.monto_previsto || 0;
+      const nuevoPrev = Number(pagoForm.nuevo_previsto);
+      const ajustaPrev = !pagoForm.es_excedente && nuevoPrev > 0 && nuevoPrev !== previstoOriginal;
+      const { error } = await supabase.rpc("register_gasto_pago_v2" as any, {
+        p_ejec_id: payingEjec.ejec.id,
+        p_monto: monto,
+        p_fecha: pagoForm.fecha,
+        p_forma_pago: pagoForm.forma_pago,
+        p_notas: pagoForm.notas || null,
+        p_es_excedente: pagoForm.es_excedente,
+        p_motivo_excedente: pagoForm.es_excedente ? (pagoForm.motivo_excedente || null) : null,
+        p_nuevo_previsto: ajustaPrev ? nuevoPrev : null,
       });
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Pago registrado", description: payingEjec.rec.concepto });
+      toast({ title: pagoForm.es_excedente ? "Excedente registrado" : "Pago registrado", description: payingEjec.rec.concepto });
     }
 
     await loadPagosEjec(payingEjec.ejec.id);
     setEditingPagoId(null);
-    setPagoForm(f => ({ ...f, monto: "", notas: "" }));
+    setPagoForm(f => ({ ...f, monto: "", notas: "", es_excedente: false, motivo_excedente: "" }));
     loadData();
   };
 
   const startEditPago = (p: { id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }) => {
     setEditingPagoId(p.id);
-    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "" });
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "" });
   };
 
   const cancelEditPago = () => {
@@ -365,7 +384,7 @@ const SuperAdminGastos = () => {
     setPayingEjec({ ejec: ejec as any, rec });
     await loadPagosEjec(ejec.id);
     setEditingPagoId(p.id);
-    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "" });
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "" });
     setPagoDialogOpen(true);
   };
 
@@ -517,6 +536,7 @@ const SuperAdminGastos = () => {
     frecuencia: "mensual", dia_vencimiento: "10",
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
     tipo: catalogoTipoTab,
+    modalidad_pago: "anticipado",
   });
 
   const openEditRec = (r: Recurrente) => {
@@ -529,6 +549,7 @@ const SuperAdminGastos = () => {
       forma_pago_default: r.forma_pago_default || "transferencia",
       proveedor: r.proveedor || "", notas: r.notas || "", activo: r.activo,
       tipo: r.tipo || "fijo",
+      modalidad_pago: r.modalidad_pago || "anticipado",
     });
     setCatDialogOpen(true);
   };
@@ -549,6 +570,7 @@ const SuperAdminGastos = () => {
       notas: recForm.notas || null,
       activo: recForm.activo,
       tipo: recForm.tipo,
+      modalidad_pago: recForm.modalidad_pago,
     };
     if (editingRec) {
       const { error } = await supabase.from("gastos_recurrentes").update(payload as any).eq("id", editingRec.id);
@@ -1271,6 +1293,16 @@ const SuperAdminGastos = () => {
               </Select>
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">Modalidad de pago</Label>
+              <Select value={recForm.modalidad_pago} onValueChange={(v) => setRecForm(f => ({ ...f, modalidad_pago: v as ModalidadPago }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="anticipado">Anticipado (se paga dentro del mismo mes)</SelectItem>
+                  <SelectItem value="vencido">Vencido (se paga el mes siguiente)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">Proveedor (opcional)</Label>
               <Input value={recForm.proveedor} onChange={(e) => setRecForm(f => ({ ...f, proveedor: e.target.value }))} />
             </div>
@@ -1325,8 +1357,12 @@ const SuperAdminGastos = () => {
                     {pagos.map(p => (
                       <div key={p.id} className={`p-2.5 flex items-center justify-between gap-2 text-sm ${editingPagoId === p.id ? "bg-primary/5" : ""}`}>
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium">{fmt(p.monto, payingEjec.ejec.moneda)} <span className="text-xs text-muted-foreground font-normal">· {FORMA_PAGO_LABELS[p.forma_pago] || p.forma_pago}</span></div>
-                          <div className="text-xs text-muted-foreground">{parseDate(p.fecha)!.toLocaleDateString("es-AR")}{p.notas ? ` · ${p.notas}` : ""}</div>
+                          <div className="font-medium flex items-center gap-2">
+                            {fmt(p.monto, payingEjec.ejec.moneda)}
+                            <span className="text-xs text-muted-foreground font-normal">· {FORMA_PAGO_LABELS[p.forma_pago] || p.forma_pago}</span>
+                            {p.es_excedente && <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-500">Excedente</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{parseDate(p.fecha)!.toLocaleDateString("es-AR")}{p.motivo_excedente ? ` · ${p.motivo_excedente}` : ""}{p.notas ? ` · ${p.notas}` : ""}</div>
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditPago(p)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
@@ -1338,12 +1374,50 @@ const SuperAdminGastos = () => {
                 )}
 
                 <div className="border rounded-md p-3 space-y-3">
-                  <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
-                    {editingPagoId ? "Editando pago" : (pagos.length > 0 ? "Agregar otro pago" : "Nuevo pago")}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
+                      {editingPagoId ? "Editando pago" : pagoForm.es_excedente ? "Pagado de más" : (pagos.length > 0 ? "Agregar otro pago" : "Nuevo pago")}
+                    </div>
+                    {!editingPagoId && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={pagoForm.es_excedente ? "default" : "outline"}
+                        className="h-7 text-[11px]"
+                        onClick={() => setPagoForm(f => ({ ...f, es_excedente: !f.es_excedente, motivo_excedente: "" }))}
+                      >
+                        {pagoForm.es_excedente ? "Cancelar excedente" : "+ Pagado de más"}
+                      </Button>
+                    )}
                   </div>
+
+                  {!editingPagoId && !pagoForm.es_excedente && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Ajustar monto previsto (opcional)</Label>
+                      <Input
+                        type="number"
+                        value={pagoForm.nuevo_previsto}
+                        onChange={(e) => setPagoForm(f => ({ ...f, nuevo_previsto: e.target.value }))}
+                        placeholder={`Actual: ${previstoOriginal}`}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Si el costo real cambió este mes, ajustá el previsto antes de confirmar el pago.</p>
+                    </div>
+                  )}
+
+                  {pagoForm.es_excedente && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Motivo del excedente</Label>
+                      <Input
+                        value={pagoForm.motivo_excedente}
+                        onChange={(e) => setPagoForm(f => ({ ...f, motivo_excedente: e.target.value }))}
+                        placeholder="Ej: Aumento valor hora"
+                      />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Monto</Label>
+                      <Label className="text-xs">Monto {pagoForm.es_excedente && "extra"}</Label>
                       <Input type="number" value={pagoForm.monto} onChange={(e) => setPagoForm(f => ({ ...f, monto: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
@@ -1365,7 +1439,7 @@ const SuperAdminGastos = () => {
                   <div className="flex gap-2">
                     {editingPagoId && <Button variant="outline" className="flex-1" onClick={cancelEditPago}>Cancelar</Button>}
                     <Button onClick={confirmarPago} variant="gold" className="flex-1">
-                      {editingPagoId ? "Guardar cambios" : "Confirmar pago"}
+                      {editingPagoId ? "Guardar cambios" : pagoForm.es_excedente ? "Registrar excedente" : "Confirmar pago"}
                     </Button>
                   </div>
                 </div>
