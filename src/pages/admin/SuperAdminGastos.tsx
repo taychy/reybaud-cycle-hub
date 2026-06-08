@@ -315,6 +315,9 @@ const SuperAdminGastos = () => {
       fecha: new Date().toISOString().split("T")[0],
       forma_pago: rec.forma_pago_default || "transferencia",
       notas: "",
+      nuevo_previsto: String(previstoBase),
+      es_excedente: false,
+      motivo_excedente: "",
     });
     setPagoDialogOpen(true);
   };
@@ -332,17 +335,26 @@ const SuperAdminGastos = () => {
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Pago actualizado" });
     } else {
-      const { error } = await supabase.rpc("register_gasto_pago" as any, {
-        p_ejec_id: payingEjec.ejec.id, p_monto: monto, p_fecha: pagoForm.fecha,
-        p_forma_pago: pagoForm.forma_pago, p_notas: pagoForm.notas || null,
+      const previstoOriginal = payingEjec.ejec.monto_previsto || 0;
+      const nuevoPrev = Number(pagoForm.nuevo_previsto);
+      const ajustaPrev = !pagoForm.es_excedente && nuevoPrev > 0 && nuevoPrev !== previstoOriginal;
+      const { error } = await supabase.rpc("register_gasto_pago_v2" as any, {
+        p_ejec_id: payingEjec.ejec.id,
+        p_monto: monto,
+        p_fecha: pagoForm.fecha,
+        p_forma_pago: pagoForm.forma_pago,
+        p_notas: pagoForm.notas || null,
+        p_es_excedente: pagoForm.es_excedente,
+        p_motivo_excedente: pagoForm.es_excedente ? (pagoForm.motivo_excedente || null) : null,
+        p_nuevo_previsto: ajustaPrev ? nuevoPrev : null,
       });
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Pago registrado", description: payingEjec.rec.concepto });
+      toast({ title: pagoForm.es_excedente ? "Excedente registrado" : "Pago registrado", description: payingEjec.rec.concepto });
     }
 
     await loadPagosEjec(payingEjec.ejec.id);
     setEditingPagoId(null);
-    setPagoForm(f => ({ ...f, monto: "", notas: "" }));
+    setPagoForm(f => ({ ...f, monto: "", notas: "", es_excedente: false, motivo_excedente: "" }));
     loadData();
   };
 
