@@ -360,7 +360,7 @@ const SuperAdminGastos = () => {
 
   const startEditPago = (p: { id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }) => {
     setEditingPagoId(p.id);
-    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "" });
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "" });
   };
 
   const cancelEditPago = () => {
