@@ -270,7 +270,7 @@ const SuperAdminGastos = () => {
   const loadPagosEjec = async (ejecId: string) => {
     const { data } = await supabase
       .from("gastos_ejecucion_pagos" as any)
-      .select("id,monto,fecha,forma_pago,notas")
+      .select("id,monto,fecha,forma_pago,notas,es_excedente,motivo_excedente")
       .eq("ejecucion_id", ejecId)
       .order("fecha", { ascending: true });
     setPagos((data || []) as any);
