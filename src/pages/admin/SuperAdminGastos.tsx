@@ -157,6 +157,7 @@ const SuperAdminGastos = () => {
     frecuencia: "mensual" as Frecuencia, dia_vencimiento: "10",
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
     tipo: "fijo" as TipoGasto,
+    modalidad_pago: "anticipado" as ModalidadPago,
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
   const [deudaExpanded, setDeudaExpanded] = useState(false);
@@ -164,12 +165,15 @@ const SuperAdminGastos = () => {
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
   const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
-  const [pagos, setPagos] = useState<Array<{ id: string; monto: number; fecha: string; forma_pago: string; notas: string | null }>>([]);
+  const [pagos, setPagos] = useState<Array<{ id: string; monto: number; fecha: string; forma_pago: string; notas: string | null; es_excedente?: boolean; motivo_excedente?: string | null }>>([]);
   const [prevPeriodInfo, setPrevPeriodInfo] = useState<{ mes: string; total: number } | null>(null);
   const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
   const [pagoForm, setPagoForm] = useState({
     monto: "", fecha: new Date().toISOString().split("T")[0],
     forma_pago: "transferencia", notas: "",
+    nuevo_previsto: "", // si != original, ajusta previsto en el mismo paso
+    es_excedente: false,
+    motivo_excedente: "",
   });
 
 
