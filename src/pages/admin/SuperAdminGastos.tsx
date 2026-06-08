@@ -1429,6 +1429,21 @@ const SuperAdminGastos = () => {
                         placeholder={`Actual: ${previstoOriginal}`}
                       />
                       <p className="text-[10px] text-muted-foreground">Si el costo real cambió este mes, ajustá el previsto antes de confirmar el pago.</p>
+                      {Number(pagoForm.nuevo_previsto) > 0 && Number(pagoForm.nuevo_previsto) !== previstoOriginal && (
+                        <label className="flex items-start gap-2 pt-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 accent-primary"
+                            checked={pagoForm.sync_catalogo}
+                            onChange={(e) => setPagoForm(f => ({ ...f, sync_catalogo: e.target.checked }))}
+                          />
+                          <span className="text-[11px] leading-snug">
+                            Actualizar también el <b>catálogo</b> (próximas cuotas heredarán <b>{fmt(Number(pagoForm.nuevo_previsto), payingEjec.ejec.moneda)}</b>).
+                            <br/>
+                            <span className="text-muted-foreground">Desactivá si es un cambio excepcional de este mes.</span>
+                          </span>
+                        </label>
+                      )}
                     </div>
                   )}
 
