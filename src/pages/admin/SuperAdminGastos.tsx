@@ -1347,8 +1347,12 @@ const SuperAdminGastos = () => {
                     {pagos.map(p => (
                       <div key={p.id} className={`p-2.5 flex items-center justify-between gap-2 text-sm ${editingPagoId === p.id ? "bg-primary/5" : ""}`}>
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium">{fmt(p.monto, payingEjec.ejec.moneda)} <span className="text-xs text-muted-foreground font-normal">· {FORMA_PAGO_LABELS[p.forma_pago] || p.forma_pago}</span></div>
-                          <div className="text-xs text-muted-foreground">{parseDate(p.fecha)!.toLocaleDateString("es-AR")}{p.notas ? ` · ${p.notas}` : ""}</div>
+                          <div className="font-medium flex items-center gap-2">
+                            {fmt(p.monto, payingEjec.ejec.moneda)}
+                            <span className="text-xs text-muted-foreground font-normal">· {FORMA_PAGO_LABELS[p.forma_pago] || p.forma_pago}</span>
+                            {p.es_excedente && <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-500">Excedente</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{parseDate(p.fecha)!.toLocaleDateString("es-AR")}{p.motivo_excedente ? ` · ${p.motivo_excedente}` : ""}{p.notas ? ` · ${p.notas}` : ""}</div>
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditPago(p)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
@@ -1360,12 +1364,50 @@ const SuperAdminGastos = () => {
                 )}
 
                 <div className="border rounded-md p-3 space-y-3">
-                  <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
-                    {editingPagoId ? "Editando pago" : (pagos.length > 0 ? "Agregar otro pago" : "Nuevo pago")}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
+                      {editingPagoId ? "Editando pago" : pagoForm.es_excedente ? "Pagado de más" : (pagos.length > 0 ? "Agregar otro pago" : "Nuevo pago")}
+                    </div>
+                    {!editingPagoId && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={pagoForm.es_excedente ? "default" : "outline"}
+                        className="h-7 text-[11px]"
+                        onClick={() => setPagoForm(f => ({ ...f, es_excedente: !f.es_excedente, motivo_excedente: "" }))}
+                      >
+                        {pagoForm.es_excedente ? "Cancelar excedente" : "+ Pagado de más"}
+                      </Button>
+                    )}
                   </div>
+
+                  {!editingPagoId && !pagoForm.es_excedente && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Ajustar monto previsto (opcional)</Label>
+                      <Input
+                        type="number"
+                        value={pagoForm.nuevo_previsto}
+                        onChange={(e) => setPagoForm(f => ({ ...f, nuevo_previsto: e.target.value }))}
+                        placeholder={`Actual: ${previstoOriginal}`}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Si el costo real cambió este mes, ajustá el previsto antes de confirmar el pago.</p>
+                    </div>
+                  )}
+
+                  {pagoForm.es_excedente && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Motivo del excedente</Label>
+                      <Input
+                        value={pagoForm.motivo_excedente}
+                        onChange={(e) => setPagoForm(f => ({ ...f, motivo_excedente: e.target.value }))}
+                        placeholder="Ej: Aumento valor hora"
+                      />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Monto</Label>
+                      <Label className="text-xs">Monto {pagoForm.es_excedente && "extra"}</Label>
                       <Input type="number" value={pagoForm.monto} onChange={(e) => setPagoForm(f => ({ ...f, monto: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
@@ -1387,7 +1429,7 @@ const SuperAdminGastos = () => {
                   <div className="flex gap-2">
                     {editingPagoId && <Button variant="outline" className="flex-1" onClick={cancelEditPago}>Cancelar</Button>}
                     <Button onClick={confirmarPago} variant="gold" className="flex-1">
-                      {editingPagoId ? "Guardar cambios" : "Confirmar pago"}
+                      {editingPagoId ? "Guardar cambios" : pagoForm.es_excedente ? "Registrar excedente" : "Confirmar pago"}
                     </Button>
                   </div>
                 </div>
