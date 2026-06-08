@@ -536,6 +536,7 @@ const SuperAdminGastos = () => {
     frecuencia: "mensual", dia_vencimiento: "10",
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
     tipo: catalogoTipoTab,
+    modalidad_pago: "anticipado",
   });
 
   const openEditRec = (r: Recurrente) => {
@@ -548,6 +549,7 @@ const SuperAdminGastos = () => {
       forma_pago_default: r.forma_pago_default || "transferencia",
       proveedor: r.proveedor || "", notas: r.notas || "", activo: r.activo,
       tipo: r.tipo || "fijo",
+      modalidad_pago: r.modalidad_pago || "anticipado",
     });
     setCatDialogOpen(true);
   };
@@ -568,6 +570,7 @@ const SuperAdminGastos = () => {
       notas: recForm.notas || null,
       activo: recForm.activo,
       tipo: recForm.tipo,
+      modalidad_pago: recForm.modalidad_pago,
     };
     if (editingRec) {
       const { error } = await supabase.from("gastos_recurrentes").update(payload as any).eq("id", editingRec.id);
