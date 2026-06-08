@@ -1293,6 +1293,16 @@ const SuperAdminGastos = () => {
               </Select>
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">Modalidad de pago</Label>
+              <Select value={recForm.modalidad_pago} onValueChange={(v) => setRecForm(f => ({ ...f, modalidad_pago: v as ModalidadPago }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="anticipado">Anticipado (se paga dentro del mismo mes)</SelectItem>
+                  <SelectItem value="vencido">Vencido (se paga el mes siguiente)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">Proveedor (opcional)</Label>
               <Input value={recForm.proveedor} onChange={(e) => setRecForm(f => ({ ...f, proveedor: e.target.value }))} />
             </div>
