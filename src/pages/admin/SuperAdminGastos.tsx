@@ -319,6 +319,7 @@ const SuperAdminGastos = () => {
       nuevo_previsto: String(previstoBase),
       es_excedente: false,
       motivo_excedente: "",
+      sync_catalogo: true,
     });
     setPagoDialogOpen(true);
   };
