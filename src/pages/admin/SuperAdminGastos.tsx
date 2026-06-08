@@ -386,7 +386,7 @@ const SuperAdminGastos = () => {
     setPayingEjec({ ejec: ejec as any, rec });
     await loadPagosEjec(ejec.id);
     setEditingPagoId(p.id);
-    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "" });
+    setPagoForm({ monto: String(p.monto), fecha: p.fecha, forma_pago: p.forma_pago, notas: p.notas || "", nuevo_previsto: "", es_excedente: false, motivo_excedente: "", sync_catalogo: true });
     setPagoDialogOpen(true);
   };
 
