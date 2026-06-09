@@ -334,6 +334,17 @@ const AdminBajas = () => {
       </Dialog>
         </TabsContent>
       </Tabs>
+
+      <DarBajaDirectaDialog
+        open={openBajaDirecta}
+        onOpenChange={setOpenBajaDirecta}
+        onDone={() => { setRefreshKey((k) => k + 1); loadData(); }}
+      />
+      <RegistrarDevolucionDialog
+        open={openDevolucion}
+        onOpenChange={setOpenDevolucion}
+        onDone={() => setRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 
