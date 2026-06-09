@@ -604,33 +604,72 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cambiar plan */}
+      {/* Corregir / cambiar plan */}
       <Dialog open={!!changeSub} onOpenChange={(o) => { if (!o) { setChangeSub(null); setChangeNewPlanId(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-primary" /> Cambiar plan
+              <ArrowRightLeft className="h-4 w-4 text-primary" /> Corregir suscripción
             </DialogTitle>
             <DialogDescription>
-              Reemplaza el plan asignado a esta suscripción. El cargo en cuenta corriente se actualiza al precio del nuevo plan.
+              Reemplaza el plan asignado a esta suscripción. Se usa para <strong>corregir</strong> un alta mal cargada (sin prorrateo, conservando fechas). El cargo en cuenta corriente se actualiza automáticamente al precio del nuevo plan.
               <br />
               <span className="text-foreground text-xs">{changeSub?.concepto}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label className="text-xs">Nuevo plan</Label>
-            <SelectPlan value={changeNewPlanId} onValueChange={setChangeNewPlanId}>
-              <SelectPlanTrigger>
-                <SelectPlanValue placeholder="Elegí un plan…" />
-              </SelectPlanTrigger>
-              <SelectPlanContent>
-                {planes.map((p) => (
-                  <SelectPlanItem key={p.id} value={p.id}>
-                    {p.nombre} {p.precio != null ? `· ${formatPrice(p.precio, p.moneda || "ARS")}` : ""}
-                  </SelectPlanItem>
-                ))}
-              </SelectPlanContent>
-            </SelectPlan>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs">Nuevo plan</Label>
+              <SelectPlan value={changeNewPlanId} onValueChange={setChangeNewPlanId}>
+                <SelectPlanTrigger>
+                  <SelectPlanValue placeholder="Elegí un plan…" />
+                </SelectPlanTrigger>
+                <SelectPlanContent>
+                  {planes.map((p) => (
+                    <SelectPlanItem key={p.id} value={p.id}>
+                      {p.nombre} {p.precio != null ? `· ${formatPrice(p.precio, p.moneda || "ARS")}` : ""}
+                    </SelectPlanItem>
+                  ))}
+                </SelectPlanContent>
+              </SelectPlan>
+            </div>
+
+            {(() => {
+              const newPlan = planes.find((p) => p.id === changeNewPlanId);
+              if (!newPlan || !changeSub) return null;
+              const oldPrice = Number(changeSub.currentPrice || 0);
+              const newPrice = Number(newPlan.precio || 0);
+              const moneda = newPlan.moneda || "ARS";
+              const sameMoneda = moneda === (changeSub.currentMoneda || "ARS");
+              const diff = newPrice - oldPrice;
+              return (
+                <div className="rounded-md border border-border bg-secondary/30 p-3 text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Precio actual</span><span className="font-mono">{formatPrice(oldPrice, changeSub.currentMoneda || "ARS")}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Precio nuevo</span><span className="font-mono">{formatPrice(newPrice, moneda)}</span></div>
+                  <div className="flex justify-between border-t border-border pt-1 mt-1">
+                    <span className="text-muted-foreground">Diferencia</span>
+                    <span className={`font-mono font-semibold ${diff > 0 ? "text-destructive" : diff < 0 ? "text-emerald-400" : ""}`}>
+                      {diff > 0 ? "+" : ""}{formatPrice(diff, moneda)}
+                    </span>
+                  </div>
+                  {!sameMoneda && (
+                    <p className="text-amber-400 mt-2">⚠ El nuevo plan está en otra moneda ({moneda}). No se intentará reabsorber crédito.</p>
+                  )}
+                </div>
+              );
+            })()}
+
+            <label className="flex items-start gap-2 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={absorbCredit}
+                onChange={(e) => setAbsorbCredit(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border"
+              />
+              <span className="text-muted-foreground">
+                Si el alumno tiene un <strong>Excedente</strong> a favor por igual o menor a la diferencia, eliminarlo automáticamente (reabsorber crédito).
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setChangeSub(null); setChangeNewPlanId(""); }} disabled={changeLoading}>
@@ -640,7 +679,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
               onClick={handleChangePlan}
               disabled={changeLoading || !changeNewPlanId || changeNewPlanId === changeSub?.currentPlanId}
             >
-              {changeLoading ? "Guardando…" : "Cambiar plan"}
+              {changeLoading ? "Guardando…" : "Corregir suscripción"}
             </Button>
           </DialogFooter>
         </DialogContent>
