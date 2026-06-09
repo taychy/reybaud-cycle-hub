@@ -88,9 +88,8 @@ const SuperAdminDashboard = () => {
       const alumnosActivos = alumnos.filter(a => a.estado === "activo").length;
       const ticketPromedio = alumnosActivos > 0 ? Math.round(mrr / alumnosActivos) : 0;
 
-      const storeMes = orders
-        .filter((o: any) => o.created_at >= startOfMonth)
-        .reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+      const ordersMes = orders.filter((o: any) => o.created_at >= startOfMonth && o.status === "pagado");
+      const storeMes = ordersMes.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
 
       const gastosEsteMes = gastosData.filter((g: any) => g.fecha >= startOfMonth && (!g.moneda || g.moneda === "ARS")).reduce((sum: number, g: any) => sum + g.monto, 0);
       const gastosMesAnterior = gastosData.filter((g: any) => g.fecha >= startOfLastMonth && g.fecha <= endOfLastMonth && (!g.moneda || g.moneda === "ARS")).reduce((sum: number, g: any) => sum + g.monto, 0);
