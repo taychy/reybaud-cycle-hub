@@ -200,7 +200,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
     }
   };
 
-  // ---- Cambiar plan de una suscripción existente ----
+  // ---- Corregir / cambiar plan de una suscripción existente ----
   const handleChangePlan = async () => {
     if (!changeSub || !changeNewPlanId || changeNewPlanId === changeSub.currentPlanId) {
       setChangeSub(null);
@@ -225,6 +225,35 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         toast.error("Error al cambiar de plan: " + (error.message || ""));
         return;
       }
+
+      // Intento de reabsorber el "Excedente" si corresponde
+      let absorbedAjusteId: string | null = null;
+      let absorbedMonto: number | null = null;
+      const oldPrice = Number(changeSub.currentPrice || 0);
+      const newPrice = Number(newPlan?.precio || 0);
+      const diff = newPrice - oldPrice; // upgrade => positivo
+      const sameMoneda = (newPlan?.moneda || "ARS") === (changeSub.currentMoneda || "ARS");
+      if (absorbCredit && sameMoneda && diff > 0) {
+        // Busca el "Excedente" más reciente en esa moneda cuyo monto sea <= diff
+        const { data: candidatos } = await supabase
+          .from("cuenta_ajustes")
+          .select("id, monto, moneda, concepto, fecha")
+          .eq("alumno_id", alumnoId)
+          .eq("tipo", "credito")
+          .eq("moneda", newPlan?.moneda || "ARS")
+          .ilike("concepto", "Excedente%")
+          .order("fecha", { ascending: false })
+          .limit(10);
+        const match = (candidatos || []).find((c: any) => Number(c.monto) <= diff + 0.01);
+        if (match) {
+          const { error: delErr } = await supabase.from("cuenta_ajustes").delete().eq("id", match.id);
+          if (!delErr) {
+            absorbedAjusteId = match.id;
+            absorbedMonto = Number(match.monto);
+          }
+        }
+      }
+
       // Audit
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -234,7 +263,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           user_id: session.user.id,
           user_email: adminProfile?.email || session.user.email || "",
           user_role: adminProfile?.role || "admin",
-          action: "cambiar_plan_cc",
+          action: "corregir_suscripcion_cc",
           entity_type: "suscripcion",
           entity_id: changeSub.id,
           details: {
@@ -242,20 +271,25 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
             plan_anterior_id: changeSub.currentPlanId,
             plan_nuevo_id: changeNewPlanId,
             plan_nuevo_nombre: newPlan?.nombre,
+            precio_anterior: oldPrice,
+            precio_nuevo: newPrice,
+            diferencia: diff,
+            excedente_absorbido_ajuste_id: absorbedAjusteId,
+            excedente_absorbido_monto: absorbedMonto,
           },
         }]);
       }
       await logStudentActivity({
         alumnoId,
         eventType: "cambio_plan",
-        title: "Plan cambiado",
-        description: `Desde cuenta corriente: ${changeSub.concepto} → "${newPlan?.nombre || "—"}"`,
+        title: "Suscripción corregida",
+        description: `Plan: ${changeSub.concepto} → "${newPlan?.nombre || "—"}"${absorbedMonto ? ` · Excedente absorbido: ${formatPrice(absorbedMonto, newPlan?.moneda || "ARS")}` : ""}`,
         actorRole: "admin",
         referenceType: "plan",
         referenceId: changeNewPlanId,
         referenceLabel: newPlan?.nombre || "—",
       });
-      toast.success("Plan actualizado");
+      toast.success(absorbedMonto ? `Plan actualizado · Excedente absorbido (${formatPrice(absorbedMonto, newPlan?.moneda || "ARS")})` : "Plan actualizado");
       setChangeSub(null);
       setChangeNewPlanId("");
       await fetchData();
