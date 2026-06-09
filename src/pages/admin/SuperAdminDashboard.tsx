@@ -111,7 +111,7 @@ const SuperAdminDashboard = () => {
         { label: "Resultado neto", value: fmt(rentabilidad), icon: Target, color: rentabilidad >= 0 ? "text-green-500" : "text-destructive", subtitle: "Ingresos − Gastos" },
         { label: "Tasa de cobro", value: `${tasaCobro}%`, icon: Percent, color: tasaCobro >= 80 ? "text-green-500" : "text-yellow-500", subtitle: `${cobradas.length}/${subsEstesMes.length} suscripciones` },
         { label: "Ticket promedio", value: fmt(ticketPromedio), icon: BarChart3, color: "text-primary", subtitle: `${alumnosActivos} alumnos activos` },
-        { label: "Tienda este mes", value: fmt(storeMes), icon: DollarSign, color: "text-accent", subtitle: `${orders.filter((o: any) => o.created_at >= startOfMonth).length} pedidos` },
+        { label: "Ventas tienda este mes", value: fmt(storeMes), icon: DollarSign, color: "text-accent", subtitle: `${ordersMes.length} pedidos pagados` },
         { label: "Churn rate", value: `${churnRate}%`, icon: TrendingDown, color: Number(churnRate) > 5 ? "text-destructive" : "text-green-500", subtitle: `${inactivosEsteMes} bajas / ${nuevosEsteMes} altas` },
         { label: "Morosidad", value: fmt(montoPendiente), icon: AlertTriangle, color: montoPendiente > 0 ? "text-yellow-500" : "text-green-500", subtitle: `${pendientes.length} pagos pendientes` },
         { label: "Alumnos nuevos", value: nuevosEsteMes, icon: Users, color: "text-primary", subtitle: "Este mes" },
