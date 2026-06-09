@@ -1617,13 +1617,13 @@ const ManageStudents = () => {
                             {e === "vacaciones" && <Palmtree className="w-3 h-3 mr-1.5" />}
                             {e === "inactivo" && <UserX className="w-3 h-3 mr-1.5" />}
                             {e === "bloqueado" && <Ban className="w-3 h-3 mr-1.5" />}
-                            {e.charAt(0).toUpperCase() + e.slice(1)}
+                            {e === "inactivo" ? "Baja" : e.charAt(0).toUpperCase() + e.slice(1)}
                           </Button>
                         ))}
                         {/* Sub state change */}
                         {getActiveSub(drawerAlumno.id) && (
                           <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => openSubChange(drawerAlumno)}>
-                            <FileText className="w-3 h-3 mr-1.5" /> Estado sub
+                            <FileText className="w-3 h-3 mr-1.5" /> Gestionar suscripción
                           </Button>
                         )}
                         {!(drawerAlumno as any).password_set && (
