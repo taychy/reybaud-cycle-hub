@@ -465,16 +465,29 @@ export function RegisterPaymentModal({
 
               <div>
                 <Label className="text-xs">Fecha de pago</Label>
-                <Input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className="h-9 text-sm mt-1" />
+                <Input
+                  type="date"
+                  value={fechaPago}
+                  onChange={(e) => {
+                    setFechaPago(e.target.value);
+                    if (e.target.value) setFechaFin(endOfCalendarMonth(e.target.value));
+                  }}
+                  className="h-9 text-sm mt-1"
+                />
               </div>
 
               <div>
-                <Label className="text-xs">Fecha de vencimiento</Label>
+                <Label className="text-xs">Vence (fin de mes calendario)</Label>
                 <Input
                   type="date"
                   value={fechaFin}
-                  min={fechaPago || undefined}
-                  onChange={(e) => setFechaFin(e.target.value)}
+                  readOnly
+                  className="h-9 text-sm mt-1 bg-muted/40 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Las mensualidades cierran el último día del mes calendario de la fecha de pago.
+                </p>
+              </div>
                   className="h-9 text-sm mt-1"
                 />
                 <p className="text-[10px] text-muted-foreground mt-0.5">Define hasta qué fecha queda activo este pago.</p>
