@@ -175,8 +175,10 @@ const WhatsAppConciliador = () => {
     if (!selectedGrupo) { toast({ title: "Elegí un grupo", variant: "destructive" }); return; }
     setSubmitting(true);
     try {
-      const grupoAlumnos = alumnos
-        .filter(a => a.grupo === selectedGrupo)
+      const grupoAlumnos = (selectedGrupo === OFICIAL
+        ? alumnos
+        : alumnos.filter(a => a.grupo === selectedGrupo))
+        .slice()
         .sort((a, b) => `${a.nombre} ${a.apellido || ""}`.localeCompare(`${b.nombre} ${b.apellido || ""}`));
 
       const { data: { session } } = await supabase.auth.getSession();
