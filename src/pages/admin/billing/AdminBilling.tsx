@@ -91,7 +91,21 @@ export default function AdminBilling() {
     return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando facturación...</div>;
   }
 
-  const pendientes = facturas.filter((f) => f.estado === "sin_factura" || f.estado === "error" || (f.estado === "emitida" && !f.cae));
+  // Set de referencias que YA tienen una factura emitida con CAE (para deduplicar placeholders huérfanos)
+  const refsConCAE = new Set<string>();
+  facturas.forEach((f) => {
+    if (f.estado === "emitida" && f.cae && f.referencia_id) {
+      refsConCAE.add(`${f.referencia_tipo}:${f.referencia_id}`);
+    }
+  });
+
+  const pendientes = facturas.filter((f) => {
+    const isPending = f.estado === "sin_factura" || f.estado === "error" || (f.estado === "emitida" && !f.cae);
+    if (!isPending) return false;
+    // Ocultar si ya hay otra factura emitida con CAE para el mismo cobro
+    if (f.referencia_id && refsConCAE.has(`${f.referencia_tipo}:${f.referencia_id}`)) return false;
+    return true;
+  });
   const historial = facturas.filter((f) => f.estado === "emitida" && f.cae);
 
   return (
