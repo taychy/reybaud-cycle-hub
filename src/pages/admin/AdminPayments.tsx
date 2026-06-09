@@ -287,11 +287,12 @@ const AdminPayments = () => {
   // fecha de vencimiento = vencimiento actual de la suscripción (si existe).
   useEffect(() => {
     if (!manualPayDialog) return;
+    const today = new Date().toISOString().split("T")[0];
     setManualPayData({
       observaciones: manualPayDialog.notas || "",
       metodo: manualPayDialog.metodo_pago || "efectivo",
-      fecha_pago: new Date().toISOString().split("T")[0],
-      fecha_fin: manualPayDialog.fecha_fin || "",
+      fecha_pago: today,
+      fecha_fin: endOfCalendarMonth(today),
     });
   }, [manualPayDialog]);
 
