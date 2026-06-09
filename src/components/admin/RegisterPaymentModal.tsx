@@ -175,14 +175,8 @@ export function RegisterPaymentModal({
       toast.error("Ingresá la fecha de pago.");
       return;
     }
-    if (!fechaFin) {
-      toast.error("Ingresá la fecha de vencimiento.");
-      return;
-    }
-    if (fechaFin < fechaPago) {
-      toast.error("La fecha de vencimiento no puede ser anterior a la fecha de pago.");
-      return;
-    }
+    // fecha_fin se fuerza a fin de mes calendario de la fecha de pago. No es editable.
+    const fechaFinNorm = endOfCalendarMonth(fechaPago);
 
     setSaving(true);
     try {
@@ -204,7 +198,7 @@ export function RegisterPaymentModal({
         .update({
           estado: newEstado,
           fecha_inicio: fechaPago,
-          fecha_fin: fechaFin,
+          fecha_fin: fechaFinNorm,
           metodo_pago: metodo,
           origen_registro: "cargado_admin",
           notas: notasParts.join(" | "),
