@@ -526,23 +526,13 @@ const AdminPayments = () => {
       toast({ title: "Falta fecha de pago", variant: "destructive" });
       return;
     }
-    if (!manualPayData.fecha_fin) {
-      toast({ title: "Falta fecha de vencimiento", variant: "destructive" });
-      return;
-    }
-    if (manualPayData.fecha_fin < manualPayData.fecha_pago) {
-      toast({
-        title: "Fechas inválidas",
-        description: "La fecha de vencimiento no puede ser anterior a la fecha de pago.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // fecha_fin se fuerza a fin de mes calendario de la fecha de pago. No es editable.
+    const fechaFinNorm = endOfCalendarMonth(manualPayData.fecha_pago);
 
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
       fecha_inicio: manualPayData.fecha_pago,
-      fecha_fin: manualPayData.fecha_fin,
+      fecha_fin: fechaFinNorm,
       mp_status: manualPayData.metodo,
       metodo_pago: manualPayData.metodo,
       origen_registro: "cargado_admin",
