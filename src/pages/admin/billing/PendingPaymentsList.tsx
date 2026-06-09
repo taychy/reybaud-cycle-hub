@@ -117,8 +117,7 @@ export function PendingPaymentsList() {
       .from("store_preorders")
       .select(`
         id, alumno_id, product_id, producto_nombre, precio_total, sena_monto, moneda,
-        estado, estado_pago_sena, forma_pago_sena, updated_at, entregada_at,
-        alumnos:alumno_id (id, nombre, apellido, documento)
+        estado, estado_pago_sena, forma_pago_sena, updated_at, entregada_at
       `)
       .eq("estado_pago_sena", "confirmada")
       .not("estado", "in", "(cancelada,vencida)")
