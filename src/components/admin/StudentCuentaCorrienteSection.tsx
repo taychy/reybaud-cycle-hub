@@ -94,9 +94,10 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [planes, setPlanes] = useState<PlanOption[]>([]);
   const [cancelSub, setCancelSub] = useState<{ id: string; concepto: string } | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
-  const [changeSub, setChangeSub] = useState<{ id: string; concepto: string; currentPlanId: string | null } | null>(null);
+  const [changeSub, setChangeSub] = useState<{ id: string; concepto: string; currentPlanId: string | null; currentPrice: number | null; currentMoneda: string | null } | null>(null);
   const [changeNewPlanId, setChangeNewPlanId] = useState<string>("");
   const [changeLoading, setChangeLoading] = useState(false);
+  const [absorbCredit, setAbsorbCredit] = useState(true);
 
   const PREVIEW_LIMIT = 5;
 
