@@ -126,14 +126,28 @@ export function PendingPaymentsList() {
       .order("updated_at", { ascending: false })
       .limit(500);
 
+    // 4) Pedidos de tienda pagados desde cutoff
+    const ordersPromise = supabase
+      .from("store_orders")
+      .select(`
+        id, order_number, alumno_id, customer_name, total, currency, status,
+        metodo_pago, origen_registro, pagado_at, updated_at,
+        alumnos:alumno_id (id, nombre, apellido, documento),
+        store_order_items (producto_nombre, cantidad)
+      `)
+      .eq("status", "pagado")
+      .gte("updated_at", CUTOFF_DATE)
+      .order("updated_at", { ascending: false })
+      .limit(500);
+
     // Emisores (para el modal bulk)
     const emisoresPromise = supabase
       .from("emisores_fiscales")
       .select("*")
       .order("created_at", { ascending: true });
 
-    const [subs, reservas, preorders, emisoresRes] = await Promise.all([
-      subsPromise, reservasPromise, preordersPromise, emisoresPromise,
+    const [subs, reservas, preorders, orders, emisoresRes] = await Promise.all([
+      subsPromise, reservasPromise, preordersPromise, ordersPromise, emisoresPromise,
     ]);
 
     setEmisores((emisoresRes.data as any[]) || []);
