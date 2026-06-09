@@ -544,7 +544,7 @@ const AdminPayments = () => {
         alumno: manualPayDialog.alumnos?.nombre,
         metodo: manualPayData.metodo,
         fecha_pago: manualPayData.fecha_pago,
-        fecha_fin: manualPayData.fecha_fin,
+        fecha_fin: fechaFinNorm,
         observaciones: manualPayData.observaciones,
       });
 
