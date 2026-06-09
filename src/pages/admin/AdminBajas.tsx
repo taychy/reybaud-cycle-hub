@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { AlertTriangle, ChevronLeft, ChevronRight, CheckCheck, Pencil, RefreshCw, Inbox, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, CheckCheck, Pencil, RefreshCw, Inbox, ClipboardCheck, RotateCcw, UserMinus } from "lucide-react";
 import BajasSolicitudesList from "@/components/admin/BajasSolicitudesList";
+import DevolucionesList from "@/components/admin/DevolucionesList";
+import DarBajaDirectaDialog from "@/components/admin/DarBajaDirectaDialog";
+import RegistrarDevolucionDialog from "@/components/admin/RegistrarDevolucionDialog";
 
 type SubRow = {
   id: string;
