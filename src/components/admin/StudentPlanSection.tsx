@@ -700,7 +700,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Button>
             )}
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 text-destructive hover:text-destructive" onClick={() => { setRemoveSubId(sub.id); setShowRemovePlan(true); }}>
-              <XCircle className="w-3 h-3 mr-0.5" /> Quitar
+              <XCircle className="w-3 h-3 mr-0.5" /> Editar
             </Button>
           </div>
         )}
