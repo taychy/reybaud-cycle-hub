@@ -153,9 +153,12 @@ const WhatsAppConciliador = () => {
     init();
   }, [navigate]);
 
+  const OFICIAL = "Oficial (todos los activos)";
+
   const grupoStats = useMemo(() => {
     const m = new Map<string, number>();
     alumnos.forEach(a => { if (a.grupo && a.grupo !== "Sin grupo") m.set(a.grupo, (m.get(a.grupo) || 0) + 1); });
+    m.set(OFICIAL, alumnos.length);
     return m;
   }, [alumnos]);
 
@@ -172,8 +175,10 @@ const WhatsAppConciliador = () => {
     if (!selectedGrupo) { toast({ title: "Elegí un grupo", variant: "destructive" }); return; }
     setSubmitting(true);
     try {
-      const grupoAlumnos = alumnos
-        .filter(a => a.grupo === selectedGrupo)
+      const grupoAlumnos = (selectedGrupo === OFICIAL
+        ? alumnos
+        : alumnos.filter(a => a.grupo === selectedGrupo))
+        .slice()
         .sort((a, b) => `${a.nombre} ${a.apellido || ""}`.localeCompare(`${b.nombre} ${b.apellido || ""}`));
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -460,6 +465,9 @@ const WhatsAppConciliador = () => {
                 <Select value={selectedGrupo} onValueChange={setSelectedGrupo}>
                   <SelectTrigger><SelectValue placeholder="Elegí un grupo…" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={OFICIAL}>
+                      {OFICIAL} <span className="text-muted-foreground ml-1">({alumnos.length} activos{lastRuns[OFICIAL] ? ` · último ${lastRuns[OFICIAL]?.fecha_objetivo}` : ""})</span>
+                    </SelectItem>
                     {grupos.map(g => {
                       const last = lastRuns[g];
                       return (
