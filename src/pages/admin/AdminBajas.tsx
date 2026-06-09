@@ -77,6 +77,9 @@ const AdminBajas = () => {
   const [showOnlyPending, setShowOnlyPending] = useState(true);
   const [editing, setEditing] = useState<SubRow | null>(null);
   const [noteValue, setNoteValue] = useState("");
+  const [openBajaDirecta, setOpenBajaDirecta] = useState(false);
+  const [openDevolucion, setOpenDevolucion] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadData = useCallback(async () => {
     setLoading(true);
