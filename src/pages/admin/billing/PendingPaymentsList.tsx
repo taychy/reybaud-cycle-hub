@@ -151,6 +151,19 @@ export function PendingPaymentsList() {
 
     setEmisores((emisoresRes.data as any[]) || []);
 
+    // Fetch alumnos para preorders (sin FK declarada → no podemos embeber)
+    const preorderAlumnoIds = Array.from(
+      new Set((preorders.data || []).map((p: any) => p.alumno_id).filter(Boolean))
+    );
+    const alumnosMap = new Map<string, any>();
+    if (preorderAlumnoIds.length > 0) {
+      const { data: alumnosData } = await supabase
+        .from("alumnos")
+        .select("id, nombre, apellido, documento")
+        .in("id", preorderAlumnoIds);
+      (alumnosData || []).forEach((a: any) => alumnosMap.set(a.id, a));
+    }
+
     const subRows: PendingPayment[] = (subs.data || []).map((s: any) => {
       const alumno = s.alumnos;
       const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
