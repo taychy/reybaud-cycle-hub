@@ -332,6 +332,7 @@ const AdminLayout = () => {
             {isSuperAdmin && (
               <>
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
+                <NavItem item={{ to: "/admin/estado-escuela", label: "Estado escuela", icon: Activity }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
               </>
             )}
