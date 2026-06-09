@@ -94,9 +94,10 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [planes, setPlanes] = useState<PlanOption[]>([]);
   const [cancelSub, setCancelSub] = useState<{ id: string; concepto: string } | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
-  const [changeSub, setChangeSub] = useState<{ id: string; concepto: string; currentPlanId: string | null } | null>(null);
+  const [changeSub, setChangeSub] = useState<{ id: string; concepto: string; currentPlanId: string | null; currentPrice: number | null; currentMoneda: string | null } | null>(null);
   const [changeNewPlanId, setChangeNewPlanId] = useState<string>("");
   const [changeLoading, setChangeLoading] = useState(false);
+  const [absorbCredit, setAbsorbCredit] = useState(true);
 
   const PREVIEW_LIMIT = 5;
 
@@ -199,7 +200,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
     }
   };
 
-  // ---- Cambiar plan de una suscripción existente ----
+  // ---- Corregir / cambiar plan de una suscripción existente ----
   const handleChangePlan = async () => {
     if (!changeSub || !changeNewPlanId || changeNewPlanId === changeSub.currentPlanId) {
       setChangeSub(null);
@@ -224,6 +225,35 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         toast.error("Error al cambiar de plan: " + (error.message || ""));
         return;
       }
+
+      // Intento de reabsorber el "Excedente" si corresponde
+      let absorbedAjusteId: string | null = null;
+      let absorbedMonto: number | null = null;
+      const oldPrice = Number(changeSub.currentPrice || 0);
+      const newPrice = Number(newPlan?.precio || 0);
+      const diff = newPrice - oldPrice; // upgrade => positivo
+      const sameMoneda = (newPlan?.moneda || "ARS") === (changeSub.currentMoneda || "ARS");
+      if (absorbCredit && sameMoneda && diff > 0) {
+        // Busca el "Excedente" más reciente en esa moneda cuyo monto sea <= diff
+        const { data: candidatos } = await supabase
+          .from("cuenta_ajustes")
+          .select("id, monto, moneda, concepto, fecha")
+          .eq("alumno_id", alumnoId)
+          .eq("tipo", "credito")
+          .eq("moneda", newPlan?.moneda || "ARS")
+          .ilike("concepto", "Excedente%")
+          .order("fecha", { ascending: false })
+          .limit(10);
+        const match = (candidatos || []).find((c: any) => Number(c.monto) <= diff + 0.01);
+        if (match) {
+          const { error: delErr } = await supabase.from("cuenta_ajustes").delete().eq("id", match.id);
+          if (!delErr) {
+            absorbedAjusteId = match.id;
+            absorbedMonto = Number(match.monto);
+          }
+        }
+      }
+
       // Audit
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -233,7 +263,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           user_id: session.user.id,
           user_email: adminProfile?.email || session.user.email || "",
           user_role: adminProfile?.role || "admin",
-          action: "cambiar_plan_cc",
+          action: "corregir_suscripcion_cc",
           entity_type: "suscripcion",
           entity_id: changeSub.id,
           details: {
@@ -241,20 +271,25 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
             plan_anterior_id: changeSub.currentPlanId,
             plan_nuevo_id: changeNewPlanId,
             plan_nuevo_nombre: newPlan?.nombre,
+            precio_anterior: oldPrice,
+            precio_nuevo: newPrice,
+            diferencia: diff,
+            excedente_absorbido_ajuste_id: absorbedAjusteId,
+            excedente_absorbido_monto: absorbedMonto,
           },
         }]);
       }
       await logStudentActivity({
         alumnoId,
         eventType: "cambio_plan",
-        title: "Plan cambiado",
-        description: `Desde cuenta corriente: ${changeSub.concepto} → "${newPlan?.nombre || "—"}"`,
+        title: "Suscripción corregida",
+        description: `Plan: ${changeSub.concepto} → "${newPlan?.nombre || "—"}"${absorbedMonto ? ` · Excedente absorbido: ${formatPrice(absorbedMonto, newPlan?.moneda || "ARS")}` : ""}`,
         actorRole: "admin",
         referenceType: "plan",
         referenceId: changeNewPlanId,
         referenceLabel: newPlan?.nombre || "—",
       });
-      toast.success("Plan actualizado");
+      toast.success(absorbedMonto ? `Plan actualizado · Excedente absorbido (${formatPrice(absorbedMonto, newPlan?.moneda || "ARS")})` : "Plan actualizado");
       setChangeSub(null);
       setChangeNewPlanId("");
       await fetchData();
@@ -468,10 +503,13 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                                   id: m.fuente_id,
                                   concepto: m.concepto,
                                   currentPlanId: m.referencia_extra?.plan_id || null,
+                                  currentPrice: Number(m.debe) || 0,
+                                  currentMoneda: m.moneda,
                                 });
                                 setChangeNewPlanId(m.referencia_extra?.plan_id || "");
+                                setAbsorbCredit(true);
                               }}
-                              title="Cambiar plan de esta suscripción"
+                              title="Corregir / cambiar plan de esta suscripción"
                             >
                               <ArrowRightLeft className="h-3.5 w-3.5" />
                             </Button>
@@ -566,33 +604,72 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cambiar plan */}
+      {/* Corregir / cambiar plan */}
       <Dialog open={!!changeSub} onOpenChange={(o) => { if (!o) { setChangeSub(null); setChangeNewPlanId(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-primary" /> Cambiar plan
+              <ArrowRightLeft className="h-4 w-4 text-primary" /> Corregir suscripción
             </DialogTitle>
             <DialogDescription>
-              Reemplaza el plan asignado a esta suscripción. El cargo en cuenta corriente se actualiza al precio del nuevo plan.
+              Reemplaza el plan asignado a esta suscripción. Se usa para <strong>corregir</strong> un alta mal cargada (sin prorrateo, conservando fechas). El cargo en cuenta corriente se actualiza automáticamente al precio del nuevo plan.
               <br />
               <span className="text-foreground text-xs">{changeSub?.concepto}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label className="text-xs">Nuevo plan</Label>
-            <SelectPlan value={changeNewPlanId} onValueChange={setChangeNewPlanId}>
-              <SelectPlanTrigger>
-                <SelectPlanValue placeholder="Elegí un plan…" />
-              </SelectPlanTrigger>
-              <SelectPlanContent>
-                {planes.map((p) => (
-                  <SelectPlanItem key={p.id} value={p.id}>
-                    {p.nombre} {p.precio != null ? `· ${formatPrice(p.precio, p.moneda || "ARS")}` : ""}
-                  </SelectPlanItem>
-                ))}
-              </SelectPlanContent>
-            </SelectPlan>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs">Nuevo plan</Label>
+              <SelectPlan value={changeNewPlanId} onValueChange={setChangeNewPlanId}>
+                <SelectPlanTrigger>
+                  <SelectPlanValue placeholder="Elegí un plan…" />
+                </SelectPlanTrigger>
+                <SelectPlanContent>
+                  {planes.map((p) => (
+                    <SelectPlanItem key={p.id} value={p.id}>
+                      {p.nombre} {p.precio != null ? `· ${formatPrice(p.precio, p.moneda || "ARS")}` : ""}
+                    </SelectPlanItem>
+                  ))}
+                </SelectPlanContent>
+              </SelectPlan>
+            </div>
+
+            {(() => {
+              const newPlan = planes.find((p) => p.id === changeNewPlanId);
+              if (!newPlan || !changeSub) return null;
+              const oldPrice = Number(changeSub.currentPrice || 0);
+              const newPrice = Number(newPlan.precio || 0);
+              const moneda = newPlan.moneda || "ARS";
+              const sameMoneda = moneda === (changeSub.currentMoneda || "ARS");
+              const diff = newPrice - oldPrice;
+              return (
+                <div className="rounded-md border border-border bg-secondary/30 p-3 text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Precio actual</span><span className="font-mono">{formatPrice(oldPrice, changeSub.currentMoneda || "ARS")}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Precio nuevo</span><span className="font-mono">{formatPrice(newPrice, moneda)}</span></div>
+                  <div className="flex justify-between border-t border-border pt-1 mt-1">
+                    <span className="text-muted-foreground">Diferencia</span>
+                    <span className={`font-mono font-semibold ${diff > 0 ? "text-destructive" : diff < 0 ? "text-emerald-400" : ""}`}>
+                      {diff > 0 ? "+" : ""}{formatPrice(diff, moneda)}
+                    </span>
+                  </div>
+                  {!sameMoneda && (
+                    <p className="text-amber-400 mt-2">⚠ El nuevo plan está en otra moneda ({moneda}). No se intentará reabsorber crédito.</p>
+                  )}
+                </div>
+              );
+            })()}
+
+            <label className="flex items-start gap-2 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={absorbCredit}
+                onChange={(e) => setAbsorbCredit(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border"
+              />
+              <span className="text-muted-foreground">
+                Si el alumno tiene un <strong>Excedente</strong> a favor por igual o menor a la diferencia, eliminarlo automáticamente (reabsorber crédito).
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setChangeSub(null); setChangeNewPlanId(""); }} disabled={changeLoading}>
@@ -602,7 +679,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
               onClick={handleChangePlan}
               disabled={changeLoading || !changeNewPlanId || changeNewPlanId === changeSub?.currentPlanId}
             >
-              {changeLoading ? "Guardando…" : "Cambiar plan"}
+              {changeLoading ? "Guardando…" : "Corregir suscripción"}
             </Button>
           </DialogFooter>
         </DialogContent>
