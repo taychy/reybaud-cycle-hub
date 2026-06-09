@@ -375,13 +375,12 @@ const AdminPayments = () => {
   };
 
   const handleMarcarPagado = async (sub: Suscripcion) => {
-    const now = new Date();
-    const fechaFin = new Date(now);
-    fechaFin.setMonth(fechaFin.getMonth() + 1);
+    const todayStr = new Date().toISOString().split("T")[0];
+    const fechaFinStr = endOfCalendarMonth(todayStr);
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
-      fecha_inicio: now.toISOString().split("T")[0],
-      fecha_fin: fechaFin.toISOString().split("T")[0],
+      fecha_inicio: todayStr,
+      fecha_fin: fechaFinStr,
       mp_status: sub.mp_status || "manual",
       origen_registro: "cargado_admin",
     } as any).eq("id", sub.id);
