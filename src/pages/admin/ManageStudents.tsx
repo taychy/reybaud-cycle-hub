@@ -851,9 +851,7 @@ const ManageStudents = () => {
 
   const openManualSub = (alumno: Alumno) => {
     setManualSubAlumno(alumno);
-    const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setManualFechaFin(lastDay.toISOString().split("T")[0]);
+    setManualFechaFin(endOfCalendarMonth());
   };
 
   const handleManualSub = async () => {
