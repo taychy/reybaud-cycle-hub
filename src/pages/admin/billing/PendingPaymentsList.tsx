@@ -235,7 +235,7 @@ export function PendingPaymentsList() {
     });
 
     const tiendaRows: PendingPayment[] = (preorders.data || []).map((p: any) => {
-      const alumno = p.alumnos;
+      const alumno = alumnosMap.get(p.alumno_id);
       const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
       const monto = p.estado === "entregada" ? Number(p.precio_total) : Number(p.sena_monto);
       const conceptoBase = `${p.producto_nombre}${p.estado === "entregada" ? "" : " (seña)"}`;
