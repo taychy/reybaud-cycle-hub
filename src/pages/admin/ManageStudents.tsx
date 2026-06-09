@@ -1821,9 +1821,9 @@ const ManageStudents = () => {
               <div className="space-y-4 py-2">
                 <p className="text-sm text-muted-foreground">Alumno: <span className="text-foreground font-medium">{manualSubAlumno?.nombre}</span></p>
                 <div className="space-y-2">
-                  <Label htmlFor="fecha-fin">Fecha de vencimiento</Label>
-                  <Input id="fecha-fin" type="date" value={manualFechaFin} onChange={(e) => setManualFechaFin(e.target.value)} className="bg-secondary border-border" />
-                  <p className="text-xs text-muted-foreground">Útil para pagos en efectivo o meses por adelantado</p>
+                  <Label htmlFor="fecha-fin">Vence (fin de mes calendario)</Label>
+                  <Input id="fecha-fin" type="date" value={manualFechaFin} readOnly className="bg-muted/40 border-border cursor-not-allowed" />
+                  <p className="text-xs text-muted-foreground">Todas las mensualidades cierran el último día del mes calendario. No se permite vencimiento "rolling" a 30 días.</p>
                 </div>
               </div>
               <DialogFooter>
