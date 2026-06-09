@@ -517,7 +517,7 @@ function AuditDrawer({
   const exportCSV = () => {
     if (!audit) return;
     const data = rows.map(r => ({
-      alumno: r.alumno?.nombre || "",
+      alumno: [r.alumno?.nombre, r.alumno?.apellido].filter(Boolean).join(" "),
       telefono: r.alumno?.telefono || "",
       plan: r.plan?.nombre || "",
       precio: r.precio,
