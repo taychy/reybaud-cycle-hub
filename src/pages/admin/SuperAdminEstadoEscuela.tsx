@@ -17,7 +17,7 @@ import {
 const GRACE_DAY = 5;
 
 type MonedaTotal = { moneda: string; total: number };
-type AlumnoLite = { id: string; nombre: string; telefono?: string | null };
+type AlumnoLite = { id: string; nombre: string; apellido?: string | null; telefono?: string | null };
 type SubRow = {
   id: string;
   alumno_id: string;
@@ -125,7 +125,7 @@ export default function SuperAdminEstadoEscuela() {
       const [subsRes, bajasRes, gastosRes, ajustesRes] = await Promise.all([
         supabase
           .from("suscripciones")
-          .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, metodo_pago, precio_base, precio_final, created_at, alumno:alumnos(id, nombre, telefono), plan:planes(id, nombre, precio, moneda)")
+          .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, metodo_pago, precio_base, precio_final, created_at, alumno:alumnos(id, nombre, apellido, telefono), plan:planes(id, nombre, precio, moneda)")
           .or(`and(fecha_inicio.lte.${mesFin},or(fecha_fin.gte.${mesInicio},fecha_fin.is.null)),and(fecha_inicio.gte.${mesInicio},fecha_inicio.lte.${mesFin}),and(fecha_fin.gte.${mesInicio},fecha_fin.lt.${mesSiguienteInicio})`),
         supabase
           .from("bajas_solicitudes")
@@ -517,7 +517,7 @@ function AuditDrawer({
   const exportCSV = () => {
     if (!audit) return;
     const data = rows.map(r => ({
-      alumno: r.alumno?.nombre || "",
+      alumno: [r.alumno?.nombre, r.alumno?.apellido].filter(Boolean).join(" "),
       telefono: r.alumno?.telefono || "",
       plan: r.plan?.nombre || "",
       precio: r.precio,
@@ -571,7 +571,7 @@ function AuditDrawer({
               <TableBody>
                 {rows.map(r => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.alumno?.nombre || "—"}</TableCell>
+                    <TableCell className="font-medium">{[r.alumno?.nombre, r.alumno?.apellido].filter(Boolean).join(" ") || "—"}</TableCell>
                     <TableCell className="text-xs">{r.plan?.nombre || "—"}</TableCell>
                     <TableCell className="text-right font-mono">{formatPrice(r.precio, r.moneda)}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{r.estado}</Badge></TableCell>
