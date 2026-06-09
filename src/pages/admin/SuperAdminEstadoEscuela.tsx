@@ -17,7 +17,7 @@ import {
 const GRACE_DAY = 5;
 
 type MonedaTotal = { moneda: string; total: number };
-type AlumnoLite = { id: string; nombre: string; telefono?: string | null };
+type AlumnoLite = { id: string; nombre: string; apellido?: string | null; telefono?: string | null };
 type SubRow = {
   id: string;
   alumno_id: string;
