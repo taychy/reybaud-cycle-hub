@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { AlertTriangle, ChevronLeft, ChevronRight, CheckCheck, Pencil, RefreshCw, Inbox, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, CheckCheck, Pencil, RefreshCw, Inbox, ClipboardCheck, RotateCcw, UserMinus } from "lucide-react";
 import BajasSolicitudesList from "@/components/admin/BajasSolicitudesList";
+import DevolucionesList from "@/components/admin/DevolucionesList";
+import DarBajaDirectaDialog from "@/components/admin/DarBajaDirectaDialog";
+import RegistrarDevolucionDialog from "@/components/admin/RegistrarDevolucionDialog";
 
 type SubRow = {
   id: string;
@@ -74,6 +77,9 @@ const AdminBajas = () => {
   const [showOnlyPending, setShowOnlyPending] = useState(true);
   const [editing, setEditing] = useState<SubRow | null>(null);
   const [noteValue, setNoteValue] = useState("");
+  const [openBajaDirecta, setOpenBajaDirecta] = useState(false);
+  const [openDevolucion, setOpenDevolucion] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -162,19 +168,34 @@ const AdminBajas = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Bajas</h1>
-        <p className="text-sm text-muted-foreground">Solicitudes de baja del alumno y chequeo de bajas históricas</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Bajas</h1>
+          <p className="text-sm text-muted-foreground">Solicitudes de baja, devoluciones y chequeo histórico</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setOpenDevolucion(true)}>
+            <RotateCcw className="w-4 h-4 mr-1" /> Registrar devolución
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setOpenBajaDirecta(true)}>
+            <UserMinus className="w-4 h-4 mr-1" /> Dar de baja directa
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="solicitudes" className="w-full">
         <TabsList className="bg-secondary">
           <TabsTrigger value="solicitudes" className="gap-1.5"><Inbox className="w-4 h-4" />Solicitudes</TabsTrigger>
+          <TabsTrigger value="devoluciones" className="gap-1.5"><RotateCcw className="w-4 h-4" />Devoluciones</TabsTrigger>
           <TabsTrigger value="chequeo" className="gap-1.5"><ClipboardCheck className="w-4 h-4" />Chequeo histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="solicitudes" className="mt-4">
-          <BajasSolicitudesList />
+          <BajasSolicitudesList key={`sol-${refreshKey}`} />
+        </TabsContent>
+
+        <TabsContent value="devoluciones" className="mt-4">
+          <DevolucionesList key={`dev-${refreshKey}`} />
         </TabsContent>
 
         <TabsContent value="chequeo" className="mt-4 space-y-4">
@@ -313,6 +334,17 @@ const AdminBajas = () => {
       </Dialog>
         </TabsContent>
       </Tabs>
+
+      <DarBajaDirectaDialog
+        open={openBajaDirecta}
+        onOpenChange={setOpenBajaDirecta}
+        onDone={() => { setRefreshKey((k) => k + 1); loadData(); }}
+      />
+      <RegistrarDevolucionDialog
+        open={openDevolucion}
+        onOpenChange={setOpenDevolucion}
+        onDone={() => setRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 

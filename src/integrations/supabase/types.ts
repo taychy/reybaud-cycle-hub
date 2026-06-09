@@ -1177,6 +1177,89 @@ export type Database = {
           },
         ]
       }
+      devoluciones: {
+        Row: {
+          ajuste_id: string | null
+          alumno_id: string
+          baja_solicitud_id: string | null
+          created_at: string
+          created_by: string | null
+          fecha: string
+          id: string
+          metodo: string
+          moneda: string
+          monto: number
+          motivo: string
+          notas: string | null
+          referencia: string | null
+          suscripcion_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ajuste_id?: string | null
+          alumno_id: string
+          baja_solicitud_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fecha?: string
+          id?: string
+          metodo?: string
+          moneda?: string
+          monto: number
+          motivo: string
+          notas?: string | null
+          referencia?: string | null
+          suscripcion_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ajuste_id?: string | null
+          alumno_id?: string
+          baja_solicitud_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fecha?: string
+          id?: string
+          metodo?: string
+          moneda?: string
+          monto?: number
+          motivo?: string
+          notas?: string | null
+          referencia?: string | null
+          suscripcion_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devoluciones_ajuste_id_fkey"
+            columns: ["ajuste_id"]
+            isOneToOne: false
+            referencedRelation: "cuenta_ajustes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_baja_solicitud_id_fkey"
+            columns: ["baja_solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "bajas_solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disponibilidad_coaches: {
         Row: {
           activo: boolean
@@ -5803,6 +5886,21 @@ export type Database = {
         }
         Returns: string
       }
+      dar_baja_directa: {
+        Args: {
+          p_alumno_id: string
+          p_comentario?: string
+          p_email_notificar?: boolean
+          p_motivo: string
+          p_motivo_otro_detalle?: string
+          p_notas?: string
+        }
+        Returns: {
+          alumno_id: string
+          mp_preapproval_ids: string[]
+          solicitud_id: string
+        }[]
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -6031,6 +6129,21 @@ export type Database = {
             }
             Returns: string
           }
+      registrar_devolucion: {
+        Args: {
+          p_alumno_id: string
+          p_baja_solicitud_id?: string
+          p_fecha?: string
+          p_metodo?: string
+          p_moneda?: string
+          p_monto: number
+          p_motivo?: string
+          p_notas?: string
+          p_referencia?: string
+          p_suscripcion_id?: string
+        }
+        Returns: string
+      }
       request_baja_alumno: {
         Args: {
           p_alumno_id: string
