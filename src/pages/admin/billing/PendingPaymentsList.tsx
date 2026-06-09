@@ -262,11 +262,11 @@ export function PendingPaymentsList() {
       const nombre = alumno
         ? `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() || o.customer_name || "—"
         : (o.customer_name || "—");
-      const items = (o.store_order_items || []) as Array<{ producto_nombre: string; cantidad: number }>;
+      const items = (o.store_order_items || []) as Array<{ product_name: string; quantity: number }>;
       const resumen = items.length === 0
         ? `Pedido #${o.order_number}`
         : items.length === 1
-          ? `${items[0].producto_nombre}${items[0].cantidad > 1 ? ` x${items[0].cantidad}` : ""}`
+          ? `${items[0].product_name}${items[0].quantity > 1 ? ` x${items[0].quantity}` : ""}`
           : `Pedido #${o.order_number} (${items.length} ítems)`;
       const concepto = `Pedido tienda #${o.order_number} — ${resumen}`;
       return {
