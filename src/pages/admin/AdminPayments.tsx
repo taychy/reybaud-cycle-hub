@@ -23,6 +23,7 @@ import {
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllOperationsTab from "@/components/admin/AllOperationsTab";
 
@@ -286,11 +287,12 @@ const AdminPayments = () => {
   // fecha de vencimiento = vencimiento actual de la suscripción (si existe).
   useEffect(() => {
     if (!manualPayDialog) return;
+    const today = new Date().toISOString().split("T")[0];
     setManualPayData({
       observaciones: manualPayDialog.notas || "",
       metodo: manualPayDialog.metodo_pago || "efectivo",
-      fecha_pago: new Date().toISOString().split("T")[0],
-      fecha_fin: manualPayDialog.fecha_fin || "",
+      fecha_pago: today,
+      fecha_fin: endOfCalendarMonth(today),
     });
   }, [manualPayDialog]);
 
@@ -375,13 +377,12 @@ const AdminPayments = () => {
   };
 
   const handleMarcarPagado = async (sub: Suscripcion) => {
-    const now = new Date();
-    const fechaFin = new Date(now);
-    fechaFin.setMonth(fechaFin.getMonth() + 1);
+    const todayStr = new Date().toISOString().split("T")[0];
+    const fechaFinStr = endOfCalendarMonth(todayStr);
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
-      fecha_inicio: now.toISOString().split("T")[0],
-      fecha_fin: fechaFin.toISOString().split("T")[0],
+      fecha_inicio: todayStr,
+      fecha_fin: fechaFinStr,
       mp_status: sub.mp_status || "manual",
       origen_registro: "cargado_admin",
     } as any).eq("id", sub.id);
@@ -502,10 +503,12 @@ const AdminPayments = () => {
 
   const handleEditFecha = async () => {
     if (!editFechaDialog || !editFechaValue) return;
-    const { error } = await supabase.from("suscripciones").update({ fecha_fin: editFechaValue }).eq("id", editFechaDialog.id);
+    // Forzamos siempre fin de mes calendario, no se permite vencimiento rolling.
+    const normalized = endOfCalendarMonth(editFechaValue);
+    const { error } = await supabase.from("suscripciones").update({ fecha_fin: normalized }).eq("id", editFechaDialog.id);
     if (!error) {
-      await logAudit("editar_vencimiento", editFechaDialog.id, { alumno: editFechaDialog.alumnos?.nombre, nueva_fecha: editFechaValue });
-      toast({ title: "Fecha actualizada" });
+      await logAudit("editar_vencimiento", editFechaDialog.id, { alumno: editFechaDialog.alumnos?.nombre, nueva_fecha: normalized });
+      toast({ title: "Fecha actualizada", description: `Vence el ${normalized} (fin de mes calendario).` });
       fetchData();
     }
     setEditFechaDialog(null);
@@ -523,23 +526,13 @@ const AdminPayments = () => {
       toast({ title: "Falta fecha de pago", variant: "destructive" });
       return;
     }
-    if (!manualPayData.fecha_fin) {
-      toast({ title: "Falta fecha de vencimiento", variant: "destructive" });
-      return;
-    }
-    if (manualPayData.fecha_fin < manualPayData.fecha_pago) {
-      toast({
-        title: "Fechas inválidas",
-        description: "La fecha de vencimiento no puede ser anterior a la fecha de pago.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // fecha_fin se fuerza a fin de mes calendario de la fecha de pago. No es editable.
+    const fechaFinNorm = endOfCalendarMonth(manualPayData.fecha_pago);
 
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
       fecha_inicio: manualPayData.fecha_pago,
-      fecha_fin: manualPayData.fecha_fin,
+      fecha_fin: fechaFinNorm,
       mp_status: manualPayData.metodo,
       metodo_pago: manualPayData.metodo,
       origen_registro: "cargado_admin",
@@ -551,7 +544,7 @@ const AdminPayments = () => {
         alumno: manualPayDialog.alumnos?.nombre,
         metodo: manualPayData.metodo,
         fecha_pago: manualPayData.fecha_pago,
-        fecha_fin: manualPayData.fecha_fin,
+        fecha_fin: fechaFinNorm,
         observaciones: manualPayData.observaciones,
       });
 
@@ -1282,18 +1275,21 @@ const AdminPayments = () => {
             </div>
             <div>
               <Label>Fecha de pago</Label>
-              <Input type="date" value={manualPayData.fecha_pago} onChange={(e) => setManualPayData((p) => ({ ...p, fecha_pago: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Fecha de vencimiento</Label>
               <Input
                 type="date"
-                value={manualPayData.fecha_fin}
-                min={manualPayData.fecha_pago || undefined}
-                onChange={(e) => setManualPayData((p) => ({ ...p, fecha_fin: e.target.value }))}
+                value={manualPayData.fecha_pago}
+                onChange={(e) => setManualPayData((p) => ({
+                  ...p,
+                  fecha_pago: e.target.value,
+                  fecha_fin: e.target.value ? endOfCalendarMonth(e.target.value) : "",
+                }))}
               />
+            </div>
+            <div>
+              <Label>Vence (fin de mes calendario)</Label>
+              <Input type="date" value={manualPayData.fecha_fin} readOnly className="bg-muted/40 cursor-not-allowed" />
               <p className="text-xs text-muted-foreground mt-1">
-                Define hasta qué fecha queda activo este pago.
+                Todas las mensualidades cierran el último día del mes. No se permite vencimiento "rolling" a 30 días.
               </p>
             </div>
             <div>

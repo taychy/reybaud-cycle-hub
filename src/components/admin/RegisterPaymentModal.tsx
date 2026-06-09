@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PAYMENT_METHODS } from "@/lib/paymentMethods";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -153,19 +154,14 @@ export function RegisterPaymentModal({
     return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: storedBase };
   };
 
-  // When sub is selected, pre-fill amount and fecha_fin
+  // When sub is selected, pre-fill amount and fecha_fin (fin de mes calendario)
   useEffect(() => {
     const sub = pendingSubs.find(s => s.id === selectedSubId);
     if (!sub) return;
     const { price } = getEffectivePrice(sub);
     setMontoPagado(String(price));
-    // Default: end of current month
-    if (!fechaFin) {
-      const now = new Date();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      setFechaFin(lastDay.toISOString().split("T")[0]);
-    }
-  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual]);
+    setFechaFin(endOfCalendarMonth(fechaPago || new Date().toISOString().split("T")[0]));
+  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual, fechaPago]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
@@ -179,14 +175,8 @@ export function RegisterPaymentModal({
       toast.error("Ingresá la fecha de pago.");
       return;
     }
-    if (!fechaFin) {
-      toast.error("Ingresá la fecha de vencimiento.");
-      return;
-    }
-    if (fechaFin < fechaPago) {
-      toast.error("La fecha de vencimiento no puede ser anterior a la fecha de pago.");
-      return;
-    }
+    // fecha_fin se fuerza a fin de mes calendario de la fecha de pago. No es editable.
+    const fechaFinNorm = endOfCalendarMonth(fechaPago);
 
     setSaving(true);
     try {
@@ -208,7 +198,7 @@ export function RegisterPaymentModal({
         .update({
           estado: newEstado,
           fecha_inicio: fechaPago,
-          fecha_fin: fechaFin,
+          fecha_fin: fechaFinNorm,
           metodo_pago: metodo,
           origen_registro: "cargado_admin",
           notas: notasParts.join(" | "),
@@ -475,19 +465,28 @@ export function RegisterPaymentModal({
 
               <div>
                 <Label className="text-xs">Fecha de pago</Label>
-                <Input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className="h-9 text-sm mt-1" />
+                <Input
+                  type="date"
+                  value={fechaPago}
+                  onChange={(e) => {
+                    setFechaPago(e.target.value);
+                    if (e.target.value) setFechaFin(endOfCalendarMonth(e.target.value));
+                  }}
+                  className="h-9 text-sm mt-1"
+                />
               </div>
 
               <div>
-                <Label className="text-xs">Fecha de vencimiento</Label>
+                <Label className="text-xs">Vence (fin de mes calendario)</Label>
                 <Input
                   type="date"
                   value={fechaFin}
-                  min={fechaPago || undefined}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  className="h-9 text-sm mt-1"
+                  readOnly
+                  className="h-9 text-sm mt-1 bg-muted/40 cursor-not-allowed"
                 />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Define hasta qué fecha queda activo este pago.</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Las mensualidades cierran el último día del mes calendario de la fecha de pago.
+                </p>
               </div>
 
               <div>
