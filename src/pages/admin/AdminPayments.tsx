@@ -503,10 +503,12 @@ const AdminPayments = () => {
 
   const handleEditFecha = async () => {
     if (!editFechaDialog || !editFechaValue) return;
-    const { error } = await supabase.from("suscripciones").update({ fecha_fin: editFechaValue }).eq("id", editFechaDialog.id);
+    // Forzamos siempre fin de mes calendario, no se permite vencimiento rolling.
+    const normalized = endOfCalendarMonth(editFechaValue);
+    const { error } = await supabase.from("suscripciones").update({ fecha_fin: normalized }).eq("id", editFechaDialog.id);
     if (!error) {
-      await logAudit("editar_vencimiento", editFechaDialog.id, { alumno: editFechaDialog.alumnos?.nombre, nueva_fecha: editFechaValue });
-      toast({ title: "Fecha actualizada" });
+      await logAudit("editar_vencimiento", editFechaDialog.id, { alumno: editFechaDialog.alumnos?.nombre, nueva_fecha: normalized });
+      toast({ title: "Fecha actualizada", description: `Vence el ${normalized} (fin de mes calendario).` });
       fetchData();
     }
     setEditFechaDialog(null);
