@@ -153,9 +153,12 @@ const WhatsAppConciliador = () => {
     init();
   }, [navigate]);
 
+  const OFICIAL = "Oficial (todos los activos)";
+
   const grupoStats = useMemo(() => {
     const m = new Map<string, number>();
     alumnos.forEach(a => { if (a.grupo && a.grupo !== "Sin grupo") m.set(a.grupo, (m.get(a.grupo) || 0) + 1); });
+    m.set(OFICIAL, alumnos.length);
     return m;
   }, [alumnos]);
 
