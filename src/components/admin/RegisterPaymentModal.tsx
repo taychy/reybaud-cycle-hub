@@ -488,10 +488,6 @@ export function RegisterPaymentModal({
                   Las mensualidades cierran el último día del mes calendario de la fecha de pago.
                 </p>
               </div>
-                  className="h-9 text-sm mt-1"
-                />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Define hasta qué fecha queda activo este pago.</p>
-              </div>
 
               <div>
                 <Label className="text-xs">Observación interna (opcional)</Label>
