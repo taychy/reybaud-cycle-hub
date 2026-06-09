@@ -465,6 +465,9 @@ const WhatsAppConciliador = () => {
                 <Select value={selectedGrupo} onValueChange={setSelectedGrupo}>
                   <SelectTrigger><SelectValue placeholder="Elegí un grupo…" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={OFICIAL}>
+                      {OFICIAL} <span className="text-muted-foreground ml-1">({alumnos.length} activos{lastRuns[OFICIAL] ? ` · último ${lastRuns[OFICIAL]?.fecha_objetivo}` : ""})</span>
+                    </SelectItem>
                     {grupos.map(g => {
                       const last = lastRuns[g];
                       return (
