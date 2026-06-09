@@ -153,19 +153,14 @@ export function RegisterPaymentModal({
     return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: storedBase };
   };
 
-  // When sub is selected, pre-fill amount and fecha_fin
+  // When sub is selected, pre-fill amount and fecha_fin (fin de mes calendario)
   useEffect(() => {
     const sub = pendingSubs.find(s => s.id === selectedSubId);
     if (!sub) return;
     const { price } = getEffectivePrice(sub);
     setMontoPagado(String(price));
-    // Default: end of current month
-    if (!fechaFin) {
-      const now = new Date();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      setFechaFin(lastDay.toISOString().split("T")[0]);
-    }
-  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual]);
+    setFechaFin(endOfCalendarMonth(fechaPago || new Date().toISOString().split("T")[0]));
+  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual, fechaPago]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
