@@ -125,7 +125,7 @@ export default function SuperAdminEstadoEscuela() {
       const [subsRes, bajasRes, gastosRes, ajustesRes] = await Promise.all([
         supabase
           .from("suscripciones")
-          .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, metodo_pago, precio_base, precio_final, created_at, alumno:alumnos(id, nombre, telefono), plan:planes(id, nombre, precio, moneda)")
+          .select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, metodo_pago, precio_base, precio_final, created_at, alumno:alumnos(id, nombre, apellido, telefono), plan:planes(id, nombre, precio, moneda)")
           .or(`and(fecha_inicio.lte.${mesFin},or(fecha_fin.gte.${mesInicio},fecha_fin.is.null)),and(fecha_inicio.gte.${mesInicio},fecha_inicio.lte.${mesFin}),and(fecha_fin.gte.${mesInicio},fecha_fin.lt.${mesSiguienteInicio})`),
         supabase
           .from("bajas_solicitudes")
