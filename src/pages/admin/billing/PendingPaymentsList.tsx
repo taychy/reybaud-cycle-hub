@@ -117,8 +117,7 @@ export function PendingPaymentsList() {
       .from("store_preorders")
       .select(`
         id, alumno_id, product_id, producto_nombre, precio_total, sena_monto, moneda,
-        estado, estado_pago_sena, forma_pago_sena, updated_at, entregada_at,
-        alumnos:alumno_id (id, nombre, apellido, documento)
+        estado, estado_pago_sena, forma_pago_sena, updated_at, entregada_at
       `)
       .eq("estado_pago_sena", "confirmada")
       .not("estado", "in", "(cancelada,vencida)")
@@ -133,7 +132,7 @@ export function PendingPaymentsList() {
         id, order_number, alumno_id, customer_name, total, currency, status,
         metodo_pago, origen_registro, pagado_at, updated_at,
         alumnos:alumno_id (id, nombre, apellido, documento),
-        store_order_items (producto_nombre, cantidad)
+        store_order_items (product_name, quantity)
       `)
       .eq("status", "pagado")
       .gte("updated_at", CUTOFF_DATE)
@@ -151,6 +150,19 @@ export function PendingPaymentsList() {
     ]);
 
     setEmisores((emisoresRes.data as any[]) || []);
+
+    // Fetch alumnos para preorders (sin FK declarada → no podemos embeber)
+    const preorderAlumnoIds = Array.from(
+      new Set((preorders.data || []).map((p: any) => p.alumno_id).filter(Boolean))
+    );
+    const alumnosMap = new Map<string, any>();
+    if (preorderAlumnoIds.length > 0) {
+      const { data: alumnosData } = await supabase
+        .from("alumnos")
+        .select("id, nombre, apellido, documento")
+        .in("id", preorderAlumnoIds);
+      (alumnosData || []).forEach((a: any) => alumnosMap.set(a.id, a));
+    }
 
     const subRows: PendingPayment[] = (subs.data || []).map((s: any) => {
       const alumno = s.alumnos;
@@ -223,7 +235,7 @@ export function PendingPaymentsList() {
     });
 
     const tiendaRows: PendingPayment[] = (preorders.data || []).map((p: any) => {
-      const alumno = p.alumnos;
+      const alumno = alumnosMap.get(p.alumno_id);
       const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
       const monto = p.estado === "entregada" ? Number(p.precio_total) : Number(p.sena_monto);
       const conceptoBase = `${p.producto_nombre}${p.estado === "entregada" ? "" : " (seña)"}`;
@@ -262,11 +274,11 @@ export function PendingPaymentsList() {
       const nombre = alumno
         ? `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() || o.customer_name || "—"
         : (o.customer_name || "—");
-      const items = (o.store_order_items || []) as Array<{ producto_nombre: string; cantidad: number }>;
+      const items = (o.store_order_items || []) as Array<{ product_name: string; quantity: number }>;
       const resumen = items.length === 0
         ? `Pedido #${o.order_number}`
         : items.length === 1
-          ? `${items[0].producto_nombre}${items[0].cantidad > 1 ? ` x${items[0].cantidad}` : ""}`
+          ? `${items[0].product_name}${items[0].quantity > 1 ? ` x${items[0].quantity}` : ""}`
           : `Pedido #${o.order_number} (${items.length} ítems)`;
       const concepto = `Pedido tienda #${o.order_number} — ${resumen}`;
       return {
