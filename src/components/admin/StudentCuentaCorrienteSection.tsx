@@ -503,10 +503,13 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                                   id: m.fuente_id,
                                   concepto: m.concepto,
                                   currentPlanId: m.referencia_extra?.plan_id || null,
+                                  currentPrice: Number(m.debe) || 0,
+                                  currentMoneda: m.moneda,
                                 });
                                 setChangeNewPlanId(m.referencia_extra?.plan_id || "");
+                                setAbsorbCredit(true);
                               }}
-                              title="Cambiar plan de esta suscripción"
+                              title="Corregir / cambiar plan de esta suscripción"
                             >
                               <ArrowRightLeft className="h-3.5 w-3.5" />
                             </Button>
