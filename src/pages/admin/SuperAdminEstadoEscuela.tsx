@@ -571,7 +571,7 @@ function AuditDrawer({
               <TableBody>
                 {rows.map(r => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.alumno?.nombre || "—"}</TableCell>
+                    <TableCell className="font-medium">{[r.alumno?.nombre, r.alumno?.apellido].filter(Boolean).join(" ") || "—"}</TableCell>
                     <TableCell className="text-xs">{r.plan?.nombre || "—"}</TableCell>
                     <TableCell className="text-right font-mono">{formatPrice(r.precio, r.moneda)}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{r.estado}</Badge></TableCell>
