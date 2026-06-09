@@ -1617,7 +1617,7 @@ const ManageStudents = () => {
                             {e === "vacaciones" && <Palmtree className="w-3 h-3 mr-1.5" />}
                             {e === "inactivo" && <UserX className="w-3 h-3 mr-1.5" />}
                             {e === "bloqueado" && <Ban className="w-3 h-3 mr-1.5" />}
-                            {e.charAt(0).toUpperCase() + e.slice(1)}
+                            {e === "inactivo" ? "Baja" : e.charAt(0).toUpperCase() + e.slice(1)}
                           </Button>
                         ))}
                         {/* Sub state change */}
