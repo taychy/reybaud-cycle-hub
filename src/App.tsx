@@ -163,6 +163,7 @@ const App = () => (
             <Route path="historial" element={<AuditLog />} />
             <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
             <Route path="metricas" element={<SuperAdminDashboard />} />
+            <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
             
