@@ -1275,18 +1275,21 @@ const AdminPayments = () => {
             </div>
             <div>
               <Label>Fecha de pago</Label>
-              <Input type="date" value={manualPayData.fecha_pago} onChange={(e) => setManualPayData((p) => ({ ...p, fecha_pago: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Fecha de vencimiento</Label>
               <Input
                 type="date"
-                value={manualPayData.fecha_fin}
-                min={manualPayData.fecha_pago || undefined}
-                onChange={(e) => setManualPayData((p) => ({ ...p, fecha_fin: e.target.value }))}
+                value={manualPayData.fecha_pago}
+                onChange={(e) => setManualPayData((p) => ({
+                  ...p,
+                  fecha_pago: e.target.value,
+                  fecha_fin: e.target.value ? endOfCalendarMonth(e.target.value) : "",
+                }))}
               />
+            </div>
+            <div>
+              <Label>Vence (fin de mes calendario)</Label>
+              <Input type="date" value={manualPayData.fecha_fin} readOnly className="bg-muted/40 cursor-not-allowed" />
               <p className="text-xs text-muted-foreground mt-1">
-                Define hasta qué fecha queda activo este pago.
+                Todas las mensualidades cierran el último día del mes. No se permite vencimiento "rolling" a 30 días.
               </p>
             </div>
             <div>
