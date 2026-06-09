@@ -133,7 +133,7 @@ export function PendingPaymentsList() {
         id, order_number, alumno_id, customer_name, total, currency, status,
         metodo_pago, origen_registro, pagado_at, updated_at,
         alumnos:alumno_id (id, nombre, apellido, documento),
-        store_order_items (producto_nombre, cantidad)
+        store_order_items (product_name, quantity)
       `)
       .eq("status", "pagado")
       .gte("updated_at", CUTOFF_DATE)
