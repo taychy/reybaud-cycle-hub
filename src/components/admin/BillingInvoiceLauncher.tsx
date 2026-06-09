@@ -13,7 +13,7 @@ export type InvoiceSource = {
   concepto: string;
   monto: number;
   moneda?: string;
-  referencia_tipo: "suscripcion" | "evento" | "pedido";
+  referencia_tipo: "suscripcion" | "evento" | "pedido" | "pedido_tienda";
   referencia_id: string;
   segmento: "escuela" | "viajes" | "tienda";
   metodo_pago?: string | null;

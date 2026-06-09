@@ -126,14 +126,28 @@ export function PendingPaymentsList() {
       .order("updated_at", { ascending: false })
       .limit(500);
 
+    // 4) Pedidos de tienda pagados desde cutoff
+    const ordersPromise = supabase
+      .from("store_orders")
+      .select(`
+        id, order_number, alumno_id, customer_name, total, currency, status,
+        metodo_pago, origen_registro, pagado_at, updated_at,
+        alumnos:alumno_id (id, nombre, apellido, documento),
+        store_order_items (producto_nombre, cantidad)
+      `)
+      .eq("status", "pagado")
+      .gte("updated_at", CUTOFF_DATE)
+      .order("updated_at", { ascending: false })
+      .limit(500);
+
     // Emisores (para el modal bulk)
     const emisoresPromise = supabase
       .from("emisores_fiscales")
       .select("*")
       .order("created_at", { ascending: true });
 
-    const [subs, reservas, preorders, emisoresRes] = await Promise.all([
-      subsPromise, reservasPromise, preordersPromise, emisoresPromise,
+    const [subs, reservas, preorders, orders, emisoresRes] = await Promise.all([
+      subsPromise, reservasPromise, preordersPromise, ordersPromise, emisoresPromise,
     ]);
 
     setEmisores((emisoresRes.data as any[]) || []);
@@ -243,8 +257,51 @@ export function PendingPaymentsList() {
       };
     });
 
+    const orderRows: PendingPayment[] = (orders.data || []).map((o: any) => {
+      const alumno = o.alumnos;
+      const nombre = alumno
+        ? `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() || o.customer_name || "—"
+        : (o.customer_name || "—");
+      const items = (o.store_order_items || []) as Array<{ producto_nombre: string; cantidad: number }>;
+      const resumen = items.length === 0
+        ? `Pedido #${o.order_number}`
+        : items.length === 1
+          ? `${items[0].producto_nombre}${items[0].cantidad > 1 ? ` x${items[0].cantidad}` : ""}`
+          : `Pedido #${o.order_number} (${items.length} ítems)`;
+      const concepto = `Pedido tienda #${o.order_number} — ${resumen}`;
+      return {
+        key: `ord:${o.id}`,
+        source: "tienda",
+        alumno_id: o.alumno_id,
+        cliente_nombre: nombre,
+        cliente_cuit: alumno?.documento || null,
+        concepto,
+        monto: Number(o.total || 0),
+        moneda: o.currency || "ARS",
+        fecha: o.pagado_at || o.updated_at,
+        metodo_pago: o.metodo_pago || null,
+        origen_registro: o.origen_registro || null,
+        invoiceSource: {
+          alumno_id: o.alumno_id,
+          cliente_nombre: nombre,
+          cliente_cuit: alumno?.documento || null,
+          concepto,
+          monto: Number(o.total || 0),
+          moneda: o.currency || "ARS",
+          referencia_tipo: "pedido_tienda",
+          referencia_id: o.id,
+          segmento: "tienda",
+          metodo_pago: o.metodo_pago || null,
+          origen_registro: o.origen_registro || null,
+        },
+        factura_estado: null,
+        factura_cae: null,
+        factura_id: null,
+      };
+    });
+
     // ⚠️ Excluir efectivo (no se factura en AFIP) y pagos pendientes de verificación.
-    const allRows = [...subRows, ...evRows, ...tiendaRows].filter(
+    const allRows = [...subRows, ...evRows, ...tiendaRows, ...orderRows].filter(
       (r) => !isEfectivo(r.metodo_pago) && !isPagoPendiente(r.metodo_pago) && r.monto > 0,
     );
 
