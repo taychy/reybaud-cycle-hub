@@ -4724,6 +4724,7 @@ export type Database = {
           currency: string
           customer_email: string | null
           customer_name: string
+          delivered_at: string | null
           id: string
           metodo_pago: string | null
           mp_external_reference: string | null
@@ -4747,6 +4748,7 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name: string
+          delivered_at?: string | null
           id?: string
           metodo_pago?: string | null
           mp_external_reference?: string | null
@@ -4770,6 +4772,7 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name?: string
+          delivered_at?: string | null
           id?: string
           metodo_pago?: string | null
           mp_external_reference?: string | null
@@ -4829,6 +4832,7 @@ export type Database = {
           cantidad: number
           created_at: string
           cuenta_mp_id: string | null
+          delivered_at: string | null
           entrega_metodo: string | null
           entregada_at: string | null
           envio_contacto: string | null
@@ -4869,6 +4873,7 @@ export type Database = {
           cantidad?: number
           created_at?: string
           cuenta_mp_id?: string | null
+          delivered_at?: string | null
           entrega_metodo?: string | null
           entregada_at?: string | null
           envio_contacto?: string | null
@@ -4909,6 +4914,7 @@ export type Database = {
           cantidad?: number
           created_at?: string
           cuenta_mp_id?: string | null
+          delivered_at?: string | null
           entrega_metodo?: string | null
           entregada_at?: string | null
           envio_contacto?: string | null
