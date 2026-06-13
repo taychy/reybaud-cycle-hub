@@ -187,7 +187,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                     const meta = orderStatusMeta(o.status);
                     const Icon = meta.icon;
                     const items = orderItems[o.id] || [];
-                    const eligible = o.status === "entregado" && daysSince(o.created_at) <= 30;
+                    const eligible = canRequestChangeOrder(o.status, o.delivered_at);
                     const editable = isWithinEditWindow(o.created_at, o.status);
                     return (
                       <div key={o.id} className="rounded-xl border border-border bg-card overflow-hidden">
