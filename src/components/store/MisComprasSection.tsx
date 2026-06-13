@@ -156,7 +156,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                     <MisPreventas alumnoId={alumnoId} />
                     {/* Botón cambio para preventas entregadas */}
                     <div className="mt-3 space-y-2">
-                      {preorders.filter((p) => p.estado === "entregada" && p.product_id && daysSince(p.created_at) <= 30).map((p) => (
+                      {preorders.filter((p) => p.product_id && canRequestChangePreorder(p.estado, p.delivered_at)).map((p) => (
                         <Button
                           key={`pre-cambio-${p.id}`}
                           variant="outline"
