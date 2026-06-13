@@ -29,6 +29,17 @@ const WINDOW_MS = 12 * 60 * 60 * 1000;
 const isWithinEditWindow = (createdAt: string, status: string) =>
   ["pendiente", "pendiente_pago"].includes(status) &&
   Date.now() - new Date(createdAt).getTime() < WINDOW_MS;
+// Cambio: 30 días desde la entrega. Si todavía no fue entregado pero ya está
+// preparándose/enviado, también permitimos solicitar el cambio (sin ventana).
+const canRequestChangeOrder = (status: string, deliveredAt: string | null) => {
+  if (["preparando", "enviado"].includes(status)) return true;
+  if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
+  return false;
+};
+const canRequestChangePreorder = (estado: string, deliveredAt: string | null) => {
+  if (estado === "entregada" && deliveredAt) return daysSince(deliveredAt) <= 30;
+  return false;
+};
 
 const MisComprasSection = ({ alumnoId }: Props) => {
   const [open, setOpen] = useState(false);
