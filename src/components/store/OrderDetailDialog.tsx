@@ -63,7 +63,7 @@ const formatRemaining = (ms: number) => {
   return `${h}h ${m}m`;
 };
 
-const OrderDetailDialog = ({ open, onOpenChange, order, onChanged }: Props) => {
+const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCambio }: Props) => {
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
