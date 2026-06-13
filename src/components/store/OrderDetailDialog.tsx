@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
-  Clock, CheckCircle2, Package, XCircle, Plus, AlertTriangle, ShoppingBag, Loader2,
+  Clock, CheckCircle2, Package, XCircle, Plus, AlertTriangle, ShoppingBag, Loader2, RefreshCw,
 } from "lucide-react";
 
 interface OrderRow {
