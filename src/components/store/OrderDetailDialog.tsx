@@ -17,6 +17,7 @@ interface OrderRow {
   currency: string;
   status: string;
   created_at: string;
+  delivered_at?: string | null;
   alumno_id: string | null;
 }
 
@@ -25,7 +26,21 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   order: OrderRow | null;
   onChanged: () => void;
+  onRequestCambio?: (args: {
+    productId: string;
+    productName: string;
+    compraId: string;
+    varianteOrigen: Record<string, any>;
+  }) => void;
 }
+
+const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+const canRequestChange = (status: string, deliveredAt: string | null | undefined) => {
+  if (["preparando", "enviado"].includes(status)) return true;
+  if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
+  return false;
+};
+
 
 const statusMeta = (s: string) => ({
   pendiente: { label: "Pendiente", color: "text-muted-foreground", icon: Clock },
