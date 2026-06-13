@@ -59,21 +59,23 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     let active = true;
     (async () => {
       const [pre, ord] = await Promise.all([
-        supabase.from("store_preorders" as any).select("id, product_id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
-        supabase.from("store_orders").select("id, order_number, total, currency, status, created_at").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
+        supabase.from("store_preorders" as any).select("id, product_id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, delivered_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
+        supabase.from("store_orders").select("id, order_number, total, currency, status, created_at, delivered_at, alumno_id").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       const ordList = (ord.data as any[]) || [];
       setPreorders((pre.data as any[]) || []);
       setOrders(ordList);
 
-      // load items for delivered orders for cambio buttons
-      const deliveredIds = ordList.filter((o) => o.status === "entregado").map((o) => o.id);
-      if (deliveredIds.length) {
+      // Items para órdenes donde se puede pedir cambio (entregadas, en preparación o enviadas)
+      const eligibleIds = ordList
+        .filter((o) => ["entregado", "preparando", "enviado"].includes(o.status))
+        .map((o) => o.id);
+      if (eligibleIds.length) {
         const { data: items } = await supabase
           .from("store_order_items")
           .select("order_id, product_id, product_name, variant_selection")
-          .in("order_id", deliveredIds);
+          .in("order_id", eligibleIds);
         const grouped: Record<string, any[]> = {};
         (items || []).forEach((it: any) => {
           grouped[it.order_id] = grouped[it.order_id] || [];
@@ -85,6 +87,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     })();
     return () => { active = false; };
   }, [alumnoId, open, cambioVersion]);
+
 
   if (!alumnoId) return null;
 
