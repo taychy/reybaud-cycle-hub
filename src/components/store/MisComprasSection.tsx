@@ -29,6 +29,17 @@ const WINDOW_MS = 12 * 60 * 60 * 1000;
 const isWithinEditWindow = (createdAt: string, status: string) =>
   ["pendiente", "pendiente_pago"].includes(status) &&
   Date.now() - new Date(createdAt).getTime() < WINDOW_MS;
+// Cambio: 30 días desde la entrega. Si todavía no fue entregado pero ya está
+// preparándose/enviado, también permitimos solicitar el cambio (sin ventana).
+const canRequestChangeOrder = (status: string, deliveredAt: string | null) => {
+  if (["preparando", "enviado"].includes(status)) return true;
+  if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
+  return false;
+};
+const canRequestChangePreorder = (estado: string, deliveredAt: string | null) => {
+  if (estado === "entregada" && deliveredAt) return daysSince(deliveredAt) <= 30;
+  return false;
+};
 
 const MisComprasSection = ({ alumnoId }: Props) => {
   const [open, setOpen] = useState(false);
@@ -48,21 +59,23 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     let active = true;
     (async () => {
       const [pre, ord] = await Promise.all([
-        supabase.from("store_preorders" as any).select("id, product_id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
-        supabase.from("store_orders").select("id, order_number, total, currency, status, created_at").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
+        supabase.from("store_preorders" as any).select("id, product_id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, delivered_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
+        supabase.from("store_orders").select("id, order_number, total, currency, status, created_at, delivered_at, alumno_id").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       const ordList = (ord.data as any[]) || [];
       setPreorders((pre.data as any[]) || []);
       setOrders(ordList);
 
-      // load items for delivered orders for cambio buttons
-      const deliveredIds = ordList.filter((o) => o.status === "entregado").map((o) => o.id);
-      if (deliveredIds.length) {
+      // Items para órdenes donde se puede pedir cambio (entregadas, en preparación o enviadas)
+      const eligibleIds = ordList
+        .filter((o) => ["entregado", "preparando", "enviado"].includes(o.status))
+        .map((o) => o.id);
+      if (eligibleIds.length) {
         const { data: items } = await supabase
           .from("store_order_items")
           .select("order_id, product_id, product_name, variant_selection")
-          .in("order_id", deliveredIds);
+          .in("order_id", eligibleIds);
         const grouped: Record<string, any[]> = {};
         (items || []).forEach((it: any) => {
           grouped[it.order_id] = grouped[it.order_id] || [];
@@ -74,6 +87,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     })();
     return () => { active = false; };
   }, [alumnoId, open, cambioVersion]);
+
 
   if (!alumnoId) return null;
 
@@ -142,7 +156,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                     <MisPreventas alumnoId={alumnoId} />
                     {/* Botón cambio para preventas entregadas */}
                     <div className="mt-3 space-y-2">
-                      {preorders.filter((p) => p.estado === "entregada" && p.product_id && daysSince(p.created_at) <= 30).map((p) => (
+                      {preorders.filter((p) => p.product_id && canRequestChangePreorder(p.estado, p.delivered_at)).map((p) => (
                         <Button
                           key={`pre-cambio-${p.id}`}
                           variant="outline"
@@ -173,7 +187,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                     const meta = orderStatusMeta(o.status);
                     const Icon = meta.icon;
                     const items = orderItems[o.id] || [];
-                    const eligible = o.status === "entregado" && daysSince(o.created_at) <= 30;
+                    const eligible = canRequestChangeOrder(o.status, o.delivered_at);
                     const editable = isWithinEditWindow(o.created_at, o.status);
                     return (
                       <div key={o.id} className="rounded-xl border border-border bg-card overflow-hidden">
@@ -254,7 +268,15 @@ const MisComprasSection = ({ alumnoId }: Props) => {
         onOpenChange={(v) => !v && setDetailOrder(null)}
         order={detailOrder}
         onChanged={() => setCambioVersion((v) => v + 1)}
+        onRequestCambio={(args) => setCambioTarget({
+          productId: args.productId,
+          productName: args.productName,
+          origenTipo: "compra",
+          compraId: args.compraId,
+          varianteOrigen: args.varianteOrigen,
+        })}
       />
+
     </section>
   );
 };
