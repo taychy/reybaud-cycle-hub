@@ -274,20 +274,42 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
                 {items.map((it) => {
                   const variant = it.variant_selection || {};
                   const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(" · ");
+                  const canChange = canRequestChange(order.status, order.delivered_at) && !!it.product_id && !!onRequestCambio;
                   return (
-                    <li key={it.id} className="rounded-lg border border-border bg-card p-2 flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{it.product_name}</p>
-                        {variantStr && <p className="text-[11px] text-muted-foreground truncate">{variantStr}</p>}
-                        <p className="text-[11px] text-muted-foreground">x{it.quantity} · {formatPrice(Number(it.unit_price), order.currency)}</p>
+                    <li key={it.id} className="rounded-lg border border-border bg-card p-2 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{it.product_name}</p>
+                          {variantStr && <p className="text-[11px] text-muted-foreground truncate">{variantStr}</p>}
+                          <p className="text-[11px] text-muted-foreground">x{it.quantity} · {formatPrice(Number(it.unit_price), order.currency)}</p>
+                        </div>
+                        <b className="text-sm whitespace-nowrap">{formatPrice(Number(it.unit_price) * Number(it.quantity), order.currency)}</b>
                       </div>
-                      <b className="text-sm whitespace-nowrap">{formatPrice(Number(it.unit_price) * Number(it.quantity), order.currency)}</b>
+                      {canChange && (
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between text-[11px] text-primary hover:underline pt-1 border-t border-border/40"
+                          onClick={() => {
+                            onRequestCambio!({
+                              productId: it.product_id,
+                              productName: it.product_name,
+                              compraId: order.id,
+                              varianteOrigen: variant,
+                            });
+                            onOpenChange(false);
+                          }}
+                        >
+                          <span>Solicitar cambio de talle / color</span>
+                          <RefreshCw className="w-3 h-3" />
+                        </button>
+                      )}
                     </li>
                   );
                 })}
               </ul>
             )}
           </div>
+
 
           <div className="rounded-lg border border-border p-3 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Total</span>
