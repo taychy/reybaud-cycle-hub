@@ -268,7 +268,15 @@ const MisComprasSection = ({ alumnoId }: Props) => {
         onOpenChange={(v) => !v && setDetailOrder(null)}
         order={detailOrder}
         onChanged={() => setCambioVersion((v) => v + 1)}
+        onRequestCambio={(args) => setCambioTarget({
+          productId: args.productId,
+          productName: args.productName,
+          origenTipo: "compra",
+          compraId: args.compraId,
+          varianteOrigen: args.varianteOrigen,
+        })}
       />
+
     </section>
   );
 };
