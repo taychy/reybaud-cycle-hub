@@ -1,75 +1,82 @@
-## Fase 1 — Bono de clases personalizadas
+# Portal público de cuenta corriente
 
-Objetivo: que un plan tipo "8 clases personalizadas" (caso Maia) funcione hoy mismo, sin depender aún de la turnera. Cada vez que el alumno toma una clase, se descuenta del bono. Cuando llega a 0 o vence, el alumno queda sin saldo y tenés que renovarle.
+Inspirado en el ejemplo de Dux: tabla limpia, sin branding pesado, columnas claras (Concepto, Fecha, Moneda, Total, Pagado, Por Pagar, Estado) y un botón verde "$" por fila vencida para pagar.
 
-Diseño explícito: **no creamos tabla nueva**. Reutilizamos `suscripciones` agregándole 3 campos. Esto deja un único lugar de verdad (igual que los planes grupales) y permite que el bono conviva con el resto del sistema (cuenta corriente, pagos MP, AFIP, dashboard alumno) sin tocar nada más.
+## 1. Datos visibles en el portal público
 
-### 1. Cambios de base de datos
+**Encabezado:** "Hola, {Nombre} {Inicial_apellido}." (ej: "Hola, Rubén A."). Sin email, sin teléfono, sin DNI, sin domicilio, sin notas internas, sin IDs internos, sin nombre de operador.
 
-**Tabla `planes`** — para identificar qué planes son "bono":
-- `tipo_consumo` text: `'mensual'` (default) | `'bono'`
-- `clases_incluidas` int — cuántas clases trae el bono (ej: 8)
-- `vigencia_dias` int — días de validez desde el alta (ej: 60). Si es null, no vence.
+**Tabla de deudas (solo lo que realmente debe):**
+- Suscripciones: estado `vencida` o `pendiente_verificacion`, **no anuladas/canceladas**, con saldo > 0.
+- Reservas de eventos: cuotas (`reservation_installments`) en estado `pendiente`/`vencida` no canceladas.
+- Tienda: `store_orders` y `store_preorders` con saldo pendiente y no canceladas.
 
-**Tabla `suscripciones`** — estado del bono de cada alumno:
-- `clases_totales` int — copia de `planes.clases_incluidas` al activar (snapshot, por si después cambia el plan)
-- `clases_consumidas` int default 0
-- `clases_vencimiento` date — calculado en el alta como `fecha_inicio + vigencia_dias`
+Columnas: Concepto (ej: "Plan Mensual — Junio 2026", "Evento Bariloche — Cuota 2/3", "Pedido tienda #1234"), Fecha vencimiento, Moneda, Total, Pagado, Por pagar, Estado (badge), Acción ($ Pagar).
 
-**Nueva tabla `clases_consumidas`** — log auditable de cada clase tomada:
-- `suscripcion_id`, `alumno_id`, `coach_id` (opcional, para Fase 3), `fecha`, `notas`, `creada_por`, `reserva_id` (null en Fase 1, lo usa la turnera en Fase 2)
-- RLS: admin/coach/super_admin escriben; alumno lee solo las suyas.
+**Sección saldo a favor** (si aplica): muestra crédito disponible por moneda, sin detalle de movimientos.
 
-**Función RPC `consumir_clase_bono(p_suscripcion_id, p_fecha, p_notas, p_coach_id)`**:
-- Valida saldo > 0 y no vencido.
-- Inserta en `clases_consumidas`.
-- Incrementa `suscripciones.clases_consumidas`.
-- Si llega al total, marca la sub como `vencida`.
-- Todo en una transacción.
+**Lo que NO se muestra:**
+- Movimientos individuales de cuenta corriente.
+- Ajustes manuales / notas admin / origen técnico.
+- Pagos históricos detallados (solo el monto "Pagado" agregado por concepto).
+- Datos de contacto, fiscales o médicos.
 
-**Función RPC `revertir_clase_bono(p_clase_id)`**:
-- Borra el registro y decrementa el contador (por si admin se equivoca).
+## 2. Botón "Pagar" por fila
 
-### 2. UI Admin
+Cada deuda vencida tiene botón verde que abre checkout MP correspondiente:
+- Suscripción → `create-mp-preference`
+- Reserva/cuota → `create-event-mp-preference`
+- Orden tienda → `create-store-order-mp-preference`
+- Preventa → `create-preorder-mp-preference`
 
-**Editor de plan** (`AdminPlanes` o donde se editen planes): selector "Tipo de consumo" con dos opciones:
-- Mensual / recurrente (default actual)
-- Bono de N clases → al elegir esto aparecen los campos `clases_incluidas` y `vigencia_dias`.
+Si el ítem no tiene integración MP disponible (ajuste manual), se oculta el botón y se muestra "Coordinar con administración" + link WhatsApp a contacto admin.
 
-**Ficha de alumno → sección Suscripciones**: cuando la sub es tipo bono, se ve:
-```
-🎯 Personalizado x 8 clases
-Consumidas: 3 / 8 · Restantes: 5
-Vence: 12 ago 2026 (en 42 días)
-[ + Registrar clase tomada ]   [ Ver historial ]
-```
-Botón "Registrar clase" abre un mini-form: fecha (default hoy), coach (select opcional), notas. Llama al RPC. Al volver, refresca el contador.
+Retorno de MP → `/pago-resultado` (existente) → webhook `mp-webhook` actualiza el ítem y refresca portal.
 
-"Ver historial" muestra una lista de las clases tomadas con opción "Deshacer" en cada una.
+## 3. Tokens (tabla `cuenta_corriente_tokens`)
 
-### 3. UI Alumno
+Campos: `id`, `alumno_id`, `token` (uuid v4), `created_at`, `expires_at` (nullable), `revoked_at` (nullable), `last_accessed_at`, `access_count`, `last_user_agent`, `last_ip`.
 
-En su dashboard, si tiene un bono activo, ve una tarjeta clara:
-```
-Personalizado · 5 clases restantes de 8
-Vence el 12 ago 2026
-```
-Sin botón de "registrar" (la carga sigue siendo manual desde admin en Fase 1). En Fase 2 será automático desde la turnera.
+**Opciones al generar el link (admin):**
+- Expiración: 7 días / 30 días / 90 días / sin expiración (default 30 días).
+- Revocación manual: botón "Revocar" en la fila del admin.
 
-### 4. Compatibilidad con lo existente
+RLS: tabla cerrada al cliente. Acceso solo vía RPC `SECURITY DEFINER` `get_cuenta_publica(p_token uuid, p_user_agent text, p_ip text)`:
+1. Valida token existe, no `revoked_at`, no `expires_at` vencido.
+2. Incrementa `access_count`, actualiza `last_accessed_at`, `last_user_agent`, `last_ip`.
+3. Devuelve solo: nombre+inicial apellido, deudas filtradas, saldo a favor por moneda.
 
-- Los planes mensuales siguen funcionando exactamente igual (default `tipo_consumo = 'mensual'`).
-- El flujo de checkout MP, AFIP, cuenta corriente, descuentos, cancelaciones — sin cambios.
-- El bono respeta `cancellation grace policy`: si lo cancelás, mantiene saldo hasta `fecha_fin` o hasta agotarse.
+IP/UA tomados del header en una edge function liviana `cuenta-publica-resolve` que llama al RPC (el cliente no puede setear IP real).
 
-### 5. Fuera de alcance (Fase 1)
+## 4. Admin (`AdminCuentaCorriente.tsx`)
 
-- Vincular reserva de turnera con consumo de clase → Fase 2.
-- Generar honorarios al coach automáticamente → Fase 3.
-- Vista en cuenta corriente del alumno con detalle por clase → Fase 4.
+Por fila de alumno:
+- 🔗 "Generar link" → dialog con selector de expiración → copia URL `/cuenta/{token}` al portapapeles.
+- 📱 "Enviar WhatsApp" → abre wa.me con mensaje pre-armado.
+- 🚫 "Revocar" → marca `revoked_at = now()`.
+- Tooltip muestra: último acceso, cantidad de accesos, expiración.
 
-### Resultado de la fase
+## 5. Página `/cuenta/:token`
 
-Hoy mismo podés crear el plan "8 clases personalizadas — Maia", asignárselo, cobrarle con MP y empezar a descontarle clases una por una desde la ficha. El sistema te avisa cuando se le acaba o se le vence.
+Ruta pública (sin auth). Diseño limpio inspirado en Dux:
+- Header simple con logo Reybaud y saludo "Hola, {Nombre} {I.}"
+- Card con total adeudado por moneda
+- Tabla de deudas con botón $ verde por fila
+- Footer minimal con link a política de privacidad y contacto admin
 
-¿Avanzo con la migración + los campos del plan + RPC + UI admin de "Registrar clase"?
+Si token inválido/vencido/revocado: pantalla "Link no disponible — solicitá uno nuevo a tu coach".
+
+## Archivos
+
+- Migración: tabla `cuenta_corriente_tokens` + RPC `get_cuenta_publica` + RPC `admin_create_cuenta_token` + RPC `admin_revoke_cuenta_token`.
+- Edge function: `cuenta-publica-resolve` (captura IP/UA y llama RPC).
+- `src/pages/PublicCuentaCorriente.tsx` (nueva)
+- `src/components/admin/CuentaPublicLinkDialog.tsx` (nueva)
+- `src/pages/admin/AdminCuentaCorriente.tsx` (agrega botones)
+- `src/App.tsx` (ruta `/cuenta/:token`)
+
+## Confirmaciones que necesito
+
+1. **Expiración por defecto: 30 días** ¿ok o preferís 90?
+2. **¿Mostrar también historial de pagos (últimos 6 meses, solo totales por concepto)** o estrictamente solo deudas vigentes?
+3. **¿Avanzo?**
