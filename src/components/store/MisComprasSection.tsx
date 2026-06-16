@@ -70,7 +70,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
 
       // Items para órdenes donde se puede pedir cambio (entregadas, en preparación o enviadas)
       const eligibleIds = ordList
-        .filter((o) => ["entregado", "preparando", "enviado"].includes(o.status))
+        .filter((o) => ["pagado", "preparando", "enviado", "entregado"].includes(o.status))
         .map((o) => o.id);
       if (eligibleIds.length) {
         const { data: items } = await supabase
