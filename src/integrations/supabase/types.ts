@@ -906,6 +906,59 @@ export type Database = {
           },
         ]
       }
+      cuenta_corriente_tokens: {
+        Row: {
+          access_count: number
+          alumno_id: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          last_accessed_at: string | null
+          last_ip: string | null
+          last_user_agent: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          token: string
+        }
+        Insert: {
+          access_count?: number
+          alumno_id: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          last_ip?: string | null
+          last_user_agent?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          token?: string
+        }
+        Update: {
+          access_count?: number
+          alumno_id?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          last_ip?: string | null
+          last_user_agent?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuenta_corriente_tokens_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuenta_mp_routing: {
         Row: {
           activa: boolean
@@ -5838,6 +5891,18 @@ export type Database = {
         }
         Returns: string
       }
+      admin_create_cuenta_token: {
+        Args: { p_alumno_id: string; p_expires_days?: number }
+        Returns: {
+          expires_at: string
+          id: string
+          token: string
+        }[]
+      }
+      admin_revoke_cuenta_token: {
+        Args: { p_token_id: string }
+        Returns: undefined
+      }
       apply_mp_payment_to_gasto: {
         Args: {
           p_external_reference: string
@@ -5945,6 +6010,10 @@ export type Database = {
       get_combo_available_stock: {
         Args: { p_combo_id: string; p_selection?: Json }
         Returns: number
+      }
+      get_cuenta_publica: {
+        Args: { p_ip?: string; p_token: string; p_user_agent?: string }
+        Returns: Json
       }
       get_gasto_recurrente_saldo_deuda: {
         Args: { p_rec_id: string }
