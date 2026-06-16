@@ -69,6 +69,7 @@ export default function AdminCuentaCorriente() {
   const [saldoFilter, setSaldoFilter] = useState<SaldoFilter>("deben");
   const [sedeFilter, setSedeFilter] = useState<string>("all");
   const [grupoFilter, setGrupoFilter] = useState<string>("all");
+  const [linkAlumno, setLinkAlumno] = useState<{ id: string; nombre: string; telefono: string | null } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
