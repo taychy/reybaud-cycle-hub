@@ -11,7 +11,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Wallet, RefreshCw, Search, Download, ArrowRight, TrendingUp, TrendingDown, Equal } from "lucide-react";
+import { Wallet, RefreshCw, Search, Download, ArrowRight, TrendingUp, TrendingDown, Equal, Link2 } from "lucide-react";
+import CuentaPublicLinkDialog from "@/components/admin/CuentaPublicLinkDialog";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 
