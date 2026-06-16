@@ -20,6 +20,7 @@ interface Deuda {
   moneda: string;
   estado: string;
   mp_disponible: boolean;
+  payment_payload: Record<string, unknown>;
 }
 interface Credito { moneda: string; monto: number; }
 interface Resp {
@@ -68,13 +69,7 @@ export default function PublicCuentaCorriente() {
   const handlePay = async (d: Deuda) => {
     setPaying(d.ref_id);
     try {
-      const body: Record<string, unknown> = {};
-      if (d.tipo === "suscripcion") body.suscripcion_id = d.ref_id;
-      else if (d.tipo === "evento_cuota") body.installment_id = d.ref_id;
-      else if (d.tipo === "tienda") body.order_id = d.ref_id;
-      else if (d.tipo === "preventa") body.preorder_id = d.ref_id;
-
-      const { data: res, error } = await supabase.functions.invoke(TIPO_FN[d.tipo], { body });
+      const { data: res, error } = await supabase.functions.invoke(TIPO_FN[d.tipo], { body: d.payment_payload });
       if (error) throw error;
       const url = (res as any)?.init_point || (res as any)?.url || (res as any)?.checkout_url;
       if (url) {
