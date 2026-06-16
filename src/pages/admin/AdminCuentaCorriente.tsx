@@ -313,13 +313,14 @@ export default function AdminCuentaCorriente() {
               <TableHead className="text-xs text-right w-32">Saldo</TableHead>
               <TableHead className="text-xs w-28">Últ. mov.</TableHead>
               <TableHead className="text-xs w-16 text-right">Mora</TableHead>
+              <TableHead className="text-xs w-20 text-center">Link</TableHead>
               <TableHead className="text-xs w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">
+                <TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-10">
                   {loading ? "Cargando…" : "No hay alumnos que cumplan los filtros."}
                 </TableCell>
               </TableRow>
@@ -370,6 +371,16 @@ export default function AdminCuentaCorriente() {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2"
+                        onClick={() => setLinkAlumno({ id: r.alumno_id, nombre: `${r.nombre} ${r.apellido}`, telefono: r.telefono })}
+                      >
+                        <Link2 className="w-3 h-3" />
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
                     </TableCell>
@@ -380,6 +391,16 @@ export default function AdminCuentaCorriente() {
           </TableBody>
         </Table>
       </Card>
+
+      {linkAlumno && (
+        <CuentaPublicLinkDialog
+          open={!!linkAlumno}
+          onOpenChange={(v) => !v && setLinkAlumno(null)}
+          alumnoId={linkAlumno.id}
+          alumnoNombre={linkAlumno.nombre}
+          alumnoTelefono={linkAlumno.telefono}
+        />
+      )}
     </div>
   );
 }
