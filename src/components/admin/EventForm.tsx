@@ -25,6 +25,7 @@ import {
 import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/eventLinks";
 import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
 import { EventAddonsEditor } from "./EventAddonsEditor";
+import { EventPackagesEditor } from "./EventPackagesEditor";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
