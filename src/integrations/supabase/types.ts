@@ -1923,6 +1923,59 @@ export type Database = {
           },
         ]
       }
+      event_packages: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cupo: number | null
+          currency: string
+          descripcion: string | null
+          event_id: string
+          id: string
+          nombre: string
+          precio: number
+          sena: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cupo?: number | null
+          currency?: string
+          descripcion?: string | null
+          event_id: string
+          id?: string
+          nombre: string
+          precio: number
+          sena?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cupo?: number | null
+          currency?: string
+          descripcion?: string | null
+          event_id?: string
+          id?: string
+          nombre?: string
+          precio?: number
+          sena?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_packages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           approved_at: string | null
@@ -1938,6 +1991,8 @@ export type Database = {
           id: string
           last_name: string
           last_request_email_sent_at: string | null
+          package_id: string | null
+          package_nombre_snapshot: string | null
           participant_comment: string | null
           position: number | null
           public_access_token: string
@@ -1967,6 +2022,8 @@ export type Database = {
           id?: string
           last_name: string
           last_request_email_sent_at?: string | null
+          package_id?: string | null
+          package_nombre_snapshot?: string | null
           participant_comment?: string | null
           position?: number | null
           public_access_token?: string
@@ -1996,6 +2053,8 @@ export type Database = {
           id?: string
           last_name?: string
           last_request_email_sent_at?: string | null
+          package_id?: string | null
+          package_nombre_snapshot?: string | null
           participant_comment?: string | null
           position?: number | null
           public_access_token?: string
@@ -2024,6 +2083,13 @@ export type Database = {
             columns: ["event_reservation_id"]
             isOneToOne: false
             referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_participants_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
             referencedColumns: ["id"]
           },
         ]
@@ -2060,6 +2126,8 @@ export type Database = {
           next_due_date: string | null
           notas: string | null
           origin: string | null
+          package_id: string | null
+          package_nombre_snapshot: string | null
           participant_notes: string | null
           payment_status: string
           price_snapshot: number | null
@@ -2097,6 +2165,8 @@ export type Database = {
           next_due_date?: string | null
           notas?: string | null
           origin?: string | null
+          package_id?: string | null
+          package_nombre_snapshot?: string | null
           participant_notes?: string | null
           payment_status?: string
           price_snapshot?: number | null
@@ -2134,6 +2204,8 @@ export type Database = {
           next_due_date?: string | null
           notas?: string | null
           origin?: string | null
+          package_id?: string | null
+          package_nombre_snapshot?: string | null
           participant_notes?: string | null
           payment_status?: string
           price_snapshot?: number | null
@@ -2174,6 +2246,13 @@ export type Database = {
             columns: ["external_participant_id"]
             isOneToOne: false
             referencedRelation: "event_external_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reservations_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
             referencedColumns: ["id"]
           },
         ]

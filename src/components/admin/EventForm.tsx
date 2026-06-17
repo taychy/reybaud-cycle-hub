@@ -25,6 +25,7 @@ import {
 import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/eventLinks";
 import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
 import { EventAddonsEditor } from "./EventAddonsEditor";
+import { EventPackagesEditor } from "./EventPackagesEditor";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
@@ -517,6 +518,18 @@ const EventForm = ({
                   Guardá el evento primero para configurar el plan de cuotas.
                 </p>
               )
+            )}
+
+            {selectedCategory === "camp_viaje" && (
+              <div className="pt-2 border-t border-border/30">
+                {eventId ? (
+                  <EventPackagesEditor eventId={eventId} eventCurrency={meta.currency || "ARS"} />
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Guardá el evento primero para configurar paquetes (tipos de habitación con precios diferenciados).
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="pt-2 border-t border-border/30">
