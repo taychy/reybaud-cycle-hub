@@ -95,20 +95,31 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         .eq("activo", true)
         .order("sort_order", { ascending: true });
       const rows = ((data as unknown as PackageRow[]) || []);
-      // Conteo de reservas activas por paquete para cupo
+      // Conteo de reservas activas por paquete (totales + por género)
       if (rows.length > 0) {
         const { data: reservas } = await supabase
           .from("event_reservations" as any)
-          .select("package_id, reservation_status")
+          .select("package_id, reservation_status, genero_habitacion")
           .eq("event_id", event.id)
           .not("package_id", "is", null);
-        const map: Record<string, number> = {};
+        const totals: Record<string, number> = {};
+        const m: Record<string, number> = {};
+        const v: Record<string, number> = {};
+        const x: Record<string, number> = {};
         ((reservas as any[]) || []).forEach((r) => {
           if (r.reservation_status === "cancelada") return;
           if (!r.package_id) return;
-          map[r.package_id] = (map[r.package_id] || 0) + 1;
+          totals[r.package_id] = (totals[r.package_id] || 0) + 1;
+          if (r.genero_habitacion === "femenina") m[r.package_id] = (m[r.package_id] || 0) + 1;
+          else if (r.genero_habitacion === "masculina") v[r.package_id] = (v[r.package_id] || 0) + 1;
+          else if (r.genero_habitacion === "mixta") x[r.package_id] = (x[r.package_id] || 0) + 1;
         });
-        rows.forEach((p) => { p.used = map[p.id] || 0; });
+        rows.forEach((p) => {
+          p.used = totals[p.id] || 0;
+          p.used_mujeres = m[p.id] || 0;
+          p.used_varones = v[p.id] || 0;
+          p.used_mixto = x[p.id] || 0;
+        });
       }
       if (!cancelled) setPackages(rows);
       setLoadingPackages(false);
