@@ -76,9 +76,11 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
     if (announcement) {
       setSubject(announcement.title);
       setBody(announcement.content);
+      setIsHtml(false);
     } else {
       setSubject("");
       setBody("");
+      setIsHtml(false);
     }
     supabase
       .from("event_packages" as any)
