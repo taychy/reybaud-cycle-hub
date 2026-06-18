@@ -87,7 +87,7 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
   const items: ChecklistItem[] = [
     { id: "bici", label: "Bicicleta y posición", description: "Cargá tu estatura, talle o fitting", icon: Bike, completed: !!checklistData["bici"]?.completed, actionType: "bike" },
     { id: "pedales", label: "Pedales y calas", description: "Contanos qué usás o subí una foto", icon: Footprints, completed: !!checklistData["pedales"]?.completed, actionType: "pedals" },
-    { id: "pasaje", label: "Pasaje o transporte", description: "Subí tu reserva de vuelo o transporte", icon: Plane, completed: !!checklistData["pasaje"]?.completed, actionType: "document", stepKey: "pasaje" },
+    { id: "pasaje", label: "Pasaje o transporte", description: "Reserva de vuelo o info de llegada", icon: Plane, completed: !!checklistData["pasaje"]?.completed, actionType: "document", stepKey: "pasaje" },
     { id: "seguro", label: "Seguro viajero", description: "Adjuntá tu póliza de seguro", icon: ShieldCheck, completed: !!checklistData["seguro"]?.completed, actionType: "document", stepKey: "seguro" },
   ];
 
