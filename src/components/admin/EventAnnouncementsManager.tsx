@@ -16,8 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Bell, Plus, Pencil, Trash2, Eye, EyeOff, Star, StarOff } from "lucide-react";
+import { Bell, Plus, Pencil, Trash2, Eye, EyeOff, Star, StarOff, Send, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import EventEmailSenderDialog from "./EventEmailSenderDialog";
 
 interface Announcement {
   id: string;
@@ -28,6 +29,9 @@ interface Announcement {
   visible: boolean;
   sort_order: number;
   published_at: string;
+  email_sent_at?: string | null;
+  email_recipients_count?: number | null;
+  send_email_on_publish?: boolean | null;
 }
 
 interface Props {
@@ -50,6 +54,7 @@ const emptyForm = {
   is_highlighted: false,
   visible: true,
   sort_order: 0,
+  send_email_on_publish: true,
 };
 
 const EventAnnouncementsManager = ({ eventId }: Props) => {
@@ -89,6 +94,7 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
       is_highlighted: a.is_highlighted,
       visible: a.visible,
       sort_order: a.sort_order,
+      send_email_on_publish: a.send_email_on_publish ?? true,
     });
     setShowDialog(true);
   };
@@ -100,15 +106,33 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
     }
     setSaving(true);
 
+    let createdId: string | null = null;
     if (editingId) {
       await supabase
         .from("event_announcements" as any)
         .update({ ...form, updated_at: new Date().toISOString() } as any)
         .eq("id", editingId);
     } else {
-      await supabase
+      const { data: inserted } = await supabase
         .from("event_announcements" as any)
-        .insert({ ...form, event_id: eventId } as any);
+        .insert({ ...form, event_id: eventId } as any)
+        .select("id")
+        .single();
+      createdId = (inserted as any)?.id || null;
+    }
+
+    // Auto-send email on publish (only for new visible announcements with the toggle ON)
+    if (!editingId && createdId && form.visible && form.send_email_on_publish) {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.functions.invoke("send-event-announcement", {
+        body: {
+          event_id: eventId,
+          announcement_id: createdId,
+          filters: { include_externals: true },
+          enviado_por: user?.id || null,
+          enviado_por_email: user?.email || null,
+        },
+      });
     }
 
     setSaving(false);
@@ -139,16 +163,29 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
     fetch();
   };
 
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailDialogAnnouncement, setEmailDialogAnnouncement] = useState<Announcement | null>(null);
+
+  const openSendEmail = (a: Announcement | null) => {
+    setEmailDialogAnnouncement(a);
+    setEmailDialogOpen(true);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-primary" />
           <h3 className="font-heading font-semibold text-sm uppercase tracking-wide">Novedades del evento</h3>
         </div>
-        <Button variant="gold" size="sm" onClick={openNew}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva novedad
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openSendEmail(null)}>
+            <Mail className="w-4 h-4 mr-1" /> Enviar mail manual
+          </Button>
+          <Button variant="gold" size="sm" onClick={openNew}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva novedad
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -166,11 +203,23 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
                   {a.is_highlighted && <Badge className="bg-primary/20 text-primary text-[10px]">Destacada</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">{a.content}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {new Date(a.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(a.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                  {a.email_sent_at ? (
+                    <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-600/30">
+                      ✉ {a.email_recipients_count || 0} enviados
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">Sin enviar</Badge>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary" title="Enviar por email" onClick={() => openSendEmail(a)}>
+                  <Send className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => toggleHighlight(a)}>
                   {a.is_highlighted ? <StarOff className="w-4 h-4" /> : <Star className="w-4 h-4" />}
                 </Button>
@@ -235,7 +284,7 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
                 <Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
               </div>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-wrap">
               <div className="flex items-center gap-2">
                 <Switch checked={form.visible} onCheckedChange={(v) => setForm({ ...form, visible: v })} />
                 <Label className="text-sm">Visible</Label>
@@ -244,6 +293,12 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
                 <Switch checked={form.is_highlighted} onCheckedChange={(v) => setForm({ ...form, is_highlighted: v })} />
                 <Label className="text-sm">Destacada</Label>
               </div>
+              {!editingId && (
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.send_email_on_publish} onCheckedChange={(v) => setForm({ ...form, send_email_on_publish: v })} />
+                  <Label className="text-sm">Enviar email al publicar</Label>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button>
@@ -254,6 +309,14 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <EventEmailSenderDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        eventId={eventId}
+        announcement={emailDialogAnnouncement}
+        onSent={fetch}
+      />
     </div>
   );
 };
