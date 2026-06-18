@@ -100,7 +100,7 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
     setUploading(false);
   };
 
-  const isComplete = !!(pedalType || photoUrl || needsAdvice);
+  const isComplete = !!(pedalType || photoUrl || needsAdvice || (inFitting && hasFitting));
 
   const handleSave = async () => {
     setSaving(true);
