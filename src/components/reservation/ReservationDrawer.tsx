@@ -40,8 +40,20 @@ interface PackageRow {
   cupo: number | null;
   activo: boolean;
   sort_order: number;
-  used?: number; // reservas activas
+  personas_por_habitacion: number;
+  cupo_mujeres: number | null;
+  cupo_varones: number | null;
+  cupo_mixto: number | null;
+  permite_mixto: boolean;
+  // counts (active reservations)
+  used?: number;
+  used_mujeres?: number;
+  used_varones?: number;
+  used_mixto?: number;
 }
+
+type RoomGender = "femenina" | "masculina" | "mixta";
+type Vinculo = "pareja" | "amigos";
 
 interface ReservationDrawerProps {
   open: boolean;
