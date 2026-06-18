@@ -261,13 +261,51 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
         <div className="space-y-5">
           {isManual && (
             <>
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-primary" />
+                  <Label className="text-xs uppercase tracking-wide text-primary">Plantillas</Label>
+                </div>
+                <Select
+                  onValueChange={(id) => {
+                    const tpl = EMAIL_TEMPLATES.find((t) => t.id === id);
+                    if (!tpl) return;
+                    setSubject(tpl.subject);
+                    setBody(tpl.bodyHtml);
+                    setIsHtml(true);
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Cargar una plantilla prediseñada..." /></SelectTrigger>
+                  <SelectContent>
+                    {EMAIL_TEMPLATES.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Al cargar una plantilla se activa el modo HTML. Reemplazá los <code>#</code> por los links reales (GPX, hoteles) antes de enviar.
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Asunto *</Label>
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Ej: Cambio de horario del punto de encuentro" />
               </div>
               <div className="space-y-1.5">
-                <Label>Mensaje *</Label>
-                <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} placeholder="Escribí el contenido. Doble salto = nuevo párrafo." />
+                <div className="flex items-center justify-between">
+                  <Label>Mensaje *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="html-mode" className="text-[11px] text-muted-foreground">Modo HTML</Label>
+                    <Switch id="html-mode" checked={isHtml} onCheckedChange={setIsHtml} />
+                  </div>
+                </div>
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={isHtml ? 12 : 6}
+                  className={isHtml ? "font-mono text-xs" : ""}
+                  placeholder={isHtml ? "<p>HTML del mensaje...</p>" : "Escribí el contenido. Doble salto = nuevo párrafo."}
+                />
               </div>
             </>
           )}
