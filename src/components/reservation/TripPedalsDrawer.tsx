@@ -29,23 +29,28 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [inFitting, setInFitting] = useState(false);
+  const [hasFitting, setHasFitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
 
-    const applyRow = async (row: any | null) => {
-      if (row) {
-        setExistingId(row.id);
-        const d = row.data as any;
+    const applyRows = async (pedalRow: any | null, biciRow: any | null) => {
+      setHasFitting(!!biciRow?.file_url);
+      if (pedalRow) {
+        setExistingId(pedalRow.id);
+        const d = pedalRow.data as any;
         setPedalType(d?.pedal_type || "");
-        setNeedsAdvice(row.needs_advice || false);
-        const stored = row.file_url || null;
+        setInFitting(!!d?.in_fitting);
+        setNeedsAdvice(pedalRow.needs_advice || false);
+        const stored = pedalRow.file_url || null;
         setPhotoUrl(stored);
         setPhotoPreview(await getTripDocumentSignedUrl(stored));
       } else {
         setExistingId(null);
         setPedalType("");
+        setInFitting(false);
         setNeedsAdvice(false);
         setPhotoUrl(null);
         setPhotoPreview(null);
@@ -55,16 +60,26 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
 
     if (token) {
       tripTokenGet(token)
-        .then((resp) => applyRow(resp.checklist.find((c) => c.step_key === "pedales") ?? null))
-        .catch(() => applyRow(null));
+        .then((resp) =>
+          applyRows(
+            resp.checklist.find((c) => c.step_key === "pedales") ?? null,
+            resp.checklist.find((c) => c.step_key === "bici") ?? null,
+          ),
+        )
+        .catch(() => applyRows(null, null));
     } else {
       supabase
         .from("reservation_checklist_data")
         .select("*")
         .eq("reservation_id", reservationId)
-        .eq("step_key", "pedales")
-        .maybeSingle()
-        .then(({ data }) => applyRow(data));
+        .in("step_key", ["pedales", "bici"])
+        .then(({ data }) => {
+          const rows = data || [];
+          applyRows(
+            rows.find((r: any) => r.step_key === "pedales") ?? null,
+            rows.find((r: any) => r.step_key === "bici") ?? null,
+          );
+        });
     }
   }, [open, reservationId, token]);
 
@@ -85,7 +100,7 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
     setUploading(false);
   };
 
-  const isComplete = !!(pedalType || photoUrl || needsAdvice);
+  const isComplete = !!(pedalType || photoUrl || needsAdvice || (inFitting && hasFitting));
 
   const handleSave = async () => {
     setSaving(true);
@@ -97,7 +112,7 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
           step_key: "pedales",
           completed: isComplete,
           needs_advice: needsAdvice,
-          data: { pedal_type: pedalType },
+          data: { pedal_type: pedalType, in_fitting: inFitting && hasFitting },
           file_url: photoUrl,
         });
         setSaving(false);
@@ -117,7 +132,7 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
       step_key: "pedales",
       completed: isComplete,
       needs_advice: needsAdvice,
-      data: { pedal_type: pedalType },
+      data: { pedal_type: pedalType, in_fitting: inFitting && hasFitting },
       file_url: photoUrl,
     };
 
@@ -163,13 +178,38 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
               Necesitamos saber qué tipo de pedales usás para asegurar la compatibilidad con la bicicleta del viaje.
             </p>
 
-            <div className="space-y-2">
+            {hasFitting && (
+              <label
+                htmlFor="inFitting"
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  inFitting ? "bg-primary/10 border-primary/40" : "bg-muted/50 border-border/50 hover:bg-muted"
+                }`}
+              >
+                <Checkbox
+                  id="inFitting"
+                  checked={inFitting}
+                  onCheckedChange={(v) => setInFitting(!!v)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground leading-snug">
+                    Mi información de pedales está en mi bike fitting
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Ya cargaste un archivo de fitting en "Bicicleta y posición". No necesitás completar nada más acá.
+                  </div>
+                </div>
+              </label>
+            )}
+
+            <div className={`space-y-2 ${inFitting && hasFitting ? "opacity-50 pointer-events-none" : ""}`}>
               <Label htmlFor="pedalType">Tipo de pedales</Label>
               <Input
                 id="pedalType"
                 placeholder="Ej: Shimano SPD-SL, Look Keo, plataforma..."
                 value={pedalType}
                 onChange={(e) => setPedalType(e.target.value)}
+                disabled={inFitting && hasFitting}
               />
             </div>
 
