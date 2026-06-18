@@ -326,6 +326,28 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       note: isInscriptionOnly ? "Inscripción confirmada automáticamente" : "Reserva iniciada por el alumno",
     } as any);
 
+    // Compañeros de habitación: reemplazar lista para esta reserva
+    if (selectedPackage && roomGender && shareChoice === "share") {
+      const cleaned = mates
+        .map((m, i) => ({ ...m, posicion: i + 1 }))
+        .filter((m) => m.nombre.trim());
+      await supabase
+        .from("reservation_roommates" as any)
+        .delete()
+        .eq("reservation_id", (data as any).id);
+      if (cleaned.length > 0) {
+        await supabase.from("reservation_roommates" as any).insert(
+          cleaned.map((m) => ({
+            reservation_id: (data as any).id,
+            posicion: m.posicion,
+            nombre: m.nombre.trim(),
+            email: m.email.trim() || null,
+            telefono: m.telefono.trim() || null,
+          })),
+        );
+      }
+    }
+
     if (!existing || (existing as any).reservation_status === "cancelada") {
       await supabase
         .from("events")
