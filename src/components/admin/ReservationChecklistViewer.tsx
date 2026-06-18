@@ -284,6 +284,13 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
         alumnoId={alumnoId}
         onSaved={load}
       />
+      <TripTransportDrawer
+        open={transportOpen}
+        onOpenChange={setTransportOpen}
+        reservationId={reservationId}
+        alumnoId={alumnoId}
+        onSaved={load}
+      />
       <TripDocumentDrawer
         open={docDrawer.open}
         onOpenChange={(v) => setDocDrawer((prev) => ({ ...prev, open: v }))}
