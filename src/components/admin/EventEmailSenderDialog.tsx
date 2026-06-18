@@ -58,6 +58,7 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
   const [includeExternals, setIncludeExternals] = useState(true);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [isHtml, setIsHtml] = useState(false);
   const [sending, setSending] = useState(false);
   const [allRecipients, setAllRecipients] = useState<Recipient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
