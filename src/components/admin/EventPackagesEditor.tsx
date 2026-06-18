@@ -247,6 +247,9 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
           <div className="space-y-1">
             <Label className="text-xs">Seña</Label>
             <Input type="number" value={draft.sena} onChange={(e) => setDraft({ ...draft, sena: e.target.value })} placeholder="Opcional" />
+            <p className="text-[10px] text-muted-foreground/80 italic">
+              Si el evento tiene cuotas configuradas, la <strong>1ª cuota actúa como seña</strong> al pagar por Mercado Pago — este campo queda como referencia informativa.
+            </p>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Moneda</Label>
