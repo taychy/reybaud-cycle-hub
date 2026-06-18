@@ -260,27 +260,44 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
             <>
               <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <FileCode className="w-4 h-4 text-primary" />
-                  <Label className="text-xs uppercase tracking-wide text-primary">Plantillas</Label>
+                  <Map className="w-4 h-4 text-primary" />
+                  <Label className="text-xs uppercase tracking-wide text-primary">Roadbook del viaje</Label>
                 </div>
-                <Select
-                  onValueChange={(id) => {
-                    const tpl = EMAIL_TEMPLATES.find((t) => t.id === id);
-                    if (!tpl) return;
-                    setSubject(tpl.subject);
-                    setBody(tpl.bodyHtml);
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const { data, error } = await supabase
+                      .from("events" as any)
+                      .select("title, roadbook")
+                      .eq("id", eventId)
+                      .maybeSingle();
+                    if (error || !data) {
+                      toast({ title: "No pude leer el evento.", variant: "destructive" });
+                      return;
+                    }
+                    const raw = (data as any).roadbook;
+                    if (!raw) {
+                      toast({
+                        title: "Este viaje no tiene Roadbook cargado todavía.",
+                        description: "Cargalo desde la sección 'Roadbook del viaje' arriba.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    const rb = normalizeRoadbook(raw);
+                    const title = (data as any).title || "Roadbook";
+                    setSubject(`${title} · Roadbook completo`);
+                    setBody(buildRoadbookHtml(rb, title));
                     setIsHtml(true);
+                    toast({ title: "Roadbook cargado en el mensaje." });
                   }}
                 >
-                  <SelectTrigger><SelectValue placeholder="Cargar una plantilla prediseñada..." /></SelectTrigger>
-                  <SelectContent>
-                    {EMAIL_TEMPLATES.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Map className="w-4 h-4 mr-1" /> Cargar Roadbook del viaje
+                </Button>
                 <p className="text-[11px] text-muted-foreground">
-                  Al cargar una plantilla se activa el modo HTML. Reemplazá los <code>#</code> por los links reales (GPX, hoteles) antes de enviar.
+                  Genera el mail con el itinerario, GPX, hoteles, clima y día de salida configurados en este viaje, con los colores de la app.
                 </p>
               </div>
 
