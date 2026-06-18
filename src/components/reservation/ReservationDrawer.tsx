@@ -393,6 +393,10 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       setStep("summary");
       setNotes("");
       setSelectedPackageId(null);
+      setRoomGender(null);
+      setShareChoice(null);
+      setVinculo(null);
+      setMates([]);
     }, 300);
   };
 
