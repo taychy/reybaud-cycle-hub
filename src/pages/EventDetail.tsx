@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import EventRankings from "@/components/EventRankings";
+import EventInclusions from "@/components/EventInclusions";
 import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
 import { getEventPriceDisplay } from "@/lib/eventPricing";
