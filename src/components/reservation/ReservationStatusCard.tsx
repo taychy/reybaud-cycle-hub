@@ -463,6 +463,22 @@ const ReservationStatusCard = ({
       reservation.payment_status
     );
 
+  // ¿Mostrar selector de monto? Solo si hay próxima cuota pendiente con saldo < saldo total
+  const showMpChoice =
+    !!nextInst &&
+    nextInst.balance_due > 0 &&
+    nextInst.balance_due < pendingForMP;
+
+  // Auto-ajuste: si no hay choice válido, forzar "total"
+  useEffect(() => {
+    if (!showMpChoice && mpChoice === "cuota") setMpChoice("total");
+  }, [showMpChoice, mpChoice]);
+
+  const mpAmountToCharge =
+    showMpChoice && mpChoice === "cuota" ? nextInst!.balance_due : pendingForMP;
+  const mpInstallmentNumber =
+    showMpChoice && mpChoice === "cuota" ? nextInst!.installment_number : undefined;
+
   const handlePayWithMP = async () => {
     if (mpLoading) return;
     setMpLoading(true);
@@ -474,7 +490,11 @@ const ReservationStatusCard = ({
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ reservation_id: reservation.id }),
+        body: JSON.stringify({
+          reservation_id: reservation.id,
+          amount: mpAmountToCharge,
+          installment_number: mpInstallmentNumber,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data?.init_point) {
