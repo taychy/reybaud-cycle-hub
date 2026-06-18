@@ -11,7 +11,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Search } from "lucide-react";
+import { Send, Users, Search, FileCode } from "lucide-react";
+import { EMAIL_TEMPLATES } from "@/lib/emailTemplates/tourDeFrancia26";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   open: boolean;
@@ -54,6 +58,7 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
   const [includeExternals, setIncludeExternals] = useState(true);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [isHtml, setIsHtml] = useState(false);
   const [sending, setSending] = useState(false);
   const [allRecipients, setAllRecipients] = useState<Recipient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -71,9 +76,11 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
     if (announcement) {
       setSubject(announcement.title);
       setBody(announcement.content);
+      setIsHtml(false);
     } else {
       setSubject("");
       setBody("");
+      setIsHtml(false);
     }
     supabase
       .from("event_packages" as any)
@@ -202,10 +209,12 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
     }
     setSending(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const bodyHtml = body
-      .split(/\n{2,}/)
-      .map((p) => `<p style="margin:0 0 12px;">${p.replace(/\n/g, "<br/>")}</p>`)
-      .join("");
+    const bodyHtml = isHtml
+      ? body
+      : body
+          .split(/\n{2,}/)
+          .map((p) => `<p style="margin:0 0 12px;">${p.replace(/\n/g, "<br/>")}</p>`)
+          .join("");
 
     const { data, error } = await supabase.functions.invoke("send-event-announcement", {
       body: {
@@ -252,13 +261,51 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
         <div className="space-y-5">
           {isManual && (
             <>
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-primary" />
+                  <Label className="text-xs uppercase tracking-wide text-primary">Plantillas</Label>
+                </div>
+                <Select
+                  onValueChange={(id) => {
+                    const tpl = EMAIL_TEMPLATES.find((t) => t.id === id);
+                    if (!tpl) return;
+                    setSubject(tpl.subject);
+                    setBody(tpl.bodyHtml);
+                    setIsHtml(true);
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Cargar una plantilla prediseñada..." /></SelectTrigger>
+                  <SelectContent>
+                    {EMAIL_TEMPLATES.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Al cargar una plantilla se activa el modo HTML. Reemplazá los <code>#</code> por los links reales (GPX, hoteles) antes de enviar.
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Asunto *</Label>
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Ej: Cambio de horario del punto de encuentro" />
               </div>
               <div className="space-y-1.5">
-                <Label>Mensaje *</Label>
-                <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} placeholder="Escribí el contenido. Doble salto = nuevo párrafo." />
+                <div className="flex items-center justify-between">
+                  <Label>Mensaje *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="html-mode" className="text-[11px] text-muted-foreground">Modo HTML</Label>
+                    <Switch id="html-mode" checked={isHtml} onCheckedChange={setIsHtml} />
+                  </div>
+                </div>
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={isHtml ? 12 : 6}
+                  className={isHtml ? "font-mono text-xs" : ""}
+                  placeholder={isHtml ? "<p>HTML del mensaje...</p>" : "Escribí el contenido. Doble salto = nuevo párrafo."}
+                />
               </div>
             </>
           )}
