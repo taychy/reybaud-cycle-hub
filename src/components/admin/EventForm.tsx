@@ -839,6 +839,50 @@ const EventForm = ({
         </fieldset>
       )}
 
+      {/* ─── CHECKLIST STEPS (camp_viaje) ─── */}
+      {selectedCategory === "camp_viaje" && (() => {
+        const ALL_STEPS = [
+          { id: "reserva", label: "Reserva realizada", locked: true },
+          { id: "extras", label: "Configurar mi viaje (habitación, comidas, extras)" },
+          { id: "pago", label: "Informar próximo pago" },
+          { id: "bici", label: "Bicicleta y posición" },
+          { id: "pedales", label: "Pedales y calas" },
+          { id: "pasaje", label: "Pasaje o transporte" },
+          { id: "seguro", label: "Seguro viajero" },
+        ];
+        const enabled: string[] = Array.isArray(meta.checklist_steps)
+          ? meta.checklist_steps
+          : ALL_STEPS.map(s => s.id);
+        const toggle = (id: string, checked: boolean) => {
+          const next = checked
+            ? Array.from(new Set([...enabled, id]))
+            : enabled.filter(x => x !== id);
+          if (!next.includes("reserva")) next.unshift("reserva");
+          updateMeta("checklist_steps", next);
+        };
+        return (
+          <fieldset className="space-y-3 border border-violet-500/20 rounded-lg p-4">
+            <legend className="text-xs font-heading uppercase tracking-wider text-violet-400 px-2">Preparación del viaje</legend>
+            <p className="text-xs text-muted-foreground">Elegí qué pasos verá el alumno en su checklist. Desactivá los que no apliquen (ej: si no se alquilan bicis, no pidas medidas).</p>
+            <div className="grid grid-cols-1 gap-2">
+              {ALL_STEPS.map(s => (
+                <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/20 border border-border/40">
+                  <Switch
+                    checked={s.locked || enabled.includes(s.id)}
+                    disabled={s.locked}
+                    onCheckedChange={(v) => toggle(s.id, v)}
+                  />
+                  <Label className="text-sm">
+                    {s.label}
+                    {s.locked && <span className="ml-2 text-[10px] text-muted-foreground">(siempre)</span>}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })()}
+
       {/* ─── CANCELLATION POLICY (camp_viaje) ─── */}
       {selectedCategory === "camp_viaje" && (
         <fieldset className="space-y-4 border border-violet-500/20 rounded-lg p-4">
