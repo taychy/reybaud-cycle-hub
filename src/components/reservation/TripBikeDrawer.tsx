@@ -94,7 +94,7 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
     setUploading(false);
   };
 
-  const isComplete = !!(stature || bikeSize || fittingUrl || needsAdvice);
+  const isComplete = !!(stature || bikeSize || seatHeight || bikeBrand || bikeModel || fittingUrl || needsAdvice);
 
   const handleSave = async () => {
     setSaving(true);
