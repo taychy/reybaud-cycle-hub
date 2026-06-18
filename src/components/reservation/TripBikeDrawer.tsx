@@ -126,7 +126,7 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
       step_key: "bici",
       completed: isComplete,
       needs_advice: needsAdvice,
-      data: { stature, bike_size: bikeSize },
+      data: { stature, bike_size: bikeSize, seat_height: seatHeight, bike_brand: bikeBrand, bike_model: bikeModel },
       file_url: fittingUrl,
     };
 
