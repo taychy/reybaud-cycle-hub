@@ -625,6 +625,15 @@ const EventDetail = () => {
             </div>
           )}
 
+          {/* What's included / not included — collapsible checklist */}
+          <EventInclusions
+            incluye={(event as any).incluye ?? event.metadata?.incluye}
+            noIncluye={(event as any).no_incluye ?? event.metadata?.no_incluye}
+            incluyeText={event.metadata?.included_text}
+            noIncluyeText={event.metadata?.not_included_text}
+            defaultCollapsed={isTripLike && isActiveReservation}
+          />
+
           {/* Itinerary */}
           {event.metadata?.itinerario && Array.isArray(event.metadata.itinerario) && event.metadata.itinerario.length > 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3">
@@ -646,50 +655,7 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* What's included / not included */}
-          {(() => {
-            const toList = (val: any, textFallback?: any): string[] => {
-              if (Array.isArray(val) && val.length > 0) return val.filter((x: any) => typeof x === "string" && x.trim()).map((x: string) => x.trim());
-              if (typeof textFallback === "string" && textFallback.trim()) {
-                return textFallback.split(/\r?\n|•|·|;/).map((s) => s.trim()).filter(Boolean);
-              }
-              return [];
-            };
-            const incluye = toList((event as any).incluye ?? event.metadata?.incluye, event.metadata?.included_text);
-            const noIncluye = toList((event as any).no_incluye ?? event.metadata?.no_incluye, event.metadata?.not_included_text);
-            if (incluye.length === 0 && noIncluye.length === 0) return null;
-            return (
-              <div className="glass-card rounded-xl p-5 space-y-4">
-                <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">¿Qué incluye?</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {incluye.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Incluye</p>
-                      <ul className="space-y-1.5">
-                        {incluye.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" /> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {noIncluye.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">No incluye</p>
-                      <ul className="space-y-1.5">
-                        {noIncluye.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <XCircle className="w-4 h-4 text-muted-foreground/70 mt-0.5 shrink-0" /> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+
 
 
           {/* More info links */}
