@@ -195,6 +195,7 @@ const ExternalTripView = () => {
   const handleChecklistAction = (item: ChecklistItem) => {
     if (item.actionType === "bike") setShowBikeDrawer(true);
     else if (item.actionType === "pedals") setShowPedalsDrawer(true);
+    else if (item.actionType === "document" && item.stepKey === "pasaje") setShowTransportDrawer(true);
     else if (item.actionType === "document" && item.stepKey) {
       const cfg = docStepConfig[item.stepKey] || { title: item.label, description: item.description, helpText: "", icon: null };
       setDocDrawer({ open: true, stepKey: item.stepKey, ...cfg });
