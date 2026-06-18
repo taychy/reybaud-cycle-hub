@@ -14,6 +14,7 @@ interface Filters {
   package_ids?: string[] | null;
   payment_statuses?: string[] | null;
   reservation_statuses?: string[] | null;
+  reservation_ids?: string[] | null;
   include_externals?: boolean;
 }
 
