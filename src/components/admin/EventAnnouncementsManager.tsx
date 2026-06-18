@@ -16,8 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Bell, Plus, Pencil, Trash2, Eye, EyeOff, Star, StarOff } from "lucide-react";
+import { Bell, Plus, Pencil, Trash2, Eye, EyeOff, Star, StarOff, Send, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import EventEmailSenderDialog from "./EventEmailSenderDialog";
 
 interface Announcement {
   id: string;
@@ -28,6 +29,9 @@ interface Announcement {
   visible: boolean;
   sort_order: number;
   published_at: string;
+  email_sent_at?: string | null;
+  email_recipients_count?: number | null;
+  send_email_on_publish?: boolean | null;
 }
 
 interface Props {
