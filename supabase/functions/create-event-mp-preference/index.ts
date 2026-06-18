@@ -129,7 +129,9 @@ Deno.serve(async (req) => {
     const preferenceBody: Record<string, unknown> = {
       items: [
         {
-          title: event.title || "Evento Ciclismo Reybaud",
+          title: installmentLabel
+            ? `${event.title || "Evento Ciclismo Reybaud"} — ${installmentLabel}`
+            : (event.title || "Evento Ciclismo Reybaud"),
           quantity: 1,
           unit_price: Number(amount.toFixed(2)),
           currency_id: currency,
