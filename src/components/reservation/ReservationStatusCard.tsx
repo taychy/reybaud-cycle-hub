@@ -1110,6 +1110,14 @@ const ReservationStatusCard = ({
         onSaved={loadChecklistData}
       />
 
+      <TripTransportDrawer
+        open={showTransportDrawer}
+        onOpenChange={setShowTransportDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        onSaved={loadChecklistData}
+      />
+
       <TripDocumentDrawer
         open={docDrawer.open}
         onOpenChange={(open) => setDocDrawer(prev => ({ ...prev, open }))}
