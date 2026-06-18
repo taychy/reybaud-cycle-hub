@@ -353,6 +353,14 @@ const ExternalTripView = () => {
         token={token ?? undefined}
         onSaved={reloadChecklist}
       />
+      <TripTransportDrawer
+        open={showTransportDrawer}
+        onOpenChange={setShowTransportDrawer}
+        reservationId={reservation.id}
+        alumnoId={participantId}
+        token={token ?? undefined}
+        onSaved={reloadChecklist}
+      />
       <TripDocumentDrawer
         open={docDrawer.open}
         onOpenChange={(v) => setDocDrawer(prev => ({ ...prev, open: v }))}
