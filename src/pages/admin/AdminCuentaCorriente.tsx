@@ -396,7 +396,8 @@ export default function AdminCuentaCorriente() {
                   <TableRow
                     key={`${r.alumno_id}-${r.moneda}`}
                     className="border-border hover:bg-muted/30 cursor-pointer"
-                    onClick={() => navigate(`/admin/alumnos?alumno=${r.alumno_id}&section=cuenta`)}
+                    onClick={() => navigate(`/admin/cuenta-corriente?alumno=${r.alumno_id}`)}
+
                   >
                     <TableCell>
                       <div className="font-medium text-sm text-foreground">{r.apellido}, {r.nombre}</div>
