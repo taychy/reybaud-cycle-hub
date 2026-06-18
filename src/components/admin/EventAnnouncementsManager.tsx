@@ -106,15 +106,33 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
     }
     setSaving(true);
 
+    let createdId: string | null = null;
     if (editingId) {
       await supabase
         .from("event_announcements" as any)
         .update({ ...form, updated_at: new Date().toISOString() } as any)
         .eq("id", editingId);
     } else {
-      await supabase
+      const { data: inserted } = await supabase
         .from("event_announcements" as any)
-        .insert({ ...form, event_id: eventId } as any);
+        .insert({ ...form, event_id: eventId } as any)
+        .select("id")
+        .single();
+      createdId = (inserted as any)?.id || null;
+    }
+
+    // Auto-send email on publish (only for new visible announcements with the toggle ON)
+    if (!editingId && createdId && form.visible && form.send_email_on_publish) {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.functions.invoke("send-event-announcement", {
+        body: {
+          event_id: eventId,
+          announcement_id: createdId,
+          filters: { include_externals: true },
+          enviado_por: user?.id || null,
+          enviado_por_email: user?.email || null,
+        },
+      });
     }
 
     setSaving(false);
@@ -143,6 +161,14 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
       .update({ is_highlighted: !a.is_highlighted } as any)
       .eq("id", a.id);
     fetch();
+  };
+
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailDialogAnnouncement, setEmailDialogAnnouncement] = useState<Announcement | null>(null);
+
+  const openSendEmail = (a: Announcement | null) => {
+    setEmailDialogAnnouncement(a);
+    setEmailDialogOpen(true);
   };
 
   return (
