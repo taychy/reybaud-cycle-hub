@@ -23,6 +23,7 @@ import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
 // CancelReservationDrawer is now handled inside ReservationStatusCard
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
+import EventRoadbook from "@/components/reservation/EventRoadbook";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 
@@ -461,7 +462,10 @@ const EventDetail = () => {
 
           {/* Event Announcements — show after status when reserved */}
           {id && isActiveReservation && !["carrera"].includes(event.type) && (
-            <EventAnnouncementsSection eventId={id} />
+            <>
+              <EventAnnouncementsSection eventId={id} />
+              <EventRoadbook eventId={id} />
+            </>
           )}
 
           {/* ═══════════════════════════════════════════════════════════ */}

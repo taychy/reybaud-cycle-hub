@@ -60,6 +60,7 @@ import EventForm, {
 } from "@/components/admin/EventForm";
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
+import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
@@ -531,6 +532,9 @@ const EventsList = () => {
                 eventStatus={reservationsEvent.status}
                 eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
               />
+              <div className="border-t border-border pt-6">
+                <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+              </div>
               <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />
               </div>
