@@ -29,23 +29,28 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [inFitting, setInFitting] = useState(false);
+  const [hasFitting, setHasFitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
 
-    const applyRow = async (row: any | null) => {
-      if (row) {
-        setExistingId(row.id);
-        const d = row.data as any;
+    const applyRows = async (pedalRow: any | null, biciRow: any | null) => {
+      setHasFitting(!!biciRow?.file_url);
+      if (pedalRow) {
+        setExistingId(pedalRow.id);
+        const d = pedalRow.data as any;
         setPedalType(d?.pedal_type || "");
-        setNeedsAdvice(row.needs_advice || false);
-        const stored = row.file_url || null;
+        setInFitting(!!d?.in_fitting);
+        setNeedsAdvice(pedalRow.needs_advice || false);
+        const stored = pedalRow.file_url || null;
         setPhotoUrl(stored);
         setPhotoPreview(await getTripDocumentSignedUrl(stored));
       } else {
         setExistingId(null);
         setPedalType("");
+        setInFitting(false);
         setNeedsAdvice(false);
         setPhotoUrl(null);
         setPhotoPreview(null);
@@ -55,16 +60,26 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
 
     if (token) {
       tripTokenGet(token)
-        .then((resp) => applyRow(resp.checklist.find((c) => c.step_key === "pedales") ?? null))
-        .catch(() => applyRow(null));
+        .then((resp) =>
+          applyRows(
+            resp.checklist.find((c) => c.step_key === "pedales") ?? null,
+            resp.checklist.find((c) => c.step_key === "bici") ?? null,
+          ),
+        )
+        .catch(() => applyRows(null, null));
     } else {
       supabase
         .from("reservation_checklist_data")
         .select("*")
         .eq("reservation_id", reservationId)
-        .eq("step_key", "pedales")
-        .maybeSingle()
-        .then(({ data }) => applyRow(data));
+        .in("step_key", ["pedales", "bici"])
+        .then(({ data }) => {
+          const rows = data || [];
+          applyRows(
+            rows.find((r: any) => r.step_key === "pedales") ?? null,
+            rows.find((r: any) => r.step_key === "bici") ?? null,
+          );
+        });
     }
   }, [open, reservationId, token]);
 
