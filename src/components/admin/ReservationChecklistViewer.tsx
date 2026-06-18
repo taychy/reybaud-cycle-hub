@@ -122,6 +122,7 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
     if (!canEdit) return;
     if (key === "bici") { setBikeOpen(true); return; }
     if (key === "pedales") { setPedalsOpen(true); return; }
+    if (key === "pasaje") { setTransportOpen(true); return; }
     const cfg = DOC_STEP_CONFIG[key] || { title: labelFor(key), description: "Cargar información", helpText: "" };
     setDocDrawer({ open: true, stepKey: key, ...cfg });
   };
