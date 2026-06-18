@@ -44,12 +44,18 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
         const d = row.data as any;
         setStature(d?.stature || "");
         setBikeSize(d?.bike_size || "");
+        setSeatHeight(d?.seat_height || "");
+        setBikeBrand(d?.bike_brand || "");
+        setBikeModel(d?.bike_model || "");
         setNeedsAdvice(row.needs_advice || false);
         setFittingUrl(row.file_url || null);
       } else {
         setExistingId(null);
         setStature("");
         setBikeSize("");
+        setSeatHeight("");
+        setBikeBrand("");
+        setBikeModel("");
         setNeedsAdvice(false);
         setFittingUrl(null);
       }
