@@ -84,8 +84,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Routing por unidad de negocio: tipo "camp" → viaje_camp, resto → evento
+    const isTripLike = ((event as any).type || "").toLowerCase() === "camp";
     const cuenta = await resolveCuentaMP(supabaseAdmin, {
-      unidad_negocio: (event as any).is_trip ? "viaje_camp" : "evento",
+      unidad_negocio: isTripLike ? "viaje_camp" : "evento",
     });
     if (!cuenta.access_token) {
       return new Response(
