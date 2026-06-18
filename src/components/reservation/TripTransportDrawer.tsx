@@ -108,6 +108,7 @@ const TripTransportDrawer = ({
       arrival_date: arrivalDate || null,
       arrival_time: arrivalTime || null,
       needs_transfer: needsTransfer || null,
+      arrival_notes: arrivalNotes || null,
     };
 
     if (token) {
