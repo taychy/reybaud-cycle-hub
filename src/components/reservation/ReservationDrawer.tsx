@@ -549,6 +549,198 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
             </>
           )}
 
+          {/* ── Step: Room gender ── */}
+          {step === "room" && selectedPackage && (
+            <>
+              <div className="space-y-2">
+                <h4 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                  <BedDouble className="w-4 h-4 text-primary" /> Tipo de habitación
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {selectedPackage.personas_por_habitacion === 1
+                    ? "Habitación individual."
+                    : `Cada habitación es para ${selectedPackage.personas_por_habitacion} personas y se comparte según el género elegido.`}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {([
+                  { g: "femenina" as RoomGender, label: "Solo mujeres", icon: "♀", color: "rose" },
+                  { g: "masculina" as RoomGender, label: "Solo varones", icon: "♂", color: "sky" },
+                  ...(selectedPackage.permite_mixto ? [{ g: "mixta" as RoomGender, label: "Mixta (grupo cerrado)", icon: "⚥", color: "violet" }] : []),
+                ]).map(({ g, label, icon, color }) => {
+                  const avail = genderAvail(g);
+                  const sinCupo = avail === 0;
+                  const isSelected = roomGender === g;
+                  const colorClass =
+                    color === "rose" ? "border-rose-500/40 bg-rose-500/5"
+                    : color === "sky" ? "border-sky-500/40 bg-sky-500/5"
+                    : "border-violet-500/40 bg-violet-500/5";
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => !sinCupo && setRoomGender(g)}
+                      disabled={sinCupo}
+                      className={`w-full text-left rounded-xl border p-3 transition-all ${
+                        isSelected ? "border-primary bg-primary/10" : colorClass
+                      } ${sinCupo ? "opacity-40 cursor-not-allowed" : "hover:border-primary/60"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-lg ${
+                          isSelected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground"
+                        }`}>
+                          {icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{label}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {avail == null ? "Cupo abierto" : sinCupo ? "Sin cupo" : `${avail} ${avail === 1 ? "lugar disponible" : "lugares disponibles"}`}
+                          </p>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-primary" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {roomGender === "mixta" && (
+                <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/30 text-xs text-violet-200">
+                  <strong>Habitación mixta:</strong> tenés que declarar el nombre de todos los/as compañeros/as con quienes la vas a compartir. Solo se confirma si todos ya están inscritos al viaje.
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setStep("package")}>
+                  Volver
+                </Button>
+                <Button variant="gold" className="flex-1" onClick={goAfterRoom} disabled={!roomGender}>
+                  Continuar <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
+
+          {/* ── Step: Roommates ── */}
+          {step === "mates" && selectedPackage && (
+            <>
+              <div className="space-y-2">
+                <h4 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-primary" /> Compañeros/as de habitación
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {roomGender === "mixta"
+                    ? `Completá el nombre de los ${matesNeeded === 1 ? "/la compañero/a" : `${matesNeeded} compañeros/as`} con quienes vas a compartir.`
+                    : "¿Querés compartir con personas conocidas o que te asignemos compañeros/as?"}
+                </p>
+              </div>
+
+              {roomGender !== "mixta" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareChoice("share");
+                      if (mates.length !== matesNeeded) {
+                        setMates(Array.from({ length: matesNeeded }, () => ({ nombre: "", email: "", telefono: "" })));
+                      }
+                    }}
+                    className={`rounded-xl border p-3 text-left ${shareChoice === "share" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                  >
+                    <UserPlus className="w-4 h-4 text-primary mb-1" />
+                    <p className="text-sm font-semibold">Comparto con…</p>
+                    <p className="text-[11px] text-muted-foreground">Indico nombres</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShareChoice("assign"); setMates([]); setVinculo(null); }}
+                    className={`rounded-xl border p-3 text-left ${shareChoice === "assign" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                  >
+                    <Sparkles className="w-4 h-4 text-primary mb-1" />
+                    <p className="text-sm font-semibold">Asignenme</p>
+                    <p className="text-[11px] text-muted-foreground">Comparto con quien la escuela me indique</p>
+                  </button>
+                </div>
+              )}
+
+              {(shareChoice === "share" || roomGender === "mixta") && matesNeeded > 0 && (
+                <div className="space-y-3">
+                  {Array.from({ length: matesNeeded }).map((_, i) => {
+                    const m = mates[i] || { nombre: "", email: "", telefono: "" };
+                    const setM = (patch: Partial<typeof m>) => {
+                      const next = [...mates];
+                      while (next.length < matesNeeded) next.push({ nombre: "", email: "", telefono: "" });
+                      next[i] = { ...next[i], ...patch };
+                      setMates(next);
+                    };
+                    return (
+                      <div key={i} className="rounded-lg border border-border/50 p-3 space-y-2 bg-card/50">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                          Compañero/a {i + 1}{roomGender === "mixta" ? " *" : ""}
+                        </p>
+                        <Input
+                          value={m.nombre}
+                          onChange={(e) => setM({ nombre: e.target.value })}
+                          placeholder="Nombre y apellido"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={m.email}
+                            onChange={(e) => setM({ email: e.target.value })}
+                            placeholder="Email (opcional)"
+                            type="email"
+                          />
+                          <Input
+                            value={m.telefono}
+                            onChange={(e) => setM({ telefono: e.target.value })}
+                            placeholder="Teléfono (opcional)"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {roomCapacity === 2 && (
+                    <div className="rounded-lg border border-border/50 p-3 space-y-2 bg-card/50">
+                      <p className="text-xs text-muted-foreground">¿Cómo van a compartir la habitación?</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVinculo("pareja")}
+                          className={`rounded-lg border p-2.5 text-left ${vinculo === "pareja" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                        >
+                          <Heart className="w-3.5 h-3.5 text-primary mb-1" />
+                          <p className="text-xs font-semibold">Pareja</p>
+                          <p className="text-[10px] text-muted-foreground">Cama matrimonial</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVinculo("amigos")}
+                          className={`rounded-lg border p-2.5 text-left ${vinculo === "amigos" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                        >
+                          <Users className="w-3.5 h-3.5 text-primary mb-1" />
+                          <p className="text-xs font-semibold">Amigos/as</p>
+                          <p className="text-[10px] text-muted-foreground">Camas individuales</p>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setStep("room")}>
+                  Volver
+                </Button>
+                <Button variant="gold" className="flex-1" onClick={goAfterMates}>
+                  Continuar <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
+
+
           {/* ── Step: Form ── */}
           {step === "form" && (
             <>
