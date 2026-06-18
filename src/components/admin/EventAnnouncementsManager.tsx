@@ -94,6 +94,7 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
       is_highlighted: a.is_highlighted,
       visible: a.visible,
       sort_order: a.sort_order,
+      send_email_on_publish: a.send_email_on_publish ?? true,
     });
     setShowDialog(true);
   };
