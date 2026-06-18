@@ -533,6 +533,9 @@ const EventsList = () => {
                 eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
               />
               <div className="border-t border-border pt-6">
+                <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+              </div>
+              <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />
               </div>
             </div>
