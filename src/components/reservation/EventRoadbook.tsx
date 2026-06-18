@@ -51,23 +51,45 @@ const EventRoadbook = ({ eventId }: Props) => {
         <div className="text-[10px] uppercase tracking-[0.18em] text-primary font-heading flex items-center gap-1.5">
           <span className="w-4 h-px bg-primary inline-block" /> Itinerario
         </div>
-        <div className="rounded-lg border border-border/40 overflow-hidden">
+        <div className="space-y-1.5">
           {rb.dias.map((d, i) => (
-            <div key={i} className={`grid grid-cols-12 gap-2 px-3 py-2 text-xs ${i % 2 === 0 ? "bg-muted/20" : "bg-muted/10"}`}>
-              <div className="col-span-1 text-primary font-heading font-semibold">{d.numero}</div>
-              <div className="col-span-5 truncate">{d.titulo}</div>
-              <div className="col-span-2 text-muted-foreground whitespace-nowrap">{d.fecha}</div>
-              <div className="col-span-2 text-cyan text-right whitespace-nowrap">{d.km}{d.km && d.km !== "—" ? " km" : ""}</div>
-              <div className="col-span-2 text-right">
-                {d.gpx_url ? (
-                  <a href={d.gpx_url} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline">
-                    GPX <ExternalLink className="w-3 h-3" />
-                  </a>
-                ) : (
-                  <span className="text-muted-foreground">{d.desnivel}</span>
+            <div
+              key={i}
+              className="rounded-lg border border-border/40 bg-muted/10 p-3 flex items-start gap-3"
+            >
+              <div className="shrink-0 w-8 h-8 rounded-md bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-heading font-bold text-sm">
+                {d.numero}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="text-sm font-medium text-foreground leading-tight break-words">
+                  {d.titulo || "—"}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  {d.fecha && <span>{d.fecha}</span>}
+                  {d.km && d.km !== "—" && (
+                    <span className="text-cyan font-medium">{d.km} km</span>
+                  )}
+                  {d.desnivel && d.desnivel !== "—" && (
+                    <span>↑ {d.desnivel}</span>
+                  )}
+                </div>
+                {d.hotel && (
+                  <div className="text-[11px] text-muted-foreground/80 flex items-center gap-1 truncate">
+                    <MapPin className="w-3 h-3 text-cyan shrink-0" />
+                    <span className="truncate">{d.hotel}</span>
+                  </div>
                 )}
               </div>
+              {d.gpx_url && (
+                <a
+                  href={d.gpx_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-primary border border-primary/30 hover:bg-primary/10 rounded-md px-2 py-1.5 self-center"
+                >
+                  GPX <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
           ))}
         </div>
