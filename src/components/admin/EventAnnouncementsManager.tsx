@@ -203,11 +203,23 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
                   {a.is_highlighted && <Badge className="bg-primary/20 text-primary text-[10px]">Destacada</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">{a.content}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {new Date(a.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(a.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                  {a.email_sent_at ? (
+                    <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-600/30">
+                      ✉ {a.email_recipients_count || 0} enviados
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">Sin enviar</Badge>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary" title="Enviar por email" onClick={() => openSendEmail(a)}>
+                  <Send className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => toggleHighlight(a)}>
                   {a.is_highlighted ? <StarOff className="w-4 h-4" /> : <Star className="w-4 h-4" />}
                 </Button>
