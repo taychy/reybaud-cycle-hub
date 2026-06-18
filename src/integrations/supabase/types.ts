@@ -2360,6 +2360,7 @@ export type Database = {
           no_incluye: string[]
           payment_mode: Database["public"]["Enums"]["event_payment_mode"]
           price: number | null
+          roadbook: Json | null
           same_day: boolean
           short_description: string | null
           show_public: boolean
@@ -2392,6 +2393,7 @@ export type Database = {
           no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
           price?: number | null
+          roadbook?: Json | null
           same_day?: boolean
           short_description?: string | null
           show_public?: boolean
@@ -2424,6 +2426,7 @@ export type Database = {
           no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
           price?: number | null
+          roadbook?: Json | null
           same_day?: boolean
           short_description?: string | null
           show_public?: boolean
