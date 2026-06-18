@@ -54,6 +54,7 @@ const emptyForm = {
   is_highlighted: false,
   visible: true,
   sort_order: 0,
+  send_email_on_publish: true,
 };
 
 const EventAnnouncementsManager = ({ eventId }: Props) => {
