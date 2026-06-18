@@ -60,6 +60,7 @@ const TripTransportDrawer = ({
         setArrivalDate("");
         setArrivalTime("");
         setNeedsTransfer(false);
+        setArrivalNotes("");
       }
       setLoading(false);
     };
