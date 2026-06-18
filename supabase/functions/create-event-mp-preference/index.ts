@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     // Cargar el evento (para titulo y, si hace falta, precio)
     const { data: event, error: evErr } = await supabaseAdmin
       .from("events")
-      .select("id, title, price, currency, is_trip")
+      .select("id, title, price, currency, type")
       .eq("id", reservation.event_id)
       .single();
 
