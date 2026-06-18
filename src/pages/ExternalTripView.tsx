@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
+import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 
