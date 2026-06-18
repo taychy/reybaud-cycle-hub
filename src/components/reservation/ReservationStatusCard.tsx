@@ -278,6 +278,8 @@ const ReservationStatusCard = ({
   });
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
   const [pendingPayments, setPendingPayments] = useState<Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>>([]);
+  const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
+  const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
 
   const loadChecklistData = useCallback(async () => {
     const { data } = await supabase
