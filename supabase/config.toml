@@ -37,6 +37,8 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.send-event-checkin-email]
     verify_jwt = false
+  [functions.send-event-announcement]
+    verify_jwt = false
   [functions.send-result-request-email]
     verify_jwt = false
   [functions.auto-facturar]
