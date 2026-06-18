@@ -1928,11 +1928,16 @@ export type Database = {
           activo: boolean
           created_at: string
           cupo: number | null
+          cupo_mixto: number | null
+          cupo_mujeres: number | null
+          cupo_varones: number | null
           currency: string
           descripcion: string | null
           event_id: string
           id: string
           nombre: string
+          permite_mixto: boolean
+          personas_por_habitacion: number
           precio: number
           sena: number | null
           sort_order: number
@@ -1942,11 +1947,16 @@ export type Database = {
           activo?: boolean
           created_at?: string
           cupo?: number | null
+          cupo_mixto?: number | null
+          cupo_mujeres?: number | null
+          cupo_varones?: number | null
           currency?: string
           descripcion?: string | null
           event_id: string
           id?: string
           nombre: string
+          permite_mixto?: boolean
+          personas_por_habitacion?: number
           precio: number
           sena?: number | null
           sort_order?: number
@@ -1956,11 +1966,16 @@ export type Database = {
           activo?: boolean
           created_at?: string
           cupo?: number | null
+          cupo_mixto?: number | null
+          cupo_mujeres?: number | null
+          cupo_varones?: number | null
           currency?: string
           descripcion?: string | null
           event_id?: string
           id?: string
           nombre?: string
+          permite_mixto?: boolean
+          personas_por_habitacion?: number
           precio?: number
           sena?: number | null
           sort_order?: number
@@ -2119,6 +2134,7 @@ export type Database = {
           external_last_name: string | null
           external_participant_id: string | null
           external_team_name: string | null
+          genero_habitacion: string | null
           id: string
           metodo_pago: string
           moneda: string
@@ -2130,8 +2146,10 @@ export type Database = {
           package_nombre_snapshot: string | null
           participant_notes: string | null
           payment_status: string
+          prefiere_asignacion: boolean
           price_snapshot: number | null
           reservation_status: string
+          tipo_vinculo: string | null
           updated_at: string
         }
         Insert: {
@@ -2158,6 +2176,7 @@ export type Database = {
           external_last_name?: string | null
           external_participant_id?: string | null
           external_team_name?: string | null
+          genero_habitacion?: string | null
           id?: string
           metodo_pago?: string
           moneda?: string
@@ -2169,8 +2188,10 @@ export type Database = {
           package_nombre_snapshot?: string | null
           participant_notes?: string | null
           payment_status?: string
+          prefiere_asignacion?: boolean
           price_snapshot?: number | null
           reservation_status?: string
+          tipo_vinculo?: string | null
           updated_at?: string
         }
         Update: {
@@ -2197,6 +2218,7 @@ export type Database = {
           external_last_name?: string | null
           external_participant_id?: string | null
           external_team_name?: string | null
+          genero_habitacion?: string | null
           id?: string
           metodo_pago?: string
           moneda?: string
@@ -2208,8 +2230,10 @@ export type Database = {
           package_nombre_snapshot?: string | null
           participant_notes?: string | null
           payment_status?: string
+          prefiere_asignacion?: boolean
           price_snapshot?: number | null
           reservation_status?: string
+          tipo_vinculo?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2317,12 +2341,14 @@ export type Database = {
           end_time: string | null
           id: string
           image_url: string | null
+          incluye: string[]
           is_active: boolean
           is_own_event: boolean
           level: string | null
           location: string | null
           max_capacity: number | null
           metadata: Json
+          no_incluye: string[]
           payment_mode: Database["public"]["Enums"]["event_payment_mode"]
           price: number | null
           same_day: boolean
@@ -2347,12 +2373,14 @@ export type Database = {
           end_time?: string | null
           id?: string
           image_url?: string | null
+          incluye?: string[]
           is_active?: boolean
           is_own_event?: boolean
           level?: string | null
           location?: string | null
           max_capacity?: number | null
           metadata?: Json
+          no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
           price?: number | null
           same_day?: boolean
@@ -2377,12 +2405,14 @@ export type Database = {
           end_time?: string | null
           id?: string
           image_url?: string | null
+          incluye?: string[]
           is_active?: boolean
           is_own_event?: boolean
           level?: string | null
           location?: string | null
           max_capacity?: number | null
           metadata?: Json
+          no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
           price?: number | null
           same_day?: boolean
@@ -4260,6 +4290,60 @@ export type Database = {
           },
           {
             foreignKeyName: "reservation_payments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_roommates: {
+        Row: {
+          alumno_id: string | null
+          confirmado: boolean
+          created_at: string
+          email: string | null
+          id: string
+          nombre: string
+          posicion: number
+          reservation_id: string
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          confirmado?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre: string
+          posicion: number
+          reservation_id: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          confirmado?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string
+          posicion?: number
+          reservation_id?: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_roommates_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_roommates_reservation_id_fkey"
             columns: ["reservation_id"]
             isOneToOne: false
             referencedRelation: "event_reservations"
