@@ -11,7 +11,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Search } from "lucide-react";
+import { Send, Users, Search, FileCode } from "lucide-react";
+import { EMAIL_TEMPLATES } from "@/lib/emailTemplates/tourDeFrancia26";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   open: boolean;
