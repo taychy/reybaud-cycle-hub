@@ -1358,11 +1358,10 @@ const ManageStudents = () => {
                   {drawerAlumno && (
                     <StudentSaldoChip
                       alumnoId={drawerAlumno.id}
-                      onClick={() => {
-                        document.getElementById("ficha-cuenta-corriente")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
+                      onClick={() => navigate(`/admin/cuenta-corriente?alumno=${drawerAlumno.id}`)}
                     />
                   )}
+
                   <Button
                     size="icon"
                     variant="ghost"
