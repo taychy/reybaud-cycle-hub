@@ -233,7 +233,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
     {
       id: "pasaje",
       label: "Pasaje o transporte",
-      description: "Subí tu reserva de vuelo o transporte",
+      description: "Reserva de vuelo o info de llegada",
       icon: Plane,
       completed: !!checklistData["pasaje"]?.completed,
       actionType: "document",
