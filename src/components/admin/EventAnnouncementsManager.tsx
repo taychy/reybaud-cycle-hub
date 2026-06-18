@@ -173,14 +173,19 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-primary" />
           <h3 className="font-heading font-semibold text-sm uppercase tracking-wide">Novedades del evento</h3>
         </div>
-        <Button variant="gold" size="sm" onClick={openNew}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva novedad
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openSendEmail(null)}>
+            <Mail className="w-4 h-4 mr-1" /> Enviar mail manual
+          </Button>
+          <Button variant="gold" size="sm" onClick={openNew}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva novedad
+          </Button>
+        </div>
       </div>
 
       {loading ? (
