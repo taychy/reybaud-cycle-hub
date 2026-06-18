@@ -1744,10 +1744,13 @@ export type Database = {
           category: string
           content: string
           created_at: string
+          email_recipients_count: number
+          email_sent_at: string | null
           event_id: string
           id: string
           is_highlighted: boolean
           published_at: string
+          send_email_on_publish: boolean
           sort_order: number
           title: string
           updated_at: string
@@ -1757,10 +1760,13 @@ export type Database = {
           category?: string
           content: string
           created_at?: string
+          email_recipients_count?: number
+          email_sent_at?: string | null
           event_id: string
           id?: string
           is_highlighted?: boolean
           published_at?: string
+          send_email_on_publish?: boolean
           sort_order?: number
           title: string
           updated_at?: string
@@ -1770,10 +1776,13 @@ export type Database = {
           category?: string
           content?: string
           created_at?: string
+          email_recipients_count?: number
+          email_sent_at?: string | null
           event_id?: string
           id?: string
           is_highlighted?: boolean
           published_at?: string
+          send_email_on_publish?: boolean
           sort_order?: number
           title?: string
           updated_at?: string
