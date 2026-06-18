@@ -52,6 +52,7 @@ const TripTransportDrawer = ({
         setArrivalDate(d.arrival_date || "");
         setArrivalTime(d.arrival_time || "");
         setNeedsTransfer(!!d.needs_transfer);
+        setArrivalNotes(d.arrival_notes || "");
       } else {
         setExistingId(null);
         setFileUrl(null);
