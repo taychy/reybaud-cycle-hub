@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
   CalendarDays, MapPin, Users, Mountain, Loader2, CheckCircle,
-  CreditCard, ArrowRight, UserCheck, BedDouble, Check,
+  CreditCard, ArrowRight, UserCheck, BedDouble, Check, Heart, UserPlus, Sparkles,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
