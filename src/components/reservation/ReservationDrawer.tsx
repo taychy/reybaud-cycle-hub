@@ -66,11 +66,15 @@ interface ReservationDrawerProps {
 
 const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva" }: ReservationDrawerProps) => {
   const { toast } = useToast();
-  const [step, setStep] = useState<"summary" | "package" | "form" | "submitting" | "success">("summary");
+  const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
   const [packages, setPackages] = useState<PackageRow[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [roomGender, setRoomGender] = useState<RoomGender | null>(null);
+  const [shareChoice, setShareChoice] = useState<"share" | "assign" | null>(null);
+  const [vinculo, setVinculo] = useState<Vinculo | null>(null);
+  const [mates, setMates] = useState<{ nombre: string; email: string; telefono: string }[]>([]);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
