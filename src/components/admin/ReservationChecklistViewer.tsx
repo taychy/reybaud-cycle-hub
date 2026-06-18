@@ -60,6 +60,8 @@ const dataLabel = (key: string) => {
     insurance_number: "N° de póliza",
     flight_number: "N° de vuelo",
     arrival_date: "Llegada",
+    arrival_time: "Horario",
+    needs_transfer: "Transfer",
     departure_date: "Regreso",
   };
   return map[key] || key.replace(/_/g, " ");
