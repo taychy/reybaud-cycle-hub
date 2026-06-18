@@ -36,6 +36,7 @@ const TripTransportDrawer = ({
   const [arrivalDate, setArrivalDate] = useState("");
   const [arrivalTime, setArrivalTime] = useState("");
   const [needsTransfer, setNeedsTransfer] = useState(false);
+  const [arrivalNotes, setArrivalNotes] = useState("");
 
   useEffect(() => {
     if (!open) return;
