@@ -278,6 +278,8 @@ const ReservationStatusCard = ({
   });
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
   const [pendingPayments, setPendingPayments] = useState<Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>>([]);
+  const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
+  const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
 
   const loadChecklistData = useCallback(async () => {
     const { data } = await supabase
@@ -313,10 +315,35 @@ const ReservationStatusCard = ({
     }
   }, [reservation.id]);
 
+  // Cargar próxima cuota pendiente (de reservation_installments) para ofrecer "Pagar 1ª cuota / seña"
+  const loadNextInstallment = useCallback(async () => {
+    const { data } = await supabase
+      .from("reservation_installments" as any)
+      .select("installment_number, amount, balance_due, due_date, label, status")
+      .eq("reservation_id", reservation.id)
+      .not("status", "in", "(pagada,condonada)")
+      .order("installment_number", { ascending: true })
+      .limit(1);
+    const row = (data as any[])?.[0];
+    if (row) {
+      const pending = Number(row.balance_due ?? row.amount ?? 0);
+      setNextInst({
+        installment_number: row.installment_number,
+        amount: Number(row.amount ?? 0),
+        balance_due: pending,
+        due_date: row.due_date,
+        label: row.label,
+      });
+    } else {
+      setNextInst(null);
+    }
+  }, [reservation.id]);
+
   useEffect(() => {
     loadChecklistData();
     loadPendingPayments();
-  }, [loadChecklistData, loadPendingPayments, reservation.updated_at]);
+    loadNextInstallment();
+  }, [loadChecklistData, loadPendingPayments, loadNextInstallment, reservation.updated_at]);
 
   const installments = installmentFromMetadata(eventMetadata);
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
@@ -436,6 +463,22 @@ const ReservationStatusCard = ({
       reservation.payment_status
     );
 
+  // ¿Mostrar selector de monto? Solo si hay próxima cuota pendiente con saldo < saldo total
+  const showMpChoice =
+    !!nextInst &&
+    nextInst.balance_due > 0 &&
+    nextInst.balance_due < pendingForMP;
+
+  // Auto-ajuste: si no hay choice válido, forzar "total"
+  useEffect(() => {
+    if (!showMpChoice && mpChoice === "cuota") setMpChoice("total");
+  }, [showMpChoice, mpChoice]);
+
+  const mpAmountToCharge =
+    showMpChoice && mpChoice === "cuota" ? nextInst!.balance_due : pendingForMP;
+  const mpInstallmentNumber =
+    showMpChoice && mpChoice === "cuota" ? nextInst!.installment_number : undefined;
+
   const handlePayWithMP = async () => {
     if (mpLoading) return;
     setMpLoading(true);
@@ -447,7 +490,11 @@ const ReservationStatusCard = ({
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ reservation_id: reservation.id }),
+        body: JSON.stringify({
+          reservation_id: reservation.id,
+          amount: mpAmountToCharge,
+          installment_number: mpInstallmentNumber,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data?.init_point) {
@@ -557,6 +604,48 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 3. PRIMARY CTA ═══ */}
+        {canPayWithMP && showMpChoice && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMpChoice("cuota")}
+              className={`rounded-lg border p-3 text-left transition ${
+                mpChoice === "cuota"
+                  ? "border-primary bg-primary/10"
+                  : "border-border/60 bg-muted/20 hover:border-primary/40"
+              }`}
+            >
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">
+                {nextInst!.installment_number === 1 ? "Seña / 1ª cuota" : `Cuota ${nextInst!.installment_number}`}
+              </div>
+              <div className="text-sm font-semibold text-foreground mt-1">
+                {formatPrice(nextInst!.balance_due, currency)}
+              </div>
+              {nextInst!.due_date && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Vence {new Date(nextInst!.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                </div>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMpChoice("total")}
+              className={`rounded-lg border p-3 text-left transition ${
+                mpChoice === "total"
+                  ? "border-primary bg-primary/10"
+                  : "border-border/60 bg-muted/20 hover:border-primary/40"
+              }`}
+            >
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">
+                Pagar total
+              </div>
+              <div className="text-sm font-semibold text-foreground mt-1">
+                {formatPrice(pendingForMP, currency)}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Saldo completo</div>
+            </button>
+          </div>
+        )}
         {canPayWithMP && (
           <Button
             variant="gold"
@@ -567,7 +656,12 @@ const ReservationStatusCard = ({
             {mpLoading ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo Mercado Pago...</>
             ) : (
-              <><CreditCard className="w-4 h-4 mr-2" /> Pagar con Mercado Pago</>
+              <>
+                <CreditCard className="w-4 h-4 mr-2" />
+                {showMpChoice
+                  ? `Pagar ${formatPrice(mpAmountToCharge, currency)} con Mercado Pago`
+                  : "Pagar con Mercado Pago"}
+              </>
             )}
           </Button>
         )}
