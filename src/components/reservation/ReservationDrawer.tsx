@@ -168,6 +168,28 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         toastTitle: "¡Solicitud de reserva enviada!",
       };
 
+  // Disponibilidad por género en el paquete seleccionado
+  const genderAvail = (g: RoomGender): number | null => {
+    if (!selectedPackage) return null;
+    const cupo = g === "femenina" ? selectedPackage.cupo_mujeres
+      : g === "masculina" ? selectedPackage.cupo_varones
+      : selectedPackage.cupo_mixto;
+    const used = g === "femenina" ? (selectedPackage.used_mujeres || 0)
+      : g === "masculina" ? (selectedPackage.used_varones || 0)
+      : (selectedPackage.used_mixto || 0);
+    if (cupo == null) return null; // sin límite
+    return Math.max(0, cupo - used);
+  };
+
+  const packageHasGenderConfig = !!selectedPackage && (
+    selectedPackage.cupo_mujeres != null ||
+    selectedPackage.cupo_varones != null ||
+    (selectedPackage.permite_mixto && selectedPackage.cupo_mixto != null)
+  );
+
+  const roomCapacity = selectedPackage?.personas_por_habitacion || 0;
+  const matesNeeded = Math.max(0, roomCapacity - 1); // restantes a declarar
+
   const goAfterSummary = () => {
     if (hasPackages) setStep("package");
     else setStep("form");
@@ -176,6 +198,52 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const goAfterPackage = () => {
     if (!selectedPackageId) {
       toast({ title: "Elegí un paquete para continuar.", variant: "destructive" });
+      return;
+    }
+    // Si el paquete tiene cupos por género, pedir elección de género
+    if (packageHasGenderConfig) setStep("room");
+    else setStep("form");
+  };
+
+  const goAfterRoom = () => {
+    if (!roomGender) {
+      toast({ title: "Elegí una opción de habitación.", variant: "destructive" });
+      return;
+    }
+    // Mixta obliga a declarar compañeros (grupo cerrado)
+    if (roomGender === "mixta") {
+      setShareChoice("share");
+      if (mates.length !== matesNeeded) {
+        setMates(Array.from({ length: matesNeeded }, () => ({ nombre: "", email: "", telefono: "" })));
+      }
+    }
+    // Sin compañeros a declarar (single)
+    if (matesNeeded === 0) {
+      setStep("form");
+      return;
+    }
+    setStep("mates");
+  };
+
+  const goAfterMates = () => {
+    if (roomGender === "mixta") {
+      // En mixta es obligatorio nombrar a todos
+      if (mates.length !== matesNeeded || mates.some((m) => !m.nombre.trim())) {
+        toast({ title: `Completá el nombre de los ${matesNeeded === 1 ? "/la compañero/a" : `${matesNeeded} compañeros/as`}.`, variant: "destructive" });
+        return;
+      }
+    } else if (shareChoice === null) {
+      toast({ title: "Elegí cómo querés compartir la habitación.", variant: "destructive" });
+      return;
+    } else if (shareChoice === "share") {
+      const filled = mates.filter((m) => m.nombre.trim()).length;
+      if (filled === 0) {
+        toast({ title: "Ingresá al menos un nombre o elegí que te asignen compañeros/as.", variant: "destructive" });
+        return;
+      }
+    }
+    if (roomCapacity === 2 && shareChoice === "share" && mates.some((m) => m.nombre.trim()) && !vinculo) {
+      toast({ title: "Indicá si son pareja o amigos/as para asignar el tipo de cama.", variant: "destructive" });
       return;
     }
     setStep("form");
