@@ -90,6 +90,7 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
   const [loading, setLoading] = useState(true);
   const [bikeOpen, setBikeOpen] = useState(false);
   const [pedalsOpen, setPedalsOpen] = useState(false);
+  const [transportOpen, setTransportOpen] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string }>({
     open: false, stepKey: "", title: "", description: "", helpText: "",
   });
