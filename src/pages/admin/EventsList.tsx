@@ -225,7 +225,20 @@ const EventsList = () => {
 
     let error;
     if (editingEvent) {
-      ({ error } = await supabase.from("events").update(payload as any).eq("id", editingEvent.id));
+      // Preserve installments mirror (managed by EventInstallmentsEditor) to avoid
+      // overwriting with stale form state when the user clicks "Guardar cambios".
+      const { data: freshEv } = await supabase
+        .from("events")
+        .select("metadata")
+        .eq("id", editingEvent.id)
+        .maybeSingle();
+      const freshMeta = (freshEv?.metadata as Record<string, any>) || {};
+      const mergedMeta = {
+        ...(payload.metadata as Record<string, any> || {}),
+        installments: freshMeta.installments ?? (payload.metadata as any)?.installments,
+        installments_enabled: freshMeta.installments_enabled ?? (payload.metadata as any)?.installments_enabled,
+      };
+      ({ error } = await supabase.from("events").update({ ...(payload as any), metadata: mergedMeta }).eq("id", editingEvent.id));
     } else {
       ({ error } = await supabase.from("events").insert(payload as any));
     }
