@@ -27,6 +27,9 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
   const [uploading, setUploading] = useState(false);
   const [stature, setStature] = useState("");
   const [bikeSize, setBikeSize] = useState("");
+  const [seatHeight, setSeatHeight] = useState("");
+  const [bikeBrand, setBikeBrand] = useState("");
+  const [bikeModel, setBikeModel] = useState("");
   const [needsAdvice, setNeedsAdvice] = useState(false);
   const [fittingUrl, setFittingUrl] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -41,12 +44,18 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
         const d = row.data as any;
         setStature(d?.stature || "");
         setBikeSize(d?.bike_size || "");
+        setSeatHeight(d?.seat_height || "");
+        setBikeBrand(d?.bike_brand || "");
+        setBikeModel(d?.bike_model || "");
         setNeedsAdvice(row.needs_advice || false);
         setFittingUrl(row.file_url || null);
       } else {
         setExistingId(null);
         setStature("");
         setBikeSize("");
+        setSeatHeight("");
+        setBikeBrand("");
+        setBikeModel("");
         setNeedsAdvice(false);
         setFittingUrl(null);
       }
@@ -85,7 +94,7 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
     setUploading(false);
   };
 
-  const isComplete = !!(stature || bikeSize || fittingUrl || needsAdvice);
+  const isComplete = !!(stature || bikeSize || seatHeight || bikeBrand || bikeModel || fittingUrl || needsAdvice);
 
   const handleSave = async () => {
     setSaving(true);
@@ -97,7 +106,7 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
           step_key: "bici",
           completed: isComplete,
           needs_advice: needsAdvice,
-          data: { stature, bike_size: bikeSize },
+          data: { stature, bike_size: bikeSize, seat_height: seatHeight, bike_brand: bikeBrand, bike_model: bikeModel },
           file_url: fittingUrl,
         });
         setSaving(false);
@@ -117,7 +126,7 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
       step_key: "bici",
       completed: isComplete,
       needs_advice: needsAdvice,
-      data: { stature, bike_size: bikeSize },
+      data: { stature, bike_size: bikeSize, seat_height: seatHeight, bike_brand: bikeBrand, bike_model: bikeModel },
       file_url: fittingUrl,
     };
 
@@ -183,6 +192,38 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
                 value={bikeSize}
                 onChange={(e) => setBikeSize(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="seatHeight">Altura del asiento (cm)</Label>
+              <Input
+                id="seatHeight"
+                placeholder="Ej: 74 (medida desde el eje del pedalier)"
+                value={seatHeight}
+                onChange={(e) => setSeatHeight(e.target.value)}
+                inputMode="decimal"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bikeBrand">Marca de la bici</Label>
+                <Input
+                  id="bikeBrand"
+                  placeholder="Ej: Specialized"
+                  value={bikeBrand}
+                  onChange={(e) => setBikeBrand(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bikeModel">Modelo</Label>
+                <Input
+                  id="bikeModel"
+                  placeholder="Ej: Tarmac SL7"
+                  value={bikeModel}
+                  onChange={(e) => setBikeModel(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

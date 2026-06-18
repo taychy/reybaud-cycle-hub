@@ -49,6 +49,9 @@ const dataLabel = (key: string) => {
   const map: Record<string, string> = {
     bike_size: "Talle de bici",
     stature: "Estatura (cm)",
+    seat_height: "Altura asiento (cm)",
+    bike_brand: "Marca de bici",
+    bike_model: "Modelo",
     pedal_type: "Tipo de pedal",
     rental: "Alquila bici",
     luggage: "Equipaje",
