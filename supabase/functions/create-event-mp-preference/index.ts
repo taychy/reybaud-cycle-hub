@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { reservation_id, amount: amountOverride } = await req.json();
+    const { reservation_id, amount: amountOverride, installment_number } = await req.json();
 
     if (!reservation_id) {
       return new Response(
