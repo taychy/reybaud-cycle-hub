@@ -136,9 +136,12 @@ Deno.serve(async (req) => {
 
     const resStatuses = filters.reservation_statuses && filters.reservation_statuses.length
       ? filters.reservation_statuses
-      : ['confirmed', 'pending', 'partial', 'reserved'];
+      : ['reserva_confirmada', 'solicitud_enviada', 'reserva_pendiente'];
     resQuery = resQuery.in('reservation_status', resStatuses);
 
+    if (filters.reservation_ids && filters.reservation_ids.length) {
+      resQuery = resQuery.in('id', filters.reservation_ids);
+    }
     if (filters.package_ids && filters.package_ids.length) {
       resQuery = resQuery.in('package_id', filters.package_ids);
     }
