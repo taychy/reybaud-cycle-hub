@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users } from "lucide-react";
+import { Send, Users, Search } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -22,34 +22,40 @@ interface Props {
   onSent?: () => void;
 }
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "pending", label: "Pendiente" },
-  { value: "partial", label: "Parcial" },
-  { value: "paid", label: "Pagado" },
-  { value: "overdue", label: "Vencido" },
-];
+// Estados ACTIVOS de reserva en español (matching DB)
+const ACTIVE_RES_STATUSES = ["reserva_confirmada", "solicitud_enviada", "reserva_pendiente"];
 
-const RES_STATUS_DEFAULT = ["confirmed", "pending", "partial", "reserved"];
+interface Recipient {
+  reservation_id: string;
+  alumno_id: string | null;
+  external_id: string | null;
+  package_id: string | null;
+  name: string;
+  email: string;
+  is_external: boolean;
+}
 
 const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onSent }: Props) => {
   const { toast } = useToast();
   const [packages, setPackages] = useState<{ id: string; nombre: string }[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
-  const [selectedPaymentStatuses, setSelectedPaymentStatuses] = useState<string[]>([]);
   const [includeExternals, setIncludeExternals] = useState(true);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [recipientCount, setRecipientCount] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
+  const [allRecipients, setAllRecipients] = useState<Recipient[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [search, setSearch] = useState("");
 
   const isManual = !announcement;
 
+  // Reset on open + load packages
   useEffect(() => {
     if (!open) return;
     setSelectedPackages([]);
-    setSelectedPaymentStatuses([]);
     setIncludeExternals(true);
-    setRecipientCount(null);
+    setSearch("");
     if (announcement) {
       setSubject(announcement.title);
       setBody(announcement.content);
@@ -57,7 +63,6 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
       setSubject("");
       setBody("");
     }
-    // Load packages for filter
     supabase
       .from("event_packages" as any)
       .select("id, nombre")
@@ -67,35 +72,125 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
       .then(({ data }) => setPackages((data as any[]) || []));
   }, [open, eventId, announcement]);
 
-  // Estimate recipient count when filters change
+  // Cargar lista de participantes (alumnos + externos)
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     (async () => {
-      let q = supabase
+      setLoadingRecipients(true);
+      const { data: reservations } = await supabase
         .from("event_reservations" as any)
-        .select("id, alumno_id, external_participant_id", { count: "exact", head: false })
+        .select("id, alumno_id, external_participant_id, package_id, reservation_status")
         .eq("event_id", eventId)
-        .in("reservation_status", RES_STATUS_DEFAULT);
-      if (selectedPackages.length) q = q.in("package_id", selectedPackages);
-      if (selectedPaymentStatuses.length) q = q.in("payment_status", selectedPaymentStatuses);
-      const { data } = await q;
+        .in("reservation_status", ACTIVE_RES_STATUSES);
+
+      const rows = (reservations as any[]) || [];
+      const alumnoIds = [...new Set(rows.map((r) => r.alumno_id).filter(Boolean))];
+      const externalIds = [...new Set(rows.map((r) => r.external_participant_id).filter(Boolean))];
+
+      const [alumnosRes, extsRes] = await Promise.all([
+        alumnoIds.length
+          ? supabase.from("alumnos").select("id, email, nombre, apellido").in("id", alumnoIds)
+          : Promise.resolve({ data: [] as any[] }),
+        externalIds.length
+          ? supabase.from("event_external_participants" as any).select("id, email, nombre, apellido").in("id", externalIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const aMap = new Map<string, any>();
+      (alumnosRes.data as any[] || []).forEach((a) => aMap.set(a.id, a));
+      const eMap = new Map<string, any>();
+      (extsRes.data as any[] || []).forEach((e) => eMap.set(e.id, e));
+
+      const list: Recipient[] = [];
+      for (const r of rows) {
+        if (r.alumno_id && aMap.has(r.alumno_id)) {
+          const a = aMap.get(r.alumno_id);
+          if (!a.email) continue;
+          list.push({
+            reservation_id: r.id,
+            alumno_id: r.alumno_id,
+            external_id: null,
+            package_id: r.package_id,
+            name: `${a.nombre || ""} ${a.apellido || ""}`.trim() || a.email,
+            email: a.email,
+            is_external: false,
+          });
+        } else if (r.external_participant_id && eMap.has(r.external_participant_id)) {
+          const e = eMap.get(r.external_participant_id);
+          if (!e.email) continue;
+          list.push({
+            reservation_id: r.id,
+            alumno_id: null,
+            external_id: r.external_participant_id,
+            package_id: r.package_id,
+            name: `${e.nombre || ""} ${e.apellido || ""}`.trim() || e.email,
+            email: e.email,
+            is_external: true,
+          });
+        }
+      }
       if (cancelled) return;
-      const rows = (data as any[]) || [];
-      const filtered = includeExternals ? rows : rows.filter((r) => r.alumno_id);
-      setRecipientCount(filtered.length);
+      setAllRecipients(list);
+      // Por defecto: todos seleccionados
+      setSelectedIds(new Set(list.map((r) => r.reservation_id)));
+      setLoadingRecipients(false);
     })();
     return () => { cancelled = true; };
-  }, [open, eventId, selectedPackages, selectedPaymentStatuses, includeExternals]);
+  }, [open, eventId]);
+
+  // Filtrado: por paquetes, externos, búsqueda
+  const visibleRecipients = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allRecipients.filter((r) => {
+      if (!includeExternals && r.is_external) return false;
+      if (selectedPackages.length && (!r.package_id || !selectedPackages.includes(r.package_id))) return false;
+      if (q && !r.name.toLowerCase().includes(q) && !r.email.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [allRecipients, includeExternals, selectedPackages, search]);
+
+  // Cuando cambian los filtros, ajustar selección: mantener solo IDs todavía visibles
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visibleIds = new Set(visibleRecipients.map((r) => r.reservation_id));
+      const next = new Set<string>();
+      prev.forEach((id) => { if (visibleIds.has(id)) next.add(id); });
+      // Si la selección se vació y hay visibles, seleccionar todos
+      if (next.size === 0 && visibleIds.size > 0) {
+        visibleIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [visibleRecipients]);
+
+  const allVisibleSelected =
+    visibleRecipients.length > 0 && visibleRecipients.every((r) => selectedIds.has(r.reservation_id));
+
+  const toggleAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleRecipients.forEach((r) => next.delete(r.reservation_id));
+      } else {
+        visibleRecipients.forEach((r) => next.add(r.reservation_id));
+      }
+      return next;
+    });
+  };
 
   const togglePkg = (id: string) =>
     setSelectedPackages((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  const togglePay = (v: string) =>
-    setSelectedPaymentStatuses((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
+
+  const recipientCount = selectedIds.size;
 
   const handleSend = async () => {
     if (isManual && (!subject.trim() || !body.trim())) {
       toast({ title: "Asunto y mensaje son obligatorios.", variant: "destructive" });
+      return;
+    }
+    if (recipientCount === 0) {
+      toast({ title: "Seleccioná al menos un participante.", variant: "destructive" });
       return;
     }
     setSending(true);
@@ -112,8 +207,8 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
         subject: isManual ? subject : undefined,
         body_html: isManual ? bodyHtml : undefined,
         filters: {
-          package_ids: selectedPackages.length ? selectedPackages : null,
-          payment_statuses: selectedPaymentStatuses.length ? selectedPaymentStatuses : null,
+          // Selección explícita de reservas (vence sobre cualquier otro filtro)
+          reservation_ids: Array.from(selectedIds),
           include_externals: includeExternals,
         },
         enviado_por: user?.id || null,
@@ -139,11 +234,11 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isManual ? "Enviar mail manual a participantes" : `Enviar novedad por email`}</DialogTitle>
+          <DialogTitle>{isManual ? "Enviar mail manual a participantes" : "Enviar novedad por email"}</DialogTitle>
           <DialogDescription>
             {isManual
-              ? "Asunto y mensaje libres. Se envía a los participantes según los filtros."
-              : "Se enviará el contenido de la novedad seleccionada a los participantes filtrados."}
+              ? "Asunto y mensaje libres. Elegí a quién enviar."
+              : "Se enviará la novedad seleccionada a los participantes que elijas."}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,7 +251,7 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
               </div>
               <div className="space-y-1.5">
                 <Label>Mensaje *</Label>
-                <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} placeholder="Escribí el contenido del mensaje. Doble salto = nuevo párrafo." />
+                <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} placeholder="Escribí el contenido. Doble salto = nuevo párrafo." />
               </div>
             </>
           )}
@@ -168,11 +263,10 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Paquetes</Label>
-            {packages.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sin paquetes definidos · se envía a todos.</p>
-            ) : (
+          {/* Filtros opcionales (acotan la lista de abajo) */}
+          {packages.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Filtrar por paquete</Label>
               <div className="grid grid-cols-2 gap-2">
                 {packages.map((p) => (
                   <label key={p.id} className="flex items-center gap-2 rounded-md border p-2 cursor-pointer hover:bg-muted/40">
@@ -181,26 +275,11 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
                   </label>
                 ))}
               </div>
-            )}
-            {selectedPackages.length === 0 && packages.length > 0 && (
-              <p className="text-[11px] text-muted-foreground">Sin selección = todos los paquetes.</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Estado de pago</Label>
-            <div className="flex flex-wrap gap-2">
-              {PAYMENT_STATUS_OPTIONS.map((opt) => (
-                <label key={opt.value} className="flex items-center gap-2 rounded-md border px-3 py-1.5 cursor-pointer hover:bg-muted/40">
-                  <Checkbox checked={selectedPaymentStatuses.includes(opt.value)} onCheckedChange={() => togglePay(opt.value)} />
-                  <span className="text-sm">{opt.label}</span>
-                </label>
-              ))}
+              {selectedPackages.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">Sin selección = todos los paquetes.</p>
+              )}
             </div>
-            {selectedPaymentStatuses.length === 0 && (
-              <p className="text-[11px] text-muted-foreground">Sin selección = todos los estados.</p>
-            )}
-          </div>
+          )}
 
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
@@ -210,13 +289,82 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
             <Switch checked={includeExternals} onCheckedChange={setIncludeExternals} />
           </div>
 
+          {/* Lista de participantes con selector individual */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Participantes ({visibleRecipients.length})
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={toggleAllVisible}
+                disabled={visibleRecipients.length === 0}
+              >
+                {allVisibleSelected ? "Deseleccionar todos" : "Seleccionar todos"}
+              </Button>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nombre o email…"
+                className="pl-7 h-8 text-xs"
+              />
+            </div>
+
+            <div className="max-h-64 overflow-y-auto rounded-md border divide-y">
+              {loadingRecipients ? (
+                <p className="text-xs text-muted-foreground p-3">Cargando participantes…</p>
+              ) : visibleRecipients.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-3 italic">
+                  {allRecipients.length === 0
+                    ? "Este evento todavía no tiene participantes con reserva activa."
+                    : "Ningún participante coincide con los filtros."}
+                </p>
+              ) : (
+                visibleRecipients.map((r) => {
+                  const checked = selectedIds.has(r.reservation_id);
+                  return (
+                    <label
+                      key={r.reservation_id}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/40"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (v) next.add(r.reservation_id); else next.delete(r.reservation_id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate">{r.name}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">{r.email}</div>
+                      </div>
+                      {r.is_external && (
+                        <Badge variant="outline" className="text-[9px]">Externo</Badge>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Destinatarios estimados</span>
+              <span className="text-sm font-medium">Destinatarios seleccionados</span>
             </div>
             <Badge variant="outline" className="text-base px-3">
-              {recipientCount === null ? "…" : recipientCount}
+              {recipientCount}
             </Badge>
           </div>
         </div>
@@ -225,7 +373,7 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancelar</Button>
           <Button variant="gold" onClick={handleSend} disabled={sending || recipientCount === 0}>
             <Send className="w-4 h-4 mr-1" />
-            {sending ? "Enviando…" : `Enviar a ${recipientCount ?? 0}`}
+            {sending ? "Enviando…" : `Enviar a ${recipientCount}`}
           </Button>
         </DialogFooter>
       </DialogContent>
