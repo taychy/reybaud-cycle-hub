@@ -782,7 +782,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setStep(hasPackages ? "package" : "summary")}>
+                <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
                 </Button>
                 <Button variant="gold" className="flex-1" onClick={handleSubmit}>
