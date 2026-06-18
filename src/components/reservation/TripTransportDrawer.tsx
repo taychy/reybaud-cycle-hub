@@ -230,6 +230,17 @@ const TripTransportDrawer = ({
                   Necesito transfer del aeropuerto
                 </Label>
               </div>
+
+              <div className="space-y-1.5 pt-1">
+                <Label htmlFor="arrival_notes" className="text-xs">Comentarios sobre tu llegada (opcional)</Label>
+                <Textarea
+                  id="arrival_notes"
+                  value={arrivalNotes}
+                  onChange={(e) => setArrivalNotes(e.target.value)}
+                  placeholder="Ej. llego solo con equipaje de mano, necesito ayuda con la bici, etc."
+                  className="min-h-[72px] text-xs resize-none"
+                />
+              </div>
             </div>
 
             {/* Subida de archivo */}
