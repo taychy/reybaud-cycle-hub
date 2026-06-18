@@ -62,6 +62,7 @@ const dataLabel = (key: string) => {
     arrival_date: "Llegada",
     arrival_time: "Horario",
     needs_transfer: "Transfer",
+    arrival_notes: "Comentarios llegada",
     departure_date: "Regreso",
   };
   return map[key] || key.replace(/_/g, " ");

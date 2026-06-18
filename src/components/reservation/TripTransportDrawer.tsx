@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Upload, CheckCircle, FileText, ExternalLink, Plane } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Upload, CheckCircle, ExternalLink, Plane } from "lucide-react";
 import { toast } from "sonner";
 
 interface TripTransportDrawerProps {
@@ -35,6 +36,7 @@ const TripTransportDrawer = ({
   const [arrivalDate, setArrivalDate] = useState("");
   const [arrivalTime, setArrivalTime] = useState("");
   const [needsTransfer, setNeedsTransfer] = useState(false);
+  const [arrivalNotes, setArrivalNotes] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +52,7 @@ const TripTransportDrawer = ({
         setArrivalDate(d.arrival_date || "");
         setArrivalTime(d.arrival_time || "");
         setNeedsTransfer(!!d.needs_transfer);
+        setArrivalNotes(d.arrival_notes || "");
       } else {
         setExistingId(null);
         setFileUrl(null);
@@ -57,6 +60,7 @@ const TripTransportDrawer = ({
         setArrivalDate("");
         setArrivalTime("");
         setNeedsTransfer(false);
+        setArrivalNotes("");
       }
       setLoading(false);
     };
@@ -94,7 +98,7 @@ const TripTransportDrawer = ({
   };
 
   const isComplete = !!(
-    fileUrl || arrivalDate || arrivalTime || needsTransfer
+    fileUrl || arrivalDate || arrivalTime || needsTransfer || arrivalNotes
   );
 
   const handleSave = async () => {
@@ -104,6 +108,7 @@ const TripTransportDrawer = ({
       arrival_date: arrivalDate || null,
       arrival_time: arrivalTime || null,
       needs_transfer: needsTransfer || null,
+      arrival_notes: arrivalNotes || null,
     };
 
     if (token) {
@@ -224,6 +229,17 @@ const TripTransportDrawer = ({
                 <Label htmlFor="needs_transfer" className="text-xs font-normal cursor-pointer leading-tight">
                   Necesito transfer del aeropuerto
                 </Label>
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <Label htmlFor="arrival_notes" className="text-xs">Comentarios sobre tu llegada (opcional)</Label>
+                <Textarea
+                  id="arrival_notes"
+                  value={arrivalNotes}
+                  onChange={(e) => setArrivalNotes(e.target.value)}
+                  placeholder="Ej. llego solo con equipaje de mano, necesito ayuda con la bici, etc."
+                  className="min-h-[72px] text-xs resize-none"
+                />
               </div>
             </div>
 
