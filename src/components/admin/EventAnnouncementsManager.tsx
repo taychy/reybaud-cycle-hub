@@ -284,7 +284,7 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
                 <Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
               </div>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-wrap">
               <div className="flex items-center gap-2">
                 <Switch checked={form.visible} onCheckedChange={(v) => setForm({ ...form, visible: v })} />
                 <Label className="text-sm">Visible</Label>
@@ -293,6 +293,12 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
                 <Switch checked={form.is_highlighted} onCheckedChange={(v) => setForm({ ...form, is_highlighted: v })} />
                 <Label className="text-sm">Destacada</Label>
               </div>
+              {!editingId && (
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.send_email_on_publish} onCheckedChange={(v) => setForm({ ...form, send_email_on_publish: v })} />
+                  <Label className="text-sm">Enviar email al publicar</Label>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button>
@@ -303,6 +309,14 @@ const EventAnnouncementsManager = ({ eventId }: Props) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <EventEmailSenderDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        eventId={eventId}
+        announcement={emailDialogAnnouncement}
+        onSent={fetch}
+      />
     </div>
   );
 };
