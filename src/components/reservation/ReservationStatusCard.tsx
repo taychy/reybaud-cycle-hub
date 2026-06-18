@@ -604,6 +604,48 @@ const ReservationStatusCard = ({
         )}
 
         {/* ═══ 3. PRIMARY CTA ═══ */}
+        {canPayWithMP && showMpChoice && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMpChoice("cuota")}
+              className={`rounded-lg border p-3 text-left transition ${
+                mpChoice === "cuota"
+                  ? "border-primary bg-primary/10"
+                  : "border-border/60 bg-muted/20 hover:border-primary/40"
+              }`}
+            >
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">
+                {nextInst!.installment_number === 1 ? "Seña / 1ª cuota" : `Cuota ${nextInst!.installment_number}`}
+              </div>
+              <div className="text-sm font-semibold text-foreground mt-1">
+                {formatPrice(nextInst!.balance_due, currency)}
+              </div>
+              {nextInst!.due_date && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Vence {new Date(nextInst!.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                </div>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMpChoice("total")}
+              className={`rounded-lg border p-3 text-left transition ${
+                mpChoice === "total"
+                  ? "border-primary bg-primary/10"
+                  : "border-border/60 bg-muted/20 hover:border-primary/40"
+              }`}
+            >
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">
+                Pagar total
+              </div>
+              <div className="text-sm font-semibold text-foreground mt-1">
+                {formatPrice(pendingForMP, currency)}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Saldo completo</div>
+            </button>
+          </div>
+        )}
         {canPayWithMP && (
           <Button
             variant="gold"
@@ -614,7 +656,12 @@ const ReservationStatusCard = ({
             {mpLoading ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Abriendo Mercado Pago...</>
             ) : (
-              <><CreditCard className="w-4 h-4 mr-2" /> Pagar con Mercado Pago</>
+              <>
+                <CreditCard className="w-4 h-4 mr-2" />
+                {showMpChoice
+                  ? `Pagar ${formatPrice(mpAmountToCharge, currency)} con Mercado Pago`
+                  : "Pagar con Mercado Pago"}
+              </>
             )}
           </Button>
         )}
