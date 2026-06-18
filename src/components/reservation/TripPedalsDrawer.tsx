@@ -178,13 +178,38 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
               Necesitamos saber qué tipo de pedales usás para asegurar la compatibilidad con la bicicleta del viaje.
             </p>
 
-            <div className="space-y-2">
+            {hasFitting && (
+              <label
+                htmlFor="inFitting"
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  inFitting ? "bg-primary/10 border-primary/40" : "bg-muted/50 border-border/50 hover:bg-muted"
+                }`}
+              >
+                <Checkbox
+                  id="inFitting"
+                  checked={inFitting}
+                  onCheckedChange={(v) => setInFitting(!!v)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground leading-snug">
+                    Mi información de pedales está en mi bike fitting
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Ya cargaste un archivo de fitting en "Bicicleta y posición". No necesitás completar nada más acá.
+                  </div>
+                </div>
+              </label>
+            )}
+
+            <div className={`space-y-2 ${inFitting && hasFitting ? "opacity-50 pointer-events-none" : ""}`}>
               <Label htmlFor="pedalType">Tipo de pedales</Label>
               <Input
                 id="pedalType"
                 placeholder="Ej: Shimano SPD-SL, Look Keo, plataforma..."
                 value={pedalType}
                 onChange={(e) => setPedalType(e.target.value)}
+                disabled={inFitting && hasFitting}
               />
             </div>
 
