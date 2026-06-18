@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
+import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import { getTripDocumentSignedUrl, extractTripDocumentPath } from "@/lib/tripDocuments";
 
@@ -59,6 +60,8 @@ const dataLabel = (key: string) => {
     insurance_number: "N° de póliza",
     flight_number: "N° de vuelo",
     arrival_date: "Llegada",
+    arrival_time: "Horario",
+    needs_transfer: "Transfer",
     departure_date: "Regreso",
   };
   return map[key] || key.replace(/_/g, " ");
@@ -87,6 +90,7 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
   const [loading, setLoading] = useState(true);
   const [bikeOpen, setBikeOpen] = useState(false);
   const [pedalsOpen, setPedalsOpen] = useState(false);
+  const [transportOpen, setTransportOpen] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string }>({
     open: false, stepKey: "", title: "", description: "", helpText: "",
   });
@@ -118,6 +122,7 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
     if (!canEdit) return;
     if (key === "bici") { setBikeOpen(true); return; }
     if (key === "pedales") { setPedalsOpen(true); return; }
+    if (key === "pasaje") { setTransportOpen(true); return; }
     const cfg = DOC_STEP_CONFIG[key] || { title: labelFor(key), description: "Cargar información", helpText: "" };
     setDocDrawer({ open: true, stepKey: key, ...cfg });
   };
@@ -275,6 +280,13 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
       <TripPedalsDrawer
         open={pedalsOpen}
         onOpenChange={setPedalsOpen}
+        reservationId={reservationId}
+        alumnoId={alumnoId}
+        onSaved={load}
+      />
+      <TripTransportDrawer
+        open={transportOpen}
+        onOpenChange={setTransportOpen}
         reservationId={reservationId}
         alumnoId={alumnoId}
         onSaved={load}

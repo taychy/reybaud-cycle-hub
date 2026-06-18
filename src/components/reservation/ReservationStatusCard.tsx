@@ -17,6 +17,7 @@ import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
+import TripTransportDrawer from "./TripTransportDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 import StudentInstallmentsPlan from "./StudentInstallmentsPlan";
@@ -232,7 +233,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
     {
       id: "pasaje",
       label: "Pasaje o transporte",
-      description: "Subí tu reserva de vuelo o transporte",
+      description: "Reserva de vuelo o info de llegada",
       icon: Plane,
       completed: !!checklistData["pasaje"]?.completed,
       actionType: "document",
@@ -273,6 +274,7 @@ const ReservationStatusCard = ({
   const [showHelp, setShowHelp] = useState(false);
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
+  const [showTransportDrawer, setShowTransportDrawer] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
@@ -879,14 +881,9 @@ const ReservationStatusCard = ({
                   if (item.actionType === "bike") setShowBikeDrawer(true);
                   else if (item.actionType === "pedals") setShowPedalsDrawer(true);
                   else if (item.actionType === "payment") setShowPaymentDrawer(true);
+                  else if (item.actionType === "document" && item.id === "pasaje") setShowTransportDrawer(true);
                   else if (item.actionType === "document") {
                     const configs: Record<string, { title: string; description: string; helpText: string; icon: React.ReactNode }> = {
-                      pasaje: {
-                        title: "Pasaje o transporte",
-                        description: "Subí tu reserva de vuelo o transporte",
-                        helpText: "Adjuntá tu pasaje de avión, bus o cualquier documento de transporte. Puede ser PDF, foto o captura de pantalla.",
-                        icon: <Plane className="w-5 h-5 text-primary" />,
-                      },
                       seguro: {
                         title: "Seguro viajero",
                         description: "Adjuntá tu póliza de seguro",
@@ -1108,6 +1105,14 @@ const ReservationStatusCard = ({
       <TripPedalsDrawer
         open={showPedalsDrawer}
         onOpenChange={setShowPedalsDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        onSaved={loadChecklistData}
+      />
+
+      <TripTransportDrawer
+        open={showTransportDrawer}
+        onOpenChange={setShowTransportDrawer}
         reservationId={reservation.id}
         alumnoId={alumnoId}
         onSaved={loadChecklistData}

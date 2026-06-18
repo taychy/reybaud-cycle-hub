@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
+import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 
@@ -86,7 +87,7 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
   const items: ChecklistItem[] = [
     { id: "bici", label: "Bicicleta y posición", description: "Cargá tu estatura, talle o fitting", icon: Bike, completed: !!checklistData["bici"]?.completed, actionType: "bike" },
     { id: "pedales", label: "Pedales y calas", description: "Contanos qué usás o subí una foto", icon: Footprints, completed: !!checklistData["pedales"]?.completed, actionType: "pedals" },
-    { id: "pasaje", label: "Pasaje o transporte", description: "Subí tu reserva de vuelo o transporte", icon: Plane, completed: !!checklistData["pasaje"]?.completed, actionType: "document", stepKey: "pasaje" },
+    { id: "pasaje", label: "Pasaje o transporte", description: "Reserva de vuelo o info de llegada", icon: Plane, completed: !!checklistData["pasaje"]?.completed, actionType: "document", stepKey: "pasaje" },
     { id: "seguro", label: "Seguro viajero", description: "Adjuntá tu póliza de seguro", icon: ShieldCheck, completed: !!checklistData["seguro"]?.completed, actionType: "document", stepKey: "seguro" },
   ];
 
@@ -110,6 +111,7 @@ const ExternalTripView = () => {
 
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
+  const [showTransportDrawer, setShowTransportDrawer] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
@@ -193,6 +195,7 @@ const ExternalTripView = () => {
   const handleChecklistAction = (item: ChecklistItem) => {
     if (item.actionType === "bike") setShowBikeDrawer(true);
     else if (item.actionType === "pedals") setShowPedalsDrawer(true);
+    else if (item.actionType === "document" && item.stepKey === "pasaje") setShowTransportDrawer(true);
     else if (item.actionType === "document" && item.stepKey) {
       const cfg = docStepConfig[item.stepKey] || { title: item.label, description: item.description, helpText: "", icon: null };
       setDocDrawer({ open: true, stepKey: item.stepKey, ...cfg });
@@ -345,6 +348,14 @@ const ExternalTripView = () => {
       <TripPedalsDrawer
         open={showPedalsDrawer}
         onOpenChange={setShowPedalsDrawer}
+        reservationId={reservation.id}
+        alumnoId={participantId}
+        token={token ?? undefined}
+        onSaved={reloadChecklist}
+      />
+      <TripTransportDrawer
+        open={showTransportDrawer}
+        onOpenChange={setShowTransportDrawer}
         reservationId={reservation.id}
         alumnoId={participantId}
         token={token ?? undefined}
