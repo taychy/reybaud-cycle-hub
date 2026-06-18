@@ -98,7 +98,7 @@ const TripTransportDrawer = ({
   };
 
   const isComplete = !!(
-    fileUrl || arrivalDate || arrivalTime || needsTransfer
+    fileUrl || arrivalDate || arrivalTime || needsTransfer || arrivalNotes
   );
 
   const handleSave = async () => {
