@@ -195,6 +195,38 @@ const TripBikeDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, on
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="seatHeight">Altura del asiento (cm)</Label>
+              <Input
+                id="seatHeight"
+                placeholder="Ej: 74 (medida desde el eje del pedalier)"
+                value={seatHeight}
+                onChange={(e) => setSeatHeight(e.target.value)}
+                inputMode="decimal"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bikeBrand">Marca de la bici</Label>
+                <Input
+                  id="bikeBrand"
+                  placeholder="Ej: Specialized"
+                  value={bikeBrand}
+                  onChange={(e) => setBikeBrand(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bikeModel">Modelo</Label>
+                <Input
+                  id="bikeModel"
+                  placeholder="Ej: Tarmac SL7"
+                  value={bikeModel}
+                  onChange={(e) => setBikeModel(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Label>Archivo de fitting (opcional)</Label>
               {fittingUrl ? (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
