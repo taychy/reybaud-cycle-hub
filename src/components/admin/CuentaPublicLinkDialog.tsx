@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Link2, Copy, MessageCircle, Ban, Loader2, Plus, Eye } from "lucide-react";
+import { Link2, Copy, MessageCircle, Ban, Loader2, Eye, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 
@@ -13,7 +12,6 @@ interface TokenRow {
   id: string;
   token: string;
   created_at: string;
-  expires_at: string | null;
   revoked_at: string | null;
   last_accessed_at: string | null;
   access_count: number;
@@ -29,159 +27,132 @@ interface Props {
   alumnoTelefono?: string | null;
 }
 
-const EXPIRY_OPTIONS = [
-  { value: "7", label: "7 días" },
-  { value: "30", label: "30 días" },
-  { value: "90", label: "90 días" },
-  { value: "0", label: "Sin vencimiento" },
-];
-
 function fmt(d: string | null): string {
   if (!d) return "—";
   return new Date(d).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 export default function CuentaPublicLinkDialog({ open, onOpenChange, alumnoId, alumnoNombre, alumnoTelefono }: Props) {
-  const [tokens, setTokens] = useState<TokenRow[]>([]);
+  const [row, setRow] = useState<TokenRow | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expiry, setExpiry] = useState("30");
-  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const fetchTokens = async () => {
+  const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("cuenta_corriente_tokens" as any)
-      .select("*")
-      .eq("alumno_id", alumnoId)
-      .order("created_at", { ascending: false });
-    setTokens((data || []) as unknown as TokenRow[]);
+    const { data, error } = await supabase.rpc("admin_get_or_create_cuenta_token" as any, { p_alumno_id: alumnoId });
     setLoading(false);
+    if (error) { toast.error("No se pudo obtener el link"); return; }
+    const r = Array.isArray(data) ? data[0] : data;
+    setRow(r as TokenRow);
   };
 
   useEffect(() => {
-    if (open) fetchTokens();
+    if (open) load();
   }, [open, alumnoId]);
 
-  const handleCreate = async () => {
-    setCreating(true);
-    const { data, error } = await supabase.rpc("admin_create_cuenta_token" as any, {
-      p_alumno_id: alumnoId,
-      p_expires_days: parseInt(expiry, 10),
-    });
-    setCreating(false);
-    if (error) { toast.error("No se pudo generar el link"); return; }
-    toast.success("Link generado");
-    await fetchTokens();
-    const row = Array.isArray(data) ? data[0] : data;
-    if (row?.token) {
-      const url = `${window.location.origin}/cuenta/${row.token}`;
-      await navigator.clipboard.writeText(url).catch(() => {});
-      toast.success("Link copiado al portapapeles");
-    }
-  };
+  const url = row ? `${window.location.origin}/cuenta/${row.token}` : "";
+  const active = row && !row.revoked_at;
 
-  const handleRevoke = async (id: string) => {
-    if (!confirm("¿Revocar este link? El alumno no podrá usarlo más.")) return;
-    const { error } = await supabase.rpc("admin_revoke_cuenta_token" as any, { p_token_id: id });
-    if (error) { toast.error("No se pudo revocar"); return; }
-    toast.success("Link revocado");
-    fetchTokens();
-  };
-
-  const handleCopy = async (token: string) => {
-    const url = `${window.location.origin}/cuenta/${token}`;
+  const handleCopy = async () => {
+    if (!url) return;
     await navigator.clipboard.writeText(url);
     toast.success("Link copiado");
   };
 
-  const handleWhatsApp = (token: string) => {
-    const url = `${window.location.origin}/cuenta/${token}`;
+  const handleWhatsApp = () => {
+    if (!url) return;
     const msg = `Hola ${alumnoNombre.split(" ")[0]}, te dejo el link a tu cuenta corriente para revisar pagos pendientes: ${url}`;
     const phone = (alumnoTelefono || "").replace(/\D/g, "");
     window.open(buildWhatsAppUrl(msg, phone || undefined), "_blank");
   };
 
-  const isActive = (t: TokenRow) =>
-    !t.revoked_at && (!t.expires_at || new Date(t.expires_at) > new Date());
+  const handleRevoke = async () => {
+    if (!row) return;
+    if (!confirm("¿Revocar este link? El alumno dejará de tener acceso. Podrás generar uno nuevo desde acá.")) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("admin_revoke_cuenta_token" as any, { p_token_id: row.id });
+    setBusy(false);
+    if (error) { toast.error("No se pudo revocar"); return; }
+    toast.success("Link revocado");
+    load();
+  };
+
+  const handleRegenerate = async () => {
+    if (!confirm("¿Generar un link nuevo? Esto reemplaza al anterior.")) return;
+    setBusy(true);
+    if (row) {
+      await supabase.rpc("admin_revoke_cuenta_token" as any, { p_token_id: row.id });
+    }
+    await load();
+    setBusy(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Link2 className="w-4 h-4" /> Link público de cuenta corriente
+            <Link2 className="w-4 h-4" /> Link de cuenta corriente
           </DialogTitle>
           <DialogDescription>
-            Generá un link seguro para que <strong>{alumnoNombre}</strong> vea sus deudas y pague sin loguearse.
+            Link único y permanente para que <strong>{alumnoNombre}</strong> revise sus pagos pendientes sin loguearse.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Generar nuevo */}
-        <div className="flex items-end gap-2 p-3 rounded-lg bg-secondary/40 border border-border">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground mb-1 block">Vencimiento</label>
-            <Select value={expiry} onValueChange={setExpiry}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {EXPIRY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        {loading ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+            Cargando…
           </div>
-          <Button onClick={handleCreate} disabled={creating} className="h-9">
-            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" />Generar link</>}
-          </Button>
-        </div>
+        ) : !row ? (
+          <p className="text-center text-sm text-muted-foreground py-6">No se pudo obtener el link.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              {active ? (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Activo</Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">Revocado</Badge>
+              )}
+              <span className="text-[11px] text-muted-foreground">Creado {fmt(row.created_at)}</span>
+            </div>
 
-        {/* Lista */}
-        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-          {loading ? (
-            <p className="text-center text-sm text-muted-foreground py-6">Cargando…</p>
-          ) : tokens.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-6">Aún no hay links generados.</p>
-          ) : (
-            tokens.map((t) => {
-              const active = isActive(t);
-              const url = `${window.location.origin}/cuenta/${t.token}`;
-              return (
-                <div key={t.id} className="p-3 rounded-lg border border-border bg-card space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      {active ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Activo</Badge>
-                      ) : t.revoked_at ? (
-                        <Badge variant="outline" className="text-muted-foreground">Revocado</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-amber-400 border-amber-500/30">Vencido</Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        Vence: {fmt(t.expires_at) === "—" ? "nunca" : fmt(t.expires_at)}
-                      </span>
-                    </div>
-                    {active && (
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => handleCopy(t.token)}>
-                          <Copy className="w-3 h-3 mr-1" />Copiar
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleWhatsApp(t.token)}>
-                          <MessageCircle className="w-3 h-3 mr-1" />WhatsApp
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleRevoke(t.id)} className="text-destructive">
-                          <Ban className="w-3 h-3 mr-1" />Revocar
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <Input readOnly value={url} className="text-[11px] font-mono h-7" onClick={(e) => (e.target as HTMLInputElement).select()} />
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
-                    <span><Eye className="w-3 h-3 inline mr-1" />{t.access_count} accesos</span>
-                    {t.last_accessed_at && <span>Últ.: {fmt(t.last_accessed_at)}</span>}
-                    {t.last_ip && <span>IP: {t.last_ip}</span>}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+            <Input
+              readOnly
+              value={url}
+              className="text-[11px] font-mono h-8"
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+            />
+
+            {active ? (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={handleCopy}>
+                  <Copy className="w-3 h-3 mr-1" />Copiar
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleWhatsApp}>
+                  <MessageCircle className="w-3 h-3 mr-1" />WhatsApp
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleRevoke} disabled={busy} className="text-destructive ml-auto">
+                  <Ban className="w-3 h-3 mr-1" />Revocar
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" onClick={handleRegenerate} disabled={busy}>
+                {busy ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                Generar nuevo link
+              </Button>
+            )}
+
+            <div className="border-t border-border pt-3 space-y-1 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Eye className="w-3 h-3" />
+                <span>{row.access_count} {row.access_count === 1 ? "acceso" : "accesos"}</span>
+                {row.last_accessed_at && <span>· Último: {fmt(row.last_accessed_at)}</span>}
+              </div>
+              {row.last_ip && <div>IP último acceso: {row.last_ip}</div>}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -24,7 +24,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
-import { StudentCuentaCorrienteSection } from "@/components/admin/StudentCuentaCorrienteSection";
+
 import { StudentSaldoChip } from "@/components/admin/StudentSaldoChip";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
@@ -1358,11 +1358,10 @@ const ManageStudents = () => {
                   {drawerAlumno && (
                     <StudentSaldoChip
                       alumnoId={drawerAlumno.id}
-                      onClick={() => {
-                        document.getElementById("ficha-cuenta-corriente")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
+                      onClick={() => navigate(`/admin/cuenta-corriente?alumno=${drawerAlumno.id}`)}
                     />
                   )}
+
                   <Button
                     size="icon"
                     variant="ghost"
@@ -1562,22 +1561,8 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
-                    {/* Cuenta corriente */}
-                    <div id="ficha-cuenta-corriente" className="scroll-mt-4">
-                      <StudentCuentaCorrienteSection
-                        alumnoId={drawerAlumno.id}
-                        onSubscriptionsChanged={() => {
-                          fetchAlumnos();
-                          supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, planes(id, nombre, precio, moneda)").then(({ data }) => {
-                            setSuscripciones((data as any) || []);
-                          });
-                        }}
-                      />
-                    </div>
-
-                    <Separator />
-
                     {/* Descuentos y grupo familiar */}
+
                     <StudentDiscountSection alumno={drawerAlumno} />
 
                     <Separator />

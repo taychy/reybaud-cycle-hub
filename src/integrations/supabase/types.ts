@@ -5978,6 +5978,19 @@ export type Database = {
           token: string
         }[]
       }
+      admin_get_or_create_cuenta_token: {
+        Args: { p_alumno_id: string }
+        Returns: {
+          access_count: number
+          created_at: string
+          id: string
+          last_accessed_at: string
+          last_ip: string
+          last_user_agent: string
+          revoked_at: string
+          token: string
+        }[]
+      }
       admin_revoke_cuenta_token: {
         Args: { p_token_id: string }
         Returns: undefined
