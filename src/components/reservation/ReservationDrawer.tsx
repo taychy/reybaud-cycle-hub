@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
   CalendarDays, MapPin, Users, Mountain, Loader2, CheckCircle,
-  CreditCard, ArrowRight, UserCheck, BedDouble, Check,
+  CreditCard, ArrowRight, UserCheck, BedDouble, Check, Heart, UserPlus, Sparkles,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -39,8 +40,20 @@ interface PackageRow {
   cupo: number | null;
   activo: boolean;
   sort_order: number;
-  used?: number; // reservas activas
+  personas_por_habitacion: number;
+  cupo_mujeres: number | null;
+  cupo_varones: number | null;
+  cupo_mixto: number | null;
+  permite_mixto: boolean;
+  // counts (active reservations)
+  used?: number;
+  used_mujeres?: number;
+  used_varones?: number;
+  used_mixto?: number;
 }
+
+type RoomGender = "femenina" | "masculina" | "mixta";
+type Vinculo = "pareja" | "amigos";
 
 interface ReservationDrawerProps {
   open: boolean;
@@ -53,11 +66,15 @@ interface ReservationDrawerProps {
 
 const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva" }: ReservationDrawerProps) => {
   const { toast } = useToast();
-  const [step, setStep] = useState<"summary" | "package" | "form" | "submitting" | "success">("summary");
+  const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
   const [packages, setPackages] = useState<PackageRow[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [roomGender, setRoomGender] = useState<RoomGender | null>(null);
+  const [shareChoice, setShareChoice] = useState<"share" | "assign" | null>(null);
+  const [vinculo, setVinculo] = useState<Vinculo | null>(null);
+  const [mates, setMates] = useState<{ nombre: string; email: string; telefono: string }[]>([]);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -78,20 +95,31 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         .eq("activo", true)
         .order("sort_order", { ascending: true });
       const rows = ((data as unknown as PackageRow[]) || []);
-      // Conteo de reservas activas por paquete para cupo
+      // Conteo de reservas activas por paquete (totales + por género)
       if (rows.length > 0) {
         const { data: reservas } = await supabase
           .from("event_reservations" as any)
-          .select("package_id, reservation_status")
+          .select("package_id, reservation_status, genero_habitacion")
           .eq("event_id", event.id)
           .not("package_id", "is", null);
-        const map: Record<string, number> = {};
+        const totals: Record<string, number> = {};
+        const m: Record<string, number> = {};
+        const v: Record<string, number> = {};
+        const x: Record<string, number> = {};
         ((reservas as any[]) || []).forEach((r) => {
           if (r.reservation_status === "cancelada") return;
           if (!r.package_id) return;
-          map[r.package_id] = (map[r.package_id] || 0) + 1;
+          totals[r.package_id] = (totals[r.package_id] || 0) + 1;
+          if (r.genero_habitacion === "femenina") m[r.package_id] = (m[r.package_id] || 0) + 1;
+          else if (r.genero_habitacion === "masculina") v[r.package_id] = (v[r.package_id] || 0) + 1;
+          else if (r.genero_habitacion === "mixta") x[r.package_id] = (x[r.package_id] || 0) + 1;
         });
-        rows.forEach((p) => { p.used = map[p.id] || 0; });
+        rows.forEach((p) => {
+          p.used = totals[p.id] || 0;
+          p.used_mujeres = m[p.id] || 0;
+          p.used_varones = v[p.id] || 0;
+          p.used_mixto = x[p.id] || 0;
+        });
       }
       if (!cancelled) setPackages(rows);
       setLoadingPackages(false);
@@ -140,6 +168,28 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         toastTitle: "¡Solicitud de reserva enviada!",
       };
 
+  // Disponibilidad por género en el paquete seleccionado
+  const genderAvail = (g: RoomGender): number | null => {
+    if (!selectedPackage) return null;
+    const cupo = g === "femenina" ? selectedPackage.cupo_mujeres
+      : g === "masculina" ? selectedPackage.cupo_varones
+      : selectedPackage.cupo_mixto;
+    const used = g === "femenina" ? (selectedPackage.used_mujeres || 0)
+      : g === "masculina" ? (selectedPackage.used_varones || 0)
+      : (selectedPackage.used_mixto || 0);
+    if (cupo == null) return null; // sin límite
+    return Math.max(0, cupo - used);
+  };
+
+  const packageHasGenderConfig = !!selectedPackage && (
+    selectedPackage.cupo_mujeres != null ||
+    selectedPackage.cupo_varones != null ||
+    (selectedPackage.permite_mixto && selectedPackage.cupo_mixto != null)
+  );
+
+  const roomCapacity = selectedPackage?.personas_por_habitacion || 0;
+  const matesNeeded = Math.max(0, roomCapacity - 1); // restantes a declarar
+
   const goAfterSummary = () => {
     if (hasPackages) setStep("package");
     else setStep("form");
@@ -148,6 +198,52 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const goAfterPackage = () => {
     if (!selectedPackageId) {
       toast({ title: "Elegí un paquete para continuar.", variant: "destructive" });
+      return;
+    }
+    // Si el paquete tiene cupos por género, pedir elección de género
+    if (packageHasGenderConfig) setStep("room");
+    else setStep("form");
+  };
+
+  const goAfterRoom = () => {
+    if (!roomGender) {
+      toast({ title: "Elegí una opción de habitación.", variant: "destructive" });
+      return;
+    }
+    // Mixta obliga a declarar compañeros (grupo cerrado)
+    if (roomGender === "mixta") {
+      setShareChoice("share");
+      if (mates.length !== matesNeeded) {
+        setMates(Array.from({ length: matesNeeded }, () => ({ nombre: "", email: "", telefono: "" })));
+      }
+    }
+    // Sin compañeros a declarar (single)
+    if (matesNeeded === 0) {
+      setStep("form");
+      return;
+    }
+    setStep("mates");
+  };
+
+  const goAfterMates = () => {
+    if (roomGender === "mixta") {
+      // En mixta es obligatorio nombrar a todos
+      if (mates.length !== matesNeeded || mates.some((m) => !m.nombre.trim())) {
+        toast({ title: `Completá el nombre de los ${matesNeeded === 1 ? "/la compañero/a" : `${matesNeeded} compañeros/as`}.`, variant: "destructive" });
+        return;
+      }
+    } else if (shareChoice === null) {
+      toast({ title: "Elegí cómo querés compartir la habitación.", variant: "destructive" });
+      return;
+    } else if (shareChoice === "share") {
+      const filled = mates.filter((m) => m.nombre.trim()).length;
+      if (filled === 0) {
+        toast({ title: "Ingresá al menos un nombre o elegí que te asignen compañeros/as.", variant: "destructive" });
+        return;
+      }
+    }
+    if (roomCapacity === 2 && shareChoice === "share" && mates.some((m) => m.nombre.trim()) && !vinculo) {
+      toast({ title: "Indicá si son pareja o amigos/as para asignar el tipo de cama.", variant: "destructive" });
       return;
     }
     setStep("form");
@@ -181,6 +277,9 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       cancellation_requested_at: null,
       package_id: selectedPackage?.id || null,
       package_nombre_snapshot: selectedPackage?.nombre || null,
+      genero_habitacion: roomGender,
+      tipo_vinculo: roomCapacity === 2 && shareChoice === "share" && mates.some((m) => m.nombre.trim()) ? vinculo : null,
+      prefiere_asignacion: shareChoice === "assign",
     };
 
     const { data: existing } = await supabase
@@ -227,6 +326,28 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       note: isInscriptionOnly ? "Inscripción confirmada automáticamente" : "Reserva iniciada por el alumno",
     } as any);
 
+    // Compañeros de habitación: reemplazar lista para esta reserva
+    if (selectedPackage && roomGender && shareChoice === "share") {
+      const cleaned = mates
+        .map((m, i) => ({ ...m, posicion: i + 1 }))
+        .filter((m) => m.nombre.trim());
+      await supabase
+        .from("reservation_roommates" as any)
+        .delete()
+        .eq("reservation_id", (data as any).id);
+      if (cleaned.length > 0) {
+        await supabase.from("reservation_roommates" as any).insert(
+          cleaned.map((m) => ({
+            reservation_id: (data as any).id,
+            posicion: m.posicion,
+            nombre: m.nombre.trim(),
+            email: m.email.trim() || null,
+            telefono: m.telefono.trim() || null,
+          })),
+        );
+      }
+    }
+
     if (!existing || (existing as any).reservation_status === "cancelada") {
       await supabase
         .from("events")
@@ -272,6 +393,10 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       setStep("summary");
       setNotes("");
       setSelectedPackageId(null);
+      setRoomGender(null);
+      setShareChoice(null);
+      setVinculo(null);
+      setMates([]);
     }, 300);
   };
 
@@ -424,6 +549,198 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
             </>
           )}
 
+          {/* ── Step: Room gender ── */}
+          {step === "room" && selectedPackage && (
+            <>
+              <div className="space-y-2">
+                <h4 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                  <BedDouble className="w-4 h-4 text-primary" /> Tipo de habitación
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {selectedPackage.personas_por_habitacion === 1
+                    ? "Habitación individual."
+                    : `Cada habitación es para ${selectedPackage.personas_por_habitacion} personas y se comparte según el género elegido.`}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {([
+                  { g: "femenina" as RoomGender, label: "Solo mujeres", icon: "♀", color: "rose" },
+                  { g: "masculina" as RoomGender, label: "Solo varones", icon: "♂", color: "sky" },
+                  ...(selectedPackage.permite_mixto ? [{ g: "mixta" as RoomGender, label: "Mixta (grupo cerrado)", icon: "⚥", color: "violet" }] : []),
+                ]).map(({ g, label, icon, color }) => {
+                  const avail = genderAvail(g);
+                  const sinCupo = avail === 0;
+                  const isSelected = roomGender === g;
+                  const colorClass =
+                    color === "rose" ? "border-rose-500/40 bg-rose-500/5"
+                    : color === "sky" ? "border-sky-500/40 bg-sky-500/5"
+                    : "border-violet-500/40 bg-violet-500/5";
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => !sinCupo && setRoomGender(g)}
+                      disabled={sinCupo}
+                      className={`w-full text-left rounded-xl border p-3 transition-all ${
+                        isSelected ? "border-primary bg-primary/10" : colorClass
+                      } ${sinCupo ? "opacity-40 cursor-not-allowed" : "hover:border-primary/60"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-lg ${
+                          isSelected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground"
+                        }`}>
+                          {icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{label}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {avail == null ? "Cupo abierto" : sinCupo ? "Sin cupo" : `${avail} ${avail === 1 ? "lugar disponible" : "lugares disponibles"}`}
+                          </p>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-primary" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {roomGender === "mixta" && (
+                <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/30 text-xs text-violet-200">
+                  <strong>Habitación mixta:</strong> tenés que declarar el nombre de todos los/as compañeros/as con quienes la vas a compartir. Solo se confirma si todos ya están inscritos al viaje.
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setStep("package")}>
+                  Volver
+                </Button>
+                <Button variant="gold" className="flex-1" onClick={goAfterRoom} disabled={!roomGender}>
+                  Continuar <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
+
+          {/* ── Step: Roommates ── */}
+          {step === "mates" && selectedPackage && (
+            <>
+              <div className="space-y-2">
+                <h4 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-primary" /> Compañeros/as de habitación
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {roomGender === "mixta"
+                    ? `Completá el nombre de los ${matesNeeded === 1 ? "/la compañero/a" : `${matesNeeded} compañeros/as`} con quienes vas a compartir.`
+                    : "¿Querés compartir con personas conocidas o que te asignemos compañeros/as?"}
+                </p>
+              </div>
+
+              {roomGender !== "mixta" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareChoice("share");
+                      if (mates.length !== matesNeeded) {
+                        setMates(Array.from({ length: matesNeeded }, () => ({ nombre: "", email: "", telefono: "" })));
+                      }
+                    }}
+                    className={`rounded-xl border p-3 text-left ${shareChoice === "share" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                  >
+                    <UserPlus className="w-4 h-4 text-primary mb-1" />
+                    <p className="text-sm font-semibold">Comparto con…</p>
+                    <p className="text-[11px] text-muted-foreground">Indico nombres</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShareChoice("assign"); setMates([]); setVinculo(null); }}
+                    className={`rounded-xl border p-3 text-left ${shareChoice === "assign" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                  >
+                    <Sparkles className="w-4 h-4 text-primary mb-1" />
+                    <p className="text-sm font-semibold">Asignenme</p>
+                    <p className="text-[11px] text-muted-foreground">Comparto con quien la escuela me indique</p>
+                  </button>
+                </div>
+              )}
+
+              {(shareChoice === "share" || roomGender === "mixta") && matesNeeded > 0 && (
+                <div className="space-y-3">
+                  {Array.from({ length: matesNeeded }).map((_, i) => {
+                    const m = mates[i] || { nombre: "", email: "", telefono: "" };
+                    const setM = (patch: Partial<typeof m>) => {
+                      const next = [...mates];
+                      while (next.length < matesNeeded) next.push({ nombre: "", email: "", telefono: "" });
+                      next[i] = { ...next[i], ...patch };
+                      setMates(next);
+                    };
+                    return (
+                      <div key={i} className="rounded-lg border border-border/50 p-3 space-y-2 bg-card/50">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                          Compañero/a {i + 1}{roomGender === "mixta" ? " *" : ""}
+                        </p>
+                        <Input
+                          value={m.nombre}
+                          onChange={(e) => setM({ nombre: e.target.value })}
+                          placeholder="Nombre y apellido"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={m.email}
+                            onChange={(e) => setM({ email: e.target.value })}
+                            placeholder="Email (opcional)"
+                            type="email"
+                          />
+                          <Input
+                            value={m.telefono}
+                            onChange={(e) => setM({ telefono: e.target.value })}
+                            placeholder="Teléfono (opcional)"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {roomCapacity === 2 && (
+                    <div className="rounded-lg border border-border/50 p-3 space-y-2 bg-card/50">
+                      <p className="text-xs text-muted-foreground">¿Cómo van a compartir la habitación?</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVinculo("pareja")}
+                          className={`rounded-lg border p-2.5 text-left ${vinculo === "pareja" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                        >
+                          <Heart className="w-3.5 h-3.5 text-primary mb-1" />
+                          <p className="text-xs font-semibold">Pareja</p>
+                          <p className="text-[10px] text-muted-foreground">Cama matrimonial</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVinculo("amigos")}
+                          className={`rounded-lg border p-2.5 text-left ${vinculo === "amigos" ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
+                        >
+                          <Users className="w-3.5 h-3.5 text-primary mb-1" />
+                          <p className="text-xs font-semibold">Amigos/as</p>
+                          <p className="text-[10px] text-muted-foreground">Camas individuales</p>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setStep("room")}>
+                  Volver
+                </Button>
+                <Button variant="gold" className="flex-1" onClick={goAfterMates}>
+                  Continuar <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
+
+
           {/* ── Step: Form ── */}
           {step === "form" && (
             <>
@@ -465,7 +782,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setStep(hasPackages ? "package" : "summary")}>
+                <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
                 </Button>
                 <Button variant="gold" className="flex-1" onClick={handleSubmit}>

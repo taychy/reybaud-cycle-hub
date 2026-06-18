@@ -786,13 +786,14 @@ const EventForm = ({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Incluye</Label>
-            <Textarea value={meta.included_text || ""} onChange={(e) => updateMeta("included_text", e.target.value)} rows={2} />
+            <Label>Incluye <span className="text-[10px] text-muted-foreground">(uno por línea)</span></Label>
+            <Textarea value={meta.included_text || ""} onChange={(e) => updateMeta("included_text", e.target.value)} rows={3} placeholder={"Ej:\nAlojamiento 3 noches\nDesayuno y cena\nGuía técnico"} />
           </div>
           <div className="space-y-1.5">
-            <Label>No incluye</Label>
-            <Textarea value={meta.not_included_text || ""} onChange={(e) => updateMeta("not_included_text", e.target.value)} rows={2} />
+            <Label>No incluye <span className="text-[10px] text-muted-foreground">(uno por línea)</span></Label>
+            <Textarea value={meta.not_included_text || ""} onChange={(e) => updateMeta("not_included_text", e.target.value)} rows={3} placeholder={"Ej:\nTraslados al destino\nBebidas alcohólicas"} />
           </div>
+
           <div className="space-y-1.5">
             <Label>Reglamento / Condiciones</Label>
             <Textarea value={meta.terms_text || ""} onChange={(e) => updateMeta("terms_text", e.target.value)} rows={2} />
