@@ -60,14 +60,41 @@ Deno.serve(async (req) => {
     const balance = Number(reservation.balance_due ?? reservation.amount_total ?? event.price ?? 0);
     let amount = Number(amountOverride ?? balance);
 
+    // Si se indica una cuota, validar que existe y usar su balance_due como tope
+    let installmentLabel: string | null = null;
+    if (installment_number != null) {
+      const { data: inst } = await supabaseAdmin
+        .from("reservation_installments")
+        .select("installment_number, label, amount, balance_due, status")
+        .eq("reservation_id", reservation_id)
+        .eq("installment_number", installment_number)
+        .maybeSingle();
+      if (!inst) {
+        return new Response(
+          JSON.stringify({ error: `Cuota ${installment_number} no encontrada para esta reserva` }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const instPending = Number(inst.balance_due ?? inst.amount ?? 0);
+      if (instPending <= 0) {
+        return new Response(
+          JSON.stringify({ error: `La cuota ${installment_number} ya está saldada` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Forzar amount al saldo de la cuota (ignorar override mayor)
+      amount = Math.min(amount || instPending, instPending);
+      installmentLabel = inst.label || `Cuota ${installment_number}`;
+    }
+
     if (!amount || amount <= 0) {
       return new Response(
         JSON.stringify({ error: "No hay saldo pendiente para este evento" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // Limitar al saldo pendiente para evitar sobrepagos accidentales
-    if (balance > 0 && amount > balance) amount = balance;
+    // Limitar al saldo pendiente para evitar sobrepagos accidentales (solo en pago total)
+    if (installment_number == null && balance > 0 && amount > balance) amount = balance;
 
     // Cargar alumno
     let payerName: string | undefined;
