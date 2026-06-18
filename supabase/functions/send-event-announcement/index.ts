@@ -134,13 +134,13 @@ Deno.serve(async (req) => {
       .select('id, alumno_id, external_participant_id, package_id, payment_status, reservation_status')
       .eq('event_id', payload.event_id);
 
-    const resStatuses = filters.reservation_statuses && filters.reservation_statuses.length
-      ? filters.reservation_statuses
-      : ['reserva_confirmada', 'solicitud_enviada', 'reserva_pendiente'];
-    resQuery = resQuery.in('reservation_status', resStatuses);
-
     if (filters.reservation_ids && filters.reservation_ids.length) {
       resQuery = resQuery.in('id', filters.reservation_ids);
+    } else {
+      const resStatuses = filters.reservation_statuses && filters.reservation_statuses.length
+        ? filters.reservation_statuses
+        : ['reserva_confirmada', 'solicitud_enviada', 'reserva_pendiente', 'lista_espera'];
+      resQuery = resQuery.in('reservation_status', resStatuses);
     }
     if (filters.package_ids && filters.package_ids.length) {
       resQuery = resQuery.in('package_id', filters.package_ids);

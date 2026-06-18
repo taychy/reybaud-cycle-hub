@@ -22,8 +22,7 @@ interface Props {
   onSent?: () => void;
 }
 
-// Estados ACTIVOS de reserva en español (matching DB)
-const ACTIVE_RES_STATUSES = ["reserva_confirmada", "solicitud_enviada", "reserva_pendiente"];
+const INACTIVE_RES_STATUSES = ["cancelada", "rechazada", "cancelacion_solicitada"];
 
 interface Recipient {
   reservation_id: string;
@@ -34,6 +33,19 @@ interface Recipient {
   email: string;
   is_external: boolean;
 }
+
+type ReservationRecipientRow = {
+  id: string;
+  alumno_id: string | null;
+  external_participant_id: string | null;
+  package_id: string | null;
+  reservation_status: string | null;
+  external_email?: string | null;
+  external_first_name?: string | null;
+  external_last_name?: string | null;
+  alumno?: { nombre: string | null; apellido: string | null; email: string | null } | null;
+  external_participant?: { nombre: string | null; apellido: string | null; email: string | null } | null;
+};
 
 const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onSent }: Props) => {
   const { toast } = useToast();
@@ -78,34 +90,28 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
     let cancelled = false;
     (async () => {
       setLoadingRecipients(true);
-      const { data: reservations } = await supabase
+      const { data: reservations, error } = await supabase
         .from("event_reservations" as any)
-        .select("id, alumno_id, external_participant_id, package_id, reservation_status")
-        .eq("event_id", eventId)
-        .in("reservation_status", ACTIVE_RES_STATUSES);
+        .select("id, alumno_id, external_participant_id, package_id, reservation_status, external_email, external_first_name, external_last_name, alumno:alumnos!event_reservations_alumno_id_fkey(nombre, apellido, email), external_participant:event_external_participants!event_reservations_external_participant_id_fkey(nombre, apellido, email)")
+        .eq("event_id", eventId);
 
-      const rows = (reservations as any[]) || [];
-      const alumnoIds = [...new Set(rows.map((r) => r.alumno_id).filter(Boolean))];
-      const externalIds = [...new Set(rows.map((r) => r.external_participant_id).filter(Boolean))];
+      if (cancelled) return;
+      if (error) {
+        setAllRecipients([]);
+        setSelectedIds(new Set());
+        setLoadingRecipients(false);
+        toast({ title: "No se pudieron cargar los participantes.", description: error.message, variant: "destructive" });
+        return;
+      }
 
-      const [alumnosRes, extsRes] = await Promise.all([
-        alumnoIds.length
-          ? supabase.from("alumnos").select("id, email, nombre, apellido").in("id", alumnoIds)
-          : Promise.resolve({ data: [] as any[] }),
-        externalIds.length
-          ? supabase.from("event_external_participants" as any).select("id, email, nombre, apellido").in("id", externalIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-
-      const aMap = new Map<string, any>();
-      (alumnosRes.data as any[] || []).forEach((a) => aMap.set(a.id, a));
-      const eMap = new Map<string, any>();
-      (extsRes.data as any[] || []).forEach((e) => eMap.set(e.id, e));
+      const rows = (((reservations as unknown) as ReservationRecipientRow[]) || []).filter(
+        (r) => !INACTIVE_RES_STATUSES.includes(r.reservation_status || "")
+      );
 
       const list: Recipient[] = [];
       for (const r of rows) {
-        if (r.alumno_id && aMap.has(r.alumno_id)) {
-          const a = aMap.get(r.alumno_id);
+        if (r.alumno_id && r.alumno?.email) {
+          const a = r.alumno;
           if (!a.email) continue;
           list.push({
             reservation_id: r.id,
@@ -116,16 +122,17 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
             email: a.email,
             is_external: false,
           });
-        } else if (r.external_participant_id && eMap.has(r.external_participant_id)) {
-          const e = eMap.get(r.external_participant_id);
-          if (!e.email) continue;
+        } else if (r.external_participant_id && (r.external_participant?.email || r.external_email)) {
+          const e = r.external_participant;
+          const email = e?.email || r.external_email || "";
+          if (!email) continue;
           list.push({
             reservation_id: r.id,
             alumno_id: null,
             external_id: r.external_participant_id,
             package_id: r.package_id,
-            name: `${e.nombre || ""} ${e.apellido || ""}`.trim() || e.email,
-            email: e.email,
+            name: `${e?.nombre || r.external_first_name || ""} ${e?.apellido || r.external_last_name || ""}`.trim() || email,
+            email,
             is_external: true,
           });
         }

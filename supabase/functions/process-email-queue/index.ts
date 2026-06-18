@@ -249,6 +249,19 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const text =
+          typeof payload.text === 'string' && payload.text.trim()
+            ? payload.text
+            : typeof payload.html === 'string'
+              ? payload.html
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                .replace(/<br\s*\/?\s*>/gi, '\n')
+                .replace(/<\/p>/gi, '\n\n')
+                .replace(/<[^>]+>/g, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim()
+              : String(payload.subject || 'Notificación')
+
         await sendLovableEmail(
           {
             run_id: payload.run_id,
@@ -257,7 +270,7 @@ Deno.serve(async (req) => {
             sender_domain: payload.sender_domain,
             subject: payload.subject,
             html: payload.html,
-            text: payload.text,
+            text: text || String(payload.subject || 'Notificación'),
             purpose: payload.purpose,
             label: payload.label,
             idempotency_key: payload.idempotency_key,
