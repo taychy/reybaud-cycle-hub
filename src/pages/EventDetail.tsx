@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, CalendarDays, Clock, Ruler, Send, Gauge, Heart,
-  MapPin, Users, CheckCircle, Mountain, Moon, Sun, Shield,
+  MapPin, Users, CheckCircle, XCircle, Mountain, Moon, Sun, Shield,
   ExternalLink, MessageCircle, FileText, CreditCard, AlertCircle, Loader2, Banknote,
 } from "lucide-react";
+
 import EventRankings from "@/components/EventRankings";
 import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
