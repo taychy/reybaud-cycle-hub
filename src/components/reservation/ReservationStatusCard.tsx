@@ -274,6 +274,7 @@ const ReservationStatusCard = ({
   const [showHelp, setShowHelp] = useState(false);
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
+  const [showTransportDrawer, setShowTransportDrawer] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
