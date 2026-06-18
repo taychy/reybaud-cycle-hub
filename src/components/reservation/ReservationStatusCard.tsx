@@ -315,10 +315,35 @@ const ReservationStatusCard = ({
     }
   }, [reservation.id]);
 
+  // Cargar próxima cuota pendiente (de reservation_installments) para ofrecer "Pagar 1ª cuota / seña"
+  const loadNextInstallment = useCallback(async () => {
+    const { data } = await supabase
+      .from("reservation_installments" as any)
+      .select("installment_number, amount, balance_due, due_date, label, status")
+      .eq("reservation_id", reservation.id)
+      .not("status", "in", "(pagada,condonada)")
+      .order("installment_number", { ascending: true })
+      .limit(1);
+    const row = (data as any[])?.[0];
+    if (row) {
+      const pending = Number(row.balance_due ?? row.amount ?? 0);
+      setNextInst({
+        installment_number: row.installment_number,
+        amount: Number(row.amount ?? 0),
+        balance_due: pending,
+        due_date: row.due_date,
+        label: row.label,
+      });
+    } else {
+      setNextInst(null);
+    }
+  }, [reservation.id]);
+
   useEffect(() => {
     loadChecklistData();
     loadPendingPayments();
-  }, [loadChecklistData, loadPendingPayments, reservation.updated_at]);
+    loadNextInstallment();
+  }, [loadChecklistData, loadPendingPayments, loadNextInstallment, reservation.updated_at]);
 
   const installments = installmentFromMetadata(eventMetadata);
   const currency = reservation.currency_snapshot || reservation.moneda || eventCurrency;
