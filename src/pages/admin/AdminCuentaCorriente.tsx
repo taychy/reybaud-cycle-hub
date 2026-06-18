@@ -93,6 +93,8 @@ export default function AdminCuentaCorriente() {
     fetchData();
   }, [fetchData]);
 
+  const alumnoIdParam = searchParams.get("alumno");
+
   // Apply filter from query string if provided
   useEffect(() => {
     const f = searchParams.get("filter");
@@ -100,6 +102,62 @@ export default function AdminCuentaCorriente() {
       setSaldoFilter(f);
     }
   }, [searchParams]);
+
+  // Detail view when ?alumno=<id>
+  const detailRow = useMemo(() => {
+    if (!alumnoIdParam) return null;
+    return rows.find((r) => r.alumno_id === alumnoIdParam) || null;
+  }, [alumnoIdParam, rows]);
+
+  if (alumnoIdParam) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/cuenta-corriente")}>
+              <ArrowLeft className="w-4 h-4 mr-1" /> Volver al listado
+            </Button>
+            <div>
+              <h1 className="text-xl font-heading font-bold tracking-wider uppercase text-foreground">
+                {detailRow ? `${detailRow.apellido}, ${detailRow.nombre}` : "Cuenta corriente del alumno"}
+              </h1>
+              {detailRow && (
+                <p className="text-xs text-muted-foreground">
+                  {detailRow.grupo || "—"} · {detailRow.moneda}
+                  {detailRow.email ? ` · ${detailRow.email}` : ""}
+                </p>
+              )}
+            </div>
+          </div>
+          {detailRow && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setLinkAlumno({ id: detailRow.alumno_id, nombre: `${detailRow.nombre} ${detailRow.apellido}`, telefono: detailRow.telefono })}
+            >
+              <Link2 className="w-3 h-3 mr-1" /> Link público
+            </Button>
+          )}
+        </div>
+
+        <StudentCuentaCorrienteSection
+          alumnoId={alumnoIdParam}
+          onSubscriptionsChanged={() => fetchData()}
+        />
+
+        {linkAlumno && (
+          <CuentaPublicLinkDialog
+            open={!!linkAlumno}
+            onOpenChange={(v) => !v && setLinkAlumno(null)}
+            alumnoId={linkAlumno.id}
+            alumnoNombre={linkAlumno.nombre}
+            alumnoTelefono={linkAlumno.telefono}
+          />
+        )}
+      </div>
+    );
+  }
+
 
   const monedasPresentes = useMemo(() => {
     const s = new Set<string>();
