@@ -209,10 +209,12 @@ const EventEmailSenderDialog = ({ open, onOpenChange, eventId, announcement, onS
     }
     setSending(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const bodyHtml = body
-      .split(/\n{2,}/)
-      .map((p) => `<p style="margin:0 0 12px;">${p.replace(/\n/g, "<br/>")}</p>`)
-      .join("");
+    const bodyHtml = isHtml
+      ? body
+      : body
+          .split(/\n{2,}/)
+          .map((p) => `<p style="margin:0 0 12px;">${p.replace(/\n/g, "<br/>")}</p>`)
+          .join("");
 
     const { data, error } = await supabase.functions.invoke("send-event-announcement", {
       body: {
