@@ -462,7 +462,10 @@ const EventDetail = () => {
 
           {/* Event Announcements — show after status when reserved */}
           {id && isActiveReservation && !["carrera"].includes(event.type) && (
-            <EventAnnouncementsSection eventId={id} />
+            <>
+              <EventAnnouncementsSection eventId={id} />
+              <EventRoadbook eventId={id} />
+            </>
           )}
 
           {/* ═══════════════════════════════════════════════════════════ */}
