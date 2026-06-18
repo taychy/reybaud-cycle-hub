@@ -93,13 +93,13 @@ Deno.serve(async (req) => {
     // Fetch event
     const { data: event, error: eventErr } = await supabase
       .from('events')
-      .select('id, nombre, titulo, name')
+      .select('id, title')
       .eq('id', payload.event_id)
       .maybeSingle();
     if (eventErr || !event) {
       return new Response(JSON.stringify({ error: 'Event not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const eventName = (event as any).nombre || (event as any).titulo || (event as any).name || 'Evento';
+    const eventName = (event as any).title || 'Evento';
 
     // Resolve subject/body
     let subject = payload.subject || '';
