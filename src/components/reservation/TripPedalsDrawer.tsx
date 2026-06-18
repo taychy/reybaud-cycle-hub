@@ -112,7 +112,7 @@ const TripPedalsDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, 
           step_key: "pedales",
           completed: isComplete,
           needs_advice: needsAdvice,
-          data: { pedal_type: pedalType },
+          data: { pedal_type: pedalType, in_fitting: inFitting && hasFitting },
           file_url: photoUrl,
         });
         setSaving(false);
