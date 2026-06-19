@@ -680,9 +680,18 @@ const StorePreorders = () => {
                     />
                   </section>
 
-                  <div className="flex gap-2 pt-2">
-                    <Button onClick={() => exportarOrdenVenta(detail)} className="flex-1">
-                      <FileText className="w-4 h-4 mr-1" /> Orden de venta (PDF)
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <Button onClick={() => exportarOrdenVenta(detail)} variant="outline">
+                      <FileText className="w-4 h-4 mr-1" /> Orden venta
+                    </Button>
+                    <Button onClick={() => imprimirEtiqueta(detail)} variant="outline">
+                      <QrCode className="w-4 h-4 mr-1" /> Etiqueta QR
+                    </Button>
+                    <Button onClick={() => enviarRecordatorio(detail)} className="col-span-2">
+                      <Mail className="w-4 h-4 mr-1" />
+                      {detail.estado_pago_sena === "confirmada" && Number(detail.saldo_pendiente || 0) > 0
+                        ? "Enviar recordatorio de saldo"
+                        : "Enviar recordatorio de seña"}
                     </Button>
                   </div>
                 </div>
