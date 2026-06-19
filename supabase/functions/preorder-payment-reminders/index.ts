@@ -154,9 +154,12 @@ function renderEmail(d: { nombre: string; producto: string; cantidad: number; mo
         <a href="${escapeHtml(d.payUrl)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:600;font-size:14px;">Pagar seña ahora</a>
       </div>
 
-      <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 0;">
-        ¿Preferís otra forma de pago (transferencia o efectivo)? Respondé este mail o escribinos por WhatsApp y coordinamos.
+      <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 12px;text-align:center;">
+        ¿Ya pagaste por transferencia o efectivo?
       </p>
+      <div style="text-align:center;margin:0 0 8px;">
+        <a href="${APP_URL}/perfil?section=tienda" style="display:inline-block;background:transparent;color:${BRAND};text-decoration:none;padding:10px 22px;border:1.5px solid ${BRAND};border-radius:10px;font-weight:600;font-size:13px;">Informar pago</a>
+      </div>
 
       <hr style="border:0;border-top:1px solid #eee;margin:32px 0 16px;" />
       <p style="font-size:11px;color:#999;margin:0;">Si ya pagaste y te llegó este mail, escribinos para verificar la acreditación.</p>
