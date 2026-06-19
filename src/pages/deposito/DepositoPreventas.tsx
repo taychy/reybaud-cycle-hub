@@ -124,6 +124,7 @@ const DepositoPreventas = () => {
       sena_monto: r.sena_monto || 0,
       saldo_pendiente: r.saldo_pendiente || 0,
       moneda: r.moneda,
+      estado_pago_sena: r.estado_pago_sena,
       entrega_metodo: r.entrega_metodo,
       sede_nombre: sede?.nombre || null,
       envio_direccion: r.envio_direccion,
