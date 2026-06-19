@@ -6,11 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin, Phone, User } from "lucide-react";
+import { Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin, Phone, User, Mail, QrCode } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { printSinglePreorderLabel } from "@/lib/preorderLabels";
 
 interface Preorder {
   id: string;
