@@ -37,7 +37,7 @@ const MARGIN = 6;
 
 const buildPayUrl = (p: PreorderLabelData): string => {
   const origin = typeof window !== "undefined" ? window.location.origin : "https://reybaud-app.com";
-  return `${origin}/preventa/${p.id}`;
+  return `${origin}/pagar-preventa/${p.id}`;
 };
 
 const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + "…" : s);
