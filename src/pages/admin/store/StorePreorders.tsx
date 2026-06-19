@@ -534,9 +534,17 @@ const StorePreorders = () => {
                     </Select>
                   </td>
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="sm" variant="ghost" title="Enviar recordatorio de pago" onClick={() => enviarRecordatorio(r)}>
+                        <Mail className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Imprimir etiqueta con QR" onClick={() => imprimirEtiqueta(r)}>
+                        <QrCode className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
