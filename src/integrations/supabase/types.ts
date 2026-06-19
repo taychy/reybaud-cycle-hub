@@ -5085,8 +5085,10 @@ export type Database = {
           producto_nombre: string
           saldo_pendiente: number
           sede_retiro_id: string | null
+          sena_last_reminder_at: string | null
           sena_monto: number
           sena_pagada_at: string | null
+          sena_reminder_count: number
           updated_at: string
           variante: Json
         }
@@ -5126,8 +5128,10 @@ export type Database = {
           producto_nombre: string
           saldo_pendiente: number
           sede_retiro_id?: string | null
+          sena_last_reminder_at?: string | null
           sena_monto: number
           sena_pagada_at?: string | null
+          sena_reminder_count?: number
           updated_at?: string
           variante?: Json
         }
@@ -5167,8 +5171,10 @@ export type Database = {
           producto_nombre?: string
           saldo_pendiente?: number
           sede_retiro_id?: string | null
+          sena_last_reminder_at?: string | null
           sena_monto?: number
           sena_pagada_at?: string | null
+          sena_reminder_count?: number
           updated_at?: string
           variante?: Json
         }
