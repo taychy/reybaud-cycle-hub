@@ -6,11 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin, Phone, User } from "lucide-react";
+import { Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin, Phone, User, Mail, QrCode } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { printSinglePreorderLabel } from "@/lib/preorderLabels";
 
 interface Preorder {
   id: string;
@@ -202,6 +203,58 @@ const StorePreorders = () => {
 
   const rechazarSena = (r: Preorder) =>
     updateField(r.id, { estado_pago_sena: "rechazada" } as any);
+
+  const enviarRecordatorio = async (r: Preorder) => {
+    const isSaldo = r.estado_pago_sena === "confirmada" && Number(r.saldo_pendiente || 0) > 0;
+    const isSena = r.estado_pago_sena !== "confirmada";
+    if (!isSaldo && !isSena) {
+      toast({ title: "Sin recordatorio", description: "Esta preventa ya está totalmente pagada." });
+      return;
+    }
+    const al = alumnosMap[r.alumno_id];
+    const email = al?.email || (r as any).alumno_email;
+    if (!email) {
+      toast({ title: "Sin email", description: "El cliente no tiene email cargado.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Enviando…", description: `Recordatorio de ${isSaldo ? "saldo" : "seña"} a ${email}` });
+    const { data, error } = await supabase.functions.invoke("preorder-payment-reminders", {
+      body: { preorder_id: r.id, manual: true },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error, variant: "destructive" });
+    } else {
+      toast({ title: "✓ Recordatorio enviado", description: `${isSaldo ? "Saldo" : "Seña"} a ${email}` });
+    }
+  };
+
+  const imprimirEtiqueta = async (r: Preorder) => {
+    const al = alumnosMap[r.alumno_id];
+    const sede = r.sede_retiro_id ? sedesMap[r.sede_retiro_id] : null;
+    await printSinglePreorderLabel({
+      id: r.id,
+      short_number: r.id.slice(0, 8).toUpperCase(),
+      producto_nombre: r.producto_nombre,
+      cantidad: r.cantidad,
+      variante: r.variante,
+      items: r.items,
+      precio_total: Number(r.precio_total || 0),
+      sena_monto: Number(r.sena_monto || 0),
+      saldo_pendiente: Number(r.saldo_pendiente || 0),
+      moneda: r.moneda,
+      estado_pago_sena: r.estado_pago_sena,
+      entrega_metodo: r.entrega_metodo,
+      sede_nombre: sede?.nombre || null,
+      envio_direccion: r.envio_direccion,
+      envio_contacto: r.envio_contacto,
+      envio_notas: r.envio_notas,
+      alumno_nombre: `${al?.nombre || ""} ${al?.apellido || ""}`.trim() || (r as any).alumno_nombre || null,
+      alumno_email: al?.email || (r as any).alumno_email || null,
+      alumno_telefono: al?.telefono || (r as any).alumno_telefono || null,
+      created_at: r.created_at,
+    });
+  };
+
 
   // ─── Export: pedido al proveedor (Excel con 2 hojas) ───
   const exportarProveedor = async () => {
@@ -481,9 +534,17 @@ const StorePreorders = () => {
                     </Select>
                   </td>
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="sm" variant="ghost" title="Enviar recordatorio de pago" onClick={() => enviarRecordatorio(r)}>
+                        <Mail className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Imprimir etiqueta con QR" onClick={() => imprimirEtiqueta(r)}>
+                        <QrCode className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -619,9 +680,18 @@ const StorePreorders = () => {
                     />
                   </section>
 
-                  <div className="flex gap-2 pt-2">
-                    <Button onClick={() => exportarOrdenVenta(detail)} className="flex-1">
-                      <FileText className="w-4 h-4 mr-1" /> Orden de venta (PDF)
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <Button onClick={() => exportarOrdenVenta(detail)} variant="outline">
+                      <FileText className="w-4 h-4 mr-1" /> Orden venta
+                    </Button>
+                    <Button onClick={() => imprimirEtiqueta(detail)} variant="outline">
+                      <QrCode className="w-4 h-4 mr-1" /> Etiqueta QR
+                    </Button>
+                    <Button onClick={() => enviarRecordatorio(detail)} className="col-span-2">
+                      <Mail className="w-4 h-4 mr-1" />
+                      {detail.estado_pago_sena === "confirmada" && Number(detail.saldo_pendiente || 0) > 0
+                        ? "Enviar recordatorio de saldo"
+                        : "Enviar recordatorio de seña"}
                     </Button>
                   </div>
                 </div>
