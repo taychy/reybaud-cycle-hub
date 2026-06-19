@@ -13,6 +13,7 @@ export interface PreorderLabelData {
   sena_monto: number;
   saldo_pendiente: number;
   moneda: string;
+  estado_pago_sena?: string | null;
   entrega_metodo?: string | null;
   sede_nombre?: string | null;
   envio_direccion?: string | null;
