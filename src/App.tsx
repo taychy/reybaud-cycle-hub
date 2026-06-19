@@ -74,6 +74,7 @@ import DepositoVentas from "./pages/deposito/DepositoVentas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
+import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PublicCuentaCorriente from "./pages/PublicCuentaCorriente";
 import AuthCallback from "./pages/AuthCallback";
 import UpdatePrompt from "./components/UpdatePrompt";
