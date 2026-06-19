@@ -156,18 +156,31 @@ const drawLabel = async (
   doc.setDrawColor(200);
   doc.line(leftX, totalsY - 2, leftX + leftW, totalsY - 2);
 
+  const senaConfirmada = p.estado_pago_sena === "confirmada";
+  const senaPagada = Number(p.sena_monto || 0);
+  const saldo = Number(p.saldo_pendiente || 0);
+  // Si la seña NO está confirmada, lo "adeudado" real es seña + saldo
+  const pendienteReal = senaConfirmada ? saldo : senaPagada + saldo;
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text(`TOTAL: ${formatPrice(p.precio_total || 0, p.moneda)}`, leftX, totalsY + 2);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text(`Pagado: ${formatPrice(p.sena_monto || 0, p.moneda)}`, leftX, totalsY + 6);
 
-  const saldo = p.saldo_pendiente || 0;
-  doc.setFont("helvetica", "bold");
-  if (saldo > 0) {
+  if (senaConfirmada) {
+    doc.text(`Pagado: ${formatPrice(senaPagada, p.moneda)}`, leftX, totalsY + 6);
+  } else {
     doc.setTextColor(180, 60, 30);
-    doc.text(`SALDO: ${formatPrice(saldo, p.moneda)} (PENDIENTE)`, leftX, totalsY + 10);
+    doc.text(`Seña SIN acreditar`, leftX, totalsY + 6);
+    doc.setTextColor(20);
+  }
+
+  doc.setFont("helvetica", "bold");
+  if (pendienteReal > 0) {
+    doc.setTextColor(180, 60, 30);
+    const etiqueta = senaConfirmada ? "SALDO" : "PENDIENTE";
+    doc.text(`${etiqueta}: ${formatPrice(pendienteReal, p.moneda)}`, leftX, totalsY + 10);
   } else {
     doc.setTextColor(20, 120, 60);
     doc.text(`PAGADO ✓`, leftX, totalsY + 10);
@@ -191,14 +204,15 @@ const drawLabel = async (
   const qrX = x + w - qrSize - 3;
   const qrY = y + h - qrSize - 12;
   try {
-    if (saldo > 0) {
+    if (pendienteReal > 0) {
       const url = buildPayUrl(p);
       const dataUrl = await QRCode.toDataURL(url, { margin: 0, width: 256 });
       doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
+      doc.setTextColor(senaConfirmada ? 20 : 180, senaConfirmada ? 20 : 60, senaConfirmada ? 20 : 30);
+      doc.text(senaConfirmada ? "PAGAR SALDO" : "PAGAR SEÑA", qrX + qrSize / 2, qrY + qrSize + 3, { align: "center" });
       doc.setTextColor(20);
-      doc.text("PAGAR SALDO", qrX + qrSize / 2, qrY + qrSize + 3, { align: "center" });
     } else {
       doc.setDrawColor(20, 120, 60);
       doc.setLineWidth(0.5);
