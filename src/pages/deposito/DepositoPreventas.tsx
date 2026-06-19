@@ -88,8 +88,8 @@ const DepositoPreventas = () => {
       return;
     }
     toast({ title: "Estado actualizado" });
+    setRows((prev) => prev.map((r: any) => (r.id === id ? { ...r, estado } : r)));
     if (selected?.id === id) setSelected((s: any) => ({ ...s, estado }));
-    load();
   };
 
   const nombreAlumno = (id: string, row?: any) => {
