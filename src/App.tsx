@@ -202,6 +202,7 @@ const App = () => (
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="/preventa/:productId" element={<PublicPreorderPage />} />
+          <Route path="/pagar-preventa/:preorderId" element={<PreorderPagoRedirect />} />
           <Route path="/cuenta/:token" element={<PublicCuentaCorriente />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
