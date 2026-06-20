@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, AlertCircle } from "lucide-react";
+import { CreditCard, AlertCircle, Banknote } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 
 interface Product {
