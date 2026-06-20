@@ -499,26 +499,35 @@ const EventForm = ({
         </div>
 
         {meta.pricing_mode === "con_valor" && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label>Precio</Label>
-              <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Precio</Label>
+                <Input type="number" value={meta.price || ""} onChange={(e) => updateMeta("price", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Moneda</Label>
+                <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Seña / Reserva</Label>
+                <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Moneda</Label>
-              <Select value={meta.currency || "ARS"} onValueChange={(v) => updateMeta("currency", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ARS">ARS</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Seña / Reserva</Label>
-              <Input type="number" value={meta.deposit_amount || ""} onChange={(e) => updateMeta("deposit_amount", e.target.value)} />
-            </div>
+            {hasPackages && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                <span className="text-amber-400 font-semibold">Atención:</span>
+                Este evento ya tiene paquetes configurados. El precio general se ignora y cada paquete usa su propio precio.
+                Mantené este valor como respaldo por si eliminás todos los paquetes.
+              </div>
+            )}
           </div>
         )}
 
