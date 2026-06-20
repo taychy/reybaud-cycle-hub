@@ -110,6 +110,12 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     return ["pendiente", "pendiente_pago"].includes(order.status) && ageMs < WINDOW_MS;
   }, [order, now]);
 
+  // Cancelación: permitida hasta "preparando" inclusive (regla nueva).
+  const canCancel = useMemo(() => {
+    if (!order) return false;
+    return ["pendiente", "pendiente_pago", "pendiente_pago_efectivo", "pagado", "preparando"].includes(order.status);
+  }, [order]);
+
   const remainingMs = useMemo(() => {
     if (!order) return 0;
     return WINDOW_MS - (now - new Date(order.created_at).getTime());
