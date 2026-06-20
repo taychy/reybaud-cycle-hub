@@ -412,7 +412,6 @@ Deno.serve(async (req) => {
       const upd: Record<string, unknown> = {
         mp_payment_id: String(payment.id),
         saldo_pendiente: 0,
-        saldo_pagado_at: nowIso,
       };
       if (isPreorderTotalRef && pre.estado_pago_sena !== "confirmada") {
         upd.estado_pago_sena = "confirmada";
