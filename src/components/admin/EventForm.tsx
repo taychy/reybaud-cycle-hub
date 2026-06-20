@@ -832,12 +832,24 @@ const EventForm = ({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Incluye <span className="text-[10px] text-muted-foreground">(uno por línea)</span></Label>
-            <Textarea value={meta.included_text || ""} onChange={(e) => updateMeta("included_text", e.target.value)} rows={3} placeholder={"Ej:\nAlojamiento 3 noches\nDesayuno y cena\nGuía técnico"} />
+            <Label>Incluye <span className="text-[10px] text-muted-foreground">(uno por línea — NO uses comas para separar)</span></Label>
+            <Textarea
+              value={meta.included_text || ""}
+              onChange={(e) => updateMeta("included_text", e.target.value)}
+              rows={8}
+              className="min-h-[180px] leading-relaxed"
+              placeholder={"Ej:\nAlojamiento 3 noches\nDesayuno y cena\nGuía técnico"}
+            />
           </div>
           <div className="space-y-1.5">
-            <Label>No incluye <span className="text-[10px] text-muted-foreground">(uno por línea)</span></Label>
-            <Textarea value={meta.not_included_text || ""} onChange={(e) => updateMeta("not_included_text", e.target.value)} rows={3} placeholder={"Ej:\nTraslados al destino\nBebidas alcohólicas"} />
+            <Label>No incluye <span className="text-[10px] text-muted-foreground">(uno por línea — NO uses comas para separar)</span></Label>
+            <Textarea
+              value={meta.not_included_text || ""}
+              onChange={(e) => updateMeta("not_included_text", e.target.value)}
+              rows={8}
+              className="min-h-[180px] leading-relaxed"
+              placeholder={"Ej:\nTraslados al destino\nBebidas alcohólicas"}
+            />
           </div>
 
           <div className="space-y-1.5">
