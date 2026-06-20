@@ -92,7 +92,8 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
         customer_email: customerEmail || null,
         total,
         currency: moneda,
-        status: "pendiente_pago",
+        status: metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago",
+        metodo_pago: metodoPago === "efectivo" ? "efectivo" : "mp",
       } as any)
       .select("id")
       .single();
@@ -115,6 +116,16 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     if (itemErr) {
       setLoading(false);
       toast({ title: "Error", description: itemErr.message, variant: "destructive" });
+      return;
+    }
+
+    if (metodoPago === "efectivo") {
+      setLoading(false);
+      toast({
+        title: "Pedido reservado",
+        description: "Vas a pagar en efectivo al retirar en sede.",
+      });
+      onOpenChange(false);
       return;
     }
 
