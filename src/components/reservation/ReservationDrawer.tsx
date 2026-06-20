@@ -258,7 +258,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   };
 
   const handleSubmit = async () => {
-    const reglamento = extractReglamento(event.metadata);
+    const reglamento = extractReglamentoWithDefaults(event.metadata, event.type);
     const reglamentoExists = hasAnyReglamento(reglamento);
     if (reglamentoExists && !acceptedTerms) {
       toast({
