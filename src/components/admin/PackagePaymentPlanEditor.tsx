@@ -422,10 +422,16 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: 
         </>
       )}
 
-      <Button size="sm" onClick={save} disabled={saving || (enabled && !preview.ok)} className="w-full h-8 gap-1">
-        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-        {enabled ? (planExists ? "Guardar plan" : "Crear plan") : (planExists ? "Desactivar plan" : "Sin plan")}
-      </Button>
+      {!enabled && !planExists ? (
+        <Button size="sm" onClick={() => setEnabled(true)} className="w-full h-8 gap-1">
+          <Plus className="w-3 h-3" /> Configurar plan de cuotas
+        </Button>
+      ) : (
+        <Button size="sm" onClick={save} disabled={saving || (enabled && !preview.ok)} className="w-full h-8 gap-1">
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+          {enabled ? (planExists ? "Guardar plan" : "Crear plan") : "Desactivar plan"}
+        </Button>
+      )}
     </div>
   );
 };
