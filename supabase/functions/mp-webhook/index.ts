@@ -388,7 +388,7 @@ Deno.serve(async (req) => {
           }
           if (Number(p.saldo_pendiente || 0) > 0) {
             upd.saldo_pendiente = 0;
-            upd.saldo_pagado_at = nowIso;
+            
           }
           await supabaseAdmin.from("store_preorders").update(upd).eq("id", p.id);
         }
