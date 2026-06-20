@@ -4801,10 +4801,13 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          cambio_id: string | null
           cantidad: number
           created_at: string
           id: string
+          metodo: Database["public"]["Enums"]["cambio_metodo"] | null
           motivo: string | null
+          order_id: string | null
           product_id: string
           registrado_por: string | null
           stock_anterior: number
@@ -4813,10 +4816,13 @@ export type Database = {
           variante: string | null
         }
         Insert: {
+          cambio_id?: string | null
           cantidad: number
           created_at?: string
           id?: string
+          metodo?: Database["public"]["Enums"]["cambio_metodo"] | null
           motivo?: string | null
+          order_id?: string | null
           product_id: string
           registrado_por?: string | null
           stock_anterior: number
@@ -4825,10 +4831,13 @@ export type Database = {
           variante?: string | null
         }
         Update: {
+          cambio_id?: string | null
           cantidad?: number
           created_at?: string
           id?: string
+          metodo?: Database["public"]["Enums"]["cambio_metodo"] | null
           motivo?: string | null
+          order_id?: string | null
           product_id?: string
           registrado_por?: string | null
           stock_anterior?: number
@@ -4837,6 +4846,20 @@ export type Database = {
           variante?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_cambio_id_fkey"
+            columns: ["cambio_id"]
+            isOneToOne: false
+            referencedRelation: "store_cambios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_movements_product_id_fkey"
             columns: ["product_id"]
@@ -4910,16 +4933,28 @@ export type Database = {
           id: string
           iniciado_por: Database["public"]["Enums"]["cambio_iniciador"]
           listo_retiro_at: string | null
+          metodo_entrega_reemplazo:
+            | Database["public"]["Enums"]["cambio_metodo"]
+            | null
+          metodo_recepcion: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda: string
           motivo: Database["public"]["Enums"]["cambio_motivo"]
           motivo_admin: string | null
           mp_payment_id: string | null
           notificar_alumno: boolean
+          order_id: string | null
+          origen_solicitud: Database["public"]["Enums"]["cambio_origen"]
           origen_tipo: string
           preorder_id: string | null
           producto_id: string
+          producto_reemplazo_id: string | null
+          recibido_en: string | null
+          recibido_por: string | null
+          reemplazo_estado: Database["public"]["Enums"]["cambio_reemplazo_estado"]
           responsable_admin_id: string | null
           responsable_deposito_id: string | null
+          stock_descontado_at: string | null
+          stock_devuelto_at: string | null
           updated_at: string
           variante_destino: Json | null
           variante_origen: Json
@@ -4942,16 +4977,28 @@ export type Database = {
           id?: string
           iniciado_por?: Database["public"]["Enums"]["cambio_iniciador"]
           listo_retiro_at?: string | null
+          metodo_entrega_reemplazo?:
+            | Database["public"]["Enums"]["cambio_metodo"]
+            | null
+          metodo_recepcion?: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda?: string
           motivo: Database["public"]["Enums"]["cambio_motivo"]
           motivo_admin?: string | null
           mp_payment_id?: string | null
           notificar_alumno?: boolean
+          order_id?: string | null
+          origen_solicitud?: Database["public"]["Enums"]["cambio_origen"]
           origen_tipo: string
           preorder_id?: string | null
           producto_id: string
+          producto_reemplazo_id?: string | null
+          recibido_en?: string | null
+          recibido_por?: string | null
+          reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
           responsable_admin_id?: string | null
           responsable_deposito_id?: string | null
+          stock_descontado_at?: string | null
+          stock_devuelto_at?: string | null
           updated_at?: string
           variante_destino?: Json | null
           variante_origen?: Json
@@ -4974,16 +5021,28 @@ export type Database = {
           id?: string
           iniciado_por?: Database["public"]["Enums"]["cambio_iniciador"]
           listo_retiro_at?: string | null
+          metodo_entrega_reemplazo?:
+            | Database["public"]["Enums"]["cambio_metodo"]
+            | null
+          metodo_recepcion?: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda?: string
           motivo?: Database["public"]["Enums"]["cambio_motivo"]
           motivo_admin?: string | null
           mp_payment_id?: string | null
           notificar_alumno?: boolean
+          order_id?: string | null
+          origen_solicitud?: Database["public"]["Enums"]["cambio_origen"]
           origen_tipo?: string
           preorder_id?: string | null
           producto_id?: string
+          producto_reemplazo_id?: string | null
+          recibido_en?: string | null
+          recibido_por?: string | null
+          reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
           responsable_admin_id?: string | null
           responsable_deposito_id?: string | null
+          stock_descontado_at?: string | null
+          stock_devuelto_at?: string | null
           updated_at?: string
           variante_destino?: Json | null
           variante_origen?: Json
@@ -4997,8 +5056,22 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "store_cambios_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "store_cambios_producto_id_fkey"
             columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_producto_reemplazo_id_fkey"
+            columns: ["producto_reemplazo_id"]
             isOneToOne: false
             referencedRelation: "store_products"
             referencedColumns: ["id"]
@@ -6240,6 +6313,23 @@ export type Database = {
       }
     }
     Functions: {
+      _adjust_product_stock: {
+        Args: {
+          p_cambio_id: string
+          p_delta: number
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_motivo: string
+          p_order_id: string
+          p_product_id: string
+          p_user_id: string
+          p_variante: Json
+        }
+        Returns: undefined
+      }
+      _build_variant_key: {
+        Args: { p_product_id: string; p_variante: Json }
+        Returns: string
+      }
       adjust_ejec_previsto_range:
         | {
             Args: {
@@ -6315,6 +6405,7 @@ export type Database = {
       }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
+      cancel_store_order: { Args: { p_order_id: string }; Returns: undefined }
       cancelar_solicitud_baja: {
         Args: { p_solicitud_id: string }
         Returns: undefined
@@ -6377,6 +6468,43 @@ export type Database = {
       }
       delete_gasto_deuda_mov: { Args: { p_id: string }; Returns: undefined }
       delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
+      deposito_definir_reemplazo: {
+        Args: {
+          p_cambio_id: string
+          p_marcar_listo: boolean
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_producto_id: string
+          p_variante: Json
+        }
+        Returns: undefined
+      }
+      deposito_recibir_cambio: {
+        Args: {
+          p_cambio_id: string
+          p_entregar_reemplazo: boolean
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_qr_devuelto_pid: string
+          p_qr_devuelto_variante: Json
+          p_qr_recibido_pid: string
+          p_qr_recibido_variante: Json
+        }
+        Returns: undefined
+      }
+      deposito_registrar_cambio_presencial: {
+        Args: {
+          p_alumno_id: string
+          p_comentario: string
+          p_entregar_reemplazo: boolean
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_motivo: Database["public"]["Enums"]["cambio_motivo"]
+          p_order_id: string
+          p_qr_devuelto_pid: string
+          p_qr_devuelto_variante: Json
+          p_qr_recibido_pid: string
+          p_qr_recibido_variante: Json
+        }
+        Returns: string
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -6701,7 +6829,14 @@ export type Database = {
         | "cancelado"
         | "devolucion_solicitada"
       cambio_iniciador: "alumno" | "admin"
+      cambio_metodo: "qr" | "manual"
       cambio_motivo: "talle" | "color" | "defecto" | "otro"
+      cambio_origen: "app" | "presencial"
+      cambio_reemplazo_estado:
+        | "sin_definir"
+        | "pendiente_envio"
+        | "enviado"
+        | "entregado"
       estado_plan: "borrador" | "publicado"
       event_payment_mode: "cuotas" | "simple"
       event_type: "record_hora" | "camp" | "carrera" | "otro" | "viaje"
@@ -6893,7 +7028,15 @@ export const Constants = {
         "devolucion_solicitada",
       ],
       cambio_iniciador: ["alumno", "admin"],
+      cambio_metodo: ["qr", "manual"],
       cambio_motivo: ["talle", "color", "defecto", "otro"],
+      cambio_origen: ["app", "presencial"],
+      cambio_reemplazo_estado: [
+        "sin_definir",
+        "pendiente_envio",
+        "enviado",
+        "entregado",
+      ],
       estado_plan: ["borrador", "publicado"],
       event_payment_mode: ["cuotas", "simple"],
       event_type: ["record_hora", "camp", "carrera", "otro", "viaje"],

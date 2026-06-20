@@ -35,8 +35,10 @@ interface Props {
 }
 
 const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+// Cambio: permitido desde el momento del pago/pendiente efectivo hasta enviado.
+// Se corta en `listo_retiro` y posteriores (la mercadería ya está en sede).
 const canRequestChange = (status: string, deliveredAt: string | null | undefined) => {
-  if (["preparando", "enviado"].includes(status)) return true;
+  if (["pagado", "pendiente_pago_efectivo", "preparando", "enviado"].includes(status)) return true;
   if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
   return false;
 };
@@ -45,9 +47,11 @@ const canRequestChange = (status: string, deliveredAt: string | null | undefined
 const statusMeta = (s: string) => ({
   pendiente: { label: "Pendiente", color: "text-muted-foreground", icon: Clock },
   pendiente_pago: { label: "Esperando pago", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago_efectivo: { label: "Pago efectivo al retirar", color: "text-amber-400", icon: Clock },
   pagado: { label: "Pagado", color: "text-cyan", icon: CheckCircle2 },
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
+  listo_retiro: { label: "Listo para retirar", color: "text-green-400", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
   cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
@@ -106,6 +110,12 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     return ["pendiente", "pendiente_pago"].includes(order.status) && ageMs < WINDOW_MS;
   }, [order, now]);
 
+  // Cancelación: permitida hasta "preparando" inclusive (regla nueva).
+  const canCancel = useMemo(() => {
+    if (!order) return false;
+    return ["pendiente", "pendiente_pago", "pendiente_pago_efectivo", "pagado", "preparando"].includes(order.status);
+  }, [order]);
+
   const remainingMs = useMemo(() => {
     if (!order) return 0;
     return WINDOW_MS - (now - new Date(order.created_at).getTime());
@@ -156,10 +166,7 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     if (!order) return;
     if (!confirm("¿Cancelar este pedido? Esta acción no se puede deshacer.")) return;
     setBusy(true);
-    const { error } = await supabase
-      .from("store_orders")
-      .update({ status: "cancelado" } as any)
-      .eq("id", order.id);
+    const { error } = await supabase.rpc("cancel_store_order" as any, { p_order_id: order.id });
     setBusy(false);
     if (error) {
       toast({ title: "No se pudo cancelar", description: error.message, variant: "destructive" });
@@ -316,14 +323,18 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
             <b className="font-heading text-primary">{formatPrice(Math.max(Number(order.total), newTotalDisplay), order.currency)}</b>
           </div>
 
-          {editable && (
+          {(editable || canCancel) && (
             <div className="grid grid-cols-2 gap-2 pt-1">
-              <Button variant="outline" onClick={openPicker} disabled={busy}>
-                <Plus className="w-4 h-4 mr-1" /> Agregar
-              </Button>
-              <Button variant="destructive" onClick={handleCancel} disabled={busy}>
-                <XCircle className="w-4 h-4 mr-1" /> Cancelar
-              </Button>
+              {editable ? (
+                <Button variant="outline" onClick={openPicker} disabled={busy}>
+                  <Plus className="w-4 h-4 mr-1" /> Agregar
+                </Button>
+              ) : <span />}
+              {canCancel && (
+                <Button variant="destructive" onClick={handleCancel} disabled={busy} className={editable ? "" : "col-span-2"}>
+                  <XCircle className="w-4 h-4 mr-1" /> Cancelar pedido
+                </Button>
+              )}
             </div>
           )}
 
