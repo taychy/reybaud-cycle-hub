@@ -820,11 +820,32 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                 />
               </div>
 
+              {hasAnyReglamento(extractReglamento(event.metadata)) && (
+                <>
+                  <EventReglamentoSection metadata={event.metadata} compact />
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-primary/30 bg-primary/5 cursor-pointer">
+                    <Checkbox
+                      checked={acceptedTerms}
+                      onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm text-foreground leading-snug">
+                      He leído y acepto el <b>reglamento</b> y las <b>políticas</b> de seña, pagos y cancelación de este evento.
+                    </span>
+                  </label>
+                </>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
                 </Button>
-                <Button variant="gold" className="flex-1" onClick={handleSubmit}>
+                <Button
+                  variant="gold"
+                  className="flex-1"
+                  onClick={handleSubmit}
+                  disabled={hasAnyReglamento(extractReglamento(event.metadata)) && !acceptedTerms}
+                >
                   <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}
                 </Button>
               </div>
