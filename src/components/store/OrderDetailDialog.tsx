@@ -47,9 +47,11 @@ const canRequestChange = (status: string, deliveredAt: string | null | undefined
 const statusMeta = (s: string) => ({
   pendiente: { label: "Pendiente", color: "text-muted-foreground", icon: Clock },
   pendiente_pago: { label: "Esperando pago", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago_efectivo: { label: "Pago efectivo al retirar", color: "text-amber-400", icon: Clock },
   pagado: { label: "Pagado", color: "text-cyan", icon: CheckCircle2 },
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
+  listo_retiro: { label: "Listo para retirar", color: "text-green-400", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
   cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
