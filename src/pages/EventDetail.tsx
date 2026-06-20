@@ -24,6 +24,7 @@ import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
 // CancelReservationDrawer is now handled inside ReservationStatusCard
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
+import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
@@ -657,6 +658,9 @@ const EventDetail = () => {
 
 
 
+
+          {/* Reglamento y condiciones */}
+          <EventReglamentoSection metadata={event.metadata} />
 
           {/* More info links */}
           {(event.metadata?.reglamento || event.metadata?.web_url || event.metadata?.whatsapp_url) && !isActiveReservation && (

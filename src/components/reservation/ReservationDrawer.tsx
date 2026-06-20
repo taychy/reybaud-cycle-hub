@@ -14,6 +14,9 @@ import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
 import type { Tables } from "@/integrations/supabase/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import EventReglamentoSection from "@/components/event/EventReglamentoSection";
+import { extractReglamento, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 
 type Alumno = Tables<"alumnos">;
 
@@ -28,6 +31,7 @@ interface Event {
   max_capacity: number | null;
   spots_taken: number;
   type: string;
+  metadata?: any;
 }
 
 interface PackageRow {
@@ -75,6 +79,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const [shareChoice, setShareChoice] = useState<"share" | "assign" | null>(null);
   const [vinculo, setVinculo] = useState<Vinculo | null>(null);
   const [mates, setMates] = useState<{ nombre: string; email: string; telefono: string }[]>([]);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -250,7 +255,30 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   };
 
   const handleSubmit = async () => {
+    const reglamento = extractReglamento(event.metadata);
+    const reglamentoExists = hasAnyReglamento(reglamento);
+    if (reglamentoExists && !acceptedTerms) {
+      toast({
+        title: "Tenés que aceptar el reglamento y las políticas para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
     setStep("submitting");
+
+    const acceptedAt = reglamentoExists ? new Date().toISOString() : null;
+    const acceptedVersion = reglamentoExists ? (reglamento.terminos_version || "1") : null;
+    const acceptedSnapshot = reglamentoExists
+      ? {
+          politica_sena: reglamento.politica_sena || "",
+          politica_cancelacion: reglamento.politica_cancelacion || "",
+          politica_pagos: reglamento.politica_pagos || "",
+          reglamento_texto: reglamento.reglamento_texto || "",
+          reglamento_url: reglamento.reglamento_url || "",
+          version: acceptedVersion,
+          aceptado_at: acceptedAt,
+        }
+      : null;
 
     const reservationStatus = isInscriptionOnly ? "reserva_confirmada" : "solicitud_enviada";
     const paymentStatus = isInscriptionOnly || !effectivePrice ? "no_aplica" : "no_informado";
@@ -280,6 +308,9 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       genero_habitacion: roomGender,
       tipo_vinculo: roomCapacity === 2 && shareChoice === "share" && mates.some((m) => m.nombre.trim()) ? vinculo : null,
       prefiere_asignacion: shareChoice === "assign",
+      terminos_aceptados_at: acceptedAt,
+      terminos_version_aceptada: acceptedVersion,
+      terminos_snapshot: acceptedSnapshot,
     };
 
     const { data: existing } = await supabase
@@ -382,6 +413,13 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       } catch { /* fire and forget */ }
     }
 
+    // Email automático de confirmación con resumen + reglamento
+    try {
+      supabase.functions.invoke("send-reservation-confirmation", {
+        body: { reservation_id: (data as any)?.id },
+      }).catch(() => {});
+    } catch { /* fire and forget */ }
+
     setStep("success");
     onReserved(data);
     toast({ title: labels.toastTitle });
@@ -397,6 +435,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       setShareChoice(null);
       setVinculo(null);
       setMates([]);
+      setAcceptedTerms(false);
     }, 300);
   };
 
@@ -781,11 +820,32 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                 />
               </div>
 
+              {hasAnyReglamento(extractReglamento(event.metadata)) && (
+                <>
+                  <EventReglamentoSection metadata={event.metadata} compact />
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-primary/30 bg-primary/5 cursor-pointer">
+                    <Checkbox
+                      checked={acceptedTerms}
+                      onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm text-foreground leading-snug">
+                      He leído y acepto el <b>reglamento</b> y las <b>políticas</b> de seña, pagos y cancelación de este evento.
+                    </span>
+                  </label>
+                </>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
                 </Button>
-                <Button variant="gold" className="flex-1" onClick={handleSubmit}>
+                <Button
+                  variant="gold"
+                  className="flex-1"
+                  onClick={handleSubmit}
+                  disabled={hasAnyReglamento(extractReglamento(event.metadata)) && !acceptedTerms}
+                >
                   <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}
                 </Button>
               </div>

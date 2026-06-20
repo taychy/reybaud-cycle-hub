@@ -26,6 +26,8 @@ import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/
 import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
 import { EventAddonsEditor } from "./EventAddonsEditor";
 import { EventPackagesEditor } from "./EventPackagesEditor";
+import { REGLAMENTO_DEFAULTS_CAMP_VIAJE, isCampOrViajeType } from "@/lib/eventReglamentoDefaults";
+import { FileText, Sparkles } from "lucide-react";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
@@ -948,6 +950,116 @@ const EventForm = ({
           )}
         </fieldset>
       )}
+
+      {/* ─── REGLAMENTO Y CONDICIONES (todos los tipos) ─── */}
+      <fieldset className="space-y-4 border border-primary/20 rounded-lg p-4">
+        <legend className="text-xs font-heading uppercase tracking-wider text-primary px-2 flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5" /> Reglamento y condiciones
+        </legend>
+
+        <div className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+          <div className="text-xs text-muted-foreground">
+            Estos textos se muestran colapsados en la página del evento y en el flujo de reserva.
+            El alumno debe aceptarlos para confirmar su reserva.
+            {isCampOrViajeType(form.type) && (
+              <span className="block mt-1 text-primary/80">
+                Tipo Camp/Viaje detectado: podés autorrellenar con un texto base editable.
+              </span>
+            )}
+          </div>
+          {isCampOrViajeType(form.type) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => {
+                const d = REGLAMENTO_DEFAULTS_CAMP_VIAJE;
+                setForm((prev) => ({
+                  ...prev,
+                  metadata: {
+                    ...prev.metadata,
+                    politica_sena: prev.metadata?.politica_sena || d.politica_sena,
+                    politica_cancelacion: prev.metadata?.politica_cancelacion || d.politica_cancelacion,
+                    politica_pagos: prev.metadata?.politica_pagos || d.politica_pagos,
+                    reglamento_texto: prev.metadata?.reglamento_texto || d.reglamento_texto,
+                    terminos_version: prev.metadata?.terminos_version || "1",
+                  },
+                }));
+                toast.success("Texto base cargado. Editá lo que necesites.");
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Cargar texto base
+            </Button>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Política de seña</Label>
+          <Textarea
+            value={meta.politica_sena || ""}
+            onChange={(e) => updateMeta("politica_sena", e.target.value)}
+            rows={2}
+            placeholder="Ej: La seña confirma tu lugar y no es reembolsable. Se descuenta del total."
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Política de cancelación</Label>
+          <Textarea
+            value={meta.politica_cancelacion || ""}
+            onChange={(e) => updateMeta("politica_cancelacion", e.target.value)}
+            rows={4}
+            placeholder="Detallá plazos, % de retención, casos especiales..."
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Política de pagos</Label>
+          <Textarea
+            value={meta.politica_pagos || ""}
+            onChange={(e) => updateMeta("politica_pagos", e.target.value)}
+            rows={3}
+            placeholder="Cuotas, vencimientos, métodos aceptados..."
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Reglamento del evento</Label>
+          <Textarea
+            value={meta.reglamento_texto || ""}
+            onChange={(e) => updateMeta("reglamento_texto", e.target.value)}
+            rows={8}
+            placeholder="Equipamiento obligatorio, conducta, responsabilidades, derecho de admisión..."
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Link a PDF del reglamento (opcional)</Label>
+          <Input
+            value={meta.reglamento || ""}
+            onChange={(e) => updateMeta("reglamento", e.target.value)}
+            placeholder="https://..."
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Se muestra como botón "Descargar reglamento (PDF)".
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Versión del texto</Label>
+            <Input
+              value={meta.terminos_version || "1"}
+              onChange={(e) => updateMeta("terminos_version", e.target.value)}
+              placeholder="1"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Si modificás los textos, subí la versión (ej: 2) para registrar nuevas aceptaciones.
+            </p>
+          </div>
+        </div>
+      </fieldset>
 
       {/* COMPARTIR LINKS */}
       {isEditing && eventId && (
