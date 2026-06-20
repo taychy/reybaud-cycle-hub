@@ -953,7 +953,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   variant="gold"
                   className="flex-1"
                   onClick={handleSubmit}
-                  disabled={hasAnyReglamento(extractReglamento(event.metadata)) && !acceptedTerms}
+                  disabled={hasAnyReglamento(extractReglamentoWithDefaults(event.metadata, event.type)) && !acceptedTerms}
                 >
                   <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}
                 </Button>
