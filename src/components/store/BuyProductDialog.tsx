@@ -60,6 +60,7 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     if (!open) return;
     setCantidad(1);
     setVariante({});
+    setMetodoPago("mp");
   }, [open]);
 
   if (!product) return null;
