@@ -17,9 +17,11 @@ interface Props {
 const orderStatusMeta = (s: string) => ({
   pendiente: { label: "Pendiente", color: "text-muted-foreground", icon: Clock },
   pendiente_pago: { label: "Esperando pago", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago_efectivo: { label: "Pago efectivo al retirar", color: "text-amber-400", icon: Clock },
   pagado: { label: "Pagado", color: "text-cyan", icon: CheckCircle2 },
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
+  listo_retiro: { label: "Listo para retirar", color: "text-green-400", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
   cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
@@ -29,10 +31,10 @@ const WINDOW_MS = 12 * 60 * 60 * 1000;
 const isWithinEditWindow = (createdAt: string, status: string) =>
   ["pendiente", "pendiente_pago"].includes(status) &&
   Date.now() - new Date(createdAt).getTime() < WINDOW_MS;
-// Cambio: permitido inmediatamente después de la compra (apenas el pago se
-// confirma) y hasta 30 días después de la entrega.
+// Cambio: desde el momento de la compra (incluso pendiente pago efectivo) y hasta enviado.
+// Se corta en `listo_retiro` (ya está en sede).
 const canRequestChangeOrder = (status: string, deliveredAt: string | null) => {
-  if (["pagado", "preparando", "enviado"].includes(status)) return true;
+  if (["pagado", "pendiente_pago_efectivo", "preparando", "enviado"].includes(status)) return true;
   if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
   return false;
 };
