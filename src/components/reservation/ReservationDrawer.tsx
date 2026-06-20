@@ -308,6 +308,9 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       genero_habitacion: roomGender,
       tipo_vinculo: roomCapacity === 2 && shareChoice === "share" && mates.some((m) => m.nombre.trim()) ? vinculo : null,
       prefiere_asignacion: shareChoice === "assign",
+      terminos_aceptados_at: acceptedAt,
+      terminos_version_aceptada: acceptedVersion,
+      terminos_snapshot: acceptedSnapshot,
     };
 
     const { data: existing } = await supabase
