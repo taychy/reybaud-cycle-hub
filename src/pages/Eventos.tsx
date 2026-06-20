@@ -340,17 +340,35 @@ export const EventosContent = () => {
   const [participantEventIds, setParticipantEventIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    supabase
-      .from("events")
-      .select("*")
-      .eq("is_active", true)
-      .eq("visible_to_students", true)
-      .order("date", { ascending: true })
-      .then(({ data }) => {
-        if (data) setEvents(data as unknown as Event[]);
-        setLoading(false);
+    (async () => {
+      const { data } = await supabase
+        .from("events")
+        .select("*")
+        .eq("is_active", true)
+        .eq("visible_to_students", true)
+        .order("date", { ascending: true });
+      if (!data || data.length === 0) { setEvents([]); setLoading(false); return; }
+
+      // Traer precio mínimo de paquetes activos por evento
+      const eventIds = data.map((e: any) => e.id);
+      const { data: pkgs } = await supabase
+        .from("event_packages" as any)
+        .select("event_id, precio, activo")
+        .in("event_id", eventIds)
+        .eq("activo", true);
+      const minByEvent: Record<string, number> = {};
+      ((pkgs as any[]) || []).forEach((p) => {
+        const cur = minByEvent[p.event_id];
+        const price = Number(p.precio) || 0;
+        if (price > 0 && (cur == null || price < cur)) minByEvent[p.event_id] = price;
       });
+
+      const enriched = data.map((e: any) => ({ ...e, packages_min_price: minByEvent[e.id] ?? null }));
+      setEvents(enriched as unknown as Event[]);
+      setLoading(false);
+    })();
   }, []);
+
 
   useEffect(() => {
     if (!alumno) return;
