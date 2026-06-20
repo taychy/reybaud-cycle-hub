@@ -26,6 +26,8 @@ import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/
 import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
 import { EventAddonsEditor } from "./EventAddonsEditor";
 import { EventPackagesEditor } from "./EventPackagesEditor";
+import { REGLAMENTO_DEFAULTS_CAMP_VIAJE, isCampOrViajeType } from "@/lib/eventReglamentoDefaults";
+import { FileText, Sparkles } from "lucide-react";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
