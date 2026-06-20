@@ -576,10 +576,13 @@ const StorePreorders = () => {
                   </td>
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" title="Enviar recordatorio de pago" onClick={() => enviarRecordatorio(r)}>
+                      <Button size="sm" variant="ghost" title="Enviar recordatorio por email" onClick={() => enviarRecordatorio(r)}>
                         <Mail className="w-4 h-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" title="Imprimir etiqueta con QR" onClick={() => imprimirEtiqueta(r)}>
+                      <Button size="sm" variant="ghost" title="Enviar link de pago por WhatsApp" className="text-green-500 hover:text-green-400" onClick={() => enviarWhatsApp(r)}>
+                        <MessageCircle className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Imprimir etiqueta con QR" className="bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => imprimirEtiqueta(r)}>
                         <QrCode className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
