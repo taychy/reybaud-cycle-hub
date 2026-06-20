@@ -1,169 +1,168 @@
-## Plan de pagos por paquete + recordatorios automáticos (v2 consolidado)
+# Sistema de cambios de mercadería — rediseño (v2)
 
-Sí, exacto: este plan combina mi propuesta original con **todas** tus modificaciones. Nada quedó afuera.
-
----
-
-### 1. Modelo de datos
-
-#### 1.1 Templates (admin) — con versionado
-
-**`event_package_payment_plans`** (template + versiones archivadas por paquete)
-- `id`, `package_id`, `nombre`
-- `version` int (autoincrement por package_id)
-- `archived_at` timestamptz null
-- `sena_tipo` enum (`monto_fijo`, `porcentaje_paquete`)
-- `sena_valor` numeric
-- `sena_vence_dias` int default 0
-- `cantidad_cuotas` int
-- `last_installment_absorbs_rounding` bool default true
-- `regla_reserva_tardia` enum (`cobrar_al_reservar`, `reprogramar_a_hoy`, `mantener_fechas_fijas`) default `cobrar_al_reservar`
-- `activo` bool
-
-**`event_package_payment_plan_installments`** (definición de cada cuota del template)
-- `plan_id`, `numero`, `descripcion`
-- `monto_tipo` enum (`fijo`, `porcentaje_saldo`)
-- `monto_valor` numeric
-- `fecha_vencimiento` date
-- `reminders_config` jsonb (offsets, heredado del tipo por default)
-
-#### 1.2 Instancia (reserva) — con snapshot inmutable
-
-**Columnas nuevas en `event_reservations`**:
-- `payment_plan_id` FK (versión usada)
-- `payment_plan_name_snapshot` text
-- `payment_plan_snapshot` jsonb (copia inmutable del plan + cuotas al confirmar)
-
-**Columnas nuevas en `reservation_installments`**:
-- `installment_type` enum (`sena`, `cuota`) default `cuota`
-- `monto_original`, `monto_pagado`, `saldo_pendiente` numeric
-- `due_date_original` date
-- `reprogramada_por` uuid, `reprogramada_at` timestamptz
-- Estados soportados: `pendiente, parcial, pagada, vencida, cancelada, condonada, reprogramada`
-
-**`reservation_installment_reminders`** (auditoría técnica, tabla relacional propia)
-- `reservation_installment_id`, `offset_days`, `channel` (`email`/`whatsapp_manual`/`admin_alert`), `recipient_type` (`alumno`/`admin`), `recipient_email`, `status` (`pending`/`sent`/`failed`/`skipped`), `sent_at`, `error_message`
-- `idempotency_key` text **UNIQUE**
-
-`reservation_notifications` queda como timeline visible alumno/admin (sin cambios).
-
-#### 1.3 Config de alertas admin (configurable por evento)
-
-- Columna nueva `events.admin_alert_emails` text[] (lista por evento).
-- `app_config` clave `default_payment_alert_emails` text[] (fallback global).
+## Objetivo
+Cubrir las dos rutas de cambio (alumno por app / presencial en depósito) con trazabilidad completa, devolución de stock automática y operación rápida vía **escaneo de QR** con fallback manual.
 
 ---
 
-### 2. Materialización al confirmar reserva
+## 1. Elegibilidad y cancelación del pedido
 
-1. Leer plan activo del paquete.
-2. **Calcular sobre precio final congelado** de la reserva (no precio actual del paquete).
-3. Seña = según `sena_tipo`/`sena_valor` sobre precio final.
-4. Saldo = precio final − seña.
-5. Cuotas = según `monto_tipo`/`monto_valor` sobre saldo. Última absorbe redondeo si flag activa.
-6. **Validar obligatoriamente**: `seña + Σ cuotas == precio_final` (tolerancia 1 centavo). Si falla → abortar.
-7. Aplicar `regla_reserva_tardia`:
-   - `cobrar_al_reservar` (default viajes): cuotas con `fecha < hoy` se consolidan en la seña. Solo se materializan cuotas futuras.
-   - `reprogramar_a_hoy`: vencidas se mueven a hoy, conservando `due_date_original`.
-   - `mantener_fechas_fijas`: se crean igual (nacen vencidas).
-8. Insertar `event_reservations` con snapshot + cuotas en `reservation_installments` (seña como `installment_type='sena'`, numero=0; resto `cuota`).
+### Solicitar cambio (alumno)
+- Habilitado mientras el pedido esté en: `pagado`, `pendiente_pago_efectivo`, `preparando`, `enviado`, `entregado`.
+- **Cortado** en: `listo_retiro` (ya está en sede esperándolo), `cancelado`, `devuelto`.
+- Motivo: el cambio se puede pedir aunque NO esté pagado todavía (algunos pagan en efectivo al retirar).
 
-**Regla absoluta:** una cuota nunca puede nacer vencida (salvo modo explícito `mantener_fechas_fijas`).
+### Cancelar pedido (alumno)
+- Habilitado hasta `preparando` inclusive.
+- **Cortado** desde `listo_retiro` en adelante (ya viajó a sede).
 
----
+### Forma de pago en efectivo
+- Al hacer la compra, el alumno marca `forma_pago = efectivo` y queda en `pendiente_pago_efectivo`.
+- Depósito/Sede ve el flag y cobra al entregar.
 
-### 3. Editor admin (UI)
-
-En `EventPackagesEditor.tsx`, sección **"Plan de pagos"** por paquete:
-
-- Switch "Tiene plan de cuotas".
-- Inputs seña: tipo (monto / % paquete) + valor + días para vencer.
-- Cantidad de cuotas + botón "Generar cuotas mensuales".
-- Tabla editable: # / descripción / tipo monto / valor / fecha vencimiento / chips de recordatorios.
-- Select "Regla para reservas tardías".
-- **Vista previa en vivo** con precio del paquete: muestra seña + cuotas + total. Resalta en rojo si no cuadra y bloquea guardar.
-- Al guardar cambios sobre un plan con reservas existentes → confirmación + **nueva versión** (archiva la anterior). Reservas viejas siguen apuntando a su versión vía snapshot.
+Validación de ambas reglas en DB (no solo front).
 
 ---
 
-### 4. Precio "desde" en listados
+## 2. Ruta del cambio — dos orígenes
 
-- `Eventos.tsx` + `EventCard`: `min(precio)` de paquetes activos → "Training Camp San Luis · desde $XXX".
-- `EventDetail.tsx`: al elegir paquete en el drawer, mostrar desglose seña + N cuotas con fechas y montos exactos (mismo cálculo que materialización).
+### Ruta A — Alumno solicita por la app
+1. Alumno elige producto y talle/variante de reemplazo → `store_cambios` queda en `solicitado`.
+2. Admin aprueba → `aprobado`.
+3. Alumno envía la prenda original (sede / camioneta).
+4. **Depósito recepciona escaneando QR**:
+   - Escanea QR de la prenda **devuelta** → valida que coincide con `variante_origen` del cambio. Estado pasa a `en_deposito`. Stock original suma.
+   - Escanea QR de la prenda **de reemplazo** → valida que coincide con `variante_destino`. Stock destino descuenta. Estado pasa a `listo_retiro`.
+5. Sede entrega → `entregado`.
 
----
-
-### 5. Cron diario de recordatorios
-
-`process-installment-reminders` edge function, cron diario **08:00 ART (11:00 UTC)** vía pg_cron + pg_net.
-
-| Tipo cuota | Offsets |
-|---|---|
-| Seña | 0, +1, +3 |
-| Cuota regular | -7, -2, 0, +3, +7 |
-| Última cuota | -14, -7, -2, 0, +3, +7 |
-
-Reglas:
-- `pagada / cancelada / condonada` → skip (registrado como `skipped`).
-- `parcial` → mensaje muestra **saldo pendiente**, no monto original.
-- Idempotencia: `inst-{id}-off{offset}-{channel}-{recipient}` UNIQUE en `reservation_installment_reminders`.
-
-#### Alertas admin
-- Día 0 ("vence hoy"): email individual a `events.admin_alert_emails` ∪ fallback global.
-- Vencidas (+3, +7): **digest diario por evento** agregado (no un email por cuota).
-- Nunca a todos los admins.
-
-#### Templates email nuevos
-- `installment-upcoming.tsx`
-- `installment-due-today.tsx`
-- `installment-overdue.tsx`
-- `admin-installment-digest.tsx`
+### Ruta B — Llegó al depósito sin reclamo previo (presencial)
+1. Persona de depósito abre **"Recibir cambio presencial"** y escanea QR de la prenda recibida.
+2. Busca la venta original (por nº pedido / alumno / DNI) y la asocia.
+3. Define estado del reemplazo:
+   - **Solo recepción** → stock vuelve, queda `en_deposito` con `reemplazo_estado = sin_definir`.
+   - **Reemplazo definido ahora** → escanea QR del reemplazo → descuenta stock → `listo_retiro`.
+   - **Reemplazo pendiente** → queda `en_deposito` con tarea para admin/depósito.
+4. Se crea `store_cambios` con `origen = 'presencial'`, `creado_por = deposito_user_id`, vinculado a `store_orders.id`.
 
 ---
 
-### 6. WhatsApp etapa 1 (manual)
+## 3. Escaneo QR — patrón unificado
 
-`whatsappReminderTemplates.ts` con plantillas (próxima/hoy/vencida/parcial). Botón en admin → `wa.me/{telefono}?text={mensaje}`. Sin proveedor por ahora.
+### Componente
+Reutilizar/extender `src/components/deposito/CameraScanner.tsx`:
+- Soporta lectura continua de QR.
+- Cada producto/variante tiene un código único ya impreso vía `productLabels.ts` (`PRD-<productId>-<varianteHash>` o similar).
+- Helper `decodeProductQr(text)` → `{ producto_id, variante }`.
 
----
+### Flujo de scan en cambios
+- Modal "Escanear" con dos slots: **Devuelve** y **Recibe**.
+- Cada slot puede llenarse por:
+  - Cámara (preferido) → click "Escanear" → CameraScanner abre.
+  - **Carga manual** (fallback) → input con autocomplete de producto + select de variante.
+- Validaciones en vivo:
+  - Devuelve debe coincidir con `variante_origen` esperada (warning si no, no bloquea — el operador puede forzar).
+  - Recibe debe tener stock disponible.
+- Confirmar con botón único que dispara la RPC.
 
-### 7. Vista alumno
-
-`StudentInstallmentsPlan.tsx`:
-- Etiqueta "Seña" para `installment_type='sena'`.
-- Mostrar saldo pendiente si parcial.
-- Badge "Reprogramada" con tooltip mostrando `due_date_original`.
-
----
-
-### 8. Archivos
-
-**Migración** (única): tablas nuevas + columnas + ampliar enum estado + cron + GRANT/RLS.
-
-**Nuevos:**
-- `src/components/admin/PackagePaymentPlanEditor.tsx`
-- `src/lib/paymentPlanCalculator.ts` (cálculo seña/cuotas + validación + reservas tardías)
-- `src/lib/whatsappReminderTemplates.ts`
-- `supabase/functions/process-installment-reminders/index.ts`
-- 4 templates email + registry
-
-**Modificados:**
-- `EventPackagesEditor.tsx`, `EventForm.tsx` (admin_alert_emails)
-- `ReservationDrawer.tsx` (materialización + snapshot + regla tardía)
-- `Eventos.tsx`, `EventDetail.tsx` (precio "desde" + desglose en drawer)
-- `StudentInstallmentsPlan.tsx` (seña + reprogramación + parcial)
-- `EventManagement.tsx` (botones WA)
+### Donde aplica
+- Depósito: recepción de cambio (Ruta A paso 4) y recepción presencial (Ruta B).
+- Admin: opcional, mismo modal embebido.
+- Toda acción de scan queda en `stock_movements` con `cambio_id` y `metodo` (`qr` | `manual`).
 
 ---
 
-### Orden de ejecución
+## 4. Cambios en datos (DB)
 
-1. Migración (requiere tu aprobación aparte).
-2. `paymentPlanCalculator.ts` + tests básicos del cálculo.
-3. Editor admin (`PackagePaymentPlanEditor` + integración en `EventPackagesEditor`).
-4. Precio "desde" en listados + desglose en drawer.
-5. Materialización en `ReservationDrawer` (snapshot + reserva tardía).
-6. Templates email + cron + edge function.
-7. WhatsApp manual + ajustes vista alumno.
+Migración única:
 
-¿Confirmás y arranco con la migración?
+### Tabla `store_orders`
+- `forma_pago` enum extender: agregar `efectivo`.
+- Estado `pendiente_pago_efectivo` agregado al enum de status.
+
+### Tabla `store_cambios`
+- `origen_solicitud` enum: `app` | `presencial` (default `app`).
+- `recibido_por` uuid, `recibido_en` timestamptz.
+- `metodo_recepcion` enum: `qr` | `manual`.
+- `metodo_entrega_reemplazo` enum: `qr` | `manual`.
+- `reemplazo_estado` enum: `sin_definir` | `pendiente_envio` | `enviado` | `entregado`.
+- `producto_reemplazo_id` uuid nullable (por si el reemplazo es OTRO producto, no solo otra variante).
+- Trigger:
+  - Al pasar a `en_deposito`: devolver stock del producto/variante original.
+  - Al confirmar reemplazo: descontar stock destino.
+  - Idempotente vía flags `stock_devuelto_at` / `stock_descontado_at`.
+
+### RPCs nuevas
+- `deposito_recibir_cambio_qr(cambio_id, qr_devuelto, qr_recibido?, metodo)` — Ruta A.
+- `deposito_registrar_cambio_presencial(order_id, qr_devuelto, qr_recibido?, motivo, metodo)` — Ruta B.
+- `deposito_definir_reemplazo(cambio_id, qr_o_producto, variante, metodo)`.
+- Endurecer `request_cambio_indumentaria`: validar `store_orders.status IN ('pagado','pendiente_pago_efectivo','preparando','enviado','entregado')`.
+- `cancel_order(order_id)` para alumno: validar status `≤ preparando`.
+
+---
+
+## 5. UI
+
+### Alumno
+- **`MisComprasSection.tsx` / `OrderDetailDialog.tsx`**:
+  - Botón "Solicitar cambio" según nuevas reglas.
+  - Botón "Cancelar pedido" hasta `preparando`.
+- **Checkout**: nueva opción "Pago en efectivo al retirar".
+- **`MisCambios.tsx`**: mostrar también cambios `origen = presencial` con estado humanizado.
+
+### Depósito (`/deposito/cambios`)
+- Tab **Pendientes app** (lo actual).
+- Tab **Recibir presencial** → wizard con escaneo QR.
+- Tab **Esperando reemplazo** → cambios `en_deposito` sin reemplazo definido.
+- Cada item con botón "Escanear" que abre el modal dual (devuelve / recibe), con fallback manual.
+
+### Admin (`StoreCambios.tsx`)
+- Filtro por origen (app / presencial).
+- Columna "Reemplazo" con estado.
+- Acción "Definir reemplazo" cuando aplique.
+
+---
+
+## 6. Stock — reglas
+- Devolver al stock cuando motivo ≠ `defecto`. Defectuosos → bucket "merma" (TODO, se deja flag pero no se implementa ahora).
+- Cada movimiento se loguea en `stock_movements` con `tipo = cambio_in` / `cambio_out`, `cambio_id`, `metodo` (`qr` | `manual`), `user_id`.
+
+---
+
+## 7. Archivos a tocar / crear
+
+**Nuevos**
+- `src/components/deposito/ScanCambioDialog.tsx` (modal dual devuelve/recibe con cámara + manual).
+- `src/components/deposito/RegistrarCambioPresencialDialog.tsx`.
+- `src/components/deposito/DefinirReemplazoDialog.tsx`.
+- `src/lib/productQr.ts` (encode/decode QR de producto+variante).
+
+**Modificados**
+- `src/components/deposito/CameraScanner.tsx` (modo continuo + callback estructurado).
+- `src/pages/deposito/DepositoCambios.tsx` (3 tabs + integración scan).
+- `src/components/store/MisComprasSection.tsx`, `OrderDetailDialog.tsx`, `RequestCambioDialog.tsx`, `MisCambios.tsx`.
+- `src/components/store/BuyProductDialog.tsx` (opción pago en efectivo).
+- `src/pages/admin/store/StoreCambios.tsx` (filtros + columna reemplazo).
+- `src/pages/admin/store/StoreOrders.tsx` / `StoreVentas.tsx` (mostrar forma de pago + cancelables).
+
+---
+
+## 8. Orden de ejecución
+
+1. Migración DB (enums, columnas, trigger, RPCs, grants) — requiere aprobación.
+2. Helper `productQr.ts` + extensión de `CameraScanner` modo dual.
+3. `ScanCambioDialog` (componente central reutilizable).
+4. Ruta A en depósito (recepción QR del cambio aprobado).
+5. Ruta B (wizard presencial).
+6. Tab "Esperando reemplazo" + definir reemplazo.
+7. Ajustes alumno: elegibilidad cambio, cancelación, opción efectivo.
+8. Filtros + columna en admin.
+
+---
+
+## Detalles a confirmar antes de codear
+
+- **QR del producto**: ¿ya están impresos con el formato actual de `productLabels.ts` (variante incluida) o necesitamos rediseñar etiqueta para incluir el código de variante? Esto define si el QR alcanza o necesitamos imprimir etiquetas nuevas por variante.
+- **Reemplazo con otro producto distinto** (no solo otra variante del mismo): ¿lo habilitamos desde la app (alumno) o solo desde depósito/admin?
+- **Defecto → merma**: ¿lo dejamos como flag para implementar después, o querés que entre en esta tanda?
+
+¿Confirmás este plan v2 y avanzo con la migración?
