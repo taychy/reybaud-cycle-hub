@@ -1059,12 +1059,12 @@ const ReservationStatusCard = ({
         {/* ═══ 10. CANCEL ═══ */}
         {canCancel && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="w-full text-[11px] text-muted-foreground/60 hover:text-destructive mt-2"
+            className="w-full text-xs text-destructive/80 border-destructive/20 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 mt-2"
             onClick={() => setShowCancelDrawer(true)}
           >
-            <X className="w-3 h-3 mr-1" /> Cancelar reserva
+            <X className="w-3.5 h-3.5 mr-1.5" /> Cancelar reserva
           </Button>
         )}
 
