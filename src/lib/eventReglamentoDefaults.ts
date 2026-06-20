@@ -51,7 +51,7 @@ export const extractReglamento = (metadata: any): ReglamentoFields => {
   const m = metadata || {};
   return {
     politica_sena: m.politica_sena || "",
-    politica_cancelacion: m.politica_cancelacion || "",
+    politica_cancelacion: m.politica_cancelacion || m.cancellation_text_full || "",
     politica_pagos: m.politica_pagos || "",
     reglamento_texto: m.reglamento_texto || "",
     reglamento_url: m.reglamento || m.reglamento_url || "",
@@ -66,4 +66,26 @@ export const hasAnyReglamento = (r: ReglamentoFields): boolean =>
 export const isCampOrViajeType = (eventType?: string | null): boolean => {
   if (!eventType) return false;
   return ["camp", "viaje", "training_camp"].includes(eventType);
+};
+
+/**
+ * Reglamento con fallback a defaults para eventos Camp/Viaje.
+ * Garantiza que, aunque el admin no haya cargado los textos, el alumno
+ * vea y deba aceptar políticas mínimas en la reserva.
+ */
+export const extractReglamentoWithDefaults = (
+  metadata: any,
+  eventType?: string | null,
+): ReglamentoFields => {
+  const base = extractReglamento(metadata);
+  if (!isCampOrViajeType(eventType)) return base;
+  const d = REGLAMENTO_DEFAULTS_CAMP_VIAJE;
+  return {
+    politica_sena: base.politica_sena || d.politica_sena,
+    politica_cancelacion: base.politica_cancelacion || d.politica_cancelacion,
+    politica_pagos: base.politica_pagos || d.politica_pagos,
+    reglamento_texto: base.reglamento_texto || d.reglamento_texto,
+    reglamento_url: base.reglamento_url || "",
+    terminos_version: base.terminos_version || "1",
+  };
 };
