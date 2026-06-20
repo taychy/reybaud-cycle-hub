@@ -257,6 +257,77 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
         <div className="space-y-2">
           {items.map((p) => {
             const c = counts[p.id] || { mujeres: 0, varones: 0, mixto: 0 };
+            if (editingId === p.id) {
+              return (
+                <div key={p.id} className="rounded-lg border border-primary/50 p-3 space-y-2 bg-muted/20">
+                  <p className="text-xs font-medium text-primary">Editando paquete</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">Nombre *</Label>
+                      <Input value={editDraft.nombre} onChange={(e) => setEditDraft({ ...editDraft, nombre: e.target.value })} />
+                    </div>
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">Descripción</Label>
+                      <Textarea rows={2} value={editDraft.descripcion} onChange={(e) => setEditDraft({ ...editDraft, descripcion: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Precio *</Label>
+                      <Input type="number" value={editDraft.precio} onChange={(e) => setEditDraft({ ...editDraft, precio: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Seña</Label>
+                      <Input type="number" value={editDraft.sena} onChange={(e) => setEditDraft({ ...editDraft, sena: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Moneda</Label>
+                      <Select value={editDraft.currency} onValueChange={(v) => setEditDraft({ ...editDraft, currency: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ARS">ARS</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Personas / habitación</Label>
+                      <Input type="number" min="1" value={editDraft.personas_por_habitacion} onChange={(e) => setEditDraft({ ...editDraft, personas_por_habitacion: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-border/40 space-y-2">
+                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Cupos por género</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-rose-300">Cupo mujeres</Label>
+                        <Input type="number" value={editDraft.cupo_mujeres} onChange={(e) => setEditDraft({ ...editDraft, cupo_mujeres: e.target.value })} placeholder="Sin límite" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-sky-300">Cupo varones</Label>
+                        <Input type="number" value={editDraft.cupo_varones} onChange={(e) => setEditDraft({ ...editDraft, cupo_varones: e.target.value })} placeholder="Sin límite" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={editDraft.permite_mixto} onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })} />
+                        <Label className="text-xs text-violet-300">Permitir mixta</Label>
+                      </div>
+                      {editDraft.permite_mixto && (
+                        <Input type="number" value={editDraft.cupo_mixto} onChange={(e) => setEditDraft({ ...editDraft, cupo_mixto: e.target.value })} placeholder="Cupo mixta" className="w-32" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => saveEdit(p)} disabled={saving} className="gap-1 flex-1">
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      Guardar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={cancelEdit} className="gap-1">
+                      <X className="w-3.5 h-3.5" /> Cancelar
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div key={p.id} className={`flex items-start gap-2 p-2 rounded-lg border border-border/50 ${p.activo ? "" : "opacity-50"}`}>
                 <div className="flex-1 min-w-0 space-y-1">
@@ -281,6 +352,9 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                   {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
                 </div>
                 <Switch checked={p.activo} onCheckedChange={() => toggleActive(p)} />
+                <Button size="icon" variant="ghost" onClick={() => startEdit(p)} className="h-7 w-7">
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
                 <Button size="icon" variant="ghost" onClick={() => remove(p)} className="h-7 w-7">
                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
                 </Button>
