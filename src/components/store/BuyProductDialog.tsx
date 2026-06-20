@@ -185,6 +185,31 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
             <div className="flex justify-between font-heading text-primary"><span>Total</span><span>{formatPrice(total, moneda)}</span></div>
           </div>
 
+          <div>
+            <label className="text-xs font-heading uppercase text-muted-foreground">Forma de pago</label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setMetodoPago("mp")}
+                className={`flex items-center gap-2 rounded-lg border p-2 text-xs ${metodoPago === "mp" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+              >
+                <CreditCard className="w-3.5 h-3.5" /> Mercado Pago
+              </button>
+              <button
+                type="button"
+                onClick={() => setMetodoPago("efectivo")}
+                className={`flex items-center gap-2 rounded-lg border p-2 text-xs ${metodoPago === "efectivo" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+              >
+                <Banknote className="w-3.5 h-3.5" /> Efectivo al retirar
+              </button>
+            </div>
+            {metodoPago === "efectivo" && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Reservamos el producto. Lo pagás al retirarlo en sede.
+              </p>
+            )}
+          </div>
+
           {!stockOk && (
             <div className="flex items-center gap-1 text-[11px] text-destructive">
               <AlertCircle className="w-3 h-3" />
@@ -195,8 +220,8 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleBuy} disabled={loading || !stockOk}>
-              <CreditCard className="w-4 h-4 mr-1" />
-              {loading ? "Procesando..." : "Pagar con Mercado Pago"}
+              {metodoPago === "efectivo" ? <Banknote className="w-4 h-4 mr-1" /> : <CreditCard className="w-4 h-4 mr-1" />}
+              {loading ? "Procesando..." : metodoPago === "efectivo" ? "Reservar para pago en efectivo" : "Pagar con Mercado Pago"}
             </Button>
           </div>
         </div>
