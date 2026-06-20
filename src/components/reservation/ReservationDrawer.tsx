@@ -31,6 +31,7 @@ interface Event {
   max_capacity: number | null;
   spots_taken: number;
   type: string;
+  metadata?: any;
 }
 
 interface PackageRow {
