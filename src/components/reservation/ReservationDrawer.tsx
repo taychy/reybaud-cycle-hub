@@ -435,6 +435,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       setShareChoice(null);
       setVinculo(null);
       setMates([]);
+      setAcceptedTerms(false);
     }, 300);
   };
 
