@@ -166,10 +166,7 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     if (!order) return;
     if (!confirm("¿Cancelar este pedido? Esta acción no se puede deshacer.")) return;
     setBusy(true);
-    const { error } = await supabase
-      .from("store_orders")
-      .update({ status: "cancelado" } as any)
-      .eq("id", order.id);
+    const { error } = await supabase.rpc("cancel_store_order" as any, { p_order_id: order.id });
     setBusy(false);
     if (error) {
       toast({ title: "No se pudo cancelar", description: error.message, variant: "destructive" });
