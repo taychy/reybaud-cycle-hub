@@ -731,12 +731,17 @@ const StorePreorders = () => {
                     <Button onClick={() => imprimirEtiqueta(detail)} variant="outline">
                       <QrCode className="w-4 h-4 mr-1" /> Etiqueta QR
                     </Button>
-                    <Button onClick={() => enviarRecordatorio(detail)} className="col-span-2">
-                      <Mail className="w-4 h-4 mr-1" />
-                      {detail.estado_pago_sena === "confirmada" && Number(detail.saldo_pendiente || 0) > 0
-                        ? "Enviar recordatorio de saldo"
-                        : "Enviar recordatorio de seña"}
+                    <Button onClick={() => enviarWhatsApp(detail)} variant="outline" className="border-green-500/30 text-green-500 hover:bg-green-500/10">
+                      <MessageCircle className="w-4 h-4 mr-1" /> WhatsApp
                     </Button>
+                    <Button onClick={() => enviarRecordatorio(detail)}>
+                      <Mail className="w-4 h-4 mr-1" /> Email recordatorio
+                    </Button>
+                    <div className="col-span-2 text-[11px] text-muted-foreground text-center">
+                      {detail.estado_pago_sena === "confirmada" && Number(detail.saldo_pendiente || 0) > 0
+                        ? "Enviará link para pagar saldo pendiente"
+                        : "Enviará link para pagar seña + opción de pagar total"}
+                    </div>
                   </div>
                 </div>
               </>
