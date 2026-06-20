@@ -255,7 +255,30 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   };
 
   const handleSubmit = async () => {
+    const reglamento = extractReglamento(event.metadata);
+    const reglamentoExists = hasAnyReglamento(reglamento);
+    if (reglamentoExists && !acceptedTerms) {
+      toast({
+        title: "Tenés que aceptar el reglamento y las políticas para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
     setStep("submitting");
+
+    const acceptedAt = reglamentoExists ? new Date().toISOString() : null;
+    const acceptedVersion = reglamentoExists ? (reglamento.terminos_version || "1") : null;
+    const acceptedSnapshot = reglamentoExists
+      ? {
+          politica_sena: reglamento.politica_sena || "",
+          politica_cancelacion: reglamento.politica_cancelacion || "",
+          politica_pagos: reglamento.politica_pagos || "",
+          reglamento_texto: reglamento.reglamento_texto || "",
+          reglamento_url: reglamento.reglamento_url || "",
+          version: acceptedVersion,
+          aceptado_at: acceptedAt,
+        }
+      : null;
 
     const reservationStatus = isInscriptionOnly ? "reserva_confirmada" : "solicitud_enviada";
     const paymentStatus = isInscriptionOnly || !effectivePrice ? "no_aplica" : "no_informado";
