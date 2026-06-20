@@ -2158,6 +2158,9 @@ export type Database = {
           prefiere_asignacion: boolean
           price_snapshot: number | null
           reservation_status: string
+          terminos_aceptados_at: string | null
+          terminos_snapshot: Json | null
+          terminos_version_aceptada: string | null
           tipo_vinculo: string | null
           updated_at: string
         }
@@ -2200,6 +2203,9 @@ export type Database = {
           prefiere_asignacion?: boolean
           price_snapshot?: number | null
           reservation_status?: string
+          terminos_aceptados_at?: string | null
+          terminos_snapshot?: Json | null
+          terminos_version_aceptada?: string | null
           tipo_vinculo?: string | null
           updated_at?: string
         }
@@ -2242,6 +2248,9 @@ export type Database = {
           prefiere_asignacion?: boolean
           price_snapshot?: number | null
           reservation_status?: string
+          terminos_aceptados_at?: string | null
+          terminos_snapshot?: Json | null
+          terminos_version_aceptada?: string | null
           tipo_vinculo?: string | null
           updated_at?: string
         }
