@@ -16,7 +16,7 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
-import { extractReglamento, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
+import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
 
 
