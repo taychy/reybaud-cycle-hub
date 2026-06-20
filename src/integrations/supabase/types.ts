@@ -1932,6 +1932,112 @@ export type Database = {
           },
         ]
       }
+      event_package_payment_plan_installments: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          fecha_vencimiento: string | null
+          id: string
+          monto_tipo: Database["public"]["Enums"]["payment_plan_monto_tipo"]
+          monto_valor: number
+          numero: number
+          plan_id: string
+          reminders_config: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          monto_tipo?: Database["public"]["Enums"]["payment_plan_monto_tipo"]
+          monto_valor?: number
+          numero: number
+          plan_id: string
+          reminders_config?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          monto_tipo?: Database["public"]["Enums"]["payment_plan_monto_tipo"]
+          monto_valor?: number
+          numero?: number
+          plan_id?: string
+          reminders_config?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_package_payment_plan_installments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "event_package_payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_package_payment_plans: {
+        Row: {
+          activo: boolean
+          archived_at: string | null
+          cantidad_cuotas: number
+          created_at: string
+          id: string
+          last_installment_absorbs_rounding: boolean
+          nombre: string
+          package_id: string
+          regla_reserva_tardia: Database["public"]["Enums"]["payment_plan_regla_tardia"]
+          sena_tipo: Database["public"]["Enums"]["payment_plan_sena_tipo"]
+          sena_valor: number
+          sena_vence_dias: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          activo?: boolean
+          archived_at?: string | null
+          cantidad_cuotas?: number
+          created_at?: string
+          id?: string
+          last_installment_absorbs_rounding?: boolean
+          nombre?: string
+          package_id: string
+          regla_reserva_tardia?: Database["public"]["Enums"]["payment_plan_regla_tardia"]
+          sena_tipo?: Database["public"]["Enums"]["payment_plan_sena_tipo"]
+          sena_valor?: number
+          sena_vence_dias?: number
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          activo?: boolean
+          archived_at?: string | null
+          cantidad_cuotas?: number
+          created_at?: string
+          id?: string
+          last_installment_absorbs_rounding?: boolean
+          nombre?: string
+          package_id?: string
+          regla_reserva_tardia?: Database["public"]["Enums"]["payment_plan_regla_tardia"]
+          sena_tipo?: Database["public"]["Enums"]["payment_plan_sena_tipo"]
+          sena_valor?: number
+          sena_vence_dias?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_package_payment_plans_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_packages: {
         Row: {
           activo: boolean
@@ -2154,6 +2260,9 @@ export type Database = {
           package_id: string | null
           package_nombre_snapshot: string | null
           participant_notes: string | null
+          payment_plan_id: string | null
+          payment_plan_name_snapshot: string | null
+          payment_plan_snapshot: Json | null
           payment_status: string
           prefiere_asignacion: boolean
           price_snapshot: number | null
@@ -2199,6 +2308,9 @@ export type Database = {
           package_id?: string | null
           package_nombre_snapshot?: string | null
           participant_notes?: string | null
+          payment_plan_id?: string | null
+          payment_plan_name_snapshot?: string | null
+          payment_plan_snapshot?: Json | null
           payment_status?: string
           prefiere_asignacion?: boolean
           price_snapshot?: number | null
@@ -2244,6 +2356,9 @@ export type Database = {
           package_id?: string | null
           package_nombre_snapshot?: string | null
           participant_notes?: string | null
+          payment_plan_id?: string | null
+          payment_plan_name_snapshot?: string | null
+          payment_plan_snapshot?: Json | null
           payment_status?: string
           prefiere_asignacion?: boolean
           price_snapshot?: number | null
@@ -2295,6 +2410,13 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reservations_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "event_package_payment_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -2349,6 +2471,7 @@ export type Database = {
       }
       events: {
         Row: {
+          admin_alert_emails: string[]
           created_at: string
           currency: string
           date: string
@@ -2382,6 +2505,7 @@ export type Database = {
           visible_to_students: boolean
         }
         Insert: {
+          admin_alert_emails?: string[]
           created_at?: string
           currency?: string
           date: string
@@ -2415,6 +2539,7 @@ export type Database = {
           visible_to_students?: boolean
         }
         Update: {
+          admin_alert_emails?: string[]
           created_at?: string
           currency?: string
           date?: string
@@ -3998,6 +4123,56 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_installment_reminders: {
+        Row: {
+          channel: Database["public"]["Enums"]["installment_reminder_channel"]
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          offset_days: number
+          recipient_email: string | null
+          recipient_type: Database["public"]["Enums"]["installment_reminder_recipient"]
+          reservation_installment_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["installment_reminder_status"]
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["installment_reminder_channel"]
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          offset_days: number
+          recipient_email?: string | null
+          recipient_type: Database["public"]["Enums"]["installment_reminder_recipient"]
+          reservation_installment_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["installment_reminder_status"]
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["installment_reminder_channel"]
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          offset_days?: number
+          recipient_email?: string | null
+          recipient_type?: Database["public"]["Enums"]["installment_reminder_recipient"]
+          reservation_installment_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["installment_reminder_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_installment_reminde_reservation_installment_id_fkey"
+            columns: ["reservation_installment_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_installments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_installments: {
         Row: {
           amount: number
@@ -4008,18 +4183,25 @@ export type Database = {
           created_at: string
           currency: string
           due_date: string | null
+          due_date_original: string | null
           event_installment_id: string | null
           external_payment_url: string | null
           id: string
           installment_number: number
+          installment_type: Database["public"]["Enums"]["installment_type_enum"]
           label: string
+          monto_original: number | null
+          monto_pagado: number
           notas: string | null
           original_due_date: string | null
           paid_amount: number
+          reprogramada_at: string | null
+          reprogramada_por: string | null
           rescheduled_at: string | null
           rescheduled_by: string | null
           rescheduled_from_due_date: string | null
           reservation_id: string
+          saldo_pendiente: number | null
           sort_order: number
           status: string
           status_reason: string | null
@@ -4034,18 +4216,25 @@ export type Database = {
           created_at?: string
           currency: string
           due_date?: string | null
+          due_date_original?: string | null
           event_installment_id?: string | null
           external_payment_url?: string | null
           id?: string
           installment_number: number
+          installment_type?: Database["public"]["Enums"]["installment_type_enum"]
           label: string
+          monto_original?: number | null
+          monto_pagado?: number
           notas?: string | null
           original_due_date?: string | null
           paid_amount?: number
+          reprogramada_at?: string | null
+          reprogramada_por?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
           rescheduled_from_due_date?: string | null
           reservation_id: string
+          saldo_pendiente?: number | null
           sort_order?: number
           status?: string
           status_reason?: string | null
@@ -4060,18 +4249,25 @@ export type Database = {
           created_at?: string
           currency?: string
           due_date?: string | null
+          due_date_original?: string | null
           event_installment_id?: string | null
           external_payment_url?: string | null
           id?: string
           installment_number?: number
+          installment_type?: Database["public"]["Enums"]["installment_type_enum"]
           label?: string
+          monto_original?: number | null
+          monto_pagado?: number
           notas?: string | null
           original_due_date?: string | null
           paid_amount?: number
+          reprogramada_at?: string | null
+          reprogramada_por?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
           rescheduled_from_due_date?: string | null
           reservation_id?: string
+          saldo_pendiente?: number | null
           sort_order?: number
           status?: string
           status_reason?: string | null
@@ -6532,7 +6728,17 @@ export type Database = {
         | "Sin grupo"
         | "Principiante"
         | "Personalizado"
+      installment_reminder_channel: "email" | "whatsapp_manual" | "admin_alert"
+      installment_reminder_recipient: "alumno" | "admin"
+      installment_reminder_status: "pending" | "sent" | "failed" | "skipped"
+      installment_type_enum: "sena" | "cuota"
       modo_mp: "test" | "prod"
+      payment_plan_monto_tipo: "fijo" | "porcentaje_saldo"
+      payment_plan_regla_tardia:
+        | "cobrar_al_reservar"
+        | "reprogramar_a_hoy"
+        | "mantener_fechas_fijas"
+      payment_plan_sena_tipo: "monto_fijo" | "porcentaje_paquete"
       tarea_estado: "pendiente" | "en_curso" | "hecha" | "pospuesta"
       tarea_prioridad: "baja" | "media" | "alta" | "critica"
       tarea_rol: "super_admin" | "admin" | "coach" | "deposito"
@@ -6717,7 +6923,18 @@ export const Constants = {
         "Principiante",
         "Personalizado",
       ],
+      installment_reminder_channel: ["email", "whatsapp_manual", "admin_alert"],
+      installment_reminder_recipient: ["alumno", "admin"],
+      installment_reminder_status: ["pending", "sent", "failed", "skipped"],
+      installment_type_enum: ["sena", "cuota"],
       modo_mp: ["test", "prod"],
+      payment_plan_monto_tipo: ["fijo", "porcentaje_saldo"],
+      payment_plan_regla_tardia: [
+        "cobrar_al_reservar",
+        "reprogramar_a_hoy",
+        "mantener_fechas_fijas",
+      ],
+      payment_plan_sena_tipo: ["monto_fijo", "porcentaje_paquete"],
       tarea_estado: ["pendiente", "en_curso", "hecha", "pospuesta"],
       tarea_prioridad: ["baja", "media", "alta", "critica"],
       tarea_rol: ["super_admin", "admin", "coach", "deposito"],
