@@ -291,7 +291,7 @@ const ScanCambioDialog = ({
 
         <div className="space-y-3">
           <ScanSlot
-            label={<><ArrowLeft className="w-3 h-3 inline mr-1" />Prenda que devuelve el alumno</> as any}
+            label={<><ArrowLeft className="w-3 h-3 inline mr-1" />Prenda que devuelve el alumno</>}
             value={devuelto}
             onChange={setDevuelto}
             expectedProductId={expectedReturnProductId}
@@ -307,7 +307,7 @@ const ScanCambioDialog = ({
 
           {enviarReemplazo && (
             <ScanSlot
-              label={<><ArrowRight className="w-3 h-3 inline mr-1" />Prenda que se envía como reemplazo</> as any}
+              label={<><ArrowRight className="w-3 h-3 inline mr-1" />Prenda que se envía como reemplazo</>}
               value={recibido}
               onChange={setRecibido}
               expectedProductId={expectedDeliverProductId}
