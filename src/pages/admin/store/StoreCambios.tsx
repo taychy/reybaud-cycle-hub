@@ -109,6 +109,19 @@ const AdminCambios = () => {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Origen:</span>
+        {(["all", "app", "presencial"] as const).map((o) => (
+          <button
+            key={o}
+            onClick={() => setOrigenFiltro(o)}
+            className={`text-[11px] px-2 py-1 rounded-md border ${origenFiltro === o ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+          >
+            {o === "all" ? "Todos" : o === "app" ? "App alumno" : "Presencial"}
+          </button>
+        ))}
+      </div>
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="pendientes">Pendientes <span className="ml-1 text-[10px] opacity-70">({buckets.pendientes.length})</span></TabsTrigger>
