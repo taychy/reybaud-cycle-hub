@@ -323,14 +323,18 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
             <b className="font-heading text-primary">{formatPrice(Math.max(Number(order.total), newTotalDisplay), order.currency)}</b>
           </div>
 
-          {editable && (
+          {(editable || canCancel) && (
             <div className="grid grid-cols-2 gap-2 pt-1">
-              <Button variant="outline" onClick={openPicker} disabled={busy}>
-                <Plus className="w-4 h-4 mr-1" /> Agregar
-              </Button>
-              <Button variant="destructive" onClick={handleCancel} disabled={busy}>
-                <XCircle className="w-4 h-4 mr-1" /> Cancelar
-              </Button>
+              {editable ? (
+                <Button variant="outline" onClick={openPicker} disabled={busy}>
+                  <Plus className="w-4 h-4 mr-1" /> Agregar
+                </Button>
+              ) : <span />}
+              {canCancel && (
+                <Button variant="destructive" onClick={handleCancel} disabled={busy} className={editable ? "" : "col-span-2"}>
+                  <XCircle className="w-4 h-4 mr-1" /> Cancelar pedido
+                </Button>
+              )}
             </div>
           )}
 
