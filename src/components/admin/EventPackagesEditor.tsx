@@ -56,6 +56,67 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(emptyDraft(eventCurrency));
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState(emptyDraft(eventCurrency));
+
+  const startEdit = (p: PackageRow) => {
+    setEditingId(p.id);
+    setEditDraft({
+      nombre: p.nombre,
+      descripcion: p.descripcion || "",
+      precio: String(p.precio ?? ""),
+      sena: p.sena != null ? String(p.sena) : "",
+      currency: p.currency,
+      personas_por_habitacion: String(p.personas_por_habitacion ?? 2),
+      cupo_mujeres: p.cupo_mujeres != null ? String(p.cupo_mujeres) : "",
+      cupo_varones: p.cupo_varones != null ? String(p.cupo_varones) : "",
+      cupo_mixto: p.cupo_mixto != null ? String(p.cupo_mixto) : "",
+      permite_mixto: !!p.permite_mixto,
+    });
+  };
+
+  const cancelEdit = () => { setEditingId(null); };
+
+  const saveEdit = async (p: PackageRow) => {
+    if (!editDraft.nombre.trim()) { toast.error("Nombre obligatorio"); return; }
+    const precio = parseFloat(editDraft.precio || "0");
+    if (isNaN(precio) || precio < 0) { toast.error("Precio inválido"); return; }
+    const sena = editDraft.sena ? parseFloat(editDraft.sena) : null;
+    if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
+    const personas = parseInt(editDraft.personas_por_habitacion || "2", 10);
+    if (isNaN(personas) || personas < 1) { toast.error("Personas por habitación inválido"); return; }
+    const parseCupo = (v: string) => (v.trim() === "" ? null : parseInt(v, 10));
+    const cm = parseCupo(editDraft.cupo_mujeres);
+    const cv = parseCupo(editDraft.cupo_varones);
+    const cx = parseCupo(editDraft.cupo_mixto);
+    for (const c of [cm, cv, cx]) {
+      if (c != null && (isNaN(c) || c < 0)) { toast.error("Cupo inválido"); return; }
+    }
+    const cupoTotal =
+      cm == null && cv == null && cx == null
+        ? null
+        : (cm || 0) + (cv || 0) + (cx || 0);
+
+    setSaving(true);
+    const { error } = await supabase.from("event_packages" as any).update({
+      nombre: editDraft.nombre.trim(),
+      descripcion: editDraft.descripcion.trim() || null,
+      precio,
+      sena,
+      currency: editDraft.currency,
+      cupo: cupoTotal,
+      personas_por_habitacion: personas,
+      cupo_mujeres: cm,
+      cupo_varones: cv,
+      cupo_mixto: editDraft.permite_mixto ? cx : null,
+      permite_mixto: editDraft.permite_mixto,
+    }).eq("id", p.id);
+    setSaving(false);
+    if (error) { toast.error("Error: " + error.message); return; }
+    toast.success("Paquete actualizado");
+    setEditingId(null);
+    load();
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
