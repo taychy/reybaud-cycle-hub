@@ -33,6 +33,7 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
   const [cantidad, setCantidad] = useState(1);
   const [variante, setVariante] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [metodoPago, setMetodoPago] = useState<"mp" | "efectivo">("mp");
 
   const moneda = product?.currency || "ARS";
 
