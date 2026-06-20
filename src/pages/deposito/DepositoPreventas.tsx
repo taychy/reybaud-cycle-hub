@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Tag, Printer } from "lucide-react";
+import { Search, Eye, QrCode, Printer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatPrice } from "@/lib/currency";
@@ -115,6 +115,7 @@ const DepositoPreventas = () => {
     const sede = r.sede_retiro_id ? sedes[r.sede_retiro_id] : null;
     return {
       id: r.id,
+      alumno_id: r.alumno_id,
       short_number: r.id.slice(0, 8).toUpperCase(),
       producto_nombre: r.producto_nombre,
       cantidad: r.cantidad,
@@ -253,7 +254,7 @@ const DepositoPreventas = () => {
                 <Eye className="w-4 h-4 mr-1" /> Ver
               </Button>
               <Button variant="outline" size="sm" className="h-9" onClick={() => printOne(r)} disabled={printing}>
-                <Tag className="w-4 h-4" />
+                <QrCode className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -298,7 +299,7 @@ const DepositoPreventas = () => {
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOne(r)} disabled={printing} title="Etiqueta"><Tag className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => printOne(r)} disabled={printing} title="Etiqueta con QR"><QrCode className="w-4 h-4" /></Button>
                     <Select value={r.estado} onValueChange={(v) => updateEstado(r.id, v)}>
                       <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -322,7 +323,7 @@ const DepositoPreventas = () => {
           {selected && (
             <div className="space-y-4 mt-4 text-sm">
               <Button onClick={() => printOne(selected)} disabled={printing} className="w-full gap-2">
-                <Tag className="w-4 h-4" /> Imprimir etiqueta
+                <QrCode className="w-4 h-4" /> Imprimir etiqueta
               </Button>
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{selected.alumno_nombre || nombreAlumno(selected.alumno_id, selected)}</div></div>

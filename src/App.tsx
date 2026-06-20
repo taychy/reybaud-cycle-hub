@@ -75,6 +75,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
+import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
 import PublicCuentaCorriente from "./pages/PublicCuentaCorriente";
 import AuthCallback from "./pages/AuthCallback";
 import UpdatePrompt from "./components/UpdatePrompt";
@@ -203,6 +204,7 @@ const App = () => (
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="/preventa/:productId" element={<PublicPreorderPage />} />
           <Route path="/pagar-preventa/:preorderId" element={<PreorderPagoRedirect />} />
+          <Route path="/pagar-preventas-alumno/:alumnoId" element={<PreorderAlumnoPagoRedirect />} />
           <Route path="/cuenta/:token" element={<PublicCuentaCorriente />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
