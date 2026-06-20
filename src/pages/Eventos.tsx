@@ -35,7 +35,9 @@ interface Event {
   spots_taken: number;
   level: string | null;
   metadata: any;
+  packages_min_price?: number | null;
 }
+
 
 type TabFilter = "todos" | "escuela" | "carreras" | "viajes" | "mis_eventos" | "favoritos";
 
