@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
+
 
 interface PackageRow {
   id: string;
@@ -350,6 +352,11 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                     )}
                   </div>
                   {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
+                  <PackagePaymentPlanEditor
+                    packageId={p.id}
+                    packagePrice={p.precio}
+                    currency={p.currency}
+                  />
                 </div>
                 <Switch checked={p.activo} onCheckedChange={() => toggleActive(p)} />
                 <Button size="icon" variant="ghost" onClick={() => startEdit(p)} className="h-7 w-7">
@@ -359,6 +366,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
                 </Button>
               </div>
+
             );
           })}
         </div>
