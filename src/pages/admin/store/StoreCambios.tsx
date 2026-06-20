@@ -41,11 +41,18 @@ const AdminCambios = () => {
 
   useEffect(() => { load(); }, []);
 
-  const buckets = {
-    pendientes: items.filter((c) => c.estado === "solicitado" || c.estado === "devolucion_solicitada"),
-    en_curso: items.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
-    cerrados: items.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
-  };
+  const [origenFiltro, setOrigenFiltro] = useState<"all" | "app" | "presencial">("all");
+
+  const buckets = (() => {
+    const filtered = origenFiltro === "all"
+      ? items
+      : items.filter((c) => (c.origen_solicitud || "app") === origenFiltro);
+    return {
+      pendientes: filtered.filter((c) => c.estado === "solicitado" || c.estado === "devolucion_solicitada"),
+      en_curso: filtered.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
+      cerrados: filtered.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
+    };
+  })();
 
   const transition = async (id: string, nuevo: string, nota?: string) => {
     const { error } = await supabase.rpc("transition_cambio_estado" as any, {
@@ -76,6 +83,10 @@ const AdminCambios = () => {
                 <p className="text-[11px] text-muted-foreground">
                   {new Date(c.created_at).toLocaleDateString("es-AR")} · motivo: {c.motivo}
                   {c.iniciado_por === "admin" && <span className="text-amber-400 ml-1">· admin</span>}
+                  {c.origen_solicitud === "presencial" && <span className="text-cyan ml-1">· presencial</span>}
+                  {c.reemplazo_estado && c.reemplazo_estado !== "sin_definir" && (
+                    <span className="ml-1">· reemplazo: {c.reemplazo_estado}</span>
+                  )}
                 </p>
               </div>
               <Badge className={`text-[10px] uppercase ${estadoColor[c.estado]}`}>{c.estado}</Badge>
