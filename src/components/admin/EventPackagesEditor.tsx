@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, BedDouble } from "lucide-react";
+import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 
 interface PackageRow {
