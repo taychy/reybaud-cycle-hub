@@ -35,8 +35,10 @@ interface Props {
 }
 
 const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+// Cambio: permitido desde el momento del pago/pendiente efectivo hasta enviado.
+// Se corta en `listo_retiro` y posteriores (la mercadería ya está en sede).
 const canRequestChange = (status: string, deliveredAt: string | null | undefined) => {
-  if (["preparando", "enviado"].includes(status)) return true;
+  if (["pagado", "pendiente_pago_efectivo", "preparando", "enviado"].includes(status)) return true;
   if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
   return false;
 };
