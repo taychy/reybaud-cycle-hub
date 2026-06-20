@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin, Phone, User, Mail, QrCode } from "lucide-react";
+import { Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin, Phone, User, Mail, QrCode, MessageCircle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
@@ -233,6 +233,7 @@ const StorePreorders = () => {
     const sede = r.sede_retiro_id ? sedesMap[r.sede_retiro_id] : null;
     await printSinglePreorderLabel({
       id: r.id,
+      alumno_id: r.alumno_id,
       short_number: r.id.slice(0, 8).toUpperCase(),
       producto_nombre: r.producto_nombre,
       cantidad: r.cantidad,
@@ -253,6 +254,46 @@ const StorePreorders = () => {
       alumno_telefono: al?.telefono || (r as any).alumno_telefono || null,
       created_at: r.created_at,
     });
+  };
+
+  const enviarWhatsApp = (r: Preorder) => {
+    const al = alumnosMap[r.alumno_id];
+    const tel = (al?.telefono || (r as any).alumno_telefono || "").replace(/\D/g, "");
+    if (!tel) {
+      toast({ title: "Sin teléfono", description: "El cliente no tiene WhatsApp cargado.", variant: "destructive" });
+      return;
+    }
+    // Normalizar a formato AR (549...) si arranca con 11/15/etc sin código país
+    let waTel = tel;
+    if (!waTel.startsWith("54")) waTel = "549" + waTel.replace(/^0?15?/, "");
+    else if (waTel.startsWith("54") && !waTel.startsWith("549")) waTel = "549" + waTel.slice(2);
+
+    const origin = window.location.origin;
+    const senaConfirmada = r.estado_pago_sena === "confirmada";
+    const saldo = Number(r.saldo_pendiente || 0);
+    const isSaldo = senaConfirmada && saldo > 0;
+    const monto = isSaldo ? saldo : Number(r.sena_monto || 0);
+    const totalUrl = `${origin}/pagar-preventa/${r.id}${!senaConfirmada ? "?modo=total" : ""}`;
+    const senaUrl = `${origin}/pagar-preventa/${r.id}`;
+    const nombre = al?.nombre || (r as any).alumno_nombre?.split(" ")?.[0] || "";
+
+    const lines: string[] = [];
+    lines.push(`Hola ${nombre}! 👋`);
+    lines.push("");
+    lines.push(`Te paso el link para completar el pago de tu preventa *${r.producto_nombre}* (x${r.cantidad}):`);
+    lines.push("");
+    if (isSaldo) {
+      lines.push(`💳 Pagar saldo (${formatPrice(monto, r.moneda)}): ${senaUrl}`);
+    } else {
+      lines.push(`💳 Pagar seña (${formatPrice(Number(r.sena_monto || 0), r.moneda)}): ${senaUrl}`);
+      if (saldo > 0) {
+        lines.push(`💎 O pagar el total (${formatPrice(Number(r.sena_monto || 0) + saldo, r.moneda)}): ${totalUrl}`);
+      }
+    }
+    lines.push("");
+    lines.push("¡Gracias! — Ciclismo Reybaud");
+    const msg = encodeURIComponent(lines.join("\n"));
+    window.open(`https://wa.me/${waTel}?text=${msg}`, "_blank");
   };
 
 
@@ -535,10 +576,13 @@ const StorePreorders = () => {
                   </td>
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" title="Enviar recordatorio de pago" onClick={() => enviarRecordatorio(r)}>
+                      <Button size="sm" variant="ghost" title="Enviar recordatorio por email" onClick={() => enviarRecordatorio(r)}>
                         <Mail className="w-4 h-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" title="Imprimir etiqueta con QR" onClick={() => imprimirEtiqueta(r)}>
+                      <Button size="sm" variant="ghost" title="Enviar link de pago por WhatsApp" className="text-green-500 hover:text-green-400" onClick={() => enviarWhatsApp(r)}>
+                        <MessageCircle className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Imprimir etiqueta con QR" className="bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => imprimirEtiqueta(r)}>
                         <QrCode className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
@@ -687,12 +731,17 @@ const StorePreorders = () => {
                     <Button onClick={() => imprimirEtiqueta(detail)} variant="outline">
                       <QrCode className="w-4 h-4 mr-1" /> Etiqueta QR
                     </Button>
-                    <Button onClick={() => enviarRecordatorio(detail)} className="col-span-2">
-                      <Mail className="w-4 h-4 mr-1" />
-                      {detail.estado_pago_sena === "confirmada" && Number(detail.saldo_pendiente || 0) > 0
-                        ? "Enviar recordatorio de saldo"
-                        : "Enviar recordatorio de seña"}
+                    <Button onClick={() => enviarWhatsApp(detail)} variant="outline" className="border-green-500/30 text-green-500 hover:bg-green-500/10">
+                      <MessageCircle className="w-4 h-4 mr-1" /> WhatsApp
                     </Button>
+                    <Button onClick={() => enviarRecordatorio(detail)}>
+                      <Mail className="w-4 h-4 mr-1" /> Email recordatorio
+                    </Button>
+                    <div className="col-span-2 text-[11px] text-muted-foreground text-center">
+                      {detail.estado_pago_sena === "confirmada" && Number(detail.saldo_pendiente || 0) > 0
+                        ? "Enviará link para pagar saldo pendiente"
+                        : "Enviará link para pagar seña + opción de pagar total"}
+                    </div>
                   </div>
                 </div>
               </>

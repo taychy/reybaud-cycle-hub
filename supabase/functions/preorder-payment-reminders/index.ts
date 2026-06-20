@@ -14,6 +14,56 @@ const BRAND = "#FF6B1A";
 // Reminder schedule (hours after created_at): 1st @ 48h, 2nd @ 168h (7d). Max 2.
 const SCHEDULE_HOURS = [48, 168];
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const getOrCreateUnsubscribeToken = async (supabase: any, email: string) => {
+  const normalizedEmail = normalizeEmail(email);
+  const { data: existing } = await supabase
+    .from('email_unsubscribe_tokens')
+    .select('token')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+  if (existing?.token) return existing.token;
+  const newToken = crypto.randomUUID();
+  const { data: inserted, error } = await supabase
+    .from('email_unsubscribe_tokens')
+    .insert({ email: normalizedEmail, token: newToken })
+    .select('token')
+    .single();
+  if (!error && inserted?.token) return inserted.token;
+  const { data: fallback } = await supabase
+    .from('email_unsubscribe_tokens')
+    .select('token')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+  if (fallback?.token) return fallback.token;
+  throw error ?? new Error('Could not create unsubscribe token');
+};
+
+async function generatePayUrl(supabase: any, preorderId: string, mode: "sena" | "total" | "saldo"): Promise<string> {
+  const fnName =
+    mode === "saldo" ? "create-preorder-saldo-mp-preference"
+    : mode === "total" ? "create-preorder-total-mp-preference"
+    : "create-preorder-mp-preference";
+  try {
+    const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fnName}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({ preorder_id: preorderId }),
+    });
+    const j = await r.json();
+    if (j?.init_point) return j.init_point;
+  } catch (e) {
+    console.error("mp pref error", preorderId, mode, e);
+  }
+  // fallback al redirect interno
+  const qs = mode === "total" ? "?modo=total" : "";
+  return `${APP_URL}/pagar-preventa/${preorderId}${qs}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -31,7 +81,7 @@ Deno.serve(async (req) => {
       manual = !!body?.manual;
     } catch (_) {}
 
-    // Manual single send: fetch by id, autodetect seña vs saldo
+    // ── Manual single send ──
     if (only_id) {
       const { data: r, error: e1 } = await supabase
         .from("store_preorders")
@@ -46,30 +96,26 @@ Deno.serve(async (req) => {
       const isSena = r.estado_pago_sena !== "confirmada";
       if (!isSaldo && !isSena) throw new Error("Esta preventa ya está totalmente pagada");
 
-      const monto = isSaldo ? Number(r.saldo_pendiente || 0) : Number(r.sena_monto || 0);
+      const sena = Number(r.sena_monto || 0);
+      const saldo = Number(r.saldo_pendiente || 0);
 
-      // Generate fresh MP checkout link
-      let payUrl = `${APP_URL}/pagar-preventa/${r.id}`;
-      try {
-        const fnName = isSaldo ? "create-preorder-saldo-mp-preference" : "create-preorder-mp-preference";
-        const mpResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fnName}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({ preorder_id: r.id }),
-        });
-        const mp = await mpResp.json();
-        if (mp?.init_point) payUrl = mp.init_point;
-      } catch (e) { console.error("mp pref error", r.id, e); }
+      // Generar links
+      const payUrlPrimary = isSaldo
+        ? await generatePayUrl(supabase, r.id, "saldo")
+        : await generatePayUrl(supabase, r.id, "sena");
+      // Sólo si seña pendiente Y hay saldo > 0, ofrecer "pagar total"
+      const payUrlTotal = !isSaldo && saldo > 0
+        ? await generatePayUrl(supabase, r.id, "total")
+        : null;
 
       const html = renderEmail({
         nombre: (r.alumno_nombre || "").split(" ")[0] || "hola",
         producto: r.producto_nombre,
         cantidad: r.cantidad,
-        monto: formatMoney(monto, r.moneda || "ARS"),
-        payUrl,
+        montoPrimary: formatMoney(isSaldo ? saldo : sena, r.moneda || "ARS"),
+        montoTotal: payUrlTotal ? formatMoney(sena + saldo, r.moneda || "ARS") : null,
+        payUrlPrimary,
+        payUrlTotal,
         isSecond: false,
         mode: isSaldo ? "saldo" : "sena",
       });
@@ -79,6 +125,7 @@ Deno.serve(async (req) => {
         : `Te queda pendiente la seña de tu ${r.producto_nombre}`;
 
       const messageId = crypto.randomUUID();
+      const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.alumno_email);
       const idemSuffix = isSaldo ? `saldo-${Date.now()}` : `sena-manual-${Date.now()}`;
       const { error: enqErr } = await supabase.rpc("enqueue_email", {
         queue_name: "transactional_emails",
@@ -93,6 +140,7 @@ Deno.serve(async (req) => {
           purpose: "transactional",
           label: "preorder_payment_reminder_manual",
           idempotency_key: `preorder-remind-${r.id}-${idemSuffix}`,
+          unsubscribe_token: unsubToken,
           queued_at: new Date().toISOString(),
         },
       });
@@ -107,10 +155,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cron path: only seña pending, respecting schedule
+    // ── Cron: seña pendiente con schedule ──
     const { data: rows, error } = await supabase
       .from("store_preorders")
-      .select("id, alumno_nombre, alumno_email, producto_nombre, cantidad, sena_monto, moneda, estado, estado_pago_sena, created_at, sena_reminder_count, sena_last_reminder_at, cancelada_at")
+      .select("id, alumno_nombre, alumno_email, producto_nombre, cantidad, sena_monto, saldo_pendiente, moneda, estado, estado_pago_sena, created_at, sena_reminder_count, sena_last_reminder_at, cancelada_at")
       .eq("estado_pago_sena", "pendiente")
       .in("estado", ["pendiente_pago_sena", "reservada"])
       .is("cancelada_at", null)
@@ -128,27 +176,20 @@ Deno.serve(async (req) => {
       const due = hours >= SCHEDULE_HOURS[nextIdx];
       if (!due) { results.push({ id: r.id, skipped: `wait ${SCHEDULE_HOURS[nextIdx]}h` }); continue; }
 
-      let payUrl = `${APP_URL}/pagar-preventa/${r.id}`;
-      try {
-        const mpResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/create-preorder-mp-preference`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({ preorder_id: r.id }),
-        });
-        const mp = await mpResp.json();
-        if (mp?.init_point) payUrl = mp.init_point;
-      } catch (e) { console.error("mp pref error", r.id, e); }
+      const sena = Number(r.sena_monto || 0);
+      const saldo = Number(r.saldo_pendiente || 0);
+      const payUrlPrimary = await generatePayUrl(supabase, r.id, "sena");
+      const payUrlTotal = saldo > 0 ? await generatePayUrl(supabase, r.id, "total") : null;
 
       const isSecond = nextIdx === 1;
       const html = renderEmail({
         nombre: (r.alumno_nombre || "").split(" ")[0] || "hola",
         producto: r.producto_nombre,
         cantidad: r.cantidad,
-        monto: formatMoney(Number(r.sena_monto || 0), r.moneda || "ARS"),
-        payUrl,
+        montoPrimary: formatMoney(sena, r.moneda || "ARS"),
+        montoTotal: payUrlTotal ? formatMoney(sena + saldo, r.moneda || "ARS") : null,
+        payUrlPrimary,
+        payUrlTotal,
         isSecond,
         mode: "sena",
       });
@@ -158,6 +199,7 @@ Deno.serve(async (req) => {
         : `Te queda pendiente la seña de tu ${r.producto_nombre}`;
 
       const messageId = crypto.randomUUID();
+      const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.alumno_email);
       const { error: enqErr } = await supabase.rpc("enqueue_email", {
         queue_name: "transactional_emails",
         payload: {
@@ -171,6 +213,7 @@ Deno.serve(async (req) => {
           purpose: "transactional",
           label: "preorder_payment_reminder",
           idempotency_key: `preorder-remind-${r.id}-${nextIdx}`,
+          unsubscribe_token: unsubToken,
           queued_at: new Date().toISOString(),
         },
       });
@@ -206,14 +249,32 @@ function escapeHtml(s: string) {
   return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
 
-function renderEmail(d: { nombre: string; producto: string; cantidad: number; monto: string; payUrl: string; isSecond: boolean; mode: "sena" | "saldo" }) {
+function renderEmail(d: {
+  nombre: string;
+  producto: string;
+  cantidad: number;
+  montoPrimary: string;
+  montoTotal: string | null;
+  payUrlPrimary: string;
+  payUrlTotal: string | null;
+  isSecond: boolean;
+  mode: "sena" | "saldo";
+}) {
   const intro = d.mode === "saldo"
     ? "Te escribimos para recordarte que tu pedido tiene un saldo pendiente. Para coordinar la entrega o el retiro necesitamos que completes el pago."
     : (d.isSecond
         ? "Te escribimos por última vez para recordarte que tu reserva sigue pendiente de pago. Si no acreditamos la seña en las próximas horas, vamos a tener que liberar la unidad."
         : "Vimos que dejaste tu reserva iniciada pero la seña todavía no llegó a nuestra cuenta. Para confirmarla, necesitamos que completes el pago.");
-  const ctaLabel = d.mode === "saldo" ? "Pagar saldo ahora" : "Pagar seña ahora";
-  const montoLabel = d.mode === "saldo" ? "Saldo pendiente" : "Seña pendiente";
+  const ctaPrimaryLabel = d.mode === "saldo" ? "Pagar saldo ahora" : "Pagar seña ahora";
+  const montoPrimaryLabel = d.mode === "saldo" ? "Saldo pendiente" : "Seña pendiente";
+
+  const secondaryCta = d.payUrlTotal && d.montoTotal ? `
+      <div style="text-align:center;margin:10px 0 20px;">
+        <a href="${escapeHtml(d.payUrlTotal)}" style="display:inline-block;background:transparent;color:${BRAND};text-decoration:none;padding:12px 26px;border:1.5px solid ${BRAND};border-radius:10px;font-weight:600;font-size:13px;">Pagar total (${escapeHtml(d.montoTotal)})</a>
+      </div>
+      <p style="font-size:11px;color:#999;text-align:center;margin:0 0 18px;">Si preferís dejarlo abonado de una sola vez, podés pagar el total ahora.</p>
+    ` : "";
+
   return `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;">
   <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
     <div style="border-top:4px solid ${BRAND};padding-top:24px;">
@@ -224,19 +285,21 @@ function renderEmail(d: { nombre: string; producto: string; cantidad: number; mo
         <table style="width:100%;font-size:14px;border-collapse:collapse;">
           <tr><td style="padding:6px 0;color:#777;">Producto</td><td style="padding:6px 0;font-weight:600;text-align:right;">${escapeHtml(d.producto)}</td></tr>
           <tr><td style="padding:6px 0;color:#777;">Cantidad</td><td style="padding:6px 0;text-align:right;">${d.cantidad}</td></tr>
-          <tr><td style="padding:6px 0;color:#777;">${montoLabel}</td><td style="padding:6px 0;font-weight:700;color:${BRAND};text-align:right;">${escapeHtml(d.monto)}</td></tr>
+          <tr><td style="padding:6px 0;color:#777;">${montoPrimaryLabel}</td><td style="padding:6px 0;font-weight:700;color:${BRAND};text-align:right;">${escapeHtml(d.montoPrimary)}</td></tr>
+          ${d.montoTotal ? `<tr><td style="padding:6px 0;color:#777;">Total preventa</td><td style="padding:6px 0;text-align:right;">${escapeHtml(d.montoTotal)}</td></tr>` : ""}
         </table>
       </div>
 
-      <div style="text-align:center;margin:28px 0;">
-        <a href="${escapeHtml(d.payUrl)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:600;font-size:14px;">${ctaLabel}</a>
+      <div style="text-align:center;margin:24px 0 12px;">
+        <a href="${escapeHtml(d.payUrlPrimary)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:600;font-size:14px;">${ctaPrimaryLabel}</a>
       </div>
+      ${secondaryCta}
 
       <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 12px;text-align:center;">
         ¿Ya pagaste por transferencia o efectivo?
       </p>
       <div style="text-align:center;margin:0 0 8px;">
-        <a href="${APP_URL}/perfil?section=tienda" style="display:inline-block;background:transparent;color:${BRAND};text-decoration:none;padding:10px 22px;border:1.5px solid ${BRAND};border-radius:10px;font-weight:600;font-size:13px;">Informar pago</a>
+        <a href="${APP_URL}/perfil?section=tienda" style="display:inline-block;background:transparent;color:#555;text-decoration:none;padding:10px 22px;border:1.5px solid #ddd;border-radius:10px;font-weight:600;font-size:13px;">Informar pago</a>
       </div>
 
       <hr style="border:0;border-top:1px solid #eee;margin:32px 0 16px;" />

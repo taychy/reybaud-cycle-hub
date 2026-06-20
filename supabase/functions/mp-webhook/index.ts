@@ -336,9 +336,18 @@ Deno.serve(async (req) => {
 
     const isEventRef = externalRef.startsWith("event:");
     const isPreorderRef = externalRef.startsWith("preorder:");
+    const isPreorderSaldoRef = externalRef.startsWith("preorder_saldo:");
+    const isPreorderTotalRef = externalRef.startsWith("preorder_total:");
+    const isPreorderAlumnoRef = externalRef.startsWith("preorder_alumno_saldo:");
     const isStoreOrderRef = externalRef.startsWith("store_order:");
     const refUuid = isEventRef
       ? externalRef.slice("event:".length)
+      : isPreorderSaldoRef
+      ? externalRef.slice("preorder_saldo:".length)
+      : isPreorderTotalRef
+      ? externalRef.slice("preorder_total:".length)
+      : isPreorderAlumnoRef
+      ? externalRef.slice("preorder_alumno_saldo:".length)
       : isPreorderRef
       ? externalRef.slice("preorder:".length)
       : isStoreOrderRef
@@ -351,6 +360,71 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // ─── PREORDER SALDO / TOTAL / ALUMNO ───
+    if (isPreorderSaldoRef || isPreorderTotalRef || isPreorderAlumnoRef) {
+      if (payment.status !== "approved") {
+        return new Response(JSON.stringify({ ok: true, kind: "preorder_extra", status: payment.status, skipped: "not approved" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const nowIso = new Date().toISOString();
+
+      if (isPreorderAlumnoRef) {
+        // Pagar TODO el pendiente del alumno: confirmar seña y limpiar saldo en cada preventa abierta
+        const alumnoId = refUuid;
+        const { data: list } = await supabaseAdmin
+          .from("store_preorders")
+          .select("id, estado, estado_pago_sena, saldo_pendiente")
+          .eq("alumno_id", alumnoId)
+          .is("cancelada_at", null)
+          .neq("estado", "cancelada");
+        for (const p of list || []) {
+          const upd: Record<string, unknown> = { mp_payment_id: String(payment.id) };
+          if (p.estado_pago_sena !== "confirmada") {
+            upd.estado_pago_sena = "confirmada";
+            upd.sena_pagada_at = nowIso;
+            if (p.estado === "pendiente_pago_sena") upd.estado = "reservada";
+          }
+          if (Number(p.saldo_pendiente || 0) > 0) {
+            upd.saldo_pendiente = 0;
+            
+          }
+          await supabaseAdmin.from("store_preorders").update(upd).eq("id", p.id);
+        }
+        return new Response(JSON.stringify({ ok: true, kind: "preorder_alumno", updated: (list || []).length }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // SALDO o TOTAL (single preorder)
+      const preorderId = refUuid;
+      const { data: pre } = await supabaseAdmin
+        .from("store_preorders")
+        .select("id, estado, estado_pago_sena")
+        .eq("id", preorderId)
+        .maybeSingle();
+      if (!pre) {
+        return new Response(JSON.stringify({ ok: true, missing: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const upd: Record<string, unknown> = {
+        mp_payment_id: String(payment.id),
+        saldo_pendiente: 0,
+      };
+      if (isPreorderTotalRef && pre.estado_pago_sena !== "confirmada") {
+        upd.estado_pago_sena = "confirmada";
+        upd.sena_pagada_at = nowIso;
+        if (pre.estado === "pendiente_pago_sena") upd.estado = "reservada";
+      }
+      await supabaseAdmin.from("store_preorders").update(upd).eq("id", preorderId);
+
+      return new Response(JSON.stringify({ ok: true, kind: isPreorderTotalRef ? "preorder_total" : "preorder_saldo", status: payment.status }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     // ─── STORE ORDER FLOW (in-app product purchase) ───
     if (isStoreOrderRef) {

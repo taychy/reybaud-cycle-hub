@@ -4,6 +4,7 @@ import { formatPrice } from "@/lib/currency";
 
 export interface PreorderLabelData {
   id: string;
+  alumno_id?: string | null;
   short_number?: string | number;
   producto_nombre: string;
   cantidad: number;
@@ -37,6 +38,9 @@ const MARGIN = 6;
 
 const buildPayUrl = (p: PreorderLabelData): string => {
   const origin = typeof window !== "undefined" ? window.location.origin : "https://reybaud-app.com";
+  // Si tenemos alumno_id, el QR cobra el TOTAL pendiente de TODAS las preventas
+  // abiertas del cliente (no sólo esta etiqueta). Caso contrario, fallback a la individual.
+  if (p.alumno_id) return `${origin}/pagar-preventas-alumno/${p.alumno_id}`;
   return `${origin}/pagar-preventa/${p.id}`;
 };
 
@@ -210,8 +214,13 @@ const drawLabel = async (
       doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
-      doc.setTextColor(senaConfirmada ? 20 : 180, senaConfirmada ? 20 : 60, senaConfirmada ? 20 : 30);
-      doc.text(senaConfirmada ? "PAGAR SALDO" : "PAGAR SEÑA", qrX + qrSize / 2, qrY + qrSize + 3, { align: "center" });
+      doc.setTextColor(180, 60, 30);
+      doc.text(
+        p.alumno_id ? "PAGAR TOTAL PENDIENTE" : (senaConfirmada ? "PAGAR SALDO" : "PAGAR SEÑA"),
+        qrX + qrSize / 2,
+        qrY + qrSize + 3,
+        { align: "center" },
+      );
       doc.setTextColor(20);
     } else {
       doc.setDrawColor(20, 120, 60);
