@@ -200,8 +200,18 @@ const EventForm = ({
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(
     initialData ? categoryFromDbType(initialData.type) : null
   );
+  const [hasPackages, setHasPackages] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detectar si el evento ya tiene paquetes configurados
+  useEffect(() => {
+    if (!eventId) { setHasPackages(false); return; }
+    supabase.from("event_packages" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .then(({ count }) => setHasPackages((count ?? 0) > 0));
+  }, [eventId]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
