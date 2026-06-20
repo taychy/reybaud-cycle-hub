@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ const labelStatus = (s: string) => s.replace(/_/g, " ");
 
 const DepositoPedidos = () => {
   const [rows, setRows] = useState<any[]>([]);
+  const [itemsByOrder, setItemsByOrder] = useState<Record<string, any[]>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,21 @@ const DepositoPedidos = () => {
       setLoading(false);
       return;
     }
-    setRows(data || []);
+    const list = data || [];
+    setRows(list);
+    const ids = list.map((r: any) => r.id);
+    if (ids.length) {
+      const { data: its } = await supabase
+        .from("store_order_items")
+        .select("order_id, product_name, quantity, unit_price")
+        .in("order_id", ids);
+      const map: Record<string, any[]> = {};
+      (its || []).forEach((it: any) => {
+        if (!map[it.order_id]) map[it.order_id] = [];
+        map[it.order_id].push(it);
+      });
+      setItemsByOrder(map);
+    }
     setLoading(false);
   };
 
@@ -69,8 +84,8 @@ const DepositoPedidos = () => {
       return;
     }
     toast({ title: "Estado actualizado" });
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
     if (selected?.id === id) setSelected((s: any) => ({ ...s, status }));
-    load();
   };
 
   const saveTracking = async () => {
@@ -87,16 +102,26 @@ const DepositoPedidos = () => {
     load();
   };
 
-  const filtered = rows.filter((r) => {
+  const resumenProductos = (orderId: string) => {
+    const its = itemsByOrder[orderId] || [];
+    if (!its.length) return { texto: "—", cantidad: 0 };
+    const cantidad = its.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
+    const primero = its[0]?.product_name || "—";
+    const texto = its.length > 1 ? `${primero} +${its.length - 1} más` : primero;
+    return { texto, cantidad };
+  };
+
+  const filtered = useMemo(() => rows.filter((r) => {
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
     if (search) {
       const s = search.toLowerCase();
       const nom = (r.customer_name || "").toLowerCase();
       const num = String(r.order_number || "");
-      if (!nom.includes(s) && !num.includes(s)) return false;
+      const prods = (itemsByOrder[r.id] || []).map((it) => (it.product_name || "").toLowerCase()).join(" ");
+      if (!nom.includes(s) && !num.includes(s) && !prods.includes(s)) return false;
     }
     return true;
-  });
+  }), [rows, itemsByOrder, search, filterStatus]);
 
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando pedidos...</div>;
 
@@ -109,7 +134,7 @@ const DepositoPedidos = () => {
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar por cliente o #..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Buscar por cliente, producto o #..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-[200px]"><SelectValue placeholder="Estado" /></SelectTrigger>
@@ -122,34 +147,37 @@ const DepositoPedidos = () => {
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
-        {filtered.map((r) => (
-          <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-            <div className="flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="font-heading font-bold text-sm leading-tight">#{r.order_number}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{r.customer_name || "—"}</div>
-                <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
+        {filtered.map((r) => {
+          const res = resumenProductos(r.id);
+          return (
+            <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-heading font-bold text-sm leading-tight">{res.texto}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{r.customer_name || "—"} · #{r.order_number}{res.cantidad ? ` · x${res.cantidad}` : ""}</div>
+                  <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-heading font-bold text-sm">${r.total?.toLocaleString("es-AR")}</div>
+                  <span className={`inline-block mt-1 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${statusColor(r.status)}`}>
+                    {labelStatus(r.status)}
+                  </span>
+                </div>
               </div>
-              <div className="text-right shrink-0">
-                <div className="font-heading font-bold text-sm">${r.total?.toLocaleString("es-AR")}</div>
-                <span className={`inline-block mt-1 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${statusColor(r.status)}`}>
-                  {labelStatus(r.status)}
-                </span>
+              <div className="flex items-center gap-2">
+                <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
+                  <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" className="h-9" onClick={() => openOrder(r)}>
+                  <Eye className="w-4 h-4 mr-1" /> Ver
+                </Button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
-                <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" className="h-9" onClick={() => openOrder(r)}>
-                <Eye className="w-4 h-4 mr-1" /> Ver
-              </Button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground text-sm">No hay pedidos</div>
         )}
@@ -159,8 +187,9 @@ const DepositoPedidos = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
-              <th className="px-4 py-3 text-left font-heading text-xs uppercase">#</th>
+              <th className="px-4 py-3 text-left font-heading text-xs uppercase">Productos</th>
               <th className="px-4 py-3 text-left font-heading text-xs uppercase">Cliente</th>
+              <th className="px-4 py-3 text-center font-heading text-xs uppercase">Cant.</th>
               <th className="px-4 py-3 text-right font-heading text-xs uppercase">Total</th>
               <th className="px-4 py-3 text-center font-heading text-xs uppercase">Estado</th>
               <th className="px-4 py-3 text-left font-heading text-xs uppercase hidden md:table-cell">Fecha</th>
@@ -168,30 +197,37 @@ const DepositoPedidos = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((r) => (
-              <tr key={r.id} className="hover:bg-muted/30">
-                <td className="px-4 py-2 font-heading font-bold">{r.order_number}</td>
-                <td className="px-4 py-2 text-foreground">{r.customer_name || "—"}</td>
-                <td className="px-4 py-2 text-right font-heading font-bold">${r.total?.toLocaleString("es-AR")}</td>
-                <td className="px-4 py-2 text-center">
-                  <span className={`text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${statusColor(r.status)}`}>
-                    {labelStatus(r.status)}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openOrder(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
-                    <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
-                      <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((r) => {
+              const res = resumenProductos(r.id);
+              return (
+                <tr key={r.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-2">
+                    <div className="font-medium leading-tight">{res.texto}</div>
+                    <div className="text-xs text-muted-foreground">#{r.order_number}</div>
+                  </td>
+                  <td className="px-4 py-2 text-foreground">{r.customer_name || "—"}</td>
+                  <td className="px-4 py-2 text-center">{res.cantidad || "—"}</td>
+                  <td className="px-4 py-2 text-right font-heading font-bold">${r.total?.toLocaleString("es-AR")}</td>
+                  <td className="px-4 py-2 text-center">
+                    <span className={`text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${statusColor(r.status)}`}>
+                      {labelStatus(r.status)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openOrder(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
+                      <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
+                        <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No hay pedidos</div>}
