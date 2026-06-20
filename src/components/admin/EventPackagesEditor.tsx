@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
 
@@ -60,6 +60,10 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
   const [draft, setDraft] = useState(emptyDraft(eventCurrency));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState(emptyDraft(eventCurrency));
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const startEdit = (p: PackageRow) => {
     setEditingId(p.id);
@@ -330,41 +334,54 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                 </div>
               );
             }
+            const isOpen = !!expanded[p.id];
             return (
-              <div key={p.id} className={`flex items-start gap-2 p-2 rounded-lg border border-border/50 ${p.activo ? "" : "opacity-50"}`}>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{p.nombre}</span>
-                    <span className="text-xs text-muted-foreground">{formatPrice(p.precio, p.currency as any)}</span>
-                    {p.sena != null && (
-                      <span className="text-[10px] text-muted-foreground">seña: {formatPrice(p.sena, p.currency as any)}</span>
-                    )}
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                      {p.personas_por_habitacion} {p.personas_por_habitacion === 1 ? "persona" : "personas"}/hab
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {renderCupoLine("Mujeres", c.mujeres, p.cupo_mujeres, "rose")}
-                    {renderCupoLine("Varones", c.varones, p.cupo_varones, "sky")}
-                    {p.permite_mixto && renderCupoLine("Mixta", c.mixto, p.cupo_mixto, "violet")}
-                    {p.cupo_mujeres == null && p.cupo_varones == null && p.cupo_mixto == null && (
-                      <span className="text-[10px] text-muted-foreground italic">Sin cupos definidos</span>
-                    )}
-                  </div>
-                  {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
-                  <PackagePaymentPlanEditor
-                    packageId={p.id}
-                    packagePrice={p.precio}
-                    currency={p.currency}
-                  />
+              <div key={p.id} className={`rounded-lg border border-border/50 ${p.activo ? "" : "opacity-50"}`}>
+                <div className="flex items-start gap-2 p-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(p.id)}
+                    className="flex-1 min-w-0 space-y-1 text-left hover:bg-muted/20 -m-1 p-1 rounded transition-colors"
+                    aria-expanded={isOpen}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : "-rotate-90"}`} />
+                      <span className="text-sm font-medium">{p.nombre}</span>
+                      <span className="text-xs text-muted-foreground">{formatPrice(p.precio, p.currency as any)}</span>
+                      {p.sena != null && (
+                        <span className="text-[10px] text-muted-foreground">seña: {formatPrice(p.sena, p.currency as any)}</span>
+                      )}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {p.personas_por_habitacion} {p.personas_por_habitacion === 1 ? "persona" : "personas"}/hab
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap pl-5">
+                      {renderCupoLine("Mujeres", c.mujeres, p.cupo_mujeres, "rose")}
+                      {renderCupoLine("Varones", c.varones, p.cupo_varones, "sky")}
+                      {p.permite_mixto && renderCupoLine("Mixta", c.mixto, p.cupo_mixto, "violet")}
+                      {p.cupo_mujeres == null && p.cupo_varones == null && p.cupo_mixto == null && (
+                        <span className="text-[10px] text-muted-foreground italic">Sin cupos definidos</span>
+                      )}
+                    </div>
+                  </button>
+                  <Switch checked={p.activo} onCheckedChange={() => toggleActive(p)} />
+                  <Button size="icon" variant="ghost" onClick={() => startEdit(p)} className="h-7 w-7">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => remove(p)} className="h-7 w-7">
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </Button>
                 </div>
-                <Switch checked={p.activo} onCheckedChange={() => toggleActive(p)} />
-                <Button size="icon" variant="ghost" onClick={() => startEdit(p)} className="h-7 w-7">
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => remove(p)} className="h-7 w-7">
-                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                </Button>
+                {isOpen && (
+                  <div className="px-2 pb-2 pl-7 space-y-2 animate-fade-in">
+                    {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
+                    <PackagePaymentPlanEditor
+                      packageId={p.id}
+                      packagePrice={p.precio}
+                      currency={p.currency}
+                    />
+                  </div>
+                )}
               </div>
 
             );
