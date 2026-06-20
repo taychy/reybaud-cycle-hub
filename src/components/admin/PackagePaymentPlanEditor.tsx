@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Wand2, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import {
   type InstallmentTemplate, type PlanTemplate, type SenaTipo,
@@ -37,6 +37,7 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: 
   const [planExists, setPlanExists] = useState(false);
   const [planId, setPlanId] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
+  const [bodyOpen, setBodyOpen] = useState(false);
 
   const [nombre, setNombre] = useState("Plan de pagos");
   const [senaTipo, setSenaTipo] = useState<SenaTipo>("porcentaje_paquete");
@@ -270,15 +271,29 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: 
 
   return (
     <div className="space-y-3 mt-3 pt-3 border-t border-border/30">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium">Plan de cuotas</p>
-          <p className="text-[10px] text-muted-foreground">Configurá seña + cuotas con recordatorios automáticos</p>
-        </div>
-        <Switch checked={enabled} onCheckedChange={setEnabled} />
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => enabled && setBodyOpen((v) => !v)}
+          className="flex items-center gap-2 text-left flex-1 min-w-0 hover:opacity-80 transition"
+          disabled={!enabled}
+        >
+          {enabled && (
+            <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${bodyOpen ? "rotate-180" : "-rotate-90"}`} />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-medium">Plan de cuotas</p>
+            <p className="text-[10px] text-muted-foreground">
+              {enabled
+                ? `Seña + ${installments.length} cuota${installments.length === 1 ? "" : "s"} · ${formatPrice(preview.sena_monto + preview.cuotas_total, currency as any)}`
+                : "Configurá seña + cuotas con recordatorios automáticos"}
+            </p>
+          </div>
+        </button>
+        <Switch checked={enabled} onCheckedChange={(v) => { setEnabled(v); if (v) setBodyOpen(true); }} />
       </div>
 
-      {enabled && (
+      {enabled && bodyOpen && (
         <>
           {/* Seña */}
           <div className="rounded-md border border-border/50 p-2 space-y-2 bg-muted/10">
