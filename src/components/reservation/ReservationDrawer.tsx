@@ -14,6 +14,9 @@ import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
 import type { Tables } from "@/integrations/supabase/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import EventReglamentoSection from "@/components/event/EventReglamentoSection";
+import { extractReglamento, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 
 type Alumno = Tables<"alumnos">;
 
