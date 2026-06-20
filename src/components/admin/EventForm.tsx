@@ -1060,8 +1060,6 @@ const EventForm = ({
           </div>
         </div>
       </fieldset>
-        </fieldset>
-      )}
 
       {/* COMPARTIR LINKS */}
       {isEditing && eventId && (
