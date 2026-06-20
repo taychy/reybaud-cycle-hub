@@ -413,6 +413,13 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       } catch { /* fire and forget */ }
     }
 
+    // Email automático de confirmación con resumen + reglamento
+    try {
+      supabase.functions.invoke("send-reservation-confirmation", {
+        body: { reservation_id: (data as any)?.id },
+      }).catch(() => {});
+    } catch { /* fire and forget */ }
+
     setStep("success");
     onReserved(data);
     toast({ title: labels.toastTitle });
