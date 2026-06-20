@@ -947,6 +947,8 @@ const EventForm = ({
                 <Label className="text-sm">Pedir motivo de cancelación</Label>
               </div>
             </>
+          )}
+        </fieldset>
       )}
 
       {/* ─── REGLAMENTO Y CONDICIONES (todos los tipos) ─── */}
