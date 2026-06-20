@@ -10,15 +10,20 @@ interface EventInclusionsProps {
   defaultCollapsed?: boolean;
 }
 
-/** Parse a value (array or comma/semicolon/bullet/newline-separated string) into a list of items. */
+/** Parse a value (array or newline/bullet/semicolon-separated string) into a list of items.
+ *  IMPORTANTE: no partimos por comas ni puntos para no fragmentar oraciones del admin
+ *  (ej. "Transporte a San Luis, aéreo o terrestre." debe ser UN solo ítem).
+ */
 function toItems(val: any, textFallback?: string): string[] {
-  // Prefer array if it has usable strings
+  // Prefer array if it has usable strings (one item per line ya cargado)
   if (Array.isArray(val) && val.length > 0) {
-    const arr = val.filter((x: any) => typeof x === "string" && x.trim()).map((x: string) => x.trim());
+    const arr = val
+      .filter((x: any) => typeof x === "string" && x.trim())
+      .map((x: string) => x.trim());
     if (arr.length > 0) {
-      // If the array contains a single long string with separators, expand it
+      // If the array contains a single long string with line/bullet separators, expand it
       if (arr.length === 1) return splitText(arr[0]);
-      return arr.flatMap(splitText);
+      return dedupe(arr);
     }
   }
   if (typeof textFallback === "string" && textFallback.trim()) {
@@ -28,14 +33,21 @@ function toItems(val: any, textFallback?: string): string[] {
 }
 
 function splitText(s: string): string[] {
-  // First strip an intro like "Incluye en todos los paquetes:" if present
+  // Strip an intro like "Incluye en todos los paquetes:" if present
   const cleaned = s.replace(/^.*?(?:incluye|no incluye)[^:]*:\s*/i, "");
-  // Split by newline, bullet, semicolon, or comma
-  const raw = cleaned.split(/\r?\n|•|·|;|,/).map((x) => x.trim()).filter(Boolean);
-  // De-duplicate while keeping order
+  // Split SOLO por saltos de línea, bullets o punto y coma.
+  // No partimos por coma/punto: rompe oraciones naturales.
+  const raw = cleaned
+    .split(/\r?\n|•|·|;/)
+    .map((x) => x.replace(/^[-–—•·*]\s*/, "").trim())
+    .filter(Boolean);
+  return dedupe(raw);
+}
+
+function dedupe(items: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const item of raw) {
+  for (const item of items) {
     const key = item.toLowerCase();
     if (!seen.has(key)) {
       seen.add(key);
