@@ -96,9 +96,11 @@ export interface EventFormData {
   type: string; // db enum
   image_url: string;
   payment_mode: "cuotas" | "simple";
+  admin_alert_emails: string[];
   // metadata (JSONB)
   metadata: Record<string, any>;
 }
+
 
 const emptyForm: EventFormData = {
   title: "",
@@ -115,8 +117,10 @@ const emptyForm: EventFormData = {
   type: "otro",
   image_url: "",
   payment_mode: "cuotas",
+  admin_alert_emails: [],
   metadata: {},
 };
+
 
 interface EventFormProps {
   initialData?: EventFormData;
@@ -144,8 +148,10 @@ export const eventFormFromRow = (ev: any): EventFormData => ({
   type: ev.type || "otro",
   image_url: ev.image_url || "",
   payment_mode: (ev.payment_mode === "simple" ? "simple" : "cuotas"),
+  admin_alert_emails: Array.isArray(ev.admin_alert_emails) ? ev.admin_alert_emails : [],
   metadata: ev.metadata || {},
 });
+
 
 export const eventFormToPayload = (form: EventFormData) => {
   const m = form.metadata;
@@ -166,6 +172,8 @@ export const eventFormToPayload = (form: EventFormData) => {
     image_url: form.image_url || null,
     metadata: form.metadata,
     payment_mode: form.payment_mode,
+    admin_alert_emails: form.admin_alert_emails,
+
     location: m.location_name || m.race_location || m.destination || null,
     price: m.pricing_mode === "no_mostrar" ? null
       : m.pricing_mode === "gratuito" ? 0
@@ -414,7 +422,24 @@ const EventForm = ({
             <Label className="text-sm">Vista pública</Label>
           </div>
         </div>
+
+        <div className="space-y-1.5 pt-2 border-t border-border/30">
+          <Label className="text-sm">Emails para alertas de cobranzas</Label>
+          <Input
+            value={form.admin_alert_emails.join(", ")}
+            onChange={(e) => setForm({
+              ...form,
+              admin_alert_emails: e.target.value.split(",").map(s => s.trim()).filter(Boolean),
+            })}
+            placeholder="admin@ejemplo.com, coordinador@ejemplo.com"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            Reciben notificaciones cuando vencen cuotas o hay morosidad. Separá con comas.
+            Si está vacío, se usa la lista global de configuración.
+          </p>
+        </div>
       </fieldset>
+
 
       {/* ─── EVENT NATURE & PRICING (common) ─── */}
       <fieldset className="space-y-4 border border-primary/20 rounded-lg p-4">

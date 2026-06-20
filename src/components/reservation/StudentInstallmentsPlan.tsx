@@ -21,7 +21,10 @@ interface Installment {
   status: string;
   external_payment_url: string | null;
   sort_order: number;
+  installment_type?: "sena" | "cuota" | null;
+  due_date_original?: string | null;
 }
+
 
 interface PaymentRecord {
   id: string;
@@ -85,9 +88,10 @@ const StudentInstallmentsPlan = ({
     const [instRes, payRes] = await Promise.all([
       supabase
         .from("reservation_installments" as any)
-        .select("id,label,installment_number,amount,currency,due_date,balance_due,paid_amount,condoned_amount,status,external_payment_url,sort_order")
+        .select("id,label,installment_number,amount,currency,due_date,balance_due,paid_amount,condoned_amount,status,external_payment_url,sort_order,installment_type,due_date_original")
         .eq("reservation_id", reservationId)
         .order("sort_order", { ascending: true }),
+
       supabase
         .from("reservation_payments" as any)
         .select("id,amount,currency,original_amount,original_currency,equivalent_amount_event_currency,event_currency,status,payment_date,installment_id")
@@ -175,12 +179,26 @@ const StudentInstallmentsPlan = ({
                     : overdue ? "text-destructive"
                     : "text-muted-foreground"
                   }`} />
-                  <span className="text-sm font-medium truncate">{inst.label}</span>
+                  <span className="text-sm font-medium truncate">
+                    {inst.installment_type === "sena" ? "Seña" : inst.label}
+                  </span>
+                  {inst.installment_type === "sena" && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-primary/15 text-primary border-primary/30">
+                      Seña
+                    </Badge>
+                  )}
+                  {inst.due_date_original && inst.due_date && inst.due_date !== inst.due_date_original && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-blue-500/15 text-blue-400 border-blue-500/30"
+                      title={`Originalmente vencía el ${fmtDate(inst.due_date_original)}`}>
+                      Reprogramada
+                    </Badge>
+                  )}
                 </div>
                 <Badge variant="outline" className={`text-[10px] shrink-0 ${cfg.color}`}>
                   {overdue ? "Vencida" : cfg.label}
                 </Badge>
               </div>
+
 
               {/* Amount row */}
               <div className="flex items-baseline justify-between text-xs">

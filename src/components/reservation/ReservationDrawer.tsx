@@ -17,6 +17,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import { extractReglamento, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
+import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
+
 
 type Alumno = Tables<"alumnos">;
 
@@ -356,6 +358,107 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       changed_by_role: "alumno",
       note: isInscriptionOnly ? "Inscripción confirmada automáticamente" : "Reserva iniciada por el alumno",
     } as any);
+
+    // Materializar plan de cuotas si el paquete tiene uno activo
+    if (selectedPackage && !isInscriptionOnly && effectivePrice > 0) {
+      try {
+        const { data: plan } = await supabase
+          .from("event_package_payment_plans" as any)
+          .select("*")
+          .eq("package_id", selectedPackage.id)
+          .is("archived_at", null)
+          .eq("activo", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (plan) {
+          const p = plan as any;
+          const { data: insts } = await supabase
+            .from("event_package_payment_plan_installments" as any)
+            .select("*")
+            .eq("plan_id", p.id)
+            .order("numero", { ascending: true });
+
+          const templateInstallments: InstallmentTemplate[] = ((insts as any[]) || []).map((i) => ({
+            numero: i.numero,
+            descripcion: i.descripcion,
+            monto_tipo: i.monto_tipo,
+            monto_valor: Number(i.monto_valor),
+            fecha_vencimiento: i.fecha_vencimiento,
+            reminders_config: Array.isArray(i.reminders_config) ? i.reminders_config : [],
+          }));
+
+          const template: PlanTemplate = {
+            id: p.id,
+            nombre: p.nombre,
+            sena_tipo: p.sena_tipo,
+            sena_valor: Number(p.sena_valor),
+            sena_vence_dias: p.sena_vence_dias ?? 0,
+            cantidad_cuotas: p.cantidad_cuotas,
+            last_installment_absorbs_rounding: !!p.last_installment_absorbs_rounding,
+            regla_reserva_tardia: p.regla_reserva_tardia,
+            installments: templateInstallments,
+          };
+
+          const today = new Date();
+          const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+          const result = calculatePlan({
+            template,
+            precioFinal: effectivePrice,
+            fechaReserva: todayISO,
+          });
+
+          if (result.ok) {
+            // Snapshot + payment_plan_id en la reserva
+            await supabase.from("event_reservations" as any).update({
+              payment_plan_id: p.id,
+              payment_plan_name_snapshot: p.nombre,
+              payment_plan_snapshot: {
+                version: p.version,
+                template,
+                calculated: result,
+                precio_final: effectivePrice,
+                fecha_reserva: todayISO,
+              },
+            }).eq("id", (data as any).id);
+
+            // Reemplazar cuotas existentes
+            await supabase.from("reservation_installments" as any)
+              .delete()
+              .eq("reservation_id", (data as any).id);
+
+            const rows = result.installments.map((c, idx) => ({
+              reservation_id: (data as any).id,
+              installment_number: c.numero,
+              label: c.descripcion,
+              amount: c.monto,
+              currency: effectiveCurrency,
+              due_date: c.due_date,
+              status: "pendiente",
+              installment_type: c.installment_type,
+              monto_original: c.monto,
+              monto_pagado: 0,
+              saldo_pendiente: c.monto,
+              due_date_original: c.due_date_original,
+              original_due_date: c.due_date_original,
+              balance_due: c.monto,
+              sort_order: idx,
+              notas: c.reprogramada ? "Reprogramada por reserva tardía" : null,
+            }));
+
+            if (rows.length > 0) {
+              await supabase.from("reservation_installments" as any).insert(rows);
+            }
+          } else {
+            console.warn("[ReservationDrawer] Plan inválido, no se materializaron cuotas:", result.errors);
+          }
+        }
+      } catch (e) {
+        console.warn("[ReservationDrawer] Error materializando plan:", e);
+      }
+    }
+
 
     // Compañeros de habitación: reemplazar lista para esta reserva
     if (selectedPackage && roomGender && shareChoice === "share") {
