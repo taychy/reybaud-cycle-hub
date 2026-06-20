@@ -33,12 +33,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -484,14 +478,17 @@ const EventsList = () => {
         </div>
       )}
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-heading uppercase tracking-wider">
+      {/* Create / Edit Sheet – wide right-side drawer */}
+      <Sheet open={formOpen} onOpenChange={setFormOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider">
               {editingEvent ? "Editar Evento" : "Nuevo Evento"}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Formulario de creación y edición de eventos
+            </SheetDescription>
+          </SheetHeader>
 
           <EventForm
             key={editingEvent?.id || "new"}
@@ -504,8 +501,8 @@ const EventsList = () => {
             onDuplicate={editingEvent ? () => { duplicateEvent(editingEvent); setFormOpen(false); } : undefined}
             onDelete={editingEvent ? () => { deleteEvent(editingEvent.id); setFormOpen(false); } : undefined}
           />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Reservations Sheet – full-width drawer */}
       <Sheet open={!!reservationsEvent} onOpenChange={(open) => !open && setReservationsEvent(null)}>
