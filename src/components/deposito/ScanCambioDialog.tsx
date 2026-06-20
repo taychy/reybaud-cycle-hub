@@ -52,7 +52,7 @@ const ScanSlot = ({
   expectedVariante,
   checkStock,
 }: {
-  label: string;
+  label: ReactNode;
   value: ScanSlotValue | null;
   onChange: (v: ScanSlotValue | null) => void;
   expectedProductId?: string;
