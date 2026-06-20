@@ -28,6 +28,7 @@ import { EventAddonsEditor } from "./EventAddonsEditor";
 import { EventPackagesEditor } from "./EventPackagesEditor";
 import { REGLAMENTO_DEFAULTS_CAMP_VIAJE, isCampOrViajeType } from "@/lib/eventReglamentoDefaults";
 import { FileText, Sparkles } from "lucide-react";
+import ItemsChipsEditor from "./ItemsChipsEditor";
 
 /* ─── Types ─── */
 export type EventCategory = "escuela" | "carrera" | "camp_viaje";
@@ -832,23 +833,21 @@ const EventForm = ({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Incluye <span className="text-[10px] text-muted-foreground">(uno por línea — NO uses comas para separar)</span></Label>
-            <Textarea
+            <Label>Incluye</Label>
+            <ItemsChipsEditor
               value={meta.included_text || ""}
-              onChange={(e) => updateMeta("included_text", e.target.value)}
-              rows={8}
-              className="min-h-[180px] leading-relaxed"
-              placeholder={"Ej:\nAlojamiento 3 noches\nDesayuno y cena\nGuía técnico"}
+              onChange={(v) => updateMeta("included_text", v)}
+              placeholder="Ej: Alojamiento 3 noches"
+              accent="emerald"
             />
           </div>
           <div className="space-y-1.5">
-            <Label>No incluye <span className="text-[10px] text-muted-foreground">(uno por línea — NO uses comas para separar)</span></Label>
-            <Textarea
+            <Label>No incluye</Label>
+            <ItemsChipsEditor
               value={meta.not_included_text || ""}
-              onChange={(e) => updateMeta("not_included_text", e.target.value)}
-              rows={8}
-              className="min-h-[180px] leading-relaxed"
-              placeholder={"Ej:\nTraslados al destino\nBebidas alcohólicas"}
+              onChange={(v) => updateMeta("not_included_text", v)}
+              placeholder="Ej: Traslados al destino"
+              accent="muted"
             />
           </div>
 
