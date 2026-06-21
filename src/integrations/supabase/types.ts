@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notification_events: {
+        Row: {
+          created_at: string
+          deduplication_key: string | null
+          destinatarios: string[]
+          id: string
+          intentos: number
+          last_error: string | null
+          payload: Json
+          prioridad: string
+          reservation_id: string | null
+          sent_at: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deduplication_key?: string | null
+          destinatarios?: string[]
+          id?: string
+          intentos?: number
+          last_error?: string | null
+          payload?: Json
+          prioridad?: string
+          reservation_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deduplication_key?: string | null
+          destinatarios?: string[]
+          id?: string
+          intentos?: number
+          last_error?: string | null
+          payload?: Json
+          prioridad?: string
+          reservation_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notification_events_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_profiles: {
         Row: {
           created_at: string
@@ -24,6 +80,7 @@ export type Database = {
           last_invite_sent_at: string | null
           last_login_at: string | null
           last_name: string
+          notification_prefs: Json
           password_set: boolean
           role: Database["public"]["Enums"]["admin_role"]
           status: string
@@ -39,6 +96,7 @@ export type Database = {
           last_invite_sent_at?: string | null
           last_login_at?: string | null
           last_name: string
+          notification_prefs?: Json
           password_set?: boolean
           role?: Database["public"]["Enums"]["admin_role"]
           status?: string
@@ -54,6 +112,7 @@ export type Database = {
           last_invite_sent_at?: string | null
           last_login_at?: string | null
           last_name?: string
+          notification_prefs?: Json
           password_set?: boolean
           role?: Database["public"]["Enums"]["admin_role"]
           status?: string
@@ -2237,6 +2296,11 @@ export type Database = {
           cancellation_requested_at: string | null
           cancelled_at: string | null
           checkin_at: string | null
+          confirmation_payment_email_attempts: number
+          confirmation_payment_email_failed_at: string | null
+          confirmation_payment_email_last_error: string | null
+          confirmation_payment_email_queued_at: string | null
+          confirmation_payment_email_sent_at: string | null
           confirmed_at: string | null
           created_at: string
           created_by: string
@@ -2285,6 +2349,11 @@ export type Database = {
           cancellation_requested_at?: string | null
           cancelled_at?: string | null
           checkin_at?: string | null
+          confirmation_payment_email_attempts?: number
+          confirmation_payment_email_failed_at?: string | null
+          confirmation_payment_email_last_error?: string | null
+          confirmation_payment_email_queued_at?: string | null
+          confirmation_payment_email_sent_at?: string | null
           confirmed_at?: string | null
           created_at?: string
           created_by?: string
@@ -2333,6 +2402,11 @@ export type Database = {
           cancellation_requested_at?: string | null
           cancelled_at?: string | null
           checkin_at?: string | null
+          confirmation_payment_email_attempts?: number
+          confirmation_payment_email_failed_at?: string | null
+          confirmation_payment_email_last_error?: string | null
+          confirmation_payment_email_queued_at?: string | null
+          confirmation_payment_email_sent_at?: string | null
           confirmed_at?: string | null
           created_at?: string
           created_by?: string
@@ -4024,6 +4098,83 @@ export type Database = {
           },
         ]
       }
+      reservation_cash_announcements: {
+        Row: {
+          actor_type: string | null
+          alumno_id: string | null
+          amount: number
+          concepto: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          external_participant_id: string | null
+          fecha_limite: string | null
+          id: string
+          installment_number: number | null
+          lugar_previsto: string | null
+          nota_libre: string | null
+          payment_id: string | null
+          reservation_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_motivo: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actor_type?: string | null
+          alumno_id?: string | null
+          amount: number
+          concepto: string
+          created_at?: string
+          created_by?: string | null
+          currency: string
+          external_participant_id?: string | null
+          fecha_limite?: string | null
+          id?: string
+          installment_number?: number | null
+          lugar_previsto?: string | null
+          nota_libre?: string | null
+          payment_id?: string | null
+          reservation_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_motivo?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actor_type?: string | null
+          alumno_id?: string | null
+          amount?: number
+          concepto?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          external_participant_id?: string | null
+          fecha_limite?: string | null
+          id?: string
+          installment_number?: number | null
+          lugar_previsto?: string | null
+          nota_libre?: string | null
+          payment_id?: string | null
+          reservation_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_motivo?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_cash_announcements_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_checklist_data: {
         Row: {
           alumno_id: string | null
@@ -4391,6 +4542,71 @@ export type Database = {
           reservation_id?: string
         }
         Relationships: []
+      }
+      reservation_payment_intents: {
+        Row: {
+          actor_type: string | null
+          amount: number
+          concepto: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          expires_at: string
+          id: string
+          init_point: string | null
+          installment_number: number | null
+          payload: Json | null
+          preference_id: string | null
+          reservation_id: string
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actor_type?: string | null
+          amount: number
+          concepto: string
+          created_at?: string
+          created_by?: string | null
+          currency: string
+          expires_at?: string
+          id?: string
+          init_point?: string | null
+          installment_number?: number | null
+          payload?: Json | null
+          preference_id?: string | null
+          reservation_id: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actor_type?: string | null
+          amount?: number
+          concepto?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string
+          id?: string
+          init_point?: string | null
+          installment_number?: number | null
+          payload?: Json | null
+          preference_id?: string | null
+          reservation_id?: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_payment_intents_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservation_payments: {
         Row: {
@@ -6392,6 +6608,15 @@ export type Database = {
         Args: { p_token_id: string }
         Returns: undefined
       }
+      announce_cash_payment: {
+        Args: {
+          _fecha_limite: string
+          _lugar: string
+          _nota: string
+          _reservation_id: string
+        }
+        Returns: Json
+      }
       apply_mp_payment_to_gasto: {
         Args: {
           p_external_reference: string
@@ -6426,6 +6651,7 @@ export type Database = {
           mp_preapproval_ids: string[]
         }[]
       }
+      confirm_reservation: { Args: { _reservation_id: string }; Returns: Json }
       consumir_clase_bono: {
         Args: {
           p_coach_id?: string
@@ -6526,6 +6752,7 @@ export type Database = {
       }
       generate_tareas_automaticas: { Args: never; Returns: number }
       generate_tareas_gastos_pendientes: { Args: never; Returns: number }
+      get_admin_notification_emails_masked: { Args: never; Returns: Json }
       get_all_gastos_saldo_deuda: {
         Args: never
         Returns: {
@@ -6553,6 +6780,10 @@ export type Database = {
           recurrente_id: string
           saldo_total: number
         }[]
+      }
+      get_my_reservation: {
+        Args: { _external_token?: string; _reservation_id: string }
+        Returns: Json
       }
       get_preorder_reserved_units: {
         Args: { p_product_id: string }
@@ -6609,6 +6840,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      importe_a_pagar_ahora: {
+        Args: { _reservation_id: string }
+        Returns: Json
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       lookup_alumno_by_email: {
         Args: { p_email: string }
@@ -6622,6 +6857,14 @@ export type Database = {
       marcar_baja_evitada: {
         Args: { p_motivo: string; p_solicitud_id: string }
         Returns: undefined
+      }
+      mark_cash_collected: {
+        Args: {
+          _announcement_id: string
+          _notes?: string
+          _payment_date?: string
+        }
+        Returns: Json
       }
       materialize_reservation_installments: {
         Args: { p_reservation_id: string }
@@ -6777,6 +7020,14 @@ export type Database = {
           p_reason: string
         }
         Returns: undefined
+      }
+      resolve_cash_announcement: {
+        Args: {
+          _announcement_id: string
+          _motivo?: string
+          _new_status: string
+        }
+        Returns: Json
       }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
       transition_cambio_estado: {
