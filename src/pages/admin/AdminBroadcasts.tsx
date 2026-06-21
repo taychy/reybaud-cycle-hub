@@ -276,6 +276,22 @@ export default function AdminBroadcasts() {
   const toggleArr = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
 
+  const selectedContactCount = composer.alumno_ids.length + composer.coach_ids.length;
+  const filteredContacts = contacts.filter((contact) => {
+    const q = contactSearch.trim().toLowerCase();
+    if (!q) return true;
+    return `${contact.name} ${contact.email} ${contact.grupo || ""} ${(contact.grupos || []).join(" ")}`.toLowerCase().includes(q);
+  });
+  const toggleContact = (contact: Contact) => {
+    if (contact.type === "coach") {
+      setComposer({ ...composer, coach_ids: toggleArr(composer.coach_ids, contact.id) });
+    } else {
+      setComposer({ ...composer, alumno_ids: toggleArr(composer.alumno_ids, contact.id) });
+    }
+  };
+  const isContactSelected = (contact: Contact) =>
+    contact.type === "coach" ? composer.coach_ids.includes(contact.id) : composer.alumno_ids.includes(contact.id);
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
