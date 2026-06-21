@@ -60,10 +60,10 @@ ${pre}
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
   const explicitSelection = Boolean(filters.alumno_ids?.length || filters.coach_ids?.length);
-  const audience = filters.audience?.length ? filters.audience : ["students"];
+  const audience = Array.isArray(filters.audience) ? filters.audience : ["students"];
   let rows: any[] = [];
 
-  if (explicitSelection || audience.includes("students")) {
+  if ((filters.alumno_ids?.length || (!explicitSelection && audience.includes("students")))) {
     let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo, plan_id");
     if (filters.alumno_ids?.length) {
       q = q.in("id", filters.alumno_ids);
@@ -82,7 +82,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
 
-  if (explicitSelection || audience.includes("coaches")) {
+  if ((filters.coach_ids?.length || (!explicitSelection && audience.includes("coaches")))) {
     let q = supabase.from("coaches").select("id, nombre, email, estado, sede_id, grupos");
     if (filters.coach_ids?.length) {
       q = q.in("id", filters.coach_ids);
