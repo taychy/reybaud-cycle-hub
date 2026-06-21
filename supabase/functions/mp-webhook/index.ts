@@ -627,7 +627,33 @@ Deno.serve(async (req) => {
           .eq("id", reservationId);
       }
 
+      // Close associated payment intent (idempotent)
+      try {
+        const newStatus =
+          payment.status === "approved" ? "aprobada" :
+          payment.status === "rejected" ? "fallida" :
+          payment.status === "cancelled" ? "cancelada" : null;
+        if (newStatus && payment.preference_id) {
+          await supabaseAdmin
+            .from("reservation_payment_intents")
+            .update({ status: newStatus, resolved_at: new Date().toISOString() })
+            .eq("preference_id", String(payment.preference_id))
+            .eq("status", "pendiente");
+        }
+        if (payment.status === "approved") {
+          await supabaseAdmin.from("audit_log").insert({
+            action: "reserva.mp.pago.aprobado",
+            entity_type: "event_reservation", entity_id: reservationId,
+            user_role: "edge_function",
+            details: { payment_id: payment.id, preference_id: payment.preference_id, amount: paidAmount },
+          });
+        }
+      } catch (e) {
+        console.error("[mp-webhook] intent close failed:", e);
+      }
+
       console.log("Event reservation updated:", { reservationId, mpStatus: payment.status });
+
       return new Response(JSON.stringify({ ok: true, kind: "event", status: payment.status }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
