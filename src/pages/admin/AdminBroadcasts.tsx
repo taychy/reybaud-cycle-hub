@@ -127,7 +127,7 @@ export default function AdminBroadcasts() {
   useEffect(() => { loadAll(); }, []);
 
   const segmentFilters = useMemo(() => ({
-    audience: composer.audience.length ? composer.audience : undefined,
+    audience: composer.audience,
     estados: composer.estados.length ? composer.estados : undefined,
     grupos: composer.grupos.length ? composer.grupos : undefined,
     sede_ids: composer.sede_ids.length ? composer.sede_ids : undefined,
