@@ -702,6 +702,173 @@ export type Database = {
           },
         ]
       }
+      broadcast_recipients: {
+        Row: {
+          alumno_id: string | null
+          brevo_message_id: string | null
+          broadcast_id: string
+          created_at: string
+          email: string
+          error_message: string | null
+          id: string
+          name: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          brevo_message_id?: string | null
+          broadcast_id: string
+          created_at?: string
+          email: string
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          brevo_message_id?: string | null
+          broadcast_id?: string
+          created_at?: string
+          email?: string
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broadcast_sender_config: {
+        Row: {
+          id: string
+          reply_to: string | null
+          sender_email: string
+          sender_name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          reply_to?: string | null
+          sender_email: string
+          sender_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          reply_to?: string | null
+          sender_email?: string
+          sender_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      broadcast_templates: {
+        Row: {
+          content_html: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          content_html: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          content_html?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      broadcasts: {
+        Row: {
+          brevo_message_ids: Json | null
+          content_html: string
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          failed_count: number
+          id: string
+          preheader: string | null
+          reply_to: string | null
+          segment_filters: Json
+          sender_email: string
+          sender_name: string
+          sent_at: string | null
+          sent_count: number
+          status: string
+          subject: string
+          total_recipients: number
+        }
+        Insert: {
+          brevo_message_ids?: Json | null
+          content_html: string
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          preheader?: string | null
+          reply_to?: string | null
+          segment_filters?: Json
+          sender_email: string
+          sender_name: string
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          subject: string
+          total_recipients?: number
+        }
+        Update: {
+          brevo_message_ids?: Json | null
+          content_html?: string
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          preheader?: string | null
+          reply_to?: string | null
+          segment_filters?: Json
+          sender_email?: string
+          sender_name?: string
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          subject?: string
+          total_recipients?: number
+        }
+        Relationships: []
+      }
       cambios_plan: {
         Row: {
           alumno_id: string
