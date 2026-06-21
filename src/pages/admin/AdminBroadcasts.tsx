@@ -355,6 +355,23 @@ export default function AdminBroadcasts() {
 
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2"><Users className="w-4 h-4" /><b>Segmentación</b></div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("students")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "students") as ("students" | "coaches")[] })}
+                />
+                Alumnos
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("coaches")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "coaches") as ("students" | "coaches")[] })}
+                />
+                Coaches
+              </label>
+              <span className="text-xs text-muted-foreground self-center">Elegí uno o ambos públicos.</span>
+            </div>
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Estados</Label>
@@ -397,6 +414,52 @@ export default function AdminBroadcasts() {
                 </div>
                 <p className="text-[10px] text-muted-foreground">Vacío = todas</p>
               </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <Label className="text-xs">Seleccionar contactos puntuales</Label>
+                {selectedContactCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setComposer({ ...composer, alumno_ids: [], coach_ids: [] })}
+                  >
+                    Limpiar selección ({selectedContactCount})
+                  </Button>
+                )}
+              </div>
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  placeholder="Buscar por nombre, email o grupo..."
+                  className="pl-9"
+                />
+              </div>
+              <div className="rounded-md border max-h-64 overflow-y-auto divide-y">
+                {filteredContacts.length === 0 ? (
+                  <div className="p-3 text-xs text-muted-foreground">No hay contactos con ese filtro.</div>
+                ) : filteredContacts.slice(0, 120).map((contact) => (
+                  <label key={`${contact.type}-${contact.id}`} className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/30">
+                    <Checkbox checked={isContactSelected(contact)} onCheckedChange={() => toggleContact(contact)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium truncate">{contact.name}</span>
+                        <Badge variant="outline" className="text-[10px]">{contact.type === "coach" ? "Coach" : "Alumno"}</Badge>
+                        {contact.estado && <Badge variant="secondary" className="text-[10px] capitalize">{contact.estado}</Badge>}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {contact.email}{contact.type === "coach" && contact.grupos?.length ? ` · ${contact.grupos.join(", ")}` : contact.grupo ? ` · ${contact.grupo}` : ""}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Si seleccionás contactos puntuales, el envío usa esa lista exacta. Si no seleccionás ninguno, usa la segmentación de arriba.
+              </p>
             </div>
 
             <div className="flex items-center gap-3 pt-2 flex-wrap">
