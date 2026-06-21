@@ -556,6 +556,11 @@ const EventDetail = () => {
             </div>
           )}
 
+          {/* Plan de pagos público (resumen + colapsable por paquete) */}
+          {!isActiveReservation && id && (
+            <EventPaymentPlansPublic eventId={id} />
+          )}
+
           {/* ═══ NO RESERVATION CTAs ═══ */}
           {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
