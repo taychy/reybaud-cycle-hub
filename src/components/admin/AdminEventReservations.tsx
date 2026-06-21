@@ -723,11 +723,18 @@ const AdminEventReservations = ({
         toast({ title: "Error al confirmar", description: rpcErr.message, variant: "destructive" });
         return;
       }
+      const alreadyConfirmed = (data as any)?.already_confirmed;
+      // Disparar envío inmediato del email de cobranza (idempotente vía sent_at)
+      if (!alreadyConfirmed) {
+        supabase.functions
+          .invoke("send-reservation-confirmed-with-payment", { body: { reservation_id: resId } })
+          .catch((e) => console.error("send-reservation-confirmed-with-payment error", e));
+      }
       toast({
         title: "Reserva confirmada",
-        description: (data as any)?.already_confirmed
+        description: alreadyConfirmed
           ? "Ya estaba confirmada."
-          : "Email de cobranza encolado para el cliente.",
+          : "Email de cobranza enviado al cliente.",
       });
       loadReservations();
       if (selectedRes?.id === resId) {
@@ -1326,6 +1333,11 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
                           </DropdownMenuItem>
+                          {r.reservation_status === "reserva_confirmada" && (
+                            <DropdownMenuItem onClick={() => resendConfirmationEmail(r.id)}>
+                              <Send className="w-3.5 h-3.5 mr-2" /> Reenviar email de confirmación
+                            </DropdownMenuItem>
+                          )}
                           {isTripLike && r.access_token && (
                             <>
                               <DropdownMenuSeparator />
