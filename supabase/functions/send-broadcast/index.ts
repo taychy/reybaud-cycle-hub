@@ -182,7 +182,14 @@ Deno.serve(async (req) => {
     // Preview count only
     if (body.mode === "preview_count") {
       const rows = await loadRecipients(admin, filters);
-      return new Response(JSON.stringify({ count: rows.length, sample: rows.slice(0, 5).map((r: any) => ({ email: r.email, nombre: `${r.nombre} ${r.apellido ?? ""}`.trim() })) }), {
+      return new Response(JSON.stringify({
+        count: rows.length,
+        sample: rows.slice(0, 5).map((r: any) => ({
+          email: r.email,
+          nombre: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
+          type: r.contact_type,
+        })),
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -239,9 +246,9 @@ Deno.serve(async (req) => {
       await admin.from("broadcast_recipients").insert(
         recipients.map((r: any) => ({
           broadcast_id: bc.id,
-          alumno_id: r.id,
+          alumno_id: r.contact_type === "alumno" ? r.id : null,
           email: r.email,
-          name: `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
+          name: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
           status: "pending",
         }))
       );
@@ -252,7 +259,7 @@ Deno.serve(async (req) => {
       for (const r of recipients) {
         const r1 = await sendOne({
           sender: { name: senderName, email: senderEmail },
-          to: [{ email: r.email, name: `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim() || undefined }],
+          to: [{ email: r.email, name: r.display_name || undefined }],
           replyTo: replyTo ? { email: replyTo } : undefined,
           subject: body.subject,
           htmlContent: html,
