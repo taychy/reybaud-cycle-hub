@@ -47,6 +47,8 @@ interface ReportPaymentDrawerProps {
   onSuccess: () => void;
   /** If set, preselect this installment when opening */
   preselectedInstallmentId?: string | null;
+  /** If set, force the initial mode when opening */
+  initialMode?: "paid" | "cash_announce";
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
@@ -58,14 +60,18 @@ const fmtDate = (d?: string | null) => {
 };
 
 const ReportPaymentDrawer = ({
-  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId,
+  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId, initialMode,
 }: ReportPaymentDrawerProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [mode, setMode] = useState<"paid" | "cash_announce">("paid");
+  const [mode, setMode] = useState<"paid" | "cash_announce">(initialMode ?? "paid");
+
+  useEffect(() => {
+    if (open && initialMode) setMode(initialMode);
+  }, [open, initialMode]);
 
   // Cash announce state
   const [cashNote, setCashNote] = useState("");
