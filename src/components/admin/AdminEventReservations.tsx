@@ -121,15 +121,16 @@ const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; 
   cuota_pendiente: {
     label: "Cuota pendiente",
     asunto: "Tenés una cuota pendiente — {{evento}}",
-    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés una cuota pendiente de ${ctx.monto_cuota} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento}\n\nSaldo total pendiente: ${ctx.saldo}\n\nPodés realizar el pago por los medios habituales.`,
-    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Cuota pendiente</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés una cuota pendiente de <strong>${ctx.monto_cuota}</strong> para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento}</strong></p><p>Saldo total pendiente: <strong style="color:#d97706">${ctx.saldo}</strong></p><p>Podés realizar el pago por los medios habituales.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés ${ctx.cuota_label || "una cuota"} pendiente${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento || "a coordinar"}\n\nSaldo total pendiente: ${ctx.saldo}\n\nPodés realizar el pago por los medios habituales.`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Cuota pendiente</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés <strong>${ctx.cuota_label || "una cuota"}</strong> pendiente${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento || "a coordinar"}</strong></p><p>Saldo total pendiente: <strong style="color:#d97706">${ctx.saldo}</strong></p><p>Podés realizar el pago por los medios habituales.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
   },
   cuota_proxima: {
     label: "Cuota próxima a vencer",
     asunto: "Tu cuota vence pronto — {{evento}}",
-    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe avisamos que tu próxima cuota de ${ctx.monto_cuota} para ${ctx.evento} vence el ${ctx.vencimiento}.\n\nSaldo actual: ${ctx.saldo}\n\nRecordá realizar el pago antes del vencimiento.`,
-    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#2563eb">Próximo vencimiento</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Tu próxima cuota de <strong>${ctx.monto_cuota}</strong> para <strong>${ctx.evento}</strong> vence el <strong>${ctx.vencimiento}</strong>.</p><p>Saldo actual: <strong>${ctx.saldo}</strong></p><p>Recordá realizar el pago antes del vencimiento.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe avisamos que ${ctx.cuota_label || "tu próxima cuota"}${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento} vence el ${ctx.vencimiento || "a coordinar"}.\n\nSaldo actual: ${ctx.saldo}\n\nRecordá realizar el pago antes del vencimiento.`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#2563eb">Próximo vencimiento</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p><strong>${ctx.cuota_label || "Tu próxima cuota"}</strong>${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong> vence el <strong>${ctx.vencimiento || "a coordinar"}</strong>.</p><p>Saldo actual: <strong>${ctx.saldo}</strong></p><p>Recordá realizar el pago antes del vencimiento.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
   },
+
   novedad: {
     label: "Novedad / comunicado",
     asunto: "Novedad sobre {{evento}}",
