@@ -90,6 +90,7 @@ import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
 import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
+import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -171,6 +172,7 @@ const App = () => (
             <Route path="historial" element={<AuditLog />} />
             <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
             <Route path="comunicaciones" element={<AdminEmailTemplates />} />
+            <Route path="email-masivo" element={<AdminBroadcasts />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
