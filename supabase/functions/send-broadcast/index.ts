@@ -64,14 +64,13 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   let rows: any[] = [];
 
   if ((filters.alumno_ids?.length || (!explicitSelection && audience.includes("students")))) {
-    let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo, plan_id");
+    let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo");
     if (filters.alumno_ids?.length) {
       q = q.in("id", filters.alumno_ids);
     } else if (!explicitSelection) {
       if (filters.estados?.length) q = q.in("estado", filters.estados);
       if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
       if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
-      if (filters.plan_ids?.length) q = q.in("plan_id", filters.plan_ids);
     }
     const { data, error } = await q;
     if (error) throw error;
