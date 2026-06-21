@@ -170,6 +170,8 @@ Deno.serve(async (req) => {
     </td></tr>
   </table>
 
+  ${installmentsTableHtml}
+
   <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:10px 12px;border-radius:6px;margin:20px 0;font-size:13px;color:#92400e">
     <strong>Efectivo:</strong> el botón solo nos avisa que pensás pagar así. No acredita el pago hasta que lo cobramos.
   </div>
@@ -178,7 +180,8 @@ Deno.serve(async (req) => {
   <p style="font-size:11px;color:#9ca3af;margin:0">Reybaud Ciclismo · <a href="${unsubUrl}" style="color:#9ca3af">Cancelar suscripción</a></p>
 </div>`;
 
-    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${payUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}`;
+    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${payUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
+
 
     const messageId = `confirm-pay-${reservation_id}`;
     const { error: enqErr } = await sb.rpc("enqueue_email", {
