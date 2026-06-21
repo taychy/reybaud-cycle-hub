@@ -65,6 +65,14 @@ const ReportPaymentDrawer = ({
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [mode, setMode] = useState<"paid" | "cash_announce">("paid");
+
+  // Cash announce state
+  const [cashNote, setCashNote] = useState("");
+  const [cashPlace, setCashPlace] = useState("sede");
+  const [cashDeadline, setCashDeadline] = useState("");
+  const [cashCalc, setCashCalc] = useState<{ amount: number; currency: string; concepto: string } | null>(null);
+
   const [amount, setAmount] = useState(reservation.balance_due?.toString() || "");
   const [paymentCurrency, setPaymentCurrency] = useState(currency);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -79,6 +87,7 @@ const ReportPaymentDrawer = ({
   const [loadingInstallments, setLoadingInstallments] = useState(false);
   // "next" = próxima cuota, "other:<id>" = otra cuota, "general" = pago general
   const [installmentChoice, setInstallmentChoice] = useState<string>("general");
+
 
   // Fetch installments when drawer opens
   useEffect(() => {
