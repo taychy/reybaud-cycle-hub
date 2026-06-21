@@ -82,6 +82,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const [vinculo, setVinculo] = useState<Vinculo | null>(null);
   const [mates, setMates] = useState<{ nombre: string; email: string; telefono: string }[]>([]);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPaymentPlan, setAcceptedPaymentPlan] = useState(false);
+  const [hasPaymentPlan, setHasPaymentPlan] = useState(false);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
