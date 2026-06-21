@@ -88,6 +88,8 @@ import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
+import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
+
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 const queryClient = new QueryClient();
@@ -166,6 +168,8 @@ const App = () => (
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
+            <Route path="comunicaciones" element={<AdminEmailTemplates />} />
+
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
             <Route path="gastos" element={<SuperAdminGastos />} />

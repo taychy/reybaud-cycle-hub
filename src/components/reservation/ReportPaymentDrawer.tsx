@@ -65,6 +65,14 @@ const ReportPaymentDrawer = ({
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [mode, setMode] = useState<"paid" | "cash_announce">("paid");
+
+  // Cash announce state
+  const [cashNote, setCashNote] = useState("");
+  const [cashPlace, setCashPlace] = useState("sede");
+  const [cashDeadline, setCashDeadline] = useState("");
+  const [cashCalc, setCashCalc] = useState<{ amount: number; currency: string; concepto: string } | null>(null);
+
   const [amount, setAmount] = useState(reservation.balance_due?.toString() || "");
   const [paymentCurrency, setPaymentCurrency] = useState(currency);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -79,6 +87,7 @@ const ReportPaymentDrawer = ({
   const [loadingInstallments, setLoadingInstallments] = useState(false);
   // "next" = próxima cuota, "other:<id>" = otra cuota, "general" = pago general
   const [installmentChoice, setInstallmentChoice] = useState<string>("general");
+
 
   // Fetch installments when drawer opens
   useEffect(() => {
@@ -256,10 +265,45 @@ const ReportPaymentDrawer = ({
     toast({ title: "Pago informado correctamente." });
   };
 
+  // Load cash amount preview when switching to cash mode
+  useEffect(() => {
+    if (mode !== "cash_announce" || !open) return;
+    (async () => {
+      const { data } = await supabase.rpc("importe_a_pagar_ahora", { _reservation_id: reservation.id });
+      if (data) setCashCalc({
+        amount: Number((data as any).amount || 0),
+        currency: (data as any).currency || currency,
+        concepto: (data as any).concepto || "saldo",
+      });
+    })();
+  }, [mode, open, reservation.id, currency]);
+
+  const submitCashAnnounce = async () => {
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("announce_cash_payment", {
+      _reservation_id: reservation.id,
+      _nota: cashNote || null,
+      _lugar: cashPlace || null,
+      _fecha_limite: cashDeadline || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "No se pudo anunciar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setSuccess(true);
+    onSuccess();
+    toast({
+      title: (data as any)?.reused ? "Anuncio actualizado" : "Aviso enviado",
+      description: "Recordá: este aviso NO acredita el pago. Te confirmamos cuando lo cobremos.",
+    });
+  };
+
   const handleClose = () => {
     onOpenChange(false);
     setTimeout(() => {
       setSuccess(false);
+      setMode("paid");
       setAmount(reservation.balance_due?.toString() || "");
       setPaymentCurrency(currency);
       setPaymentDate(new Date().toISOString().slice(0, 10));
@@ -270,33 +314,108 @@ const ReportPaymentDrawer = ({
       setProofFileName(null);
       setInstallmentChoice("general");
       setInstallments([]);
+      setCashNote(""); setCashPlace("sede"); setCashDeadline(""); setCashCalc(null);
     }, 300);
   };
+
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[92vh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="font-heading text-lg">
-            {success ? "¡Pago informado!" : "Informar pago"}
+            {success
+              ? (mode === "cash_announce" ? "¡Aviso enviado!" : "¡Pago informado!")
+              : (mode === "cash_announce" ? "Voy a pagar en efectivo" : "Ya pagué — informar")}
           </DrawerTitle>
           <DrawerDescription>
             {success
-              ? "Recibimos tu aviso de pago. Nuestro equipo lo va a revisar y reconocer en la moneda del evento."
-              : "Informá el pago tal como lo realizaste. Administración va a validar el comprobante y aplicar la cotización correspondiente."}
+              ? (mode === "cash_announce"
+                  ? "Le avisamos al admin. El pago se acreditará cuando lo cobremos."
+                  : "Recibimos tu aviso de pago. Lo vamos a revisar y reconocer en la moneda del evento.")
+              : (mode === "cash_announce"
+                  ? "Esto NO acredita el pago. Solo es un aviso para que coordinemos el cobro."
+                  : "Informá el pago tal como lo realizaste. Administración valida el comprobante.")}
           </DrawerDescription>
         </DrawerHeader>
 
         <div className="px-4 pb-6 space-y-4 overflow-y-auto">
+          {!success && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("paid")}
+                className={`rounded-lg border p-3 text-left text-sm transition ${mode === "paid" ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30" : "border-border bg-muted/30"}`}
+              >
+                <div className="font-semibold text-emerald-500">🟢 Ya pagué</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">Transferencia, depósito, MP externo…</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("cash_announce")}
+                className={`rounded-lg border p-3 text-left text-sm transition ${mode === "cash_announce" ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30" : "border-border bg-muted/30"}`}
+              >
+                <div className="font-semibold text-amber-500">🟡 Pagaré efectivo</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">Solo aviso — NO acredita pago</div>
+              </button>
+            </div>
+          )}
+
           {success ? (
             <div className="text-center py-6 space-y-4">
-              <CheckCircle className="w-14 h-14 text-emerald-400 mx-auto" />
+              <CheckCircle className={`w-14 h-14 mx-auto ${mode === "cash_announce" ? "text-amber-400" : "text-emerald-400"}`} />
               <p className="text-sm text-muted-foreground">
-                Tu pago quedó pendiente de validación. Cuando administración lo reconozca, vas a ver el equivalente en {currency} aplicado a tu saldo.
+                {mode === "cash_announce"
+                  ? "Tu aviso quedó registrado. Vamos a contactarte para coordinar el cobro."
+                  : `Tu pago quedó pendiente de validación. Cuando lo reconozcamos vas a ver el equivalente en ${currency} aplicado a tu saldo.`}
               </p>
-              <Button variant="gold" className="w-full" onClick={handleClose}>
-                Cerrar
-              </Button>
+              <Button variant="gold" className="w-full" onClick={handleClose}>Cerrar</Button>
+            </div>
+          ) : mode === "cash_announce" ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-4">
+                <p className="text-xs text-amber-600 font-semibold uppercase tracking-wide">⚠️ Importante</p>
+                <p className="text-sm mt-1">Este formulario <strong>no acredita ningún pago</strong>. Solo nos avisa que pensás pagar en efectivo para que coordinemos el cobro.</p>
+              </div>
+
+              {cashCalc && (
+                <div className="glass-card rounded-xl p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Importe a pagar</p>
+                  <p className="text-xl font-heading font-bold text-amber-500">{formatPrice(cashCalc.amount, cashCalc.currency)}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{cashCalc.concepto === "saldo" ? "Saldo total" : cashCalc.concepto.replace("_", " ")}</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">¿Dónde pensás pagar?</Label>
+                <Select value={cashPlace} onValueChange={setCashPlace}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sede">En sede</SelectItem>
+                    <SelectItem value="retiro">Al retirar</SelectItem>
+                    <SelectItem value="evento">El día del evento</SelectItem>
+                    <SelectItem value="otro">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">¿Cuándo pensás pagar? (opcional)</Label>
+                <Input type="date" value={cashDeadline} onChange={e => setCashDeadline(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Nota (opcional)</Label>
+                <Textarea rows={2} maxLength={300} value={cashNote} onChange={e => setCashNote(e.target.value)}
+                  placeholder="Ej: paso el viernes a la tarde…" />
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={handleClose}>Cancelar</Button>
+                <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" disabled={submitting} onClick={submitCashAnnounce}>
+                  {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando…</> : "Avisar al admin"}
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -308,6 +427,8 @@ const ReportPaymentDrawer = ({
                   </p>
                 </div>
               )}
+
+
 
               {/* --- Installment selector --- */}
               {!loadingInstallments && hasInstallments && (

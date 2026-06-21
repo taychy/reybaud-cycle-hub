@@ -35,8 +35,10 @@ const configItems: NavItem[] = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
   { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
+  { to: "/admin/comunicaciones", label: "Comunicaciones", icon: Megaphone },
   { to: "/admin/historial", label: "Historial", icon: ScrollText },
 ];
+
 
 const storeItems: NavItem[] = [
   { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
