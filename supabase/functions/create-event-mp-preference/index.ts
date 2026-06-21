@@ -124,6 +124,64 @@ Deno.serve(async (req) => {
     }
     console.log("[create-event-mp-preference] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
 
+    // ===== Antiduplicado vía reservation_payment_intents =====
+    const concepto = installment_number != null
+      ? `cuota_${installment_number}`
+      : (await (async () => {
+          const { data: calc } = await supabaseAdmin.rpc("importe_a_pagar_ahora", { _reservation_id: reservation_id });
+          return calc?.concepto || "saldo";
+        })());
+
+    const intentAmount = Number(amount.toFixed(2));
+
+    // Try INSERT; UNIQUE partial index blocks duplicates for (reservation, concepto, amount) in 'pendiente'
+    const { data: insertedIntent, error: insertIntentErr } = await supabaseAdmin
+      .from("reservation_payment_intents")
+      .insert({
+        reservation_id,
+        concepto,
+        installment_number: installment_number ?? null,
+        amount: intentAmount,
+        currency,
+        status: "pendiente",
+        actor_type: "edge_function",
+      })
+      .select("id")
+      .maybeSingle();
+
+    let intentId = insertedIntent?.id as string | undefined;
+
+    if (insertIntentErr && (insertIntentErr as any).code === "23505") {
+      // Reuse existing active intent
+      const { data: existing } = await supabaseAdmin
+        .from("reservation_payment_intents")
+        .select("id, init_point, preference_id")
+        .eq("reservation_id", reservation_id)
+        .eq("concepto", concepto)
+        .eq("amount", intentAmount)
+        .eq("status", "pendiente")
+        .maybeSingle();
+      if (existing?.init_point) {
+        await supabaseAdmin.from("audit_log").insert({
+          action: "reserva.mp.intent.reutilizado",
+          entity_type: "reservation_payment_intent",
+          entity_id: existing.id,
+          user_role: "edge_function",
+          details: { reservation_id, concepto, amount: intentAmount },
+        });
+        return new Response(JSON.stringify({
+          init_point: existing.init_point,
+          preference_id: existing.preference_id,
+          amount: intentAmount,
+          currency,
+          reused: true,
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      intentId = existing?.id;
+    }
+    // ===== fin antiduplicado =====
+
+
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
 
     const preferenceBody: Record<string, unknown> = {
