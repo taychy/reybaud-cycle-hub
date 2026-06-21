@@ -2056,8 +2056,27 @@ const AdminEventReservations = ({
                     </p>
                     <Select value={notifyTemplate} onValueChange={(v) => {
                       const key = v as NotifTemplateKey;
-                      prepareTemplate(key, selectedRes);
+                      let extra: Record<string, any> = {};
+                      if ((key === "cuota_pendiente" || key === "cuota_proxima") && installments.length > 0) {
+                        const accPaid = selectedRes.amount_paid || 0;
+                        let acc = 0;
+                        const nextInst: any = installments.find((inst: any) => {
+                          acc += parseFloat(inst.amount || "0");
+                          return acc > accPaid;
+                        });
+                        if (nextInst) {
+                          extra = {
+                            monto_cuota: parseFloat(nextInst.amount || "0"),
+                            vencimiento: nextInst.due_date
+                              ? new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+                              : "Sin fecha definida",
+                            cuota_label: nextInst.label || `Cuota ${nextInst.installment_number || ""}`.trim(),
+                          };
+                        }
+                      }
+                      prepareTemplate(key, selectedRes, extra);
                     }}>
+
                       <SelectTrigger className="h-7 w-[180px] text-[10px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {Object.entries(notifTemplates).map(([k, v]) => (
