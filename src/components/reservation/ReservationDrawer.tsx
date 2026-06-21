@@ -144,6 +144,32 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const effectivePrice = selectedPackage ? selectedPackage.precio : event.price;
   const effectiveCurrency = selectedPackage ? selectedPackage.currency : event.currency;
 
+  // Detectar si el paquete elegido tiene plan de cuotas activo (para mostrar checkbox)
+  useEffect(() => {
+    if (!selectedPackage || isInscriptionOnly || !effectivePrice || effectivePrice <= 0) {
+      setHasPaymentPlan(false);
+      setAcceptedPaymentPlan(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("event_package_payment_plans" as any)
+        .select("id")
+        .eq("package_id", selectedPackage.id)
+        .is("archived_at", null)
+        .eq("activo", true)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) {
+        setHasPaymentPlan(!!data);
+        setAcceptedPaymentPlan(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedPackage?.id, isInscriptionOnly, effectivePrice]);
+
+
   // Profile completeness
   const missingFields: string[] = [];
   if (!alumno.nombre) missingFields.push("Nombre");
