@@ -67,6 +67,8 @@ export default function AdminBroadcasts() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
   const [sender, setSender] = useState<{ id?: string; sender_email: string; sender_name: string; reply_to: string }>({
     sender_email: "", sender_name: "", reply_to: "",
   });
@@ -83,15 +85,37 @@ export default function AdminBroadcasts() {
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
 
   const loadAll = async () => {
-    const [bres, tres, sres, cfg] = await Promise.all([
+    const [bres, tres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
       supabase.from("broadcasts" as any).select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("broadcast_templates" as any).select("*").order("updated_at", { ascending: false }),
       supabase.from("sedes" as any).select("id, nombre").order("nombre"),
       supabase.from("broadcast_sender_config" as any).select("*").limit(1).maybeSingle(),
+      supabase.from("alumnos" as any).select("id, nombre, apellido, email, estado, grupo, sede_id").not("email", "is", null).order("nombre"),
+      supabase.from("coaches" as any).select("id, nombre, email, estado, grupos, sede_id").not("email", "is", null).order("nombre"),
     ]);
     setBroadcasts((bres.data as any) || []);
     setTemplates((tres.data as any) || []);
     setSedes((sres.data as any) || []);
+    setContacts([
+      ...(((alumnosRes.data as any[]) || []).map((a) => ({
+        id: a.id,
+        type: "alumno" as const,
+        name: `${a.nombre || ""} ${a.apellido || ""}`.trim() || a.email,
+        email: a.email,
+        estado: a.estado,
+        grupo: a.grupo,
+        sede_id: a.sede_id,
+      }))),
+      ...(((coachesRes.data as any[]) || []).map((c) => ({
+        id: c.id,
+        type: "coach" as const,
+        name: c.nombre || c.email,
+        email: c.email,
+        estado: c.estado,
+        grupos: c.grupos,
+        sede_id: c.sede_id,
+      }))),
+    ].filter((c) => c.email?.includes("@")));
     if (cfg.data) setSender({
       id: (cfg.data as any).id,
       sender_email: (cfg.data as any).sender_email || "",
@@ -103,9 +127,12 @@ export default function AdminBroadcasts() {
   useEffect(() => { loadAll(); }, []);
 
   const segmentFilters = useMemo(() => ({
+    audience: composer.audience.length ? composer.audience : undefined,
     estados: composer.estados.length ? composer.estados : undefined,
     grupos: composer.grupos.length ? composer.grupos : undefined,
     sede_ids: composer.sede_ids.length ? composer.sede_ids : undefined,
+    alumno_ids: composer.alumno_ids.length ? composer.alumno_ids : undefined,
+    coach_ids: composer.coach_ids.length ? composer.coach_ids : undefined,
   }), [composer]);
 
   const previewSegment = async () => {
