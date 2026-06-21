@@ -10,12 +10,14 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 interface SegmentFilters {
+  audience?: ("students" | "coaches")[];
   estados?: string[];          // ['activo','inactivo',...]
   sede_ids?: string[];
   grupos?: string[];           // 'Grupal' | 'Personalizado' | etc
   plan_ids?: string[];         // specific plan ids
   has_email_only?: boolean;    // default true
   alumno_ids?: string[];       // explicit override list
+  coach_ids?: string[];        // explicit override list
 }
 
 interface SendBody {
@@ -57,18 +59,48 @@ ${pre}
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
-  let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo, plan_id");
-  if (filters.alumno_ids?.length) {
-    q = q.in("id", filters.alumno_ids);
-  } else {
-    if (filters.estados?.length) q = q.in("estado", filters.estados);
-    if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
-    if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
-    if (filters.plan_ids?.length) q = q.in("plan_id", filters.plan_ids);
+  const explicitSelection = Boolean(filters.alumno_ids?.length || filters.coach_ids?.length);
+  const audience = filters.audience?.length ? filters.audience : ["students"];
+  let rows: any[] = [];
+
+  if (explicitSelection || audience.includes("students")) {
+    let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo, plan_id");
+    if (filters.alumno_ids?.length) {
+      q = q.in("id", filters.alumno_ids);
+    } else if (!explicitSelection) {
+      if (filters.estados?.length) q = q.in("estado", filters.estados);
+      if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
+      if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
+      if (filters.plan_ids?.length) q = q.in("plan_id", filters.plan_ids);
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((a: any) => ({
+      ...a,
+      contact_type: "alumno",
+      display_name: `${a.nombre ?? ""} ${a.apellido ?? ""}`.trim(),
+    })));
   }
-  const { data, error } = await q;
-  if (error) throw error;
-  let rows = (data || []).filter((a: any) => a.email && a.email.includes("@"));
+
+  if (explicitSelection || audience.includes("coaches")) {
+    let q = supabase.from("coaches").select("id, nombre, email, estado, sede_id, grupos");
+    if (filters.coach_ids?.length) {
+      q = q.in("id", filters.coach_ids);
+    } else if (!explicitSelection) {
+      if (filters.estados?.length) q = q.in("estado", filters.estados);
+      if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
+      if (filters.grupos?.length) q = q.overlaps("grupos", filters.grupos);
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((c: any) => ({
+      ...c,
+      contact_type: "coach",
+      display_name: c.nombre,
+    })));
+  }
+
+  rows = rows.filter((a: any) => a.email && a.email.includes("@"));
 
   // exclude suppressed
   const emails = rows.map((r: any) => r.email.toLowerCase());
