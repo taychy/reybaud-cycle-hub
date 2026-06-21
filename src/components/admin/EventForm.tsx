@@ -98,6 +98,11 @@ export interface EventFormData {
   image_url: string;
   payment_mode: "cuotas" | "simple";
   admin_alert_emails: string[];
+  // Cartel comercial editable por admin
+  precio_aviso_texto: string;
+  precio_aviso_tipo: "info" | "warning" | "promo";
+  precio_aviso_hasta: string; // datetime-local string
+  precio_aviso_activo: boolean;
   // metadata (JSONB)
   metadata: Record<string, any>;
 }
@@ -119,8 +124,13 @@ const emptyForm: EventFormData = {
   image_url: "",
   payment_mode: "cuotas",
   admin_alert_emails: [],
+  precio_aviso_texto: "",
+  precio_aviso_tipo: "info",
+  precio_aviso_hasta: "",
+  precio_aviso_activo: false,
   metadata: {},
 };
+
 
 
 interface EventFormProps {
@@ -150,6 +160,10 @@ export const eventFormFromRow = (ev: any): EventFormData => ({
   image_url: ev.image_url || "",
   payment_mode: (ev.payment_mode === "simple" ? "simple" : "cuotas"),
   admin_alert_emails: Array.isArray(ev.admin_alert_emails) ? ev.admin_alert_emails : [],
+  precio_aviso_texto: ev.precio_aviso_texto || "",
+  precio_aviso_tipo: (ev.precio_aviso_tipo === "warning" || ev.precio_aviso_tipo === "promo") ? ev.precio_aviso_tipo : "info",
+  precio_aviso_hasta: ev.precio_aviso_hasta ? new Date(ev.precio_aviso_hasta).toISOString().slice(0, 16) : "",
+  precio_aviso_activo: !!ev.precio_aviso_activo,
   metadata: ev.metadata || {},
 });
 
@@ -174,6 +188,10 @@ export const eventFormToPayload = (form: EventFormData) => {
     metadata: form.metadata,
     payment_mode: form.payment_mode,
     admin_alert_emails: form.admin_alert_emails,
+    precio_aviso_texto: form.precio_aviso_texto?.trim() || null,
+    precio_aviso_tipo: form.precio_aviso_tipo || "info",
+    precio_aviso_hasta: form.precio_aviso_hasta ? new Date(form.precio_aviso_hasta).toISOString() : null,
+    precio_aviso_activo: !!form.precio_aviso_activo,
 
     location: m.location_name || m.race_location || m.destination || null,
     price: m.pricing_mode === "no_mostrar" ? null
@@ -185,6 +203,7 @@ export const eventFormToPayload = (form: EventFormData) => {
     is_own_event: m.event_nature !== "externo_informativo",
   };
 };
+
 
 /* ─── Component ─── */
 const EventForm = ({
