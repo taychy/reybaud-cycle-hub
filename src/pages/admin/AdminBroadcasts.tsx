@@ -469,7 +469,7 @@ export default function AdminBroadcasts() {
               </Button>
               {previewCount !== null && (
                 <div className="text-sm">
-                  Se enviará a <b>{previewCount}</b> alumno{previewCount === 1 ? "" : "s"}.
+                  Se enviará a <b>{previewCount}</b> destinatario{previewCount === 1 ? "" : "s"}.
                   {previewSample.length > 0 && (
                     <span className="text-muted-foreground ml-2">
                       Ej: {previewSample.map((s: any) => s.email).slice(0, 3).join(", ")}…
@@ -646,7 +646,7 @@ export default function AdminBroadcasts() {
       <AlertDialog open={showConfirmSend} onOpenChange={setShowConfirmSend}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Enviar a {previewCount} alumno{previewCount === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogTitle>¿Enviar a {previewCount} destinatario{previewCount === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
               Asunto: <b>{composer.subject}</b><br />
               Esta acción no se puede deshacer. Se enviarán los emails ahora mismo.
