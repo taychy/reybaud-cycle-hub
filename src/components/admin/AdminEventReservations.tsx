@@ -714,16 +714,36 @@ const AdminEventReservations = ({
     const res = reservations.find(r => r.id === resId);
     if (!res) return;
 
+    // ── Confirmación de reserva: usar RPC atómico que encola email + crea notif admin
+    if (field === "reservation_status" && value === "reserva_confirmada"
+        && res.reservation_status !== "reserva_confirmada") {
+      const { data, error: rpcErr } = await supabase.rpc("confirm_reservation", { _reservation_id: resId });
+      setUpdatingId(null);
+      if (rpcErr) {
+        toast({ title: "Error al confirmar", description: rpcErr.message, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Reserva confirmada",
+        description: (data as any)?.already_confirmed
+          ? "Ya estaba confirmada."
+          : "Email de cobranza encolado para el cliente.",
+      });
+      loadReservations();
+      if (selectedRes?.id === resId) {
+        setSelectedRes(prev => prev ? { ...prev, reservation_status: "reserva_confirmada" } : null);
+      }
+      return;
+    }
+
     const updatePayload: any = { [field]: value };
     if (field === "reservation_status") {
-      if (value === "reserva_confirmada") updatePayload.estado = "pago_confirmado";
-      else if (value === "cancelada") updatePayload.estado = "cancelada";
+      if (value === "cancelada") updatePayload.estado = "cancelada";
     }
     if (field === "payment_status") {
       if (value === "pago_validado") updatePayload.estado = "pago_confirmado";
       else if (value === "pago_informado") updatePayload.estado = "pendiente_verificacion";
     }
-    if (value === "reserva_confirmada") updatePayload.confirmed_at = new Date().toISOString();
     if (value === "cancelada") updatePayload.cancelled_at = new Date().toISOString();
 
     const { error } = await supabase
@@ -751,6 +771,22 @@ const AdminEventReservations = ({
     }
     setUpdatingId(null);
   };
+
+  const resendConfirmationEmail = async (resId: string) => {
+    setUpdatingId(resId);
+    try {
+      const { error } = await supabase.functions.invoke("send-reservation-confirmed-with-payment", {
+        body: { reservation_id: resId, force: true },
+      });
+      if (error) throw error;
+      toast({ title: "Email reenviado", description: "Encolado nuevamente para el cliente." });
+      loadReservations();
+    } catch (e: any) {
+      toast({ title: "Error al reenviar", description: e.message, variant: "destructive" });
+    }
+    setUpdatingId(null);
+  };
+
 
   const updateAdminNotes = async (resId: string, notes: string) => {
     await supabase
