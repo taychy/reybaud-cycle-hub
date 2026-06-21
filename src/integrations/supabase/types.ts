@@ -2565,6 +2565,10 @@ export type Database = {
           metadata: Json
           no_incluye: string[]
           payment_mode: Database["public"]["Enums"]["event_payment_mode"]
+          precio_aviso_activo: boolean
+          precio_aviso_hasta: string | null
+          precio_aviso_texto: string | null
+          precio_aviso_tipo: string
           price: number | null
           roadbook: Json | null
           same_day: boolean
@@ -2599,6 +2603,10 @@ export type Database = {
           metadata?: Json
           no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
+          precio_aviso_activo?: boolean
+          precio_aviso_hasta?: string | null
+          precio_aviso_texto?: string | null
+          precio_aviso_tipo?: string
           price?: number | null
           roadbook?: Json | null
           same_day?: boolean
@@ -2633,6 +2641,10 @@ export type Database = {
           metadata?: Json
           no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
+          precio_aviso_activo?: boolean
+          precio_aviso_hasta?: string | null
+          precio_aviso_texto?: string | null
+          precio_aviso_tipo?: string
           price?: number | null
           roadbook?: Json | null
           same_day?: boolean
