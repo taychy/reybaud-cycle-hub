@@ -10,12 +10,14 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 interface SegmentFilters {
+  audience?: ("students" | "coaches")[];
   estados?: string[];          // ['activo','inactivo',...]
   sede_ids?: string[];
   grupos?: string[];           // 'Grupal' | 'Personalizado' | etc
   plan_ids?: string[];         // specific plan ids
   has_email_only?: boolean;    // default true
   alumno_ids?: string[];       // explicit override list
+  coach_ids?: string[];        // explicit override list
 }
 
 interface SendBody {
@@ -57,18 +59,47 @@ ${pre}
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
-  let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo, plan_id");
-  if (filters.alumno_ids?.length) {
-    q = q.in("id", filters.alumno_ids);
-  } else {
-    if (filters.estados?.length) q = q.in("estado", filters.estados);
-    if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
-    if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
-    if (filters.plan_ids?.length) q = q.in("plan_id", filters.plan_ids);
+  const explicitSelection = Boolean(filters.alumno_ids?.length || filters.coach_ids?.length);
+  const audience = Array.isArray(filters.audience) ? filters.audience : ["students"];
+  let rows: any[] = [];
+
+  if ((filters.alumno_ids?.length || (!explicitSelection && audience.includes("students")))) {
+    let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo");
+    if (filters.alumno_ids?.length) {
+      q = q.in("id", filters.alumno_ids);
+    } else if (!explicitSelection) {
+      if (filters.estados?.length) q = q.in("estado", filters.estados);
+      if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
+      if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((a: any) => ({
+      ...a,
+      contact_type: "alumno",
+      display_name: `${a.nombre ?? ""} ${a.apellido ?? ""}`.trim(),
+    })));
   }
-  const { data, error } = await q;
-  if (error) throw error;
-  let rows = (data || []).filter((a: any) => a.email && a.email.includes("@"));
+
+  if ((filters.coach_ids?.length || (!explicitSelection && audience.includes("coaches")))) {
+    let q = supabase.from("coaches").select("id, nombre, email, estado, sede_id, grupos");
+    if (filters.coach_ids?.length) {
+      q = q.in("id", filters.coach_ids);
+    } else if (!explicitSelection) {
+      if (filters.estados?.length) q = q.in("estado", filters.estados);
+      if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
+      if (filters.grupos?.length) q = q.overlaps("grupos", filters.grupos);
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((c: any) => ({
+      ...c,
+      contact_type: "coach",
+      display_name: c.nombre,
+    })));
+  }
+
+  rows = rows.filter((a: any) => a.email && a.email.includes("@"));
 
   // exclude suppressed
   const emails = rows.map((r: any) => r.email.toLowerCase());
@@ -150,7 +181,14 @@ Deno.serve(async (req) => {
     // Preview count only
     if (body.mode === "preview_count") {
       const rows = await loadRecipients(admin, filters);
-      return new Response(JSON.stringify({ count: rows.length, sample: rows.slice(0, 5).map((r: any) => ({ email: r.email, nombre: `${r.nombre} ${r.apellido ?? ""}`.trim() })) }), {
+      return new Response(JSON.stringify({
+        count: rows.length,
+        sample: rows.slice(0, 5).map((r: any) => ({
+          email: r.email,
+          nombre: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
+          type: r.contact_type,
+        })),
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -207,9 +245,9 @@ Deno.serve(async (req) => {
       await admin.from("broadcast_recipients").insert(
         recipients.map((r: any) => ({
           broadcast_id: bc.id,
-          alumno_id: r.id,
+          alumno_id: r.contact_type === "alumno" ? r.id : null,
           email: r.email,
-          name: `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
+          name: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
           status: "pending",
         }))
       );
@@ -220,7 +258,7 @@ Deno.serve(async (req) => {
       for (const r of recipients) {
         const r1 = await sendOne({
           sender: { name: senderName, email: senderEmail },
-          to: [{ email: r.email, name: `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim() || undefined }],
+          to: [{ email: r.email, name: r.display_name || undefined }],
           replyTo: replyTo ? { email: replyTo } : undefined,
           subject: body.subject,
           htmlContent: html,

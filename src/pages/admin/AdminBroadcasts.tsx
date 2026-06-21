@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -16,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2 } from "lucide-react";
+import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search } from "lucide-react";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Sin grupo"];
@@ -36,14 +37,27 @@ interface Template {
   id: string; name: string; description: string | null; subject: string; content_html: string;
 }
 interface Sede { id: string; nombre: string }
+interface Contact {
+  id: string;
+  type: "alumno" | "coach";
+  name: string;
+  email: string;
+  estado: string | null;
+  grupo?: string | null;
+  grupos?: string[] | null;
+  sede_id?: string | null;
+}
 
 const emptyComposer = {
   subject: "",
   preheader: "",
   content_html: "",
+  audience: ["students"] as ("students" | "coaches")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
   sede_ids: [] as string[],
+  alumno_ids: [] as string[],
+  coach_ids: [] as string[],
 };
 
 export default function AdminBroadcasts() {
@@ -53,6 +67,8 @@ export default function AdminBroadcasts() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
   const [sender, setSender] = useState<{ id?: string; sender_email: string; sender_name: string; reply_to: string }>({
     sender_email: "", sender_name: "", reply_to: "",
   });
@@ -69,15 +85,37 @@ export default function AdminBroadcasts() {
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
 
   const loadAll = async () => {
-    const [bres, tres, sres, cfg] = await Promise.all([
+    const [bres, tres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
       supabase.from("broadcasts" as any).select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("broadcast_templates" as any).select("*").order("updated_at", { ascending: false }),
       supabase.from("sedes" as any).select("id, nombre").order("nombre"),
       supabase.from("broadcast_sender_config" as any).select("*").limit(1).maybeSingle(),
+      supabase.from("alumnos" as any).select("id, nombre, apellido, email, estado, grupo, sede_id").not("email", "is", null).order("nombre"),
+      supabase.from("coaches" as any).select("id, nombre, email, estado, grupos, sede_id").not("email", "is", null).order("nombre"),
     ]);
     setBroadcasts((bres.data as any) || []);
     setTemplates((tres.data as any) || []);
     setSedes((sres.data as any) || []);
+    setContacts([
+      ...(((alumnosRes.data as any[]) || []).map((a) => ({
+        id: a.id,
+        type: "alumno" as const,
+        name: `${a.nombre || ""} ${a.apellido || ""}`.trim() || a.email,
+        email: a.email,
+        estado: a.estado,
+        grupo: a.grupo,
+        sede_id: a.sede_id,
+      }))),
+      ...(((coachesRes.data as any[]) || []).map((c) => ({
+        id: c.id,
+        type: "coach" as const,
+        name: c.nombre || c.email,
+        email: c.email,
+        estado: c.estado,
+        grupos: c.grupos,
+        sede_id: c.sede_id,
+      }))),
+    ].filter((c) => c.email?.includes("@")));
     if (cfg.data) setSender({
       id: (cfg.data as any).id,
       sender_email: (cfg.data as any).sender_email || "",
@@ -89,9 +127,12 @@ export default function AdminBroadcasts() {
   useEffect(() => { loadAll(); }, []);
 
   const segmentFilters = useMemo(() => ({
+    audience: composer.audience,
     estados: composer.estados.length ? composer.estados : undefined,
     grupos: composer.grupos.length ? composer.grupos : undefined,
     sede_ids: composer.sede_ids.length ? composer.sede_ids : undefined,
+    alumno_ids: composer.alumno_ids.length ? composer.alumno_ids : undefined,
+    coach_ids: composer.coach_ids.length ? composer.coach_ids : undefined,
   }), [composer]);
 
   const previewSegment = async () => {
@@ -235,6 +276,22 @@ export default function AdminBroadcasts() {
   const toggleArr = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
 
+  const selectedContactCount = composer.alumno_ids.length + composer.coach_ids.length;
+  const filteredContacts = contacts.filter((contact) => {
+    const q = contactSearch.trim().toLowerCase();
+    if (!q) return true;
+    return `${contact.name} ${contact.email} ${contact.grupo || ""} ${(contact.grupos || []).join(" ")}`.toLowerCase().includes(q);
+  });
+  const toggleContact = (contact: Contact) => {
+    if (contact.type === "coach") {
+      setComposer({ ...composer, coach_ids: toggleArr(composer.coach_ids, contact.id) });
+    } else {
+      setComposer({ ...composer, alumno_ids: toggleArr(composer.alumno_ids, contact.id) });
+    }
+  };
+  const isContactSelected = (contact: Contact) =>
+    contact.type === "coach" ? composer.coach_ids.includes(contact.id) : composer.alumno_ids.includes(contact.id);
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -298,6 +355,23 @@ export default function AdminBroadcasts() {
 
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2"><Users className="w-4 h-4" /><b>Segmentación</b></div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("students")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "students") as ("students" | "coaches")[] })}
+                />
+                Alumnos
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("coaches")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "coaches") as ("students" | "coaches")[] })}
+                />
+                Coaches
+              </label>
+              <span className="text-xs text-muted-foreground self-center">Elegí uno o ambos públicos.</span>
+            </div>
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Estados</Label>
@@ -342,6 +416,52 @@ export default function AdminBroadcasts() {
               </div>
             </div>
 
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <Label className="text-xs">Seleccionar contactos puntuales</Label>
+                {selectedContactCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setComposer({ ...composer, alumno_ids: [], coach_ids: [] })}
+                  >
+                    Limpiar selección ({selectedContactCount})
+                  </Button>
+                )}
+              </div>
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  placeholder="Buscar por nombre, email o grupo..."
+                  className="pl-9"
+                />
+              </div>
+              <div className="rounded-md border max-h-64 overflow-y-auto divide-y">
+                {filteredContacts.length === 0 ? (
+                  <div className="p-3 text-xs text-muted-foreground">No hay contactos con ese filtro.</div>
+                ) : filteredContacts.slice(0, 120).map((contact) => (
+                  <label key={`${contact.type}-${contact.id}`} className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/30">
+                    <Checkbox checked={isContactSelected(contact)} onCheckedChange={() => toggleContact(contact)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium truncate">{contact.name}</span>
+                        <Badge variant="outline" className="text-[10px]">{contact.type === "coach" ? "Coach" : "Alumno"}</Badge>
+                        {contact.estado && <Badge variant="secondary" className="text-[10px] capitalize">{contact.estado}</Badge>}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {contact.email}{contact.type === "coach" && contact.grupos?.length ? ` · ${contact.grupos.join(", ")}` : contact.grupo ? ` · ${contact.grupo}` : ""}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Si seleccionás contactos puntuales, el envío usa esa lista exacta. Si no seleccionás ninguno, usa la segmentación de arriba.
+              </p>
+            </div>
+
             <div className="flex items-center gap-3 pt-2 flex-wrap">
               <Button variant="secondary" onClick={previewSegment} disabled={loadingPreview}>
                 {loadingPreview ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Eye className="w-4 h-4 mr-1" />}
@@ -349,7 +469,7 @@ export default function AdminBroadcasts() {
               </Button>
               {previewCount !== null && (
                 <div className="text-sm">
-                  Se enviará a <b>{previewCount}</b> alumno{previewCount === 1 ? "" : "s"}.
+                  Se enviará a <b>{previewCount}</b> destinatario{previewCount === 1 ? "" : "s"}.
                   {previewSample.length > 0 && (
                     <span className="text-muted-foreground ml-2">
                       Ej: {previewSample.map((s: any) => s.email).slice(0, 3).join(", ")}…
@@ -526,7 +646,7 @@ export default function AdminBroadcasts() {
       <AlertDialog open={showConfirmSend} onOpenChange={setShowConfirmSend}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Enviar a {previewCount} alumno{previewCount === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogTitle>¿Enviar a {previewCount} destinatario{previewCount === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
               Asunto: <b>{composer.subject}</b><br />
               Esta acción no se puede deshacer. Se enviarán los emails ahora mismo.
