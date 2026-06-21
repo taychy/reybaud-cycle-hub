@@ -452,6 +452,16 @@ const EventDetail = () => {
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* PRIORITY: Active reservation → show status card FIRST      */}
           {/* ═══════════════════════════════════════════════════════════ */}
+          {/* Cartel comercial editable por admin (banner amarillo/azul/verde según tipo) */}
+          {!isActiveReservation && (
+            <EventPriceBanner
+              texto={event.precio_aviso_texto}
+              tipo={event.precio_aviso_tipo}
+              hasta={event.precio_aviso_hasta}
+              activo={event.precio_aviso_activo}
+            />
+          )}
+
           {alumno && isActiveReservation && reservation && (
             <ReservationStatusCard
               reservation={reservation}
