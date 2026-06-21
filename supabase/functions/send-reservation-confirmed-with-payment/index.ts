@@ -86,12 +86,58 @@ Deno.serve(async (req) => {
     const currency = calc?.currency || r.currency_snapshot || r.moneda || "ARS";
     const concepto = calc?.concepto || "saldo";
 
+    // Plan de cuotas materializado para esta reserva (si tiene)
+    const { data: installments } = await sb
+      .from("reservation_installments")
+      .select("installment_number, label, amount, currency, due_date, balance_due, status")
+      .eq("reservation_id", reservation_id)
+      .order("sort_order", { ascending: true });
+
+    const fmtDate = (d?: string | null) => {
+      if (!d) return "";
+      const [y, m, dd] = d.split("-");
+      return `${dd}/${m}/${y}`;
+    };
+
+    let installmentsTableHtml = "";
+    let installmentsTableText = "";
+    if (installments && installments.length > 0) {
+      const rows = installments.map((i: any) => `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#111">
+            ${i.label || `Cuota ${i.installment_number}`}
+            ${i.due_date ? `<div style="font-size:11px;color:#6b7280">Vence ${fmtDate(i.due_date)}</div>` : ""}
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#111;text-align:right;font-weight:600">
+            ${fmtMoney(Number(i.amount || 0), i.currency || currency)}
+          </td>
+        </tr>`).join("");
+      installmentsTableHtml = `
+  <div style="margin:20px 0 8px">
+    <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#111">Plan de pagos completo</p>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+      <thead>
+        <tr style="background:#f8fafc">
+          <th style="padding:8px 10px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Concepto</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Monto</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin:6px 0 0;font-size:11px;color:#6b7280">Los montos y fechas pueden ajustarse si cambian el paquete o el precio.</p>
+  </div>`;
+      installmentsTableText = "\n\nPlan de pagos:\n" + installments.map((i: any) =>
+        `- ${i.label || `Cuota ${i.installment_number}`}${i.due_date ? ` (vence ${fmtDate(i.due_date)})` : ""}: ${fmtMoney(Number(i.amount || 0), i.currency || currency)}`
+      ).join("\n");
+    }
+
     const payUrl = `${APP_DOMAIN}/mis-reservas/${reservation_id}?action=pay`;
     const cashUrl = `${APP_DOMAIN}/mis-reservas/${reservation_id}?action=cash`;
     const viewUrl = `${APP_DOMAIN}/mis-reservas/${reservation_id}`;
 
     const unsubToken = await getUnsubToken(sb, email);
     const unsubUrl = `${APP_DOMAIN}/email/unsubscribe?token=${unsubToken}`;
+
 
     const subject = `Tu reserva fue confirmada — coordinemos la seña`;
     const html = `
@@ -124,6 +170,8 @@ Deno.serve(async (req) => {
     </td></tr>
   </table>
 
+  ${installmentsTableHtml}
+
   <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:10px 12px;border-radius:6px;margin:20px 0;font-size:13px;color:#92400e">
     <strong>Efectivo:</strong> el botón solo nos avisa que pensás pagar así. No acredita el pago hasta que lo cobramos.
   </div>
@@ -132,7 +180,8 @@ Deno.serve(async (req) => {
   <p style="font-size:11px;color:#9ca3af;margin:0">Reybaud Ciclismo · <a href="${unsubUrl}" style="color:#9ca3af">Cancelar suscripción</a></p>
 </div>`;
 
-    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${payUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}`;
+    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${payUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
+
 
     const messageId = `confirm-pay-${reservation_id}`;
     const { error: enqErr } = await sb.rpc("enqueue_email", {

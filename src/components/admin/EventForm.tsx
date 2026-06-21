@@ -98,6 +98,11 @@ export interface EventFormData {
   image_url: string;
   payment_mode: "cuotas" | "simple";
   admin_alert_emails: string[];
+  // Cartel comercial editable por admin
+  precio_aviso_texto: string;
+  precio_aviso_tipo: "info" | "warning" | "promo";
+  precio_aviso_hasta: string; // datetime-local string
+  precio_aviso_activo: boolean;
   // metadata (JSONB)
   metadata: Record<string, any>;
 }
@@ -119,8 +124,13 @@ const emptyForm: EventFormData = {
   image_url: "",
   payment_mode: "cuotas",
   admin_alert_emails: [],
+  precio_aviso_texto: "",
+  precio_aviso_tipo: "info",
+  precio_aviso_hasta: "",
+  precio_aviso_activo: false,
   metadata: {},
 };
+
 
 
 interface EventFormProps {
@@ -150,6 +160,10 @@ export const eventFormFromRow = (ev: any): EventFormData => ({
   image_url: ev.image_url || "",
   payment_mode: (ev.payment_mode === "simple" ? "simple" : "cuotas"),
   admin_alert_emails: Array.isArray(ev.admin_alert_emails) ? ev.admin_alert_emails : [],
+  precio_aviso_texto: ev.precio_aviso_texto || "",
+  precio_aviso_tipo: (ev.precio_aviso_tipo === "warning" || ev.precio_aviso_tipo === "promo") ? ev.precio_aviso_tipo : "info",
+  precio_aviso_hasta: ev.precio_aviso_hasta ? new Date(ev.precio_aviso_hasta).toISOString().slice(0, 16) : "",
+  precio_aviso_activo: !!ev.precio_aviso_activo,
   metadata: ev.metadata || {},
 });
 
@@ -174,6 +188,10 @@ export const eventFormToPayload = (form: EventFormData) => {
     metadata: form.metadata,
     payment_mode: form.payment_mode,
     admin_alert_emails: form.admin_alert_emails,
+    precio_aviso_texto: form.precio_aviso_texto?.trim() || null,
+    precio_aviso_tipo: form.precio_aviso_tipo || "info",
+    precio_aviso_hasta: form.precio_aviso_hasta ? new Date(form.precio_aviso_hasta).toISOString() : null,
+    precio_aviso_activo: !!form.precio_aviso_activo,
 
     location: m.location_name || m.race_location || m.destination || null,
     price: m.pricing_mode === "no_mostrar" ? null
@@ -185,6 +203,7 @@ export const eventFormToPayload = (form: EventFormData) => {
     is_own_event: m.event_nature !== "externo_informativo",
   };
 };
+
 
 /* ─── Component ─── */
 const EventForm = ({
@@ -1115,6 +1134,66 @@ const EventForm = ({
           </div>
         </div>
       </fieldset>
+
+      {/* CARTEL COMERCIAL (banner editable en EventDetail) */}
+      <fieldset className="space-y-3 p-4 rounded-lg border border-border/50 bg-card/30">
+        <legend className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          📣 Cartel comercial (banner)
+        </legend>
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Mensaje destacado en la página del evento. Ideal para: "Últimos cupos", "Precio sube el 30/06", "Promo hasta el viernes", etc.
+        </p>
+
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={form.precio_aviso_activo}
+            onCheckedChange={(v) => setForm({ ...form, precio_aviso_activo: v })}
+          />
+          <Label className="text-sm">Mostrar cartel a los participantes</Label>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs">Texto del cartel</Label>
+          <Textarea
+            value={form.precio_aviso_texto}
+            onChange={(e) => setForm({ ...form, precio_aviso_texto: e.target.value })}
+            rows={2}
+            maxLength={240}
+            placeholder="Ej: Este es el último mes con este precio. A partir del 30/06 el camp sube a USD 1.200."
+          />
+          <p className="text-[11px] text-muted-foreground text-right">
+            {form.precio_aviso_texto.length}/240
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Estilo</Label>
+            <Select
+              value={form.precio_aviso_tipo}
+              onValueChange={(v: "info" | "warning" | "promo") => setForm({ ...form, precio_aviso_tipo: v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="info">Informativo (celeste)</SelectItem>
+                <SelectItem value="warning">Atención / urgencia (ámbar)</SelectItem>
+                <SelectItem value="promo">Promoción / oportunidad (verde)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Mostrar hasta (opcional)</Label>
+            <Input
+              type="datetime-local"
+              value={form.precio_aviso_hasta}
+              onChange={(e) => setForm({ ...form, precio_aviso_hasta: e.target.value })}
+            />
+            <p className="text-[10px] text-muted-foreground">Si vacío, queda visible mientras esté activo.</p>
+          </div>
+        </div>
+      </fieldset>
+
+
 
       {/* COMPARTIR LINKS */}
       {isEditing && eventId && (

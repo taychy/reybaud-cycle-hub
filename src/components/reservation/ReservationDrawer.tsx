@@ -82,6 +82,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const [vinculo, setVinculo] = useState<Vinculo | null>(null);
   const [mates, setMates] = useState<{ nombre: string; email: string; telefono: string }[]>([]);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPaymentPlan, setAcceptedPaymentPlan] = useState(false);
+  const [hasPaymentPlan, setHasPaymentPlan] = useState(false);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -141,6 +143,32 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   // Precio efectivo: del paquete elegido, o del evento
   const effectivePrice = selectedPackage ? selectedPackage.precio : event.price;
   const effectiveCurrency = selectedPackage ? selectedPackage.currency : event.currency;
+
+  // Detectar si el paquete elegido tiene plan de cuotas activo (para mostrar checkbox)
+  useEffect(() => {
+    if (!selectedPackage || isInscriptionOnly || !effectivePrice || effectivePrice <= 0) {
+      setHasPaymentPlan(false);
+      setAcceptedPaymentPlan(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("event_package_payment_plans" as any)
+        .select("id")
+        .eq("package_id", selectedPackage.id)
+        .is("archived_at", null)
+        .eq("activo", true)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) {
+        setHasPaymentPlan(!!data);
+        setAcceptedPaymentPlan(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedPackage?.id, isInscriptionOnly, effectivePrice]);
+
 
   // Profile completeness
   const missingFields: string[] = [];
@@ -945,6 +973,19 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                 );
               })()}
 
+              {hasPaymentPlan && (
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 cursor-pointer">
+                  <Checkbox
+                    checked={acceptedPaymentPlan}
+                    onCheckedChange={(v) => setAcceptedPaymentPlan(v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm text-foreground leading-snug">
+                    Entiendo que esta reserva incluye una <b>seña</b> y <b>pagos posteriores</b> según el plan informado en este evento.
+                  </span>
+                </label>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
@@ -953,7 +994,10 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   variant="gold"
                   className="flex-1"
                   onClick={handleSubmit}
-                  disabled={hasAnyReglamento(extractReglamentoWithDefaults(event.metadata, event.type)) && !acceptedTerms}
+                  disabled={
+                    (hasAnyReglamento(extractReglamentoWithDefaults(event.metadata, event.type)) && !acceptedTerms) ||
+                    (hasPaymentPlan && !acceptedPaymentPlan)
+                  }
                 >
                   <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}
                 </Button>
