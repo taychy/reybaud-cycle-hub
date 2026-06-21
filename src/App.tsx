@@ -88,6 +88,8 @@ import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
+import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
+
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 const queryClient = new QueryClient();
