@@ -168,6 +168,8 @@ const App = () => (
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
             <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
+            <Route path="comunicaciones" element={<AdminEmailTemplates />} />
+
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
             <Route path="gastos" element={<SuperAdminGastos />} />
