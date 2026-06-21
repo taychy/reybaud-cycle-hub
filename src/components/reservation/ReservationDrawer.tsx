@@ -973,6 +973,19 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                 );
               })()}
 
+              {hasPaymentPlan && (
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 cursor-pointer">
+                  <Checkbox
+                    checked={acceptedPaymentPlan}
+                    onCheckedChange={(v) => setAcceptedPaymentPlan(v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm text-foreground leading-snug">
+                    Entiendo que esta reserva incluye una <b>seña</b> y <b>pagos posteriores</b> según el plan informado en este evento.
+                  </span>
+                </label>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
@@ -981,7 +994,10 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   variant="gold"
                   className="flex-1"
                   onClick={handleSubmit}
-                  disabled={hasAnyReglamento(extractReglamentoWithDefaults(event.metadata, event.type)) && !acceptedTerms}
+                  disabled={
+                    (hasAnyReglamento(extractReglamentoWithDefaults(event.metadata, event.type)) && !acceptedTerms) ||
+                    (hasPaymentPlan && !acceptedPaymentPlan)
+                  }
                 >
                   <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}
                 </Button>
