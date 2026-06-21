@@ -265,10 +265,45 @@ const ReportPaymentDrawer = ({
     toast({ title: "Pago informado correctamente." });
   };
 
+  // Load cash amount preview when switching to cash mode
+  useEffect(() => {
+    if (mode !== "cash_announce" || !open) return;
+    (async () => {
+      const { data } = await supabase.rpc("importe_a_pagar_ahora", { _reservation_id: reservation.id });
+      if (data) setCashCalc({
+        amount: Number((data as any).amount || 0),
+        currency: (data as any).currency || currency,
+        concepto: (data as any).concepto || "saldo",
+      });
+    })();
+  }, [mode, open, reservation.id, currency]);
+
+  const submitCashAnnounce = async () => {
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("announce_cash_payment", {
+      _reservation_id: reservation.id,
+      _nota: cashNote || null,
+      _lugar: cashPlace || null,
+      _fecha_limite: cashDeadline || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "No se pudo anunciar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setSuccess(true);
+    onSuccess();
+    toast({
+      title: (data as any)?.reused ? "Anuncio actualizado" : "Aviso enviado",
+      description: "Recordá: este aviso NO acredita el pago. Te confirmamos cuando lo cobremos.",
+    });
+  };
+
   const handleClose = () => {
     onOpenChange(false);
     setTimeout(() => {
       setSuccess(false);
+      setMode("paid");
       setAmount(reservation.balance_due?.toString() || "");
       setPaymentCurrency(currency);
       setPaymentDate(new Date().toISOString().slice(0, 10));
@@ -279,8 +314,10 @@ const ReportPaymentDrawer = ({
       setProofFileName(null);
       setInstallmentChoice("general");
       setInstallments([]);
+      setCashNote(""); setCashPlace("sede"); setCashDeadline(""); setCashCalc(null);
     }, 300);
   };
+
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
