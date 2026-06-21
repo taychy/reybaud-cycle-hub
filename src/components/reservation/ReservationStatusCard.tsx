@@ -286,6 +286,27 @@ const ReservationStatusCard = ({
   const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
   const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
 
+  // Auto-abrir drawer cuando viene del email con ?action=pay|cash (y ?reserva=:id matching).
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const reservaParam = searchParams.get("reserva");
+    if (!action) return;
+    if (reservaParam && reservaParam !== reservation.id) return;
+    if (action === "pay") {
+      setPaymentMode("paid");
+      setShowPaymentDrawer(true);
+    } else if (action === "cash") {
+      setPaymentMode("cash");
+      setShowPaymentDrawer(true);
+    }
+    // limpiar params para que no re-dispare
+    const next = new URLSearchParams(searchParams);
+    next.delete("action");
+    next.delete("reserva");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, reservation.id, setSearchParams]);
+
+
   const loadChecklistData = useCallback(async () => {
     const { data } = await supabase
       .from("reservation_checklist_data")
