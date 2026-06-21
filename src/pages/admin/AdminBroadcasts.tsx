@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -16,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2 } from "lucide-react";
+import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search } from "lucide-react";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Sin grupo"];
@@ -36,14 +37,27 @@ interface Template {
   id: string; name: string; description: string | null; subject: string; content_html: string;
 }
 interface Sede { id: string; nombre: string }
+interface Contact {
+  id: string;
+  type: "alumno" | "coach";
+  name: string;
+  email: string;
+  estado: string | null;
+  grupo?: string | null;
+  grupos?: string[] | null;
+  sede_id?: string | null;
+}
 
 const emptyComposer = {
   subject: "",
   preheader: "",
   content_html: "",
+  audience: ["students"] as ("students" | "coaches")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
   sede_ids: [] as string[],
+  alumno_ids: [] as string[],
+  coach_ids: [] as string[],
 };
 
 export default function AdminBroadcasts() {
