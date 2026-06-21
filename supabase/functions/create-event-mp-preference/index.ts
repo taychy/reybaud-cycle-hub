@@ -235,6 +235,22 @@ Deno.serve(async (req) => {
     // Nota: event_reservations no tiene cuenta_mp_id; el webhook resuelve por
     // la unidad de negocio del evento (is_trip → viaje_camp, sino → evento).
 
+    // Persist preference into intent
+    if (intentId) {
+      await supabaseAdmin
+        .from("reservation_payment_intents")
+        .update({ preference_id: mpData.id, init_point: mpData.init_point })
+        .eq("id", intentId);
+    }
+
+    await supabaseAdmin.from("audit_log").insert({
+      action: "reserva.mp.preference.creada",
+      entity_type: "reservation_payment_intent",
+      entity_id: intentId || null,
+      user_role: "edge_function",
+      details: { reservation_id, preference_id: mpData.id, amount: intentAmount, currency, concepto },
+    });
+
     return new Response(
       JSON.stringify({
         init_point: mpData.init_point,
@@ -245,6 +261,7 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (err) {
     console.error("Unexpected error:", err);
     return new Response(
