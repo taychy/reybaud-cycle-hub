@@ -25,6 +25,8 @@ import ReservationStatusCard from "@/components/reservation/ReservationStatusCar
 // CancelReservationDrawer is now handled inside ReservationStatusCard
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
+import EventPriceBanner from "@/components/event/EventPriceBanner";
+import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
@@ -53,6 +55,10 @@ interface Event {
   level: string | null;
   image_url: string | null;
   metadata: any;
+  precio_aviso_texto?: string | null;
+  precio_aviso_tipo?: string | null;
+  precio_aviso_hasta?: string | null;
+  precio_aviso_activo?: boolean | null;
 }
 
 interface Reservation {
