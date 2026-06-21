@@ -51,6 +51,7 @@ import EventManagement from "./pages/admin/EventManagement";
 import EventsList from "./pages/admin/EventsList";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
+import MisReservas from "./pages/MisReservas";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
 import StoreDashboard from "./pages/admin/store/StoreDashboard";
@@ -140,6 +141,7 @@ const App = () => (
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
+          <Route path="/mis-reservas/:id" element={<MisReservas />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>

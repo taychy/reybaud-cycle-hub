@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -266,6 +267,8 @@ const ReservationStatusCard = ({
   const { toast } = useToast();
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
   const [preselectedInstallmentId, setPreselectedInstallmentId] = useState<string | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"paid" | "cash" | undefined>(undefined);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mpLoading, setMpLoading] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -282,6 +285,27 @@ const ReservationStatusCard = ({
   const [pendingPayments, setPendingPayments] = useState<Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>>([]);
   const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
   const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
+
+  // Auto-abrir drawer cuando viene del email con ?action=pay|cash (y ?reserva=:id matching).
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const reservaParam = searchParams.get("reserva");
+    if (!action) return;
+    if (reservaParam && reservaParam !== reservation.id) return;
+    if (action === "pay") {
+      setPaymentMode("paid");
+      setShowPaymentDrawer(true);
+    } else if (action === "cash") {
+      setPaymentMode("cash");
+      setShowPaymentDrawer(true);
+    }
+    // limpiar params para que no re-dispare
+    const next = new URLSearchParams(searchParams);
+    next.delete("action");
+    next.delete("reserva");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, reservation.id, setSearchParams]);
+
 
   const loadChecklistData = useCallback(async () => {
     const { data } = await supabase
@@ -1076,12 +1100,13 @@ const ReservationStatusCard = ({
 
       <ReportPaymentDrawer
         open={showPaymentDrawer}
-        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) setPreselectedInstallmentId(null); }}
+        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); } }}
         reservation={reservation}
         alumnoId={alumnoId}
         currency={currency}
         onSuccess={onPaymentReported}
         preselectedInstallmentId={preselectedInstallmentId}
+        initialMode={paymentMode === "cash" ? "cash_announce" : paymentMode === "paid" ? "paid" : undefined}
       />
 
       <CancelReservationDrawer
