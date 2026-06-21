@@ -66,8 +66,12 @@ interface SaldoRow {
 const TIPO_LABEL: Record<string, { label: string; className: string }> = {
   cargo_suscripcion: { label: "Suscripción", className: "bg-primary/15 text-primary border-primary/30" },
   pago_suscripcion: { label: "Pago plan", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  cargo_reserva: { label: "Reserva", className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
-  pago_reserva: { label: "Pago reserva", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cargo_reserva: { label: "Evento / Viaje", className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  pago_reserva: { label: "Pago evento", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cargo_preventa: { label: "Preventa", className: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30" },
+  pago_preventa: { label: "Pago preventa", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cargo_tienda: { label: "Tienda", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  pago_tienda: { label: "Pago tienda", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   ajuste_cargo: { label: "Ajuste (cargo)", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   ajuste_credito: { label: "Ajuste (crédito)", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
 };
