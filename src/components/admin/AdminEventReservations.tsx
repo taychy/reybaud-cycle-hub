@@ -440,6 +440,7 @@ const AdminEventReservations = ({
   const buildHtmlFromText = (text: string, tipo: string, reservaLink?: string) => {
     const colorMap: Record<string, string> = {
       pago_registrado: "#059669",
+      plan_pagos: "#1a1a2e",
       cuota_pendiente: "#d97706",
       cuota_proxima: "#2563eb",
       novedad: "#1a1a2e",
@@ -447,6 +448,7 @@ const AdminEventReservations = ({
     };
     const titleMap: Record<string, string> = {
       pago_registrado: "Pago registrado",
+      plan_pagos: "Tu plan de pagos",
       cuota_pendiente: "Cuota pendiente",
       cuota_proxima: "Próximo vencimiento",
       novedad: "Novedad",
