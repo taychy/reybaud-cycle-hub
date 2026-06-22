@@ -219,14 +219,27 @@ export default function PublicCuentaCorriente() {
                       <p className="text-[10px] text-muted-foreground">Pagado {formatPrice(d.pagado, d.moneda)} de {formatPrice(d.total, d.moneda)}</p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handlePay(d)}
-                    disabled={paying === d.ref_id}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
-                  >
-                    {paying === d.ref_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <>$ Pagar <ExternalLink className="w-3 h-3 ml-1" /></>}
-                  </Button>
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handlePay(d)}
+                      disabled={paying?.startsWith(d.ref_id) ?? false}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {paying === d.ref_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Pagar {formatPrice(d.por_pagar, d.moneda)} <ExternalLink className="w-3 h-3 ml-1" /></>}
+                    </Button>
+                    {d.tipo === "evento_cuota" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePayCustom(d)}
+                        disabled={paying?.startsWith(d.ref_id) ?? false}
+                        className="text-xs"
+                      >
+                        {paying === d.ref_id + ":custom" ? <Loader2 className="w-3 h-3 animate-spin" /> : "Otro monto"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
