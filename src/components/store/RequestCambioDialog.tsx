@@ -168,11 +168,31 @@ const RequestCambioDialog = ({
                     >
                       <SelectTrigger><SelectValue placeholder={key} /></SelectTrigger>
                       <SelectContent>
-                        {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        {opts.map((o) => {
+                          const st = getStockFor(key, o);
+                          const out = st !== null && st <= 0;
+                          return (
+                            <SelectItem key={o} value={o} disabled={out}>
+                              <span className="flex items-center gap-2">
+                                <span>{o}</span>
+                                {st !== null && (
+                                  <span className={`text-[10px] ${out ? "text-destructive" : st <= 2 ? "text-amber-400" : "text-muted-foreground"}`}>
+                                    {out ? "sin stock" : `${st} disp.`}
+                                  </span>
+                                )}
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   );
                 })}
+                {selectionOutOfStock && (
+                  <p className="text-[11px] text-destructive flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> No hay stock de esa variante. Elegí otra o marcá devolución abajo.
+                  </p>
+                )}
               </div>
             )}
 
@@ -188,6 +208,7 @@ const RequestCambioDialog = ({
                 </p>
               )}
             </div>
+
 
             <div>
               <Label className="text-xs">Comentario</Label>
