@@ -105,7 +105,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           const sena = pkg.plan ? computeAmount(pkg.plan.sena_tipo, pkg.plan.sena_valor, pkg.precio) : 0;
           const cuotas = pkg.plan?.installments ?? [];
           const minCuota = cuotas.length
-            ? Math.min(...cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio)))
+            ? Math.min(...cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena)))
             : 0;
           const open = !!openIds[pkg.id];
           return (
