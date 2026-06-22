@@ -817,7 +817,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </h3>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 border-amber-500/40 text-amber-400 hover:bg-amber-500/10" onClick={openAssignPausa} disabled={assigningPausa}>
-              <PauseCircle className="w-3 h-3 mr-0.5" /> {assigningPausa ? "Asignando..." : "Asignar pausa"}
+              <PauseCircle className="w-3 h-3 mr-0.5" /> {assigningPausa ? "Asignando..." : "Pausar alumno sin plan"}
             </Button>
             <Button variant="gold" size="sm" className="text-[10px] h-6 px-2" onClick={openAddPlan}>
               <Plus className="w-3 h-3 mr-0.5" /> Agregar plan
