@@ -28,6 +28,7 @@ import EventAnnouncementsSection from "@/components/reservation/EventAnnouncemen
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
+import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
