@@ -153,6 +153,9 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [showReservationDrawer, setShowReservationDrawer] = useState(false);
+  const [packagesMinPrice, setPackagesMinPrice] = useState<number | null>(null);
+  const [packagesCount, setPackagesCount] = useState<number>(0);
+  
   
 
   // Result state
