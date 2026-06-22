@@ -130,10 +130,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
-  // Asignar Pausa
+  // Pausar alumno sin plan (crea suscripción de categoría "pausa")
   const [showPausaDialog, setShowPausaDialog] = useState(false);
   const [pausaPlan, setPausaPlan] = useState<Plan | null>(null);
   const [assigningPausa, setAssigningPausa] = useState(false);
+  // Pausar este plan (pausa una suscripción existente)
+  const [pauseSubTarget, setPauseSubTarget] = useState<{ id: string; planNombre: string } | null>(null);
+  const [showPauseSubDialog, setShowPauseSubDialog] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
   const [removingSub, setRemovingSub] = useState(false);
   const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
@@ -216,12 +219,34 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
 
   // --- Actions ---
-  const handlePauseSub = async (subId: string) => {
-    const { error } = await supabase.from("suscripciones").update({ estado: "pausa" }).eq("id", subId);
+  const openPauseSub = (sub: any) => {
+    setPauseSubTarget({ id: sub.id, planNombre: sub?.planes?.nombre || "Plan" });
+    setShowPauseSubDialog(true);
+  };
+
+  const handlePauseSub = async (fechaRegreso: string) => {
+    if (!pauseSubTarget) return;
+    setShowPauseSubDialog(false);
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({ estado: "pausa", fecha_fin: fechaRegreso })
+      .eq("id", pauseSubTarget.id);
     if (error) { toast.error("Error al pausar la suscripción"); return; }
-    const sub = subs.find(s => s.id === subId);
+
+    // Email pausa_activada (fire and forget)
+    supabase.functions.invoke("notify-student-update", {
+      body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
+    }).catch(() => {});
+
     toast.success("Suscripción pausada");
-    await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → pausa", description: `Plan "${sub?.planes?.nombre || "—"}" pausado`, actorRole });
+    await logStudentActivity({
+      alumnoId: alumno.id,
+      eventType: "estado_suscripcion",
+      title: "Suscripción → pausa",
+      description: `Plan "${pauseSubTarget.planNombre}" pausado hasta ${fechaRegreso}`,
+      actorRole,
+    });
+    setPauseSubTarget(null);
     fetchData();
     onRefresh();
   };
@@ -690,8 +715,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
             </Button>
             {(sub.estado === "activa" || effectiveEstado === "activa") && !sub.cancelada_at && (
-              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => handlePauseSub(sub.id)}>
-                <Pause className="w-3 h-3 mr-0.5" /> Pausar
+              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openPauseSub(sub)}>
+                <Pause className="w-3 h-3 mr-0.5" /> Pausar este plan
               </Button>
             )}
             {sub.estado === "pausa" && (
@@ -792,7 +817,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </h3>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 border-amber-500/40 text-amber-400 hover:bg-amber-500/10" onClick={openAssignPausa} disabled={assigningPausa}>
-              <PauseCircle className="w-3 h-3 mr-0.5" /> {assigningPausa ? "Asignando..." : "Asignar pausa"}
+              <PauseCircle className="w-3 h-3 mr-0.5" /> {assigningPausa ? "Asignando..." : "Pausar alumno sin plan"}
             </Button>
             <Button variant="gold" size="sm" className="text-[10px] h-6 px-2" onClick={openAddPlan}>
               <Plus className="w-3 h-3 mr-0.5" /> Agregar plan
@@ -1126,6 +1151,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           planNombre={pausaPlan.nombre}
           onCancel={() => { setShowPausaDialog(false); setPausaPlan(null); }}
           onConfirm={handleAssignPausa}
+        />
+      )}
+
+      {/* Pausar este plan Dialog */}
+      {pauseSubTarget && (
+        <PausaConfirmDialog
+          open={showPauseSubDialog}
+          alumnoId={alumno.id}
+          planNombre={pauseSubTarget.planNombre}
+          onCancel={() => { setShowPauseSubDialog(false); setPauseSubTarget(null); }}
+          onConfirm={handlePauseSub}
         />
       )}
     </>
