@@ -715,8 +715,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
             </Button>
             {(sub.estado === "activa" || effectiveEstado === "activa") && !sub.cancelada_at && (
-              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => handlePauseSub(sub.id)}>
-                <Pause className="w-3 h-3 mr-0.5" /> Pausar
+              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openPauseSub(sub)}>
+                <Pause className="w-3 h-3 mr-0.5" /> Pausar este plan
               </Button>
             )}
             {sub.estado === "pausa" && (
