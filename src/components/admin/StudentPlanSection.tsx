@@ -356,34 +356,19 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   };
 
   const handleAssignPausa = async (fechaRegreso: string) => {
-    if (!pausaPlan) return;
     setAssigningPausa(true);
     setShowPausaDialog(false);
     try {
-      const today = new Date();
-      const fechaInicio = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const { error } = await supabase.from("suscripciones").insert({
-        alumno_id: alumno.id,
-        plan_id: pausaPlan.id,
-        estado: "activa",
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaRegreso,
-        mp_status: "manual",
-        metodo_pago: "efectivo",
-        origen_registro: "cargado_admin",
-        precio_base: pausaPlan.precio || 0,
-        precio_final: pausaPlan.precio || 0,
-      } as any);
+      const { error } = await supabase.rpc("start_pausa_alumno" as any, {
+        p_alumno_id: alumno.id,
+        p_fecha_regreso: fechaRegreso,
+      });
       if (error) {
-        if (String(error.message || "").includes("BLOCKED_BY_ACTIVE_PAUSA")) {
-          toast.error("El alumno ya está en pausa.");
-        } else if (String(error.message || "").includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
-          toast.error("El alumno tiene un plan vigente. Cancelalo primero para asignar la pausa.");
-        } else if (String(error.message || "").includes("PAUSA_TOO_LONG")) {
-          toast.error("La pausa no puede durar más de 2 meses.");
-        } else {
-          toast.error("Error al asignar la pausa: " + error.message);
-        }
+        const msg = String(error.message || "");
+        if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) toast.error("El alumno ya está en pausa.");
+        else if (msg.includes("PAUSA_TOO_LONG")) toast.error("La pausa no puede durar más de 2 meses.");
+        else if (msg.includes('plan de categoría "pausa"')) toast.error("No hay plan de pausa configurado. Creá uno con categoría 'pausa' en Configuración.");
+        else toast.error("Error al asignar la pausa: " + msg);
         return;
       }
 
