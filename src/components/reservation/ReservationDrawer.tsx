@@ -84,6 +84,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPaymentPlan, setAcceptedPaymentPlan] = useState(false);
   const [hasPaymentPlan, setHasPaymentPlan] = useState(false);
+  const [paymentPlanPreview, setPaymentPlanPreview] = useState<{
+    nombre: string;
+    sena_monto: number;
+    installments: Array<{ numero: number; installment_type: "sena" | "cuota"; descripcion: string; monto: number; due_date: string }>;
+  } | null>(null);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
