@@ -115,7 +115,7 @@ const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { alumno } = useAlumnoSession();
+  const { alumno, isImpersonating } = useAlumnoSession();
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
 
