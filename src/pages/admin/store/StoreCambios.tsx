@@ -129,14 +129,25 @@ const AdminCambios = () => {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="pendientes">Pendientes <span className="ml-1 text-[10px] opacity-70">({buckets.pendientes.length})</span></TabsTrigger>
-          <TabsTrigger value="en_curso">En curso <span className="ml-1 text-[10px] opacity-70">({buckets.en_curso.length})</span></TabsTrigger>
-          <TabsTrigger value="cerrados">Cerrados <span className="ml-1 text-[10px] opacity-70">({buckets.cerrados.length})</span></TabsTrigger>
+          <TabsTrigger value="nuevos">
+            🔴 Nuevos <span className="ml-1 text-[10px] opacity-70">({buckets.nuevos.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="seguimiento">
+            👀 En seguimiento <span className="ml-1 text-[10px] opacity-70">({buckets.seguimiento.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="cerrados">
+            ✅ Cerrados <span className="ml-1 text-[10px] opacity-70">({buckets.cerrados.length})</span>
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="pendientes" className="mt-3">{renderList(buckets.pendientes)}</TabsContent>
-        <TabsContent value="en_curso" className="mt-3">{renderList(buckets.en_curso)}</TabsContent>
+        <TabsContent value="nuevos" className="mt-3">{renderList(buckets.nuevos)}</TabsContent>
+        <TabsContent value="seguimiento" className="mt-3">{renderList(buckets.seguimiento)}</TabsContent>
         <TabsContent value="cerrados" className="mt-3">{renderList(buckets.cerrados)}</TabsContent>
       </Tabs>
+      {totalAbiertos > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {totalAbiertos} cambio{totalAbiertos === 1 ? "" : "s"} abierto{totalAbiertos === 1 ? "" : "s"} esperando cierre.
+        </p>
+      )}
 
       <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
