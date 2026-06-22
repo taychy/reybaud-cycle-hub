@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { MONEDAS } from "@/lib/currency";
+import { PAYMENT_METHODS, type PaymentMethodKey } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 
 export interface AjusteCuentaValue {
@@ -21,6 +22,9 @@ export interface AjusteCuentaValue {
   moneda: string;
   fecha: string;
   notas?: string;
+  medio_pago?: string | null;
+  cuenta_mp_id?: string | null;
+  referencia_externa?: string | null;
 }
 
 interface Props {
@@ -31,6 +35,11 @@ interface Props {
   onSaved: () => void;
 }
 
+const NONE = "__none__";
+
+// Auto-resolve cuenta_mp_id from PaymentMethodKey when slug matches
+const MP_KEYS: PaymentMethodKey[] = ["mp_externo_josi", "mp_externo_scarlett", "mp_externo_claudio", "mercadopago"];
+
 export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, onSaved }: Props) {
   const today = new Date().toISOString().substring(0, 10);
   const [tipo, setTipo] = useState<"cargo" | "credito">("cargo");
@@ -39,6 +48,10 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
   const [moneda, setMoneda] = useState("ARS");
   const [fecha, setFecha] = useState(today);
   const [notas, setNotas] = useState("");
+  const [medioPago, setMedioPago] = useState<string>(NONE);
+  const [cuentaMpId, setCuentaMpId] = useState<string | null>(null);
+  const [referenciaExterna, setReferenciaExterna] = useState("");
+  const [cuentasMp, setCuentasMp] = useState<Array<{ id: string; slug: string; alias: string | null; titular: string | null }>>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -49,8 +62,37 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
       setMoneda(initialValue?.moneda || "ARS");
       setFecha(initialValue?.fecha ? initialValue.fecha.substring(0, 10) : today);
       setNotas(initialValue?.notas || "");
+      setMedioPago(initialValue?.medio_pago || NONE);
+      setCuentaMpId(initialValue?.cuenta_mp_id || null);
+      setReferenciaExterna(initialValue?.referencia_externa || "");
     }
   }, [open, initialValue, today]);
+
+  // Load MP accounts once
+  useEffect(() => {
+    supabase
+      .from("cuentas_mp" as any)
+      .select("id, slug, alias, titular")
+      .eq("activa", true)
+      .order("titular")
+      .then(({ data }) => setCuentasMp(((data as any) || [])));
+  }, []);
+
+  // Auto-resolve cuenta_mp_id when medio_pago matches a known MP slug
+  useEffect(() => {
+    if (!medioPago || medioPago === NONE) {
+      setCuentaMpId(null);
+      return;
+    }
+    if (MP_KEYS.includes(medioPago as PaymentMethodKey)) {
+      // slug in cuentas_mp tipically: "josi" | "scarlett" | "claudio"
+      const slugGuess = medioPago.replace("mp_externo_", "");
+      const found = cuentasMp.find((c) => c.slug === slugGuess);
+      setCuentaMpId(found?.id || null);
+    } else {
+      setCuentaMpId(null);
+    }
+  }, [medioPago, cuentasMp]);
 
   const handleSave = async () => {
     const montoNum = parseFloat(monto);
@@ -64,7 +106,7 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
     }
 
     setSaving(true);
-    const payload = {
+    const payload: any = {
       alumno_id: alumnoId,
       tipo,
       concepto: concepto.trim(),
@@ -72,6 +114,9 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
       moneda,
       fecha,
       notas: notas.trim() || null,
+      medio_pago: medioPago === NONE ? null : medioPago,
+      cuenta_mp_id: cuentaMpId,
+      referencia_externa: referenciaExterna.trim() || null,
     };
 
     let error;
@@ -139,6 +184,37 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
               <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
             </div>
           </div>
+
+          {/* Medio de pago / cuenta (opcional, aplica a ambos tipos) */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              Medio de pago <span className="text-muted-foreground">(opcional)</span>
+            </Label>
+            <Select value={medioPago} onValueChange={setMedioPago}>
+              <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Sin especificar / Otro</SelectItem>
+                {PAYMENT_METHODS.map((m) => (
+                  <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {medioPago !== NONE && MP_KEYS.includes(medioPago as PaymentMethodKey) && (
+              <p className="text-[10px] text-muted-foreground">
+                {cuentaMpId ? "✓ Cuenta MP vinculada automáticamente" : "⚠ No se encontró cuenta MP activa para este medio"}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">N° operación / referencia <span className="text-muted-foreground">(opcional)</span></Label>
+            <Input
+              value={referenciaExterna}
+              onChange={(e) => setReferenciaExterna(e.target.value)}
+              placeholder="Ej: 162457893 · CBU últimos 4 · Nº recibo"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs">Notas (opcional)</Label>
             <Textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} />

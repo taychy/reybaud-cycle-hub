@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
 import { logStudentActivity } from "@/lib/logStudentActivity";
@@ -331,6 +332,9 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
       moneda: m.moneda,
       fecha: m.fecha,
       notas: m.referencia_extra?.notas || "",
+      medio_pago: m.referencia_extra?.medio_pago || null,
+      cuenta_mp_id: m.referencia_extra?.cuenta_mp_id || null,
+      referencia_externa: m.referencia_extra?.referencia_externa || null,
     });
     setModalOpen(true);
   };
@@ -436,6 +440,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
               <TableHead className="text-xs w-24">Fecha</TableHead>
               <TableHead className="text-xs w-32">Origen</TableHead>
               <TableHead className="text-xs">Concepto</TableHead>
+              <TableHead className="text-xs w-28">Medio</TableHead>
               <TableHead className="text-xs text-right w-28">Debe</TableHead>
               <TableHead className="text-xs text-right w-28">Haber</TableHead>
               <TableHead className="text-xs w-24">Estado</TableHead>
@@ -445,7 +450,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                   {loading ? "Cargando…" : "Sin movimientos para los filtros seleccionados."}
                 </TableCell>
               </TableRow>
@@ -453,6 +458,11 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
               (showAll ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
                 const tipoInfo = TIPO_LABEL[m.tipo] || { label: m.tipo, className: "" };
                 const isAjuste = m.fuente_tabla === "cuenta_ajustes";
+                const rx = m.referencia_extra || {};
+                const medioRaw: string | null =
+                  rx.medio_pago || rx.metodo_pago || rx.payment_method || rx.forma_pago_sena || null;
+                const medioLabel = medioRaw ? getPaymentMethodLabel(medioRaw) : "—";
+                const referencia = rx.referencia_externa || rx.mp_payment_id || null;
                 return (
                   <TableRow key={`${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`} className="text-sm">
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
@@ -464,6 +474,16 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                       </Badge>
                     </TableCell>
                     <TableCell className="text-foreground text-sm">{m.concepto}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div className="flex flex-col leading-tight">
+                        <span className={medioRaw ? "text-foreground" : ""}>{medioLabel}</span>
+                        {referencia && (
+                          <span className="text-[10px] text-muted-foreground/70 truncate max-w-[110px]" title={String(referencia)}>
+                            ref {String(referencia)}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-mono text-xs text-destructive whitespace-nowrap">
                       {m.debe > 0 ? formatPrice(Number(m.debe), m.moneda) : "—"}
                     </TableCell>
