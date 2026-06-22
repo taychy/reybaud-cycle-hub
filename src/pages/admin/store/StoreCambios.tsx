@@ -48,8 +48,8 @@ const AdminCambios = () => {
       ? items
       : items.filter((c) => (c.origen_solicitud || "app") === origenFiltro);
     return {
-      pendientes: filtered.filter((c) => c.estado === "solicitado" || c.estado === "devolucion_solicitada"),
-      en_curso: filtered.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
+      pendientes: filtered.filter((c) => ["solicitado", "aprobado", "devolucion_solicitada"].includes(c.estado)),
+      en_curso: filtered.filter((c) => ["en_deposito", "listo_retiro"].includes(c.estado)),
       cerrados: filtered.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
     };
   })();
