@@ -546,6 +546,18 @@ const ReservationStatusCard = ({
     }
   };
 
+  // Disparar MP cuando llegó action=pay desde el email y ya tenemos el monto resuelto
+  useEffect(() => {
+    if (!pendingMpFromEmail) return;
+    if (mpLoading) return;
+    if (!canPayWithMP || pendingForMP <= 0) return;
+    setPendingMpFromEmail(false);
+    handlePayWithMP();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingMpFromEmail, canPayWithMP, pendingForMP, mpLoading]);
+
+
+
   /* ─── Load timeline ─── */
   const loadTimeline = async () => {
     if (timeline.length > 0) { setShowTimeline(!showTimeline); return; }
