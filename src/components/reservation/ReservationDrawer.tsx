@@ -84,6 +84,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPaymentPlan, setAcceptedPaymentPlan] = useState(false);
   const [hasPaymentPlan, setHasPaymentPlan] = useState(false);
+  const [paymentPlanPreview, setPaymentPlanPreview] = useState<{
+    nombre: string;
+    sena_monto: number;
+    installments: Array<{ numero: number; installment_type: "sena" | "cuota"; descripcion: string; monto: number; due_date: string }>;
+  } | null>(null);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -149,21 +154,77 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     if (!selectedPackage || isInscriptionOnly || !effectivePrice || effectivePrice <= 0) {
       setHasPaymentPlan(false);
       setAcceptedPaymentPlan(false);
+      setPaymentPlanPreview(null);
       return;
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data: plan } = await supabase
         .from("event_package_payment_plans" as any)
-        .select("id")
+        .select("*")
         .eq("package_id", selectedPackage.id)
         .is("archived_at", null)
         .eq("activo", true)
+        .order("version", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!cancelled) {
-        setHasPaymentPlan(!!data);
+
+      if (cancelled) return;
+      if (!plan) {
+        setHasPaymentPlan(false);
         setAcceptedPaymentPlan(false);
+        setPaymentPlanPreview(null);
+        return;
+      }
+
+      const p = plan as any;
+      const { data: insts } = await supabase
+        .from("event_package_payment_plan_installments" as any)
+        .select("*")
+        .eq("plan_id", p.id)
+        .order("numero", { ascending: true });
+      if (cancelled) return;
+
+      const templateInstallments: InstallmentTemplate[] = ((insts as any[]) || []).map((i) => ({
+        numero: i.numero,
+        descripcion: i.descripcion,
+        monto_tipo: i.monto_tipo,
+        monto_valor: Number(i.monto_valor),
+        fecha_vencimiento: i.fecha_vencimiento,
+        reminders_config: Array.isArray(i.reminders_config) ? i.reminders_config : [],
+      }));
+
+      const template: PlanTemplate = {
+        id: p.id,
+        nombre: p.nombre,
+        sena_tipo: p.sena_tipo,
+        sena_valor: Number(p.sena_valor),
+        sena_vence_dias: p.sena_vence_dias ?? 0,
+        cantidad_cuotas: p.cantidad_cuotas,
+        last_installment_absorbs_rounding: !!p.last_installment_absorbs_rounding,
+        regla_reserva_tardia: p.regla_reserva_tardia,
+        installments: templateInstallments,
+      };
+      const today = new Date();
+      const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const result = calculatePlan({ template, precioFinal: effectivePrice, fechaReserva: todayISO });
+
+      setHasPaymentPlan(true);
+      setAcceptedPaymentPlan(false);
+      if (result.ok) {
+        setPaymentPlanPreview({
+          nombre: p.nombre,
+          sena_monto: result.sena_monto,
+          installments: result.installments.map((c) => ({
+            numero: c.numero,
+            installment_type: c.installment_type,
+            descripcion: c.descripcion,
+            monto: c.monto,
+            due_date: c.due_date,
+          })),
+        });
+      } else {
+        setPaymentPlanPreview(null);
       }
     })();
     return () => { cancelled = true; };
@@ -972,6 +1033,49 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   </>
                 );
               })()}
+
+              {hasPaymentPlan && paymentPlanPreview && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-amber-400" />
+                      <h4 className="font-heading font-semibold text-sm text-foreground">Plan de pago propuesto</h4>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-amber-400/80">{paymentPlanPreview.nombre}</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {paymentPlanPreview.installments.map((c) => {
+                      const isSena = c.installment_type === "sena";
+                      const [y, m, d] = c.due_date.split("-");
+                      const dueLabel = `${d}/${m}/${y}`;
+                      return (
+                        <div
+                          key={`${c.installment_type}-${c.numero}`}
+                          className="flex items-center justify-between gap-3 text-sm py-1.5 border-b border-border/30 last:border-0"
+                        >
+                          <div className="flex flex-col leading-tight min-w-0">
+                            <span className={`truncate ${isSena ? "text-amber-300 font-semibold" : "text-foreground"}`}>
+                              {isSena ? "Seña" : c.descripcion}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">Vence {dueLabel}</span>
+                          </div>
+                          <span className="font-mono text-sm font-semibold text-foreground whitespace-nowrap">
+                            {formatPrice(c.monto, effectiveCurrency)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-amber-500/20 text-sm">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-heading font-bold text-amber-400">
+                      {formatPrice(effectivePrice, effectiveCurrency)}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {hasPaymentPlan && (
                 <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 cursor-pointer">
