@@ -42,7 +42,7 @@ const TIPO_FN: Record<Deuda["tipo"], string> = {
   suscripcion: "create-mp-preference",
   evento_cuota: "create-event-mp-preference",
   tienda: "create-store-order-mp-preference",
-  preventa: "create-preorder-mp-preference",
+  preventa: "create-preorder-total-mp-preference",
 };
 
 export default function PublicCuentaCorriente() {
