@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import type { Session } from "@supabase/supabase-js";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 
 type Alumno = Tables<"alumnos">;
 
@@ -13,6 +14,7 @@ interface AlumnoSessionState {
 }
 
 export function useAlumnoSession() {
+  const { isImpersonating, targetAlumno } = useImpersonation();
   const [state, setState] = useState<AlumnoSessionState>({
     alumno: null,
     loading: true,
