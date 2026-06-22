@@ -122,6 +122,11 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
 }
 
 async function sendOne(payload: any) {
+  console.log("[brevo] POST /smtp/email", {
+    from: payload?.sender,
+    to: payload?.to,
+    subject: payload?.subject,
+  });
   const resp = await fetch(`${GATEWAY_URL}/smtp/email`, {
     method: "POST",
     headers: {
@@ -134,7 +139,10 @@ async function sendOne(payload: any) {
   const text = await resp.text();
   let json: any = null;
   try { json = JSON.parse(text); } catch { /* ignore */ }
-  return { ok: resp.ok, status: resp.status, body: json ?? text };
+  console.log("[brevo] response", resp.status, text.slice(0, 500));
+  // Brevo returns 201 with { messageId } on success. Treat anything without messageId as failure.
+  const ok = resp.ok && !!(json && (json.messageId || json.messageIds));
+  return { ok, status: resp.status, body: json ?? text };
 }
 
 Deno.serve(async (req) => {
