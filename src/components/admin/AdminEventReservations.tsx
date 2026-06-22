@@ -1002,15 +1002,21 @@ const AdminEventReservations = ({
     if (notifyOnPayment) {
       const ctx = getNotifContext(selectedRes, { monto: eqAmt });
       const tpl = notifTemplates.pago_registrado;
-      // Reload to get updated totals
-      const { data: updatedRes } = await supabase
-        .from("event_reservations" as any)
-        .select("amount_paid, balance_due")
-        .eq("id", selectedRes.id)
-        .maybeSingle();
+      // Reload totals + installments to embed an up-to-date payment plan
+      const [{ data: updatedRes }, { data: updatedInsts }] = await Promise.all([
+        supabase.from("event_reservations" as any).select("amount_paid, balance_due").eq("id", selectedRes.id).maybeSingle(),
+        supabase.from("reservation_installments" as any).select("*").eq("reservation_id", selectedRes.id).order("sort_order", { ascending: true }),
+      ]);
       const newPaid = (updatedRes as any)?.amount_paid ?? 0;
       const newBalance = (updatedRes as any)?.balance_due ?? 0;
-      const updatedCtx = { ...ctx, abonado: formatPrice(newPaid, evCurr), saldo: formatPrice(newBalance, evCurr) };
+      const plan = buildPlanPagos((updatedInsts as any[]) || [], evCurr);
+      const updatedCtx = {
+        ...ctx,
+        abonado: formatPrice(newPaid, evCurr),
+        saldo: formatPrice(newBalance, evCurr),
+        plan_text: plan.text,
+        plan_html: plan.html,
+      };
       await sendNotification(
         "pago_registrado",
         tpl.asunto.replace("{{evento}}", eventTitle),
