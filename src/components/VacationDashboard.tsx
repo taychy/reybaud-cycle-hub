@@ -16,7 +16,7 @@ interface VacationDashboardProps {
   onLogout: () => void;
 }
 
-type VacTab = "inicio" | "eventos" | "perfil";
+type VacTab = "inicio" | "eventos" | "tienda" | "perfil";
 
 const VacNavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) => (
   <button onClick={onClick} className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
