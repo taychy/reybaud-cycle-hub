@@ -24,7 +24,7 @@ const estadoColor: Record<string, string> = {
 const AdminCambios = () => {
   const [items, setItems] = useState<Cambio[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"pendientes" | "en_curso" | "cerrados">("pendientes");
+  const [tab, setTab] = useState<"nuevos" | "seguimiento" | "cerrados">("nuevos");
   const [selected, setSelected] = useState<Cambio | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const { toast } = useToast();
