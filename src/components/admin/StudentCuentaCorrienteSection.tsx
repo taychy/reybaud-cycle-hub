@@ -450,7 +450,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                   {loading ? "Cargando…" : "Sin movimientos para los filtros seleccionados."}
                 </TableCell>
               </TableRow>
