@@ -227,23 +227,31 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const handlePauseSub = async (fechaRegreso: string) => {
     if (!pauseSubTarget) return;
     setShowPauseSubDialog(false);
-    const { error } = await supabase
-      .from("suscripciones")
-      .update({ estado: "pausa", fecha_fin: fechaRegreso })
-      .eq("id", pauseSubTarget.id);
-    if (error) { toast.error("Error al pausar la suscripción"); return; }
+    // Flujo unificado: usar RPC start_pausa_alumno (cancela todas las subs y crea la pausa).
+    const { error } = await supabase.rpc("start_pausa_alumno" as any, {
+      p_alumno_id: alumno.id,
+      p_fecha_regreso: fechaRegreso,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) toast.error("El alumno ya está en pausa.");
+      else if (msg.includes("PAUSA_TOO_LONG")) toast.error("La pausa no puede durar más de 2 meses.");
+      else toast.error("Error al pausar: " + msg);
+      setPauseSubTarget(null);
+      return;
+    }
 
     // Email pausa_activada (fire and forget)
     supabase.functions.invoke("notify-student-update", {
       body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
     }).catch(() => {});
 
-    toast.success("Suscripción pausada");
+    toast.success("Alumno pausado correctamente");
     await logStudentActivity({
       alumnoId: alumno.id,
       eventType: "estado_suscripcion",
-      title: "Suscripción → pausa",
-      description: `Plan "${pauseSubTarget.planNombre}" pausado hasta ${fechaRegreso}`,
+      title: "Pausa activada",
+      description: `Pausa hasta ${fechaRegreso} (disparada desde "${pauseSubTarget.planNombre}")`,
       actorRole,
     });
     setPauseSubTarget(null);
