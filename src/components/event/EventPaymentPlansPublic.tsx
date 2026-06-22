@@ -154,7 +154,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                             {c.descripcion || `Cuota ${c.numero}`}
                             {c.fecha_vencimiento && <span className="text-[10px] opacity-70">· vence {fmtDate(c.fecha_vencimiento)}</span>}
                           </span>
-                          <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio), pkg.currency)}</span>
+                          <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena), pkg.currency)}</span>
                         </div>
                       ))}
                     </div>
