@@ -122,7 +122,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
 }
 
 async function sendOne(payload: any) {
-  const resp = await fetch(`${GATEWAY_URL}/v3/smtp/email`, {
+  const resp = await fetch(`${GATEWAY_URL}/smtp/email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
         htmlContent: html,
       });
       return new Response(JSON.stringify({ ok: r.ok, status: r.status, response: r.body }), {
-        status: r.ok ? 200 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: r.ok ? 200 : r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
