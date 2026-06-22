@@ -1022,9 +1022,9 @@ const AdminEventReservations = ({
       const ctx = getNotifContext(selectedRes, { monto: eqAmt });
       const tpl = notifTemplates.pago_registrado;
       // Reload totals + installments to embed an up-to-date payment plan
-      const [{ data: updatedRes }, { data: updatedInsts }] = await Promise.all([
+      const [{ data: updatedRes }, updatedInsts] = await Promise.all([
         supabase.from("event_reservations" as any).select("amount_paid, balance_due").eq("id", selectedRes.id).maybeSingle(),
-        supabase.from("reservation_installments" as any).select("*").eq("reservation_id", selectedRes.id).order("sort_order", { ascending: true }),
+        ensureMatInstallments(selectedRes.id),
       ]);
       const newPaid = (updatedRes as any)?.amount_paid ?? 0;
       const newBalance = (updatedRes as any)?.balance_due ?? 0;
@@ -2166,17 +2166,7 @@ const AdminEventReservations = ({
                         }
                       }
                       if (key === "pago_registrado" || key === "plan_pagos") {
-                        // Fetch fresh installments to avoid empty/stale state ("Sin cuotas configuradas")
-                        let instsList: any[] = matInstallments;
-                        const { data: freshInsts } = await supabase
-                          .from("reservation_installments" as any)
-                          .select("*")
-                          .eq("reservation_id", selectedRes.id)
-                          .order("sort_order", { ascending: true });
-                        if (freshInsts) {
-                          instsList = freshInsts as any[];
-                          setMatInstallments(instsList);
-                        }
+                        const instsList = await ensureMatInstallments(selectedRes.id);
                         const plan = buildPlanPagos(instsList, evCurr);
                         extra = {
                           ...extra,
