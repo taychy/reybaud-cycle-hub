@@ -1034,6 +1034,49 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                 );
               })()}
 
+              {hasPaymentPlan && paymentPlanPreview && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-amber-400" />
+                      <h4 className="font-heading font-semibold text-sm text-foreground">Plan de pago propuesto</h4>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-amber-400/80">{paymentPlanPreview.nombre}</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {paymentPlanPreview.installments.map((c) => {
+                      const isSena = c.installment_type === "sena";
+                      const [y, m, d] = c.due_date.split("-");
+                      const dueLabel = `${d}/${m}/${y}`;
+                      return (
+                        <div
+                          key={`${c.installment_type}-${c.numero}`}
+                          className="flex items-center justify-between gap-3 text-sm py-1.5 border-b border-border/30 last:border-0"
+                        >
+                          <div className="flex flex-col leading-tight min-w-0">
+                            <span className={`truncate ${isSena ? "text-amber-300 font-semibold" : "text-foreground"}`}>
+                              {isSena ? "Seña" : c.descripcion}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">Vence {dueLabel}</span>
+                          </div>
+                          <span className="font-mono text-sm font-semibold text-foreground whitespace-nowrap">
+                            {formatPrice(c.monto, effectiveCurrency)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-amber-500/20 text-sm">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-heading font-bold text-amber-400">
+                      {formatPrice(effectivePrice, effectiveCurrency)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {hasPaymentPlan && (
                 <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 cursor-pointer">
                   <Checkbox
