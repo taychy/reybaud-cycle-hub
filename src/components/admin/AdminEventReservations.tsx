@@ -2125,7 +2125,7 @@ const AdminEventReservations = ({
                     <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
                       <Send className="w-3.5 h-3.5" /> Enviar notificación por email
                     </p>
-                    <Select value={notifyTemplate} onValueChange={(v) => {
+                    <Select value={notifyTemplate} onValueChange={async (v) => {
                       const key = v as NotifTemplateKey;
                       let extra: Record<string, any> = {};
                       const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
@@ -2147,7 +2147,18 @@ const AdminEventReservations = ({
                         }
                       }
                       if (key === "pago_registrado" || key === "plan_pagos") {
-                        const plan = buildPlanPagos(matInstallments, evCurr);
+                        // Fetch fresh installments to avoid empty/stale state ("Sin cuotas configuradas")
+                        let instsList: any[] = matInstallments;
+                        const { data: freshInsts } = await supabase
+                          .from("reservation_installments" as any)
+                          .select("*")
+                          .eq("reservation_id", selectedRes.id)
+                          .order("sort_order", { ascending: true });
+                        if (freshInsts) {
+                          instsList = freshInsts as any[];
+                          setMatInstallments(instsList);
+                        }
+                        const plan = buildPlanPagos(instsList, evCurr);
                         extra = {
                           ...extra,
                           plan_text: plan.text,
