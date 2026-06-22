@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
       );
 
       let sent = 0, failed = 0;
-      const html = htmlWrap(body.content_html, body.preheader);
+      const html = htmlWrap(body.content_html, body.preheader, cta);
 
       for (const r of recipients) {
         const r1 = await sendOne({
