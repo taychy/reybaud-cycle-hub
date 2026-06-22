@@ -626,25 +626,79 @@ const StorePreorders = () => {
                     </div>
                   </section>
 
-                  {/* Detalle del pedido */}
+                  {/* Detalle del pedido — variantes editables */}
                   <section className="rounded-lg border border-border p-3 space-y-2">
                     <h4 className="text-[11px] font-heading uppercase text-muted-foreground flex items-center gap-1"><Package className="w-3 h-3" /> Pedido (x{detail.cantidad})</h4>
                     {items ? (
                       <ul className="divide-y divide-border">
-                        {items.map((it: any, i: number) => (
-                          <li key={i} className="py-2">
-                            <div className="font-medium">{it.nombre || "Componente"}</div>
-                            <div className="text-xs text-muted-foreground">{varianteToKey(it.variante || {})}</div>
-                            {it.precio != null && (
-                              <div className="text-[11px] text-muted-foreground">{formatPrice(Number(it.precio), detail.moneda)}</div>
-                            )}
-                          </li>
-                        ))}
+                        {items.map((it: any, i: number) => {
+                          const vKeys = Object.keys(it.variante || {});
+                          return (
+                            <li key={i} className="py-2 space-y-1.5">
+                              <div className="font-medium">{it.nombre || "Componente"}</div>
+                              {vKeys.length > 0 ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {vKeys.map((k) => (
+                                    <div key={k}>
+                                      <label className="text-[10px] uppercase text-muted-foreground">{k}</label>
+                                      <Input
+                                        className="h-8 text-xs"
+                                        defaultValue={String(it.variante[k] ?? "")}
+                                        onBlur={(e) => {
+                                          const newVal = e.target.value.trim();
+                                          const oldVal = String(it.variante[k] ?? "");
+                                          if (newVal === oldVal) return;
+                                          const newItems = items.map((x: any, j: number) =>
+                                            j === i ? { ...x, variante: { ...(x.variante || {}), [k]: newVal } } : x,
+                                          );
+                                          const traza = `[${new Date().toLocaleString("es-AR")}] ${it.nombre || "item"} · ${k}: "${oldVal}" → "${newVal}"`;
+                                          updateField(detail.id, {
+                                            items: newItems,
+                                            notas: [detail.notas, traza].filter(Boolean).join("\n"),
+                                          } as any);
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-muted-foreground italic">Sin variantes</div>
+                              )}
+                              {it.precio != null && (
+                                <div className="text-[11px] text-muted-foreground">{formatPrice(Number(it.precio), detail.moneda)}</div>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : (
-                      <div className="text-xs">
-                        <div>{detail.producto_nombre}</div>
-                        <div className="text-muted-foreground">{varianteToKey(detail.variante || {})}</div>
+                      <div className="space-y-1.5">
+                        <div className="text-xs font-medium">{detail.producto_nombre}</div>
+                        {Object.keys(detail.variante || {}).length > 0 ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            {Object.keys(detail.variante || {}).map((k) => (
+                              <div key={k}>
+                                <label className="text-[10px] uppercase text-muted-foreground">{k}</label>
+                                <Input
+                                  className="h-8 text-xs"
+                                  defaultValue={String((detail.variante as any)[k] ?? "")}
+                                  onBlur={(e) => {
+                                    const newVal = e.target.value.trim();
+                                    const oldVal = String((detail.variante as any)[k] ?? "");
+                                    if (newVal === oldVal) return;
+                                    const traza = `[${new Date().toLocaleString("es-AR")}] ${k}: "${oldVal}" → "${newVal}"`;
+                                    updateField(detail.id, {
+                                      variante: { ...(detail.variante || {}), [k]: newVal },
+                                      notas: [detail.notas, traza].filter(Boolean).join("\n"),
+                                    } as any);
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground italic">Sin variantes registradas</div>
+                        )}
                       </div>
                     )}
                   </section>
