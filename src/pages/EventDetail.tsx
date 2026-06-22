@@ -599,10 +599,11 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* Plan de pagos público (resumen + colapsable por paquete) */}
-          {!isActiveReservation && id && (
-            <EventPaymentPlansPublic eventId={id} />
+          {/* Botón siempre visible: ver precios, paquetes e inclusiones (también funciona sin login) */}
+          {!isActiveReservation && id && packagesCount > 0 && (
+            <EventPackagesDrawer eventId={id} />
           )}
+
 
           {/* ═══ NO RESERVATION CTAs ═══ */}
           {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && (
