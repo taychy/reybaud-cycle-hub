@@ -621,9 +621,12 @@ const StudentPayments = () => {
                       }
 
                       // Renovación anticipada: plan activo con ≤20 días para vencer
+                      // No mostrar si el plan es una pausa (la pausa no se "renueva")
                       if (effectiveStatus !== "activa" || !sub.fecha_fin) return null;
+                      if ((sub.plan as any)?.categoria === "pausa") return null;
                       const dLeft = daysUntil(sub.fecha_fin);
                       if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
+
                       const startEarlyRenewal = () => goToCheckout(false);
                       return (
                         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
