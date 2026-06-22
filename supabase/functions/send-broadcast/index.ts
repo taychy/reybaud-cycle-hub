@@ -33,6 +33,10 @@ interface SendBody {
   sender_name?: string;
   reply_to?: string;
   save_as?: "draft" | "sent";
+  cta_url?: string;            // explicit CTA button URL
+  cta_label?: string;          // explicit CTA button text
+  excluded_emails?: string[];  // emails to skip in send
+  include_full_list?: boolean; // preview_count returns full recipient list
 }
 
 function escapeHtml(s: string) {
