@@ -145,15 +145,34 @@ export default function AdminBroadcasts() {
     setLoadingPreview(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
-        body: { mode: "preview_count", segment_filters: segmentFilters },
+        body: {
+          mode: "preview_count",
+          segment_filters: segmentFilters,
+          include_full_list: true,
+          excluded_emails: Array.from(excludedEmails),
+        },
       });
       if (error) throw error;
       setPreviewCount(data.count);
       setPreviewSample(data.sample || []);
+      setFullRecipients(data.recipients || []);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setLoadingPreview(false);
+    }
+  };
+
+  const toggleExcluded = (email: string) => {
+    const next = new Set(excludedEmails);
+    const k = email.toLowerCase();
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    setExcludedEmails(next);
+    // Re-derive count from currently loaded list (avoid re-querying)
+    if (fullRecipients.length) {
+      const remaining = fullRecipients.filter((r) => !next.has(r.email.toLowerCase()));
+      setPreviewCount(remaining.length);
     }
   };
 
@@ -171,6 +190,8 @@ export default function AdminBroadcasts() {
           subject: composer.subject,
           content_html: composer.content_html,
           preheader: composer.preheader,
+          cta_url: composer.cta_url || undefined,
+          cta_label: composer.cta_label || undefined,
         },
       });
       if (error) throw error;
@@ -194,6 +215,9 @@ export default function AdminBroadcasts() {
           content_html: composer.content_html,
           preheader: composer.preheader,
           segment_filters: segmentFilters,
+          cta_url: composer.cta_url || undefined,
+          cta_label: composer.cta_label || undefined,
+          excluded_emails: Array.from(excludedEmails),
         },
       });
       if (error) throw error;
@@ -203,6 +227,8 @@ export default function AdminBroadcasts() {
       });
       setComposer(emptyComposer);
       setPreviewCount(null);
+      setFullRecipients([]);
+      setExcludedEmails(new Set());
       setTab("history");
       loadAll();
     } catch (e: any) {
