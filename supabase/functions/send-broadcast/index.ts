@@ -243,16 +243,22 @@ Deno.serve(async (req) => {
       replyTo = replyTo || cfg?.reply_to || undefined;
     }
 
+    const cta = { url: body.cta_url, label: body.cta_label };
+    const excludedSet = new Set((body.excluded_emails || []).map((e) => e.toLowerCase()));
+
     // Preview count only
     if (body.mode === "preview_count") {
       const rows = await loadRecipients(admin, filters);
+      const filtered = rows.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
+      const mapped = filtered.map((r: any) => ({
+        email: r.email,
+        nombre: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
+        type: r.contact_type,
+      }));
       return new Response(JSON.stringify({
-        count: rows.length,
-        sample: rows.slice(0, 5).map((r: any) => ({
-          email: r.email,
-          nombre: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
-          type: r.contact_type,
-        })),
+        count: filtered.length,
+        sample: mapped.slice(0, 5),
+        recipients: body.include_full_list ? mapped : undefined,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -265,7 +271,7 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const html = htmlWrap(body.content_html, body.preheader);
+      const html = htmlWrap(body.content_html, body.preheader, cta);
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
         to: [{ email: body.test_email }],
@@ -285,7 +291,8 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const recipients = await loadRecipients(admin, filters);
+      const allRecipients = await loadRecipients(admin, filters);
+      const recipients = allRecipients.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
       if (!recipients.length) {
         return new Response(JSON.stringify({ error: "Sin destinatarios" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
