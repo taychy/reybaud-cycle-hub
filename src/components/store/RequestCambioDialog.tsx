@@ -88,14 +88,6 @@ const RequestCambioDialog = ({
         toast({ title: "Elegí una variante distinta a la original", variant: "destructive" });
         return;
       }
-      if (selectionOutOfStock) {
-        toast({
-          title: "Sin stock de esa variante",
-          description: "Elegí otra opción o marcá la casilla de devolución.",
-          variant: "destructive",
-        });
-        return;
-      }
     }
     setSaving(true);
     const { error } = await supabase.rpc("request_cambio_indumentaria" as any, {
@@ -114,10 +106,17 @@ const RequestCambioDialog = ({
       toast({ title: "No se pudo solicitar el cambio", description: error.message, variant: "destructive" });
       return;
     }
+    const sinStockDestino = !noStock && hasVariantSelectors && selectionOutOfStock;
     toast({
-      title: noStock ? "Devolución solicitada" : "Cambio aprobado",
+      title: noStock
+        ? "Devolución solicitada"
+        : sinStockDestino
+        ? "Solicitud enviada a administración"
+        : "Cambio aprobado",
       description: noStock
         ? "Te contactamos para coordinar el reintegro."
+        : sinStockDestino
+        ? "No hay stock del talle elegido. Administración va a revisar tu pedido y te avisamos."
         : "Ya quedó cargado en depósito. Te avisamos cuando esté listo para retirar.",
     });
     onOpenChange(false);
