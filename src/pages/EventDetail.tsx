@@ -10,6 +10,7 @@ import {
   ArrowLeft, CalendarDays, Clock, Ruler, Send, Gauge, Heart,
   MapPin, Users, CheckCircle, XCircle, Mountain, Moon, Sun, Shield,
   ExternalLink, MessageCircle, FileText, CreditCard, AlertCircle, Loader2, Banknote,
+  Share2,
 } from "lucide-react";
 
 import EventRankings from "@/components/EventRankings";
@@ -116,6 +117,26 @@ const EventDetail = () => {
   const { alumno } = useAlumnoSession();
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
+
+  const eventUrl = `https://reybaud-app.com/eventos/${id}`;
+
+  const handleShare = async () => {
+    const shareData = {
+      title: event?.title || "Evento Ciclismo Reybaud",
+      text: `Mirá este evento de Ciclismo Reybaud: ${event?.title}`,
+      url: eventUrl,
+    };
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(eventUrl);
+        toast({ title: "Link copiado", description: "Ya podés compartirlo por WhatsApp o mail." });
+      }
+    } catch {
+      // User cancelled or share failed silently.
+    }
+  };
 
   // Smart back: respect history when available, fallback to events list.
   const handleBack = () => {
@@ -389,6 +410,13 @@ const EventDetail = () => {
           className="absolute top-4 left-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
+        </button>
+        <button
+          onClick={handleShare}
+          className="absolute top-4 right-16 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+          aria-label="Compartir evento"
+        >
+          <Share2 className="w-5 h-5 text-foreground/70" />
         </button>
         <button
           onClick={() => toggleFavorite(event.id)}
