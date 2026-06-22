@@ -243,6 +243,13 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
             onClick={() => setActiveTab("eventos")}
           />
           <VacNavItem
+            icon={<ShoppingCart className="w-5 h-5" />}
+            label="Tienda"
+            active={activeTab === "tienda"}
+            onClick={() => setActiveTab("tienda")}
+          />
+
+          <VacNavItem
             icon={<User className="w-5 h-5" />}
             label="Perfil"
             active={activeTab === "perfil"}
