@@ -122,7 +122,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
 }
 
 async function sendOne(payload: any) {
-  const resp = await fetch(`${GATEWAY_URL}/v3/smtp/email`, {
+  const resp = await fetch(`${GATEWAY_URL}/smtp/email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
