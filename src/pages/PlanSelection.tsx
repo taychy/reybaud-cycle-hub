@@ -307,14 +307,16 @@ const PlanSelection = () => {
 
   const handleSelectPlan = (planId: string) => {
     const plan = planes.find(p => p.id === planId);
-    // Si el alumno ya está en pausa, bloquear elegir cualquier otro plan distinto a su misma pausa
-    if (activePausaPlan && plan?.categoria !== "pausa") {
+    // Si el alumno ya está en pausa, bloquear elegir otro plan distinto SALVO que venga
+    // explícitamente desde el flujo de reactivación de vacaciones (la pausa se cancela al confirmar).
+    if (activePausaPlan && plan?.categoria !== "pausa" && !isFromVacation) {
       setSelected(null);
       setError(
         `Tu cuenta está en pausa hasta la fecha que indicaste. Para volver a entrenar tenés que esperar a que termine o cancelarla desde tu perfil.`
       );
       return;
     }
+
     // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
     if (
       plan?.categoria === "grupal" &&
