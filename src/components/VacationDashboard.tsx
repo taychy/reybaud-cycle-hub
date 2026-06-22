@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ChevronRight, PauseCircle, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
 import { EventosContent } from "@/pages/Eventos";
+import TiendaSection from "@/components/TiendaSection";
 import logo from "@/assets/logo.png";
+
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
@@ -14,7 +16,7 @@ interface VacationDashboardProps {
   onLogout: () => void;
 }
 
-type VacTab = "inicio" | "eventos" | "perfil";
+type VacTab = "inicio" | "eventos" | "tienda" | "perfil";
 
 const VacNavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) => (
   <button onClick={onClick} className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
@@ -65,6 +67,9 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
     switch (activeTab) {
       case "eventos":
         return <EventosContent />;
+      case "tienda":
+        return <TiendaSection />;
+
       case "perfil":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">
@@ -192,13 +197,14 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
                 <p className="text-[10px] text-muted-foreground">Viajes, camps y más</p>
               </button>
               <button
-                onClick={() => navigate("/alumno", { state: { tab: "tienda" } })}
+                onClick={() => setActiveTab("tienda")}
                 className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-4 text-center space-y-2 hover:bg-accent/50 transition-colors"
               >
                 <ShoppingCart className="w-6 h-6 text-primary mx-auto" />
                 <p className="text-sm font-heading font-medium text-foreground">Tienda</p>
                 <p className="text-[10px] text-muted-foreground">Productos y ofertas</p>
               </button>
+
             </div>
           </div>
         );
@@ -236,6 +242,13 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
             active={activeTab === "eventos"}
             onClick={() => setActiveTab("eventos")}
           />
+          <VacNavItem
+            icon={<ShoppingCart className="w-5 h-5" />}
+            label="Tienda"
+            active={activeTab === "tienda"}
+            onClick={() => setActiveTab("tienda")}
+          />
+
           <VacNavItem
             icon={<User className="w-5 h-5" />}
             label="Perfil"
