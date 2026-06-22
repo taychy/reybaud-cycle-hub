@@ -79,7 +79,7 @@ function htmlWrap(content: string, preheader?: string) {
   const ctaBlock = ctaUrl
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:10px 0 6px">
         <tr><td style="border-radius:10px;background:#F08A2A">
-          <a href="${ctaUrl}" style="display:inline-block;padding:14px 28px;font-family:Oswald,Impact,Arial,sans-serif;font-size:16px;letter-spacing:1.5px;color:#ffffff;text-decoration:none;text-transform:uppercase;font-weight:600">${ctaLabel}</a>
+          <a href="${ctaUrl}" style="display:inline-block;padding:14px 28px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;letter-spacing:0.5px;color:#ffffff;text-decoration:none;font-weight:700">${ctaLabel}</a>
         </td></tr>
       </table>
       <p style="margin:0 0 8px;font-size:12px;color:#777"><a href="${ctaUrl}" style="color:#5BC8E0;word-break:break-all;text-decoration:underline">${ctaUrl}</a></p>`
