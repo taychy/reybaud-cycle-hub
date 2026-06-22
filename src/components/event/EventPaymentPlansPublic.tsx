@@ -36,8 +36,11 @@ const fmtDate = (d?: string | null) => {
   return `${dd}/${m}/${y}`;
 };
 
-const computeAmount = (tipo: string, valor: number, total: number) =>
-  tipo === "porcentaje" ? Math.round((valor / 100) * total) : valor;
+const computeAmount = (tipo: string, valor: number, total: number, sena: number = 0) => {
+  if (tipo === "porcentaje") return Math.round((valor / 100) * total);
+  if (tipo === "porcentaje_saldo") return Math.round((valor / 100) * Math.max(total - sena, 0));
+  return valor;
+};
 
 const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -102,7 +105,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           const sena = pkg.plan ? computeAmount(pkg.plan.sena_tipo, pkg.plan.sena_valor, pkg.precio) : 0;
           const cuotas = pkg.plan?.installments ?? [];
           const minCuota = cuotas.length
-            ? Math.min(...cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio)))
+            ? Math.min(...cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena)))
             : 0;
           const open = !!openIds[pkg.id];
           return (
@@ -151,7 +154,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                             {c.descripcion || `Cuota ${c.numero}`}
                             {c.fecha_vencimiento && <span className="text-[10px] opacity-70">· vence {fmtDate(c.fecha_vencimiento)}</span>}
                           </span>
-                          <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio), pkg.currency)}</span>
+                          <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena), pkg.currency)}</span>
                         </div>
                       ))}
                     </div>
