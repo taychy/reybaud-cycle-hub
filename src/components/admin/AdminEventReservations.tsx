@@ -2221,7 +2221,24 @@ const AdminEventReservations = ({
                   <div className="flex gap-2 pt-1">
                     <Button variant="ghost" size="sm" onClick={() => setShowNotifyDialog(false)}>Cancelar</Button>
                     <Button variant="default" size="sm" disabled={sendingNotif} onClick={async () => {
-                      const ok = await sendNotification(notifyTemplate, notifySubject, notifyBody, notifyHtml, {}, `notif-${selectedRes.id}-${notifyTemplate}-${Date.now()}`);
+                      let bodyToSend = notifyBody;
+                      let htmlToSend = notifyHtml;
+                      if ((notifyTemplate === "plan_pagos" || notifyTemplate === "pago_registrado") && notifyBody.includes("Sin cuotas configuradas")) {
+                        const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
+                        const instsList = await ensureMatInstallments(selectedRes.id);
+                        const plan = buildPlanPagos(instsList, evCurr);
+                        const tpl = notifTemplates[notifyTemplate];
+                        const ctx = getNotifContext(selectedRes, {
+                          plan_text: plan.text,
+                          plan_html: plan.html,
+                          total: formatPrice(selectedRes.amount_total || 0, evCurr),
+                        });
+                        bodyToSend = tpl.contenido(ctx);
+                        htmlToSend = tpl.html(ctx);
+                        setNotifyBody(bodyToSend);
+                        setNotifyHtml(htmlToSend);
+                      }
+                      const ok = await sendNotification(notifyTemplate, notifySubject, bodyToSend, htmlToSend, {}, `notif-${selectedRes.id}-${notifyTemplate}-${Date.now()}`);
                       if (ok) setShowNotifyDialog(false);
                     }}>
                       {sendingNotif ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Send className="w-3.5 h-3.5 mr-1" />}
