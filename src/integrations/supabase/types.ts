@@ -7225,6 +7225,10 @@ export type Database = {
         Returns: Json
       }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
+      start_pausa_alumno: {
+        Args: { p_alumno_id: string; p_fecha_regreso: string }
+        Returns: Json
+      }
       transition_cambio_estado: {
         Args: {
           p_id: string
