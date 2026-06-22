@@ -30,7 +30,7 @@ const MisCambios = ({ alumnoId }: Props) => {
     setLoading(true);
     const { data } = await supabase
       .from("store_cambios" as any)
-      .select("*, store_products(name, image_url)")
+      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url)")
       .eq("alumno_id", alumnoId)
       .order("created_at", { ascending: false });
     setItems((data as any[]) || []);
@@ -68,7 +68,7 @@ const MisCambios = ({ alumnoId }: Props) => {
           <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate">{c.store_products?.name || "Producto"}</p>
+                <p className="text-sm font-semibold truncate">{c.producto?.name || "Producto"}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {new Date(c.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
                   {c.iniciado_por === "admin" && <span className="ml-1 text-amber-400">· iniciado por admin</span>}
