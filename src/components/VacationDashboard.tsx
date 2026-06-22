@@ -197,13 +197,14 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
                 <p className="text-[10px] text-muted-foreground">Viajes, camps y más</p>
               </button>
               <button
-                onClick={() => navigate("/alumno", { state: { tab: "tienda" } })}
+                onClick={() => setActiveTab("tienda")}
                 className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-4 text-center space-y-2 hover:bg-accent/50 transition-colors"
               >
                 <ShoppingCart className="w-6 h-6 text-primary mx-auto" />
                 <p className="text-sm font-heading font-medium text-foreground">Tienda</p>
                 <p className="text-[10px] text-muted-foreground">Productos y ofertas</p>
               </button>
+
             </div>
           </div>
         );
