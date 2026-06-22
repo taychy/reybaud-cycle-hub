@@ -492,11 +492,18 @@ const ReservationStatusCard = ({
       reservation.payment_status
     );
 
-  // ¿Mostrar selector de monto? Solo si hay próxima cuota pendiente con saldo < saldo total
-  const showMpChoice =
-    !!nextInst &&
-    nextInst.balance_due > 0 &&
-    nextInst.balance_due < pendingForMP;
+  // Seña pendiente: 1) cuota 1 materializada, 2) fallback a eventMetadata.deposit_amount
+  const eventDeposit = Number(eventMetadata?.deposit_amount ?? 0);
+  const depositRemaining = eventDeposit > 0
+    ? Math.max(eventDeposit - (reservation.amount_paid || 0), 0)
+    : 0;
+  const senaPending = nextInst?.balance_due && nextInst.balance_due > 0
+    ? nextInst.balance_due
+    : depositRemaining;
+  const senaInstallmentNumber = nextInst?.installment_number;
+
+  // Mostrar selector si hay seña pendiente menor al saldo total
+  const showMpChoice = senaPending > 0 && senaPending < pendingForMP;
 
   // Auto-ajuste: si no hay choice válido, forzar "total"
   useEffect(() => {
@@ -504,9 +511,9 @@ const ReservationStatusCard = ({
   }, [showMpChoice, mpChoice]);
 
   const mpAmountToCharge =
-    showMpChoice && mpChoice === "cuota" ? nextInst!.balance_due : pendingForMP;
+    showMpChoice && mpChoice === "cuota" ? senaPending : pendingForMP;
   const mpInstallmentNumber =
-    showMpChoice && mpChoice === "cuota" ? nextInst!.installment_number : undefined;
+    showMpChoice && mpChoice === "cuota" ? senaInstallmentNumber : undefined;
 
   const handlePayWithMP = async () => {
     if (mpLoading) return;
@@ -657,14 +664,14 @@ const ReservationStatusCard = ({
               }`}
             >
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">
-                {nextInst!.installment_number === 1 ? "Seña / 1ª cuota" : `Cuota ${nextInst!.installment_number}`}
+                {nextInst ? (nextInst.installment_number === 1 ? "Seña / 1ª cuota" : `Cuota ${nextInst.installment_number}`) : "Seña"}
               </div>
               <div className="text-sm font-semibold text-foreground mt-1">
-                {formatPrice(nextInst!.balance_due, currency)}
+                {formatPrice(senaPending, currency)}
               </div>
-              {nextInst!.due_date && (
+              {nextInst?.due_date && (
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  Vence {new Date(nextInst!.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                  Vence {new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                 </div>
               )}
             </button>
