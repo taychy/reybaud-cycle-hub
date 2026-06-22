@@ -219,12 +219,34 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
 
   // --- Actions ---
-  const handlePauseSub = async (subId: string) => {
-    const { error } = await supabase.from("suscripciones").update({ estado: "pausa" }).eq("id", subId);
+  const openPauseSub = (sub: any) => {
+    setPauseSubTarget({ id: sub.id, planNombre: sub?.planes?.nombre || "Plan" });
+    setShowPauseSubDialog(true);
+  };
+
+  const handlePauseSub = async (fechaRegreso: string) => {
+    if (!pauseSubTarget) return;
+    setShowPauseSubDialog(false);
+    const { error } = await supabase
+      .from("suscripciones")
+      .update({ estado: "pausa", fecha_fin: fechaRegreso })
+      .eq("id", pauseSubTarget.id);
     if (error) { toast.error("Error al pausar la suscripción"); return; }
-    const sub = subs.find(s => s.id === subId);
+
+    // Email pausa_activada (fire and forget)
+    supabase.functions.invoke("notify-student-update", {
+      body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
+    }).catch(() => {});
+
     toast.success("Suscripción pausada");
-    await logStudentActivity({ alumnoId: alumno.id, eventType: "estado_suscripcion", title: "Suscripción → pausa", description: `Plan "${sub?.planes?.nombre || "—"}" pausado`, actorRole });
+    await logStudentActivity({
+      alumnoId: alumno.id,
+      eventType: "estado_suscripcion",
+      title: "Suscripción → pausa",
+      description: `Plan "${pauseSubTarget.planNombre}" pausado hasta ${fechaRegreso}`,
+      actorRole,
+    });
+    setPauseSubTarget(null);
     fetchData();
     onRefresh();
   };
