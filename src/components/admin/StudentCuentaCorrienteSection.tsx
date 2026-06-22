@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
 import { logStudentActivity } from "@/lib/logStudentActivity";
