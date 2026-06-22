@@ -22,7 +22,7 @@ const DepositoCambios = () => {
     setLoading(true);
     const { data } = await supabase
       .from("store_cambios" as any)
-      .select("*, store_products(name, image_url), alumnos(nombre, apellido)")
+      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido)")
       .in("estado", ["aprobado", "en_deposito", "listo_retiro"])
       .order("created_at", { ascending: true });
     setItems((data as any[]) || []);
@@ -69,7 +69,7 @@ const DepositoCambios = () => {
     <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-semibold text-sm truncate">{c.store_products?.name}</p>
+          <p className="font-semibold text-sm truncate">{c.producto?.name}</p>
           <p className="text-[11px] text-muted-foreground">
             {c.alumnos?.nombre} {c.alumnos?.apellido} · {new Date(c.created_at).toLocaleDateString("es-AR")}
             {c.origen_solicitud === "presencial" && <Badge variant="outline" className="ml-1 text-[9px]">Presencial</Badge>}
@@ -147,7 +147,7 @@ const DepositoCambios = () => {
         <ScanCambioDialog
           open={!!scanFor}
           onOpenChange={(v) => !v && setScanFor(null)}
-          title={`Recibir cambio · ${scanFor.store_products?.name || ""}`}
+          title={`Recibir cambio · ${scanFor.producto?.name || ""}`}
           expectedReturnProductId={scanFor.producto_id}
           expectedReturnVariante={scanFor.variante_origen}
           expectedDeliverProductId={scanFor.producto_reemplazo_id || scanFor.producto_id}
@@ -161,7 +161,7 @@ const DepositoCambios = () => {
         <ScanCambioDialog
           open={!!defineFor}
           onOpenChange={(v) => !v && setDefineFor(null)}
-          title={`Definir reemplazo · ${defineFor.store_products?.name || ""}`}
+          title={`Definir reemplazo · ${defineFor.producto?.name || ""}`}
           expectedReturnProductId={defineFor.producto_id}
           expectedReturnVariante={defineFor.variante_origen}
           requireReemplazo

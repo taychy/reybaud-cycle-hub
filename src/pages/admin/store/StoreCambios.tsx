@@ -33,7 +33,7 @@ const AdminCambios = () => {
     setLoading(true);
     const { data } = await supabase
       .from("store_cambios" as any)
-      .select("*, store_products(name, image_url), alumnos(nombre, apellido, email)")
+      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido, email)")
       .order("created_at", { ascending: false });
     setItems((data as any[]) || []);
     setLoading(false);
@@ -78,7 +78,7 @@ const AdminCambios = () => {
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate">
-                  {c.alumnos?.nombre} {c.alumnos?.apellido} · <span className="text-muted-foreground">{c.store_products?.name}</span>
+                  {c.alumnos?.nombre} {c.alumnos?.apellido} · <span className="text-muted-foreground">{c.producto?.name}</span>
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {new Date(c.created_at).toLocaleDateString("es-AR")} · motivo: {c.motivo}
@@ -148,7 +148,7 @@ const AdminCambios = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Producto</p>
-                  <p className="font-semibold">{selected.store_products?.name}</p>
+                  <p className="font-semibold">{selected.producto?.name}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
