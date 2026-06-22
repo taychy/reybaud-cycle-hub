@@ -318,6 +318,10 @@ const EventDetail = () => {
 
   const handleSubmitResult = async () => {
     if (!id || !alumno) return;
+    if (isImpersonating) {
+      toast({ title: "Modo solo lectura", description: "No se pueden registrar resultados mientras se ve la cuenta de otro alumno.", variant: "destructive" });
+      return;
+    }
     setSubmittingResult(true);
     const payload = {
       distance_km: resultDistance ? parseFloat(resultDistance) : null,
