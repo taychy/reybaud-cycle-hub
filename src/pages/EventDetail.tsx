@@ -10,6 +10,7 @@ import {
   ArrowLeft, CalendarDays, Clock, Ruler, Send, Gauge, Heart,
   MapPin, Users, CheckCircle, XCircle, Mountain, Moon, Sun, Shield,
   ExternalLink, MessageCircle, FileText, CreditCard, AlertCircle, Loader2, Banknote,
+  Share2,
 } from "lucide-react";
 
 import EventRankings from "@/components/EventRankings";
