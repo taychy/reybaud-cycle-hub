@@ -24,7 +24,7 @@ const estadoColor: Record<string, string> = {
 const AdminCambios = () => {
   const [items, setItems] = useState<Cambio[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"pendientes" | "en_curso" | "cerrados">("pendientes");
+  const [tab, setTab] = useState<"nuevos" | "seguimiento" | "cerrados">("nuevos");
   const [selected, setSelected] = useState<Cambio | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const { toast } = useToast();
@@ -48,11 +48,16 @@ const AdminCambios = () => {
       ? items
       : items.filter((c) => (c.origen_solicitud || "app") === origenFiltro);
     return {
-      pendientes: filtered.filter((c) => ["solicitado", "aprobado", "devolucion_solicitada"].includes(c.estado)),
-      en_curso: filtered.filter((c) => ["en_deposito", "listo_retiro"].includes(c.estado)),
+      // Nuevos: requieren decisión de admin (sin stock, o devolución solicitada)
+      nuevos: filtered.filter((c) => ["solicitado", "devolucion_solicitada"].includes(c.estado)),
+      // En seguimiento: cambios en curso operativo
+      seguimiento: filtered.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
       cerrados: filtered.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
     };
   })();
+
+  const totalAbiertos = buckets.nuevos.length + buckets.seguimiento.length;
+  const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 
   const transition = async (id: string, nuevo: string, nota?: string) => {
     const { error } = await supabase.rpc("transition_cambio_estado" as any, {
@@ -69,30 +74,40 @@ const AdminCambios = () => {
     if (list.length === 0) return <p className="text-center text-sm text-muted-foreground py-8">Sin solicitudes</p>;
     return (
       <div className="space-y-2">
-        {list.map((c) => (
-          <button
-            key={c.id}
-            className="w-full text-left rounded-xl border border-border bg-card p-3 hover:bg-card/80 transition-colors"
-            onClick={() => setSelected(c)}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate">
-                  {c.alumnos?.nombre} {c.alumnos?.apellido} · <span className="text-muted-foreground">{c.producto?.name}</span>
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {new Date(c.created_at).toLocaleDateString("es-AR")} · motivo: {c.motivo}
-                  {c.iniciado_por === "admin" && <span className="text-amber-400 ml-1">· admin</span>}
-                  {c.origen_solicitud === "presencial" && <span className="text-cyan ml-1">· presencial</span>}
-                  {c.reemplazo_estado && c.reemplazo_estado !== "sin_definir" && (
-                    <span className="ml-1">· reemplazo: {c.reemplazo_estado}</span>
-                  )}
-                </p>
+        {list.map((c) => {
+          const dias = daysSince(c.created_at);
+          const enSeguimiento = ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado);
+          const atrasado = enSeguimiento && dias > 7;
+          return (
+            <button
+              key={c.id}
+              className={`w-full text-left rounded-xl border bg-card p-3 hover:bg-card/80 transition-colors ${atrasado ? "border-destructive/60" : "border-border"}`}
+              onClick={() => setSelected(c)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">
+                    {c.alumnos?.nombre} {c.alumnos?.apellido} · <span className="text-muted-foreground">{c.producto?.name}</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date(c.created_at).toLocaleDateString("es-AR")} · motivo: {c.motivo}
+                    {c.iniciado_por === "admin" && <span className="text-amber-400 ml-1">· admin</span>}
+                    {c.origen_solicitud === "presencial" && <span className="text-cyan ml-1">· presencial</span>}
+                    {c.reemplazo_estado && c.reemplazo_estado !== "sin_definir" && (
+                      <span className="ml-1">· reemplazo: {c.reemplazo_estado}</span>
+                    )}
+                    {enSeguimiento && (
+                      <span className={`ml-1 ${atrasado ? "text-destructive font-semibold" : dias > 4 ? "text-amber-400" : ""}`}>
+                        · {dias}d abierto{atrasado ? " ⚠️" : ""}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Badge className={`text-[10px] uppercase ${estadoColor[c.estado]}`}>{c.estado}</Badge>
               </div>
-              <Badge className={`text-[10px] uppercase ${estadoColor[c.estado]}`}>{c.estado}</Badge>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
     );
   };
@@ -124,14 +139,25 @@ const AdminCambios = () => {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="pendientes">Pendientes <span className="ml-1 text-[10px] opacity-70">({buckets.pendientes.length})</span></TabsTrigger>
-          <TabsTrigger value="en_curso">En curso <span className="ml-1 text-[10px] opacity-70">({buckets.en_curso.length})</span></TabsTrigger>
-          <TabsTrigger value="cerrados">Cerrados <span className="ml-1 text-[10px] opacity-70">({buckets.cerrados.length})</span></TabsTrigger>
+          <TabsTrigger value="nuevos">
+            🔴 Nuevos <span className="ml-1 text-[10px] opacity-70">({buckets.nuevos.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="seguimiento">
+            👀 En seguimiento <span className="ml-1 text-[10px] opacity-70">({buckets.seguimiento.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="cerrados">
+            ✅ Cerrados <span className="ml-1 text-[10px] opacity-70">({buckets.cerrados.length})</span>
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="pendientes" className="mt-3">{renderList(buckets.pendientes)}</TabsContent>
-        <TabsContent value="en_curso" className="mt-3">{renderList(buckets.en_curso)}</TabsContent>
+        <TabsContent value="nuevos" className="mt-3">{renderList(buckets.nuevos)}</TabsContent>
+        <TabsContent value="seguimiento" className="mt-3">{renderList(buckets.seguimiento)}</TabsContent>
         <TabsContent value="cerrados" className="mt-3">{renderList(buckets.cerrados)}</TabsContent>
       </Tabs>
+      {totalAbiertos > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {totalAbiertos} cambio{totalAbiertos === 1 ? "" : "s"} abierto{totalAbiertos === 1 ? "" : "s"} esperando cierre.
+        </p>
+      )}
 
       <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">

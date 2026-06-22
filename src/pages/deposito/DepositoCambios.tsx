@@ -65,6 +65,15 @@ const DepositoCambios = () => {
     load();
   };
 
+  const marcarEntregado = async (id: string) => {
+    const { error } = await supabase.rpc("transition_cambio_estado" as any, {
+      p_id: id, p_nuevo_estado: "entregado", p_nota: "Entregado al alumno desde depósito",
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Cambio entregado" });
+    load();
+  };
+
   const renderItem = (c: any, action: "scan" | "define" | "view") => (
     <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -93,7 +102,12 @@ const DepositoCambios = () => {
           </Button>
         )}
         {action === "view" && (
-          <Badge className="bg-green-500/20 text-green-400">Esperando retiro en sede</Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className="bg-green-500/20 text-green-400">Esperando retiro en sede</Badge>
+            <Button size="sm" variant="outline" onClick={() => marcarEntregado(c.id)}>
+              ✓ Marcar entregado
+            </Button>
+          </div>
         )}
       </div>
     </div>

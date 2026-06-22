@@ -88,14 +88,6 @@ const RequestCambioDialog = ({
         toast({ title: "Elegí una variante distinta a la original", variant: "destructive" });
         return;
       }
-      if (selectionOutOfStock) {
-        toast({
-          title: "Sin stock de esa variante",
-          description: "Elegí otra opción o marcá la casilla de devolución.",
-          variant: "destructive",
-        });
-        return;
-      }
     }
     setSaving(true);
     const { error } = await supabase.rpc("request_cambio_indumentaria" as any, {
@@ -114,10 +106,17 @@ const RequestCambioDialog = ({
       toast({ title: "No se pudo solicitar el cambio", description: error.message, variant: "destructive" });
       return;
     }
+    const sinStockDestino = !noStock && hasVariantSelectors && selectionOutOfStock;
     toast({
-      title: noStock ? "Devolución solicitada" : "Cambio aprobado",
+      title: noStock
+        ? "Devolución solicitada"
+        : sinStockDestino
+        ? "Solicitud enviada a administración"
+        : "Cambio aprobado",
       description: noStock
         ? "Te contactamos para coordinar el reintegro."
+        : sinStockDestino
+        ? "No hay stock del talle elegido. Administración va a revisar tu pedido y te avisamos."
         : "Ya quedó cargado en depósito. Te avisamos cuando esté listo para retirar.",
     });
     onOpenChange(false);
@@ -172,12 +171,12 @@ const RequestCambioDialog = ({
                           const st = getStockFor(key, o);
                           const out = st !== null && st <= 0;
                           return (
-                            <SelectItem key={o} value={o} disabled={out}>
+                            <SelectItem key={o} value={o}>
                               <span className="flex items-center gap-2">
                                 <span>{o}</span>
                                 {st !== null && (
-                                  <span className={`text-[10px] ${out ? "text-destructive" : st <= 2 ? "text-amber-400" : "text-muted-foreground"}`}>
-                                    {out ? "sin stock" : `${st} disp.`}
+                                  <span className={`text-[10px] ${out ? "text-amber-400" : st <= 2 ? "text-amber-400" : "text-muted-foreground"}`}>
+                                    {out ? "sin stock — requiere autorización" : `${st} disp.`}
                                   </span>
                                 )}
                               </span>
@@ -189,8 +188,8 @@ const RequestCambioDialog = ({
                   );
                 })}
                 {selectionOutOfStock && (
-                  <p className="text-[11px] text-destructive flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> No hay stock de esa variante. Elegí otra o marcá devolución abajo.
+                  <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Sin stock de ese talle. Podés enviar la solicitud igual: administración la revisa y te avisa.
                   </p>
                 )}
               </div>
