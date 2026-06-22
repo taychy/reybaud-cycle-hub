@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import type { Session } from "@supabase/supabase-js";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 
 type Alumno = Tables<"alumnos">;
 
@@ -13,6 +14,7 @@ interface AlumnoSessionState {
 }
 
 export function useAlumnoSession() {
+  const { isImpersonating, targetAlumno } = useImpersonation();
   const [state, setState] = useState<AlumnoSessionState>({
     alumno: null,
     loading: true,
@@ -131,25 +133,34 @@ export function useAlumnoSession() {
   }, []);
 
   useEffect(() => {
+    // Impersonation takes precedence over the auth session
+    if (isImpersonating && targetAlumno) {
+      setState({ alumno: targetAlumno, loading: false, error: null, needsSubscription: false });
+      return;
+    }
+
     // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isImpersonating && targetAlumno) return; // ignore while impersonating
       resolveAlumno(session);
     });
 
     // Then check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (isImpersonating && targetAlumno) return;
       resolveAlumno(session);
     });
 
     return () => subscription.unsubscribe();
-  }, [resolveAlumno]);
+  }, [resolveAlumno, isImpersonating, targetAlumno]);
 
   const logout = useCallback(async () => {
+    if (isImpersonating) return; // never sign out the super admin from an impersonated view
     await supabase.auth.signOut();
     // Clear any legacy localStorage
     localStorage.removeItem("alumno");
     setState({ alumno: null, loading: false, error: null, needsSubscription: false });
-  }, []);
+  }, [isImpersonating]);
 
-  return { ...state, logout };
+  return { ...state, logout, isImpersonating };
 }

@@ -115,7 +115,7 @@ const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { alumno } = useAlumnoSession();
+  const { alumno, isImpersonating } = useAlumnoSession();
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
 
@@ -318,6 +318,10 @@ const EventDetail = () => {
 
   const handleSubmitResult = async () => {
     if (!id || !alumno) return;
+    if (isImpersonating) {
+      toast({ title: "Modo solo lectura", description: "No se pueden registrar resultados mientras se ve la cuenta de otro alumno.", variant: "destructive" });
+      return;
+    }
     setSubmittingResult(true);
     const payload = {
       distance_km: resultDistance ? parseFloat(resultDistance) : null,
@@ -614,11 +618,22 @@ const EventDetail = () => {
                   {isInscriptionOnly ? "¿Querés inscribirte?" : "¿Querés reservar tu lugar?"}
                 </h3>
               </div>
-              <Button variant="gold" className="w-full h-12 text-sm" onClick={() => setShowReservationDrawer(true)}>
+              <Button
+                variant="gold"
+                className="w-full h-12 text-sm"
+                disabled={isImpersonating}
+                onClick={() => {
+                  if (isImpersonating) {
+                    toast({ title: "Modo solo lectura", description: "Estás viendo la cuenta como super admin: no podés crear reservas.", variant: "destructive" });
+                    return;
+                  }
+                  setShowReservationDrawer(true);
+                }}
+              >
                 {isInscriptionOnly ? (
-                  <><CheckCircle className="w-4 h-4 mr-2" /> Inscribirme</>
+                  <><CheckCircle className="w-4 h-4 mr-2" /> {isImpersonating ? "Solo lectura" : "Inscribirme"}</>
                 ) : (
-                  <><CreditCard className="w-4 h-4 mr-2" /> Reservar</>
+                  <><CreditCard className="w-4 h-4 mr-2" /> {isImpersonating ? "Solo lectura" : "Reservar"}</>
                 )}
               </Button>
             </div>
