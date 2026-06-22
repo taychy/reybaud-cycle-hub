@@ -873,6 +873,25 @@ const AdminEventReservations = ({
     setMatInstallments((data as any[]) || []);
   };
 
+  const ensureMatInstallments = async (resId: string) => {
+    const fetchRows = async () => {
+      const { data } = await supabase
+        .from("reservation_installments" as any)
+        .select("*")
+        .eq("reservation_id", resId)
+        .order("sort_order", { ascending: true });
+      return (data as any[]) || [];
+    };
+
+    let rows = await fetchRows();
+    if (rows.length === 0) {
+      await supabase.rpc("materialize_reservation_installments" as any, { p_reservation_id: resId });
+      rows = await fetchRows();
+    }
+    setMatInstallments(rows);
+    return rows;
+  };
+
   const registerAdminPayment = async () => {
     if (!selectedRes || !adminPayAmount || parseFloat(adminPayAmount) <= 0) {
       toast({ title: "Ingresá un monto válido.", variant: "destructive" });
