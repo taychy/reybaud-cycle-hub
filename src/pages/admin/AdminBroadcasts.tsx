@@ -52,6 +52,8 @@ const emptyComposer = {
   subject: "",
   preheader: "",
   content_html: "",
+  cta_url: "",
+  cta_label: "",
   audience: ["students"] as ("students" | "coaches")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
@@ -74,6 +76,10 @@ export default function AdminBroadcasts() {
   });
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewSample, setPreviewSample] = useState<any[]>([]);
+  const [fullRecipients, setFullRecipients] = useState<any[]>([]);
+  const [excludedEmails, setExcludedEmails] = useState<Set<string>>(new Set());
+  const [recipientsDialogOpen, setRecipientsDialogOpen] = useState(false);
+  const [recipientsSearch, setRecipientsSearch] = useState("");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [sending, setSending] = useState(false);
@@ -139,15 +145,34 @@ export default function AdminBroadcasts() {
     setLoadingPreview(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
-        body: { mode: "preview_count", segment_filters: segmentFilters },
+        body: {
+          mode: "preview_count",
+          segment_filters: segmentFilters,
+          include_full_list: true,
+          excluded_emails: Array.from(excludedEmails),
+        },
       });
       if (error) throw error;
       setPreviewCount(data.count);
       setPreviewSample(data.sample || []);
+      setFullRecipients(data.recipients || []);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setLoadingPreview(false);
+    }
+  };
+
+  const toggleExcluded = (email: string) => {
+    const next = new Set(excludedEmails);
+    const k = email.toLowerCase();
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    setExcludedEmails(next);
+    // Re-derive count from currently loaded list (avoid re-querying)
+    if (fullRecipients.length) {
+      const remaining = fullRecipients.filter((r) => !next.has(r.email.toLowerCase()));
+      setPreviewCount(remaining.length);
     }
   };
 
@@ -165,6 +190,8 @@ export default function AdminBroadcasts() {
           subject: composer.subject,
           content_html: composer.content_html,
           preheader: composer.preheader,
+          cta_url: composer.cta_url || undefined,
+          cta_label: composer.cta_label || undefined,
         },
       });
       if (error) throw error;
@@ -188,6 +215,9 @@ export default function AdminBroadcasts() {
           content_html: composer.content_html,
           preheader: composer.preheader,
           segment_filters: segmentFilters,
+          cta_url: composer.cta_url || undefined,
+          cta_label: composer.cta_label || undefined,
+          excluded_emails: Array.from(excludedEmails),
         },
       });
       if (error) throw error;
@@ -197,6 +227,8 @@ export default function AdminBroadcasts() {
       });
       setComposer(emptyComposer);
       setPreviewCount(null);
+      setFullRecipients([]);
+      setExcludedEmails(new Set());
       setTab("history");
       loadAll();
     } catch (e: any) {
@@ -340,16 +372,37 @@ export default function AdminBroadcasts() {
                 placeholder="Reservá tu lugar con seña antes del viernes" />
             </div>
             <div className="space-y-1.5">
-              <Label>Contenido (HTML simple permitido) *</Label>
+              <Label>Contenido *</Label>
               <Textarea
                 value={composer.content_html}
                 onChange={e => setComposer({ ...composer, content_html: e.target.value })}
                 rows={10}
-                placeholder={`Hola,\n\nAbrimos cupos para...\n\n<a href="https://reybaud-app.com/eventos/...">Reservar</a>`}
+                placeholder={`Hola pelotón,\n\nAbrimos cupos para el próximo viaje...\n\nNos vemos en la ruta!`}
               />
               <p className="text-[11px] text-muted-foreground">
-                Podés usar &lt;b&gt;, &lt;a href&gt;, &lt;br&gt;, &lt;p&gt;. El header con logo y el footer se agregan automáticamente.
+                Escribí libre, se respetan los saltos de línea. El logo y el footer se agregan automáticamente.
               </p>
+            </div>
+
+            <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end pt-2 border-t border-border/60">
+              <div className="space-y-1.5">
+                <Label>Botón de acción (opcional)</Label>
+                <Input
+                  value={composer.cta_url}
+                  onChange={e => setComposer({ ...composer, cta_url: e.target.value })}
+                  placeholder="https://reybaud-app.com/eventos/..."
+                />
+                <p className="text-[11px] text-muted-foreground">URL adonde lleva el botón. Si la dejás vacía y hay un link en el texto, se usa ese.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Texto del botón</Label>
+                <Input
+                  value={composer.cta_label}
+                  onChange={e => setComposer({ ...composer, cta_label: e.target.value })}
+                  placeholder="Reservar mi lugar"
+                  className="md:w-56"
+                />
+              </div>
             </div>
           </Card>
 
@@ -468,14 +521,19 @@ export default function AdminBroadcasts() {
                 Calcular destinatarios
               </Button>
               {previewCount !== null && (
-                <div className="text-sm">
-                  Se enviará a <b>{previewCount}</b> destinatario{previewCount === 1 ? "" : "s"}.
-                  {previewSample.length > 0 && (
-                    <span className="text-muted-foreground ml-2">
-                      Ej: {previewSample.map((s: any) => s.email).slice(0, 3).join(", ")}…
-                    </span>
+                <>
+                  <div className="text-sm">
+                    Se enviará a <b>{previewCount}</b> destinatario{previewCount === 1 ? "" : "s"}.
+                    {excludedEmails.size > 0 && (
+                      <span className="text-amber-500 ml-2">({excludedEmails.size} excluido{excludedEmails.size === 1 ? "" : "s"})</span>
+                    )}
+                  </div>
+                  {fullRecipients.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={() => { setRecipientsSearch(""); setRecipientsDialogOpen(true); }}>
+                      <Users className="w-4 h-4 mr-1" /> Ver y editar lista
+                    </Button>
                   )}
-                </div>
+                </>
               )}
             </div>
           </Card>
@@ -679,6 +737,65 @@ export default function AdminBroadcasts() {
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* RECIPIENTS LIST EDITOR */}
+      <Dialog open={recipientsDialogOpen} onOpenChange={setRecipientsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Destinatarios ({fullRecipients.length - excludedEmails.size} de {fullRecipients.length})</DialogTitle>
+            <DialogDescription>
+              Destildá los que NO querés que reciban el email. Los excluidos se mantienen al enviar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={recipientsSearch}
+                  onChange={(e) => setRecipientsSearch(e.target.value)}
+                  placeholder="Buscar email o nombre..."
+                  className="pl-9"
+                />
+              </div>
+              {excludedEmails.size > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setExcludedEmails(new Set())}>
+                  Restaurar todos
+                </Button>
+              )}
+            </div>
+            <div className="max-h-[420px] overflow-y-auto rounded-md border divide-y">
+              {fullRecipients
+                .filter((r) => {
+                  const q = recipientsSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  return `${r.email} ${r.nombre || ""}`.toLowerCase().includes(q);
+                })
+                .map((r) => {
+                  const excluded = excludedEmails.has(r.email.toLowerCase());
+                  return (
+                    <label key={r.email} className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/30">
+                      <Checkbox
+                        checked={!excluded}
+                        onCheckedChange={() => toggleExcluded(r.email)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-sm truncate ${excluded ? "line-through text-muted-foreground" : ""}`}>
+                          {r.nombre || r.email}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">{r.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">{r.type === "coach" ? "Coach" : "Alumno"}</Badge>
+                    </label>
+                  );
+                })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setRecipientsDialogOpen(false)}>Listo</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
