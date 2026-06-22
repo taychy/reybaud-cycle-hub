@@ -179,7 +179,18 @@ const EventDetail = () => {
         if (data) setEvent(data as unknown as Event);
         setLoading(false);
       });
+    supabase
+      .from("event_packages")
+      .select("precio")
+      .eq("event_id", id)
+      .eq("activo", true)
+      .then(({ data }) => {
+        const prices = (data || []).map((p: any) => Number(p.precio)).filter((n) => n > 0);
+        setPackagesCount(prices.length);
+        setPackagesMinPrice(prices.length ? Math.min(...prices) : null);
+      });
   }, [id]);
+
 
   const loadReservation = useCallback(async () => {
     if (!id || !alumno) return;
