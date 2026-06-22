@@ -60,13 +60,40 @@ const RequestCambioDialog = ({
 
   const hasVariantSelectors = Array.isArray(variantsConfig) && variantsConfig.length > 0;
 
+  // Mapa de stock por variante: clave "Atributo:Valor" → cantidad
+  const variantStock: Record<string, number> = (product?.variant_stock as any) || {};
+  const getStockFor = (attr: string, opt: string): number | null => {
+    const k = `${attr}:${opt}`;
+    if (variantStock[k] === undefined || variantStock[k] === null) return null;
+    return Number(variantStock[k]) || 0;
+  };
+  const stockOfSelection = (() => {
+    if (!hasVariantSelectors) return null;
+    const stocks = variantsConfig.map((vc: any, idx: number) => {
+      const key = vc.name || vc.label || `attr_${idx}`;
+      const val = varDestino[key];
+      if (!val) return null;
+      return getStockFor(key, val);
+    });
+    if (stocks.some((s) => s === null)) return null;
+    return Math.min(...(stocks as number[]));
+  })();
+  const selectionOutOfStock = stockOfSelection !== null && stockOfSelection <= 0;
+
   const handleSubmit = async () => {
     if (!noStock && hasVariantSelectors) {
-      // verificar al menos una variante elegida y distinta
       const sigDestino = JSON.stringify(varDestino);
       const sigOrigen = JSON.stringify(varianteOrigen);
       if (sigDestino === "{}" || sigDestino === sigOrigen) {
         toast({ title: "Elegí una variante distinta a la original", variant: "destructive" });
+        return;
+      }
+      if (selectionOutOfStock) {
+        toast({
+          title: "Sin stock de esa variante",
+          description: "Elegí otra opción o marcá la casilla de devolución.",
+          variant: "destructive",
+        });
         return;
       }
     }
@@ -88,12 +115,15 @@ const RequestCambioDialog = ({
       return;
     }
     toast({
-      title: noStock ? "Devolución solicitada" : "Cambio solicitado",
-      description: "Te avisaremos cuando esté listo para retirar en sede.",
+      title: noStock ? "Devolución solicitada" : "Cambio aprobado",
+      description: noStock
+        ? "Te contactamos para coordinar el reintegro."
+        : "Ya quedó cargado en depósito. Te avisamos cuando esté listo para retirar.",
     });
     onOpenChange(false);
     onSubmitted?.();
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
