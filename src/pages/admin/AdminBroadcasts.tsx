@@ -52,6 +52,8 @@ const emptyComposer = {
   subject: "",
   preheader: "",
   content_html: "",
+  cta_url: "",
+  cta_label: "",
   audience: ["students"] as ("students" | "coaches")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
