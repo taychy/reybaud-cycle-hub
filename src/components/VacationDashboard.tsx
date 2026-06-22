@@ -29,15 +29,15 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
   const [lastGrupalPlan, setLastGrupalPlan] = useState<{ id: string; nombre: string } | null>(null);
   const firstName = alumno.nombre?.split(" ")[0] || "";
 
-  // Buscar el último plan grupal contratado para sugerir reactivación 1-click.
+  // Buscar el último plan contratado real (excluyendo pausas) para sugerir reactivación 1-click.
   useEffect(() => {
     let cancel = false;
     (async () => {
       const { data } = await supabase
         .from("suscripciones")
-        .select("plan_id, created_at, planes!inner(id, nombre, categoria, activo)")
+        .select("plan_id, created_at, estado, planes!inner(id, nombre, categoria, activo)")
         .eq("alumno_id", alumno.id)
-        .eq("planes.categoria", "grupal")
+        .neq("planes.categoria", "pausa")
         .eq("planes.activo", true)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -47,6 +47,7 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
     })();
     return () => { cancel = true; };
   }, [alumno.id]);
+
 
   const goToPlanes = (preselectPlanId?: string) => {
     localStorage.setItem("registro_alumno_id", alumno.id);
