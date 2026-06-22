@@ -35,21 +35,67 @@ interface SendBody {
   save_as?: "draft" | "sent";
 }
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function htmlWrap(content: string, preheader?: string) {
   const pre = preheader
-    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</div>`
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>`
     : "";
+
+  const looksHtml = /<\/?(p|div|br|a|h[1-6]|ul|ol|li|strong|em|span|table)\b/i.test(content);
+
+  let bodyHtml = content;
+  let ctaUrl: string | null = null;
+  let ctaLabel = "Abrir en la app";
+
+  if (!looksHtml) {
+    const match = content.match(/(https?:\/\/[^\s<]+)/i);
+    if (match) {
+      ctaUrl = match[1].replace(/[.,;:!?)]+$/, "");
+      if (/reybaud-app\.com\/eventos\//i.test(ctaUrl)) ctaLabel = "Ver evento y reservar";
+      else if (/reybaud-app\.com\/planes/i.test(ctaUrl)) ctaLabel = "Ver planes";
+      else if (/reybaud-app\.com/i.test(ctaUrl)) ctaLabel = "Abrir en la app";
+      else ctaLabel = "Abrir enlace";
+    }
+
+    let text = ctaUrl ? content.replace(ctaUrl, "").trim() : content;
+    text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+
+    bodyHtml = escapeHtml(text)
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map((p) => `<p style="margin:0 0 18px;line-height:1.65;color:#e8e8e8;font-size:16px">${p.replace(/\n/g, "<br/>")}</p>`)
+      .join("");
+  }
+
+  const ctaBlock = ctaUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:10px 0 6px">
+        <tr><td style="border-radius:10px;background:#F08A2A">
+          <a href="${ctaUrl}" style="display:inline-block;padding:14px 28px;font-family:Oswald,Impact,Arial,sans-serif;font-size:16px;letter-spacing:1.5px;color:#ffffff;text-decoration:none;text-transform:uppercase;font-weight:600">${ctaLabel}</a>
+        </td></tr>
+      </table>
+      <p style="margin:0 0 8px;font-size:12px;color:#777"><a href="${ctaUrl}" style="color:#5BC8E0;word-break:break-all;text-decoration:underline">${ctaUrl}</a></p>`
+    : "";
+
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#e2e8f0">
+<body style="margin:0;padding:0;background:#121212;font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#e8e8e8">
 ${pre}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212">
   <tr><td align="center" style="padding:24px 12px">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#111827;border-radius:12px;overflow:hidden">
-      <tr><td style="padding:28px 28px 16px;text-align:left;border-bottom:1px solid #1f2937">
-        <div style="font-family:Oswald,Impact,sans-serif;font-size:22px;letter-spacing:2px;color:#f97316;font-weight:600">REYBAUD</div>
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#1a1a1a;border-radius:14px;overflow:hidden;border:1px solid #262626">
+      <tr><td style="padding:28px 32px 20px;text-align:left;border-bottom:1px solid #262626">
+        <div style="font-family:Oswald,Impact,Arial,sans-serif;font-size:26px;letter-spacing:3px;color:#F08A2A;font-weight:700">REYBAUD</div>
       </td></tr>
-      <tr><td style="padding:24px 28px;color:#e2e8f0;font-size:15px;line-height:1.6">${content}</td></tr>
-      <tr><td style="padding:18px 28px;border-top:1px solid #1f2937;color:#64748b;font-size:11px;text-align:center">
+      <tr><td style="padding:28px 32px 12px">${bodyHtml}${ctaBlock}</td></tr>
+      <tr><td style="padding:20px 32px;border-top:1px solid #262626;color:#666;font-size:11px;text-align:center;line-height:1.6">
         Recibís este email porque sos parte de Reybaud.<br/>
         Para dejar de recibir comunicaciones, respondé "BAJA" a este email.
       </td></tr>
