@@ -48,11 +48,16 @@ const AdminCambios = () => {
       ? items
       : items.filter((c) => (c.origen_solicitud || "app") === origenFiltro);
     return {
-      pendientes: filtered.filter((c) => ["solicitado", "aprobado", "devolucion_solicitada"].includes(c.estado)),
-      en_curso: filtered.filter((c) => ["en_deposito", "listo_retiro"].includes(c.estado)),
+      // Nuevos: requieren decisión de admin (sin stock, o devolución solicitada)
+      nuevos: filtered.filter((c) => ["solicitado", "devolucion_solicitada"].includes(c.estado)),
+      // En seguimiento: cambios en curso operativo
+      seguimiento: filtered.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
       cerrados: filtered.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
     };
   })();
+
+  const totalAbiertos = buckets.nuevos.length + buckets.seguimiento.length;
+  const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 
   const transition = async (id: string, nuevo: string, nota?: string) => {
     const { error } = await supabase.rpc("transition_cambio_estado" as any, {
