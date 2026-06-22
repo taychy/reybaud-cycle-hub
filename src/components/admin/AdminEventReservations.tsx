@@ -1339,6 +1339,12 @@ const AdminEventReservations = ({
                               <Send className="w-3.5 h-3.5 mr-2" /> Reenviar email de confirmación
                             </DropdownMenuItem>
                           )}
+                          {Number(r.balance_due ?? r.amount_total ?? 0) > 0 &&
+                            ["no_informado", "parcial", "pago_pendiente", "pago_rechazado"].includes(r.payment_status || "") && (
+                            <DropdownMenuItem onClick={() => resendConfirmationEmail(r.id)}>
+                              <Banknote className="w-3.5 h-3.5 mr-2" /> Cobrar seña / recordar pago
+                            </DropdownMenuItem>
+                          )}
                           {isTripLike && r.access_token && (
                             <>
                               <DropdownMenuSeparator />
