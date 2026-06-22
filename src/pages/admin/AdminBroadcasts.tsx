@@ -521,14 +521,19 @@ export default function AdminBroadcasts() {
                 Calcular destinatarios
               </Button>
               {previewCount !== null && (
-                <div className="text-sm">
-                  Se enviará a <b>{previewCount}</b> destinatario{previewCount === 1 ? "" : "s"}.
-                  {previewSample.length > 0 && (
-                    <span className="text-muted-foreground ml-2">
-                      Ej: {previewSample.map((s: any) => s.email).slice(0, 3).join(", ")}…
-                    </span>
+                <>
+                  <div className="text-sm">
+                    Se enviará a <b>{previewCount}</b> destinatario{previewCount === 1 ? "" : "s"}.
+                    {excludedEmails.size > 0 && (
+                      <span className="text-amber-500 ml-2">({excludedEmails.size} excluido{excludedEmails.size === 1 ? "" : "s"})</span>
+                    )}
+                  </div>
+                  {fullRecipients.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={() => { setRecipientsSearch(""); setRecipientsDialogOpen(true); }}>
+                      <Users className="w-4 h-4 mr-1" /> Ver y editar lista
+                    </Button>
                   )}
-                </div>
+                </>
               )}
             </div>
           </Card>
