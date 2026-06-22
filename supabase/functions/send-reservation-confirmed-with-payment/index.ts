@@ -183,7 +183,9 @@ Deno.serve(async (req) => {
     const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${payUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
 
 
-    const messageId = `confirm-pay-${reservation_id}`;
+    const messageId = force
+      ? `confirm-pay-${reservation_id}-${Date.now()}`
+      : `confirm-pay-${reservation_id}`;
     const { error: enqErr } = await sb.rpc("enqueue_email", {
       queue_name: "transactional_emails",
       payload: {
