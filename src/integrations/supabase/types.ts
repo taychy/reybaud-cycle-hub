@@ -1088,11 +1088,14 @@ export type Database = {
           concepto: string
           created_at: string
           created_by: string | null
+          cuenta_mp_id: string | null
           fecha: string
           id: string
+          medio_pago: string | null
           moneda: string
           monto: number
           notas: string | null
+          referencia_externa: string | null
           tipo: string
           updated_at: string
         }
@@ -1101,11 +1104,14 @@ export type Database = {
           concepto: string
           created_at?: string
           created_by?: string | null
+          cuenta_mp_id?: string | null
           fecha?: string
           id?: string
+          medio_pago?: string | null
           moneda?: string
           monto: number
           notas?: string | null
+          referencia_externa?: string | null
           tipo: string
           updated_at?: string
         }
@@ -1114,11 +1120,14 @@ export type Database = {
           concepto?: string
           created_at?: string
           created_by?: string | null
+          cuenta_mp_id?: string | null
           fecha?: string
           id?: string
+          medio_pago?: string | null
           moneda?: string
           monto?: number
           notas?: string | null
+          referencia_externa?: string | null
           tipo?: string
           updated_at?: string
         }
@@ -1128,6 +1137,13 @@ export type Database = {
             columns: ["alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuenta_ajustes_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
             referencedColumns: ["id"]
           },
         ]
