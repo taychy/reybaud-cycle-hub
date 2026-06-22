@@ -93,7 +93,12 @@ const DepositoCambios = () => {
           </Button>
         )}
         {action === "view" && (
-          <Badge className="bg-green-500/20 text-green-400">Esperando retiro en sede</Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className="bg-green-500/20 text-green-400">Esperando retiro en sede</Badge>
+            <Button size="sm" variant="outline" onClick={() => marcarEntregado(c.id)}>
+              ✓ Marcar entregado
+            </Button>
+          </div>
         )}
       </div>
     </div>
