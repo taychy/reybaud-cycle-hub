@@ -458,6 +458,11 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
               (showAll ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
                 const tipoInfo = TIPO_LABEL[m.tipo] || { label: m.tipo, className: "" };
                 const isAjuste = m.fuente_tabla === "cuenta_ajustes";
+                const rx = m.referencia_extra || {};
+                const medioRaw: string | null =
+                  rx.medio_pago || rx.metodo_pago || rx.payment_method || rx.forma_pago_sena || null;
+                const medioLabel = medioRaw ? getPaymentMethodLabel(medioRaw) : "—";
+                const referencia = rx.referencia_externa || rx.mp_payment_id || null;
                 return (
                   <TableRow key={`${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`} className="text-sm">
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
@@ -469,6 +474,16 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                       </Badge>
                     </TableCell>
                     <TableCell className="text-foreground text-sm">{m.concepto}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div className="flex flex-col leading-tight">
+                        <span className={medioRaw ? "text-foreground" : ""}>{medioLabel}</span>
+                        {referencia && (
+                          <span className="text-[10px] text-muted-foreground/70 truncate max-w-[110px]" title={String(referencia)}>
+                            ref {String(referencia)}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-mono text-xs text-destructive whitespace-nowrap">
                       {m.debe > 0 ? formatPrice(Number(m.debe), m.moneda) : "—"}
                     </TableCell>
