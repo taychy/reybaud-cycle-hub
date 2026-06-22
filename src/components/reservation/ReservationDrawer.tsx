@@ -154,21 +154,77 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     if (!selectedPackage || isInscriptionOnly || !effectivePrice || effectivePrice <= 0) {
       setHasPaymentPlan(false);
       setAcceptedPaymentPlan(false);
+      setPaymentPlanPreview(null);
       return;
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data: plan } = await supabase
         .from("event_package_payment_plans" as any)
-        .select("id")
+        .select("*")
         .eq("package_id", selectedPackage.id)
         .is("archived_at", null)
         .eq("activo", true)
+        .order("version", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!cancelled) {
-        setHasPaymentPlan(!!data);
+
+      if (cancelled) return;
+      if (!plan) {
+        setHasPaymentPlan(false);
         setAcceptedPaymentPlan(false);
+        setPaymentPlanPreview(null);
+        return;
+      }
+
+      const p = plan as any;
+      const { data: insts } = await supabase
+        .from("event_package_payment_plan_installments" as any)
+        .select("*")
+        .eq("plan_id", p.id)
+        .order("numero", { ascending: true });
+      if (cancelled) return;
+
+      const templateInstallments: InstallmentTemplate[] = ((insts as any[]) || []).map((i) => ({
+        numero: i.numero,
+        descripcion: i.descripcion,
+        monto_tipo: i.monto_tipo,
+        monto_valor: Number(i.monto_valor),
+        fecha_vencimiento: i.fecha_vencimiento,
+        reminders_config: Array.isArray(i.reminders_config) ? i.reminders_config : [],
+      }));
+
+      const template: PlanTemplate = {
+        id: p.id,
+        nombre: p.nombre,
+        sena_tipo: p.sena_tipo,
+        sena_valor: Number(p.sena_valor),
+        sena_vence_dias: p.sena_vence_dias ?? 0,
+        cantidad_cuotas: p.cantidad_cuotas,
+        last_installment_absorbs_rounding: !!p.last_installment_absorbs_rounding,
+        regla_reserva_tardia: p.regla_reserva_tardia,
+        installments: templateInstallments,
+      };
+      const today = new Date();
+      const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const result = calculatePlan({ template, precioFinal: effectivePrice, fechaReserva: todayISO });
+
+      setHasPaymentPlan(true);
+      setAcceptedPaymentPlan(false);
+      if (result.ok) {
+        setPaymentPlanPreview({
+          nombre: p.nombre,
+          sena_monto: result.sena_monto,
+          installments: result.installments.map((c) => ({
+            numero: c.numero,
+            installment_type: c.installment_type,
+            descripcion: c.descripcion,
+            monto: c.monto,
+            due_date: c.due_date,
+          })),
+        });
+      } else {
+        setPaymentPlanPreview(null);
       }
     })();
     return () => { cancelled = true; };
