@@ -67,6 +67,9 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
     switch (activeTab) {
       case "eventos":
         return <EventosContent />;
+      case "tienda":
+        return <TiendaSection />;
+
       case "perfil":
         return (
           <div className="w-full max-w-md space-y-6 animate-fade-in pt-4">
