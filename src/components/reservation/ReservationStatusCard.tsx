@@ -286,15 +286,18 @@ const ReservationStatusCard = ({
   const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
   const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
 
-  // Auto-abrir drawer cuando viene del email con ?action=pay|cash (y ?reserva=:id matching).
+  // Auto-disparar acción cuando viene del email con ?action=pay|cash (y ?reserva=:id matching).
+  // - action=pay  → checkout de Mercado Pago directo (NO el drawer "Ya pagué")
+  // - action=cash → abrir drawer en modo "Pagaré efectivo"
+  const [pendingMpFromEmail, setPendingMpFromEmail] = useState(false);
   useEffect(() => {
     const action = searchParams.get("action");
     const reservaParam = searchParams.get("reserva");
     if (!action) return;
     if (reservaParam && reservaParam !== reservation.id) return;
     if (action === "pay") {
-      setPaymentMode("paid");
-      setShowPaymentDrawer(true);
+      // Diferimos hasta que pendingForMP esté calculado (otro effect lo dispara).
+      setPendingMpFromEmail(true);
     } else if (action === "cash") {
       setPaymentMode("cash");
       setShowPaymentDrawer(true);
