@@ -23,10 +23,12 @@ interface Plan {
 interface Pkg {
   id: string;
   nombre: string;
+  descripcion: string | null;
   precio: number;
   currency: string;
   plan: Plan | null;
 }
+
 
 const fmtDate = (d?: string | null) => {
   if (!d) return "";
