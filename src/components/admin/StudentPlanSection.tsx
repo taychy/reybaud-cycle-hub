@@ -130,10 +130,13 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
-  // Asignar Pausa
+  // Pausar alumno sin plan (crea suscripción de categoría "pausa")
   const [showPausaDialog, setShowPausaDialog] = useState(false);
   const [pausaPlan, setPausaPlan] = useState<Plan | null>(null);
   const [assigningPausa, setAssigningPausa] = useState(false);
+  // Pausar este plan (pausa una suscripción existente)
+  const [pauseSubTarget, setPauseSubTarget] = useState<{ id: string; planNombre: string } | null>(null);
+  const [showPauseSubDialog, setShowPauseSubDialog] = useState(false);
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
   const [removingSub, setRemovingSub] = useState(false);
   const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
