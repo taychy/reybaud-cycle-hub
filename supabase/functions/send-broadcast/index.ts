@@ -92,7 +92,7 @@ ${pre}
   <tr><td align="center" style="padding:24px 12px">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#1a1a1a;border-radius:14px;overflow:hidden;border:1px solid #262626">
       <tr><td style="padding:28px 32px 20px;text-align:left;border-bottom:1px solid #262626">
-        <div style="font-family:Oswald,Impact,Arial,sans-serif;font-size:26px;letter-spacing:3px;color:#F08A2A;font-weight:700">REYBAUD</div>
+        <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:24px;letter-spacing:4px;color:#F08A2A;font-weight:800">REYBAUD</div>
       </td></tr>
       <tr><td style="padding:28px 32px 12px">${bodyHtml}${ctaBlock}</td></tr>
       <tr><td style="padding:20px 32px;border-top:1px solid #262626;color:#666;font-size:11px;text-align:center;line-height:1.6">
