@@ -66,24 +66,51 @@ export default function PublicCuentaCorriente() {
       });
   }, [token]);
 
-  const handlePay = async (d: Deuda) => {
-    setPaying(d.ref_id);
+  const handlePay = async (d: Deuda, customAmount?: number) => {
+    setPaying(d.ref_id + (customAmount ? ":custom" : ""));
+    // Abrir pestaña ANTES del await para evitar bloqueo de popups
+    const win = window.open("about:blank", "_blank");
     try {
-      const { data: res, error } = await supabase.functions.invoke(TIPO_FN[d.tipo], { body: d.payment_payload });
+      const payload: Record<string, unknown> = { ...d.payment_payload };
+      if (customAmount && customAmount > 0) payload.amount = customAmount;
+      const { data: res, error } = await supabase.functions.invoke(TIPO_FN[d.tipo], { body: payload });
       if (error) throw error;
       const url = (res as any)?.init_point || (res as any)?.url || (res as any)?.checkout_url;
       if (url) {
-        window.location.href = url;
+        if (win) win.location.href = url;
+        else window.location.href = url;
       } else {
+        if (win) win.close();
         toast.error("No se pudo iniciar el pago. Contactá a la administración.");
       }
     } catch (e) {
       console.error(e);
+      if (win) win.close();
       toast.error("No se pudo iniciar el pago.");
     } finally {
       setPaying(null);
     }
   };
+
+  const handlePayCustom = (d: Deuda) => {
+    const raw = window.prompt(
+      `Ingresá el monto que querés abonar (${d.moneda}). Saldo pendiente: ${d.por_pagar}`,
+      String(d.por_pagar),
+    );
+    if (raw == null) return;
+    const val = parseFloat(raw.replace(",", "."));
+    if (!val || val <= 0) {
+      toast.error("Monto inválido.");
+      return;
+    }
+    if (val > d.por_pagar) {
+      toast.error(`No podés pagar más que el saldo (${d.por_pagar} ${d.moneda}).`);
+      return;
+    }
+    handlePay(d, val);
+  };
+
+
 
   if (loading) {
     return (
