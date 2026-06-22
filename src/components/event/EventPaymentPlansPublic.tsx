@@ -48,10 +48,10 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
     (async () => {
       const { data: pkgs } = await supabase
         .from("event_packages" as any)
-        .select("id, nombre, precio, currency, archived_at")
+        .select("id, nombre, descripcion, precio, currency")
         .eq("event_id", eventId)
-        .is("archived_at", null)
-        .order("orden", { ascending: true });
+        .eq("activo", true)
+        .order("sort_order", { ascending: true });
 
       const pkgList = (pkgs as any[]) || [];
       if (pkgList.length === 0) { setLoading(false); return; }
@@ -66,14 +66,15 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           .order("version", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!plan) return { id: p.id, nombre: p.nombre, precio: Number(p.precio), currency: p.currency, plan: null };
+        const base = { id: p.id, nombre: p.nombre, descripcion: p.descripcion ?? null, precio: Number(p.precio), currency: p.currency };
+        if (!plan) return { ...base, plan: null };
         const { data: insts } = await supabase
           .from("event_package_payment_plan_installments" as any)
           .select("numero, descripcion, monto_tipo, monto_valor, fecha_vencimiento")
           .eq("plan_id", (plan as any).id)
           .order("numero", { ascending: true });
         return {
-          id: p.id, nombre: p.nombre, precio: Number(p.precio), currency: p.currency,
+          ...base,
           plan: {
             ...(plan as any),
             sena_valor: Number((plan as any).sena_valor),
@@ -81,6 +82,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           } as Plan,
         };
       }));
+
 
       setPackages(enriched.filter((p) => p.plan));
       setLoading(false);
