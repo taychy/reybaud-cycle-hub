@@ -109,14 +109,70 @@ interface Notification {
   created_at: string;
 }
 
-type NotifTemplateKey = "pago_registrado" | "cuota_pendiente" | "cuota_proxima" | "novedad" | "recordatorio_checklist";
+type NotifTemplateKey = "pago_registrado" | "plan_pagos" | "cuota_pendiente" | "cuota_proxima" | "novedad" | "recordatorio_checklist";
+
+/** Construye texto + HTML con el plan de pagos a partir de las cuotas materializadas. */
+const buildPlanPagos = (
+  insts: any[],
+  currency: string,
+): { text: string; html: string; hasPlan: boolean } => {
+  if (!Array.isArray(insts) || insts.length === 0) {
+    return { text: "", html: "", hasPlan: false };
+  }
+  const fmtDate = (d: string | null | undefined) =>
+    d ? new Date(d + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "a coordinar";
+  const statusLabel: Record<string, string> = {
+    pagada: "Pagada", pagado: "Pagada",
+    parcial: "Parcial",
+    pendiente: "Pendiente",
+    vencida: "Vencida",
+    condonada: "Condonada",
+  };
+  const statusColor: Record<string, string> = {
+    pagada: "#059669", pagado: "#059669",
+    parcial: "#2563eb",
+    pendiente: "#6b7280",
+    vencida: "#dc2626",
+    condonada: "#9ca3af",
+  };
+  const lines = insts.map((i: any) => {
+    const label = i.label || `Cuota ${i.installment_number || ""}`.trim();
+    const amount = formatPrice(parseFloat(i.amount || 0), currency);
+    const venc = fmtDate(i.due_date);
+    const est = statusLabel[i.status] || i.status || "Pendiente";
+    const saldo = i.balance_due != null && i.balance_due > 0 && i.status !== "pagada" && i.status !== "pagado"
+      ? ` — saldo ${formatPrice(parseFloat(i.balance_due), currency)}`
+      : "";
+    return `• ${label}: ${amount} — vence ${venc} — ${est}${saldo}`;
+  });
+  const text = `\n\nPlan de pagos:\n${lines.join("\n")}`;
+  const rows = insts.map((i: any) => {
+    const label = i.label || `Cuota ${i.installment_number || ""}`.trim();
+    const amount = formatPrice(parseFloat(i.amount || 0), currency);
+    const venc = fmtDate(i.due_date);
+    const est = statusLabel[i.status] || i.status || "Pendiente";
+    const color = statusColor[i.status] || "#6b7280";
+    const saldoCell = i.balance_due != null && i.balance_due > 0 && i.status !== "pagada" && i.status !== "pagado"
+      ? formatPrice(parseFloat(i.balance_due), currency)
+      : "—";
+    return `<tr><td style="padding:6px 8px;border:1px solid #e5e7eb">${label}</td><td style="padding:6px 8px;border:1px solid #e5e7eb;text-align:right">${amount}</td><td style="padding:6px 8px;border:1px solid #e5e7eb">${venc}</td><td style="padding:6px 8px;border:1px solid #e5e7eb;color:${color};font-weight:bold">${est}</td><td style="padding:6px 8px;border:1px solid #e5e7eb;text-align:right">${saldoCell}</td></tr>`;
+  }).join("");
+  const html = `<h3 style="color:#1a1a2e;margin:18px 0 8px;font-size:15px">Plan de pagos</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f9fafb"><th style="padding:6px 8px;border:1px solid #e5e7eb;text-align:left">Cuota</th><th style="padding:6px 8px;border:1px solid #e5e7eb;text-align:right">Monto</th><th style="padding:6px 8px;border:1px solid #e5e7eb;text-align:left">Vence</th><th style="padding:6px 8px;border:1px solid #e5e7eb;text-align:left">Estado</th><th style="padding:6px 8px;border:1px solid #e5e7eb;text-align:right">Saldo</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return { text, html, hasPlan: true };
+};
 
 const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; contenido: (ctx: any) => string; html: (ctx: any) => string }> = {
   pago_registrado: {
     label: "Pago registrado",
     asunto: "Tu pago fue registrado — {{evento}}",
-    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe confirmamos que registramos tu pago de ${ctx.monto} para ${ctx.evento}.\n\nAbonado hasta ahora: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}\n\n¡Gracias!`,
-    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Pago registrado</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te confirmamos que registramos tu pago de <strong>${ctx.monto}</strong> para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table><p>¡Gracias!</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe confirmamos que registramos tu pago de ${ctx.monto} para ${ctx.evento}.\n\nAbonado hasta ahora: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}${ctx.plan_text || ""}\n\n¡Gracias!`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Pago registrado</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te confirmamos que registramos tu pago de <strong>${ctx.monto}</strong> para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table>${ctx.plan_html || ""}<p>¡Gracias!</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  plan_pagos: {
+    label: "Plan de pagos",
+    asunto: "Tu plan de pagos — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe compartimos el detalle de tu plan de pagos para ${ctx.evento}.\n\nTotal: ${ctx.total || ctx.monto}\nAbonado: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}${ctx.plan_text || "\n\n(Sin cuotas configuradas)"}\n\nCualquier duda, escribinos.\n\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Tu plan de pagos</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te compartimos el detalle de tu plan de pagos para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Total</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold">${ctx.total || ctx.monto}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table>${ctx.plan_html || "<p style=\"color:#6b7280;font-style:italic\">Aún no hay cuotas configuradas.</p>"}<p style="margin-top:18px">Cualquier duda, escribinos.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
   },
   cuota_pendiente: {
     label: "Cuota pendiente",
