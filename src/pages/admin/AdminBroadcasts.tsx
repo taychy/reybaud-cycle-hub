@@ -76,6 +76,10 @@ export default function AdminBroadcasts() {
   });
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewSample, setPreviewSample] = useState<any[]>([]);
+  const [fullRecipients, setFullRecipients] = useState<any[]>([]);
+  const [excludedEmails, setExcludedEmails] = useState<Set<string>>(new Set());
+  const [recipientsDialogOpen, setRecipientsDialogOpen] = useState(false);
+  const [recipientsSearch, setRecipientsSearch] = useState("");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [sending, setSending] = useState(false);
