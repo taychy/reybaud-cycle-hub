@@ -440,6 +440,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
               <TableHead className="text-xs w-24">Fecha</TableHead>
               <TableHead className="text-xs w-32">Origen</TableHead>
               <TableHead className="text-xs">Concepto</TableHead>
+              <TableHead className="text-xs w-28">Medio</TableHead>
               <TableHead className="text-xs text-right w-28">Debe</TableHead>
               <TableHead className="text-xs text-right w-28">Haber</TableHead>
               <TableHead className="text-xs w-24">Estado</TableHead>
