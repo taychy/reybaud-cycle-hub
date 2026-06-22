@@ -513,32 +513,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
               },
             }).eq("id", (data as any).id);
 
-            // Reemplazar cuotas existentes
-            await supabase.from("reservation_installments" as any)
-              .delete()
-              .eq("reservation_id", (data as any).id);
-
-            const rows = result.installments.map((c, idx) => ({
-              reservation_id: (data as any).id,
-              installment_number: c.numero,
-              label: c.descripcion,
-              amount: c.monto,
-              currency: effectiveCurrency,
-              due_date: c.due_date,
-              status: "pendiente",
-              installment_type: c.installment_type,
-              monto_original: c.monto,
-              monto_pagado: 0,
-              saldo_pendiente: c.monto,
-              due_date_original: c.due_date_original,
-              original_due_date: c.due_date_original,
-              balance_due: c.monto,
-              sort_order: idx,
-              notas: c.reprogramada ? "Reprogramada por reserva tardía" : null,
-            }));
-
-            if (rows.length > 0) {
-              await supabase.from("reservation_installments" as any).insert(rows);
+            const { error: matError } = await supabase.rpc("materialize_reservation_installments" as any, {
+              p_reservation_id: (data as any).id,
+            });
+            if (matError) {
+              console.warn("[ReservationDrawer] No se pudo materializar el plan:", matError);
             }
           } else {
             console.warn("[ReservationDrawer] Plan inválido, no se materializaron cuotas:", result.errors);

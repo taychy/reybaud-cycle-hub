@@ -873,6 +873,25 @@ const AdminEventReservations = ({
     setMatInstallments((data as any[]) || []);
   };
 
+  const ensureMatInstallments = async (resId: string) => {
+    const fetchRows = async () => {
+      const { data } = await supabase
+        .from("reservation_installments" as any)
+        .select("*")
+        .eq("reservation_id", resId)
+        .order("sort_order", { ascending: true });
+      return (data as any[]) || [];
+    };
+
+    let rows = await fetchRows();
+    if (rows.length === 0) {
+      await supabase.rpc("materialize_reservation_installments" as any, { p_reservation_id: resId });
+      rows = await fetchRows();
+    }
+    setMatInstallments(rows);
+    return rows;
+  };
+
   const registerAdminPayment = async () => {
     if (!selectedRes || !adminPayAmount || parseFloat(adminPayAmount) <= 0) {
       toast({ title: "Ingresá un monto válido.", variant: "destructive" });
@@ -1003,9 +1022,9 @@ const AdminEventReservations = ({
       const ctx = getNotifContext(selectedRes, { monto: eqAmt });
       const tpl = notifTemplates.pago_registrado;
       // Reload totals + installments to embed an up-to-date payment plan
-      const [{ data: updatedRes }, { data: updatedInsts }] = await Promise.all([
+      const [{ data: updatedRes }, updatedInsts] = await Promise.all([
         supabase.from("event_reservations" as any).select("amount_paid, balance_due").eq("id", selectedRes.id).maybeSingle(),
-        supabase.from("reservation_installments" as any).select("*").eq("reservation_id", selectedRes.id).order("sort_order", { ascending: true }),
+        ensureMatInstallments(selectedRes.id),
       ]);
       const newPaid = (updatedRes as any)?.amount_paid ?? 0;
       const newBalance = (updatedRes as any)?.balance_due ?? 0;
@@ -2147,17 +2166,7 @@ const AdminEventReservations = ({
                         }
                       }
                       if (key === "pago_registrado" || key === "plan_pagos") {
-                        // Fetch fresh installments to avoid empty/stale state ("Sin cuotas configuradas")
-                        let instsList: any[] = matInstallments;
-                        const { data: freshInsts } = await supabase
-                          .from("reservation_installments" as any)
-                          .select("*")
-                          .eq("reservation_id", selectedRes.id)
-                          .order("sort_order", { ascending: true });
-                        if (freshInsts) {
-                          instsList = freshInsts as any[];
-                          setMatInstallments(instsList);
-                        }
+                        const instsList = await ensureMatInstallments(selectedRes.id);
                         const plan = buildPlanPagos(instsList, evCurr);
                         extra = {
                           ...extra,
@@ -2212,7 +2221,24 @@ const AdminEventReservations = ({
                   <div className="flex gap-2 pt-1">
                     <Button variant="ghost" size="sm" onClick={() => setShowNotifyDialog(false)}>Cancelar</Button>
                     <Button variant="default" size="sm" disabled={sendingNotif} onClick={async () => {
-                      const ok = await sendNotification(notifyTemplate, notifySubject, notifyBody, notifyHtml, {}, `notif-${selectedRes.id}-${notifyTemplate}-${Date.now()}`);
+                      let bodyToSend = notifyBody;
+                      let htmlToSend = notifyHtml;
+                      if ((notifyTemplate === "plan_pagos" || notifyTemplate === "pago_registrado") && notifyBody.includes("Sin cuotas configuradas")) {
+                        const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
+                        const instsList = await ensureMatInstallments(selectedRes.id);
+                        const plan = buildPlanPagos(instsList, evCurr);
+                        const tpl = notifTemplates[notifyTemplate];
+                        const ctx = getNotifContext(selectedRes, {
+                          plan_text: plan.text,
+                          plan_html: plan.html,
+                          total: formatPrice(selectedRes.amount_total || 0, evCurr),
+                        });
+                        bodyToSend = tpl.contenido(ctx);
+                        htmlToSend = tpl.html(ctx);
+                        setNotifyBody(bodyToSend);
+                        setNotifyHtml(htmlToSend);
+                      }
+                      const ok = await sendNotification(notifyTemplate, notifySubject, bodyToSend, htmlToSend, {}, `notif-${selectedRes.id}-${notifyTemplate}-${Date.now()}`);
                       if (ok) setShowNotifyDialog(false);
                     }}>
                       {sendingNotif ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Send className="w-3.5 h-3.5 mr-1" />}
