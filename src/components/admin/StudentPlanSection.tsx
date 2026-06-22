@@ -1153,6 +1153,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           onConfirm={handleAssignPausa}
         />
       )}
+
+      {/* Pausar este plan Dialog */}
+      {pauseSubTarget && (
+        <PausaConfirmDialog
+          open={showPauseSubDialog}
+          alumnoId={alumno.id}
+          planNombre={pauseSubTarget.planNombre}
+          onCancel={() => { setShowPauseSubDialog(false); setPauseSubTarget(null); }}
+          onConfirm={handlePauseSub}
+        />
+      )}
     </>
   );
 }
