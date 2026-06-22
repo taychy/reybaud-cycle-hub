@@ -1,74 +1,51 @@
+## Problema
 
-# Cuenta corriente unificada por cliente
+El modal "Nuevo ajuste manual" hoy solo registra **tipo, moneda, concepto, monto, fecha y notas**. Cuando cargás un crédito (pago recibido) no queda registro de **cómo entró la plata** (efectivo / transferencia / MP Josi / MP Scarlett / etc.), por lo que no se puede:
+- Cruzar el ingreso con el resumen real de cada cuenta MP o caja
+- Filtrar pagos por cuenta receptora
+- Conciliar contra los reportes de las cuentas externas
 
-## Objetivo
-Que en la cuenta corriente de cada alumno aparezcan **todas** sus operaciones (suscripciones, preventas, eventos/viajes, tienda, turnera, ajustes manuales), separadas por moneda (ARS / USD / EUR), con cargos y haberes claros y saldo por moneda.
+Ya tenemos toda la infraestructura armada (`PAYMENT_METHODS` en `src/lib/paymentMethods.ts` con Efectivo, Transferencia, MP Josi, MP Scarlett, MP Claudio, Tarjeta, Externo; y la tabla `cuentas_mp` con las cuentas MP reales). Solo falta enchufarla al ajuste.
 
-Caso disparador: la preventa de Daniel Pozo no aparece en su cuenta porque hoy la cuenta solo lee de algunas fuentes; al cobrar la transferencia no hay dónde imputarla.
+## Solución propuesta
 
-## Decisiones confirmadas
-- **Moneda**: mantener el modelo actual de **una tabla por moneda** (ARS / USD / EUR separadas).
-- **Preventas**: el cargo aparece **desde que se crea** la preventa (la seña entra como haber parcial; el saldo final entra como haber cuando se cobra).
-- **Eventos con cuotas**: **un único cargo por el total** del evento; cada cuota/pago se imputa como haber parcial (igual que `reservation_installments`).
-- **Turnera**: fuera del alcance de esta fase, se suma después.
+### 1. Base de datos
+Agregar a la tabla `cuenta_ajustes` dos columnas opcionales:
+- `medio_pago text` → uno de los `PaymentMethodKey` (efectivo, transferencia, mp_externo_josi, mp_externo_scarlett, mp_externo_claudio, tarjeta, plataforma_externa, otro)
+- `cuenta_mp_id uuid` → FK opcional a `cuentas_mp` cuando el medio es una cuenta MP específica (para reportes finos)
+- `referencia_externa text` → opcional, para guardar nº de operación / últimos 4 dígitos / alias bancario
 
-## Alcance Fase 1
+Solo aplica a `tipo = 'credito'` (ingreso). En `cargo` queda en NULL.
 
-### Fuentes de cargos (debe) unificadas
-1. Suscripciones (`suscripciones` + `planes`) — ya está.
-2. Preventas (`store_preorders`) — **nuevo**.
-3. Eventos / viajes (`event_reservations`) — **nuevo**, un cargo por el total.
-4. Tienda (`store_orders`) — **nuevo**.
-5. Ajustes manuales del admin (`cuenta_ajustes`) — ya está.
+### 2. UI del modal "Nuevo ajuste manual"
+Cuando el tipo es **Crédito (a favor)**, agregar:
+- Selector **"Medio de pago"** (obligatorio si es crédito) usando `PAYMENT_METHODS`
+- Si elige "MP Josi / Scarlett / Claudio / MercadoPago" → resolver `cuenta_mp_id` automáticamente desde `cuentas_mp` por slug
+- Campo opcional **"Nº operación / referencia"** (transferencia bancaria, comprobante, etc.)
 
-### Fuentes de haberes (haber) unificadas
-- Pagos de suscripción (ya).
-- Seña + pago final de preventa (`store_preorders.sena_*` + pago final).
-- Cuotas de evento (`reservation_installments` / `reservation_payments`).
-- Pagos de tienda (`store_orders`).
-- Ajustes manuales tipo "haber" / `saldo_a_favor`.
+Si el tipo es **Cargo** estos campos se ocultan.
 
-### UI
-- La cuenta corriente del alumno muestra **3 pestañas por moneda** (ARS / USD / EUR), cada una con su saldo y su lista cronológica.
-- Cada línea muestra: fecha, origen (badge: Suscripción / Preventa / Evento / Tienda / Ajuste), descripción, debe, haber, saldo acumulado, link al detalle.
-- Botón "Registrar pago" en cada cargo abierto, que crea el haber correspondiente en la unidad de negocio correcta (no duplica registros).
+### 3. Vista cuenta corriente
+Agregar en `vw_cuenta_corriente_movimientos` el `medio_pago` dentro de `referencia_extra` para los `ajuste_credito`, y mostrarlo en la columna **"Concepto"** o como sub-línea: `Crédito manual · MP Josi · ref 162457…`.
 
-### Backend
-- Una **vista SQL** `vw_cuenta_corriente_unificada(alumno_id, moneda, fecha, origen, origen_id, descripcion, debe, haber)` que hace `UNION ALL` de todas las fuentes.
-- Un RPC `get_cuenta_corriente(alumno_id, moneda)` que devuelve las filas ordenadas y el saldo acumulado.
-- Para preventas: trigger / lógica que al crear `store_preorders` genere su entrada de cargo, y al registrar la transferencia del saldo final genere el haber.
+### 4. Listado de pagos del admin (`/admin/pagos`)
+Los ajustes manuales tipo crédito ya deberían aparecer como ingresos. Verificar que el filtro por **medio de pago** los incluya correctamente y que el reporte por cuenta MP los sume.
 
-## Caso Daniel Pozo (qué pasa al aplicar esto)
-1. Su preventa aparece como **cargo** desde la fecha de creación.
-2. La seña ya cobrada aparece como **haber parcial**.
-3. Vos vas al cargo de la preventa, "Registrar pago", elegís **Transferencia**, importe del saldo final → queda como segundo haber y la preventa queda en 0.
-4. Todo queda imputado a la unidad de negocio "Tienda/Preventas" sin duplicar nada en la cuenta.
-
-## Plan técnico (resumen)
+## Archivos a tocar
 
 ```text
-[ Fase 1 ]
- 1. Migración SQL
-    - Vista vw_cuenta_corriente_unificada (UNION ALL 5 fuentes)
-    - RPC get_cuenta_corriente(alumno_id, moneda)
-    - Función registrar_pago_unificado(origen, origen_id, monto, medio, notas)
-      que enruta al insert correcto según origen
- 2. Refactor frontend
-    - Componente CuentaCorriente: tabs ARS / USD / EUR
-    - Lista unificada con badge de origen y link al detalle
-    - Modal "Registrar pago" usando el RPC
- 3. Backfill / verificación
-    - Script de lectura para verificar que los saldos por alumno
-      coinciden con la suma actual de cada módulo
+supabase/migrations/<nueva>.sql        # ALTER TABLE cuenta_ajustes
+src/components/admin/StudentCuentaCorrienteSection.tsx   # modal + insert
+src/lib/paymentMethods.ts              # (sin cambios; se reutiliza)
+supabase/migrations/<nueva>.sql        # CREATE OR REPLACE VIEW vw_cuenta_corriente_movimientos
 ```
 
-## Fuera de alcance (siguiente fase)
-- Turnera (`reservas_turnera`).
-- Reportes financieros consolidados multi-moneda con conversión.
-- Exportación contable.
+## Caso de uso resuelto
 
-## Riesgos
-- Pagos viejos sin moneda explícita → asumir ARS por defecto y marcarlos para revisión.
-- Eventos con cuotas en otra moneda que el cargo principal → validar en la vista.
+Daniel transfiere $169.065 a la cuenta de Josi → admin entra a la cuenta corriente de Daniel, **+ Ajuste manual → Crédito → MP Josi → ref 162457749966** → queda asentado tanto en la cuenta corriente del alumno como en los ingresos de la cuenta MP Josi para la conciliación mensual.
 
-¿Avanzo con la migración con este alcance?
+## Pendiente de tu confirmación
+
+1. ¿El selector de medio de pago debe ser **obligatorio** en créditos, o lo dejamos opcional con default "Otro"?
+2. ¿Querés que también permitamos elegir cuenta en los **cargos** (por si la deuda se origina en una cuenta puntual)? Por defecto digo que no.
+3. ¿Mostramos el medio de pago directamente en la columna "Concepto" de la tabla, o agregamos una columna nueva "Medio"?
