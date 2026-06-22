@@ -374,7 +374,8 @@ const EventDetail = () => {
 
   const d = new Date(event.date + "T12:00:00");
   const dateFormatted = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const priceDisplay = getEventPriceDisplay(event);
+  const priceDisplay = getEventPriceDisplay({ ...event, packages_min_price: packagesMinPrice });
+  const showDesde = packagesCount > 1;
   const isPaid = priceDisplay.mode === "con_valor" && priceDisplay.price != null;
   const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
