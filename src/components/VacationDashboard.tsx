@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ChevronRight, PauseCircle, Trophy, Mail, RefreshCw, ShoppingCart } from "lucide-react";
 import { EventosContent } from "@/pages/Eventos";
+import TiendaSection from "@/components/TiendaSection";
 import logo from "@/assets/logo.png";
+
 import type { Tables } from "@/integrations/supabase/types";
 
 type Alumno = Tables<"alumnos">;
