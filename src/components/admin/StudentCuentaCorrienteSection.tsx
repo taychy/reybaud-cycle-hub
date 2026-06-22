@@ -332,6 +332,9 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
       moneda: m.moneda,
       fecha: m.fecha,
       notas: m.referencia_extra?.notas || "",
+      medio_pago: m.referencia_extra?.medio_pago || null,
+      cuenta_mp_id: m.referencia_extra?.cuenta_mp_id || null,
+      referencia_externa: m.referencia_extra?.referencia_externa || null,
     });
     setModalOpen(true);
   };
