@@ -2128,6 +2128,7 @@ const AdminEventReservations = ({
                     <Select value={notifyTemplate} onValueChange={(v) => {
                       const key = v as NotifTemplateKey;
                       let extra: Record<string, any> = {};
+                      const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
                       if ((key === "cuota_pendiente" || key === "cuota_proxima") && installments.length > 0) {
                         const accPaid = selectedRes.amount_paid || 0;
                         let acc = 0;
@@ -2144,6 +2145,15 @@ const AdminEventReservations = ({
                             cuota_label: nextInst.label || `Cuota ${nextInst.installment_number || ""}`.trim(),
                           };
                         }
+                      }
+                      if (key === "pago_registrado" || key === "plan_pagos") {
+                        const plan = buildPlanPagos(matInstallments, evCurr);
+                        extra = {
+                          ...extra,
+                          plan_text: plan.text,
+                          plan_html: plan.html,
+                          total: formatPrice(selectedRes.amount_total || 0, evCurr),
+                        };
                       }
                       prepareTemplate(key, selectedRes, extra);
                     }}>
