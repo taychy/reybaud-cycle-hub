@@ -48,7 +48,7 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#39;");
 }
 
-function htmlWrap(content: string, preheader?: string) {
+function htmlWrap(content: string, preheader?: string, ctaOverride?: { url?: string; label?: string }) {
   const pre = preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>`
     : "";
@@ -56,20 +56,27 @@ function htmlWrap(content: string, preheader?: string) {
   const looksHtml = /<\/?(p|div|br|a|h[1-6]|ul|ol|li|strong|em|span|table)\b/i.test(content);
 
   let bodyHtml = content;
-  let ctaUrl: string | null = null;
-  let ctaLabel = "Abrir en la app";
+  let ctaUrl: string | null = ctaOverride?.url?.trim() || null;
+  let ctaLabel = ctaOverride?.label?.trim() || "Abrir en la app";
 
   if (!looksHtml) {
-    const match = content.match(/(https?:\/\/[^\s<]+)/i);
-    if (match) {
-      ctaUrl = match[1].replace(/[.,;:!?)]+$/, "");
-      if (/reybaud-app\.com\/eventos\//i.test(ctaUrl)) ctaLabel = "Ver evento y reservar";
-      else if (/reybaud-app\.com\/planes/i.test(ctaUrl)) ctaLabel = "Ver planes";
-      else if (/reybaud-app\.com/i.test(ctaUrl)) ctaLabel = "Abrir en la app";
-      else ctaLabel = "Abrir enlace";
+    // If no explicit CTA, auto-detect first URL in text
+    if (!ctaUrl) {
+      const match = content.match(/(https?:\/\/[^\s<]+)/i);
+      if (match) {
+        ctaUrl = match[1].replace(/[.,;:!?)]+$/, "");
+        if (!ctaOverride?.label) {
+          if (/reybaud-app\.com\/eventos\//i.test(ctaUrl)) ctaLabel = "Ver evento y reservar";
+          else if (/reybaud-app\.com\/planes/i.test(ctaUrl)) ctaLabel = "Ver planes";
+          else if (/reybaud-app\.com/i.test(ctaUrl)) ctaLabel = "Abrir en la app";
+          else ctaLabel = "Abrir enlace";
+        }
+      }
     }
 
-    let text = ctaUrl ? content.replace(ctaUrl, "").trim() : content;
+    // Strip the CTA url from body to avoid duplication
+    let text = content;
+    if (ctaUrl) text = text.split(ctaUrl).join("").trim();
     text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
 
     bodyHtml = escapeHtml(text)
