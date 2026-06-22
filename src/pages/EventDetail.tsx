@@ -618,11 +618,22 @@ const EventDetail = () => {
                   {isInscriptionOnly ? "¿Querés inscribirte?" : "¿Querés reservar tu lugar?"}
                 </h3>
               </div>
-              <Button variant="gold" className="w-full h-12 text-sm" onClick={() => setShowReservationDrawer(true)}>
+              <Button
+                variant="gold"
+                className="w-full h-12 text-sm"
+                disabled={isImpersonating}
+                onClick={() => {
+                  if (isImpersonating) {
+                    toast({ title: "Modo solo lectura", description: "Estás viendo la cuenta como super admin: no podés crear reservas.", variant: "destructive" });
+                    return;
+                  }
+                  setShowReservationDrawer(true);
+                }}
+              >
                 {isInscriptionOnly ? (
-                  <><CheckCircle className="w-4 h-4 mr-2" /> Inscribirme</>
+                  <><CheckCircle className="w-4 h-4 mr-2" /> {isImpersonating ? "Solo lectura" : "Inscribirme"}</>
                 ) : (
-                  <><CreditCard className="w-4 h-4 mr-2" /> Reservar</>
+                  <><CreditCard className="w-4 h-4 mr-2" /> {isImpersonating ? "Solo lectura" : "Reservar"}</>
                 )}
               </Button>
             </div>
