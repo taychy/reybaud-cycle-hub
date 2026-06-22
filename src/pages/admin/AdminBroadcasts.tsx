@@ -739,6 +739,65 @@ export default function AdminBroadcasts() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* RECIPIENTS LIST EDITOR */}
+      <Dialog open={recipientsDialogOpen} onOpenChange={setRecipientsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Destinatarios ({fullRecipients.length - excludedEmails.size} de {fullRecipients.length})</DialogTitle>
+            <DialogDescription>
+              Destildá los que NO querés que reciban el email. Los excluidos se mantienen al enviar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={recipientsSearch}
+                  onChange={(e) => setRecipientsSearch(e.target.value)}
+                  placeholder="Buscar email o nombre..."
+                  className="pl-9"
+                />
+              </div>
+              {excludedEmails.size > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setExcludedEmails(new Set())}>
+                  Restaurar todos
+                </Button>
+              )}
+            </div>
+            <div className="max-h-[420px] overflow-y-auto rounded-md border divide-y">
+              {fullRecipients
+                .filter((r) => {
+                  const q = recipientsSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  return `${r.email} ${r.nombre || ""}`.toLowerCase().includes(q);
+                })
+                .map((r) => {
+                  const excluded = excludedEmails.has(r.email.toLowerCase());
+                  return (
+                    <label key={r.email} className="flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/30">
+                      <Checkbox
+                        checked={!excluded}
+                        onCheckedChange={() => toggleExcluded(r.email)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-sm truncate ${excluded ? "line-through text-muted-foreground" : ""}`}>
+                          {r.nombre || r.email}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">{r.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">{r.type === "coach" ? "Coach" : "Alumno"}</Badge>
+                    </label>
+                  );
+                })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setRecipientsDialogOpen(false)}>Listo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
