@@ -50,7 +50,9 @@ export default function CuentaPublicLinkDialog({ open, onOpenChange, alumnoId, a
     if (open) load();
   }, [open, alumnoId]);
 
-  const url = row ? `${window.location.origin}/cuenta/${row.token}` : "";
+  // Siempre usar dominio de producción — evita links rotos cuando se copia desde preview/lovableproject.com
+  const PUBLIC_ORIGIN = "https://reybaud-app.com";
+  const url = row ? `${PUBLIC_ORIGIN}/cuenta/${row.token}` : "";
   const active = row && !row.revoked_at;
 
   const handleCopy = async () => {
