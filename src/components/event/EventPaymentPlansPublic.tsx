@@ -36,8 +36,11 @@ const fmtDate = (d?: string | null) => {
   return `${dd}/${m}/${y}`;
 };
 
-const computeAmount = (tipo: string, valor: number, total: number) =>
-  tipo === "porcentaje" ? Math.round((valor / 100) * total) : valor;
+const computeAmount = (tipo: string, valor: number, total: number, sena: number = 0) => {
+  if (tipo === "porcentaje") return Math.round((valor / 100) * total);
+  if (tipo === "porcentaje_saldo") return Math.round((valor / 100) * Math.max(total - sena, 0));
+  return valor;
+};
 
 const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
   const [packages, setPackages] = useState<Pkg[]>([]);
