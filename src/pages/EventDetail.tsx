@@ -153,6 +153,9 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [showReservationDrawer, setShowReservationDrawer] = useState(false);
+  const [packagesMinPrice, setPackagesMinPrice] = useState<number | null>(null);
+  const [packagesCount, setPackagesCount] = useState<number>(0);
+  
   
 
   // Result state
@@ -176,7 +179,18 @@ const EventDetail = () => {
         if (data) setEvent(data as unknown as Event);
         setLoading(false);
       });
+    supabase
+      .from("event_packages")
+      .select("precio")
+      .eq("event_id", id)
+      .eq("activo", true)
+      .then(({ data }) => {
+        const prices = (data || []).map((p: any) => Number(p.precio)).filter((n) => n > 0);
+        setPackagesCount(prices.length);
+        setPackagesMinPrice(prices.length ? Math.min(...prices) : null);
+      });
   }, [id]);
+
 
   const loadReservation = useCallback(async () => {
     if (!id || !alumno) return;
@@ -360,7 +374,8 @@ const EventDetail = () => {
 
   const d = new Date(event.date + "T12:00:00");
   const dateFormatted = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const priceDisplay = getEventPriceDisplay(event);
+  const priceDisplay = getEventPriceDisplay({ ...event, packages_min_price: packagesMinPrice });
+  const showDesde = packagesCount > 1;
   const isPaid = priceDisplay.mode === "con_valor" && priceDisplay.price != null;
   const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -524,7 +539,7 @@ const EventDetail = () => {
                 return (
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-heading">Precio por persona</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-heading">{showDesde ? "Desde · Precio por persona" : "Precio por persona"}</p>
                     {disc.discount ? (
                       <>
                         <p className="text-sm text-muted-foreground line-through">{formatPrice(disc.original, priceDisplay.currency)}</p>
