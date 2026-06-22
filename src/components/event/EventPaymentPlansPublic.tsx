@@ -84,7 +84,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
       }));
 
 
-      setPackages(enriched.filter((p) => p.plan));
+      setPackages(enriched);
       setLoading(false);
     })();
   }, [eventId]);
@@ -95,12 +95,12 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
     <div className="glass-card rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Wallet className="w-4 h-4 text-primary" />
-        <h3 className="font-heading font-semibold text-sm text-foreground">Plan de pagos</h3>
+        <h3 className="font-heading font-semibold text-sm text-foreground">Paquetes y plan de pagos</h3>
       </div>
       <div className="space-y-2">
         {packages.map((pkg) => {
-          const sena = computeAmount(pkg.plan!.sena_tipo, pkg.plan!.sena_valor, pkg.precio);
-          const cuotas = pkg.plan!.installments;
+          const sena = pkg.plan ? computeAmount(pkg.plan.sena_tipo, pkg.plan.sena_valor, pkg.precio) : 0;
+          const cuotas = pkg.plan?.installments ?? [];
           const minCuota = cuotas.length
             ? Math.min(...cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio)))
             : 0;
@@ -114,31 +114,48 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{pkg.nombre}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Seña <span className="text-primary font-semibold">{formatPrice(sena, pkg.currency)}</span>
-                    {cuotas.length > 0 && (
-                      <> + {cuotas.length} cuota{cuotas.length > 1 ? "s" : ""} desde <span className="text-foreground font-medium">{formatPrice(minCuota, pkg.currency)}</span></>
-                    )}
-                  </p>
+                  {pkg.plan ? (
+                    <p className="text-xs text-muted-foreground">
+                      Seña <span className="text-primary font-semibold">{formatPrice(sena, pkg.currency)}</span>
+                      {cuotas.length > 0 && (
+                        <> + {cuotas.length} cuota{cuotas.length > 1 ? "s" : ""} desde <span className="text-foreground font-medium">{formatPrice(minCuota, pkg.currency)}</span></>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Total <span className="text-primary font-semibold">{formatPrice(pkg.precio, pkg.currency)}</span>
+                    </p>
+                  )}
                 </div>
                 {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
               </button>
               {open && (
-                <div className="px-3 py-2 border-t border-border/40 bg-muted/20 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Seña al reservar</span>
-                    <span className="font-semibold text-primary">{formatPrice(sena, pkg.currency)}</span>
-                  </div>
-                  {cuotas.map((c) => (
-                    <div key={c.numero} className="flex items-center justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1.5">
-                        <CalendarDays className="w-3 h-3" />
-                        {c.descripcion || `Cuota ${c.numero}`}
-                        {c.fecha_vencimiento && <span className="text-[10px] opacity-70">· vence {fmtDate(c.fecha_vencimiento)}</span>}
-                      </span>
-                      <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio), pkg.currency)}</span>
+                <div className="px-3 py-2.5 border-t border-border/40 bg-muted/20 space-y-2 text-xs">
+                  {pkg.descripcion && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Incluye</p>
+                      <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{pkg.descripcion}</p>
                     </div>
-                  ))}
+                  )}
+                  {pkg.plan && (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Plan de pagos</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Seña al reservar</span>
+                        <span className="font-semibold text-primary">{formatPrice(sena, pkg.currency)}</span>
+                      </div>
+                      {cuotas.map((c) => (
+                        <div key={c.numero} className="flex items-center justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
+                            <CalendarDays className="w-3 h-3" />
+                            {c.descripcion || `Cuota ${c.numero}`}
+                            {c.fecha_vencimiento && <span className="text-[10px] opacity-70">· vence {fmtDate(c.fecha_vencimiento)}</span>}
+                          </span>
+                          <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio), pkg.currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="pt-1.5 border-t border-border/40 flex items-center justify-between font-semibold">
                     <span>Total</span>
                     <span>{formatPrice(pkg.precio, pkg.currency)}</span>
@@ -157,3 +174,4 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
 };
 
 export default EventPaymentPlansPublic;
+
