@@ -664,14 +664,14 @@ const ReservationStatusCard = ({
               }`}
             >
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">
-                {nextInst!.installment_number === 1 ? "Seña / 1ª cuota" : `Cuota ${nextInst!.installment_number}`}
+                {nextInst ? (nextInst.installment_number === 1 ? "Seña / 1ª cuota" : `Cuota ${nextInst.installment_number}`) : "Seña"}
               </div>
               <div className="text-sm font-semibold text-foreground mt-1">
-                {formatPrice(nextInst!.balance_due, currency)}
+                {formatPrice(senaPending, currency)}
               </div>
-              {nextInst!.due_date && (
+              {nextInst?.due_date && (
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  Vence {new Date(nextInst!.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                  Vence {new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                 </div>
               )}
             </button>
