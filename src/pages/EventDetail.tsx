@@ -118,6 +118,26 @@ const EventDetail = () => {
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
 
+  const eventUrl = `https://reybaud-app.com/eventos/${id}`;
+
+  const handleShare = async () => {
+    const shareData = {
+      title: event?.title || "Evento Ciclismo Reybaud",
+      text: `Mirá este evento de Ciclismo Reybaud: ${event?.title}`,
+      url: eventUrl,
+    };
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(eventUrl);
+        toast({ title: "Link copiado", description: "Ya podés compartirlo por WhatsApp o mail." });
+      }
+    } catch {
+      // User cancelled or share failed silently.
+    }
+  };
+
   // Smart back: respect history when available, fallback to events list.
   const handleBack = () => {
     // If user navigated within the app (history > 1 entry), go back so the
