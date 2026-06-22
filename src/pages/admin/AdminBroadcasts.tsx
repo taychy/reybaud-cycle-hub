@@ -372,16 +372,37 @@ export default function AdminBroadcasts() {
                 placeholder="Reservá tu lugar con seña antes del viernes" />
             </div>
             <div className="space-y-1.5">
-              <Label>Contenido (HTML simple permitido) *</Label>
+              <Label>Contenido *</Label>
               <Textarea
                 value={composer.content_html}
                 onChange={e => setComposer({ ...composer, content_html: e.target.value })}
                 rows={10}
-                placeholder={`Hola,\n\nAbrimos cupos para...\n\n<a href="https://reybaud-app.com/eventos/...">Reservar</a>`}
+                placeholder={`Hola pelotón,\n\nAbrimos cupos para el próximo viaje...\n\nNos vemos en la ruta!`}
               />
               <p className="text-[11px] text-muted-foreground">
-                Podés usar &lt;b&gt;, &lt;a href&gt;, &lt;br&gt;, &lt;p&gt;. El header con logo y el footer se agregan automáticamente.
+                Escribí libre, se respetan los saltos de línea. El logo y el footer se agregan automáticamente.
               </p>
+            </div>
+
+            <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end pt-2 border-t border-border/60">
+              <div className="space-y-1.5">
+                <Label>Botón de acción (opcional)</Label>
+                <Input
+                  value={composer.cta_url}
+                  onChange={e => setComposer({ ...composer, cta_url: e.target.value })}
+                  placeholder="https://reybaud-app.com/eventos/..."
+                />
+                <p className="text-[11px] text-muted-foreground">URL adonde lleva el botón. Si la dejás vacía y hay un link en el texto, se usa ese.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Texto del botón</Label>
+                <Input
+                  value={composer.cta_label}
+                  onChange={e => setComposer({ ...composer, cta_label: e.target.value })}
+                  placeholder="Reservar mi lugar"
+                  className="md:w-56"
+                />
+              </div>
             </div>
           </Card>
 
