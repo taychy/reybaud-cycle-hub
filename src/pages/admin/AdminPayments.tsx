@@ -1007,6 +1007,16 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Enviar recordatorio</TooltipContent>
                                 </Tooltip>
+                                {sub.origen_registro === "automatico" && sub.estado === "pendiente" && !sub.mp_payment_id && (sub.mp_preapproval_status || "").toLowerCase() !== "authorized" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleNotifyFailedRenewal(sub)}>
+                                        <Send className="w-3.5 h-3.5 text-red-600" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Avisar al alumno por mail (renovación no autorizada)</TooltipContent>
+                                  </Tooltip>
+                                )}
                                 {status === "pagado" && sub.planes && (
                                   <BillingInvoiceLauncher
                                     source={{
