@@ -95,28 +95,48 @@ const ManualPaymentConfirm = ({
         : null;
     const notas = [upgradeMarker, earlyMarker, userNotas].filter(Boolean).join(" | ") || null;
 
-    const { data: sub, error: subError } = await supabase
-      .from("suscripciones")
-      .insert({
-        alumno_id: alumnoId,
-        plan_id: planId,
-        estado: "pendiente_verificacion",
-        descuento_id: descuentoId,
-        precio_base: precioBase,
-        precio_final: precioFinal,
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
-        metodo_pago: canonicalMethod,
-        origen_registro: "informado_alumno",
-        notas,
-      } as any)
-      .select("id")
-      .single();
+    // Si el alumno está pagando una sub del período actual (Natalia case),
+    // reutilizamos esa sub en vez de generar una nueva.
+    const reused = !earlyRenewal && !upgradeFromSubId
+      ? await tryReuseExistingSubscription(alumnoId, planId, {
+          estado: "pendiente_verificacion",
+          descuento_id: descuentoId,
+          precio_base: precioBase,
+          precio_final: precioFinal,
+          metodo_pago: canonicalMethod,
+          origen_registro: "informado_alumno",
+          notas,
+        })
+      : null;
 
-    if (subError) {
-      setError("Error al registrar. Intentá nuevamente.");
-      onProcessing(false);
-      return;
+    let subId: string;
+    if (reused) {
+      subId = reused.id;
+    } else {
+      const { data: sub, error: subError } = await supabase
+        .from("suscripciones")
+        .insert({
+          alumno_id: alumnoId,
+          plan_id: planId,
+          estado: "pendiente_verificacion",
+          descuento_id: descuentoId,
+          precio_base: precioBase,
+          precio_final: precioFinal,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          metodo_pago: canonicalMethod,
+          origen_registro: "informado_alumno",
+          notas,
+        } as any)
+        .select("id")
+        .single();
+
+      if (subError) {
+        setError("Error al registrar. Intentá nuevamente.");
+        onProcessing(false);
+        return;
+      }
+      subId = sub.id;
     }
 
     try {
