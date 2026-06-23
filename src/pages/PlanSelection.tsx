@@ -495,7 +495,7 @@ const PlanSelection = () => {
         body: JSON.stringify({
           plan_id: plan.id,
           alumno_id: alumnoId,
-          suscripcion_id: sub.id,
+          suscripcion_id: subId,
         }),
       });
 
