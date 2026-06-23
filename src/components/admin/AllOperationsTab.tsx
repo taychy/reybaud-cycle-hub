@@ -305,8 +305,10 @@ async function validateOp(op: UnifiedOp): Promise<boolean> {
     return !error;
   }
   if (op.tipo === "preventa") {
-    const { error } = await supabase.from("store_preorders").update({ estado_pago_sena: "confirmada" }).eq("id", op.id);
-    return !error;
+    // El pago de seña ya no se aprueba "a ciegas": hay que registrar el ingreso
+    // real (medio de pago + monto + referencia) desde el módulo Preventas.
+    // Confirmar la seña sin pago genera fantasmas en la cuenta corriente.
+    return false;
   }
   if (op.tipo === "tienda") {
     const { error } = await supabase.from("store_orders").update({ status: "pagado", pagado_at: new Date().toISOString() }).eq("id", op.id);
@@ -415,6 +417,14 @@ export default function AllOperationsTab() {
   };
 
   const handleValidate = async (op: UnifiedOp) => {
+    if (op.tipo === "preventa") {
+      toast({
+        title: "Registrá el pago desde Preventas",
+        description: "El pago de seña requiere medio, monto y referencia. Abrí la preventa en el módulo Preventas y usá 'Registrar pago'.",
+        variant: "destructive",
+      });
+      return;
+    }
     const ok = await validateOp(op);
     if (ok) {
       toast({ title: "Pago validado" });
