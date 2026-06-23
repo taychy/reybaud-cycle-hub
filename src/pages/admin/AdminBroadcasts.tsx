@@ -376,9 +376,14 @@ export default function AdminBroadcasts() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="composer"><Send className="w-4 h-4 mr-1" />Nuevo envío</TabsTrigger>
+          <TabsTrigger value="contacts"><ContactIcon className="w-4 h-4 mr-1" />Contactos</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-1" />Historial</TabsTrigger>
           <TabsTrigger value="templates"><FileText className="w-4 h-4 mr-1" />Plantillas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="contacts" className="space-y-4">
+          <MarketingContactsManager />
+        </TabsContent>
 
         {/* COMPOSER */}
         <TabsContent value="composer" className="space-y-4">
