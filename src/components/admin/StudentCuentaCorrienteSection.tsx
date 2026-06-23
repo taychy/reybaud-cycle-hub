@@ -121,7 +121,17 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
       console.error(movRes.error);
       toast.error("No se pudieron cargar los movimientos");
     } else {
-      setMovimientos(((movRes.data || []) as unknown) as Movimiento[]);
+      // Orden: fecha DESC, y dentro de la misma fecha primero el cargo (DEBE)
+      // y después el pago (HABER) — coincide con la lógica contable habitual.
+      const sorted = ([...(movRes.data || [])] as unknown as Movimiento[]).sort((a, b) => {
+        const fa = String(a.fecha || "");
+        const fb = String(b.fecha || "");
+        if (fa !== fb) return fa < fb ? 1 : -1;
+        const aCargo = Number(a.debe || 0) > 0 ? 0 : 1;
+        const bCargo = Number(b.debe || 0) > 0 ? 0 : 1;
+        return aCargo - bCargo;
+      });
+      setMovimientos(sorted);
     }
     if (saldoRes.error) {
       console.error(saldoRes.error);
