@@ -12,6 +12,9 @@ import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { printSinglePreorderLabel } from "@/lib/preorderLabels";
+import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
+import { getPaymentMethodLabel } from "@/lib/paymentMethods";
+import { DollarSign } from "lucide-react";
 
 interface Preorder {
   id: string;
