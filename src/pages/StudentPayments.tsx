@@ -563,7 +563,26 @@ const StudentPayments = () => {
                     {/* Pago / renovación CTA */}
                     {(() => {
                       const goToCheckout = (skipPlanPicker = false) => {
-                        if (sub.fecha_fin) {
+                        // Limpiamos contextos anteriores para no mezclar flujos
+                        clearEarlyRenewal();
+                        clearReuseSubId();
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const subEnd = sub.fecha_fin
+                          ? (() => {
+                              const [y, m, d] = sub.fecha_fin!.substring(0, 10).split("-").map(Number);
+                              return new Date(y, m - 1, d);
+                            })()
+                          : null;
+                        const stillCoversCurrentPeriod = subEnd ? subEnd.getTime() >= today.getTime() : false;
+
+                        if (skipPlanPicker && stillCoversCurrentPeriod) {
+                          // Pago de sub pendiente/pago_pendiente/acceso_pausado del período actual:
+                          // reutilizamos esta misma sub (sin crear "renovación anticipada" al mes siguiente).
+                          setReuseSubId(sub.id);
+                        } else if (!skipPlanPicker && sub.fecha_fin) {
+                          // Renovación anticipada clásica (plan activo cerca del vencimiento)
                           setEarlyRenewal({
                             subId: sub.id,
                             planId: sub.plan_id,
@@ -571,6 +590,9 @@ const StudentPayments = () => {
                             autoRenovacion: hasRealAutoCharge(sub),
                           });
                         }
+                        // Sub vencida de un período pasado → no reusar ni renovación anticipada;
+                        // se generará una sub nueva para el mes actual.
+
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
                         localStorage.setItem("alumno_preselect_plan_id", sub.plan_id);
                         if (skipPlanPicker) {
