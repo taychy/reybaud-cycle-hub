@@ -550,9 +550,9 @@ Deno.serve(async (req) => {
     }
 
     // ─── EVENT RESERVATION FLOW ───
-    // external_reference: "event:<reservation_id>"
+    // external_reference: "event:<reservation_id>" o "event:<reservation_id>:inst:<n>"
     if (externalRef.startsWith("event:")) {
-      const reservationId = externalRef.slice("event:".length);
+      const reservationId = refUuid;
       const paidAmount = Number(payment.transaction_amount ?? 0);
 
       // Cargar reserva actual
