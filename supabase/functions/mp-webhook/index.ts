@@ -340,21 +340,36 @@ Deno.serve(async (req) => {
     const isPreorderTotalRef = externalRef.startsWith("preorder_total:");
     const isPreorderAlumnoRef = externalRef.startsWith("preorder_alumno_saldo:");
     const isStoreOrderRef = externalRef.startsWith("store_order:");
-    const refUuid = isEventRef
-      ? externalRef.slice("event:".length)
-      : isPreorderSaldoRef
-      ? externalRef.slice("preorder_saldo:".length)
-      : isPreorderTotalRef
-      ? externalRef.slice("preorder_total:".length)
-      : isPreorderAlumnoRef
-      ? externalRef.slice("preorder_alumno_saldo:".length)
-      : isPreorderRef
-      ? externalRef.slice("preorder:".length)
-      : isStoreOrderRef
-      ? externalRef.slice("store_order:".length)
-      : externalRef;
+
+    // Para eventos: "event:<uuid>" o "event:<uuid>:inst:<n>" (cuotas).
+    // Extraemos el uuid y, si corresponde, el número de cuota.
+    let eventInstallmentNumber: number | null = null;
+    let refUuid: string;
+    if (isEventRef) {
+      const body = externalRef.slice("event:".length);
+      const instMatch = body.match(/^([0-9a-f-]{36}):inst:(\d+)$/i);
+      if (instMatch) {
+        refUuid = instMatch[1];
+        eventInstallmentNumber = Number(instMatch[2]);
+      } else {
+        refUuid = body;
+      }
+    } else if (isPreorderSaldoRef) {
+      refUuid = externalRef.slice("preorder_saldo:".length);
+    } else if (isPreorderTotalRef) {
+      refUuid = externalRef.slice("preorder_total:".length);
+    } else if (isPreorderAlumnoRef) {
+      refUuid = externalRef.slice("preorder_alumno_saldo:".length);
+    } else if (isPreorderRef) {
+      refUuid = externalRef.slice("preorder:".length);
+    } else if (isStoreOrderRef) {
+      refUuid = externalRef.slice("store_order:".length);
+    } else {
+      refUuid = externalRef;
+    }
+
     if (!UUID_RE.test(refUuid)) {
-      console.error("[mp-webhook] Invalid external_reference format");
+      console.error("[mp-webhook] Invalid external_reference format", { externalRef, refUuid });
       return new Response(JSON.stringify({ ok: true, invalid_ref: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -535,9 +550,9 @@ Deno.serve(async (req) => {
     }
 
     // ─── EVENT RESERVATION FLOW ───
-    // external_reference: "event:<reservation_id>"
+    // external_reference: "event:<reservation_id>" o "event:<reservation_id>:inst:<n>"
     if (externalRef.startsWith("event:")) {
-      const reservationId = externalRef.slice("event:".length);
+      const reservationId = refUuid;
       const paidAmount = Number(payment.transaction_amount ?? 0);
 
       // Cargar reserva actual
@@ -620,6 +635,40 @@ Deno.serve(async (req) => {
           .from("event_reservations")
           .update(update)
           .eq("id", reservationId);
+
+        // Si el pago era de una cuota específica, marcarla como pagada
+        if (eventInstallmentNumber != null) {
+          try {
+            const { data: instRow } = await supabaseAdmin
+              .from("reservation_installments")
+              .select("id, amount, paid_amount, monto_pagado")
+              .eq("reservation_id", reservationId)
+              .eq("installment_number", eventInstallmentNumber)
+              .maybeSingle();
+
+            if (instRow) {
+              const prevPaid = Number(instRow.paid_amount || 0);
+              const newInstPaid = prevPaid + paidAmount;
+              const instAmount = Number(instRow.amount || 0);
+              const instBalance = Math.max(0, instAmount - newInstPaid);
+              const instStatus = instAmount > 0 && instBalance <= 0 ? "pagada" : "parcial";
+              await supabaseAdmin
+                .from("reservation_installments")
+                .update({
+                  paid_amount: newInstPaid,
+                  monto_pagado: newInstPaid,
+                  balance_due: instBalance,
+                  saldo_pendiente: instBalance,
+                  status: instStatus,
+                } as any)
+                .eq("id", instRow.id);
+            } else {
+              console.warn("[mp-webhook] cuota no encontrada para event:inst", { reservationId, eventInstallmentNumber });
+            }
+          } catch (e) {
+            console.error("[mp-webhook] error actualizando cuota:", e);
+          }
+        }
       } else if (payment.status === "rejected" || payment.status === "cancelled") {
         await supabaseAdmin
           .from("event_reservations")
