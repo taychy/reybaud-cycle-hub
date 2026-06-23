@@ -168,7 +168,14 @@ const getMethodDisplay = (sub: Suscripcion) => {
       (sub.metodo_pago || "").toLowerCase() === "efectivo");
 
   if (isAutoRenewalPending) {
-    return { method: "Renovación automática", origin: "Pendiente de cobro" };
+    // Honest label: only "Renovación automática" if MP preapproval is actually authorized.
+    const preapprovalAuthorized =
+      !!sub.mp_preapproval_id &&
+      (sub.mp_preapproval_status || "").toLowerCase() === "authorized";
+    if (preapprovalAuthorized) {
+      return { method: "Renovación automática", origin: "Pendiente de cobro" };
+    }
+    return { method: "Pendiente de cobro manual", origin: "Sin autorización de MP — avisar al alumno" };
   }
 
   // Primary line: WHO reported the payment (= origin)
