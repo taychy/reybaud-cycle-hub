@@ -17,10 +17,18 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search } from "lucide-react";
+import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search, Contact as ContactIcon } from "lucide-react";
+import MarketingContactsManager from "@/components/admin/MarketingContactsManager";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Sin grupo"];
+const MARKETING_TIPOS = [
+  { value: "lead", label: "Leads" },
+  { value: "ex_alumno", label: "Ex alumnos" },
+  { value: "evento_externo", label: "Eventos externos" },
+  { value: "manual", label: "Manuales" },
+  { value: "importado", label: "Importados" },
+];
 
 interface Broadcast {
   id: string;
@@ -54,12 +62,15 @@ const emptyComposer = {
   content_html: "",
   cta_url: "",
   cta_label: "",
-  audience: ["students"] as ("students" | "coaches")[],
+  audience: ["students"] as ("students" | "coaches" | "marketing")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
   sede_ids: [] as string[],
   alumno_ids: [] as string[],
   coach_ids: [] as string[],
+  marketing_tipos: [] as string[],
+  marketing_tags: [] as string[],
+  marketing_ignore_frequency: false,
 };
 
 export default function AdminBroadcasts() {
@@ -139,7 +150,20 @@ export default function AdminBroadcasts() {
     sede_ids: composer.sede_ids.length ? composer.sede_ids : undefined,
     alumno_ids: composer.alumno_ids.length ? composer.alumno_ids : undefined,
     coach_ids: composer.coach_ids.length ? composer.coach_ids : undefined,
+    marketing_tipos: composer.marketing_tipos.length ? composer.marketing_tipos : undefined,
+    marketing_tags: composer.marketing_tags.length ? composer.marketing_tags : undefined,
+    marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
   }), [composer]);
+
+  const [marketingTagOptions, setMarketingTagOptions] = useState<string[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("marketing_contacts" as any).select("tags").limit(2000);
+      const s = new Set<string>();
+      ((data as any[]) || []).forEach((r) => (r?.tags || []).forEach((t: string) => s.add(t)));
+      setMarketingTagOptions(Array.from(s).sort());
+    })();
+  }, [tab]);
 
   const previewSegment = async () => {
     setLoadingPreview(true);
@@ -352,9 +376,14 @@ export default function AdminBroadcasts() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="composer"><Send className="w-4 h-4 mr-1" />Nuevo envío</TabsTrigger>
+          <TabsTrigger value="contacts"><ContactIcon className="w-4 h-4 mr-1" />Contactos</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-1" />Historial</TabsTrigger>
           <TabsTrigger value="templates"><FileText className="w-4 h-4 mr-1" />Plantillas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="contacts" className="space-y-4">
+          <MarketingContactsManager />
+        </TabsContent>
 
         {/* COMPOSER */}
         <TabsContent value="composer" className="space-y-4">
@@ -412,19 +441,78 @@ export default function AdminBroadcasts() {
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
                   checked={composer.audience.includes("students")}
-                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "students") as ("students" | "coaches")[] })}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "students") as any })}
                 />
                 Alumnos
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
                   checked={composer.audience.includes("coaches")}
-                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "coaches") as ("students" | "coaches")[] })}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "coaches") as any })}
                 />
                 Coaches
               </label>
-              <span className="text-xs text-muted-foreground self-center">Elegí uno o ambos públicos.</span>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("marketing")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "marketing") as any })}
+                />
+                Contactos marketing
+              </label>
+              <span className="text-xs text-muted-foreground self-center">Alumnos, coaches y/o la base de leads y ex-clientes.</span>
             </div>
+
+            {composer.audience.includes("marketing") && (
+              <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/20">
+                <div className="text-xs font-medium flex items-center gap-2">
+                  <ContactIcon className="w-3.5 h-3.5" /> Filtros de la base de marketing
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tipo de contacto</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MARKETING_TIPOS.map((t) => (
+                        <Badge key={t.value}
+                          variant={composer.marketing_tipos.includes(t.value) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setComposer({ ...composer, marketing_tipos: toggleArr(composer.marketing_tipos, t.value) })}>
+                          {t.label}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Vacío = todos los tipos.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tags</Label>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {marketingTagOptions.length === 0 ? (
+                        <span className="text-[10px] text-muted-foreground">Todavía no hay tags definidos. Asigná tags al cargar contactos.</span>
+                      ) : marketingTagOptions.map((t) => (
+                        <Badge key={t}
+                          variant={composer.marketing_tags.includes(t) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setComposer({ ...composer, marketing_tags: toggleArr(composer.marketing_tags, t) })}>
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Vacío = sin filtro de tags.</p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs">
+                  <Checkbox
+                    checked={composer.marketing_ignore_frequency}
+                    onCheckedChange={(v) => setComposer({ ...composer, marketing_ignore_frequency: !!v })}
+                  />
+                  <span>
+                    Ignorar tope de frecuencia (por defecto excluye contactos que recibieron una campaña en los últimos 7 días).
+                  </span>
+                </label>
+                <p className="text-[10px] text-muted-foreground">
+                  Sólo se envía a contactos con <b>opt-in activo</b>. Los rebotes/bajas (suppressed_emails) se descartan siempre.
+                </p>
+              </div>
+            )}
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Estados</Label>

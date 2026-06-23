@@ -3614,6 +3614,84 @@ export type Database = {
           },
         ]
       }
+      marketing_contacts: {
+        Row: {
+          apellido: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          last_campaign_sent_at: string | null
+          nombre: string | null
+          notas: string | null
+          opt_in_marketing: boolean
+          opt_out_at: string | null
+          opt_out_reason: string | null
+          origen: string | null
+          source_alumno_id: string | null
+          source_event_participant_id: string | null
+          tags: string[]
+          telefono: string | null
+          tipo: Database["public"]["Enums"]["marketing_contact_type"]
+          updated_at: string
+        }
+        Insert: {
+          apellido?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          last_campaign_sent_at?: string | null
+          nombre?: string | null
+          notas?: string | null
+          opt_in_marketing?: boolean
+          opt_out_at?: string | null
+          opt_out_reason?: string | null
+          origen?: string | null
+          source_alumno_id?: string | null
+          source_event_participant_id?: string | null
+          tags?: string[]
+          telefono?: string | null
+          tipo?: Database["public"]["Enums"]["marketing_contact_type"]
+          updated_at?: string
+        }
+        Update: {
+          apellido?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          last_campaign_sent_at?: string | null
+          nombre?: string | null
+          notas?: string | null
+          opt_in_marketing?: boolean
+          opt_out_at?: string | null
+          opt_out_reason?: string | null
+          origen?: string | null
+          source_alumno_id?: string | null
+          source_event_participant_id?: string | null
+          tags?: string[]
+          telefono?: string | null
+          tipo?: Database["public"]["Enums"]["marketing_contact_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_contacts_source_alumno_id_fkey"
+            columns: ["source_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_source_event_participant_id_fkey"
+            columns: ["source_event_participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_external_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mejoras_sugeridas: {
         Row: {
           autor_email: string
@@ -7244,6 +7322,8 @@ export type Database = {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
         Returns: Json
       }
+      sync_event_externals_to_marketing: { Args: never; Returns: number }
+      sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
       transition_cambio_estado: {
         Args: {
           p_id: string
@@ -7332,6 +7412,12 @@ export type Database = {
       installment_reminder_recipient: "alumno" | "admin"
       installment_reminder_status: "pending" | "sent" | "failed" | "skipped"
       installment_type_enum: "sena" | "cuota"
+      marketing_contact_type:
+        | "lead"
+        | "ex_alumno"
+        | "evento_externo"
+        | "manual"
+        | "importado"
       modo_mp: "test" | "prod"
       payment_plan_monto_tipo: "fijo" | "porcentaje_saldo"
       payment_plan_regla_tardia:
@@ -7535,6 +7621,13 @@ export const Constants = {
       installment_reminder_recipient: ["alumno", "admin"],
       installment_reminder_status: ["pending", "sent", "failed", "skipped"],
       installment_type_enum: ["sena", "cuota"],
+      marketing_contact_type: [
+        "lead",
+        "ex_alumno",
+        "evento_externo",
+        "manual",
+        "importado",
+      ],
       modo_mp: ["test", "prod"],
       payment_plan_monto_tipo: ["fijo", "porcentaje_saldo"],
       payment_plan_regla_tardia: [
