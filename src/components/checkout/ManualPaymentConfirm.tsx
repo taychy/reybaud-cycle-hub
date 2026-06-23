@@ -150,7 +150,7 @@ const ManualPaymentConfirm = ({
         body: JSON.stringify({
           alumno_id: alumnoId,
           plan_id: planId,
-          suscripcion_id: sub.id,
+          suscripcion_id: subId,
           payment_type: canonicalMethod,
           declared_method: metodoPago,
           other_detail: otherDetail ?? null,
