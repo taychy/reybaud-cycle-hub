@@ -428,16 +428,49 @@ const ReservationStatusCard = ({
       : null;
 
   /* ─── Next step message ─── */
+  // Buscar próximo paso de preparación pendiente (excluye reserva y pago)
+  const buildNextPrepStep = (): { text: string; urgent: boolean } | null => {
+    const checklistForPrep = buildChecklist(reservation, eventMetadata, checklistData);
+    const nextPrep = checklistForPrep.find(
+      (c) => !c.completed && c.id !== "reserva" && c.id !== "pago",
+    );
+    if (!nextPrep) return null;
+    return {
+      text: `Próximo paso: ${nextPrep.label.toLowerCase()}. ${nextPrep.description}.`,
+      urgent: false,
+    };
+  };
+
+  // Días hasta el próximo vencimiento de cuota (si lo hay)
+  const daysUntilNextDue: number | null = (() => {
+    const due = nextInst?.due_date ?? reservation.next_due_date ?? null;
+    if (!due) return null;
+    const diff = Math.ceil(
+      (new Date(due + "T23:59:59").getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+    );
+    return diff;
+  })();
+  const PAYMENT_REMINDER_DAYS = 7;
+  const paymentDueSoon =
+    daysUntilNextDue !== null && daysUntilNextDue <= PAYMENT_REMINDER_DAYS;
+
   const getNextStep = (): { text: string; urgent: boolean } | null => {
     if (isFullyDone) return null;
     if (reservation.reservation_status === "solicitud_enviada")
       return { text: "El equipo está revisando tu solicitud. Te avisamos pronto.", urgent: false };
     if (reservation.payment_status === "pago_informado")
       return { text: "Estamos verificando tu pago. No necesitás hacer nada más por ahora.", urgent: false };
+    // Sin seña pagada → priorizar el pago de la seña
     if (reservation.payment_status === "no_informado" && total > 0)
-      return { text: "Realizá tu pago e informalo para asegurar tu lugar.", urgent: true };
+      return {
+        text: "Pagá tu seña para empezar a preparar tu viaje.",
+        urgent: true,
+      };
+    if (reservation.payment_status === "pago_rechazado")
+      return { text: "Tu pago fue rechazado. Revisá los datos e intentá nuevamente.", urgent: true };
+    // Seña pagada / parcial → preparación primero; cuota solo si está cerca del vencimiento
     if (reservation.payment_status === "parcial") {
-      if (nextInstallment) {
+      if (paymentDueSoon && nextInstallment) {
         const dueDate = nextInstallment.due_date
           ? new Date(nextInstallment.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })
           : null;
@@ -446,10 +479,19 @@ const ReservationStatusCard = ({
           urgent: true,
         };
       }
-      return { text: "Tenés un saldo pendiente. Informá tu próximo pago.", urgent: true };
+      const prep = buildNextPrepStep();
+      if (prep) return prep;
+      if (nextInstallment) {
+        const dueDate = nextInstallment.due_date
+          ? new Date(nextInstallment.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+          : null;
+        return {
+          text: `Tu próxima cuota vence${dueDate ? ` el ${dueDate}` : " próximamente"}. Te avisaremos cuando se acerque la fecha.`,
+          urgent: false,
+        };
+      }
+      return null;
     }
-    if (reservation.payment_status === "pago_rechazado")
-      return { text: "Tu pago fue rechazado. Revisá los datos e intentá nuevamente.", urgent: true };
     if (reservation.reservation_status === "cancelacion_solicitada")
       return { text: "Tu solicitud de cancelación está siendo revisada.", urgent: false };
     return null;
