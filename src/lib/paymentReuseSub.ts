@@ -39,7 +39,7 @@ export function clearReuseSubId() {
 }
 
 interface ReuseUpdate {
-  estado: string;
+  estado: "pendiente" | "pendiente_verificacion";
   descuento_id?: string | null;
   precio_base?: number;
   precio_final?: number;
@@ -49,9 +49,10 @@ interface ReuseUpdate {
 }
 
 /**
- * Si hay una sub a reutilizar válida para este alumno+plan, la actualiza con
- * los datos del nuevo intento de pago y devuelve su id. Si no, devuelve null
- * para que el caller siga con su INSERT normal.
+ * Si hay una sub a reutilizar válida para este alumno+plan, la actualiza vía RPC
+ * `reuse_pending_subscription` (SECURITY DEFINER que valida ownership y estado
+ * pagable) y devuelve su id. Si no, devuelve null para que el caller siga con
+ * su INSERT normal.
  */
 export async function tryReuseExistingSubscription(
   alumnoId: string,
@@ -61,23 +62,19 @@ export async function tryReuseExistingSubscription(
   const existingId = getReuseSubId();
   if (!existingId) return null;
 
-  const { data: existing, error } = await supabase
-    .from("suscripciones")
-    .select("id, alumno_id, plan_id, estado")
-    .eq("id", existingId)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("reuse_pending_subscription" as any, {
+    p_sub_id: existingId,
+    p_alumno_id: alumnoId,
+    p_plan_id: planId,
+    p_estado: update.estado,
+    p_descuento_id: update.descuento_id ?? null,
+    p_precio_base: update.precio_base ?? null,
+    p_precio_final: update.precio_final ?? null,
+    p_metodo_pago: update.metodo_pago ?? null,
+    p_origen_registro: update.origen_registro ?? null,
+    p_notas: update.notas ?? null,
+  });
 
-  if (error || !existing) return null;
-  if (existing.alumno_id !== alumnoId) return null;
-  if (existing.plan_id !== planId) return null;
-  if (!PAYABLE_STATES.has(existing.estado as string)) return null;
-
-  const { error: updErr } = await supabase
-    .from("suscripciones")
-    .update(update as any)
-    .eq("id", existingId);
-
-  if (updErr) return null;
-
+  if (error || !data) return null;
   return { id: existingId };
 }
