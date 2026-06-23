@@ -1912,9 +1912,16 @@ const AdminEventReservations = ({
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Imputar a cuota</Label>
                         <Select value={adminPayInstallmentId || "__general__"} onValueChange={(v) => {
-                          setAdminPayInstallmentId(v === "__general__" ? null : v);
+                          const newId = v === "__general__" ? null : v;
+                          setAdminPayInstallmentId(newId);
                           setAdminPayGeneralReason("");
+                          if (newId) {
+                            const inst = matInstallments.find((i: any) => i.id === newId);
+                            const pending = inst ? parseFloat(inst.balance_due ?? inst.amount ?? 0) : 0;
+                            if (pending > 0) onAmountChange(String(pending));
+                          }
                         }}>
+
                           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__general__">Pago general</SelectItem>
