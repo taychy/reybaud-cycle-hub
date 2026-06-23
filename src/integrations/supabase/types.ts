@@ -7224,6 +7224,21 @@ export type Database = {
         }
         Returns: Json
       }
+      reuse_pending_subscription: {
+        Args: {
+          p_alumno_id: string
+          p_descuento_id: string
+          p_estado: string
+          p_metodo_pago?: string
+          p_notas?: string
+          p_origen_registro?: string
+          p_plan_id: string
+          p_precio_base: number
+          p_precio_final: number
+          p_sub_id: string
+        }
+        Returns: string
+      }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
       start_pausa_alumno: {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
