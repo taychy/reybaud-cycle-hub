@@ -813,7 +813,14 @@ const StorePreorders = () => {
                     )}
                     {detail.estado_pago_sena === "pendiente_verificacion" && (
                       <div className="flex gap-2 pt-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => confirmarSena(detail)}>Confirmar seña</Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => setPayDialog({ row: detail, mode: "total" })}
+                        >
+                          <DollarSign className="w-4 h-4 mr-1" /> Registrar pago de seña
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => rechazarSena(detail)}>Rechazar</Button>
                       </div>
                     )}
