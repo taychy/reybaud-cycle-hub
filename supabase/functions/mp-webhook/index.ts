@@ -701,6 +701,28 @@ Deno.serve(async (req) => {
         console.error("[mp-webhook] intent close failed:", e);
       }
 
+      // Notify the participant by email — same template as manual payment registration
+      if (payment.status === "approved") {
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-payment-recorded`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              reservation_id: reservationId,
+              amount: paidAmount,
+              payment_method: "mercadopago",
+              payment_reference: String(payment.id),
+              installment_number: eventInstallmentNumber ?? null,
+            }),
+          });
+        } catch (e) {
+          console.error("[mp-webhook] payment-recorded email failed:", e);
+        }
+      }
+
       console.log("Event reservation updated:", { reservationId, mpStatus: payment.status });
 
       return new Response(JSON.stringify({ ok: true, kind: "event", status: payment.status }), {
@@ -708,6 +730,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // ─── DEFAULT: SUSCRIPCION FLOW ───
     const suscripcionId = externalRef;
