@@ -57,25 +57,52 @@ const StoreOrders = () => {
     load();
   };
 
-  const registrarPagoOrden = async (order: any, value: { metodo_pago: string; referencia?: string | null }) => {
-    const noteParts = [
-      order.notes,
-      `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`,
-    ].filter(Boolean);
-    const { error } = await supabase.from("store_orders").update({
-      status: "pagado",
-      pagado_at: new Date().toISOString(),
+  const parseCobrado = (notes: string | null): number => {
+    if (!notes) return 0;
+    const matches = [...notes.matchAll(/\[cobrado_acum:([0-9]+(?:\.[0-9]+)?)\]/g)];
+    if (matches.length === 0) return 0;
+    return Number(matches[matches.length - 1][1]) || 0;
+  };
+
+  const registrarPagoOrden = async (
+    order: any,
+    value: { metodo_pago: string; referencia?: string | null; monto: number; partial: boolean },
+  ) => {
+    const total = Number(order.total || 0);
+    const cobradoPrev = parseCobrado(order.notes);
+    const nuevoCobrado = Math.min(cobradoPrev + Number(value.monto || 0), total);
+    const restante = Math.max(total - nuevoCobrado, 0);
+    const completa = restante <= 0;
+    const tipoLabel = completa
+      ? (cobradoPrev > 0 ? "saldo" : "total")
+      : "parcial";
+    const trazaLine = `[${new Date().toLocaleString("es-AR")}] Pago ${tipoLabel} registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · $${Number(value.monto).toLocaleString("es-AR")}${value.referencia ? ` · Ref: ${value.referencia}` : ""}${completa ? "" : ` · resta $${restante.toLocaleString("es-AR")}`} [cobrado_acum:${nuevoCobrado}]`;
+    const noteParts = [order.notes, trazaLine].filter(Boolean);
+    const patch: any = {
       metodo_pago: value.metodo_pago,
       mp_external_reference: value.referencia || order.mp_external_reference,
       notes: noteParts.join("\n"),
-    } as any).eq("id", order.id);
+    };
+    if (completa) {
+      patch.status = "pagado";
+      patch.pagado_at = new Date().toISOString();
+    }
+    const { error } = await supabase.from("store_orders").update(patch).eq("id", order.id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "✓ Pago registrado", description: getPaymentMethodLabel(value.metodo_pago) });
+    toast({
+      title: completa ? "✓ Pago registrado" : "✓ Pago parcial registrado",
+      description: completa
+        ? getPaymentMethodLabel(value.metodo_pago)
+        : `$${Number(value.monto).toLocaleString("es-AR")} · resta $${restante.toLocaleString("es-AR")}`,
+    });
     if (selectedOrder?.id === order.id) {
-      setSelectedOrder((o: any) => ({ ...o, status: "pagado", metodo_pago: value.metodo_pago }));
+      setSelectedOrder((o: any) => ({
+        ...o,
+        ...patch,
+      }));
     }
     load();
   };
@@ -196,11 +223,18 @@ const StoreOrders = () => {
               </div>
             </div>
 
-            {selectedOrder && selectedOrder.status !== "pagado" && selectedOrder.status !== "entregado" && (
-              <Button className="w-full" onClick={() => setPayOrder(selectedOrder)}>
-                <DollarSign className="w-4 h-4 mr-1" /> Registrar pago total (${selectedOrder.total?.toLocaleString("es-AR")})
-              </Button>
-            )}
+            {selectedOrder && selectedOrder.status !== "pagado" && selectedOrder.status !== "entregado" && (() => {
+              const cobrado = parseCobrado(selectedOrder.notes);
+              const pendiente = Math.max(Number(selectedOrder.total || 0) - cobrado, 0);
+              return (
+                <Button className="w-full" onClick={() => setPayOrder(selectedOrder)}>
+                  <DollarSign className="w-4 h-4 mr-1" />
+                  {cobrado > 0
+                    ? `Registrar pago (pendiente $${pendiente.toLocaleString("es-AR")})`
+                    : `Registrar pago (total $${pendiente.toLocaleString("es-AR")})`}
+                </Button>
+              );
+            })()}
             {selectedOrder?.metodo_pago && (
               <div className="text-xs text-muted-foreground text-center">
                 Pagado por: <span className="text-foreground font-medium">{getPaymentMethodLabel(selectedOrder.metodo_pago)}</span>
@@ -210,18 +244,23 @@ const StoreOrders = () => {
         </DialogContent>
       </Dialog>
 
-      {payOrder && (
-        <ConfirmFullPaymentDialog
-          open={!!payOrder}
-          onOpenChange={(v) => !v && setPayOrder(null)}
-          title="Registrar pago del pedido"
-          description={`Pedido #${payOrder.order_number} · ${payOrder.customer_name}`}
-          monto={Number(payOrder.total || 0)}
-          moneda={payOrder.currency || "ARS"}
-          defaultMethod={payOrder.metodo_pago || "efectivo"}
-          onConfirm={(v) => registrarPagoOrden(payOrder, v)}
-        />
-      )}
+      {payOrder && (() => {
+        const cobrado = parseCobrado(payOrder.notes);
+        const pendiente = Math.max(Number(payOrder.total || 0) - cobrado, 0);
+        return (
+          <ConfirmFullPaymentDialog
+            open={!!payOrder}
+            onOpenChange={(v) => !v && setPayOrder(null)}
+            title="Registrar pago del pedido"
+            description={`Pedido #${payOrder.order_number} · ${payOrder.customer_name}${cobrado > 0 ? ` · ya cobrado $${cobrado.toLocaleString("es-AR")}` : ""}`}
+            monto={pendiente}
+            moneda={payOrder.currency || "ARS"}
+            defaultMethod={payOrder.metodo_pago || "efectivo"}
+            allowPartial
+            onConfirm={(v) => registrarPagoOrden(payOrder, v)}
+          />
+        );
+      })()}
     </div>
   );
 };
