@@ -57,6 +57,30 @@ const StoreOrders = () => {
     load();
   };
 
+  const registrarPagoOrden = async (order: any, value: { metodo_pago: string; referencia?: string | null }) => {
+    const noteParts = [
+      order.notes,
+      `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`,
+    ].filter(Boolean);
+    const { error } = await supabase.from("store_orders").update({
+      status: "pagado",
+      pagado_at: new Date().toISOString(),
+      metodo_pago: value.metodo_pago,
+      mp_external_reference: value.referencia || order.mp_external_reference,
+      notes: noteParts.join("\n"),
+    } as any).eq("id", order.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "✓ Pago registrado", description: getPaymentMethodLabel(value.metodo_pago) });
+    if (selectedOrder?.id === order.id) {
+      setSelectedOrder((o: any) => ({ ...o, status: "pagado", metodo_pago: value.metodo_pago }));
+    }
+    load();
+  };
+
+
   const filtered = orders.filter((o) => {
     if (search && !o.customer_name.toLowerCase().includes(search.toLowerCase()) && !String(o.order_number).includes(search)) return false;
     if (filterStatus !== "all" && o.status !== filterStatus) return false;
