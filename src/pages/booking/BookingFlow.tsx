@@ -15,7 +15,7 @@ import logo from "@/assets/logo.png";
 type Servicio = {
   id: string; slug: string; nombre: string; descripcion: string | null;
   duracion_minutos: number; precio: number | null; moneda: string;
-  modalidad: string; politica_cancelacion: string | null;
+  modalidad: string; politica_cancelacion: string | null; tipo_actividad?: string | null;
 };
 
 type Disponibilidad = {
@@ -170,7 +170,7 @@ const BookingFlow = () => {
     await supabase.from("movimientos_liquidacion").insert({
       coach_id: selectedSlot.coach_id,
       fecha: dateStr,
-      tipo_actividad: slug === "evaluatoria" ? "evaluatoria" : "personalizada",
+      tipo_actividad: servicio.tipo_actividad || "personalizada",
       origen: "turnera_externa",
       nombre_externo: `${form.nombre} ${form.apellido}`,
       alumno_id: alumnoId,
@@ -406,7 +406,9 @@ const BookingFlow = () => {
                 </CardContent>
               </Card>
             )}
-            <p className="text-xs text-muted-foreground">Te enviaremos un recordatorio por email.</p>
+            <p className="text-xs text-muted-foreground">
+              Guardá esta confirmación. Si necesitás cambiar o cancelar el turno, escribinos.
+            </p>
           </div>
         )}
       </main>

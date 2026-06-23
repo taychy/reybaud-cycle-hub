@@ -260,6 +260,9 @@ const AdminTurnera = () => {
                 <TableHead>Hora</TableHead>
                 <TableHead>Servicio</TableHead>
                 <TableHead>Nombre</TableHead>
+                <TableHead>Contacto</TableHead>
+                <TableHead>DNI</TableHead>
+                <TableHead>Nota</TableHead>
                 <TableHead>Coach</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
@@ -267,7 +270,7 @@ const AdminTurnera = () => {
             </TableHeader>
             <TableBody>
               {reservas.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
                 reservas.map(r => (
                   <TableRow key={r.id}>
@@ -275,6 +278,16 @@ const AdminTurnera = () => {
                     <TableCell className="text-xs font-mono">{r.hora_inicio}</TableCell>
                     <TableCell className="text-xs">{servicioName(r.servicio_id)}</TableCell>
                     <TableCell className="text-sm">{r.nombre} {r.apellido}</TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex flex-col gap-0.5">
+                        {r.email && <span className="text-foreground break-all">{r.email}</span>}
+                        {r.celular && <span className="text-muted-foreground font-mono">{r.celular}</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">{r.documento || "–"}</TableCell>
+                    <TableCell className="text-xs max-w-[200px]">
+                      {r.nota ? <span className="text-muted-foreground line-clamp-2" title={r.nota}>{r.nota}</span> : "–"}
+                    </TableCell>
                     <TableCell className="text-sm">{coachName(r.coach_id)}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs capitalize">{r.estado_operativo}</Badge></TableCell>
                     <TableCell>

@@ -5151,6 +5151,7 @@ export type Database = {
           precio: number | null
           sede_id: string | null
           slug: string
+          tipo_actividad: string
           updated_at: string
         }
         Insert: {
@@ -5166,6 +5167,7 @@ export type Database = {
           precio?: number | null
           sede_id?: string | null
           slug: string
+          tipo_actividad?: string
           updated_at?: string
         }
         Update: {
@@ -5181,6 +5183,7 @@ export type Database = {
           precio?: number | null
           sede_id?: string | null
           slug?: string
+          tipo_actividad?: string
           updated_at?: string
         }
         Relationships: [
