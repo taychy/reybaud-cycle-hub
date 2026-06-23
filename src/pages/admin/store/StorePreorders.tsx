@@ -42,6 +42,7 @@ interface Preorder {
   envio_notas?: string | null;
   envio_costo?: number | null;
   envio_estado?: string | null;
+  sena_pagada_at?: string | null;
 }
 
 interface Alumno {
