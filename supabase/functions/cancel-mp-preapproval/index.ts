@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCuentaMPTokenById, resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,14 +22,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) {
-      return new Response(
-        JSON.stringify({ error: "Mercado Pago no configurado" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -36,7 +29,7 @@ Deno.serve(async (req) => {
 
     const { data: sub, error: subErr } = await supabaseAdmin
       .from("suscripciones")
-      .select("id, mp_preapproval_id, auto_cobro_activo")
+      .select("id, mp_preapproval_id, auto_cobro_activo, cuenta_mp_id")
       .eq("id", suscripcion_id)
       .single();
 
@@ -48,15 +41,31 @@ Deno.serve(async (req) => {
     }
 
     if (!sub.mp_preapproval_id) {
-      // Nothing to cancel on MP side, just flip the flag
+      // Nothing to cancel on MP side, just flip the flags
       await supabaseAdmin
         .from("suscripciones")
-        .update({ auto_cobro_activo: false })
+        .update({ auto_cobro_activo: false, auto_renovacion: false })
         .eq("id", suscripcion_id);
 
       return new Response(
         JSON.stringify({ ok: true, already_disabled: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Resolver token: primero el de la cuenta de la sub, luego routing, luego legacy
+    let token = "";
+    if (sub.cuenta_mp_id) {
+      token = await getCuentaMPTokenById(supabaseAdmin, sub.cuenta_mp_id);
+    }
+    if (!token) {
+      const cuenta = await resolveCuentaMP(supabaseAdmin, { unidad_negocio: "suscripcion_escuela" });
+      token = cuenta.access_token;
+    }
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: "Mercado Pago no configurado" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -66,14 +75,14 @@ Deno.serve(async (req) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ status: "cancelled" }),
       }
     );
 
-    const mpData = await mpRes.json();
-    console.log("MP preapproval cancel:", {
+    const mpData = await mpRes.json().catch(() => ({}));
+    console.log("[cancel-mp-preapproval]", {
       id: sub.mp_preapproval_id,
       ok: mpRes.ok,
       status: mpData?.status,
@@ -84,6 +93,7 @@ Deno.serve(async (req) => {
       .from("suscripciones")
       .update({
         auto_cobro_activo: false,
+        auto_renovacion: false,
         mp_preapproval_status: mpData?.status || "cancelled",
       })
       .eq("id", suscripcion_id);

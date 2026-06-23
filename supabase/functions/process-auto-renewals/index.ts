@@ -1,3 +1,18 @@
+// Monitor de renovaciones automáticas.
+//
+// Este cron NO genera nuevas suscripciones por sí mismo. El cobro recurrente
+// real lo procesa Mercado Pago a partir del `preapproval` autorizado por el
+// alumno; cuando llega el `authorized_payment`, el webhook `mp-webhook` crea
+// la nueva suscripción de forma idempotente.
+//
+// Esta función queda como observabilidad: lista las suscripciones próximas a
+// vencer con renovación automática y reporta cuáles tienen autorización real
+// vs. cuáles tienen el flag activo sin autorización (caso a corregir).
+//
+// IMPORTANTE: no reactivar lógica de "insertar nueva sub" acá sin antes
+// implementar idempotencia por (suscripcion_id, período) y validar el
+// estado del intento en MP. Ver discusión en mem://features/payment-reuse-pending-sub.
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -17,7 +32,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Find subscriptions expiring in the next 3 days with auto_renovacion=true
     const today = new Date();
     const threeDaysFromNow = new Date(today);
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
@@ -27,7 +41,7 @@ Deno.serve(async (req) => {
 
     const { data: subs, error: subsError } = await supabaseAdmin
       .from("suscripciones")
-      .select("*, planes(id, nombre, precio, frecuencia)")
+      .select("id, alumno_id, plan_id, fecha_fin, auto_renovacion, auto_cobro_activo, mp_preapproval_id, mp_preapproval_status")
       .eq("auto_renovacion", true)
       .eq("estado", "activa")
       .gte("fecha_fin", todayStr)
@@ -35,138 +49,36 @@ Deno.serve(async (req) => {
       .is("cancelada_at", null);
 
     if (subsError) {
-      console.error("Error fetching suscripciones:", subsError);
+      console.error("[process-auto-renewals] error fetching subs:", subsError);
       return new Response(
         JSON.stringify({ error: "Error fetching subscriptions", details: subsError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!subs || subs.length === 0) {
-      return new Response(
-        JSON.stringify({ message: "No subscriptions to renew", processed: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const list = subs ?? [];
+    const conAuth = list.filter((s) => s.auto_cobro_activo && s.mp_preapproval_id);
+    const sinAuth = list.filter((s) => !s.auto_cobro_activo || !s.mp_preapproval_id);
 
-    const results: Array<{ alumno_id: string; status: string; details?: string }> = [];
-
-    for (const sub of subs) {
-      try {
-        const plan = sub.planes as any;
-        if (!plan) {
-          results.push({ alumno_id: sub.alumno_id, status: "skipped", details: "No plan found" });
-          continue;
-        }
-
-        if (!sub.auto_cobro_activo || !sub.mp_preapproval_id) {
-          results.push({
-            alumno_id: sub.alumno_id,
-            status: "skipped",
-            details: "Renovación marcada en la app, pero sin autorización real de Mercado Pago",
-          });
-          continue;
-        }
-
-        results.push({
-          alumno_id: sub.alumno_id,
-          status: "managed_by_mercadopago",
-          details: "El cobro recurrente autorizado lo procesa Mercado Pago; el webhook crea la nueva suscripción cuando el pago queda aprobado",
-        });
-        continue;
-
-        // Calculate new period dates
-        const currentEnd = new Date(sub.fecha_fin);
-        const newStart = new Date(currentEnd);
-        newStart.setDate(newStart.getDate() + 1);
-
-        // fecha_fin MUST always be the last day of the target month
-        let newEnd: Date;
-        switch (plan.frecuencia) {
-          case "trimestral": {
-            // Last day of the month 3 months from newStart
-            const targetMonth = newStart.getMonth() + 3;
-            newEnd = new Date(newStart.getFullYear(), targetMonth + 1, 0);
-            break;
-          }
-          case "anual": {
-            // Last day of the month 12 months from newStart
-            const targetMonth = newStart.getMonth() + 12;
-            newEnd = new Date(newStart.getFullYear(), targetMonth + 1, 0);
-            break;
-          }
-          default: {
-            // mensual: last day of newStart's month
-            newEnd = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
-            break;
-          }
-        }
-
-        // Check if alumno has saldo_a_favor
-        const { data: alumnoData } = await supabaseAdmin
-          .from("alumnos")
-          .select("saldo_a_favor")
-          .eq("id", sub.alumno_id)
-          .single();
-
-        const saldoAFavor = alumnoData?.saldo_a_favor || 0;
-        const precioBase = plan.precio;
-        const precioFinal = Math.max(0, precioBase - saldoAFavor);
-        const saldoUsado = Math.min(saldoAFavor, precioBase);
-
-        // Create new subscription for the next period
-        const { error: insertError } = await supabaseAdmin
-          .from("suscripciones")
-          .insert({
-            alumno_id: sub.alumno_id,
-            plan_id: plan.id,
-            estado: "pendiente",
-            fecha_inicio: newStart.toISOString().split("T")[0],
-            fecha_fin: newEnd.toISOString().split("T")[0],
-            auto_renovacion: true,
-            precio_base: precioBase,
-            precio_final: precioFinal,
-            // Etiquetado correcto: renovación generada por el cron, aún sin cobro
-            origen_registro: "automatico",
-            metodo_pago: "pendiente",
-          });
-
-        if (insertError) {
-          results.push({ alumno_id: sub.alumno_id, status: "error", details: insertError.message });
-          continue;
-        }
-
-        // Deduct used saldo_a_favor
-        if (saldoUsado > 0) {
-          await supabaseAdmin
-            .from("alumnos")
-            .update({ saldo_a_favor: saldoAFavor - saldoUsado })
-            .eq("id", sub.alumno_id);
-        }
-
-        // Log the renewal
-        console.log(`Renewed subscription for alumno ${sub.alumno_id}: ${plan.nombre} until ${newEnd.toISOString().split("T")[0]}${saldoUsado > 0 ? ` (saldo used: ${saldoUsado})` : ""}`);
-
-        results.push({
-          alumno_id: sub.alumno_id,
-          status: "renewed",
-          details: `New period: ${newStart.toISOString().split("T")[0]} → ${newEnd.toISOString().split("T")[0]}${saldoUsado > 0 ? ` | Saldo used: ${saldoUsado}, Final price: ${precioFinal}` : ""}`,
-        });
-      } catch (err) {
-        results.push({ alumno_id: sub.alumno_id, status: "error", details: String(err) });
-      }
-    }
+    console.log("[process-auto-renewals] monitor:", {
+      total: list.length,
+      con_autorizacion_mp: conAuth.length,
+      sin_autorizacion_mp: sinAuth.length,
+      sin_autorizacion_ids: sinAuth.map((s) => s.id),
+    });
 
     return new Response(
       JSON.stringify({
-        message: `Processed ${subs.length} subscriptions`,
-        processed: subs.length,
-        results,
+        message: "monitor only — el cobro recurrente lo procesa Mercado Pago vía webhook",
+        total: list.length,
+        con_autorizacion_mp: conAuth.length,
+        sin_autorizacion_mp: sinAuth.length,
+        sin_autorizacion: sinAuth.map((s) => ({ id: s.id, alumno_id: s.alumno_id, fecha_fin: s.fecha_fin })),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Unexpected error:", err);
+    console.error("[process-auto-renewals] unexpected:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
