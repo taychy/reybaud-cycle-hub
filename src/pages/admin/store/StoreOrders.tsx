@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Truck } from "lucide-react";
+import { Search, Eye, Truck, DollarSign } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
+import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 
 const STATUSES = [
   { value: "pendiente", label: "Pendiente", color: "bg-yellow-500/20 text-yellow-400" },
