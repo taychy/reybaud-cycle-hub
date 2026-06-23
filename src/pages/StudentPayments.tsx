@@ -298,12 +298,6 @@ const StudentPayments = () => {
         // Limpiar query params para evitar re-disparos al refrescar
         const clean = window.location.pathname;
         window.history.replaceState({}, "", clean);
-        // Refrescar suscripciones
-        if (!cancelled) {
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) window.location.reload();
-          });
-        }
       }
     })();
 
