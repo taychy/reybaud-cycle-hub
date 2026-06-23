@@ -15,7 +15,7 @@ import logo from "@/assets/logo.png";
 type Servicio = {
   id: string; slug: string; nombre: string; descripcion: string | null;
   duracion_minutos: number; precio: number | null; moneda: string;
-  modalidad: string; politica_cancelacion: string | null;
+  modalidad: string; politica_cancelacion: string | null; tipo_actividad?: string | null;
 };
 
 type Disponibilidad = {
