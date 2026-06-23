@@ -264,6 +264,53 @@ const StudentPayments = () => {
     };
   }, [navigate, isImpersonating, targetAlumno]);
 
+  // Al volver desde Mercado Pago (back_url), MP agrega ?preapproval_id=... a la URL.
+  // Consultamos a MP el estado real y sincronizamos la fila — el webhook también
+  // lo hace, pero puede llegar después de que el alumno ya esté mirando esta pantalla.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const preapprovalId = params.get("preapproval_id");
+    if (!preapprovalId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-mp-preapproval`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ preapproval_id: preapprovalId }),
+        });
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (data?.authorized) {
+          toast({ title: "Renovación automática activada", description: "Mercado Pago confirmó la autorización. Vas a recibir el cobro al cierre de cada período." });
+        } else if (data?.status === "pending") {
+          toast({ title: "Autorización pendiente", description: "Todavía no recibimos la confirmación de Mercado Pago. Si autorizaste, puede tardar unos minutos.", variant: "destructive" });
+        } else if (data?.status) {
+          toast({ title: "Mercado Pago respondió", description: `Estado de la autorización: ${data.status}.`, variant: "destructive" });
+        }
+      } catch {
+        // silent
+      } finally {
+        // Limpiar query params para evitar re-disparos al refrescar
+        const clean = window.location.pathname;
+        window.history.replaceState({}, "", clean);
+        // Refrescar suscripciones
+        if (!cancelled) {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) window.location.reload();
+          });
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Categorize
   const todayStr = (() => {
     const now = new Date();
