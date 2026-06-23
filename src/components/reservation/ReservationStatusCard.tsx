@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import TripPedalsDrawer from "./TripPedalsDrawer";
 import TripTransportDrawer from "./TripTransportDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
-import StudentInstallmentsPlan from "./StudentInstallmentsPlan";
+import StudentInstallmentsPlan, { StudentInstallmentsPlanHandle } from "./StudentInstallmentsPlan";
 
 interface Reservation {
   id: string;
@@ -63,6 +63,7 @@ interface ReservationStatusCardProps {
   reglamentoUrl?: string;
   whatsappUrl?: string;
   alumnoNombre?: string | null;
+  hideHelpAndCancel?: boolean;
   onPaymentReported: () => void;
 }
 
@@ -185,7 +186,7 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
-  actionType: "bike" | "pedals" | "document" | "payment" | "none";
+  actionType: "bike" | "pedals" | "document" | "payment" | "extras" | "none";
 }
 
 const buildChecklist = (reservation: Reservation, meta: any, checklistData: Record<string, any>): ChecklistItem[] => {
@@ -204,7 +205,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
       description: "Habitación, comidas, bici y extras",
       icon: Package,
       completed: false,
-      actionType: "none",
+      actionType: "extras",
     },
     {
       id: "pago",
@@ -259,7 +260,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 
 const ReservationStatusCard = ({
   reservation, alumnoId, eventCurrency, eventDate, eventTitle, eventType, eventMetadata,
-  reglamentoUrl, whatsappUrl, alumnoNombre, onPaymentReported,
+  reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported,
 }: ReservationStatusCardProps) => {
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
   // School events (record_hora, carrera, otro) show only the confirmation banner.
@@ -285,6 +286,7 @@ const ReservationStatusCard = ({
   const [pendingPayments, setPendingPayments] = useState<Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>>([]);
   const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
   const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
+  const planRef = useRef<StudentInstallmentsPlanHandle | null>(null);
 
   // Auto-disparar acción cuando viene del email con ?action=pay|cash (y ?reserva=:id matching).
   // - action=pay  → checkout de Mercado Pago directo (NO el drawer "Ya pagué")
@@ -428,16 +430,51 @@ const ReservationStatusCard = ({
       : null;
 
   /* ─── Next step message ─── */
-  // Buscar próximo paso de preparación pendiente (excluye reserva y pago)
-  const buildNextPrepStep = (): { text: string; urgent: boolean } | null => {
+  // Dispara la acción del primer paso de preparación pendiente (excluye reserva, pago y extras umbrella)
+  const openFirstPrepDrawer = () => {
+    const order = ["bici", "pedales", "pasaje", "seguro"];
+    const list = buildChecklist(reservation, eventMetadata, checklistData);
+    for (const id of order) {
+      const item = list.find((c) => c.id === id);
+      if (item && !item.completed) {
+        if (item.actionType === "bike") { setShowBikeDrawer(true); return; }
+        if (item.actionType === "pedals") { setShowPedalsDrawer(true); return; }
+        if (id === "pasaje") { setShowTransportDrawer(true); return; }
+        if (item.actionType === "document") {
+          setDocDrawer({
+            open: true,
+            stepKey: id,
+            title: item.label,
+            description: item.description,
+            helpText: "",
+            icon: <ShieldCheck className="w-5 h-5 text-primary" />,
+          });
+          return;
+        }
+      }
+    }
+  };
+
+  const buildNextPrepStep = (): { text: string; urgent: boolean; action?: () => void } | null => {
     const checklistForPrep = buildChecklist(reservation, eventMetadata, checklistData);
     const nextPrep = checklistForPrep.find(
       (c) => !c.completed && c.id !== "reserva" && c.id !== "pago",
     );
     if (!nextPrep) return null;
+    const action =
+      nextPrep.id === "extras" ? openFirstPrepDrawer :
+      nextPrep.actionType === "bike" ? () => setShowBikeDrawer(true) :
+      nextPrep.actionType === "pedals" ? () => setShowPedalsDrawer(true) :
+      nextPrep.id === "pasaje" ? () => setShowTransportDrawer(true) :
+      nextPrep.actionType === "document" ? () => setDocDrawer({
+        open: true, stepKey: nextPrep.id, title: nextPrep.label,
+        description: nextPrep.description, helpText: "",
+        icon: <ShieldCheck className="w-5 h-5 text-primary" />,
+      }) : undefined;
     return {
       text: `Próximo paso: ${nextPrep.label.toLowerCase()}. ${nextPrep.description}.`,
       urgent: false,
+      action,
     };
   };
 
@@ -454,7 +491,9 @@ const ReservationStatusCard = ({
   const paymentDueSoon =
     daysUntilNextDue !== null && daysUntilNextDue <= PAYMENT_REMINDER_DAYS;
 
-  const getNextStep = (): { text: string; urgent: boolean } | null => {
+  const scrollToPlan = () => planRef.current?.scrollAndExpand();
+
+  const getNextStep = (): { text: string; urgent: boolean; action?: () => void } | null => {
     if (isFullyDone) return null;
     if (reservation.reservation_status === "solicitud_enviada")
       return { text: "El equipo está revisando tu solicitud. Te avisamos pronto.", urgent: false };
@@ -465,9 +504,10 @@ const ReservationStatusCard = ({
       return {
         text: "Pagá tu seña para empezar a preparar tu viaje.",
         urgent: true,
+        action: scrollToPlan,
       };
     if (reservation.payment_status === "pago_rechazado")
-      return { text: "Tu pago fue rechazado. Revisá los datos e intentá nuevamente.", urgent: true };
+      return { text: "Tu pago fue rechazado. Revisá los datos e intentá nuevamente.", urgent: true, action: scrollToPlan };
     // Seña pagada / parcial → preparación primero; cuota solo si está cerca del vencimiento
     if (reservation.payment_status === "parcial") {
       if (paymentDueSoon && nextInstallment) {
@@ -475,8 +515,9 @@ const ReservationStatusCard = ({
           ? new Date(nextInstallment.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })
           : null;
         return {
-          text: `Próximo paso: informar tu siguiente pago de ${formatPrice(parseFloat(nextInstallment.amount), currency)}${dueDate ? ` antes del ${dueDate}` : ""}.`,
+          text: `Próximo paso: pagar tu siguiente cuota de ${formatPrice(parseFloat(nextInstallment.amount), currency)}${dueDate ? ` antes del ${dueDate}` : ""}.`,
           urgent: true,
+          action: scrollToPlan,
         };
       }
       const prep = buildNextPrepStep();
@@ -488,6 +529,7 @@ const ReservationStatusCard = ({
         return {
           text: `Tu próxima cuota vence${dueDate ? ` el ${dueDate}` : " próximamente"}. Te avisaremos cuando se acerque la fecha.`,
           urgent: false,
+          action: scrollToPlan,
         };
       }
       return null;
@@ -676,22 +718,31 @@ const ReservationStatusCard = ({
           </div>
         </div>
 
-        {/* ═══ 2. NEXT STEP — prominent CTA area ═══ */}
+        {/* ═══ 2. NEXT STEP — prominent CTA area (clickable) ═══ */}
         {nextStep && (
-          <div className={`rounded-xl p-4 flex items-start gap-3 ${
-            nextStep.urgent
-              ? "bg-amber-500/10 border border-amber-500/30"
-              : "bg-muted/50 border border-border/50"
-          }`}>
+          <button
+            type="button"
+            onClick={nextStep.action}
+            disabled={!nextStep.action}
+            className={`w-full rounded-xl p-4 flex items-start gap-3 text-left transition-all ${
+              nextStep.urgent
+                ? "bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15"
+                : "bg-muted/50 border border-border/50 hover:bg-muted/70"
+            } ${nextStep.action ? "active:scale-[0.99] cursor-pointer" : "cursor-default"}`}
+          >
             <ArrowRight className={`w-5 h-5 mt-0.5 shrink-0 ${nextStep.urgent ? "text-amber-400" : "text-muted-foreground"}`} />
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-heading font-semibold text-foreground uppercase tracking-wide mb-1">Próximo paso</p>
               <p className={`text-sm leading-relaxed ${nextStep.urgent ? "text-amber-200" : "text-muted-foreground"}`}>
                 {nextStep.text}
               </p>
             </div>
-          </div>
+            {nextStep.action && (
+              <ChevronRight className={`w-5 h-5 mt-0.5 shrink-0 ${nextStep.urgent ? "text-amber-400" : "text-muted-foreground"}`} />
+            )}
+          </button>
         )}
+
 
         {/* ═══ 3. PRIMARY CTA ═══ */}
         {canPayWithMP && showMpChoice && (
@@ -850,16 +901,56 @@ const ReservationStatusCard = ({
 
             {/* Real installments plan (Module 4) */}
             <StudentInstallmentsPlan
+              ref={planRef}
               reservationId={reservation.id}
               currency={currency}
               amountTotal={reservation.amount_total || 0}
               amountPaid={reservation.amount_paid || 0}
               balanceDue={reservation.balance_due ?? 0}
+              defaultExpanded={!!nextStep?.urgent && nextStep?.action === scrollToPlan}
               onReportPayment={(instId) => {
                 setPreselectedInstallmentId(instId ?? null);
                 setShowPaymentDrawer(true);
               }}
+              onPayWithMP={async (inst) => {
+                if (mpLoading) return;
+                setMpLoading(true);
+                try {
+                  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-event-mp-preference`;
+                  const res = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                    },
+                    body: JSON.stringify({
+                      reservation_id: reservation.id,
+                      amount: inst.amount,
+                      installment_number: inst.installment_number,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok || !data?.init_point) {
+                    toast({
+                      title: "No pudimos abrir Mercado Pago",
+                      description: data?.error || "Intentá nuevamente en unos segundos.",
+                      variant: "destructive",
+                    });
+                    setMpLoading(false);
+                    return;
+                  }
+                  window.location.href = data.init_point;
+                } catch {
+                  toast({
+                    title: "Error de conexión con Mercado Pago",
+                    description: "Revisá tu conexión a internet e intentá nuevamente.",
+                    variant: "destructive",
+                  });
+                  setMpLoading(false);
+                }
+              }}
             />
+
 
             {/* Legacy metadata installments fallback (old events without materialized installments) */}
             {installments.length > 0 && (
@@ -899,58 +990,8 @@ const ReservationStatusCard = ({
           </div>
         )}
 
-        {/* ═══ 5. ONBOARDING STEPPER ═══ */}
-        {isTripLike && reservation.payment_status !== "no_aplica" && !["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status) && (
-          <div className="glass-card rounded-xl p-5 space-y-4">
-            <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Progreso de tu reserva</h3>
+        {/* (Bloque "Progreso de tu reserva" eliminado — la info se muestra como chip de verificación y en el historial.) */}
 
-            {/* Stepper */}
-            <div className="space-y-0">
-              {stepperSteps.map((step, i) => {
-                const isCompleted = i < stepperIndex;
-                const isCurrent = i === stepperIndex - 1 && stepperIndex < 3;
-                return (
-                  <div key={step.key} className="flex gap-3 relative">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 border-2 transition-all ${
-                        isCompleted
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : isCurrent
-                            ? "bg-primary/20 border-primary text-primary"
-                            : "bg-muted border-border text-muted-foreground"
-                      }`}>
-                        {isCompleted ? (
-                          <CheckCircle className="w-4 h-4" />
-                        ) : isCurrent ? (
-                          <CircleDot className="w-4 h-4" />
-                        ) : (
-                          <span className="text-[10px] font-bold">{i + 1}</span>
-                        )}
-                      </div>
-                      {i < stepperSteps.length - 1 && (
-                        <div className={`w-0.5 h-8 ${isCompleted ? "bg-primary" : "bg-border"}`} />
-                      )}
-                    </div>
-                    <div className="pb-3 pt-0.5">
-                      <p className={`text-sm font-medium ${isCompleted ? "text-foreground" : isCurrent ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-                        {step.label}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">{step.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Current position label */}
-            {stepperIndex < 3 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                <CircleDot className="w-4 h-4 text-primary shrink-0" />
-                <p className="text-xs text-primary font-medium">{getStepperLabel(stepperIndex)}</p>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
         {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
@@ -968,7 +1009,8 @@ const ReservationStatusCard = ({
                 const handleClick = () => {
                   if (item.actionType === "bike") setShowBikeDrawer(true);
                   else if (item.actionType === "pedals") setShowPedalsDrawer(true);
-                  else if (item.actionType === "payment") setShowPaymentDrawer(true);
+                  else if (item.actionType === "payment") scrollToPlan();
+                  else if (item.actionType === "extras") openFirstPrepDrawer();
                   else if (item.actionType === "document" && item.id === "pasaje") setShowTransportDrawer(true);
                   else if (item.actionType === "document") {
                     const configs: Record<string, { title: string; description: string; helpText: string; icon: React.ReactNode }> = {
@@ -1087,73 +1129,77 @@ const ReservationStatusCard = ({
           <p className="text-xs text-muted-foreground text-center py-2">Sin actividad registrada aún.</p>
         )}
 
-        {/* ═══ 9. HELP SECTION ═══ */}
-        <div className="glass-card rounded-xl overflow-hidden">
-          <button
-            onClick={() => setShowHelp(!showHelp)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors text-sm"
-          >
-            <span className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-primary" />
-              <span className="font-heading font-semibold text-foreground">¿Necesitás ayuda?</span>
-            </span>
-            {showHelp ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-          </button>
-          {showHelp && (
-            <div className="px-4 pb-4 space-y-3">
-              {eventType === "record_hora" ? (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    Si tenés dudas sobre tu inscripción, el pago, el check-in o la carga de tu resultado, podés escribirnos por WhatsApp.
-                  </p>
-                  <a
-                    href={buildWhatsAppUrl(buildRecordHoraHelpMessage({ alumnoNombre, fechaEvento: eventDate }))}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <Button variant="outline" size="sm" className="w-full text-xs">
-                      <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Escribir por WhatsApp
-                    </Button>
-                  </a>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {reglamentoUrl && (
-                      <a href={reglamentoUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+        {!hideHelpAndCancel && (
+          <>
+            {/* ═══ 9. HELP SECTION ═══ */}
+            <div className="glass-card rounded-xl overflow-hidden">
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  <span className="font-heading font-semibold text-foreground">¿Necesitás ayuda?</span>
+                </span>
+                {showHelp ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {showHelp && (
+                <div className="px-4 pb-4 space-y-3">
+                  {eventType === "record_hora" ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Si tenés dudas sobre tu inscripción, el pago, el check-in o la carga de tu resultado, podés escribirnos por WhatsApp.
+                      </p>
+                      <a
+                        href={buildWhatsAppUrl(buildRecordHoraHelpMessage({ alumnoNombre, fechaEvento: eventDate }))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
                         <Button variant="outline" size="sm" className="w-full text-xs">
-                          <FileText className="w-3.5 h-3.5 mr-1.5" /> Reglamento
+                          <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Escribir por WhatsApp
                         </Button>
                       </a>
-                    )}
-                    {whatsappUrl && (
-                      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full text-xs">
-                          <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Chatear por WhatsApp
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                </>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Consultanos por dudas sobre pagos, bicicleta, pedales, documentación o cualquier tema del viaje.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {reglamentoUrl && (
+                          <a href={reglamentoUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full text-xs">
+                              <FileText className="w-3.5 h-3.5 mr-1.5" /> Reglamento
+                            </Button>
+                          </a>
+                        )}
+                        {whatsappUrl && (
+                          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full text-xs">
+                              <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Chatear por WhatsApp
+                            </Button>
+                          </a>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* ═══ 10. CANCEL ═══ */}
-        {canCancel && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-xs text-destructive/80 border-destructive/20 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 mt-2"
-            onClick={() => setShowCancelDrawer(true)}
-          >
-            <X className="w-3.5 h-3.5 mr-1.5" /> Cancelar reserva
-          </Button>
+            {/* ═══ 10. CANCEL ═══ */}
+            {canCancel && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs text-destructive/80 border-destructive/20 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 mt-2"
+                onClick={() => setShowCancelDrawer(true)}
+              >
+                <X className="w-3.5 h-3.5 mr-1.5" /> Cancelar reserva
+              </Button>
+            )}
+          </>
         )}
 
         {/* Request date */}

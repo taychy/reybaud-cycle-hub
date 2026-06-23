@@ -23,7 +23,7 @@ import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
-// CancelReservationDrawer is now handled inside ReservationStatusCard
+import ReservationHelpFooter from "@/components/reservation/ReservationHelpFooter";
 import EventAnnouncementsSection from "@/components/reservation/EventAnnouncements";
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventPriceBanner from "@/components/event/EventPriceBanner";
@@ -522,6 +522,7 @@ const EventDetail = () => {
               reglamentoUrl={event.metadata?.reglamento}
               whatsappUrl={event.metadata?.whatsapp_url}
               alumnoNombre={alumno?.nombre}
+              hideHelpAndCancel
               onPaymentReported={loadReservation}
             />
           )}
@@ -533,6 +534,39 @@ const EventDetail = () => {
               <EventRoadbook eventId={id} />
             </>
           )}
+
+          {/* Help + Cancel — al final de la landing del evento */}
+          {alumno && isActiveReservation && reservation && (
+            <ReservationHelpFooter
+              reservationId={reservation.id}
+              eventTitle={event.title}
+              eventDate={event.date}
+              eventType={event.type}
+              reglamentoUrl={event.metadata?.reglamento}
+              whatsappUrl={event.metadata?.whatsapp_url}
+              alumnoNombre={alumno?.nombre}
+              cancellationPolicy={{
+                allow_cancellation: event.metadata?.allow_cancellation ?? false,
+                cancellation_days_before: event.metadata?.cancellation_days_before ?? 7,
+                cancellation_type: event.metadata?.cancellation_type ?? "sin_penalidad",
+                cancellation_text_short: event.metadata?.cancellation_text_short ?? "",
+                cancellation_text_full: event.metadata?.cancellation_text_full ?? "",
+                require_reason: event.metadata?.require_cancellation_reason ?? false,
+              }}
+              canCancel={(() => {
+                const policy = event.metadata;
+                if (!policy?.allow_cancellation) return false;
+                if (["cancelada", "rechazada", "cancelacion_solicitada"].includes(reservation.reservation_status)) return false;
+                const daysBefore = policy?.cancellation_days_before ?? 7;
+                const daysUntil = event.date
+                  ? Math.ceil((new Date(event.date + "T00:00:00").getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : 999;
+                return daysUntil >= daysBefore;
+              })()}
+              onCancelled={loadReservation}
+            />
+          )}
+
 
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* Price & Quick Details — only when NOT reserved             */}
