@@ -208,6 +208,30 @@ const StorePreorders = () => {
   const rechazarSena = (r: Preorder) =>
     updateField(r.id, { estado_pago_sena: "rechazada" } as any);
 
+  const registrarPagoPreorder = async (r: Preorder, mode: "total" | "saldo", value: { metodo_pago: string; referencia?: string | null }) => {
+    const total = Number(r.precio_total || 0);
+    const senaActual = Number(r.sena_monto || 0);
+    const monto = mode === "saldo" ? Number(r.saldo_pendiente || 0) : (total - senaActual > 0 ? total - senaActual : total);
+    const nowIso = new Date().toISOString();
+    const trazaParts: string[] = [
+      `[${new Date().toLocaleString("es-AR")}] Pago ${mode === "saldo" ? "saldo" : "total"} registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(monto, r.moneda)}`,
+    ];
+    if (value.referencia) trazaParts.push(`Ref: ${value.referencia}`);
+    const patch: any = {
+      sena_monto: total,
+      saldo_pendiente: 0,
+      estado_pago_sena: "confirmada",
+      sena_pagada_at: r["sena_pagada_at" as keyof Preorder] ? undefined : nowIso,
+      forma_pago_sena: r.forma_pago_sena || value.metodo_pago,
+      notas: [r.notas, trazaParts.join(" · ")].filter(Boolean).join("\n"),
+    };
+    if (r.estado === "pendiente_pago_sena") patch.estado = "reservada";
+    Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
+    await updateField(r.id, patch);
+    toast({ title: "✓ Pago registrado", description: `${formatPrice(monto, r.moneda)} · ${getPaymentMethodLabel(value.metodo_pago)}` });
+  };
+
+
   const enviarRecordatorio = async (r: Preorder) => {
     const isSaldo = r.estado_pago_sena === "confirmada" && Number(r.saldo_pendiente || 0) > 0;
     const isSena = r.estado_pago_sena !== "confirmada";
