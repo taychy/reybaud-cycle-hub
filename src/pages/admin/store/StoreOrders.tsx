@@ -135,6 +135,17 @@ const StoreOrders = () => {
                   <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(o.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-1">
+                      {o.status !== "pagado" && o.status !== "entregado" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                          title="Registrar pago"
+                          onClick={() => setPayOrder(o)}
+                        >
+                          <DollarSign className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => viewOrder(o)}><Eye className="w-4 h-4" /></Button>
                       <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
                         <SelectTrigger className="h-8 w-[120px] text-xs"><SelectValue /></SelectTrigger>
