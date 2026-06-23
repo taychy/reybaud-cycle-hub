@@ -15,13 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const REUSE_SUB_KEY = "alumno_pay_existing_sub_id";
 
-const PAYABLE_STATES = new Set([
-  "pendiente",
-  "pendiente_verificacion",
-  "pago_pendiente",
-  "acceso_pausado",
-  "vencida",
-]);
+
+
 
 export function getReuseSubId(): string | null {
   if (typeof localStorage === "undefined") return null;
