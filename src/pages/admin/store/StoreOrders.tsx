@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Truck } from "lucide-react";
+import { Search, Eye, Truck, DollarSign } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
+import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 
 const STATUSES = [
   { value: "pendiente", label: "Pendiente", color: "bg-yellow-500/20 text-yellow-400" },
@@ -23,6 +25,7 @@ const StoreOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [trackingInput, setTrackingInput] = useState("");
+  const [payOrder, setPayOrder] = useState<any | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -53,6 +56,30 @@ const StoreOrders = () => {
     toast({ title: "Tracking guardado" });
     load();
   };
+
+  const registrarPagoOrden = async (order: any, value: { metodo_pago: string; referencia?: string | null }) => {
+    const noteParts = [
+      order.notes,
+      `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`,
+    ].filter(Boolean);
+    const { error } = await supabase.from("store_orders").update({
+      status: "pagado",
+      pagado_at: new Date().toISOString(),
+      metodo_pago: value.metodo_pago,
+      mp_external_reference: value.referencia || order.mp_external_reference,
+      notes: noteParts.join("\n"),
+    } as any).eq("id", order.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "✓ Pago registrado", description: getPaymentMethodLabel(value.metodo_pago) });
+    if (selectedOrder?.id === order.id) {
+      setSelectedOrder((o: any) => ({ ...o, status: "pagado", metodo_pago: value.metodo_pago }));
+    }
+    load();
+  };
+
 
   const filtered = orders.filter((o) => {
     if (search && !o.customer_name.toLowerCase().includes(search.toLowerCase()) && !String(o.order_number).includes(search)) return false;
@@ -108,6 +135,17 @@ const StoreOrders = () => {
                   <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(o.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-1">
+                      {o.status !== "pagado" && o.status !== "entregado" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                          title="Registrar pago"
+                          onClick={() => setPayOrder(o)}
+                        >
+                          <DollarSign className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => viewOrder(o)}><Eye className="w-4 h-4" /></Button>
                       <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
                         <SelectTrigger className="h-8 w-[120px] text-xs"><SelectValue /></SelectTrigger>
@@ -157,9 +195,33 @@ const StoreOrders = () => {
                 <Button size="sm" onClick={saveTracking}><Truck className="w-4 h-4 mr-1" /> Guardar</Button>
               </div>
             </div>
+
+            {selectedOrder && selectedOrder.status !== "pagado" && selectedOrder.status !== "entregado" && (
+              <Button className="w-full" onClick={() => setPayOrder(selectedOrder)}>
+                <DollarSign className="w-4 h-4 mr-1" /> Registrar pago total (${selectedOrder.total?.toLocaleString("es-AR")})
+              </Button>
+            )}
+            {selectedOrder?.metodo_pago && (
+              <div className="text-xs text-muted-foreground text-center">
+                Pagado por: <span className="text-foreground font-medium">{getPaymentMethodLabel(selectedOrder.metodo_pago)}</span>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
+      {payOrder && (
+        <ConfirmFullPaymentDialog
+          open={!!payOrder}
+          onOpenChange={(v) => !v && setPayOrder(null)}
+          title="Registrar pago del pedido"
+          description={`Pedido #${payOrder.order_number} · ${payOrder.customer_name}`}
+          monto={Number(payOrder.total || 0)}
+          moneda={payOrder.currency || "ARS"}
+          defaultMethod={payOrder.metodo_pago || "efectivo"}
+          onConfirm={(v) => registrarPagoOrden(payOrder, v)}
+        />
+      )}
     </div>
   );
 };

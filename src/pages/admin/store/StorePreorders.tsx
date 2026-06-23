@@ -12,6 +12,9 @@ import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { printSinglePreorderLabel } from "@/lib/preorderLabels";
+import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
+import { getPaymentMethodLabel } from "@/lib/paymentMethods";
+import { DollarSign } from "lucide-react";
 
 interface Preorder {
   id: string;
@@ -39,6 +42,7 @@ interface Preorder {
   envio_notas?: string | null;
   envio_costo?: number | null;
   envio_estado?: string | null;
+  sena_pagada_at?: string | null;
 }
 
 interface Alumno {
@@ -138,6 +142,7 @@ const StorePreorders = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Preorder | null>(null);
+  const [payDialog, setPayDialog] = useState<{ row: Preorder; mode: "total" | "saldo" } | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -203,6 +208,30 @@ const StorePreorders = () => {
 
   const rechazarSena = (r: Preorder) =>
     updateField(r.id, { estado_pago_sena: "rechazada" } as any);
+
+  const registrarPagoPreorder = async (r: Preorder, mode: "total" | "saldo", value: { metodo_pago: string; referencia?: string | null }) => {
+    const total = Number(r.precio_total || 0);
+    const senaActual = Number(r.sena_monto || 0);
+    const monto = mode === "saldo" ? Number(r.saldo_pendiente || 0) : (total - senaActual > 0 ? total - senaActual : total);
+    const nowIso = new Date().toISOString();
+    const trazaParts: string[] = [
+      `[${new Date().toLocaleString("es-AR")}] Pago ${mode === "saldo" ? "saldo" : "total"} registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(monto, r.moneda)}`,
+    ];
+    if (value.referencia) trazaParts.push(`Ref: ${value.referencia}`);
+    const patch: any = {
+      sena_monto: total,
+      saldo_pendiente: 0,
+      estado_pago_sena: "confirmada",
+      sena_pagada_at: r.sena_pagada_at ? undefined : nowIso,
+      forma_pago_sena: r.forma_pago_sena || value.metodo_pago,
+      notas: [r.notas, trazaParts.join(" · ")].filter(Boolean).join("\n"),
+    };
+    if (r.estado === "pendiente_pago_sena") patch.estado = "reservada";
+    Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
+    await updateField(r.id, patch);
+    toast({ title: "✓ Pago registrado", description: `${formatPrice(monto, r.moneda)} · ${getPaymentMethodLabel(value.metodo_pago)}` });
+  };
+
 
   const enviarRecordatorio = async (r: Preorder) => {
     const isSaldo = r.estado_pago_sena === "confirmada" && Number(r.saldo_pendiente || 0) > 0;
@@ -764,7 +793,30 @@ const StorePreorders = () => {
                         <Button size="sm" variant="ghost" onClick={() => rechazarSena(detail)}>Rechazar</Button>
                       </div>
                     )}
+                    {Number(detail.saldo_pendiente || 0) > 0 && (
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setPayDialog({
+                            row: detail,
+                            mode: detail.estado_pago_sena === "confirmada" ? "saldo" : "total",
+                          })}
+                        >
+                          <DollarSign className="w-4 h-4 mr-1" />
+                          {detail.estado_pago_sena === "confirmada"
+                            ? `Registrar pago de saldo (${formatPrice(Number(detail.saldo_pendiente), detail.moneda)})`
+                            : `Registrar pago total (${formatPrice(Number(detail.precio_total), detail.moneda)})`}
+                        </Button>
+                      </div>
+                    )}
+                    {Number(detail.saldo_pendiente || 0) <= 0 && detail.estado_pago_sena === "confirmada" && (
+                      <div className="pt-2 text-[11px] text-emerald-400 text-center font-medium">
+                        ✓ Pago total registrado
+                      </div>
+                    )}
                   </section>
+
 
                   {/* Notas internas */}
                   <section className="rounded-lg border border-border p-3 space-y-1">
@@ -803,6 +855,21 @@ const StorePreorders = () => {
           })()}
         </SheetContent>
       </Sheet>
+
+      {payDialog && (
+        <ConfirmFullPaymentDialog
+          open={!!payDialog}
+          onOpenChange={(v) => !v && setPayDialog(null)}
+          title={payDialog.mode === "saldo" ? "Registrar pago del saldo" : "Registrar pago total"}
+          description={`Preventa: ${payDialog.row.producto_nombre}`}
+          monto={payDialog.mode === "saldo"
+            ? Number(payDialog.row.saldo_pendiente || 0)
+            : Number(payDialog.row.precio_total || 0)}
+          moneda={payDialog.row.moneda}
+          defaultMethod={payDialog.row.forma_pago_sena || "efectivo"}
+          onConfirm={(v) => registrarPagoPreorder(payDialog.row, payDialog.mode, v)}
+        />
+      )}
     </div>
   );
 };
