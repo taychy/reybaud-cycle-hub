@@ -158,14 +158,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Persist on subscription
+    // Persist on subscription.
+    // IMPORTANTE: auto_renovacion solo queda true cuando MP devuelve
+    // status="authorized" (modo token o pre-autorizado). En modo redirect
+    // queda false hasta que el webhook reciba el evento "preapproval"
+    // con status=authorized — recién ahí confirmamos que la autorización
+    // existe de verdad en Mercado Pago.
+    const isAuthorized = mpData.status === "authorized";
     await supabaseAdmin
       .from("suscripciones")
       .update({
-        auto_renovacion: true,
+        auto_renovacion: isAuthorized,
         mp_preapproval_id: String(mpData.id),
         mp_preapproval_status: mpData.status || "pending",
-        auto_cobro_activo: mpData.status === "authorized",
+        auto_cobro_activo: isAuthorized,
         intentos_cobro_fallidos: 0,
         cuenta_mp_id: cuenta.cuenta_id,
       })
