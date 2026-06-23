@@ -237,7 +237,7 @@ const CardPaymentForm = ({
                       number: formData.identificationNumber,
                     },
                   },
-                  suscripcion_id: sub.id,
+                  suscripcion_id: subId,
                   alumno_id: alumnoId,
                   plan_id: planId,
                 }),
@@ -269,7 +269,7 @@ const CardPaymentForm = ({
                       },
                       body: JSON.stringify({
                         payer_email: email,
-                        suscripcion_id: sub.id,
+                        suscripcion_id: subId,
                         alumno_id: alumnoId,
                         plan_id: planId,
                         transaction_amount: planPrice,
