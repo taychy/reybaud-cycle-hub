@@ -9,22 +9,29 @@ const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+const FREQUENCY_DAYS = 7;
+
 interface SegmentFilters {
-  audience?: ("students" | "coaches")[];
-  estados?: string[];          // ['activo','inactivo',...]
+  audience?: ("students" | "coaches" | "marketing")[];
+  estados?: string[];
   sede_ids?: string[];
-  grupos?: string[];           // 'Grupal' | 'Personalizado' | etc
-  plan_ids?: string[];         // specific plan ids
-  has_email_only?: boolean;    // default true
-  alumno_ids?: string[];       // explicit override list
-  coach_ids?: string[];        // explicit override list
+  grupos?: string[];
+  plan_ids?: string[];
+  has_email_only?: boolean;
+  alumno_ids?: string[];
+  coach_ids?: string[];
+  // marketing
+  marketing_tipos?: string[];          // ['lead','ex_alumno',...]
+  marketing_tags?: string[];           // tags a matchear (OR)
+  marketing_contact_ids?: string[];    // selección puntual
+  marketing_ignore_frequency?: boolean;
+  marketing_include_opt_out?: boolean;
 }
 
 interface SendBody {
   mode: "test" | "send" | "preview_count";
   test_email?: string;
-  broadcast_id?: string;       // for "send"
-  // preview_count + send_now use these directly
+  broadcast_id?: string;
   subject?: string;
   content_html?: string;
   preheader?: string;
@@ -33,10 +40,10 @@ interface SendBody {
   sender_name?: string;
   reply_to?: string;
   save_as?: "draft" | "sent";
-  cta_url?: string;            // explicit CTA button URL
-  cta_label?: string;          // explicit CTA button text
-  excluded_emails?: string[];  // emails to skip in send
-  include_full_list?: boolean; // preview_count returns full recipient list
+  cta_url?: string;
+  cta_label?: string;
+  excluded_emails?: string[];
+  include_full_list?: boolean;
 }
 
 function escapeHtml(s: string) {
@@ -48,55 +55,18 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#39;");
 }
 
-function htmlWrap(content: string, preheader?: string, ctaOverride?: { url?: string; label?: string }) {
+function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }) {
+  const safe = content.includes("<") && content.includes(">")
+    ? content
+    : escapeHtml(content).replace(/\n/g, "<br/>");
   const pre = preheader
-    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>`
+    ? `<div style="display:none;font-size:1px;color:#121212;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(preheader)}</div>`
     : "";
-
-  const looksHtml = /<\/?(p|div|br|a|h[1-6]|ul|ol|li|strong|em|span|table)\b/i.test(content);
-
-  let bodyHtml = content;
-  let ctaUrl: string | null = ctaOverride?.url?.trim() || null;
-  let ctaLabel = ctaOverride?.label?.trim() || "Abrir en la app";
-
-  if (!looksHtml) {
-    // If no explicit CTA, auto-detect first URL in text
-    if (!ctaUrl) {
-      const match = content.match(/(https?:\/\/[^\s<]+)/i);
-      if (match) {
-        ctaUrl = match[1].replace(/[.,;:!?)]+$/, "");
-        if (!ctaOverride?.label) {
-          if (/reybaud-app\.com\/eventos\//i.test(ctaUrl)) ctaLabel = "Ver evento y reservar";
-          else if (/reybaud-app\.com\/planes/i.test(ctaUrl)) ctaLabel = "Ver planes";
-          else if (/reybaud-app\.com/i.test(ctaUrl)) ctaLabel = "Abrir en la app";
-          else ctaLabel = "Abrir enlace";
-        }
-      }
-    }
-
-    // Strip the CTA url from body to avoid duplication
-    let text = content;
-    if (ctaUrl) text = text.split(ctaUrl).join("").trim();
-    text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
-
-    bodyHtml = escapeHtml(text)
-      .split(/\n{2,}/)
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => `<p style="margin:0 0 18px;line-height:1.65;color:#e8e8e8;font-size:16px">${p.replace(/\n/g, "<br/>")}</p>`)
-      .join("");
-  }
-
-  const ctaBlock = ctaUrl
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:10px 0 6px">
-        <tr><td style="border-radius:10px;background:#F08A2A">
-          <a href="${ctaUrl}" style="display:inline-block;padding:14px 28px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;letter-spacing:0.5px;color:#ffffff;text-decoration:none;font-weight:700">${ctaLabel}</a>
-        </td></tr>
-      </table>
-      <p style="margin:0 0 8px;font-size:12px;color:#777"><a href="${ctaUrl}" style="color:#5BC8E0;word-break:break-all;text-decoration:underline">${ctaUrl}</a></p>`
+  const ctaBlock = cta?.url
+    ? `<div style="text-align:center;padding:24px 0 8px"><a href="${cta.url}" style="display:inline-block;background:#F08A2A;color:#0a0a0a;padding:14px 28px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif">${escapeHtml(cta.label || "Ver más")}</a></div>`
     : "";
-
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  const bodyHtml = `<div style="font-size:15px;line-height:1.6;color:#e8e8e8">${safe}</div>`;
+  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#121212;font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#e8e8e8">
 ${pre}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212">
@@ -116,10 +86,15 @@ ${pre}
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
-  const explicitSelection = Boolean(filters.alumno_ids?.length || filters.coach_ids?.length);
+  const explicitSelection = Boolean(
+    filters.alumno_ids?.length ||
+    filters.coach_ids?.length ||
+    filters.marketing_contact_ids?.length
+  );
   const audience = Array.isArray(filters.audience) ? filters.audience : ["students"];
   let rows: any[] = [];
 
+  // --- ALUMNOS ---
   if ((filters.alumno_ids?.length || (!explicitSelection && audience.includes("students")))) {
     let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo");
     if (filters.alumno_ids?.length) {
@@ -138,6 +113,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
 
+  // --- COACHES ---
   if ((filters.coach_ids?.length || (!explicitSelection && audience.includes("coaches")))) {
     let q = supabase.from("coaches").select("id, nombre, email, estado, sede_id, grupos");
     if (filters.coach_ids?.length) {
@@ -156,9 +132,40 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
 
+  // --- MARKETING CONTACTS ---
+  if ((filters.marketing_contact_ids?.length || (!explicitSelection && audience.includes("marketing")))) {
+    let q = supabase.from("marketing_contacts").select(
+      "id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at"
+    );
+    if (filters.marketing_contact_ids?.length) {
+      q = q.in("id", filters.marketing_contact_ids);
+    } else {
+      if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
+      if (filters.marketing_tipos?.length) q = q.in("tipo", filters.marketing_tipos);
+      if (filters.marketing_tags?.length) q = q.overlaps("tags", filters.marketing_tags);
+      // Frequency cap (7 días)
+      if (!filters.marketing_ignore_frequency) {
+        const cutoff = new Date(Date.now() - FREQUENCY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+        // last_campaign_sent_at IS NULL OR <= cutoff
+        q = q.or(`last_campaign_sent_at.is.null,last_campaign_sent_at.lte.${cutoff}`);
+      }
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((m: any) => ({
+      id: m.id,
+      email: m.email,
+      nombre: m.nombre,
+      apellido: m.apellido,
+      contact_type: "marketing",
+      marketing_tipo: m.tipo,
+      display_name: `${m.nombre ?? ""} ${m.apellido ?? ""}`.trim() || m.email,
+    })));
+  }
+
   rows = rows.filter((a: any) => a.email && a.email.includes("@"));
 
-  // exclude suppressed
+  // exclude suppressed (rebotes / quejas)
   const emails = rows.map((r: any) => r.email.toLowerCase());
   if (emails.length) {
     const { data: sup } = await supabase
@@ -168,7 +175,10 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     const supSet = new Set((sup || []).map((s: any) => s.email.toLowerCase()));
     rows = rows.filter((r: any) => !supSet.has(r.email.toLowerCase()));
   }
-  // de-dupe by email
+
+  // de-dupe by email (prioriza alumno > coach > marketing)
+  const priority: Record<string, number> = { alumno: 0, coach: 1, marketing: 2 };
+  rows.sort((a, b) => (priority[a.contact_type] ?? 9) - (priority[b.contact_type] ?? 9));
   const seen = new Set<string>();
   return rows.filter((r: any) => {
     const k = r.email.toLowerCase();
@@ -179,11 +189,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
 }
 
 async function sendOne(payload: any) {
-  console.log("[brevo] POST /smtp/email", {
-    from: payload?.sender,
-    to: payload?.to,
-    subject: payload?.subject,
-  });
+  console.log("[brevo] POST /smtp/email", { from: payload?.sender, to: payload?.to, subject: payload?.subject });
   const resp = await fetch(`${GATEWAY_URL}/smtp/email`, {
     method: "POST",
     headers: {
@@ -197,7 +203,6 @@ async function sendOne(payload: any) {
   let json: any = null;
   try { json = JSON.parse(text); } catch { /* ignore */ }
   console.log("[brevo] response", resp.status, text.slice(0, 500));
-  // Brevo returns 201 with { messageId } on success. Treat anything without messageId as failure.
   const ok = resp.ok && !!(json && (json.messageId || json.messageIds));
   return { ok, status: resp.status, body: json ?? text };
 }
@@ -232,7 +237,6 @@ Deno.serve(async (req) => {
     const body: SendBody = await req.json();
     const filters = body.segment_filters || {};
 
-    // Sender config fallback
     let senderEmail = body.sender_email;
     let senderName = body.sender_name;
     let replyTo = body.reply_to;
@@ -246,7 +250,6 @@ Deno.serve(async (req) => {
     const cta = { url: body.cta_url, label: body.cta_label };
     const excludedSet = new Set((body.excluded_emails || []).map((e) => e.toLowerCase()));
 
-    // Preview count only
     if (body.mode === "preview_count") {
       const rows = await loadRecipients(admin, filters);
       const filtered = rows.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
@@ -259,12 +262,9 @@ Deno.serve(async (req) => {
         count: filtered.length,
         sample: mapped.slice(0, 5),
         recipients: body.include_full_list ? mapped : undefined,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Test send
     if (body.mode === "test") {
       if (!body.test_email || !body.subject || !body.content_html) {
         return new Response(JSON.stringify({ error: "Faltan test_email, subject o content_html" }), {
@@ -284,7 +284,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Real send
     if (body.mode === "send") {
       if (!body.subject || !body.content_html) {
         return new Response(JSON.stringify({ error: "Faltan subject o content_html" }), {
@@ -313,7 +312,6 @@ Deno.serve(async (req) => {
       }).select().single();
       if (bcErr) throw bcErr;
 
-      // pre-insert recipient rows
       await admin.from("broadcast_recipients").insert(
         recipients.map((r: any) => ({
           broadcast_id: bc.id,
@@ -325,6 +323,7 @@ Deno.serve(async (req) => {
       );
 
       let sent = 0, failed = 0;
+      const marketingSentEmails: string[] = [];
       const html = htmlWrap(body.content_html, body.preheader, cta);
 
       for (const r of recipients) {
@@ -338,6 +337,7 @@ Deno.serve(async (req) => {
         });
         if (r1.ok) {
           sent++;
+          if (r.contact_type === "marketing") marketingSentEmails.push(r.email.toLowerCase());
           await admin.from("broadcast_recipients").update({
             status: "sent",
             brevo_message_id: r1.body?.messageId ?? null,
@@ -350,8 +350,15 @@ Deno.serve(async (req) => {
             error_message: typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body),
           }).eq("broadcast_id", bc.id).eq("email", r.email);
         }
-        // tiny delay to avoid burst
         await new Promise((res) => setTimeout(res, 50));
+      }
+
+      // actualizar last_campaign_sent_at de marketing_contacts enviados
+      if (marketingSentEmails.length) {
+        await admin
+          .from("marketing_contacts")
+          .update({ last_campaign_sent_at: new Date().toISOString() })
+          .in("email", marketingSentEmails);
       }
 
       await admin.from("broadcasts").update({
