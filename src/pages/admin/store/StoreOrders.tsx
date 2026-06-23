@@ -195,9 +195,33 @@ const StoreOrders = () => {
                 <Button size="sm" onClick={saveTracking}><Truck className="w-4 h-4 mr-1" /> Guardar</Button>
               </div>
             </div>
+
+            {selectedOrder && selectedOrder.status !== "pagado" && selectedOrder.status !== "entregado" && (
+              <Button className="w-full" onClick={() => setPayOrder(selectedOrder)}>
+                <DollarSign className="w-4 h-4 mr-1" /> Registrar pago total (${selectedOrder.total?.toLocaleString("es-AR")})
+              </Button>
+            )}
+            {selectedOrder?.metodo_pago && (
+              <div className="text-xs text-muted-foreground text-center">
+                Pagado por: <span className="text-foreground font-medium">{getPaymentMethodLabel(selectedOrder.metodo_pago)}</span>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
+      {payOrder && (
+        <ConfirmFullPaymentDialog
+          open={!!payOrder}
+          onOpenChange={(v) => !v && setPayOrder(null)}
+          title="Registrar pago del pedido"
+          description={`Pedido #${payOrder.order_number} · ${payOrder.customer_name}`}
+          monto={Number(payOrder.total || 0)}
+          moneda={payOrder.currency || "ARS"}
+          defaultMethod={payOrder.metodo_pago || "efectivo"}
+          onConfirm={(v) => registrarPagoOrden(payOrder, v)}
+        />
+      )}
     </div>
   );
 };
