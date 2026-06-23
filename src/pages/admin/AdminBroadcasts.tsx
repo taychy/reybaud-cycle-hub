@@ -17,10 +17,18 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search } from "lucide-react";
+import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search, Contact as ContactIcon } from "lucide-react";
+import MarketingContactsManager from "@/components/admin/MarketingContactsManager";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Sin grupo"];
+const MARKETING_TIPOS = [
+  { value: "lead", label: "Leads" },
+  { value: "ex_alumno", label: "Ex alumnos" },
+  { value: "evento_externo", label: "Eventos externos" },
+  { value: "manual", label: "Manuales" },
+  { value: "importado", label: "Importados" },
+];
 
 interface Broadcast {
   id: string;
