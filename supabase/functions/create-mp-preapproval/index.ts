@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         transaction_amount: amount,
         currency_id: currencyId,
       },
-      back_url: `${APP_BASE_URL}/perfil?section=suscripciones`,
+      back_url: `${APP_BASE_URL}/alumno/pagos`,
       notification_url: notificationUrl,
     };
 
