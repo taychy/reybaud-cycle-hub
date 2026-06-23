@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       return await handleBulkNotify(admin, userId, adminProfile?.email, role, dryRun, { onlyAutoRenewal });
     }
 
-    if (!subId || !["approve", "reject", "simulate_fail"].includes(action)) {
+    if (!subId || !["approve", "reject", "simulate_fail", "notify_failed_renewal"].includes(action)) {
       return json({ error: "Invalid payload" }, 400);
     }
     if (action === "simulate_fail" && role !== "super_admin") {
