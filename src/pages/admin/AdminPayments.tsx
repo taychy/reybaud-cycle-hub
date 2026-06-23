@@ -168,7 +168,14 @@ const getMethodDisplay = (sub: Suscripcion) => {
       (sub.metodo_pago || "").toLowerCase() === "efectivo");
 
   if (isAutoRenewalPending) {
-    return { method: "Renovación automática", origin: "Pendiente de cobro" };
+    // Honest label: only "Renovación automática" if MP preapproval is actually authorized.
+    const preapprovalAuthorized =
+      !!sub.mp_preapproval_id &&
+      (sub.mp_preapproval_status || "").toLowerCase() === "authorized";
+    if (preapprovalAuthorized) {
+      return { method: "Renovación automática", origin: "Pendiente de cobro" };
+    }
+    return { method: "Pendiente de cobro manual", origin: "Sin autorización de MP — avisar al alumno" };
   }
 
   // Primary line: WHO reported the payment (= origin)
@@ -617,6 +624,21 @@ const AdminPayments = () => {
     setRecordatorioMsg("");
   };
 
+  const handleNotifyFailedRenewal = async (sub: Suscripcion) => {
+    if (!sub.alumnos?.email) {
+      toast({ title: "Sin email", description: "El alumno no tiene email registrado", variant: "destructive" });
+      return;
+    }
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { action: "notify_failed_renewal", sub_id: sub.id },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error || "No se pudo enviar el aviso", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Aviso enviado", description: `Le avisamos a ${sub.alumnos?.nombre} por mail que tiene que pagar.` });
+  };
+
   const clearFilters = () => {
     setFilterEstado("todos");
     setFilterPlan("todos");
@@ -985,6 +1007,16 @@ const AdminPayments = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>Enviar recordatorio</TooltipContent>
                                 </Tooltip>
+                                {sub.origen_registro === "automatico" && sub.estado === "pendiente" && !sub.mp_payment_id && (sub.mp_preapproval_status || "").toLowerCase() !== "authorized" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleNotifyFailedRenewal(sub)}>
+                                        <Send className="w-3.5 h-3.5 text-red-600" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Avisar al alumno por mail (renovación no autorizada)</TooltipContent>
+                                  </Tooltip>
+                                )}
                                 {status === "pagado" && sub.planes && (
                                   <BillingInvoiceLauncher
                                     source={{

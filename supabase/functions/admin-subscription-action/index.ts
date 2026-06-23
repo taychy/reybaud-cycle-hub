@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       return await handleBulkNotify(admin, userId, adminProfile?.email, role, dryRun, { onlyAutoRenewal });
     }
 
-    if (!subId || !["approve", "reject", "simulate_fail"].includes(action)) {
+    if (!subId || !["approve", "reject", "simulate_fail", "notify_failed_renewal"].includes(action)) {
       return json({ error: "Invalid payload" }, 400);
     }
     if (action === "simulate_fail" && role !== "super_admin") {
@@ -217,6 +217,32 @@ Deno.serve(async (req) => {
 
       await logAudit(admin, userId, adminProfile?.email, role, "simular_renovacion_fallida", subId, { alumno: alumno?.nombre });
       return json({ ok: true, action, simulated_fails: newFails });
+    }
+
+    // notify_failed_renewal: individual email to a single student whose auto-renewal was not authorized
+    if (action === "notify_failed_renewal") {
+      if (!alumno?.email) return json({ error: "Alumno sin email" }, 400);
+      const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, alumno.email);
+      const planName = (sub.planes as any)?.nombre || "tu plan";
+      await admin.rpc("enqueue_email" as any, {
+        queue_name: "transactional_emails",
+        payload: {
+          message_id: crypto.randomUUID(),
+          to: alumno.email,
+          from: FROM,
+          sender_domain: SENDER_DOMAIN,
+          subject: "Tu renovación automática no fue autorizada",
+          html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222"><h2 style="color:#b8860b;margin-bottom:12px">Hola ${alumno.nombre || ""},</h2><p>Tu renovación automática del plan <strong>${planName}</strong> no quedó autorizada en Mercado Pago, así que el cobro no se realizó.</p><p>Para mantener tu acceso, necesitamos que pagues manualmente desde tu perfil.</p><p style="margin:24px 0"><a href="${APP_URL}/alumno/pagos" style="background:#b8860b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Pagar ahora</a></p><p style="color:#666;font-size:13px">Si tenés dudas, respondé este mail.</p></div>`,
+          text: `Hola ${alumno.nombre || ""}, tu renovación automática de ${planName} no quedó autorizada. Pagá manual desde ${APP_URL}/alumno/pagos`,
+          purpose: "transactional",
+          label: "auto_renewal_not_authorized_student",
+          idempotency_key: `auto-not-auth-${subId}-${new Date().toISOString().split("T")[0]}`,
+          unsubscribe_token,
+          queued_at: nowIso,
+        },
+      });
+      await logAudit(admin, userId, adminProfile?.email, role, "notificar_renovacion_no_autorizada", subId, { alumno: alumno?.nombre });
+      return json({ ok: true, action });
     }
 
     return json({ error: "Unhandled action" }, 400);
