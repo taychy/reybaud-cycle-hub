@@ -57,25 +57,52 @@ const StoreOrders = () => {
     load();
   };
 
-  const registrarPagoOrden = async (order: any, value: { metodo_pago: string; referencia?: string | null }) => {
-    const noteParts = [
-      order.notes,
-      `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`,
-    ].filter(Boolean);
-    const { error } = await supabase.from("store_orders").update({
-      status: "pagado",
-      pagado_at: new Date().toISOString(),
+  const parseCobrado = (notes: string | null): number => {
+    if (!notes) return 0;
+    const matches = [...notes.matchAll(/\[cobrado_acum:([0-9]+(?:\.[0-9]+)?)\]/g)];
+    if (matches.length === 0) return 0;
+    return Number(matches[matches.length - 1][1]) || 0;
+  };
+
+  const registrarPagoOrden = async (
+    order: any,
+    value: { metodo_pago: string; referencia?: string | null; monto: number; partial: boolean },
+  ) => {
+    const total = Number(order.total || 0);
+    const cobradoPrev = parseCobrado(order.notes);
+    const nuevoCobrado = Math.min(cobradoPrev + Number(value.monto || 0), total);
+    const restante = Math.max(total - nuevoCobrado, 0);
+    const completa = restante <= 0;
+    const tipoLabel = completa
+      ? (cobradoPrev > 0 ? "saldo" : "total")
+      : "parcial";
+    const trazaLine = `[${new Date().toLocaleString("es-AR")}] Pago ${tipoLabel} registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · $${Number(value.monto).toLocaleString("es-AR")}${value.referencia ? ` · Ref: ${value.referencia}` : ""}${completa ? "" : ` · resta $${restante.toLocaleString("es-AR")}`} [cobrado_acum:${nuevoCobrado}]`;
+    const noteParts = [order.notes, trazaLine].filter(Boolean);
+    const patch: any = {
       metodo_pago: value.metodo_pago,
       mp_external_reference: value.referencia || order.mp_external_reference,
       notes: noteParts.join("\n"),
-    } as any).eq("id", order.id);
+    };
+    if (completa) {
+      patch.status = "pagado";
+      patch.pagado_at = new Date().toISOString();
+    }
+    const { error } = await supabase.from("store_orders").update(patch).eq("id", order.id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "✓ Pago registrado", description: getPaymentMethodLabel(value.metodo_pago) });
+    toast({
+      title: completa ? "✓ Pago registrado" : "✓ Pago parcial registrado",
+      description: completa
+        ? getPaymentMethodLabel(value.metodo_pago)
+        : `$${Number(value.monto).toLocaleString("es-AR")} · resta $${restante.toLocaleString("es-AR")}`,
+    });
     if (selectedOrder?.id === order.id) {
-      setSelectedOrder((o: any) => ({ ...o, status: "pagado", metodo_pago: value.metodo_pago }));
+      setSelectedOrder((o: any) => ({
+        ...o,
+        ...patch,
+      }));
     }
     load();
   };
