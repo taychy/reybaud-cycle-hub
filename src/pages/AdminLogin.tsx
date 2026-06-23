@@ -48,13 +48,15 @@ const AdminLogin = () => {
 
     if (await checkAppRole(userId, "admin")) {
       clearPendingOtpState();
-      navigate("/admin", { replace: true });
+      const target = otpReturnTo && otpReturnTo.startsWith("/admin") ? otpReturnTo : "/admin";
+      navigate(target, { replace: true });
       return true;
     }
 
     if (await checkAppRole(userId, "coach")) {
       clearPendingOtpState();
-      navigate("/coach", { replace: true });
+      const target = otpReturnTo && otpReturnTo.startsWith("/coach") ? otpReturnTo : "/coach";
+      navigate(target, { replace: true });
       return true;
     }
 
@@ -64,6 +66,7 @@ const AdminLogin = () => {
       navigate(target, { replace: true });
       return true;
     }
+
 
     const { data: alumno } = await supabase
       .from("alumnos")
