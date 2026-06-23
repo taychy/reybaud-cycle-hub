@@ -25,6 +25,7 @@ const StoreOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [trackingInput, setTrackingInput] = useState("");
+  const [payOrder, setPayOrder] = useState<any | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
