@@ -624,6 +624,21 @@ const AdminPayments = () => {
     setRecordatorioMsg("");
   };
 
+  const handleNotifyFailedRenewal = async (sub: Suscripcion) => {
+    if (!sub.alumnos?.email) {
+      toast({ title: "Sin email", description: "El alumno no tiene email registrado", variant: "destructive" });
+      return;
+    }
+    const { data, error } = await supabase.functions.invoke("admin-subscription-action", {
+      body: { action: "notify_failed_renewal", sub_id: sub.id },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: error?.message || (data as any)?.error || "No se pudo enviar el aviso", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Aviso enviado", description: `Le avisamos a ${sub.alumnos?.nombre} por mail que tiene que pagar.` });
+  };
+
   const clearFilters = () => {
     setFilterEstado("todos");
     setFilterPlan("todos");
