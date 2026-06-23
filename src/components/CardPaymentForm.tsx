@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CreditCard, Loader2, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { Checkbox } from "@/components/ui/checkbox";
+import { tryReuseExistingSubscription } from "@/lib/paymentReuseSub";
 
 interface CardPaymentFormProps {
   planId: string;
