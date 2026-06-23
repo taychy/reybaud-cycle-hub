@@ -1017,34 +1017,30 @@ const AdminEventReservations = ({
       }).catch(() => {});
     }
 
-    // Send notification if toggled on
+    // Send unified "Pago registrado" email (same template for MP, manual, cash, transfer)
     if (notifyOnPayment) {
-      const ctx = getNotifContext(selectedRes, { monto: eqAmt });
-      const tpl = notifTemplates.pago_registrado;
-      // Reload totals + installments to embed an up-to-date payment plan
-      const [{ data: updatedRes }, updatedInsts] = await Promise.all([
-        supabase.from("event_reservations" as any).select("amount_paid, balance_due").eq("id", selectedRes.id).maybeSingle(),
-        ensureMatInstallments(selectedRes.id),
-      ]);
-      const newPaid = (updatedRes as any)?.amount_paid ?? 0;
-      const newBalance = (updatedRes as any)?.balance_due ?? 0;
-      const plan = buildPlanPagos((updatedInsts as any[]) || [], evCurr);
-      const updatedCtx = {
-        ...ctx,
-        abonado: formatPrice(newPaid, evCurr),
-        saldo: formatPrice(newBalance, evCurr),
-        plan_text: plan.text,
-        plan_html: plan.html,
-      };
-      await sendNotification(
-        "pago_registrado",
-        tpl.asunto.replace("{{evento}}", eventTitle),
-        tpl.contenido(updatedCtx),
-        tpl.html(updatedCtx),
-        { monto: eqAmt, metodo: adminPayMethod, nuevo_abonado: newPaid, nuevo_saldo: newBalance },
-        `pago-${selectedRes.id}-${Date.now()}`
-      );
+      const { data: sessionData } = await supabase.auth.getSession();
+      try {
+        const { error: notifErr } = await supabase.functions.invoke("send-reservation-payment-recorded", {
+          body: {
+            reservation_id: selectedRes.id,
+            amount: eqAmt,
+            payment_method: adminPayMethod,
+            payment_reference: adminPayRef || `manual-${Date.now()}`,
+            installment_number: adminPayInstallmentId ? null : null, // installment_number resolved from id if needed elsewhere
+            enviado_por: sessionData?.session?.user?.id || null,
+            enviado_por_email: sessionData?.session?.user?.email || "admin",
+          },
+        });
+        if (notifErr) {
+          toast({ title: "Email no enviado", description: notifErr.message, variant: "destructive" });
+        }
+      } catch (e: any) {
+        console.error("send-reservation-payment-recorded error", e);
+      }
+      loadNotifications(selectedRes.id);
     }
+
   };
 
   // Abre el drawer de validación. Tanto validar como rechazar pasan por ahí
