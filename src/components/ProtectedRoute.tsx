@@ -88,9 +88,15 @@ const ProtectedRoute = ({
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      navigate(loginPath, { replace: true });
+      const current = window.location.pathname + window.location.search;
+      const sep = loginPath.includes("?") ? "&" : "?";
+      const target = current && current !== "/" && !current.startsWith("/admin/login")
+        ? `${loginPath}${sep}returnTo=${encodeURIComponent(current)}`
+        : loginPath;
+      navigate(target, { replace: true });
     }
   }, [status, loginPath, navigate]);
+
 
   if (status === "loading" || status === "unauthenticated") {
     return (
