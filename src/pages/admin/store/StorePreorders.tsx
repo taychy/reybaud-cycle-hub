@@ -792,7 +792,30 @@ const StorePreorders = () => {
                         <Button size="sm" variant="ghost" onClick={() => rechazarSena(detail)}>Rechazar</Button>
                       </div>
                     )}
+                    {Number(detail.saldo_pendiente || 0) > 0 && (
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setPayDialog({
+                            row: detail,
+                            mode: detail.estado_pago_sena === "confirmada" ? "saldo" : "total",
+                          })}
+                        >
+                          <DollarSign className="w-4 h-4 mr-1" />
+                          {detail.estado_pago_sena === "confirmada"
+                            ? `Registrar pago de saldo (${formatPrice(Number(detail.saldo_pendiente), detail.moneda)})`
+                            : `Registrar pago total (${formatPrice(Number(detail.precio_total), detail.moneda)})`}
+                        </Button>
+                      </div>
+                    )}
+                    {Number(detail.saldo_pendiente || 0) <= 0 && detail.estado_pago_sena === "confirmada" && (
+                      <div className="pt-2 text-[11px] text-emerald-400 text-center font-medium">
+                        ✓ Pago total registrado
+                      </div>
+                    )}
                   </section>
+
 
                   {/* Notas internas */}
                   <section className="rounded-lg border border-border p-3 space-y-1">
