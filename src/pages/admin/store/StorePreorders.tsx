@@ -141,6 +141,7 @@ const StorePreorders = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Preorder | null>(null);
+  const [payDialog, setPayDialog] = useState<{ row: Preorder; mode: "total" | "saldo" } | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
