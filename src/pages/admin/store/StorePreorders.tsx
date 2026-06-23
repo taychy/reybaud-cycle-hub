@@ -604,12 +604,20 @@ const StorePreorders = () => {
                   </td>
                   <td className="px-3 py-2 text-right font-heading">{formatPrice(Number(r.precio_total), r.moneda)}</td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <Select value={r.estado_pago_sena} onValueChange={(v) => updateField(r.id, { estado_pago_sena: v } as any)}>
-                      <SelectTrigger className="h-7 text-xs w-[140px] mx-auto"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {ESTADOS_PAGO.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <span
+                      className={`inline-block text-[10px] font-heading uppercase px-2 py-1 rounded ${
+                        r.estado_pago_sena === "confirmada"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : r.estado_pago_sena === "rechazada"
+                          ? "bg-destructive/20 text-destructive"
+                          : r.estado_pago_sena === "pendiente_verificacion"
+                          ? "bg-amber-500/20 text-amber-400"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                      title="Para cambiar el estado de pago abrí el detalle y registrá un pago"
+                    >
+                      {(r.estado_pago_sena || "—").replace(/_/g, " ")}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                     <Select value={r.estado} onValueChange={(v) => updateField(r.id, { estado: v } as any)}>
