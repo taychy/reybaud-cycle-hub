@@ -222,7 +222,7 @@ const StorePreorders = () => {
       sena_monto: total,
       saldo_pendiente: 0,
       estado_pago_sena: "confirmada",
-      sena_pagada_at: r["sena_pagada_at" as keyof Preorder] ? undefined : nowIso,
+      sena_pagada_at: r.sena_pagada_at ? undefined : nowIso,
       forma_pago_sena: r.forma_pago_sena || value.metodo_pago,
       notas: [r.notas, trazaParts.join(" · ")].filter(Boolean).join("\n"),
     };
