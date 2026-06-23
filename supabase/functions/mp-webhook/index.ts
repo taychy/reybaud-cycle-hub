@@ -635,6 +635,40 @@ Deno.serve(async (req) => {
           .from("event_reservations")
           .update(update)
           .eq("id", reservationId);
+
+        // Si el pago era de una cuota específica, marcarla como pagada
+        if (eventInstallmentNumber != null) {
+          try {
+            const { data: instRow } = await supabaseAdmin
+              .from("reservation_installments")
+              .select("id, amount, paid_amount, monto_pagado")
+              .eq("reservation_id", reservationId)
+              .eq("installment_number", eventInstallmentNumber)
+              .maybeSingle();
+
+            if (instRow) {
+              const prevPaid = Number(instRow.paid_amount || 0);
+              const newInstPaid = prevPaid + paidAmount;
+              const instAmount = Number(instRow.amount || 0);
+              const instBalance = Math.max(0, instAmount - newInstPaid);
+              const instStatus = instAmount > 0 && instBalance <= 0 ? "pagada" : "parcial";
+              await supabaseAdmin
+                .from("reservation_installments")
+                .update({
+                  paid_amount: newInstPaid,
+                  monto_pagado: newInstPaid,
+                  balance_due: instBalance,
+                  saldo_pendiente: instBalance,
+                  status: instStatus,
+                } as any)
+                .eq("id", instRow.id);
+            } else {
+              console.warn("[mp-webhook] cuota no encontrada para event:inst", { reservationId, eventInstallmentNumber });
+            }
+          } catch (e) {
+            console.error("[mp-webhook] error actualizando cuota:", e);
+          }
+        }
       } else if (payment.status === "rejected" || payment.status === "cancelled") {
         await supabaseAdmin
           .from("event_reservations")
