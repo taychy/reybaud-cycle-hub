@@ -223,11 +223,18 @@ const StoreOrders = () => {
               </div>
             </div>
 
-            {selectedOrder && selectedOrder.status !== "pagado" && selectedOrder.status !== "entregado" && (
-              <Button className="w-full" onClick={() => setPayOrder(selectedOrder)}>
-                <DollarSign className="w-4 h-4 mr-1" /> Registrar pago total (${selectedOrder.total?.toLocaleString("es-AR")})
-              </Button>
-            )}
+            {selectedOrder && selectedOrder.status !== "pagado" && selectedOrder.status !== "entregado" && (() => {
+              const cobrado = parseCobrado(selectedOrder.notes);
+              const pendiente = Math.max(Number(selectedOrder.total || 0) - cobrado, 0);
+              return (
+                <Button className="w-full" onClick={() => setPayOrder(selectedOrder)}>
+                  <DollarSign className="w-4 h-4 mr-1" />
+                  {cobrado > 0
+                    ? `Registrar pago (pendiente $${pendiente.toLocaleString("es-AR")})`
+                    : `Registrar pago (total $${pendiente.toLocaleString("es-AR")})`}
+                </Button>
+              );
+            })()}
             {selectedOrder?.metodo_pago && (
               <div className="text-xs text-muted-foreground text-center">
                 Pagado por: <span className="text-foreground font-medium">{getPaymentMethodLabel(selectedOrder.metodo_pago)}</span>
@@ -237,18 +244,23 @@ const StoreOrders = () => {
         </DialogContent>
       </Dialog>
 
-      {payOrder && (
-        <ConfirmFullPaymentDialog
-          open={!!payOrder}
-          onOpenChange={(v) => !v && setPayOrder(null)}
-          title="Registrar pago del pedido"
-          description={`Pedido #${payOrder.order_number} · ${payOrder.customer_name}`}
-          monto={Number(payOrder.total || 0)}
-          moneda={payOrder.currency || "ARS"}
-          defaultMethod={payOrder.metodo_pago || "efectivo"}
-          onConfirm={(v) => registrarPagoOrden(payOrder, v)}
-        />
-      )}
+      {payOrder && (() => {
+        const cobrado = parseCobrado(payOrder.notes);
+        const pendiente = Math.max(Number(payOrder.total || 0) - cobrado, 0);
+        return (
+          <ConfirmFullPaymentDialog
+            open={!!payOrder}
+            onOpenChange={(v) => !v && setPayOrder(null)}
+            title="Registrar pago del pedido"
+            description={`Pedido #${payOrder.order_number} · ${payOrder.customer_name}${cobrado > 0 ? ` · ya cobrado $${cobrado.toLocaleString("es-AR")}` : ""}`}
+            monto={pendiente}
+            moneda={payOrder.currency || "ARS"}
+            defaultMethod={payOrder.metodo_pago || "efectivo"}
+            allowPartial
+            onConfirm={(v) => registrarPagoOrden(payOrder, v)}
+          />
+        );
+      })()}
     </div>
   );
 };
