@@ -1,0 +1,75 @@
+/**
+ * Helpers para reutilizar una suscripción existente al pagar desde "Mis pagos"
+ * en vez de generar una sub nueva (que termina creando un período fantasma,
+ * como el caso Natalia: pagó junio pendiente → se generó un mes de julio).
+ *
+ * Flujo:
+ *   - StudentPayments.goToCheckout guarda en localStorage el id de la sub
+ *     del período actual que el alumno quiere regularizar.
+ *   - Los checkouts (MP, manual, tarjeta) leen ese id; si coincide alumno+plan
+ *     y la sub está en un estado pagable y todavía corresponde al período
+ *     actual, hacen UPDATE en lugar de INSERT.
+ */
+
+import { supabase } from "@/integrations/supabase/client";
+
+export const REUSE_SUB_KEY = "alumno_pay_existing_sub_id";
+
+
+
+
+export function getReuseSubId(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(REUSE_SUB_KEY);
+}
+
+export function setReuseSubId(id: string) {
+  localStorage.setItem(REUSE_SUB_KEY, id);
+}
+
+export function clearReuseSubId() {
+  if (typeof localStorage !== "undefined") {
+    localStorage.removeItem(REUSE_SUB_KEY);
+  }
+}
+
+interface ReuseUpdate {
+  estado: "pendiente" | "pendiente_verificacion";
+  descuento_id?: string | null;
+  precio_base?: number;
+  precio_final?: number;
+  metodo_pago?: string | null;
+  origen_registro?: string | null;
+  notas?: string | null;
+}
+
+/**
+ * Si hay una sub a reutilizar válida para este alumno+plan, la actualiza vía RPC
+ * `reuse_pending_subscription` (SECURITY DEFINER que valida ownership y estado
+ * pagable) y devuelve su id. Si no, devuelve null para que el caller siga con
+ * su INSERT normal.
+ */
+export async function tryReuseExistingSubscription(
+  alumnoId: string,
+  planId: string,
+  update: ReuseUpdate,
+): Promise<{ id: string } | null> {
+  const existingId = getReuseSubId();
+  if (!existingId) return null;
+
+  const { data, error } = await supabase.rpc("reuse_pending_subscription" as any, {
+    p_sub_id: existingId,
+    p_alumno_id: alumnoId,
+    p_plan_id: planId,
+    p_estado: update.estado,
+    p_descuento_id: update.descuento_id ?? null,
+    p_precio_base: update.precio_base ?? null,
+    p_precio_final: update.precio_final ?? null,
+    p_metodo_pago: update.metodo_pago ?? null,
+    p_origen_registro: update.origen_registro ?? null,
+    p_notas: update.notas ?? null,
+  });
+
+  if (error || !data) return null;
+  return { id: existingId };
+}

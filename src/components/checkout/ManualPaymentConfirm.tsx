@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { getEarlyRenewal } from "@/lib/earlyRenewal";
+import { tryReuseExistingSubscription, clearReuseSubId } from "@/lib/paymentReuseSub";
 
 type DeclaredManualMethod =
   | "efectivo"
@@ -94,28 +95,48 @@ const ManualPaymentConfirm = ({
         : null;
     const notas = [upgradeMarker, earlyMarker, userNotas].filter(Boolean).join(" | ") || null;
 
-    const { data: sub, error: subError } = await supabase
-      .from("suscripciones")
-      .insert({
-        alumno_id: alumnoId,
-        plan_id: planId,
-        estado: "pendiente_verificacion",
-        descuento_id: descuentoId,
-        precio_base: precioBase,
-        precio_final: precioFinal,
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
-        metodo_pago: canonicalMethod,
-        origen_registro: "informado_alumno",
-        notas,
-      } as any)
-      .select("id")
-      .single();
+    // Si el alumno está pagando una sub del período actual (Natalia case),
+    // reutilizamos esa sub en vez de generar una nueva.
+    const reused = !earlyRenewal && !upgradeFromSubId
+      ? await tryReuseExistingSubscription(alumnoId, planId, {
+          estado: "pendiente_verificacion",
+          descuento_id: descuentoId,
+          precio_base: precioBase,
+          precio_final: precioFinal,
+          metodo_pago: canonicalMethod,
+          origen_registro: "informado_alumno",
+          notas,
+        })
+      : null;
 
-    if (subError) {
-      setError("Error al registrar. Intentá nuevamente.");
-      onProcessing(false);
-      return;
+    let subId: string;
+    if (reused) {
+      subId = reused.id;
+    } else {
+      const { data: sub, error: subError } = await supabase
+        .from("suscripciones")
+        .insert({
+          alumno_id: alumnoId,
+          plan_id: planId,
+          estado: "pendiente_verificacion",
+          descuento_id: descuentoId,
+          precio_base: precioBase,
+          precio_final: precioFinal,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          metodo_pago: canonicalMethod,
+          origen_registro: "informado_alumno",
+          notas,
+        } as any)
+        .select("id")
+        .single();
+
+      if (subError) {
+        setError("Error al registrar. Intentá nuevamente.");
+        onProcessing(false);
+        return;
+      }
+      subId = sub.id;
     }
 
     try {
@@ -129,7 +150,7 @@ const ManualPaymentConfirm = ({
         body: JSON.stringify({
           alumno_id: alumnoId,
           plan_id: planId,
-          suscripcion_id: sub.id,
+          suscripcion_id: subId,
           payment_type: canonicalMethod,
           declared_method: metodoPago,
           other_detail: otherDetail ?? null,
@@ -175,6 +196,7 @@ const ManualPaymentConfirm = ({
             localStorage.removeItem("upgrade_from_sub_id");
             localStorage.removeItem("upgrade_preselect_plan_id");
             clearEarlyRenewal();
+            clearReuseSubId();
             navigate("/");
           }}
         >

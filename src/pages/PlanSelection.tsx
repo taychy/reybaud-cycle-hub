@@ -15,6 +15,7 @@ import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
+import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
 interface Plan {
@@ -429,39 +430,57 @@ const PlanSelection = () => {
     const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
     const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
 
-    const { data: sub, error: subError } = await supabase
-      .from("suscripciones")
-      .insert({
-        alumno_id: alumnoId,
-        plan_id: plan.id,
-        estado: "pendiente",
-        descuento_id: disc?.discount?.id ?? null,
-        precio_base: disc?.original ?? plan.precio,
-        precio_final: disc?.final ?? plan.precio,
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
-        notas: notasMarker,
-      } as any)
-      .select("id")
-      .single();
+    // Si venimos de "Pagar este plan" sobre una sub del período actual, reutilizamos
+    // esa sub en vez de generar una nueva (evita el bug de Natalia: pagaba junio y
+    // se creaba julio). Solo aplica si el alumno paga el mismo plan.
+    let subId: string | null = null;
+    const reused = !earlyRenewal && !isUpgradeFlow
+      ? await tryReuseExistingSubscription(alumnoId, plan.id, {
+          estado: "pendiente",
+          descuento_id: disc?.discount?.id ?? null,
+          precio_base: disc?.original ?? plan.precio,
+          precio_final: disc?.final ?? plan.precio,
+        })
+      : null;
 
-    if (subError) {
-      const msg = (subError as any)?.message || "";
-      if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
-        setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
-      } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
-        setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
-      } else if (msg.includes("PAUSA_TOO_LONG")) {
-        setError("La pausa no puede durar más de 2 meses.");
-      } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
-        setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
-      } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
-        setError("Ya tenés este mismo plan activo para este período.");
-      } else {
-        setError("Error al procesar. Intentá nuevamente.");
+    if (reused) {
+      subId = reused.id;
+    } else {
+      const { data: sub, error: subError } = await supabase
+        .from("suscripciones")
+        .insert({
+          alumno_id: alumnoId,
+          plan_id: plan.id,
+          estado: "pendiente",
+          descuento_id: disc?.discount?.id ?? null,
+          precio_base: disc?.original ?? plan.precio,
+          precio_final: disc?.final ?? plan.precio,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          notas: notasMarker,
+        } as any)
+        .select("id")
+        .single();
+
+      if (subError) {
+        const msg = (subError as any)?.message || "";
+        if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
+          setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
+        } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
+          setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
+        } else if (msg.includes("PAUSA_TOO_LONG")) {
+          setError("La pausa no puede durar más de 2 meses.");
+        } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
+          setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
+        } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
+          setError("Ya tenés este mismo plan activo para este período.");
+        } else {
+          setError("Error al procesar. Intentá nuevamente.");
+        }
+        setProcessing(false);
+        return;
       }
-      setProcessing(false);
-      return;
+      subId = sub.id;
     }
 
 
@@ -476,7 +495,7 @@ const PlanSelection = () => {
         body: JSON.stringify({
           plan_id: plan.id,
           alumno_id: alumnoId,
-          suscripcion_id: sub.id,
+          suscripcion_id: subId,
         }),
       });
 
