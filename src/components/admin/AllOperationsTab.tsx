@@ -417,6 +417,14 @@ export default function AllOperationsTab() {
   };
 
   const handleValidate = async (op: UnifiedOp) => {
+    if (op.tipo === "preventa") {
+      toast({
+        title: "Registrá el pago desde Preventas",
+        description: "El pago de seña requiere medio, monto y referencia. Abrí la preventa en el módulo Preventas y usá 'Registrar pago'.",
+        variant: "destructive",
+      });
+      return;
+    }
     const ok = await validateOp(op);
     if (ok) {
       toast({ title: "Pago validado" });
