@@ -176,31 +176,44 @@ const CardPaymentForm = ({
                 return;
               }
 
-              // Create subscription first
-              const now = new Date();
-              const fechaInicio = now.toISOString().split("T")[0];
-              const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-              const fechaFin = lastDay.toISOString().split("T")[0];
+              // Reutilizar sub del período actual si venimos de "Pagar este plan"
+              const reused = await tryReuseExistingSubscription(alumnoId, planId, {
+                estado: "pendiente",
+                descuento_id: descuentoId,
+                precio_base: precioBase,
+                precio_final: planPrice,
+              });
 
-              const { data: sub, error: subError } = await supabase
-                .from("suscripciones")
-                .insert({
-                  alumno_id: alumnoId,
-                  plan_id: planId,
-                  estado: "pendiente",
-                  descuento_id: descuentoId,
-                  precio_base: precioBase,
-                  precio_final: planPrice,
-                  fecha_inicio: fechaInicio,
-                  fecha_fin: fechaFin,
-                } as any)
-                .select("id")
-                .single();
+              let subId: string;
+              if (reused) {
+                subId = reused.id;
+              } else {
+                const now = new Date();
+                const fechaInicio = now.toISOString().split("T")[0];
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                const fechaFin = lastDay.toISOString().split("T")[0];
 
-              if (subError) {
-                setError("Error al procesar. Intentá nuevamente.");
-                setProcessing(false);
-                return;
+                const { data: sub, error: subError } = await supabase
+                  .from("suscripciones")
+                  .insert({
+                    alumno_id: alumnoId,
+                    plan_id: planId,
+                    estado: "pendiente",
+                    descuento_id: descuentoId,
+                    precio_base: precioBase,
+                    precio_final: planPrice,
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin,
+                  } as any)
+                  .select("id")
+                  .single();
+
+                if (subError) {
+                  setError("Error al procesar. Intentá nuevamente.");
+                  setProcessing(false);
+                  return;
+                }
+                subId = sub.id;
               }
 
               // Process payment via edge function
