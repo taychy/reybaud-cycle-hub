@@ -62,12 +62,15 @@ const emptyComposer = {
   content_html: "",
   cta_url: "",
   cta_label: "",
-  audience: ["students"] as ("students" | "coaches")[],
+  audience: ["students"] as ("students" | "coaches" | "marketing")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
   sede_ids: [] as string[],
   alumno_ids: [] as string[],
   coach_ids: [] as string[],
+  marketing_tipos: [] as string[],
+  marketing_tags: [] as string[],
+  marketing_ignore_frequency: false,
 };
 
 export default function AdminBroadcasts() {
