@@ -7,7 +7,8 @@ import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, Refr
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
 import ChangePlanScopeDialog from "@/components/ChangePlanScopeDialog";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
-import { daysUntil, setEarlyRenewal, EARLY_RENEWAL_WINDOW_DAYS } from "@/lib/earlyRenewal";
+import { daysUntil, setEarlyRenewal, clearEarlyRenewal, EARLY_RENEWAL_WINDOW_DAYS } from "@/lib/earlyRenewal";
+import { setReuseSubId, clearReuseSubId } from "@/lib/paymentReuseSub";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
