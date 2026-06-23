@@ -441,19 +441,78 @@ export default function AdminBroadcasts() {
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
                   checked={composer.audience.includes("students")}
-                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "students") as ("students" | "coaches")[] })}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "students") as any })}
                 />
                 Alumnos
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
                   checked={composer.audience.includes("coaches")}
-                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "coaches") as ("students" | "coaches")[] })}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "coaches") as any })}
                 />
                 Coaches
               </label>
-              <span className="text-xs text-muted-foreground self-center">Elegí uno o ambos públicos.</span>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("marketing")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "marketing") as any })}
+                />
+                Contactos marketing
+              </label>
+              <span className="text-xs text-muted-foreground self-center">Alumnos, coaches y/o la base de leads y ex-clientes.</span>
             </div>
+
+            {composer.audience.includes("marketing") && (
+              <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/20">
+                <div className="text-xs font-medium flex items-center gap-2">
+                  <ContactIcon className="w-3.5 h-3.5" /> Filtros de la base de marketing
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tipo de contacto</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MARKETING_TIPOS.map((t) => (
+                        <Badge key={t.value}
+                          variant={composer.marketing_tipos.includes(t.value) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setComposer({ ...composer, marketing_tipos: toggleArr(composer.marketing_tipos, t.value) })}>
+                          {t.label}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Vacío = todos los tipos.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tags</Label>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {marketingTagOptions.length === 0 ? (
+                        <span className="text-[10px] text-muted-foreground">Todavía no hay tags definidos. Asigná tags al cargar contactos.</span>
+                      ) : marketingTagOptions.map((t) => (
+                        <Badge key={t}
+                          variant={composer.marketing_tags.includes(t) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setComposer({ ...composer, marketing_tags: toggleArr(composer.marketing_tags, t) })}>
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Vacío = sin filtro de tags.</p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs">
+                  <Checkbox
+                    checked={composer.marketing_ignore_frequency}
+                    onCheckedChange={(v) => setComposer({ ...composer, marketing_ignore_frequency: !!v })}
+                  />
+                  <span>
+                    Ignorar tope de frecuencia (por defecto excluye contactos que recibieron una campaña en los últimos 7 días).
+                  </span>
+                </label>
+                <p className="text-[10px] text-muted-foreground">
+                  Sólo se envía a contactos con <b>opt-in activo</b>. Los rebotes/bajas (suppressed_emails) se descartan siempre.
+                </p>
+              </div>
+            )}
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Estados</Label>
