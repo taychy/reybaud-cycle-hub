@@ -209,18 +209,29 @@ const StorePreorders = () => {
   const rechazarSena = (r: Preorder) =>
     updateField(r.id, { estado_pago_sena: "rechazada" } as any);
 
-  const registrarPagoPreorder = async (r: Preorder, mode: "total" | "saldo", value: { metodo_pago: string; referencia?: string | null }) => {
+  const registrarPagoPreorder = async (
+    r: Preorder,
+    mode: "total" | "saldo",
+    value: { metodo_pago: string; referencia?: string | null; monto: number; partial: boolean },
+  ) => {
     const total = Number(r.precio_total || 0);
     const senaActual = Number(r.sena_monto || 0);
-    const monto = mode === "saldo" ? Number(r.saldo_pendiente || 0) : (total - senaActual > 0 ? total - senaActual : total);
+    const monto = Number(value.monto) || 0;
+    const nuevoCobrado = Math.min(senaActual + monto, total);
+    const nuevoSaldo = Math.max(total - nuevoCobrado, 0);
+    const completa = nuevoSaldo <= 0;
     const nowIso = new Date().toISOString();
+    const tipoLabel = completa
+      ? (mode === "saldo" ? "saldo" : "total")
+      : "parcial";
     const trazaParts: string[] = [
-      `[${new Date().toLocaleString("es-AR")}] Pago ${mode === "saldo" ? "saldo" : "total"} registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(monto, r.moneda)}`,
+      `[${new Date().toLocaleString("es-AR")}] Pago ${tipoLabel} registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(monto, r.moneda)}`,
     ];
+    if (!completa) trazaParts.push(`Resta ${formatPrice(nuevoSaldo, r.moneda)}`);
     if (value.referencia) trazaParts.push(`Ref: ${value.referencia}`);
     const patch: any = {
-      sena_monto: total,
-      saldo_pendiente: 0,
+      sena_monto: nuevoCobrado,
+      saldo_pendiente: nuevoSaldo,
       estado_pago_sena: "confirmada",
       sena_pagada_at: r.sena_pagada_at ? undefined : nowIso,
       forma_pago_sena: r.forma_pago_sena || value.metodo_pago,
@@ -229,7 +240,12 @@ const StorePreorders = () => {
     if (r.estado === "pendiente_pago_sena") patch.estado = "reservada";
     Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
     await updateField(r.id, patch);
-    toast({ title: "✓ Pago registrado", description: `${formatPrice(monto, r.moneda)} · ${getPaymentMethodLabel(value.metodo_pago)}` });
+    toast({
+      title: completa ? "✓ Pago total registrado" : "✓ Pago parcial registrado",
+      description: completa
+        ? `${formatPrice(monto, r.moneda)} · ${getPaymentMethodLabel(value.metodo_pago)}`
+        : `${formatPrice(monto, r.moneda)} · resta ${formatPrice(nuevoSaldo, r.moneda)}`,
+    });
   };
 
 
