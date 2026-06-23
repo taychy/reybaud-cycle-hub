@@ -854,6 +854,21 @@ const StorePreorders = () => {
           })()}
         </SheetContent>
       </Sheet>
+
+      {payDialog && (
+        <ConfirmFullPaymentDialog
+          open={!!payDialog}
+          onOpenChange={(v) => !v && setPayDialog(null)}
+          title={payDialog.mode === "saldo" ? "Registrar pago del saldo" : "Registrar pago total"}
+          description={`Preventa: ${payDialog.row.producto_nombre}`}
+          monto={payDialog.mode === "saldo"
+            ? Number(payDialog.row.saldo_pendiente || 0)
+            : Number(payDialog.row.precio_total || 0)}
+          moneda={payDialog.row.moneda}
+          defaultMethod={payDialog.row.forma_pago_sena || "efectivo"}
+          onConfirm={(v) => registrarPagoPreorder(payDialog.row, payDialog.mode, v)}
+        />
+      )}
     </div>
   );
 };
