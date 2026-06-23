@@ -150,7 +150,20 @@ export default function AdminBroadcasts() {
     sede_ids: composer.sede_ids.length ? composer.sede_ids : undefined,
     alumno_ids: composer.alumno_ids.length ? composer.alumno_ids : undefined,
     coach_ids: composer.coach_ids.length ? composer.coach_ids : undefined,
+    marketing_tipos: composer.marketing_tipos.length ? composer.marketing_tipos : undefined,
+    marketing_tags: composer.marketing_tags.length ? composer.marketing_tags : undefined,
+    marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
   }), [composer]);
+
+  const [marketingTagOptions, setMarketingTagOptions] = useState<string[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("marketing_contacts" as any).select("tags").limit(2000);
+      const s = new Set<string>();
+      ((data as any[]) || []).forEach((r) => (r?.tags || []).forEach((t: string) => s.add(t)));
+      setMarketingTagOptions(Array.from(s).sort());
+    })();
+  }, [tab]);
 
   const previewSegment = async () => {
     setLoadingPreview(true);
