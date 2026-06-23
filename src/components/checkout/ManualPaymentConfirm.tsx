@@ -196,6 +196,7 @@ const ManualPaymentConfirm = ({
             localStorage.removeItem("upgrade_from_sub_id");
             localStorage.removeItem("upgrade_preselect_plan_id");
             clearEarlyRenewal();
+            clearReuseSubId();
             navigate("/");
           }}
         >
