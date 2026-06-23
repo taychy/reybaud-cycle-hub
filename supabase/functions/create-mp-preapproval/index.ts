@@ -100,6 +100,11 @@ Deno.serve(async (req) => {
     }
 
 
+    // Webhook URL para que MP nos notifique el cambio de estado del preapproval
+    // y los cobros recurrentes. SIN esto, el webhook nunca recibe nada y
+    // auto_cobro_activo jamás se prende.
+    const notificationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`;
+
     const preapprovalPayload: Record<string, unknown> = {
       reason: `Renovación automática mensual — ${plan.nombre}`,
       external_reference: suscripcion_id,
@@ -111,6 +116,7 @@ Deno.serve(async (req) => {
         currency_id: currencyId,
       },
       back_url: `${APP_BASE_URL}/perfil?section=suscripciones`,
+      notification_url: notificationUrl,
     };
 
     if (card_token_id) {
