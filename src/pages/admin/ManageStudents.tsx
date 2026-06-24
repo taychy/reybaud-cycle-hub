@@ -359,7 +359,7 @@ const ManageStudents = () => {
   // Alumnos con más de una suscripción activa (multi_subs)
   const activeSubsByAlumno: Record<string, number> = {};
   suscripciones.forEach(s => {
-    if (s.estado === "activa") {
+    if (s.estado === "activa" && !(s as any).cancelada_at) {
       activeSubsByAlumno[s.alumno_id] = (activeSubsByAlumno[s.alumno_id] || 0) + 1;
     }
   });
