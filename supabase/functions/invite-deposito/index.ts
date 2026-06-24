@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
     const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
-    const redirectTo = `${baseAppUrl}/activar-cuenta`;
+    const redirectTo = `${baseAppUrl}/auth/callback`;
 
     let userId: string;
     let confirmationUrl: string | undefined;
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
     // Generate recovery link so user can set their own password
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
+      type: "magiclink",
       email,
       options: { redirectTo },
     });
