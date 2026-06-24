@@ -123,6 +123,9 @@ const CoachDashboard = () => {
           )}
         </div>
 
+        {/* Clases de hoy con confirmación */}
+        <MisClasesHoy />
+
         {/* Next class card */}
         <Card className="bg-card border-border">
           <CardContent className="p-5">
