@@ -62,6 +62,12 @@ export const ADMIN_PAYABLE_EFFECTIVE_STATUSES: EffectiveSubStatus[] = [
 
 export function isAdminPayableSubscription(sub: SubStatusInput): boolean {
   if (sub.cancelada_at || sub.estado === "cancelada") return false;
+  // estado='activa' raw significa que YA está pagada (admin o cobro automático
+  // la dejaron en ese estado). Aunque su fecha_fin haya quedado en el pasado
+  // porque terminó el mes, esa sub no debe volver a aparecer como "por cobrar"
+  // — la plata de ese período ya entró. Si el alumno no pagó el período
+  // siguiente, eso se refleja con una sub NUEVA en estado 'pendiente'.
+  if (sub.estado === "activa") return false;
   return ADMIN_PAYABLE_EFFECTIVE_STATUSES.includes(getEffectiveSubStatus(sub));
 }
 

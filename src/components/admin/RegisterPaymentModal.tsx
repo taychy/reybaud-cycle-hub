@@ -154,14 +154,21 @@ export function RegisterPaymentModal({
     return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: storedBase };
   };
 
-  // When sub is selected, pre-fill amount and fecha_fin (fin de mes calendario)
+  // When sub is selected, pre-fill amount and fecha_fin.
+  // IMPORTANTE: la fecha_fin debe respetar el PERÍODO de la sub seleccionada
+  // (no recalcularla desde la fecha de pago — eso pisa el período cuando se
+  // registra un pago retroactivo de un mes anterior).
   useEffect(() => {
     const sub = pendingSubs.find(s => s.id === selectedSubId);
     if (!sub) return;
     const { price } = getEffectivePrice(sub);
     setMontoPagado(String(price));
-    setFechaFin(endOfCalendarMonth(fechaPago || new Date().toISOString().split("T")[0]));
-  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual, fechaPago]);
+    // Si la sub ya tiene fecha_fin, respetarla. Si no, calcularla desde fecha_inicio
+    // de la sub (no desde fechaPago, que por default es hoy).
+    const basePeriodo = sub.fecha_fin?.substring(0, 10)
+      || (sub.fecha_inicio ? endOfCalendarMonth(sub.fecha_inicio.substring(0, 10)) : endOfCalendarMonth(fechaPago));
+    setFechaFin(basePeriodo);
+  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
@@ -175,13 +182,17 @@ export function RegisterPaymentModal({
       toast.error("Ingresá la fecha de pago.");
       return;
     }
-    // fecha_fin se fuerza a fin de mes calendario de la fecha de pago. No es editable.
-    const fechaFinNorm = endOfCalendarMonth(fechaPago);
+    // fecha_fin: respetar la de la sub seleccionada (su período); solo recalcular
+    // si la sub no tenía período definido.
+    const subForUpdate = pendingSubs.find(s => s.id === selectedSubId);
+    const fechaInicioFinal = subForUpdate?.fecha_inicio?.substring(0, 10) || fechaPago;
+    const fechaFinNorm = subForUpdate?.fecha_fin?.substring(0, 10)
+      || endOfCalendarMonth(fechaInicioFinal);
 
     setSaving(true);
     try {
       const montoNum = parseFloat(montoPagado) || 0;
-      const sub = pendingSubs.find(s => s.id === selectedSubId);
+      const sub = subForUpdate;
       const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
       const isParcial = montoNum > 0 && montoNum < expectedAmount;
       const excedente = montoNum > expectedAmount ? montoNum - expectedAmount : 0;
@@ -197,7 +208,7 @@ export function RegisterPaymentModal({
         .from("suscripciones")
         .update({
           estado: newEstado,
-          fecha_inicio: fechaPago,
+          fecha_inicio: fechaInicioFinal,
           fecha_fin: fechaFinNorm,
           metodo_pago: metodo,
           origen_registro: "cargado_admin",
