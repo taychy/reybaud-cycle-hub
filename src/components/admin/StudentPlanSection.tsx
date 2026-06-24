@@ -866,6 +866,40 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </div>
         )}
 
+        {/* Orphan subs banner: alumno inactivo con subs operativas sin cancelar */}
+        {orphanSubs.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="flex-1 text-xs text-amber-300">
+              <div className="font-semibold">Suscripciones huérfanas detectadas</div>
+              <div className="mt-0.5 text-amber-300/90">
+                Este alumno está dado de baja pero tiene {orphanSubs.length} suscripción{orphanSubs.length !== 1 ? "es" : ""} sin cancelar:
+              </div>
+              <ul className="mt-1 space-y-0.5">
+                {orphanSubs.map((s) => (
+                  <li key={s.id}>
+                    • {s.planes?.nombre || "Plan"} — {SUB_STATUS_LABELS[s.estado] || s.estado}
+                    {s.fecha_fin ? ` (hasta ${s.fecha_fin.slice(0, 10)})` : ""}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px] border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+                  onClick={() => setShowOrphanConfirm(true)}
+                  disabled={cleaningOrphans}
+                >
+                  Cancelar suscripciones huérfanas
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
         {/* Active subscriptions */}
         {activeSubs.length > 0 ? (
           <div className="space-y-2">
