@@ -142,8 +142,9 @@ export function PendingPaymentsList() {
     // Emisores (para el modal bulk)
     const emisoresPromise = supabase
       .from("emisores_fiscales")
-      .select("*")
+      .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
       .order("created_at", { ascending: true });
+
 
     const [subs, reservas, preorders, orders, emisoresRes] = await Promise.all([
       subsPromise, reservasPromise, preordersPromise, ordersPromise, emisoresPromise,
