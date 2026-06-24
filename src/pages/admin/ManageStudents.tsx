@@ -1605,11 +1605,9 @@ const ManageStudents = () => {
                           </Button>
                         ))}
                         {/* Sub state change */}
-                        {getActiveSub(drawerAlumno.id) && (
-                          <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => openSubChange(drawerAlumno)}>
-                            <FileText className="w-3 h-3 mr-1.5" /> Gestionar suscripción
-                          </Button>
-                        )}
+                        <Button variant="outline" size="sm" className="text-xs justify-start" onClick={() => setManageSubAlumno(drawerAlumno)}>
+                          <FileText className="w-3 h-3 mr-1.5" /> Gestionar suscripción
+                        </Button>
                         {!(drawerAlumno as any).password_set && (
                           <Button variant="outline" size="sm" className="text-xs justify-start" disabled={resending === drawerAlumno.id} onClick={() => handleResendInvite(drawerAlumno)}>
                             <MailPlus className="w-3 h-3 mr-1.5" /> {(drawerAlumno as any).invited_at ? "Reenviar invite" : "Enviar invite"}
