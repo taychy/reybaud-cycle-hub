@@ -80,7 +80,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
       // Cargar emisores activos
       const { data: emisoresData, error: emErr } = await supabase
         .from("emisores_fiscales")
-        .select("id, nombre_fiscal, cuit, punto_venta, activo, cert_pem, key_pem")
+        .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales")
         .eq("activo", true);
       if (emErr) throw emErr;
       if (!emisoresData || emisoresData.length === 0) {
