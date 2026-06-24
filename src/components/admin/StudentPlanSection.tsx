@@ -1225,6 +1225,23 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           onConfirm={handlePauseSub}
         />
       )}
+
+      <AlertDialog open={showOrphanConfirm} onOpenChange={setShowOrphanConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar suscripciones huérfanas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a cancelar {orphanSubs.length} suscripción{orphanSubs.length !== 1 ? "es" : ""}. Mantendrán acceso hasta su fecha de fin y luego quedarán cerradas. ¿Confirmás?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleaningOrphans}>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCleanupOrphans} disabled={cleaningOrphans}>
+              {cleaningOrphans ? "Cancelando..." : "Sí, cancelar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
