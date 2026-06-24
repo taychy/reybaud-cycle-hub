@@ -801,7 +801,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         )}
 
         {/* Overdue actions — only for active subs, NOT history */}
-        {!isHistoric && isOverdueStatus(effectiveEstado) && (
+        {!isHistoric && isAdminPayableSubscription(sub) && (
           <div className="pt-1 space-y-1">
             <Button
               variant="outline"
