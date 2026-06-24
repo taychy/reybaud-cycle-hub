@@ -101,7 +101,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   const load = async () => {
     const [emisoresRes, facturadosRes, configsRes] = await Promise.all([
-      supabase.from("emisores_fiscales").select("*").order("created_at", { ascending: true }),
+      supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, es_predeterminado, facturacion_automatica, limite_anual_ars, categoria_monotributo, auto_facturar_origenes, logo_url, domicilio_comercial, condicion_iva, inicio_actividades, email_contacto, telefono_contacto, website, ingresos_brutos").order("created_at", { ascending: true }),
       supabase.from("emisor_facturado_anual" as any).select("*"),
       supabase.from("emisor_segmento_config" as any).select("emisor_id, segmento, habilitado"),
     ]);
