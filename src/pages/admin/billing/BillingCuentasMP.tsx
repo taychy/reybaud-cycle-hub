@@ -67,9 +67,11 @@ interface CuentaMP {
   id: string;
   nombre: string;
   slug: string;
-  secret_name_token: string;
-  secret_name_pubkey: string | null;
-  secret_name_webhook: string | null;
+  // secret_name_* viven server-side y NO se exponen al cliente (solo el flag derivado).
+  secret_name_token?: string;
+  secret_name_pubkey?: string | null;
+  secret_name_webhook?: string | null;
+  tiene_secrets?: boolean;
   emisor_fiscal_default_id: string | null;
   modo: Modo;
   activa: boolean;
@@ -77,6 +79,7 @@ interface CuentaMP {
   limite_mensual_ars: number | null;
   notas: string | null;
 }
+
 
 interface Routing {
   id: string;
