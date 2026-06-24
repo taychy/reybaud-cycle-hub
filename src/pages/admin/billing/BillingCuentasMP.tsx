@@ -152,13 +152,24 @@ export function BillingCuentasMP() {
   };
 
   const openEditCuenta = (c: CuentaMP) => {
-    setEditingCuenta({ ...c });
+    // Los nombres de secrets no se exponen al cliente: el form queda vacío
+    // y solo se guarda si el admin pega nuevos valores.
+    setEditingCuenta({
+      ...c,
+      secret_name_token: "",
+      secret_name_pubkey: "",
+      secret_name_webhook: "",
+    });
     setCuentaModalOpen(true);
   };
 
   const saveCuenta = async () => {
-    if (!editingCuenta?.nombre || !editingCuenta?.slug || !editingCuenta?.secret_name_token) {
-      toast.error("Nombre, slug y nombre del secret del token son obligatorios");
+    if (!editingCuenta?.nombre || !editingCuenta?.slug) {
+      toast.error("Nombre y slug son obligatorios");
+      return;
+    }
+    if (!editingCuenta.id && !editingCuenta.secret_name_token) {
+      toast.error("Para crear una cuenta nueva, indicá el nombre del secret del Access Token");
       return;
     }
     // Validar que los 3 campos tengan formato de NOMBRE de secret, no el valor real
@@ -181,9 +192,6 @@ export function BillingCuentasMP() {
     const payload: any = {
       nombre: editingCuenta.nombre,
       slug: editingCuenta.slug,
-      secret_name_token: editingCuenta.secret_name_token,
-      secret_name_pubkey: editingCuenta.secret_name_pubkey || null,
-      secret_name_webhook: editingCuenta.secret_name_webhook || null,
       emisor_fiscal_default_id: editingCuenta.emisor_fiscal_default_id || null,
       modo: editingCuenta.modo || "prod",
       activa: editingCuenta.activa ?? true,
@@ -191,6 +199,10 @@ export function BillingCuentasMP() {
       limite_mensual_ars: editingCuenta.limite_mensual_ars ?? null,
       notas: editingCuenta.notas || null,
     };
+    // Solo persistir nombres de secrets si el admin los completó (write-only).
+    if (editingCuenta.secret_name_token) payload.secret_name_token = editingCuenta.secret_name_token;
+    if (editingCuenta.secret_name_pubkey) payload.secret_name_pubkey = editingCuenta.secret_name_pubkey;
+    if (editingCuenta.secret_name_webhook) payload.secret_name_webhook = editingCuenta.secret_name_webhook;
     const q = editingCuenta.id
       ? supabase.from("cuentas_mp" as any).update(payload).eq("id", editingCuenta.id)
       : supabase.from("cuentas_mp" as any).insert(payload);
@@ -201,6 +213,7 @@ export function BillingCuentasMP() {
     setEditingCuenta(null);
     load();
   };
+
 
   const deleteCuenta = async (id: string) => {
     if (!confirm("¿Eliminar esta cuenta MP? Se eliminarán también sus rutas asociadas.")) return;
