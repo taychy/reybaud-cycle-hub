@@ -182,13 +182,17 @@ export function RegisterPaymentModal({
       toast.error("Ingresá la fecha de pago.");
       return;
     }
-    // fecha_fin se fuerza a fin de mes calendario de la fecha de pago. No es editable.
-    const fechaFinNorm = endOfCalendarMonth(fechaPago);
+    // fecha_fin: respetar la de la sub seleccionada (su período); solo recalcular
+    // si la sub no tenía período definido.
+    const subForUpdate = pendingSubs.find(s => s.id === selectedSubId);
+    const fechaInicioFinal = subForUpdate?.fecha_inicio?.substring(0, 10) || fechaPago;
+    const fechaFinNorm = subForUpdate?.fecha_fin?.substring(0, 10)
+      || endOfCalendarMonth(fechaInicioFinal);
 
     setSaving(true);
     try {
       const montoNum = parseFloat(montoPagado) || 0;
-      const sub = pendingSubs.find(s => s.id === selectedSubId);
+      const sub = subForUpdate;
       const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
       const isParcial = montoNum > 0 && montoNum < expectedAmount;
       const excedente = montoNum > expectedAmount ? montoNum - expectedAmount : 0;
@@ -204,7 +208,7 @@ export function RegisterPaymentModal({
         .from("suscripciones")
         .update({
           estado: newEstado,
-          fecha_inicio: fechaPago,
+          fecha_inicio: fechaInicioFinal,
           fecha_fin: fechaFinNorm,
           metodo_pago: metodo,
           origen_registro: "cargado_admin",
