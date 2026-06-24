@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      _audit_suscripciones_20260624: {
+        Row: {
+          id: string | null
+          mp_payment_id: string | null
+          mp_status: string | null
+          notas: string | null
+          precio_base: number | null
+          precio_final: number | null
+          snapshot_at: string | null
+        }
+        Insert: {
+          id?: string | null
+          mp_payment_id?: string | null
+          mp_status?: string | null
+          notas?: string | null
+          precio_base?: number | null
+          precio_final?: number | null
+          snapshot_at?: string | null
+        }
+        Update: {
+          id?: string | null
+          mp_payment_id?: string | null
+          mp_status?: string | null
+          notas?: string | null
+          precio_base?: number | null
+          precio_final?: number | null
+          snapshot_at?: string | null
+        }
+        Relationships: []
+      }
       admin_notification_events: {
         Row: {
           created_at: string
