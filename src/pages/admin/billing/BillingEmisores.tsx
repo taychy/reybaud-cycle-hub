@@ -138,8 +138,9 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       nombre_fiscal: e.nombre_fiscal,
       cuit: e.cuit,
       punto_venta: String(e.punto_venta),
-      cert_pem: e.cert_pem || "",
-      key_pem: e.key_pem || "",
+      cert_pem: "",
+      key_pem: "",
+
       limite_anual_ars: e.limite_anual_ars ? String(e.limite_anual_ars) : "",
       categoria_monotributo: e.categoria_monotributo || "",
       logo_url: e.logo_url || "",
