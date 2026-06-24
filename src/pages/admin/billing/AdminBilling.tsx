@@ -17,10 +17,10 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
-  cert_pem?: string | null;
-  key_pem?: string | null;
+  tiene_credenciales?: boolean;
   limite_anual_ars?: number | null;
 }
+
 
 interface FacturaRow {
   id: string;
@@ -52,7 +52,7 @@ export default function AdminBilling() {
   const loadData = useCallback(async () => {
     const [facturasRes, emisoresRes] = await Promise.all([
       supabase.from("facturas").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("emisores_fiscales").select("*").order("created_at", { ascending: true }),
+      supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars").order("created_at", { ascending: true }),
     ]);
     setFacturas((facturasRes.data as any[]) || []);
     setEmisores((emisoresRes.data as any[]) || []);

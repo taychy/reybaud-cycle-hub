@@ -67,9 +67,11 @@ interface CuentaMP {
   id: string;
   nombre: string;
   slug: string;
-  secret_name_token: string;
-  secret_name_pubkey: string | null;
-  secret_name_webhook: string | null;
+  // secret_name_* viven server-side y NO se exponen al cliente (solo el flag derivado).
+  secret_name_token?: string;
+  secret_name_pubkey?: string | null;
+  secret_name_webhook?: string | null;
+  tiene_secrets?: boolean;
   emisor_fiscal_default_id: string | null;
   modo: Modo;
   activa: boolean;
@@ -77,6 +79,7 @@ interface CuentaMP {
   limite_mensual_ars: number | null;
   notas: string | null;
 }
+
 
 interface Routing {
   id: string;
@@ -111,7 +114,7 @@ export function BillingCuentasMP() {
   const load = useCallback(async () => {
     setLoading(true);
     const [cRes, rRes, eRes, fRes] = await Promise.all([
-      supabase.from("cuentas_mp" as any).select("*").order("created_at", { ascending: true }),
+      supabase.from("cuentas_mp" as any).select("id, nombre, slug, tiene_secrets, emisor_fiscal_default_id, modo, activa, es_default_global, limite_mensual_ars, notas, created_at, updated_at").order("created_at", { ascending: true }),
       supabase.from("cuenta_mp_routing" as any).select("*").order("unidad_negocio").order("prioridad"),
       supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, activo").order("nombre_fiscal"),
       supabase.from("app_config" as any).select("value").eq("key", "mp_routing_enabled").maybeSingle(),
@@ -149,13 +152,24 @@ export function BillingCuentasMP() {
   };
 
   const openEditCuenta = (c: CuentaMP) => {
-    setEditingCuenta({ ...c });
+    // Los nombres de secrets no se exponen al cliente: el form queda vacío
+    // y solo se guarda si el admin pega nuevos valores.
+    setEditingCuenta({
+      ...c,
+      secret_name_token: "",
+      secret_name_pubkey: "",
+      secret_name_webhook: "",
+    });
     setCuentaModalOpen(true);
   };
 
   const saveCuenta = async () => {
-    if (!editingCuenta?.nombre || !editingCuenta?.slug || !editingCuenta?.secret_name_token) {
-      toast.error("Nombre, slug y nombre del secret del token son obligatorios");
+    if (!editingCuenta?.nombre || !editingCuenta?.slug) {
+      toast.error("Nombre y slug son obligatorios");
+      return;
+    }
+    if (!editingCuenta.id && !editingCuenta.secret_name_token) {
+      toast.error("Para crear una cuenta nueva, indicá el nombre del secret del Access Token");
       return;
     }
     // Validar que los 3 campos tengan formato de NOMBRE de secret, no el valor real
@@ -178,9 +192,6 @@ export function BillingCuentasMP() {
     const payload: any = {
       nombre: editingCuenta.nombre,
       slug: editingCuenta.slug,
-      secret_name_token: editingCuenta.secret_name_token,
-      secret_name_pubkey: editingCuenta.secret_name_pubkey || null,
-      secret_name_webhook: editingCuenta.secret_name_webhook || null,
       emisor_fiscal_default_id: editingCuenta.emisor_fiscal_default_id || null,
       modo: editingCuenta.modo || "prod",
       activa: editingCuenta.activa ?? true,
@@ -188,6 +199,10 @@ export function BillingCuentasMP() {
       limite_mensual_ars: editingCuenta.limite_mensual_ars ?? null,
       notas: editingCuenta.notas || null,
     };
+    // Solo persistir nombres de secrets si el admin los completó (write-only).
+    if (editingCuenta.secret_name_token) payload.secret_name_token = editingCuenta.secret_name_token;
+    if (editingCuenta.secret_name_pubkey) payload.secret_name_pubkey = editingCuenta.secret_name_pubkey;
+    if (editingCuenta.secret_name_webhook) payload.secret_name_webhook = editingCuenta.secret_name_webhook;
     const q = editingCuenta.id
       ? supabase.from("cuentas_mp" as any).update(payload).eq("id", editingCuenta.id)
       : supabase.from("cuentas_mp" as any).insert(payload);
@@ -198,6 +213,7 @@ export function BillingCuentasMP() {
     setEditingCuenta(null);
     load();
   };
+
 
   const deleteCuenta = async (id: string) => {
     if (!confirm("¿Eliminar esta cuenta MP? Se eliminarán también sus rutas asociadas.")) return;
@@ -329,9 +345,15 @@ export function BillingCuentasMP() {
                   </div>
                 </CardHeader>
                 <CardContent className="text-sm space-y-1 min-w-0">
-                  <SecretField label="Token" value={c.secret_name_token} />
-                  {c.secret_name_pubkey && <SecretField label="Pub key" value={c.secret_name_pubkey} />}
-                  {c.secret_name_webhook && <SecretField label="Webhook" value={c.secret_name_webhook} />}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">Secrets backend:</span>
+                    {c.tiene_secrets ? (
+                      <Badge variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Configurados</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Faltan</Badge>
+                    )}
+                  </div>
+
 
                   <div>
                     <span className="text-muted-foreground">Emisor default:</span>{" "}

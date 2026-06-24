@@ -19,8 +19,7 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
-  cert_pem?: string | null;
-  key_pem?: string | null;
+  tiene_credenciales?: boolean;
   es_predeterminado?: boolean;
   facturacion_automatica?: boolean;
   limite_anual_ars?: number | null;
@@ -35,6 +34,7 @@ interface Emisor {
   website?: string | null;
   ingresos_brutos?: string | null;
 }
+
 
 export type OrigenAuto = "app_online" | "manual_admin" | "efectivo" | "transferencia";
 
@@ -101,7 +101,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
 
   const load = async () => {
     const [emisoresRes, facturadosRes, configsRes] = await Promise.all([
-      supabase.from("emisores_fiscales").select("*").order("created_at", { ascending: true }),
+      supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, es_predeterminado, facturacion_automatica, limite_anual_ars, categoria_monotributo, auto_facturar_origenes, logo_url, domicilio_comercial, condicion_iva, inicio_actividades, email_contacto, telefono_contacto, website, ingresos_brutos").order("created_at", { ascending: true }),
       supabase.from("emisor_facturado_anual" as any).select("*"),
       supabase.from("emisor_segmento_config" as any).select("emisor_id, segmento, habilitado"),
     ]);
@@ -138,8 +138,9 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
       nombre_fiscal: e.nombre_fiscal,
       cuit: e.cuit,
       punto_venta: String(e.punto_venta),
-      cert_pem: e.cert_pem || "",
-      key_pem: e.key_pem || "",
+      cert_pem: "",
+      key_pem: "",
+
       limite_anual_ars: e.limite_anual_ars ? String(e.limite_anual_ars) : "",
       categoria_monotributo: e.categoria_monotributo || "",
       logo_url: e.logo_url || "",
@@ -180,12 +181,10 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     }
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         nombre_fiscal: form.nombre_fiscal.trim(),
         cuit: form.cuit.trim(),
         punto_venta: parseInt(form.punto_venta) || 1,
-        cert_pem: form.cert_pem.trim() || null,
-        key_pem: form.key_pem.trim() || null,
         limite_anual_ars: form.limite_anual_ars.trim() ? Number(form.limite_anual_ars) : null,
         categoria_monotributo: form.categoria_monotributo || null,
         logo_url: form.logo_url.trim() || null,
@@ -197,6 +196,10 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         website: form.website.trim() || null,
         ingresos_brutos: form.ingresos_brutos.trim() || null,
       };
+      // Solo escribir cert/key si el admin pegó valores nuevos (no se leen del server).
+      if (form.cert_pem.trim()) payload.cert_pem = form.cert_pem.trim();
+      if (form.key_pem.trim()) payload.key_pem = form.key_pem.trim();
+
 
       let emisorId = editing?.id;
       if (editing) {
@@ -323,7 +326,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
   const isHabilitado = (emisorId: string, segmento: Segmento) =>
     configs.find((c) => c.emisor_id === emisorId && c.segmento === segmento)?.habilitado ?? false;
 
-  const hasCerts = (e: Emisor) => !!(e.cert_pem && e.key_pem);
+  const hasCerts = (e: Emisor) => !!e.tiene_credenciales;
 
   // Alertas: segmentos sin emisor habilitado
   const segmentosSinEmisor = SEGMENTOS.filter(

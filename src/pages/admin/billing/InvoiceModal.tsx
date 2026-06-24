@@ -13,9 +13,9 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
-  cert_pem?: string | null;
-  key_pem?: string | null;
+  tiene_credenciales?: boolean;
 }
+
 
 interface FacturaRow {
   id: string;
@@ -102,7 +102,7 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
 
   const activeEmisores = emisores.filter((e) => e.activo);
   const selectedEmisor = emisores.find((e) => e.id === emisorId);
-  const emisorHasCerts = selectedEmisor ? !!(selectedEmisor.cert_pem && selectedEmisor.key_pem) : false;
+  const emisorHasCerts = selectedEmisor ? !!selectedEmisor.tiene_credenciales : false;
 
   const handleEmit = async () => {
     if (!emisorId) {

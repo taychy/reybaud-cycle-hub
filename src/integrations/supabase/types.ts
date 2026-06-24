@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _audit_suscripciones_20260624: {
-        Row: {
-          id: string | null
-          mp_payment_id: string | null
-          mp_status: string | null
-          notas: string | null
-          precio_base: number | null
-          precio_final: number | null
-          snapshot_at: string | null
-        }
-        Insert: {
-          id?: string | null
-          mp_payment_id?: string | null
-          mp_status?: string | null
-          notas?: string | null
-          precio_base?: number | null
-          precio_final?: number | null
-          snapshot_at?: string | null
-        }
-        Update: {
-          id?: string | null
-          mp_payment_id?: string | null
-          mp_status?: string | null
-          notas?: string | null
-          precio_base?: number | null
-          precio_final?: number | null
-          snapshot_at?: string | null
-        }
-        Relationships: []
-      }
       admin_notification_events: {
         Row: {
           created_at: string
@@ -1394,6 +1364,7 @@ export type Database = {
           secret_name_token: string
           secret_name_webhook: string | null
           slug: string
+          tiene_secrets: boolean | null
           updated_at: string
         }
         Insert: {
@@ -1410,6 +1381,7 @@ export type Database = {
           secret_name_token: string
           secret_name_webhook?: string | null
           slug: string
+          tiene_secrets?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -1426,6 +1398,7 @@ export type Database = {
           secret_name_token?: string
           secret_name_webhook?: string | null
           slug?: string
+          tiene_secrets?: boolean | null
           updated_at?: string
         }
         Relationships: [
@@ -1887,6 +1860,7 @@ export type Database = {
           nombre_fiscal: string
           punto_venta: number
           telefono_contacto: string | null
+          tiene_credenciales: boolean | null
           updated_at: string
           website: string | null
         }
@@ -1911,6 +1885,7 @@ export type Database = {
           nombre_fiscal: string
           punto_venta?: number
           telefono_contacto?: string | null
+          tiene_credenciales?: boolean | null
           updated_at?: string
           website?: string | null
         }
@@ -1935,6 +1910,7 @@ export type Database = {
           nombre_fiscal?: string
           punto_venta?: number
           telefono_contacto?: string | null
+          tiene_credenciales?: boolean | null
           updated_at?: string
           website?: string | null
         }
