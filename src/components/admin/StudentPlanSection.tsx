@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -145,6 +146,39 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
   const [sendingNotif, setSendingNotif] = useState(false);
   const [lastHandledOverduePreviewToken, setLastHandledOverduePreviewToken] = useState<number | null>(null);
+  const [cleaningOrphans, setCleaningOrphans] = useState(false);
+  const [showOrphanConfirm, setShowOrphanConfirm] = useState(false);
+
+  // Subs huérfanas: alumno dado de baja pero con subs operativas sin cancelar.
+  const ORPHAN_OPERATIONAL_STATES = new Set(["activa", "pendiente", "pendiente_verificacion", "pausa"]);
+  const orphanSubs = alumno.estado === "inactivo"
+    ? subs.filter((s) => !s.cancelada_at && ORPHAN_OPERATIONAL_STATES.has(s.estado))
+    : [];
+
+  const handleCleanupOrphans = async () => {
+    if (orphanSubs.length === 0) return;
+    setCleaningOrphans(true);
+    try {
+      const ids = orphanSubs.map((s) => s.id);
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          cancelada_at: new Date().toISOString(),
+          cancelada_motivo: "cleanup_huerfana_admin",
+          auto_renovacion: false,
+          auto_cobro_activo: false,
+        } as any)
+        .in("id", ids);
+      if (error) throw error;
+      toast.success(`${ids.length} suscripción${ids.length !== 1 ? "es" : ""} cancelada${ids.length !== 1 ? "s" : ""}`);
+      setShowOrphanConfirm(false);
+      onRefresh();
+    } catch (e: any) {
+      toast.error("No se pudo cancelar", { description: e?.message });
+    } finally {
+      setCleaningOrphans(false);
+    }
+  };
 
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
   const getSubStatusEndDate = (s: SuscripcionData) =>
@@ -832,6 +866,40 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </div>
         )}
 
+        {/* Orphan subs banner: alumno inactivo con subs operativas sin cancelar */}
+        {orphanSubs.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="flex-1 text-xs text-amber-300">
+              <div className="font-semibold">Suscripciones huérfanas detectadas</div>
+              <div className="mt-0.5 text-amber-300/90">
+                Este alumno está dado de baja pero tiene {orphanSubs.length} suscripción{orphanSubs.length !== 1 ? "es" : ""} sin cancelar:
+              </div>
+              <ul className="mt-1 space-y-0.5">
+                {orphanSubs.map((s) => (
+                  <li key={s.id}>
+                    • {s.planes?.nombre || "Plan"} — {SUB_STATUS_LABELS[s.estado] || s.estado}
+                    {s.fecha_fin ? ` (hasta ${s.fecha_fin.slice(0, 10)})` : ""}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px] border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+                  onClick={() => setShowOrphanConfirm(true)}
+                  disabled={cleaningOrphans}
+                >
+                  Cancelar suscripciones huérfanas
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
         {/* Active subscriptions */}
         {activeSubs.length > 0 ? (
           <div className="space-y-2">
@@ -1157,6 +1225,23 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           onConfirm={handlePauseSub}
         />
       )}
+
+      <AlertDialog open={showOrphanConfirm} onOpenChange={setShowOrphanConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar suscripciones huérfanas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a cancelar {orphanSubs.length} suscripción{orphanSubs.length !== 1 ? "es" : ""}. Mantendrán acceso hasta su fecha de fin y luego quedarán cerradas. ¿Confirmás?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleaningOrphans}>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCleanupOrphans} disabled={cleaningOrphans}>
+              {cleaningOrphans ? "Cancelando..." : "Sí, cancelar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
