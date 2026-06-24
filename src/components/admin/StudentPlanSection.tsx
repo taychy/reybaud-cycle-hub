@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
-import { getEffectiveSubStatus, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
+import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import type { Tables } from "@/integrations/supabase/types";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BonoClasesCard } from "@/components/admin/BonoClasesCard";
@@ -801,7 +801,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         )}
 
         {/* Overdue actions — only for active subs, NOT history */}
-        {!isHistoric && isOverdueStatus(effectiveEstado) && (
+        {!isHistoric && isAdminPayableSubscription(sub) && (
           <div className="pt-1 space-y-1">
             <Button
               variant="outline"
