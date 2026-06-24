@@ -345,9 +345,15 @@ export function BillingCuentasMP() {
                   </div>
                 </CardHeader>
                 <CardContent className="text-sm space-y-1 min-w-0">
-                  <SecretField label="Token" value={c.secret_name_token} />
-                  {c.secret_name_pubkey && <SecretField label="Pub key" value={c.secret_name_pubkey} />}
-                  {c.secret_name_webhook && <SecretField label="Webhook" value={c.secret_name_webhook} />}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">Secrets backend:</span>
+                    {c.tiene_secrets ? (
+                      <Badge variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Configurados</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Faltan</Badge>
+                    )}
+                  </div>
+
 
                   <div>
                     <span className="text-muted-foreground">Emisor default:</span>{" "}
