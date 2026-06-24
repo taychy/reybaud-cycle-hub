@@ -91,6 +91,7 @@ import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
 import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
+import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
