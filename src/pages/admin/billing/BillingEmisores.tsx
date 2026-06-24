@@ -324,7 +324,7 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
   const isHabilitado = (emisorId: string, segmento: Segmento) =>
     configs.find((c) => c.emisor_id === emisorId && c.segmento === segmento)?.habilitado ?? false;
 
-  const hasCerts = (e: Emisor) => !!(e.cert_pem && e.key_pem);
+  const hasCerts = (e: Emisor) => !!e.tiene_credenciales;
 
   // Alertas: segmentos sin emisor habilitado
   const segmentosSinEmisor = SEGMENTOS.filter(
