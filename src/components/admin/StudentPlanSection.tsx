@@ -145,6 +145,39 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
   const [sendingNotif, setSendingNotif] = useState(false);
   const [lastHandledOverduePreviewToken, setLastHandledOverduePreviewToken] = useState<number | null>(null);
+  const [cleaningOrphans, setCleaningOrphans] = useState(false);
+  const [showOrphanConfirm, setShowOrphanConfirm] = useState(false);
+
+  // Subs huérfanas: alumno dado de baja pero con subs operativas sin cancelar.
+  const ORPHAN_OPERATIONAL_STATES = new Set(["activa", "pendiente", "pendiente_verificacion", "pausa"]);
+  const orphanSubs = alumno.estado === "inactivo"
+    ? subs.filter((s) => !s.cancelada_at && ORPHAN_OPERATIONAL_STATES.has(s.estado))
+    : [];
+
+  const handleCleanupOrphans = async () => {
+    if (orphanSubs.length === 0) return;
+    setCleaningOrphans(true);
+    try {
+      const ids = orphanSubs.map((s) => s.id);
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          cancelada_at: new Date().toISOString(),
+          cancelada_motivo: "cleanup_huerfana_admin",
+          auto_renovacion: false,
+          auto_cobro_activo: false,
+        } as any)
+        .in("id", ids);
+      if (error) throw error;
+      toast.success(`${ids.length} suscripción${ids.length !== 1 ? "es" : ""} cancelada${ids.length !== 1 ? "s" : ""}`);
+      setShowOrphanConfirm(false);
+      onRefresh();
+    } catch (e: any) {
+      toast.error("No se pudo cancelar", { description: e?.message });
+    } finally {
+      setCleaningOrphans(false);
+    }
+  };
 
   const actorRole = isSuperAdmin ? "super_admin" : "admin";
   const getSubStatusEndDate = (s: SuscripcionData) =>
