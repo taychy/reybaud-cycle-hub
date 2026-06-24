@@ -19,8 +19,7 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
-  cert_pem?: string | null;
-  key_pem?: string | null;
+  tiene_credenciales?: boolean;
   es_predeterminado?: boolean;
   facturacion_automatica?: boolean;
   limite_anual_ars?: number | null;
@@ -35,6 +34,7 @@ interface Emisor {
   website?: string | null;
   ingresos_brutos?: string | null;
 }
+
 
 export type OrigenAuto = "app_online" | "manual_admin" | "efectivo" | "transferencia";
 
