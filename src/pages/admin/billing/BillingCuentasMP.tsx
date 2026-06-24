@@ -114,7 +114,7 @@ export function BillingCuentasMP() {
   const load = useCallback(async () => {
     setLoading(true);
     const [cRes, rRes, eRes, fRes] = await Promise.all([
-      supabase.from("cuentas_mp" as any).select("*").order("created_at", { ascending: true }),
+      supabase.from("cuentas_mp" as any).select("id, nombre, slug, tiene_secrets, emisor_fiscal_default_id, modo, activa, es_default_global, limite_mensual_ars, notas, created_at, updated_at").order("created_at", { ascending: true }),
       supabase.from("cuenta_mp_routing" as any).select("*").order("unidad_negocio").order("prioridad"),
       supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, activo").order("nombre_fiscal"),
       supabase.from("app_config" as any).select("value").eq("key", "mp_routing_enabled").maybeSingle(),
