@@ -305,6 +305,34 @@ const StudentPayments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Deep-links del mail mensual: ?action=cambiar-plan | pausa | baja
+  // Se aplican una vez que cargaron las suscripciones.
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get("action");
+    if (!action) return;
+
+    if (action === "baja") {
+      setBajaDialogOpen(true);
+    } else if (action === "pausa") {
+      navigate("/planes?categoria=pausa");
+      return;
+    } else if (action === "cambiar-plan") {
+      const activeSub = subscriptions.find((s) => {
+        if (s.estado === "cancelada" || s.cancelada_at) return false;
+        const eff = getEffectiveStatus(s);
+        return eff === "activa" || eff === "pendiente_verificacion" || eff === "pendiente" || eff === "pago_pendiente";
+      });
+      if (activeSub) setScopeDialogSub(activeSub);
+    }
+    // Limpiar query param para evitar re-disparos
+    const clean = window.location.pathname;
+    window.history.replaceState({}, "", clean);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, subscriptions]);
+
+
   // Categorize
   const todayStr = (() => {
     const now = new Date();
