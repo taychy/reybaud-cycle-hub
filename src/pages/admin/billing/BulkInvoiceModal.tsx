@@ -128,7 +128,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
 
   const activos = useMemo(() => emisores.filter((e) => e.activo), [emisores]);
   const selectedEmisor = emisores.find((e) => e.id === emisorId);
-  const emisorHasCerts = selectedEmisor ? !!(selectedEmisor.cert_pem && selectedEmisor.key_pem) : false;
+  const emisorHasCerts = selectedEmisor ? !!selectedEmisor.tiene_credenciales : false;
   const emisorHasCuit = !!selectedEmisor?.cuit;
   const emisorHasPV = !!selectedEmisor?.punto_venta;
   const emisorValido = !!selectedEmisor && emisorHasCerts && emisorHasCuit && emisorHasPV;
