@@ -181,12 +181,10 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
     }
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         nombre_fiscal: form.nombre_fiscal.trim(),
         cuit: form.cuit.trim(),
         punto_venta: parseInt(form.punto_venta) || 1,
-        cert_pem: form.cert_pem.trim() || null,
-        key_pem: form.key_pem.trim() || null,
         limite_anual_ars: form.limite_anual_ars.trim() ? Number(form.limite_anual_ars) : null,
         categoria_monotributo: form.categoria_monotributo || null,
         logo_url: form.logo_url.trim() || null,
@@ -198,6 +196,10 @@ export function BillingEmisores({ onDataChange }: BillingEmisoresProps = {}) {
         website: form.website.trim() || null,
         ingresos_brutos: form.ingresos_brutos.trim() || null,
       };
+      // Solo escribir cert/key si el admin pegó valores nuevos (no se leen del server).
+      if (form.cert_pem.trim()) payload.cert_pem = form.cert_pem.trim();
+      if (form.key_pem.trim()) payload.key_pem = form.key_pem.trim();
+
 
       let emisorId = editing?.id;
       if (editing) {
