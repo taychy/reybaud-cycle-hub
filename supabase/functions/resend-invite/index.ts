@@ -80,10 +80,8 @@ Deno.serve(async (req) => {
       throw new Error(`No se encontró perfil de ${user_type} con email ${normalizedEmail}`);
     }
 
-    // Check if password already set
-    if (profileData.password_set) {
-      throw new Error("Este usuario ya activó su cuenta");
-    }
+    // Nota: ya no bloqueamos por password_set; los usuarios pueden no tener clave (login por OTP).
+
 
     // Check if user is disabled
     if (user_type === "admin" && profileData.status !== "active") {
