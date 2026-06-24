@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
     const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
-    const redirectTo = `${baseAppUrl}/activar-cuenta`;
+    const redirectTo = `${baseAppUrl}/auth/callback`;
 
     // Check if user already exists in Auth (paginate to handle >50 users)
     let existingUser: any = null;
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
 
       // For existing users, generate a recovery link (won't fail with email_exists)
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
+        type: "magiclink",
         email: normalizedEmail,
         options: { redirectTo },
       });
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
 
       // Now generate a recovery link for the new user to set their own password
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
+        type: "magiclink",
         email: normalizedEmail,
         options: { redirectTo },
       });

@@ -55,8 +55,8 @@ Deno.serve(async (req) => {
     const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
     const isPreviewOrPrivateUrl = /-preview--|\.lovableproject\.com/.test(origin);
     const baseAppUrl = configuredAppUrl || (origin && !isPreviewOrPrivateUrl ? origin : defaultPublicAppUrl);
-    // Admins log in via OTP magic link → go straight to /admin. Alumnos/coaches still set password.
-    const redirectTo = user_type === "admin" ? `${baseAppUrl}/admin` : `${baseAppUrl}/activar-cuenta`;
+    // Todos los roles entran directo a la app vía OTP magic link; la clave es opcional desde el perfil.
+    const redirectTo = `${baseAppUrl}/auth/callback`;
 
     // Look up user profile based on type
     let profileTable: string;
@@ -80,10 +80,8 @@ Deno.serve(async (req) => {
       throw new Error(`No se encontró perfil de ${user_type} con email ${normalizedEmail}`);
     }
 
-    // Check if password already set
-    if (profileData.password_set) {
-      throw new Error("Este usuario ya activó su cuenta");
-    }
+    // Nota: ya no bloqueamos por password_set; los usuarios pueden no tener clave (login por OTP).
+
 
     // Check if user is disabled
     if (user_type === "admin" && profileData.status !== "active") {
@@ -105,8 +103,8 @@ Deno.serve(async (req) => {
     // Generate a new invite link (always creates a new token)
     const nombre = profileData.nombre || `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
 
-    // Admins → magiclink (OTP). Alumnos/coaches → recovery (password setup).
-    const linkType = user_type === "admin" ? "magiclink" : "recovery";
+    // Todos los roles → magiclink (OTP, sin paso de clave)
+    const linkType = "magiclink";
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
       type: linkType,
       email: normalizedEmail,
