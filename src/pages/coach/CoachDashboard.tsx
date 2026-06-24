@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
+import MisClasesHoy from "@/components/coach/MisClasesHoy";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
