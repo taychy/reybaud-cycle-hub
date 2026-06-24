@@ -179,6 +179,7 @@ const App = () => (
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
+            <Route path="gestion-redes" element={<AdminGestionRedes />} />
             
             <Route path="liquidaciones" element={<AdminLiquidaciones />} />
             <Route path="turnera" element={<AdminTurnera />} />
