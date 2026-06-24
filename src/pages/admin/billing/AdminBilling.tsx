@@ -17,10 +17,10 @@ interface Emisor {
   cuit: string;
   punto_venta: number;
   activo: boolean;
-  cert_pem?: string | null;
-  key_pem?: string | null;
+  tiene_credenciales?: boolean;
   limite_anual_ars?: number | null;
 }
+
 
 interface FacturaRow {
   id: string;
