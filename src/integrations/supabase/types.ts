@@ -1056,6 +1056,96 @@ export type Database = {
           },
         ]
       }
+      clases_dictadas: {
+        Row: {
+          agenda_id: string | null
+          asistencia_cargada: boolean
+          cantidad_asistentes: number | null
+          coach_id: string
+          created_at: string
+          fecha: string
+          foto_grupal_url: string | null
+          honorario_id: string | null
+          hora_fin: string | null
+          hora_inicio: string | null
+          id: string
+          movimiento_id: string | null
+          notas: string | null
+          sede_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agenda_id?: string | null
+          asistencia_cargada?: boolean
+          cantidad_asistentes?: number | null
+          coach_id: string
+          created_at?: string
+          fecha: string
+          foto_grupal_url?: string | null
+          honorario_id?: string | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: string
+          movimiento_id?: string | null
+          notas?: string | null
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agenda_id?: string | null
+          asistencia_cargada?: boolean
+          cantidad_asistentes?: number | null
+          coach_id?: string
+          created_at?: string
+          fecha?: string
+          foto_grupal_url?: string | null
+          honorario_id?: string | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: string
+          movimiento_id?: string | null
+          notas?: string | null
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clases_dictadas_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_grupal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_dictadas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_dictadas_honorario_id_fkey"
+            columns: ["honorario_id"]
+            isOneToOne: false
+            referencedRelation: "honorarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_dictadas_movimiento_id_fkey"
+            columns: ["movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "movimientos_liquidacion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_dictadas_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaches: {
         Row: {
           created_at: string
@@ -4158,6 +4248,82 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      redes_sociales_tareas: {
+        Row: {
+          clase_dictada_id: string | null
+          coach_id: string | null
+          created_at: string
+          estado: string
+          fecha_clase: string | null
+          foto_url: string | null
+          id: string
+          link_publicacion: string | null
+          notas: string | null
+          publicado_at: string | null
+          publicado_por: string | null
+          red_social: string | null
+          sede_id: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          clase_dictada_id?: string | null
+          coach_id?: string | null
+          created_at?: string
+          estado?: string
+          fecha_clase?: string | null
+          foto_url?: string | null
+          id?: string
+          link_publicacion?: string | null
+          notas?: string | null
+          publicado_at?: string | null
+          publicado_por?: string | null
+          red_social?: string | null
+          sede_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          clase_dictada_id?: string | null
+          coach_id?: string | null
+          created_at?: string
+          estado?: string
+          fecha_clase?: string | null
+          foto_url?: string | null
+          id?: string
+          link_publicacion?: string | null
+          notas?: string | null
+          publicado_at?: string | null
+          publicado_por?: string | null
+          red_social?: string | null
+          sede_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redes_sociales_tareas_clase_dictada_id_fkey"
+            columns: ["clase_dictada_id"]
+            isOneToOne: false
+            referencedRelation: "clases_dictadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redes_sociales_tareas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redes_sociales_tareas_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
