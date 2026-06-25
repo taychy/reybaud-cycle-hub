@@ -186,11 +186,14 @@ const AdminDashboard = () => {
       const cuotasMonto = cuotas.reduce((sum, c) => sum + Number(c.amount || 0), 0);
       setCuotasEventos({ count: cuotasCount, vencidas: cuotasVencidas, monto: cuotasMonto });
 
-      // Duplicados reales: alumnos con 2+ subs vigentes que SE SOLAPAN en período
-      // (no contar período anterior ya cerrado + período actual = renovación legítima).
-      const subsPorAlumno: Record<string, number> = {};
-      subsActivas.forEach(s => { subsPorAlumno[s.alumno_id] = (subsPorAlumno[s.alumno_id] || 0) + 1; });
-      const conMultiples = Object.values(subsPorAlumno).filter(c => c > 1).length;
+      // Duplicados reales: alumnos cuyas suscripciones vigentes violan las reglas de modalidad
+      // (2+ grupales, 2+ pista, una "pausa" + cualquier otra, o "otro" duplicado exacto).
+      // Renovaciones legítimas (mes anterior cerrado + mes actual) NO cuentan.
+      const subsPorAlumnoArr: Record<string, any[]> = {};
+      subsActivas.forEach((s: any) => {
+        (subsPorAlumnoArr[s.alumno_id] ||= []).push(s);
+      });
+      const conMultiples = Object.values(subsPorAlumnoArr).filter(arr => hasSubscriptionConflict(arr as any)).length;
       setDuplicadosCount(conMultiples);
 
 
