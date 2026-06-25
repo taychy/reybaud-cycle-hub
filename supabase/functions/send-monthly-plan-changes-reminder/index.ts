@@ -214,7 +214,8 @@ Deno.serve(async (req) => {
 
   let sent = 0, failed = 0;
   for (const r of recipients) {
-    const html = buildHtml({ nombre: r.nombre, deadline: deadlineText, nextMonth, appUrl: APP_URL });
+    const hasDebt = !!(r.alumno_id && debtSet.has(r.alumno_id));
+    const html = buildHtml({ nombre: r.nombre, deadline: deadlineText, nextMonth, appUrl: APP_URL, hasDebt });
     const payload = {
       sender: { email: senderEmail, name: senderName },
       to: [{ email: r.email, name: r.nombre }],
