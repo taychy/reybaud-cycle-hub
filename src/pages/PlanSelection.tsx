@@ -87,7 +87,7 @@ const PlanSelection = () => {
   const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
   const [pausaDialogPlanId, setPausaDialogPlanId] = useState<string | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
-  const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
+  const { applyDiscount, isSecondActivityForNew } = useStudentDiscounts(alumnoId);
 
 
   useEffect(() => {
