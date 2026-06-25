@@ -415,7 +415,7 @@ function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidades, rel
           {DIAS.map((dia, idx) => {
             const rangos = porDia[idx] || [];
             const otros = [0, 1, 2, 3, 4, 5, 6].filter(d => d !== idx);
-            const [copyTargets, setCopyTargets] = [null, null] as any; // placeholder, real state below
+            
 
             return (
               <DayRow
