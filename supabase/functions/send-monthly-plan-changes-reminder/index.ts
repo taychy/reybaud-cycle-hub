@@ -45,10 +45,18 @@ function formatDeadlineAR(y: number, m: number, d: number) {
   return `${cap} ${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${String(y).slice(-2)}`;
 }
 
-function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; appUrl: string }) {
-  const { nombre, deadline, nextMonth, appUrl } = opts;
+function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; appUrl: string; hasDebt: boolean }) {
+  const { nombre, deadline, nextMonth, appUrl, hasDebt } = opts;
   const btn = (href: string, label: string, color: string) => `
     <a href="${href}" style="display:inline-block;background:${color};color:#ffffff;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:700;font-family:Arial,sans-serif;font-size:14px;margin:6px 4px;">${label}</a>`;
+
+  const payLabel = hasDebt ? "💳 Pagar mensualidad pendiente" : "💳 Pagar próxima mensualidad";
+  const payColor = hasDebt ? "#d97706" : "#16a34a";
+  const debtNotice = hasDebt
+    ? `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 14px;margin:14px 0;color:#9a3412;font-size:14px;line-height:1.55;">
+         <strong>⚠️ Tenés una mensualidad pendiente de pago.</strong> Al tocar el botón vas a regularizar el período adeudado, no el próximo.
+       </div>`
+    : "";
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/></head>
 <body style="background:#ffffff;font-family:Arial,sans-serif;color:#1a1a1a;margin:0;padding:0;">
@@ -64,6 +72,8 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
       <strong>${deadline}</strong>. Esto nos ayuda a organizar todo y asegurar
       que tu facturación se realice correctamente.
     </p>
+
+    ${debtNotice}
 
     <div style="background:#f6f7f9;border-radius:10px;padding:14px 16px;margin:18px 0;">
       <p style="margin:0 0 6px;font-weight:700;font-size:14px;">📱 Sobre los pagos</p>
@@ -81,7 +91,7 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
     </div>
 
     <div style="text-align:center;margin:18px 0 6px;">
-      ${btn(`${appUrl}/alumno/pagos`, "💳 Pagar próxima mensualidad", "#16a34a")}
+      ${btn(`${appUrl}/alumno/pagos`, payLabel, payColor)}
     </div>
 
     <p style="font-size:12px;color:#999;margin:26px 0 0;text-align:center;border-top:1px solid #eee;padding-top:14px;">
