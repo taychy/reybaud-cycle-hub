@@ -19,17 +19,36 @@ export interface DiscountResult {
   discount: StudentDiscount | null;
 }
 
+interface ActiveSubLite {
+  id: string;
+  fecha_inicio: string | null;
+  categoria: string;
+}
+
+const OPERATIONAL_STATES = ["activa", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"];
+
+/**
+ * Regla unificada de "segunda actividad":
+ *   El alumno tiene 2+ suscripciones vigentes de modalidad NO pausa
+ *   (grupal, pista, asesoría u otros). Plan reducido (pausa) NO cuenta.
+ *
+ * - Para un NUEVO plan que aún no existe en DB: usar `isSecondActivityForNew()`
+ *   (>= 1 sub vigente no-pausa ya cuenta como segunda al sumar la nueva).
+ * - Para una sub YA creada en DB: usar `isSubSecondary(subId)`
+ *   (la sub ya está incluida en el conteo).
+ */
 export function useStudentDiscounts(alumnoId: string | null) {
   const [discounts, setDiscounts] = useState<StudentDiscount[]>([]);
   const [loading, setLoading] = useState(false);
-  const [subscriptionCount, setSubscriptionCount] = useState(0);
+  const [activeNonPausaSubs, setActiveNonPausaSubs] = useState<ActiveSubLite[]>([]);
 
   useEffect(() => {
     if (!alumnoId) return;
     setLoading(true);
 
     const load = async () => {
-      // Load discounts and active subscription count in parallel
+      const today = new Date().toISOString().split("T")[0];
+
       const [discountsRes, subsRes] = await Promise.all([
         supabase
           .from("descuentos_alumno" as any)
@@ -38,16 +57,21 @@ export function useStudentDiscounts(alumnoId: string | null) {
           .eq("activo", true),
         supabase
           .from("suscripciones")
-          .select("id")
+          .select("id, fecha_inicio, fecha_fin, estado, cancelada_at, planes(categoria)")
           .eq("alumno_id", alumnoId)
-          .in("estado", ["activa", "pendiente_verificacion", "pausa"]),
+          .in("estado", OPERATIONAL_STATES)
+          .is("cancelada_at", null),
       ]);
 
-      const activeSubCount = subsRes.data?.length || 0;
-      setSubscriptionCount(activeSubCount);
+      // Vigentes no-pausa
+      const vigentes = (subsRes.data as any[] | null || [])
+        .filter(s => !s.fecha_fin || s.fecha_fin >= today)
+        .filter(s => (s.planes?.categoria || "otro") !== "pausa")
+        .map(s => ({ id: s.id, fecha_inicio: s.fecha_inicio, categoria: s.planes?.categoria || "otro" }))
+        .sort((a, b) => (a.fecha_inicio || "").localeCompare(b.fecha_inicio || ""));
+      setActiveNonPausaSubs(vigentes);
 
       if (discountsRes.data) {
-        const today = new Date().toISOString().split("T")[0];
         const mapped = (discountsRes.data as any[])
           .filter((d: any) => d.descuentos?.activo)
           .map((d: any) => ({
@@ -74,9 +98,25 @@ export function useStudentDiscounts(alumnoId: string | null) {
     load();
   }, [alumnoId]);
 
+  const activeNonPausaCount = activeNonPausaSubs.length;
+
+  /** Para un nuevo plan que aún no existe: ¿sería su segunda actividad? */
+  const isSecondActivityForNew = (newPlanCategoria?: string | null) => {
+    if (newPlanCategoria === "pausa") return false;
+    return activeNonPausaCount >= 1;
+  };
+
+  /** Para una sub ya creada: ¿debe recibir descuento de 2da actividad? */
+  const isSubSecondary = (subId: string) => {
+    if (activeNonPausaCount < 2) return false;
+    // El descuento se aplica a TODAS las subs no-pausa excepto la primera (cronológica).
+    const idx = activeNonPausaSubs.findIndex(s => s.id === subId);
+    return idx > 0;
+  };
+
   /**
-   * Apply discount with awareness of subscription context.
-   * @param isSecondarySubscription - true if this is the 2nd+ subscription for the student
+   * Aplica descuento. `isSecondarySubscription` debe venir del helper unificado.
+   * `segunda_actividad` SIEMPRE aplica solo a "planes".
    */
   const applyDiscount = (
     price: number,
@@ -84,30 +124,26 @@ export function useStudentDiscounts(alumnoId: string | null) {
     isSecondarySubscription: boolean = false
   ): DiscountResult => {
     const applicable = discounts.filter(d => {
-      // Context filter
+      // segunda_actividad: sólo en planes y sólo si es 2da
+      if (d.categoria === "segunda_actividad") {
+        if (context !== "planes") return false;
+        if (!isSecondarySubscription) return false;
+        return true;
+      }
+      // Otros descuentos: respetar aplica_a
       if (d.aplica_a !== "todo" && d.aplica_a !== context) return false;
-
-      // "segunda_actividad" discounts only apply to the 2nd+ subscription
-      if (d.categoria === "segunda_actividad" && !isSecondarySubscription) return false;
-
-      // Non-segunda_actividad discounts should NOT apply if marked for 2nd activity context
-      // Actually, general discounts can apply to any subscription
       return true;
     });
 
     if (applicable.length === 0) return { original: price, final: price, discount: null };
 
-    // Find the best discount by effective savings
     let bestDiscount: StudentDiscount | null = null;
     let bestFinal = price;
 
     for (const d of applicable) {
-      let finalPrice: number;
-      if (d.tipo === "fijo") {
-        finalPrice = Math.max(0, price - d.valor);
-      } else {
-        finalPrice = Math.round(price * (1 - d.valor / 100));
-      }
+      const finalPrice = d.tipo === "fijo"
+        ? Math.max(0, price - d.valor)
+        : Math.round(price * (1 - d.valor / 100));
       if (finalPrice < bestFinal) {
         bestFinal = finalPrice;
         bestDiscount = d;
@@ -118,13 +154,34 @@ export function useStudentDiscounts(alumnoId: string | null) {
     return { original: price, final: bestFinal, discount: bestDiscount };
   };
 
-  const getBestDiscount = (context: "planes" | "eventos" | "tienda" | "todo" = "todo"): StudentDiscount | null => {
-    const applicable = discounts.filter(
-      d => d.aplica_a === "todo" || d.aplica_a === context
-    );
+  /**
+   * Mejor descuento promocional para mostrar en UI.
+   * Filtra `segunda_actividad` salvo que el alumno ya califique como 2da.
+   */
+  const getBestDiscount = (
+    context: "planes" | "eventos" | "tienda" | "todo" = "todo"
+  ): StudentDiscount | null => {
+    const applicable = discounts.filter(d => {
+      if (d.categoria === "segunda_actividad") {
+        // Sólo lo mostramos si el alumno ya tendría 2da actividad
+        if (context !== "planes" && context !== "todo") return false;
+        return activeNonPausaCount >= 1;
+      }
+      return d.aplica_a === "todo" || d.aplica_a === context;
+    });
     if (applicable.length === 0) return null;
-    return applicable.reduce((best, d) => d.valor > best.valor ? d : best, applicable[0]);
+    return applicable.reduce((best, d) => (d.valor > best.valor ? d : best), applicable[0]);
   };
 
-  return { discounts, loading, getBestDiscount, applyDiscount, subscriptionCount };
+  return {
+    discounts,
+    loading,
+    getBestDiscount,
+    applyDiscount,
+    /** @deprecated usar activeNonPausaCount / helpers */
+    subscriptionCount: activeNonPausaCount,
+    activeNonPausaCount,
+    isSecondActivityForNew,
+    isSubSecondary,
+  };
 }

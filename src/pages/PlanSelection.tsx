@@ -87,7 +87,7 @@ const PlanSelection = () => {
   const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
   const [pausaDialogPlanId, setPausaDialogPlanId] = useState<string | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
-  const { applyDiscount, subscriptionCount } = useStudentDiscounts(alumnoId);
+  const { applyDiscount, isSecondActivityForNew } = useStudentDiscounts(alumnoId);
 
 
   useEffect(() => {
@@ -263,7 +263,7 @@ const PlanSelection = () => {
   }, [loading, vacationPreselectPlanId, planes, selected, isUpgradeFlow]);
 
   const selectedPlan = planes.find((p) => p.id === selected);
-  const isSecondary = subscriptionCount > 0;
+  const isSecondary = isSecondActivityForNew(selectedPlan?.categoria);
   const selectedDiscount = selectedPlan
     ? applyDiscount(
         selectedPlan.tipo === "programa" && selectedPlan.precio_promocional
@@ -855,7 +855,7 @@ const PlanSelection = () => {
                 const isPopular = index === 0;
                 const isSelected = selected === plan.id;
                 const basePrice = plan.tipo === "programa" && plan.precio_promocional ? plan.precio_promocional : plan.precio;
-                const disc = applyDiscount(basePrice, "planes", isSecondary);
+                const disc = applyDiscount(basePrice, "planes", isSecondActivityForNew(plan.categoria));
                 const hasPromo = plan.tipo === "programa" && plan.precio_promocional;
                 const hasStudentDiscount = disc.discount !== null;
 

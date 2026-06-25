@@ -131,16 +131,16 @@ export function RegisterPaymentModal({
   }, [selectedAlumnoId, open]);
 
   // Discounts for selected student (live calc when sub has no saved discount)
-  const { applyDiscount, subscriptionCount } = useStudentDiscounts(selectedAlumnoId);
+  const { applyDiscount, isSubSecondary, activeNonPausaCount } = useStudentDiscounts(selectedAlumnoId);
 
   // Compute effective price for a sub: respect saved discount, else apply live student discount
   const getEffectivePrice = (sub: PendingSub | undefined): { price: number; discountId: string | null; baseUsed: number } => {
     if (!sub) return { price: 0, discountId: null, baseUsed: 0 };
     const storedBase = sub.precio_base ?? sub.planes?.precio ?? 0;
     const currentBase = sub.planes?.precio ?? storedBase;
+    const isSecondary = isSubSecondary(sub.id);
     // If toggle on → use current plan price, ignore stored discount
     if (usarPrecioActual) {
-      const isSecondary = subscriptionCount > 1;
       const result = applyDiscount(currentBase, "planes", isSecondary);
       return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: currentBase };
     }
@@ -149,7 +149,6 @@ export function RegisterPaymentModal({
       return { price: sub.precio_final ?? storedBase, discountId: sub.descuento_id, baseUsed: storedBase };
     }
     // No saved discount → try to apply live student discount
-    const isSecondary = subscriptionCount > 1;
     const result = applyDiscount(storedBase, "planes", isSecondary);
     return { price: result.final, discountId: result.discount?.id ?? null, baseUsed: storedBase };
   };
@@ -168,7 +167,7 @@ export function RegisterPaymentModal({
     const basePeriodo = sub.fecha_fin?.substring(0, 10)
       || (sub.fecha_inicio ? endOfCalendarMonth(sub.fecha_inicio.substring(0, 10)) : endOfCalendarMonth(fechaPago));
     setFechaFin(basePeriodo);
-  }, [selectedSubId, pendingSubs, subscriptionCount, usarPrecioActual]);
+  }, [selectedSubId, pendingSubs, activeNonPausaCount, usarPrecioActual]);
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
@@ -400,7 +399,7 @@ export function RegisterPaymentModal({
                 const baseAmount = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
                 const { price: effectivePrice, discountId: effDiscountId } = getEffectivePrice(selectedSub);
                 const hasDiscount = !!effDiscountId && effectivePrice < baseAmount;
-                const live = applyDiscount(baseAmount, "planes", subscriptionCount > 1);
+                const live = applyDiscount(baseAmount, "planes", isSubSecondary(selectedSub.id));
                 const discountLabel = hasDiscount ? (live.discount?.nombre || "Descuento") : null;
                 return (
                   <div className="bg-secondary/30 rounded-md p-3 space-y-1">
