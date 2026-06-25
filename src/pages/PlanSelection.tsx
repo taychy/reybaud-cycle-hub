@@ -263,7 +263,7 @@ const PlanSelection = () => {
   }, [loading, vacationPreselectPlanId, planes, selected, isUpgradeFlow]);
 
   const selectedPlan = planes.find((p) => p.id === selected);
-  const isSecondary = subscriptionCount > 0;
+  const isSecondary = isSecondActivityForNew(selectedPlan?.categoria);
   const selectedDiscount = selectedPlan
     ? applyDiscount(
         selectedPlan.tipo === "programa" && selectedPlan.precio_promocional
