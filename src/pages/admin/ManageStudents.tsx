@@ -356,14 +356,16 @@ const ManageStudents = () => {
   };
   const duplicadosCount = alumnos.filter(isDuplicate).length;
 
-  // Alumnos con más de una suscripción activa (multi_subs)
-  const activeSubsByAlumno: Record<string, number> = {};
+  // Alumnos con conflicto real de modalidad (no contar renovaciones legítimas ni
+  // coexistencia válida entre Grupal + Pista + Asesoría).
+  const today = new Date().toISOString().split("T")[0];
+  const vigentesByAlumno: Record<string, any[]> = {};
   suscripciones.forEach(s => {
-    if (s.estado === "activa" && !(s as any).cancelada_at) {
-      activeSubsByAlumno[s.alumno_id] = (activeSubsByAlumno[s.alumno_id] || 0) + 1;
+    if (s.estado === "activa" && !(s as any).cancelada_at && (!s.fecha_fin || s.fecha_fin >= today)) {
+      (vigentesByAlumno[s.alumno_id] ||= []).push(s);
     }
   });
-  const hasMultiSubs = (a: Alumno) => (activeSubsByAlumno[a.id] || 0) > 1;
+  const hasMultiSubs = (a: Alumno) => hasSubscriptionConflict(vigentesByAlumno[a.id] || []);
   const multiSubsCount = alumnos.filter(hasMultiSubs).length;
 
   // --- Access status ---
