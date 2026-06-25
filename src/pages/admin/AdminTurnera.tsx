@@ -67,7 +67,19 @@ const AdminTurnera = () => {
   };
 
   const deleteServicio = async (id: string) => {
-    await supabase.from("servicios_turnera").delete().eq("id", id);
+    if (!confirm("¿Eliminar este servicio? Si tiene reservas, se desactivará en lugar de borrarse.")) return;
+    const { error } = await supabase.from("servicios_turnera").delete().eq("id", id);
+    if (error) {
+      // Probablemente FK por reservas existentes → soft delete
+      const { error: e2 } = await supabase.from("servicios_turnera").update({ activo: false } as any).eq("id", id);
+      if (e2) {
+        toast({ title: "No se pudo eliminar", description: error.message, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Servicio desactivado", description: "Tenía reservas asociadas, se ocultó en vez de borrarse." });
+    } else {
+      toast({ title: "Servicio eliminado" });
+    }
     loadAll();
   };
 
