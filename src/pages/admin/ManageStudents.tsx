@@ -32,6 +32,7 @@ import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergen
 import { StudentNotesSection } from "@/components/admin/StudentNotesSection";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
+import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { ManageSubscriptionModal } from "@/components/admin/ManageSubscriptionModal";
 
