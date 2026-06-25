@@ -399,7 +399,7 @@ export function RegisterPaymentModal({
                 const baseAmount = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
                 const { price: effectivePrice, discountId: effDiscountId } = getEffectivePrice(selectedSub);
                 const hasDiscount = !!effDiscountId && effectivePrice < baseAmount;
-                const live = applyDiscount(baseAmount, "planes", subscriptionCount > 1);
+                const live = applyDiscount(baseAmount, "planes", isSubSecondary(selectedSub.id));
                 const discountLabel = hasDiscount ? (live.discount?.nombre || "Descuento") : null;
                 return (
                   <div className="bg-secondary/30 rounded-md p-3 space-y-1">
