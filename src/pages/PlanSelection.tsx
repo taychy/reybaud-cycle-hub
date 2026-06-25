@@ -855,7 +855,7 @@ const PlanSelection = () => {
                 const isPopular = index === 0;
                 const isSelected = selected === plan.id;
                 const basePrice = plan.tipo === "programa" && plan.precio_promocional ? plan.precio_promocional : plan.precio;
-                const disc = applyDiscount(basePrice, "planes", isSecondary);
+                const disc = applyDiscount(basePrice, "planes", isSecondActivityForNew(plan.categoria));
                 const hasPromo = plan.tipo === "programa" && plan.precio_promocional;
                 const hasStudentDiscount = disc.discount !== null;
 
