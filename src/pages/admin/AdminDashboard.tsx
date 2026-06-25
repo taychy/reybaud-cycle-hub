@@ -126,8 +126,8 @@ const AdminDashboard = () => {
 
       const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes, cuotasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").in("estado", ["activa", "conciliado"]),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)").in("estado", ["activa", "conciliado"]),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)"),
         supabase.from("alumnos").select("id, estado, grupo, created_at"),
         supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
         // Paso B: cuotas de eventos por cobrar (saldo > 0)
