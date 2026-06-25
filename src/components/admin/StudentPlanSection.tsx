@@ -114,7 +114,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [duplicateAlert, setDuplicateAlert] = useState<{ plan_nombre: string; fecha_fin: string }[]>([]);
-  const { discounts, applyDiscount, loading: discountsLoading, subscriptionCount } = useStudentDiscounts(alumno.id);
+  const { discounts, applyDiscount, loading: discountsLoading, isSubSecondary } = useStudentDiscounts(alumno.id);
 
   // Dialog state
   const [dialogMode, setDialogMode] = useState<"add" | "change">("add");
