@@ -191,24 +191,6 @@ const AdminTurnera = () => {
                       {s.precio && <Badge variant="outline" className="text-xs">${Number(s.precio).toLocaleString("es-AR")}</Badge>}
                       <Badge variant="outline" className="text-xs">{s.modalidad}</Badge>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 rounded px-2 py-1 flex-1 min-w-0">
-                        <LinkIcon className="w-3 h-3 shrink-0" />
-                        <span className="font-mono truncate">{baseUrl}/reservar/{s.slug}</span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(`${baseUrl}/reservar/${s.slug}`);
-                          toast({ title: "Link copiado al portapapeles" });
-                        }}
-                      >
-                        <Copy className="w-3 h-3 mr-1" /> Copiar link
-                      </Button>
-                    </div>
                   </div>
                   <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)}>
                     <Trash2 className="w-4 h-4" />
