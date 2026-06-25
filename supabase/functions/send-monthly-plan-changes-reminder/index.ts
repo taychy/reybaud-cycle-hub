@@ -148,14 +148,14 @@ Deno.serve(async (req) => {
   const senderName = cfg?.sender_name || "Ciclismo Reybaud";
 
   // Recipients
-  let recipients: { email: string; nombre: string }[] = [];
+  let recipients: { email: string; nombre: string; alumno_id?: string }[] = [];
   if (testEmail) {
     recipients = [{ email: testEmail, nombre: "Alumno (prueba)" }];
   } else {
     // Sólo alumnos plenamente activos: excluye pausa, vacaciones, bloqueado, cancelado, inactivo, baja, pendiente.
     const { data, error } = await admin
       .from("alumnos")
-      .select("email, nombre, estado")
+      .select("id, email, nombre, estado")
       .eq("estado", "activo");
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     const seen = new Set<string>();
     recipients = (data || [])
       .filter((a: any) => a.email && /.+@.+\..+/.test(a.email))
-      .map((a: any) => ({ email: a.email.toLowerCase().trim(), nombre: a.nombre || "Alumno" }))
+      .map((a: any) => ({ email: a.email.toLowerCase().trim(), nombre: a.nombre || "Alumno", alumno_id: a.id }))
       .filter((r) => { if (seen.has(r.email)) return false; seen.add(r.email); return true; });
 
     // Filtrar suppressed
@@ -181,6 +181,25 @@ Deno.serve(async (req) => {
       }
     }
   }
+
+  // Mapa de alumnos con deuda: sub 'vencida' o 'activa' con fecha_fin < hoy
+  const debtSet = new Set<string>();
+  if (!testEmail && recipients.length > 0) {
+    const ids = recipients.map(r => r.alumno_id).filter(Boolean) as string[];
+    const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: AR_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+    const { data: subs } = await admin
+      .from("suscripciones")
+      .select("alumno_id, estado, fecha_fin")
+      .in("alumno_id", ids)
+      .in("estado", ["vencida", "activa", "pendiente"]);
+    for (const s of (subs || []) as any[]) {
+      if (s.estado === "vencida") { debtSet.add(s.alumno_id); continue; }
+      if ((s.estado === "activa" || s.estado === "pendiente") && s.fecha_fin && s.fecha_fin < todayISO) {
+        debtSet.add(s.alumno_id);
+      }
+    }
+  }
+
 
   const subject = `📢 Cambios de plan, pausas y bajas — vencen el ${deadlineText}`;
 
