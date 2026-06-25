@@ -95,7 +95,9 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
     </div>
 
     <p style="font-size:12px;color:#999;margin:26px 0 0;text-align:center;border-top:1px solid #eee;padding-top:14px;">
-      Si no querés hacer ningún cambio, ignorá este mensaje. Tu plan continúa normalmente.
+      ${hasDebt
+        ? "Este recordatorio también está disponible por si necesitás gestionar algún cambio, pausa o baja.<br/><br/>Para continuar con normalidad, podés ponerte al día con la mensualidad pendiente desde el botón de arriba."
+        : "Si no querés hacer ningún cambio, ignorá este mensaje. Tu plan continúa normalmente."}
     </p>
   </div>
 </body></html>`;
