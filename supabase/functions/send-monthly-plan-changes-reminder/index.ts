@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch {}
   const dryRun: boolean = !!body.dry_run;
   const testEmail: string | undefined = body.test_email?.toLowerCase().trim();
+  const testHasDebt: boolean = !!body.test_has_debt;
 
   // Deadline: día 28 del mes en curso en AR.
   const now = new Date();
