@@ -106,13 +106,11 @@ const BookingFlow = () => {
 
       const today = new Date().toISOString().split("T")[0];
       const future = new Date(); future.setDate(future.getDate() + 60);
-      const { data: res } = await supabase
-        .from("reservas_turnera")
-        .select("fecha, hora_inicio, coach_id")
-        .eq("servicio_id", serv.id)
-        .gte("fecha", today)
-        .lte("fecha", future.toISOString().split("T")[0])
-        .not("estado_operativo", "in", '("cancelada_por_alumno","cancelada_por_admin")');
+      const { data: res } = await supabase.rpc("get_reservas_turnera_ocupadas", {
+        p_servicio_id: serv.id,
+        p_desde: today,
+        p_hasta: future.toISOString().split("T")[0],
+      } as any);
       setReservasExistentes((res as any[]) || []);
       setLoading(false);
     };
