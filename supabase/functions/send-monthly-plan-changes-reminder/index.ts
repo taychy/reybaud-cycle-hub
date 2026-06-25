@@ -45,10 +45,18 @@ function formatDeadlineAR(y: number, m: number, d: number) {
   return `${cap} ${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${String(y).slice(-2)}`;
 }
 
-function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; appUrl: string }) {
-  const { nombre, deadline, nextMonth, appUrl } = opts;
+function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; appUrl: string; hasDebt: boolean }) {
+  const { nombre, deadline, nextMonth, appUrl, hasDebt } = opts;
   const btn = (href: string, label: string, color: string) => `
     <a href="${href}" style="display:inline-block;background:${color};color:#ffffff;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:700;font-family:Arial,sans-serif;font-size:14px;margin:6px 4px;">${label}</a>`;
+
+  const payLabel = hasDebt ? "💳 Pagar mensualidad pendiente" : "💳 Pagar próxima mensualidad";
+  const payColor = hasDebt ? "#d97706" : "#16a34a";
+  const debtNotice = hasDebt
+    ? `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 14px;margin:14px 0;color:#9a3412;font-size:14px;line-height:1.55;">
+         <strong>⚠️ Tenés una mensualidad pendiente de pago.</strong> Al tocar el botón vas a regularizar el período adeudado, no el próximo.
+       </div>`
+    : "";
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/></head>
 <body style="background:#ffffff;font-family:Arial,sans-serif;color:#1a1a1a;margin:0;padding:0;">
@@ -64,6 +72,8 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
       <strong>${deadline}</strong>. Esto nos ayuda a organizar todo y asegurar
       que tu facturación se realice correctamente.
     </p>
+
+    ${debtNotice}
 
     <div style="background:#f6f7f9;border-radius:10px;padding:14px 16px;margin:18px 0;">
       <p style="margin:0 0 6px;font-weight:700;font-size:14px;">📱 Sobre los pagos</p>
@@ -81,7 +91,7 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
     </div>
 
     <div style="text-align:center;margin:18px 0 6px;">
-      ${btn(`${appUrl}/alumno/pagos`, "💳 Pagar próxima mensualidad", "#16a34a")}
+      ${btn(`${appUrl}/alumno/pagos`, payLabel, payColor)}
     </div>
 
     <p style="font-size:12px;color:#999;margin:26px 0 0;text-align:center;border-top:1px solid #eee;padding-top:14px;">
@@ -123,6 +133,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch {}
   const dryRun: boolean = !!body.dry_run;
   const testEmail: string | undefined = body.test_email?.toLowerCase().trim();
+  const testHasDebt: boolean = !!body.test_has_debt;
 
   // Deadline: día 28 del mes en curso en AR.
   const now = new Date();
@@ -138,14 +149,14 @@ Deno.serve(async (req) => {
   const senderName = cfg?.sender_name || "Ciclismo Reybaud";
 
   // Recipients
-  let recipients: { email: string; nombre: string }[] = [];
+  let recipients: { email: string; nombre: string; alumno_id?: string }[] = [];
   if (testEmail) {
     recipients = [{ email: testEmail, nombre: "Alumno (prueba)" }];
   } else {
     // Sólo alumnos plenamente activos: excluye pausa, vacaciones, bloqueado, cancelado, inactivo, baja, pendiente.
     const { data, error } = await admin
       .from("alumnos")
-      .select("email, nombre, estado")
+      .select("id, email, nombre, estado")
       .eq("estado", "activo");
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
@@ -155,7 +166,7 @@ Deno.serve(async (req) => {
     const seen = new Set<string>();
     recipients = (data || [])
       .filter((a: any) => a.email && /.+@.+\..+/.test(a.email))
-      .map((a: any) => ({ email: a.email.toLowerCase().trim(), nombre: a.nombre || "Alumno" }))
+      .map((a: any) => ({ email: a.email.toLowerCase().trim(), nombre: a.nombre || "Alumno", alumno_id: a.id }))
       .filter((r) => { if (seen.has(r.email)) return false; seen.add(r.email); return true; });
 
     // Filtrar suppressed
@@ -172,6 +183,25 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Mapa de alumnos con deuda: sub 'vencida' o 'activa' con fecha_fin < hoy
+  const debtSet = new Set<string>();
+  if (!testEmail && recipients.length > 0) {
+    const ids = recipients.map(r => r.alumno_id).filter(Boolean) as string[];
+    const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: AR_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+    const { data: subs } = await admin
+      .from("suscripciones")
+      .select("alumno_id, estado, fecha_fin")
+      .in("alumno_id", ids)
+      .in("estado", ["vencida", "activa", "pendiente"]);
+    for (const s of (subs || []) as any[]) {
+      if (s.estado === "vencida") { debtSet.add(s.alumno_id); continue; }
+      if ((s.estado === "activa" || s.estado === "pendiente") && s.fecha_fin && s.fecha_fin < todayISO) {
+        debtSet.add(s.alumno_id);
+      }
+    }
+  }
+
+
   const subject = `📢 Cambios de plan, pausas y bajas — vencen el ${deadlineText}`;
 
   if (dryRun) {
@@ -185,7 +215,8 @@ Deno.serve(async (req) => {
 
   let sent = 0, failed = 0;
   for (const r of recipients) {
-    const html = buildHtml({ nombre: r.nombre, deadline: deadlineText, nextMonth, appUrl: APP_URL });
+    const hasDebt = testEmail ? testHasDebt : !!(r.alumno_id && debtSet.has(r.alumno_id));
+    const html = buildHtml({ nombre: r.nombre, deadline: deadlineText, nextMonth, appUrl: APP_URL, hasDebt });
     const payload = {
       sender: { email: senderEmail, name: senderName },
       to: [{ email: r.email, name: r.nombre }],
