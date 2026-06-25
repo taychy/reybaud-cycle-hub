@@ -22,6 +22,7 @@ export interface DiscountResult {
 interface ActiveSubLite {
   id: string;
   fecha_inicio: string | null;
+  fecha_fin: string | null;
   categoria: string;
 }
 
@@ -63,11 +64,11 @@ export function useStudentDiscounts(alumnoId: string | null) {
           .is("cancelada_at", null),
       ]);
 
-      // Vigentes no-pausa
+      // Vigentes no-pausa REALMENTE solapadas con hoy (no renovaciones futuras)
       const vigentes = (subsRes.data as any[] | null || [])
-        .filter(s => !s.fecha_fin || s.fecha_fin >= today)
+        .filter(s => (!s.fecha_inicio || s.fecha_inicio <= today) && (!s.fecha_fin || s.fecha_fin >= today))
         .filter(s => (s.planes?.categoria || "otro") !== "pausa")
-        .map(s => ({ id: s.id, fecha_inicio: s.fecha_inicio, categoria: s.planes?.categoria || "otro" }))
+        .map(s => ({ id: s.id, fecha_inicio: s.fecha_inicio, fecha_fin: s.fecha_fin, categoria: s.planes?.categoria || "otro" }))
         .sort((a, b) => (a.fecha_inicio || "").localeCompare(b.fecha_inicio || ""));
       setActiveNonPausaSubs(vigentes);
 
