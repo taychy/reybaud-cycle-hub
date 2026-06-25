@@ -77,12 +77,11 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
     <p style="font-size:14px;font-weight:700;margin:24px 0 8px;">Elegí qué querés hacer:</p>
     <div style="text-align:center;margin:6px 0 18px;">
       ${btn(`${appUrl}/alumno/pagos?action=cambiar-plan`, "🔁 Cambiar mi plan", "#E8832A")}
-      ${btn(`${appUrl}/alumno/pagos?action=pausa`, "⏸️ Pausar mi plan", "#1f6feb")}
       ${btn(`${appUrl}/alumno/pagos?action=baja`, "✖️ Dar de baja", "#444444")}
     </div>
 
     <div style="text-align:center;margin:18px 0 6px;">
-      ${btn(`${appUrl}/alumno/pagos`, "💳 Ir a pagar / activar renovación", "#16a34a")}
+      ${btn(`${appUrl}/alumno/pagos`, "💳 Pagar próxima mensualidad", "#16a34a")}
     </div>
 
     <p style="font-size:12px;color:#999;margin:26px 0 0;text-align:center;border-top:1px solid #eee;padding-top:14px;">
