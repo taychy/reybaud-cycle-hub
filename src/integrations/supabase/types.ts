@@ -7499,6 +7499,10 @@ export type Database = {
       }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
+      sync_segunda_actividad_discount: {
+        Args: { _alumno_id: string }
+        Returns: undefined
+      }
       transition_cambio_estado: {
         Args: {
           p_id: string
