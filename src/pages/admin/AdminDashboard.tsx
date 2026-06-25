@@ -199,7 +199,7 @@ const AdminDashboard = () => {
 
       setMetrics([
         { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
-        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con 2+ planes activos` : "Ver pagos activos" },
+        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con conflicto de modalidad` : "Ver pagos activos" },
         { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Pendientes + gracia día 1-5" },
         { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Vencidas + acceso pausado (post día 5)" },
         { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes (precio final)" },
