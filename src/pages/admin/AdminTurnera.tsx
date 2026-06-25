@@ -205,74 +205,13 @@ const AdminTurnera = () => {
         </TabsContent>
 
         <TabsContent value="disponibilidad" className="space-y-4 mt-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">Bloques horarios por coach. Determina la asignación automática.</p>
-            <Button size="sm" onClick={() => setShowDispForm(true)}><Plus className="w-4 h-4 mr-2" /> Nuevo bloque</Button>
-          </div>
-
-          <Dialog open={showDispForm} onOpenChange={setShowDispForm}>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Nuevo bloque de disponibilidad</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <Select value={dispForm.coach_id} onValueChange={v => setDispForm({ ...dispForm, coach_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Coach" /></SelectTrigger>
-                  <SelectContent>{coaches.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={dispForm.servicio_id} onValueChange={v => setDispForm({ ...dispForm, servicio_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Servicio" /></SelectTrigger>
-                  <SelectContent>{servicios.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={dispForm.dia_semana} onValueChange={v => setDispForm({ ...dispForm, dia_semana: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{DIAS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent>
-                </Select>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input type="time" value={dispForm.hora_inicio} onChange={e => setDispForm({ ...dispForm, hora_inicio: e.target.value })} />
-                  <Input type="time" value={dispForm.hora_fin} onChange={e => setDispForm({ ...dispForm, hora_fin: e.target.value })} />
-                </div>
-                {sedes.length > 0 && (
-                  <Select value={dispForm.sede_id} onValueChange={v => setDispForm({ ...dispForm, sede_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Sede (opcional)" /></SelectTrigger>
-                    <SelectContent>{sedes.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
-                  </Select>
-                )}
-                <Button onClick={addDisponibilidad} className="w-full">Guardar</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Coach</TableHead>
-                <TableHead>Servicio</TableHead>
-                <TableHead>Día</TableHead>
-                <TableHead>Horario</TableHead>
-                <TableHead>Sede</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {disponibilidades.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sin bloques configurados.</TableCell></TableRow>
-              ) : (
-                disponibilidades.map(d => (
-                  <TableRow key={d.id}>
-                    <TableCell className="text-sm">{coachName(d.coach_id)}</TableCell>
-                    <TableCell className="text-sm">{servicioName(d.servicio_id)}</TableCell>
-                    <TableCell><Badge variant="secondary" className="text-xs">{DIAS[d.dia_semana]}</Badge></TableCell>
-                    <TableCell className="text-xs font-mono">{d.hora_inicio} – {d.hora_fin}</TableCell>
-                    <TableCell className="text-xs">{d.sede_id ? sedeName(d.sede_id) : "–"}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDisponibilidad(d.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <DisponibilidadEditor
+            coaches={coaches}
+            servicios={servicios}
+            sedes={sedes}
+            disponibilidades={disponibilidades}
+            reload={loadAll}
+          />
         </TabsContent>
 
         <TabsContent value="reservas" className="mt-4">
