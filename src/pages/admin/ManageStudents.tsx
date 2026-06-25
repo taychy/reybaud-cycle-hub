@@ -984,7 +984,7 @@ const ManageStudents = () => {
     ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
     ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
     ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
-    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Con 2+ suscripciones", count: multiSubsCount }] : []),
+    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Conflicto modalidad", count: multiSubsCount }] : []),
     { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
     { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
     ...Object.entries(planCounts).map(([planId, { name, count }]) => ({
