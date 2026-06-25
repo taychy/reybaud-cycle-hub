@@ -652,7 +652,8 @@ const StudentPayments = () => {
                           // reutilizamos esta misma sub (sin crear "renovación anticipada" al mes siguiente).
                           setReuseSubId(sub.id);
                         } else if (!skipPlanPicker && sub.fecha_fin) {
-                          // Renovación anticipada clásica (plan activo cerca del vencimiento)
+                          // Renovación anticipada clásica (plan activo cerca del vencimiento):
+                          // mantenemos el mismo plan y saltamos directo al paso de medio de pago.
                           setEarlyRenewal({
                             subId: sub.id,
                             planId: sub.plan_id,
@@ -665,11 +666,10 @@ const StudentPayments = () => {
 
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
                         localStorage.setItem("alumno_preselect_plan_id", sub.plan_id);
-                        if (skipPlanPicker) {
-                          localStorage.setItem("alumno_pay_pending_skip", "1");
-                        } else {
-                          localStorage.removeItem("alumno_pay_pending_skip");
-                        }
+                        // Siempre saltamos directo al método: ya hay plan elegido (el actual).
+                        // En "skipPlanPicker" venimos de un estado roto del período actual; en el
+                        // resto venimos de renovación anticipada del mismo plan.
+                        localStorage.setItem("alumno_pay_pending_skip", "1");
                         navigate("/planes");
                       };
 
