@@ -588,9 +588,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const statusLabel = SUB_STATUS_LABELS[effectiveEstado] || effectiveEstado;
     const isActive = ACTIVE_STATES.has(effectiveEstado);
 
-    // Discount logic
-    const totalActive = activeSubs.length;
-    const isSecondary = totalActive > 1 && index === 0;
+    // Discount logic — usa helper unificado (modalidad-aware, excluye pausa)
+    const isSecondary = isSubSecondary(sub.id);
     const planPrice = sub.planes?.precio || 0;
     const moneda = sub.planes?.moneda || "ARS";
     const hasSavedDiscount = sub.descuento_id && sub.descuentos;
