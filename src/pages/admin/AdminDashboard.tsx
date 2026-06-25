@@ -135,7 +135,13 @@ const AdminDashboard = () => {
       ]);
 
       const alumnos = alumnosRes.data || [];
-      const subsActivas = subsActivasRes.data || [];
+      const subsActivasRaw = subsActivasRes.data || [];
+      // Sólo subs realmente vigentes: estado activa/conciliado + fecha_fin >= hoy + no canceladas.
+      // Las que tienen fecha_fin < hoy son períodos cerrados (mes anterior ya consumido) — no
+      // deben contar como "activas" ni inflar el contador de duplicados.
+      const subsActivas = subsActivasRaw.filter((s: any) =>
+        !s.cancelada_at && (!s.fecha_fin || s.fecha_fin >= today)
+      );
       const allSubs = allSubsRes.data || [];
       const allAlumnos = allAlumnosRes.data || [];
       const cuotas = (cuotasRes.data as any[]) || [];
@@ -179,11 +185,13 @@ const AdminDashboard = () => {
       const cuotasMonto = cuotas.reduce((sum, c) => sum + Number(c.amount || 0), 0);
       setCuotasEventos({ count: cuotasCount, vencidas: cuotasVencidas, monto: cuotasMonto });
 
-      // Detectar alumnos con más de una suscripción activa (explica diferencia alumnos vs subs)
+      // Duplicados reales: alumnos con 2+ subs vigentes que SE SOLAPAN en período
+      // (no contar período anterior ya cerrado + período actual = renovación legítima).
       const subsPorAlumno: Record<string, number> = {};
       subsActivas.forEach(s => { subsPorAlumno[s.alumno_id] = (subsPorAlumno[s.alumno_id] || 0) + 1; });
       const conMultiples = Object.values(subsPorAlumno).filter(c => c > 1).length;
       setDuplicadosCount(conMultiples);
+
 
       setMetrics([
         { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
