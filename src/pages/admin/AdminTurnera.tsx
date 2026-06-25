@@ -131,8 +131,34 @@ const AdminTurnera = () => {
         </TabsList>
 
         <TabsContent value="servicios" className="space-y-4 mt-4">
+          <Card className="bg-primary/10 border-primary/40">
+            <CardContent className="p-4 space-y-2">
+              <p className="text-sm font-medium text-foreground">Link público de turnera</p>
+              <p className="text-xs text-muted-foreground">
+                Compartí este único link. El alumno elige el servicio desde la página.
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-xs text-foreground bg-muted/60 rounded px-2 py-1.5 flex-1 min-w-0">
+                  <LinkIcon className="w-3 h-3 shrink-0" />
+                  <span className="font-mono truncate">{baseUrl}/reservar</span>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-8 px-3 text-xs shrink-0"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${baseUrl}/reservar`);
+                    toast({ title: "Link copiado al portapapeles" });
+                  }}
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copiar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">Servicios reservables por link externo.</p>
+            <p className="text-sm text-muted-foreground">Servicios reservables.</p>
             <Button size="sm" onClick={() => setShowServForm(true)}><Plus className="w-4 h-4 mr-2" /> Nuevo servicio</Button>
           </div>
 
