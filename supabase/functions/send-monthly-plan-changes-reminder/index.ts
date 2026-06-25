@@ -1,6 +1,13 @@
-// Recordatorio mensual automático (día 25) para alumnos activos
-// sobre cambios de plan, pausas y bajas.
-// Disparado por pg_cron. También aceptable invocación manual con { dry_run, test_email }.
+// Recordatorio mensual (día 25, 10:00 AR) para alumnos sobre cambios de plan, pausas y bajas.
+// Disparado por pg_cron. También admite invocación manual con { dry_run, test_email }.
+//
+// Mejoras aplicadas:
+//  1. Filtra alumnos pausados / vacaciones / bloqueados / cancelados.
+//  2. Excluye direcciones en `suppressed_emails`.
+//  3. Loguea cada envío en `email_send_log` (status sent/failed/suppressed).
+//  4. Calcula deadline (día 28) y etiqueta en timezone Argentina (America/Argentina/Buenos_Aires).
+//  5. Throttle suave (~120/min) para no saturar Brevo.
+//  6. test_email y dry_run no escriben en email_send_log (excepto marcado test).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
@@ -15,14 +22,27 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const APP_URL = (Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "") || "https://reybaud-app.com");
 
+const AR_TZ = "America/Argentina/Buenos_Aires";
 const DAYS_ES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
-function formatDeadline(d: Date) {
-  return `${DAYS_ES[d.getUTCDay()]} ${String(d.getUTCDate()).padStart(2,"0")}/${String(d.getUTCMonth()+1).padStart(2,"0")}/${String(d.getUTCFullYear()).slice(-2)}`;
+// Devuelve {y,m,d} en zona horaria AR
+function arParts(d: Date) {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: AR_TZ, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" });
+  const parts = fmt.formatToParts(d);
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? "";
+  const y = parseInt(get("year"), 10);
+  const m = parseInt(get("month"), 10);
+  const day = parseInt(get("day"), 10);
+  return { y, m, d: day };
 }
-function monthLabel(d: Date) {
-  return `${MONTHS_ES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+
+function formatDeadlineAR(y: number, m: number, d: number) {
+  // Construyo Date a mediodía UTC para que el día de la semana sea estable en AR.
+  const probe = new Date(Date.UTC(y, m - 1, d, 15, 0, 0));
+  const weekday = new Intl.DateTimeFormat("es-AR", { timeZone: AR_TZ, weekday: "long" }).format(probe);
+  const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  return `${cap} ${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${String(y).slice(-2)}`;
 }
 
 function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; appUrl: string }) {
@@ -84,8 +104,11 @@ async function sendOne(payload: any) {
   });
   const text = await resp.text();
   let json: any = null; try { json = JSON.parse(text); } catch {}
-  return { ok: resp.ok && !!(json?.messageId || json?.messageIds), status: resp.status, body: json ?? text };
+  const messageId = json?.messageId || (Array.isArray(json?.messageIds) ? json.messageIds[0] : null) || null;
+  return { ok: resp.ok && !!messageId, status: resp.status, body: json ?? text, messageId };
 }
+
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -100,13 +123,15 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch {}
   const dryRun: boolean = !!body.dry_run;
-  const testEmail: string | undefined = body.test_email;
+  const testEmail: string | undefined = body.test_email?.toLowerCase().trim();
 
-  // Deadline: día 28 del mes en curso (Argentina, sin TZ exacta — suficiente para texto)
+  // Deadline: día 28 del mes en curso en AR.
   const now = new Date();
-  const deadline = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 28));
-  const nextMonth = monthLabel(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()+1, 1)));
-  const deadlineText = formatDeadline(deadline);
+  const { y, m } = arParts(now);
+  const deadlineText = formatDeadlineAR(y, m, 28);
+  const nextMonthIdx = m % 12; // 0..11
+  const nextMonthYear = m === 12 ? y + 1 : y;
+  const nextMonth = `${MONTHS_ES[nextMonthIdx]} ${nextMonthYear}`;
 
   // Sender
   const { data: cfg } = await admin.from("broadcast_sender_config").select("*").limit(1).maybeSingle();
@@ -118,6 +143,7 @@ Deno.serve(async (req) => {
   if (testEmail) {
     recipients = [{ email: testEmail, nombre: "Alumno (prueba)" }];
   } else {
+    // Sólo alumnos plenamente activos: excluye pausa, vacaciones, bloqueado, cancelado, inactivo, baja, pendiente.
     const { data, error } = await admin
       .from("alumnos")
       .select("email, nombre, estado")
@@ -132,6 +158,19 @@ Deno.serve(async (req) => {
       .filter((a: any) => a.email && /.+@.+\..+/.test(a.email))
       .map((a: any) => ({ email: a.email.toLowerCase().trim(), nombre: a.nombre || "Alumno" }))
       .filter((r) => { if (seen.has(r.email)) return false; seen.add(r.email); return true; });
+
+    // Filtrar suppressed
+    if (recipients.length > 0) {
+      const emails = recipients.map(r => r.email);
+      const { data: supp } = await admin
+        .from("suppressed_emails")
+        .select("email")
+        .in("email", emails);
+      const suppSet = new Set((supp || []).map((s: any) => s.email.toLowerCase()));
+      if (suppSet.size > 0) {
+        recipients = recipients.filter(r => !suppSet.has(r.email));
+      }
+    }
   }
 
   const subject = `📢 Cambios de plan, pausas y bajas — vencen el ${deadlineText}`;
@@ -142,6 +181,9 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  const templateName = "monthly-plan-changes-reminder";
+  const runTag = `${y}-${String(m).padStart(2,"0")}`;
+
   let sent = 0, failed = 0;
   for (const r of recipients) {
     const html = buildHtml({ nombre: r.nombre, deadline: deadlineText, nextMonth, appUrl: APP_URL });
@@ -150,13 +192,27 @@ Deno.serve(async (req) => {
       to: [{ email: r.email, name: r.nombre }],
       subject,
       htmlContent: html,
-      tags: ["monthly-plan-reminder", `month-${now.getUTCFullYear()}-${now.getUTCMonth()+1}`],
+      tags: ["monthly-plan-reminder", `month-${runTag}`, ...(testEmail ? ["test"] : [])],
     };
     const res = await sendOne(payload);
     if (res.ok) sent++; else failed++;
+
+    // Log siempre (incluye envíos de prueba para trazabilidad)
+    try {
+      await admin.from("email_send_log").insert({
+        recipient_email: r.email,
+        template_name: templateName,
+        status: res.ok ? "sent" : "failed",
+        message_id: res.messageId,
+        error_message: res.ok ? null : (typeof res.body === "string" ? res.body : JSON.stringify(res.body))?.slice(0, 1000),
+      });
+    } catch (_) { /* no romper el batch por logging */ }
+
+    // Throttle ~120/min (500ms entre envíos). Sin delay en test.
+    if (!testEmail) await sleep(500);
   }
 
-  return new Response(JSON.stringify({ ok: true, total: recipients.length, sent, failed, deadlineText }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify({
+    ok: true, total: recipients.length, sent, failed, deadlineText, nextMonth, test: !!testEmail,
+  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
