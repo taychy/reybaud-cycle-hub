@@ -22,6 +22,7 @@ export interface DiscountResult {
 interface ActiveSubLite {
   id: string;
   fecha_inicio: string | null;
+  fecha_fin: string | null;
   categoria: string;
 }
 
