@@ -218,9 +218,10 @@ export const EventInstallmentsEditor = ({ eventId, eventCurrency, eventPrice }: 
     }
 
     setSaving(item.id);
+    const { has_validated_payments: _hvp, validated_payments_count: _vpc, ...dbPatch } = patch as any;
     const { error } = await supabase
       .from("event_installments")
-      .update(patch)
+      .update(dbPatch)
       .eq("id", item.id);
     setSaving(null);
 
