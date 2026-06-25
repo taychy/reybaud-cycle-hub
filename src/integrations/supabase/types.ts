@@ -7244,6 +7244,14 @@ export type Database = {
           plan_id: string
         }[]
       }
+      get_reservas_turnera_ocupadas: {
+        Args: { p_desde: string; p_hasta: string; p_servicio_id: string }
+        Returns: {
+          coach_id: string
+          fecha: string
+          hora_inicio: string
+        }[]
+      }
       get_reservation_participant_by_token: {
         Args: { p_token: string }
         Returns: {
