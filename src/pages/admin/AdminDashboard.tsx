@@ -17,6 +17,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
 import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscriptionStatus";
+import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 
 interface MetricCard {
   label: string;
@@ -126,8 +127,8 @@ const AdminDashboard = () => {
 
       const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes, cuotasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)").in("estado", ["activa", "conciliado"]),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio)"),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)").in("estado", ["activa", "conciliado"]),
+        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)"),
         supabase.from("alumnos").select("id, estado, grupo, created_at"),
         supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
         // Paso B: cuotas de eventos por cobrar (saldo > 0)
@@ -185,17 +186,20 @@ const AdminDashboard = () => {
       const cuotasMonto = cuotas.reduce((sum, c) => sum + Number(c.amount || 0), 0);
       setCuotasEventos({ count: cuotasCount, vencidas: cuotasVencidas, monto: cuotasMonto });
 
-      // Duplicados reales: alumnos con 2+ subs vigentes que SE SOLAPAN en período
-      // (no contar período anterior ya cerrado + período actual = renovación legítima).
-      const subsPorAlumno: Record<string, number> = {};
-      subsActivas.forEach(s => { subsPorAlumno[s.alumno_id] = (subsPorAlumno[s.alumno_id] || 0) + 1; });
-      const conMultiples = Object.values(subsPorAlumno).filter(c => c > 1).length;
+      // Duplicados reales: alumnos cuyas suscripciones vigentes violan las reglas de modalidad
+      // (2+ grupales, 2+ pista, una "pausa" + cualquier otra, o "otro" duplicado exacto).
+      // Renovaciones legítimas (mes anterior cerrado + mes actual) NO cuentan.
+      const subsPorAlumnoArr: Record<string, any[]> = {};
+      subsActivas.forEach((s: any) => {
+        (subsPorAlumnoArr[s.alumno_id] ||= []).push(s);
+      });
+      const conMultiples = Object.values(subsPorAlumnoArr).filter(arr => hasSubscriptionConflict(arr as any)).length;
       setDuplicadosCount(conMultiples);
 
 
       setMetrics([
         { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
-        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con 2+ planes activos` : "Ver pagos activos" },
+        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con conflicto de modalidad` : "Ver pagos activos" },
         { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Pendientes + gracia día 1-5" },
         { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Vencidas + acceso pausado (post día 5)" },
         { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes (precio final)" },
