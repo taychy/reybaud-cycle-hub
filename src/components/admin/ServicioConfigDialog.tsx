@@ -247,6 +247,13 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                 </SelectContent>
               </Select>
             )}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div>
+                <Label>Notificar al coach por email</Label>
+                <p className="text-xs text-muted-foreground">El coach recibe un aviso con los datos de la reserva y un link para sumarla a Google Calendar.</p>
+              </div>
+              <Switch checked={emailCoach} onCheckedChange={setEmailCoach} />
+            </div>
           </Section>
 
           {/* Política */}
