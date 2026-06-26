@@ -45,6 +45,13 @@ function inferBlockMinutes(block: TrainingBlock): number {
   let total = 0;
   let foundAny = false;
 
+  // Detect series reps to multiply trailing rest bullets ("micro pausa N'NN\"")
+  let seriesReps = 0;
+  for (const raw of parts) {
+    const sm = raw.match(new RegExp(`(\\d+)\\s*[x×]\\s*\\d+\\s*${APO}?`, "i"));
+    if (sm) { seriesReps = Math.max(seriesReps, parseInt(sm[1])); break; }
+  }
+
   for (const raw of parts) {
     // Strip parts that aren't durations
     const text = raw.replace(/\d+\s*(?:RPM|km\/h|%|kg|w|watts?|ppm|bpm)/gi, " ");
