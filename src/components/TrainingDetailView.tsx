@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronUp, Eye, Flame, Zap, Activity, Moon, Wind, Dumbbell, Bike, Cog, Target } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, Flame, Zap, Activity, Moon, Dumbbell, Bike, Cog, Target, Gauge } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Entrenamiento = Tables<"entrenamientos">;
@@ -19,9 +19,7 @@ function extractBadge(trabajo: string): { badge: string; title: string } {
   if (match) {
     const badge = match[1].trim();
     const title = trabajo.slice(match[0].length).trim();
-    if (badge.length <= 10 && title.length > 0) {
-      return { badge, title };
-    }
+    if (badge.length <= 10 && title.length > 0) return { badge, title };
   }
   const words = trabajo.split(/\s+/);
   if (words.length > 1 && words[0].length <= 8 && words[0] === words[0].toUpperCase()) {
@@ -30,13 +28,10 @@ function extractBadge(trabajo: string): { badge: string; title: string } {
   return { badge: "", title: trabajo };
 }
 
-/** Infer minutes for a block from its bullets / title (best-effort). */
 function inferBlockMinutes(block: TrainingBlock): number {
   const text = [block.title, ...block.bullets].join(" ");
-  // Total minutes like "30'" or "30 min"
   const totalMatch = text.match(/(\d{1,3})\s*(?:'|min|minutos)/i);
   if (totalMatch) return parseInt(totalMatch[1]);
-  // Pattern like "4 x 12'"
   const seriesMatch = text.match(/(\d+)\s*x\s*(\d+)\s*(?:'|min)/i);
   if (seriesMatch) return parseInt(seriesMatch[1]) * parseInt(seriesMatch[2]);
   return 0;
@@ -51,55 +46,37 @@ export function parseDescriptionBlocks(descripcion: string): { totalMinutes: num
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
-
     const minMatch = line.match(/^⏱\s*(\d+)\s*min/i);
-    if (minMatch) {
-      totalMinutes = parseInt(minMatch[1]);
-      continue;
-    }
-
+    if (minMatch) { totalMinutes = parseInt(minMatch[1]); continue; }
     if (line.startsWith("▸")) {
       if (current) blocks.push(current);
       const headerText = line.slice(1).trim();
       let trabajo = headerText;
       let rpm = "";
       const rpmMatch = headerText.match(/\[([^\]]+)\]\s*$/);
-      if (rpmMatch) {
-        rpm = rpmMatch[1];
-        trabajo = headerText.slice(0, rpmMatch.index).trim();
-      }
+      if (rpmMatch) { rpm = rpmMatch[1]; trabajo = headerText.slice(0, rpmMatch.index).trim(); }
       const { badge, title } = extractBadge(trabajo);
       current = { badge, title: title || trabajo, rpm, minutes: 0, bullets: [], footer: "" };
       continue;
     }
-
     if (line.startsWith("🔗")) continue;
     if (line.startsWith("💪")) continue;
     if (line.startsWith("•") && line.includes("http")) continue;
-
     if (current) {
       const cadMatch = line.match(/^cadencia[:\s]/i);
-      if (cadMatch) {
-        current.footer = line;
-        continue;
-      }
+      if (cadMatch) { current.footer = line; continue; }
       if (line === "[object Object]") continue;
       current.bullets.push(line);
     }
   }
   if (current) blocks.push(current);
-
-  // Best-effort minute inference per block
   for (const b of blocks) b.minutes = inferBlockMinutes(b);
-
   return { totalMinutes, blocks };
 }
 
-// --- Structured bullet parsing ---
 function parseStructuredBullets(bullets: string[]): { key: string; value: string }[] | null {
   const keywords = ["objetivo", "zona", "cadencia", "series", "pausa", "descanso", "observ", "rpm", "duración", "intensidad", "recuper"];
   const structured: { key: string; value: string }[] = [];
-
   for (const b of bullets) {
     const clean = b.replace(/^[•\-–]\s*/, "").trim();
     const colonMatch = clean.match(/^([^:]{2,20}):\s*(.+)/i);
@@ -110,25 +87,18 @@ function parseStructuredBullets(bullets: string[]): { key: string; value: string
         continue;
       }
     }
-    if (structured.length > 0) {
-      structured.push({ key: "", value: clean });
-    } else {
-      return null;
-    }
+    if (structured.length > 0) structured.push({ key: "", value: clean });
+    else return null;
   }
-
   return structured.length >= 2 ? structured : null;
 }
 
-// --- Zone & visuals helpers ---
 type Zone = "Z1" | "Z2" | "Z3" | "Z4" | "Z5";
 
 function detectZone(...texts: string[]): Zone | null {
   const joined = texts.join(" ").toUpperCase();
-  // Explicit Z1-Z5 or "Zona 3"
   const m = joined.match(/Z\s*([1-5])|ZONA\s*([1-5])/);
   if (m) return `Z${m[1] || m[2]}` as Zone;
-  // Heuristics by keyword
   if (/RECUPER|CALMA|VUELTA|REGENER/.test(joined)) return "Z1";
   if (/CALOR|ACTIV|BASE/.test(joined)) return "Z2";
   if (/UMBRAL|TEMPO|SOSTEN/.test(joined)) return "Z4";
@@ -136,13 +106,12 @@ function detectZone(...texts: string[]): Zone | null {
   return null;
 }
 
-// hsl strings — semantic mapping that fits the dark luxury palette
 const ZONE_HSL: Record<Zone, string> = {
-  Z1: "195 25% 55%",   // muted cyan/grey — recovery
-  Z2: "195 80% 60%",   // brand cyan — easy aerobic
-  Z3: "165 70% 55%",   // mint/green — tempo
-  Z4: "27 90% 55%",    // brand orange — threshold
-  Z5: "0 80% 60%",     // red — vo2/max
+  Z1: "195 25% 55%",
+  Z2: "195 80% 60%",
+  Z3: "165 70% 55%",
+  Z4: "27 90% 55%",
+  Z5: "0 80% 60%",
 };
 
 const ZONE_LABEL: Record<Zone, string> = {
@@ -162,7 +131,6 @@ function blockIcon(block: TrainingBlock, index: number, total: number, zone: Zon
   if (/SERIE|INTERV|UMBRAL|TEMPO|SPRINT|VO2|MÁXIMO|MAXIMO/.test(text)) return Zap;
   if (/CADENCIA|RPM|MOLINE/.test(text)) return Cog;
   if (/ROD|BICI|RUTA/.test(text)) return Bike;
-  // Positional fallback
   if (index === 0) return Flame;
   if (index === total - 1) return Moon;
   if (zone === "Z5" || zone === "Z4") return Zap;
@@ -203,29 +171,10 @@ export default function TrainingDetailView({
     [entrenamiento.descripcion]
   );
 
-  // Per-block zones (used for both header bar and cards)
   const blockZones = useMemo(
     () => blocks.map(b => detectZone(b.title, b.rpm, b.bullets.join(" "))),
     [blocks]
   );
-
-  // Header proportional bar: prefer parsed block minutes; fallback equal split
-  const headerSegments = useMemo(() => {
-    if (blocks.length === 0) return [];
-    const knownTotal = blocks.reduce((acc, b) => acc + (b.minutes || 0), 0);
-    return blocks.map((b, i) => {
-      const mins = b.minutes || (knownTotal > 0 ? 0 : 1);
-      return {
-        widthBase: mins,
-        zone: blockZones[i],
-      };
-    });
-  }, [blocks, blockZones]);
-
-  const segTotal = headerSegments.reduce((a, s) => a + s.widthBase, 0) || blocks.length || 1;
-  const segs = headerSegments.length > 0
-    ? headerSegments.map(s => ({ pct: (s.widthBase || (segTotal ? 0 : 1)) / segTotal * 100, zone: s.zone }))
-    : [];
 
   const tipoMeta = entrenamiento.tipo ? TIPO_META[entrenamiento.tipo] : null;
 
@@ -248,7 +197,7 @@ export default function TrainingDetailView({
   const isExpanded = (i: number) => !collapsedBlocks.has(i);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Day tabs */}
       <div className="flex gap-1 px-1 border-b border-border pb-2 overflow-x-auto scrollbar-hide -mx-1">
         {DAY_NAMES.map((name, i) => (
@@ -268,89 +217,40 @@ export default function TrainingDetailView({
         ))}
       </div>
 
-      {/* Hero header: tipo + duración + barra proporcional */}
-      {(totalMinutes > 0 || segs.length > 0 || tipoMeta) && (
-        <div className="rounded-2xl border border-border bg-card/60 p-5 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-[hsl(195,80%,60%)]">
-                Entrenamiento de hoy
-              </p>
-              <h2 className="font-heading font-bold text-foreground uppercase tracking-tight text-2xl leading-[1.05] truncate">
-                {entrenamiento.titulo || "Sesión"}
-              </h2>
-            </div>
+      {/* Top strip: tipo + total min + comfort toggle */}
+      {(totalMinutes > 0 || tipoMeta) && (
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2">
             {tipoMeta && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground text-[10px] font-heading font-black tracking-wider rounded-full shrink-0 uppercase">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground text-[10px] font-heading font-black tracking-wider rounded-full uppercase">
                 <tipoMeta.Icon className="w-3 h-3" />
                 {tipoMeta.label}
               </span>
             )}
+            {totalMinutes > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border text-[11px] font-heading font-bold uppercase tracking-wider text-foreground">
+                <Activity className="w-3 h-3 text-primary" />
+                {totalMinutes} min
+              </span>
+            )}
+            {blocks.length > 0 && (
+              <span className="text-[11px] text-muted-foreground font-medium">
+                {blocks.length} {blocks.length === 1 ? "bloque" : "bloques"}
+              </span>
+            )}
           </div>
-
-          {totalMinutes > 0 && (
-            <div className="flex items-end gap-4">
-              <div className="flex flex-col">
-                <span className="font-heading font-black text-foreground text-5xl leading-none tabular-nums">
-                  {totalMinutes}
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mt-1">
-                  Minutos
-                </span>
-              </div>
-              {blocks.length > 0 && (
-                <>
-                  <div className="h-10 w-px bg-border mb-1" />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">Bloques</span>
-                    <span className="font-heading font-semibold text-foreground">
-                      {blocks.length}
-                    </span>
-                  </div>
-                </>
-              )}
-              <button
-                onClick={toggleComfort}
-                className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-accent/30"
-                aria-label="Modo lectura"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span className="font-medium hidden sm:inline">{comfortMode ? "Normal" : "Lectura"}</span>
-              </button>
-            </div>
-          )}
-
-          {/* Proportional zone bar */}
-          {segs.length > 0 && (
-            <div>
-              <div className="w-full h-2.5 flex gap-1 rounded-full overflow-hidden">
-                {segs.map((s, i) => (
-                  <div
-                    key={i}
-                    className="h-full first:rounded-l-full last:rounded-r-full"
-                    style={{
-                      width: `${Math.max(s.pct, 3)}%`,
-                      backgroundColor: s.zone ? `hsl(${ZONE_HSL[s.zone]})` : "hsl(var(--muted-foreground) / 0.4)",
-                    }}
-                    title={s.zone ? `${s.zone} · ${ZONE_LABEL[s.zone]}` : "—"}
-                  />
-                ))}
-              </div>
-              {/* Tiny legend */}
-              <div className="flex flex-wrap gap-2 mt-2">
-                {Array.from(new Set(segs.map(s => s.zone).filter(Boolean) as Zone[])).map(z => (
-                  <span key={z} className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(${ZONE_HSL[z]})` }} />
-                    {z} · {ZONE_LABEL[z]}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <button
+            onClick={toggleComfort}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-accent/30"
+            aria-label="Modo lectura"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span className="font-medium">{comfortMode ? "Normal" : "Lectura"}</span>
+          </button>
         </div>
       )}
 
-      {/* Training blocks */}
+      {/* Training blocks - dashboard cards */}
       <div className={`${comfortMode ? "space-y-4" : "space-y-3"}`}>
         {blocks.map((block, i) => (
           <TrainingBlockCard
@@ -379,6 +279,45 @@ export default function TrainingDetailView({
   );
 }
 
+function MetricTile({
+  Icon,
+  label,
+  value,
+  colorHsl,
+  emphasis,
+}: {
+  Icon: typeof Bike;
+  label: string;
+  value: string;
+  colorHsl?: string | null;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className={`rounded-xl p-2.5 flex items-center gap-2.5 ${emphasis ? "bg-muted/60" : "bg-muted/30"} border border-border/50`}>
+      <div
+        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        style={{
+          backgroundColor: colorHsl ? `hsl(${colorHsl} / 0.12)` : "hsl(var(--muted) / 0.5)",
+          color: colorHsl ? `hsl(${colorHsl})` : undefined,
+        }}
+      >
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0">
+        <p
+          className="text-[11px] font-heading font-bold uppercase tracking-wide leading-tight truncate"
+          style={{ color: colorHsl ? `hsl(${colorHsl})` : undefined }}
+        >
+          {value}
+        </p>
+        <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider leading-tight">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function TrainingBlockCard({
   block,
   index,
@@ -399,46 +338,55 @@ function TrainingBlockCard({
   const structured = useMemo(() => parseStructuredBullets(block.bullets), [block.bullets]);
   const Icon = blockIcon(block, index, total, zone);
   const zoneHsl = zone ? ZONE_HSL[zone] : null;
+  const isPrimary = zone === "Z4" || zone === "Z5";
 
   return (
     <div
-      className="rounded-2xl border border-border bg-card/50 overflow-hidden transition-colors"
-      style={zoneHsl ? { borderLeft: `4px solid hsl(${zoneHsl})` } : undefined}
+      className={`rounded-2xl overflow-hidden transition-colors ${
+        isPrimary ? "bg-card border border-border shadow-lg shadow-black/30" : "bg-card/40 border border-border/60"
+      }`}
+      style={zoneHsl ? { borderLeftWidth: "4px", borderLeftColor: `hsl(${zoneHsl})` } : undefined}
     >
-      {/* Header */}
+      {/* Header row */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-accent/20 transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-4 pt-3.5 pb-3 text-left"
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span
-            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
             style={{
-              backgroundColor: zoneHsl ? `hsl(${zoneHsl} / 0.12)` : "hsl(var(--muted) / 0.4)",
+              backgroundColor: zoneHsl ? `hsl(${zoneHsl} / 0.14)` : "hsl(var(--muted) / 0.5)",
               color: zoneHsl ? `hsl(${zoneHsl})` : undefined,
             }}
           >
-            <Icon className="w-[18px] h-[18px]" />
+            <Icon className="w-5 h-5" />
           </span>
           <div className="min-w-0 flex-1">
-            {block.badge && (
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground leading-none mb-1">
-                {block.badge}
-              </p>
-            )}
-            <p className={`font-heading font-bold text-foreground uppercase tracking-wide truncate leading-tight ${
-              comfortMode ? "text-base" : "text-[14px]"
+            <p
+              className="text-[10px] font-heading font-bold uppercase tracking-[0.14em] leading-none mb-1"
+              style={{ color: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--muted-foreground))" }}
+            >
+              {block.badge || `Bloque ${index + 1}`}
+            </p>
+            <p className={`font-heading font-bold text-foreground uppercase tracking-wide leading-tight ${
+              comfortMode ? "text-base" : "text-[15px]"
             }`}>
               {block.title}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {block.minutes > 0 && (
-            <span className="text-xs font-heading font-semibold text-muted-foreground tabular-nums">
-              {block.minutes}'
+          <div className="text-right">
+            {block.minutes > 0 && (
+              <span className="block font-heading font-black text-foreground text-xl leading-none tabular-nums">
+                {block.minutes}'
+              </span>
+            )}
+            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest">
+              Duración
             </span>
-          )}
+          </div>
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
@@ -447,36 +395,31 @@ function TrainingBlockCard({
         </div>
       </button>
 
-      {/* Chips row */}
+      {/* Metric tiles grid */}
       {(zone || block.rpm) && (
-        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-          {zone && (
-            <span
-              className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-heading font-bold tracking-wider uppercase"
-              style={{
-                backgroundColor: `hsl(${ZONE_HSL[zone]} / 0.18)`,
-                color: `hsl(${ZONE_HSL[zone]})`,
-                border: `1px solid hsl(${ZONE_HSL[zone]} / 0.35)`,
-              }}
-            >
-              {zone} · {ZONE_LABEL[zone]}
-            </span>
-          )}
-          {block.rpm && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-heading font-bold tracking-wider uppercase bg-muted/60 text-secondary-foreground border border-border">
-              <Cog className="w-3 h-3" />
-              {block.rpm}
-            </span>
-          )}
+        <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+          <MetricTile
+            Icon={Zap}
+            label="Intensidad"
+            value={zone ? `${zone} · ${ZONE_LABEL[zone]}` : "—"}
+            colorHsl={zoneHsl}
+            emphasis={isPrimary}
+          />
+          <MetricTile
+            Icon={Gauge}
+            label="Cadencia"
+            value={block.rpm || "Libre"}
+            emphasis={isPrimary}
+          />
         </div>
       )}
 
       {/* Body */}
       {expanded && block.bullets.length > 0 && (
-        <div className={`px-4 pb-4 ${comfortMode ? "space-y-2.5" : "space-y-2"} border-t border-border/40 pt-3`}>
-          {structured ? (
-            <div className={`${comfortMode ? "space-y-2.5" : "space-y-2"}`}>
-              {structured.map((item, i) => (
+        <div className="px-4 pb-4">
+          <div className={`rounded-lg border border-border/50 bg-background/40 p-3 ${comfortMode ? "space-y-2.5" : "space-y-2"}`}>
+            {structured ? (
+              structured.map((item, i) => (
                 <div key={i} className={`${item.key ? "flex gap-2" : "flex gap-2 items-start"}`}>
                   {item.key ? (
                     <>
@@ -494,7 +437,7 @@ function TrainingBlockCard({
                   ) : (
                     <>
                       <span
-                        className="mt-[7px] w-1 h-1 rounded-full shrink-0"
+                        className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
                       />
                       <p className={`text-secondary-foreground ${
@@ -505,23 +448,23 @@ function TrainingBlockCard({
                     </>
                   )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            block.bullets.map((bullet, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <span
-                  className="mt-[7px] w-1 h-1 rounded-full shrink-0"
-                  style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
-                />
-                <p className={`text-secondary-foreground ${
-                  comfortMode ? "text-sm leading-[1.8]" : "text-[13px] leading-[1.7]"
-                }`}>
-                  {bullet.replace(/^[•\-–]\s*/, "")}
-                </p>
-              </div>
-            ))
-          )}
+              ))
+            ) : (
+              block.bullets.map((bullet, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <span
+                    className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
+                  />
+                  <p className={`text-secondary-foreground ${
+                    comfortMode ? "text-sm leading-[1.8]" : "text-[13px] leading-[1.7]"
+                  }`}>
+                    {bullet.replace(/^[•\-–]\s*/, "")}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
