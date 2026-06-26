@@ -552,6 +552,74 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── TURNERA RESERVATION FLOW ───
+    // external_reference: "turnera:<reservation_id>"
+    if (isTurneraRef) {
+      const reservationId = refUuid;
+      const paidAmount = Number(payment.transaction_amount ?? 0);
+
+      const { data: reserva, error: rErr } = await supabaseAdmin
+        .from("reservas_turnera")
+        .select("id, email, pago_estado, pago_mp_payment_id, estado_operativo")
+        .eq("id", reservationId)
+        .maybeSingle();
+      if (rErr || !reserva) {
+        console.error("[mp-webhook] turnera: reserva no encontrada", reservationId);
+        return new Response(JSON.stringify({ ok: true, missing: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Idempotencia: si ya registramos este mismo payment_id, no repetir
+      if (reserva.pago_mp_payment_id && String(reserva.pago_mp_payment_id) === String(payment.id)) {
+        return new Response(JSON.stringify({ ok: true, kind: "turnera", duplicate: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const mpStatus = String(payment.status || "").toLowerCase();
+      let newPagoEstado: string = reserva.pago_estado || "pendiente";
+      if (mpStatus === "approved") newPagoEstado = "aprobado";
+      else if (mpStatus === "rejected" || mpStatus === "cancelled") newPagoEstado = "rechazado";
+      else if (mpStatus === "pending" || mpStatus === "in_process" || mpStatus === "authorized") newPagoEstado = "pendiente";
+      else if (mpStatus === "refunded" || mpStatus === "charged_back") newPagoEstado = "reembolsado";
+
+      const update: Record<string, unknown> = {
+        pago_estado: newPagoEstado,
+        pago_mp_payment_id: String(payment.id),
+      };
+      if (mpStatus === "approved" && paidAmount > 0) {
+        update.pago_monto = paidAmount;
+      }
+      // Cuando se rechaza el cobro inicial, marcamos la reserva como cancelada
+      if (newPagoEstado === "rechazado" && reserva.estado_operativo !== "cancelada") {
+        update.estado_operativo = "cancelada";
+      }
+
+      await supabaseAdmin.from("reservas_turnera").update(update).eq("id", reservationId);
+
+      // Disparar email de confirmación SOLO cuando se aprueba el cobro
+      if (mpStatus === "approved" && reserva.email) {
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-turnera-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ reservation_id: reservationId, tipo: "confirmacion" }),
+          });
+        } catch (e) {
+          console.error("[mp-webhook] turnera: error enviando confirmación", (e as Error).message);
+        }
+      }
+
+      console.log("[mp-webhook] turnera updated:", { reservationId, mpStatus, newPagoEstado, paidAmount });
+      return new Response(JSON.stringify({ ok: true, kind: "turnera", status: mpStatus, pago_estado: newPagoEstado }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ─── EVENT RESERVATION FLOW ───
     // external_reference: "event:<reservation_id>" o "event:<reservation_id>:inst:<n>"
     if (externalRef.startsWith("event:")) {
