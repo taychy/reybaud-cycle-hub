@@ -340,6 +340,7 @@ Deno.serve(async (req) => {
     const isPreorderTotalRef = externalRef.startsWith("preorder_total:");
     const isPreorderAlumnoRef = externalRef.startsWith("preorder_alumno_saldo:");
     const isStoreOrderRef = externalRef.startsWith("store_order:");
+    const isTurneraRef = externalRef.startsWith("turnera:");
 
     // Para eventos: "event:<uuid>" o "event:<uuid>:inst:<n>" (cuotas).
     // Extraemos el uuid y, si corresponde, el número de cuota.
@@ -364,6 +365,8 @@ Deno.serve(async (req) => {
       refUuid = externalRef.slice("preorder:".length);
     } else if (isStoreOrderRef) {
       refUuid = externalRef.slice("store_order:".length);
+    } else if (isTurneraRef) {
+      refUuid = externalRef.slice("turnera:".length);
     } else {
       refUuid = externalRef;
     }
