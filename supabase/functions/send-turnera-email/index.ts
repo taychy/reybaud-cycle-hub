@@ -83,9 +83,8 @@ const renderEmail = (opts: {
     coach_aviso: "Un alumno reservó una clase con vos. Te dejamos los datos para que la sumes a tu calendario:",
   };
   const calBtn = tipo !== "cancelacion"
-    ? `<div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap;">
+    ? `<div style="margin:20px 0;">
         <a href="${gcalUrl}" style="background:#0f1115;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;">📅 Agregar a Google Calendar</a>
-        ${icsUrl ? `<a href="${icsUrl}" style="background:#fff;color:#0f1115;text-decoration:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid #0f1115;">⬇️ Descargar invitación (.ics)</a>` : ""}
       </div>`
     : "";
   const polBlock = politica && tipo !== "cancelacion"
