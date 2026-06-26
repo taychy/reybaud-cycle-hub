@@ -70,12 +70,14 @@ const BookingFlow = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [alumnoLogged, setAlumnoLogged] = useState<{ id: string; nombre: string; apellido: string; email: string } | null>(null);
 
   const [form, setForm] = useState({
     nombre: "", apellido: "", email: "", celular: "", documento: "",
     fnac_dia: "", fnac_mes: "", fnac_anio: "",
     nota: "", acepto_politica: false, acepto_tutor: false,
   });
+
 
   useEffect(() => {
     const load = async () => {
