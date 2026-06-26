@@ -805,10 +805,16 @@ const SuperAdminGastos = () => {
           </div>
         </CardContent>
       </Card>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-56 pr-3 text-foreground [color-scheme:dark]" />
           <Button variant="outline" size="sm" onClick={generarMes} className="gap-1">
             <RefreshCw className="w-4 h-4" /> Generar mes
+          </Button>
+          <Button variant="outline" size="sm" onClick={openQuickDeuda} className="gap-1">
+            <Plus className="w-4 h-4" /> Nueva deuda
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportGastosCSV} className="gap-1">
+            <Receipt className="w-4 h-4" /> Exportar gastos
           </Button>
         </div>
       </div>
