@@ -42,6 +42,8 @@ interface Recurrente {
   activo: boolean;
   tipo: TipoGasto;
   modalidad_pago: ModalidadPago;
+  archivado_at?: string | null;
+  archivado_por?: string | null;
 }
 
 interface Ejecucion {
