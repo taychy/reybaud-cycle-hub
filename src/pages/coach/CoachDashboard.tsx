@@ -16,9 +16,11 @@ type Entrenamiento = Tables<"entrenamientos">;
 const CoachDashboard = () => {
   const navigate = useNavigate();
   const [coachName, setCoachName] = useState("");
+  const [coachId, setCoachId] = useState<string | null>(null);
   const [grupos, setGrupos] = useState<string[]>([]);
   const [proximaClase, setProximaClase] = useState<Entrenamiento | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAusencias, setShowAusencias] = useState(false);
 
   useEffect(() => {
     const init = async () => {
