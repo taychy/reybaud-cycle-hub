@@ -28,6 +28,11 @@ type Disponibilidad = {
   hora_inicio: string; hora_fin: string; sede_id: string | null;
 };
 
+type Ausencia = {
+  coach_id: string; fecha_inicio: string; fecha_fin: string;
+  todo_el_dia: boolean; hora_inicio: string | null; hora_fin: string | null;
+};
+
 type Coach = { id: string; nombre: string; sede_id: string | null };
 type Sede = { id: string; nombre: string; ciudad: string | null };
 
