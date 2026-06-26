@@ -128,12 +128,18 @@ const BookingFlow = () => {
 
       if (coachIds.length) {
         const { data: cs } = await supabase
-          .from("coaches").select("id, nombre, sede_id").in("id", coachIds);
-        setCoaches((cs as any[]) || []);
+          .from("coaches").select("id, nombre, sede_id, estado")
+          .in("id", coachIds).eq("estado", "activo");
+        const activos = (cs as any[]) || [];
+        setCoaches(activos);
+        // Re-filtramos disponibilidades para excluir coaches inactivos
+        const activosIds = new Set(activos.map(c => c.id));
+        setDisponibilidades(list.filter(d => activosIds.has(d.coach_id)));
       }
       if (sedeIds.length) {
         const { data: ss } = await supabase
-          .from("sedes").select("id, nombre, ciudad").in("id", sedeIds as string[]);
+          .from("sedes").select("id, nombre, ciudad")
+          .in("id", sedeIds as string[]).eq("activa", true);
         setSedes((ss as any[]) || []);
       }
 
