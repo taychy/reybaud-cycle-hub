@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Calendar, Clock, Link as LinkIcon, Copy, X, CopyPlus, Ban } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, Link as LinkIcon, Copy, X, CopyPlus, Ban, Settings } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { ServicioConfigDialog } from "@/components/admin/ServicioConfigDialog";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -31,6 +32,7 @@ const AdminTurnera = () => {
   const [servForm, setServForm] = useState({ slug: "", nombre: "", descripcion: "", duracion_minutos: "60", precio: "", modalidad: "presencial", politica_cancelacion: "" });
   const [showDispForm, setShowDispForm] = useState(false);
   const [dispForm, setDispForm] = useState({ coach_id: "", servicio_id: "", dia_semana: "1", hora_inicio: "08:00", hora_fin: "12:00", sede_id: "" });
+  const [configServ, setConfigServ] = useState<any | null>(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -195,9 +197,14 @@ const AdminTurnera = () => {
                       <Badge variant="outline" className="text-xs">{s.modalidad}</Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setConfigServ(s)} title="Configurar">
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -271,6 +278,15 @@ const AdminTurnera = () => {
           </Table>
         </TabsContent>
       </Tabs>
+
+      {configServ && (
+        <ServicioConfigDialog
+          servicio={configServ}
+          open={!!configServ}
+          onOpenChange={(o) => !o && setConfigServ(null)}
+          onSaved={loadAll}
+        />
+      )}
     </div>
   );
 };
