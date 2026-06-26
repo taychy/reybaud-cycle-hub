@@ -787,7 +787,7 @@ const SuperAdminGastos = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="agenda">
+      <Tabs defaultValue="agenda" onValueChange={(v) => { if (v === "historial") loadHistorial(); }}>
         <TabsList>
           <TabsTrigger value="agenda" className="gap-1"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
@@ -801,6 +801,7 @@ const SuperAdminGastos = () => {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="historial" className="gap-1"><History className="w-4 h-4" />Historial</TabsTrigger>
         </TabsList>
 
         {/* AGENDA */}
