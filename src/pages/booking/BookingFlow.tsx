@@ -290,10 +290,13 @@ const BookingFlow = () => {
       }
     }
 
-    // Sin pago online: email de confirmación directo
+    // Sin pago online: email de confirmación directo + aviso al coach
     if (reservationId) {
       supabase.functions.invoke("send-turnera-email", {
         body: { reservation_id: reservationId, tipo: "confirmacion" },
+      }).catch(() => { /* silent */ });
+      supabase.functions.invoke("send-turnera-email", {
+        body: { reservation_id: reservationId, tipo: "coach_aviso" },
       }).catch(() => { /* silent */ });
     }
 

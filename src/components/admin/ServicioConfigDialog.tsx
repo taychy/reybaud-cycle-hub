@@ -43,6 +43,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
   const [politica, setPolitica] = useState("");
   const [emailConf, setEmailConf] = useState(true);
   const [emailRec, setEmailRec] = useState(true);
+  const [emailCoach, setEmailCoach] = useState(true);
   const [recHoras, setRecHoras] = useState("24");
   const [ics, setIcs] = useState(true);
   const [pagoModo, setPagoModo] = useState<"ninguno" | "sena" | "total">("ninguno");
@@ -61,6 +62,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     setPolitica(servicio.politica_cancelacion || "");
     setEmailConf(servicio.email_confirmacion_enabled ?? true);
     setEmailRec(servicio.email_recordatorio_enabled ?? true);
+    setEmailCoach(servicio.email_coach_enabled ?? true);
     setRecHoras(String(servicio.recordatorio_horas_antes ?? 24));
     setIcs(servicio.ics_adjunto ?? true);
     setPagoModo((servicio.pago_modo as any) || "ninguno");
@@ -103,6 +105,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         politica_cancelacion: politica || null,
         email_confirmacion_enabled: emailConf,
         email_recordatorio_enabled: emailRec,
+        email_coach_enabled: emailCoach,
         recordatorio_horas_antes: Number(recHoras),
         ics_adjunto: ics,
         pago_modo: pagoModo,
@@ -244,6 +247,13 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                 </SelectContent>
               </Select>
             )}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div>
+                <Label>Notificar al coach por email</Label>
+                <p className="text-xs text-muted-foreground">El coach recibe un aviso con los datos de la reserva y un link para sumarla a Google Calendar.</p>
+              </div>
+              <Switch checked={emailCoach} onCheckedChange={setEmailCoach} />
+            </div>
           </Section>
 
           {/* Política */}
@@ -271,11 +281,6 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                 <Label className="text-xs">Monto de la seña ($)</Label>
                 <Input type="number" value={pagoSena} onChange={e => setPagoSena(e.target.value)} placeholder="Ej: 5000" />
               </div>
-            )}
-            {pagoModo !== "ninguno" && (
-              <p className="text-xs text-amber-500">
-                La integración con Mercado Pago se activa en la Fase 3. Por ahora la configuración queda guardada.
-              </p>
             )}
           </Section>
         </div>

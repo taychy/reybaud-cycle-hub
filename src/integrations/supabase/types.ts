@@ -5339,6 +5339,7 @@ export type Database = {
           created_at: string
           descripcion: string | null
           duracion_minutos: number
+          email_coach_enabled: boolean
           email_confirmacion_enabled: boolean
           email_recordatorio_enabled: boolean
           form_fields: Json
@@ -5362,6 +5363,7 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
+          email_coach_enabled?: boolean
           email_confirmacion_enabled?: boolean
           email_recordatorio_enabled?: boolean
           form_fields?: Json
@@ -5385,6 +5387,7 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
+          email_coach_enabled?: boolean
           email_confirmacion_enabled?: boolean
           email_recordatorio_enabled?: boolean
           form_fields?: Json
