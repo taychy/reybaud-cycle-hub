@@ -105,6 +105,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         politica_cancelacion: politica || null,
         email_confirmacion_enabled: emailConf,
         email_recordatorio_enabled: emailRec,
+        email_coach_enabled: emailCoach,
         recordatorio_horas_antes: Number(recHoras),
         ics_adjunto: ics,
         pago_modo: pagoModo,
