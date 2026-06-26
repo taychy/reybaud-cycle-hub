@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, Eye, Flame, Zap, Activity, Moon, Dumbbell, Bike, Cog, Target, Gauge } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
@@ -279,6 +279,85 @@ export default function TrainingDetailView({
   );
 }
 
+// --- Inline pill renderers ---
+function ZonePill({ z }: { z: Zone }) {
+  const c = ZONE_HSL[z];
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-heading font-black tracking-wider uppercase align-middle mx-0.5"
+      style={{
+        backgroundColor: `hsl(${c} / 0.18)`,
+        color: `hsl(${c})`,
+        border: `1px solid hsl(${c} / 0.35)`,
+      }}
+    >
+      {z}
+    </span>
+  );
+}
+
+function DurChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-heading font-bold tabular-nums bg-muted/60 text-foreground border border-border/60 align-middle mx-0.5">
+      {children}
+    </span>
+  );
+}
+
+function RpmChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-heading font-bold uppercase bg-muted/60 text-secondary-foreground border border-border/60 align-middle mx-0.5">
+      <Cog className="w-2.5 h-2.5" />
+      {children}
+    </span>
+  );
+}
+
+/** Replace inline mentions of "Zona: N", "Z3", "100 RPM" with pills. */
+function inlineTokens(text: string): ReactNode[] {
+  const re = /Zona[:\s]+(\d)(?:\s*[-/]\s*(\d))?|\bZ([1-5])\b|(\d+(?:\/\d+)?)\s*RPM\b/gi;
+  const out: ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(<span key={`t${key++}`}>{text.slice(last, m.index)}</span>);
+    if (m[1]) {
+      out.push(<ZonePill key={`z${key++}`} z={`Z${m[1]}` as Zone} />);
+      if (m[2]) out.push(<ZonePill key={`z${key++}`} z={`Z${m[2]}` as Zone} />);
+    } else if (m[3]) {
+      out.push(<ZonePill key={`z${key++}`} z={`Z${m[3]}` as Zone} />);
+    } else if (m[4]) {
+      out.push(<RpmChip key={`r${key++}`}>{m[4]} RPM</RpmChip>);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(<span key={`t${key++}`}>{text.slice(last)}</span>);
+  return out;
+}
+
+/** "2-1", "3", "2/3" -> array of zones */
+function parseZoneValue(value: string): Zone[] {
+  const nums = value.match(/[1-5]/g) || [];
+  return nums.map(n => `Z${n}` as Zone);
+}
+
+/** Detect interval row: "10' Zona: 1", "6 × 1'30\" Zona: 3". */
+function parseIntervalRow(b: string): { duration: string; zones: Zone[]; rest: string } | null {
+  const clean = b.replace(/^[•\-–]\s*/, "").trim();
+  const durMatch = clean.match(/^(\d+(?:\s*[×x]\s*\d+(?:['′]\s*\d*\s*["″]?)?)?(?:\s*['′]\s*\d*\s*["″]?)?)\s+/);
+  if (!durMatch) return null;
+  const rest1 = clean.slice(durMatch[0].length);
+  const zMatch = rest1.match(/^Zona[:\s]+(\d)(?:\s*[-/]\s*(\d))?/i);
+  if (!zMatch) return null;
+  const zones: Zone[] = [`Z${zMatch[1]}` as Zone];
+  if (zMatch[2]) zones.push(`Z${zMatch[2]}` as Zone);
+  const rest = rest1.slice(zMatch[0].length).replace(/^[\s,;:.\-]+/, "").trim();
+  return { duration: durMatch[1].trim(), zones, rest };
+}
+
+
+
 function MetricTile({
   Icon,
   label,
@@ -416,57 +495,14 @@ function TrainingBlockCard({
 
       {/* Body */}
       {expanded && block.bullets.length > 0 && (
-        <div className="px-4 pb-4">
-          <div className={`rounded-lg border border-border/50 bg-background/40 p-3 ${comfortMode ? "space-y-2.5" : "space-y-2"}`}>
-            {structured ? (
-              structured.map((item, i) => (
-                <div key={i} className={`${item.key ? "flex gap-2" : "flex gap-2 items-start"}`}>
-                  {item.key ? (
-                    <>
-                      <span className={`font-heading font-semibold text-primary/90 shrink-0 ${
-                        comfortMode ? "text-sm min-w-[100px]" : "text-[13px] min-w-[90px]"
-                      }`}>
-                        {item.key}:
-                      </span>
-                      <span className={`text-secondary-foreground ${
-                        comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed"
-                      }`}>
-                        {item.value}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span
-                        className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
-                      />
-                      <p className={`text-secondary-foreground ${
-                        comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed"
-                      }`}>
-                        {item.value}
-                      </p>
-                    </>
-                  )}
-                </div>
-              ))
-            ) : (
-              block.bullets.map((bullet, i) => (
-                <div key={i} className="flex gap-2 items-start">
-                  <span
-                    className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
-                  />
-                  <p className={`text-secondary-foreground ${
-                    comfortMode ? "text-sm leading-[1.8]" : "text-[13px] leading-[1.7]"
-                  }`}>
-                    {bullet.replace(/^[•\-–]\s*/, "")}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <BlockBody
+          bullets={block.bullets}
+          structured={structured}
+          zoneHsl={zoneHsl}
+          comfortMode={comfortMode}
+        />
       )}
+
 
       {/* Footer */}
       {expanded && block.footer && (
@@ -479,3 +515,109 @@ function TrainingBlockCard({
     </div>
   );
 }
+
+function BlockBody({
+  bullets,
+  structured,
+  zoneHsl,
+  comfortMode,
+}: {
+  bullets: string[];
+  structured: { key: string; value: string }[] | null;
+  zoneHsl: string | null;
+  comfortMode: boolean;
+}) {
+  // Try parsing as interval list: all bullets share "duration + zone" shape
+  const intervals = useMemo(() => {
+    const rows = bullets.map(parseIntervalRow);
+    const matched = rows.filter(Boolean).length;
+    if (matched >= 2 && matched / bullets.length >= 0.6) return rows;
+    return null;
+  }, [bullets]);
+
+  const bulletSize = comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed";
+  const dotStyle = { backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" };
+
+  return (
+    <div className="px-4 pb-4">
+      <div className={`rounded-lg border border-border/50 bg-background/40 p-3 ${comfortMode ? "space-y-2" : "space-y-1.5"}`}>
+        {intervals ? (
+          // Compact interval table
+          <div className="space-y-1.5">
+            {intervals.map((row, i) => {
+              const raw = bullets[i];
+              if (!row) {
+                return (
+                  <div key={i} className="flex gap-2 items-start">
+                    <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={dotStyle} />
+                    <p className={`text-secondary-foreground ${bulletSize}`}>
+                      {inlineTokens(raw.replace(/^[•\-–]\s*/, ""))}
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <div key={i} className="flex items-center gap-2 py-0.5">
+                  <DurChip>{row.duration}</DurChip>
+                  {row.zones.map((z, j) => <ZonePill key={j} z={z} />)}
+                  {row.rest && (
+                    <span className={`text-secondary-foreground ${bulletSize} flex-1 min-w-0 truncate`}>
+                      {inlineTokens(row.rest)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : structured ? (
+          structured.map((item, i) => {
+            const keyLower = item.key.toLowerCase();
+            const isZoneKey = /zona/.test(keyLower);
+            const isRpmKey = /cadencia|rpm/.test(keyLower);
+            return (
+              <div key={i} className={`${item.key ? "flex gap-2 items-center flex-wrap" : "flex gap-2 items-start"}`}>
+                {item.key ? (
+                  <>
+                    <span className={`font-heading font-semibold text-primary/90 shrink-0 ${
+                      comfortMode ? "text-sm min-w-[90px]" : "text-[13px] min-w-[80px]"
+                    }`}>
+                      {item.key}:
+                    </span>
+                    {isZoneKey ? (
+                      <span className="flex items-center gap-1 flex-wrap">
+                        {parseZoneValue(item.value).map((z, j) => <ZonePill key={j} z={z} />)}
+                      </span>
+                    ) : isRpmKey ? (
+                      <RpmChip>{item.value}</RpmChip>
+                    ) : (
+                      <span className={`text-secondary-foreground ${bulletSize}`}>
+                        {inlineTokens(item.value)}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={dotStyle} />
+                    <p className={`text-secondary-foreground ${bulletSize}`}>
+                      {inlineTokens(item.value)}
+                    </p>
+                  </>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          bullets.map((bullet, i) => (
+            <div key={i} className="flex gap-2 items-start">
+              <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={dotStyle} />
+              <p className={`text-secondary-foreground ${bulletSize}`}>
+                {inlineTokens(bullet.replace(/^[•\-–]\s*/, ""))}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
