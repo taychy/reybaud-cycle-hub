@@ -25,6 +25,21 @@ interface Props {
 const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
   const [featured, setFeatured] = useState<StoreProduct[]>([]);
+  const [buyProduct, setBuyProduct] = useState<StoreProduct | null>(null);
+  const [alumnoInfo, setAlumnoInfo] = useState<{ nombre?: string; email?: string }>({});
+
+  useEffect(() => {
+    if (!alumnoId) return;
+    (async () => {
+      const { data: al } = await supabase
+        .from("alumnos")
+        .select("nombre, apellido, email")
+        .eq("id", alumnoId)
+        .maybeSingle();
+      if (al) setAlumnoInfo({ nombre: `${al.nombre || ""} ${al.apellido || ""}`.trim(), email: al.email || undefined });
+    })();
+  }, [alumnoId]);
+
 
   useEffect(() => {
     if (!alumnoId) return;
