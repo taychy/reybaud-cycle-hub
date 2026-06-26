@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, Mail, CreditCard, FileText, ListChecks } from "lucide-react";
+import { Plus, Trash2, Mail, CreditCard, FileText, ListChecks, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export type FormFieldDef = {
