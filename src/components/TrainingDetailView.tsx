@@ -596,6 +596,163 @@ function TrainingBlockCard({
   );
 }
 
+// --- Interval set (work + rest) detection ---
+interface IntervalSet {
+  work: { reps: number; duration: string; zones: Zone[]; rpm?: string; rest: string };
+  rest: { duration: string; zones: Zone[]; rest: string; label: string };
+  notes: string[];
+}
+
+function detectIntervalSet(bullets: string[]): IntervalSet | null {
+  let work: IntervalSet["work"] | null = null;
+  let rest: IntervalSet["rest"] | null = null;
+  const notes: string[] = [];
+
+  for (const b of bullets) {
+    const clean = b.replace(/^[•\-–]\s*/, "").trim();
+    const isRestLabel = /^(micro\s*pausa|pausa|recuper\w*|descanso)/i.test(clean);
+    const parsed = parseIntervalRow(clean);
+
+    if (isRestLabel) {
+      // Parse duration from rest line
+      const APO = "['′´’]";
+      const QUO = "[\"″]";
+      const dm = clean.match(new RegExp(`(\\d+)\\s*${APO}\\s*(\\d{0,2})\\s*${QUO}?`));
+      const zm = clean.match(/Z\s*([1-5])|Zona[:\s]+(\d)/i);
+      if (dm) {
+        const mins = parseInt(dm[1]);
+        const secs = dm[2] ? parseInt(dm[2]) : 0;
+        const label = clean.match(/^(micro\s*pausa|pausa|recuper\w*|descanso)/i)?.[0] || "Pausa";
+        const duration = secs > 0 ? `${mins}'${secs.toString().padStart(2, "0")}"` : `${mins}'`;
+        const zones: Zone[] = zm ? [`Z${zm[1] || zm[2]}` as Zone] : [];
+        rest = { duration, zones, rest: "", label: label.charAt(0).toUpperCase() + label.slice(1).toLowerCase() };
+        continue;
+      }
+    }
+
+    if (parsed && parsed.reps && parseInt(parsed.reps) >= 2 && !work) {
+      work = {
+        reps: parseInt(parsed.reps),
+        duration: parsed.duration,
+        zones: parsed.zones,
+        rpm: parsed.rpm,
+        rest: parsed.rest,
+      };
+      continue;
+    }
+
+    notes.push(clean);
+  }
+
+  if (work && rest) return { work, rest, notes };
+  return null;
+}
+
+function IntervalSetView({ set, zoneHsl }: { set: IntervalSet; zoneHsl: string | null }) {
+  const workZone = set.work.zones[set.work.zones.length - 1];
+  const workHsl = workZone ? ZONE_HSL[workZone] : (zoneHsl ?? "var(--primary)");
+  const workBg = workZone ? `hsl(${workHsl})` : `hsl(var(--primary))`;
+  const workFg = workZone ? `hsl(${workHsl})` : `hsl(var(--primary))`;
+
+  // Build alternating cells: work, rest, work, rest, ...
+  const cells: Array<{ type: "work" | "rest"; n?: number }> = [];
+  for (let i = 0; i < set.work.reps; i++) {
+    cells.push({ type: "work", n: i + 1 });
+    if (i < set.work.reps - 1) cells.push({ type: "rest" });
+    else cells.push({ type: "rest", n: -1 }); // trailing empty slot for grid symmetry
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[10px] text-muted-foreground uppercase font-heading font-bold tracking-widest italic">
+        Trabajo individual
+      </p>
+
+      {/* Work line */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-heading font-black text-foreground text-[15px] tabular-nums">
+          {set.work.reps} × {set.work.duration}
+        </span>
+        {set.work.zones.map((z, i) => <ZonePill key={i} z={z} />)}
+        {set.work.rest && (
+          <span className="text-[13px] text-secondary-foreground">
+            {inlineTokens(set.work.rest)}
+          </span>
+        )}
+      </div>
+      {set.work.rpm && (
+        <p className="text-[12px] text-muted-foreground -mt-1.5">
+          {set.work.rpm} RPM de cadencia
+        </p>
+      )}
+
+      <div className="h-px bg-border/60" />
+
+      {/* Rest line */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Pause className="w-3.5 h-3.5 text-muted-foreground fill-muted-foreground" />
+        <span className="font-heading font-bold text-foreground text-[14px]">
+          {set.rest.label} — <span className="tabular-nums">{set.rest.duration}</span>
+        </span>
+        {set.rest.zones.map((z, i) => <ZonePill key={i} z={z} />)}
+      </div>
+
+      {/* Notes (e.g., SVB) */}
+      {set.notes.map((n, i) => (
+        <p key={i} className="text-[12px] text-secondary-foreground">
+          {inlineTokens(n)}
+        </p>
+      ))}
+
+      {/* Visual interval grid */}
+      <div className="grid grid-cols-6 gap-1.5 pt-1">
+        {cells.map((c, i) => {
+          if (c.type === "work") {
+            return (
+              <div
+                key={i}
+                className="rounded-md py-2 text-center"
+                style={{
+                  backgroundColor: workZone ? `hsl(${workHsl} / 0.85)` : `hsl(var(--primary))`,
+                  color: "hsl(var(--primary-foreground))",
+                }}
+              >
+                <p className="text-[11px] font-heading font-black leading-none">{c.n}</p>
+                <p className="text-[9px] font-heading font-bold tabular-nums opacity-90 mt-0.5">
+                  {set.work.duration}
+                </p>
+              </div>
+            );
+          }
+          if (c.n === -1) {
+            return <div key={i} className="rounded-md py-2 bg-muted/20 border border-dashed border-border/40" />;
+          }
+          return (
+            <div key={i} className="rounded-md py-2 text-center bg-muted/50 border border-border/40">
+              <p className="text-[11px] text-muted-foreground leading-none">—</p>
+              <p className="text-[9px] font-heading font-bold tabular-nums text-muted-foreground mt-0.5">
+                {set.rest.duration}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 pt-1">
+        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: workZone ? `hsl(${workHsl})` : "hsl(var(--primary))" }} />
+          Serie {set.work.zones.join("/")}
+        </span>
+        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
+          <span className="w-2.5 h-2.5 rounded-sm bg-muted/60 border border-border/40" />
+          {set.rest.label} {set.rest.zones.join("/")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function BlockBody({
   bullets,
   structured,
@@ -607,13 +764,16 @@ function BlockBody({
   zoneHsl: string | null;
   comfortMode: boolean;
 }) {
+  const intervalSet = useMemo(() => detectIntervalSet(bullets), [bullets]);
+
   // Try parsing as interval list: all bullets share "duration + zone" shape
   const intervals = useMemo(() => {
+    if (intervalSet) return null;
     const rows = bullets.map(parseIntervalRow);
     const matched = rows.filter(Boolean).length;
     if (matched >= 2 && matched / bullets.length >= 0.6) return rows;
     return null;
-  }, [bullets]);
+  }, [bullets, intervalSet]);
 
   const bulletSize = comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed";
   const dotStyle = { backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" };
