@@ -213,6 +213,7 @@ const App = () => (
             <Route path="cambios" element={<DepositoCambios />} />
           </Route>
           <Route path="/reservar" element={<BookingLanding />} />
+          <Route path="/reservar/confirmacion" element={<TurneraConfirmacion />} />
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="/preventa/:productId" element={<PublicPreorderPage />} />
