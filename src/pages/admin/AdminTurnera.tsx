@@ -32,6 +32,7 @@ const AdminTurnera = () => {
   const [servForm, setServForm] = useState({ slug: "", nombre: "", descripcion: "", duracion_minutos: "60", precio: "", modalidad: "presencial", politica_cancelacion: "" });
   const [showDispForm, setShowDispForm] = useState(false);
   const [dispForm, setDispForm] = useState({ coach_id: "", servicio_id: "", dia_semana: "1", hora_inicio: "08:00", hora_fin: "12:00", sede_id: "" });
+  const [configServ, setConfigServ] = useState<any | null>(null);
 
   useEffect(() => { loadAll(); }, []);
 
