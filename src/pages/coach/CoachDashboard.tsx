@@ -38,6 +38,7 @@ const CoachDashboard = () => {
       if (!coach) return; // ProtectedRoute handles access
 
       setCoachName((coach as any).nombre);
+      setCoachId((coach as any).id);
       const coachGrupos = (coach as any).grupos || [];
       setGrupos(coachGrupos);
 
