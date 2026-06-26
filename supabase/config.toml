@@ -84,3 +84,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.process-turnera-reminders]
     verify_jwt = false
+  [functions.create-turnera-mp-preference]
+    verify_jwt = false
