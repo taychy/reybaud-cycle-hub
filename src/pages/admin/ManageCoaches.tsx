@@ -377,6 +377,12 @@ const ManageCoaches = () => {
                 }}>
                   <Calendar className="w-3 h-3 mr-2" /> Ver agenda grupal
                 </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                  setAusenciasCoach(detailCoach);
+                  setDetailCoach(null);
+                }}>
+                  <Plane className="w-3 h-3 mr-2" /> Ausencias / Vacaciones
+                </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
                   setDeleteCoach(detailCoach);
                   setDetailCoach(null);
