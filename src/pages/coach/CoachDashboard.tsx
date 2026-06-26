@@ -223,6 +223,15 @@ const CoachDashboard = () => {
           </Button>
 
           <Button
+            variant="outline"
+            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
+            onClick={() => setShowAusencias(true)}
+          >
+            <Plane className="w-5 h-5 text-primary" />
+            Mis ausencias / vacaciones
+          </Button>
+
+          <Button
             variant="gold"
             className="w-full h-14 justify-start gap-3 text-base"
             onClick={() => navigate("/coach/eventos/record-de-la-hora")}
@@ -232,6 +241,12 @@ const CoachDashboard = () => {
           </Button>
         </div>
       </main>
+
+      <Dialog open={showAusencias} onOpenChange={setShowAusencias}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
+          {coachId && <AusenciasCoachManager coachId={coachId} coachNombre={coachName} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
