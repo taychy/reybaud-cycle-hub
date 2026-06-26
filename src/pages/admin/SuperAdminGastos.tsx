@@ -1252,12 +1252,17 @@ const SuperAdminGastos = () => {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Histórico contable</CardTitle>
-              <Input
-                placeholder="Buscar descripción, categoría o forma de pago..."
-                value={searchHistorico}
-                onChange={(e) => setSearchHistorico(e.target.value)}
-                className="h-8 w-full sm:w-80 text-xs"
-              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Input
+                  placeholder="Buscar descripción, categoría o forma de pago..."
+                  value={searchHistorico}
+                  onChange={(e) => setSearchHistorico(e.target.value)}
+                  className="h-8 w-full sm:w-80 text-xs"
+                />
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportGastosCSV}>
+                  <Receipt className="w-3 h-3" /> Exportar CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {(() => {
