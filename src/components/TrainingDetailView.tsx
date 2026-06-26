@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronUp, Eye, Flame, Zap, Activity, Moon, Dumbbell, Bike, Cog, Target, Gauge } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, Flame, Zap, Activity, Moon, Dumbbell, Bike, Cog, Target, Gauge, RotateCw } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Entrenamiento = Tables<"entrenamientos">;
@@ -129,7 +129,7 @@ function blockIcon(block: TrainingBlock, index: number, total: number, zone: Zon
   if (/CALOR|ACTIV/.test(text)) return Flame;
   if (/CALMA|VUELTA|RECUPER|REGENER/.test(text)) return Moon;
   if (/SERIE|INTERV|UMBRAL|TEMPO|SPRINT|VO2|MÁXIMO|MAXIMO/.test(text)) return Zap;
-  if (/CADENCIA|RPM|MOLINE/.test(text)) return Cog;
+  if (/CADENCIA|RPM|MOLINE|CAD\b/.test(text)) return RotateCw;
   if (/ROD|BICI|RUTA/.test(text)) return Bike;
   if (index === 0) return Flame;
   if (index === total - 1) return Moon;
