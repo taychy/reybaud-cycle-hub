@@ -162,7 +162,14 @@ const SuperAdminGastos = () => {
     modalidad_pago: "anticipado" as ModalidadPago,
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
+  const [showArchivados, setShowArchivados] = useState(false);
   const [deudaExpanded, setDeudaExpanded] = useState(false);
+
+  // Historial / auditoría
+  type AuditRow = { id: string; created_at: string; user_email: string | null; user_role: string; action: string; entity_type: string; entity_id: string | null; details: any };
+  const [historial, setHistorial] = useState<AuditRow[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(false);
+  const [historialSearch, setHistorialSearch] = useState("");
 
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
