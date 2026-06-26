@@ -1739,6 +1739,51 @@ const SuperAdminGastos = () => {
       </Dialog>
 
       {/* DIALOG: Deuda */}
+      {/* DIALOG: Nueva deuda rápida */}
+      <Dialog open={quickDeudaOpen} onOpenChange={setQuickDeudaOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">Nueva deuda</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label className="text-xs">Concepto del catálogo</Label>
+              <Select value={quickDeudaRecId} onValueChange={setQuickDeudaRecId}>
+                <SelectTrigger><SelectValue placeholder="Elegí un concepto..." /></SelectTrigger>
+                <SelectContent>
+                  {recurrentes
+                    .filter(r => !r.archivado_at)
+                    .sort((a, b) => a.concepto.localeCompare(b.concepto))
+                    .map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.concepto} <span className="text-muted-foreground text-xs">— {r.categoria}</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Si no está en la lista, primero agregalo en <b>Catálogo → Nuevo</b>.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Tipo de movimiento</Label>
+              <Select value={quickDeudaTipo} onValueChange={(v) => setQuickDeudaTipo(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cargo">Cargo (suma a la deuda)</SelectItem>
+                  <SelectItem value="pago">Pago (resta de la deuda)</SelectItem>
+                  <SelectItem value="ajuste">Ajuste manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setQuickDeudaOpen(false)}>Cancelar</Button>
+              <Button variant="gold" onClick={confirmQuickDeuda} disabled={!quickDeudaRecId}>Continuar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deudaDialogOpen} onOpenChange={(o) => { setDeudaDialogOpen(o); if (!o) { setDeudaRec(null); setEditingDeudaMovId(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
