@@ -282,11 +282,6 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                 <Input type="number" value={pagoSena} onChange={e => setPagoSena(e.target.value)} placeholder="Ej: 5000" />
               </div>
             )}
-            {pagoModo !== "ninguno" && (
-              <p className="text-xs text-amber-500">
-                La integración con Mercado Pago se activa en la Fase 3. Por ahora la configuración queda guardada.
-              </p>
-            )}
           </Section>
         </div>
 
