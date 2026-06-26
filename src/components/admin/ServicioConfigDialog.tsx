@@ -77,11 +77,14 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
   const removeField = (idx: number) => setFields(fields.filter((_, i) => i !== idx));
 
   const save = async () => {
+    if (!nombre.trim()) {
+      toast({ title: "El nombre es obligatorio", variant: "destructive" });
+      return;
+    }
     if (pagoModo === "sena" && (!pagoSena || Number(pagoSena) <= 0)) {
       toast({ title: "Definí el monto de la seña", variant: "destructive" });
       return;
     }
-    // Validar keys únicas
     const keys = fields.map(f => f.key.trim()).filter(Boolean);
     if (new Set(keys).size !== keys.length) {
       toast({ title: "Los campos del formulario tienen claves duplicadas", variant: "destructive" });
@@ -91,6 +94,12 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     const { error } = await supabase
       .from("servicios_turnera")
       .update({
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() || null,
+        duracion_minutos: Number(duracion) || 60,
+        precio: precio !== "" ? Number(precio) : null,
+        modalidad,
+        activo,
         politica_cancelacion: politica || null,
         email_confirmacion_enabled: emailConf,
         email_recordatorio_enabled: emailRec,
