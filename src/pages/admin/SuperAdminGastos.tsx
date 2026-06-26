@@ -171,6 +171,12 @@ const SuperAdminGastos = () => {
   const [historialLoading, setHistorialLoading] = useState(false);
   const [historialSearch, setHistorialSearch] = useState("");
 
+  // Nueva deuda rápida
+  const [quickDeudaOpen, setQuickDeudaOpen] = useState(false);
+  const [quickDeudaRecId, setQuickDeudaRecId] = useState<string>("");
+  const [quickDeudaTipo, setQuickDeudaTipo] = useState<"cargo" | "pago" | "ajuste">("cargo");
+
+
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
   const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
