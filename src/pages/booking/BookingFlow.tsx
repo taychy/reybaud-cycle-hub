@@ -216,7 +216,7 @@ const BookingFlow = () => {
       esMenor ? `[Menor de edad: ${edad} años — autorización de tutor confirmada al reservar]` : "",
     ].filter(Boolean).join("\n");
 
-    const { error } = await supabase.from("reservas_turnera").insert({
+    const { data: insertedRes, error } = await supabase.from("reservas_turnera").insert({
       servicio_id: servicio.id,
       coach_id: selectedSlot.coach_id,
       alumno_id: alumnoId,
@@ -234,12 +234,19 @@ const BookingFlow = () => {
       precio_snapshot: servicio.precio,
       moneda_snapshot: servicio.moneda,
       origen_link: window.location.href,
-    } as any);
+    } as any).select("id").single();
 
     if (error) {
       toast({ title: "Error al reservar", description: error.message, variant: "destructive" });
       setSubmitting(false);
       return;
+    }
+
+    // Fire-and-forget confirmation email (respects per-service email_confirmacion_enabled)
+    if (insertedRes?.id) {
+      supabase.functions.invoke("send-turnera-email", {
+        body: { reservation_id: insertedRes.id, tipo: "confirmacion" },
+      }).catch(() => { /* silent — UX continues even if email fails */ });
     }
 
     await supabase.from("movimientos_liquidacion").insert({

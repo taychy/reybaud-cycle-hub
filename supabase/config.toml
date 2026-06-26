@@ -78,3 +78,9 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.consultar-padron-afip]
     verify_jwt = false
+  [functions.turnera-ics]
+    verify_jwt = false
+  [functions.send-turnera-email]
+    verify_jwt = false
+  [functions.process-turnera-reminders]
+    verify_jwt = false
