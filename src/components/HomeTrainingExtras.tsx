@@ -6,10 +6,12 @@ import { CoachFeedbackCard, type FeedbackRecord } from "@/components/progress/Co
 import { ChevronRight, ShoppingBag } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import jerseyImg from "@/assets/store/jersey.jpg";
+import BuyProductDialog from "@/components/store/BuyProductDialog";
 
 type StoreProduct = Tables<"store_products">;
 
 const STORE_URL = "https://ciclismoreybaud.mitiendanube.com/";
+
 
 const formatPrice = (n: number) => "$" + n.toLocaleString("es-AR");
 
