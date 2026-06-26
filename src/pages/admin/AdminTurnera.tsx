@@ -197,9 +197,14 @@ const AdminTurnera = () => {
                       <Badge variant="outline" className="text-xs">{s.modalidad}</Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setConfigServ(s)} title="Configurar">
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
