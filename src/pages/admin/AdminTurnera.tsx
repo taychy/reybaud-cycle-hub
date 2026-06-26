@@ -119,7 +119,7 @@ const AdminTurnera = () => {
   const servicioName = (id: string) => servicios.find(s => s.id === id)?.nombre || "–";
   const sedeName = (id: string) => sedes.find(s => s.id === id)?.nombre || "–";
 
-  const baseUrl = window.location.origin;
+  const baseUrl = "https://reybaud-app.com";
 
   return (
     <div className="space-y-6">
