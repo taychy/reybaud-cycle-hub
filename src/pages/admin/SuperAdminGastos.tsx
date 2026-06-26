@@ -622,13 +622,55 @@ const SuperAdminGastos = () => {
     loadData();
   };
 
-  const deleteRec = async (id: string) => {
-    if (!confirm("¿Eliminar este concepto recurrente? También se borrarán sus ejecuciones futuras.")) return;
-    const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", id);
+  const archiveRec = async (r: Recurrente) => {
+    const accion = r.archivado_at ? "desarchivar" : "archivar";
+    if (!confirm(`¿${accion === "archivar" ? "Archivar" : "Reactivar"} "${r.concepto}"?\n\n${accion === "archivar" ? "No aparecerá en el catálogo activo pero el historial completo se conserva. Podés reactivarlo cuando quieras." : "Volverá a aparecer en el catálogo activo."}`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id || null;
+    const patch = accion === "archivar"
+      ? { archivado_at: new Date().toISOString(), archivado_por: uid, activo: false }
+      : { archivado_at: null, archivado_por: null, activo: true };
+    const { error } = await supabase.from("gastos_recurrentes").update(patch as any).eq("id", r.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: accion === "archivar" ? "Archivado" : "Reactivado", description: r.concepto });
+    loadData();
+  };
+
+  const hardDeleteRec = async (r: Recurrente) => {
+    // Verificar que no tenga ejecuciones ni movimientos de deuda
+    const [ejecCount, movCount] = await Promise.all([
+      supabase.from("gastos_ejecuciones").select("id", { count: "exact", head: true }).eq("recurrente_id", r.id),
+      supabase.from("gastos_deuda_movimientos" as any).select("id", { count: "exact", head: true }).eq("recurrente_id", r.id),
+    ]);
+    const ej = ejecCount.count || 0;
+    const mv = movCount.count || 0;
+    if (ej > 0 || mv > 0) {
+      toast({
+        title: "No se puede eliminar",
+        description: `Tiene ${ej} ejecución(es) y ${mv} movimiento(s) de deuda en el historial. Archívalo en su lugar para conservar la trazabilidad.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!confirm(`Eliminar definitivamente "${r.concepto}".\n\nNo tiene historial asociado, así que es seguro borrar.\n\n¿Continuar?`)) return;
+    const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", r.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Eliminado" });
     loadData();
   };
+
+  // -------- Historial / auditoría ----------
+  const loadHistorial = useCallback(async () => {
+    setHistorialLoading(true);
+    const { data, error } = await supabase
+      .from("audit_log")
+      .select("id, created_at, user_email, user_role, action, entity_type, entity_id, details")
+      .in("entity_type", ["gastos", "gastos_recurrentes", "gastos_ejecuciones", "gastos_deuda_movimientos"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (!error) setHistorial((data || []) as any);
+    setHistorialLoading(false);
+  }, []);
 
   // -------- Matriz (concepto × mes) ----------
   const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
