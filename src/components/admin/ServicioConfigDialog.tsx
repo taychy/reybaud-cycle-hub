@@ -34,6 +34,12 @@ const RECORDATORIO_OPCIONES = [
 ];
 
 export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: Props) {
+  const [nombre, setNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [duracion, setDuracion] = useState("60");
+  const [precio, setPrecio] = useState("");
+  const [modalidad, setModalidad] = useState("presencial");
+  const [activo, setActivo] = useState(true);
   const [politica, setPolitica] = useState("");
   const [emailConf, setEmailConf] = useState(true);
   const [emailRec, setEmailRec] = useState(true);
@@ -46,6 +52,12 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
 
   useEffect(() => {
     if (!servicio) return;
+    setNombre(servicio.nombre || "");
+    setDescripcion(servicio.descripcion || "");
+    setDuracion(String(servicio.duracion_minutos ?? 60));
+    setPrecio(servicio.precio != null ? String(servicio.precio) : "");
+    setModalidad(servicio.modalidad || "presencial");
+    setActivo(servicio.activo ?? true);
     setPolitica(servicio.politica_cancelacion || "");
     setEmailConf(servicio.email_confirmacion_enabled ?? true);
     setEmailRec(servicio.email_recordatorio_enabled ?? true);
