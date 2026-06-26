@@ -781,7 +781,9 @@ function BlockBody({
   return (
     <div className="px-4 pb-4">
       <div className={`rounded-lg border border-border/50 bg-background/40 p-3 ${comfortMode ? "space-y-2" : "space-y-1.5"}`}>
-        {intervals ? (
+        {intervalSet ? (
+          <IntervalSetView set={intervalSet} zoneHsl={zoneHsl} />
+        ) : intervals ? (
           // Compact interval table
           <div className="space-y-1.5">
             {intervals.map((row, i) => {
