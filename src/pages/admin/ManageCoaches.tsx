@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2, Calendar } from "lucide-react";
+import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2, Calendar, Plane } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
+import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
