@@ -71,12 +71,14 @@ function inferBlockMinutes(block: TrainingBlock): number {
     }
 
     reSingle.lastIndex = 0;
+    const isRestLine = /micro\s*pausa|^pausa|recuper|descanso/i.test(raw);
+    const multiplier = isRestLine && seriesReps > 0 ? seriesReps : 1;
     while ((m = reSingle.exec(text))) {
       // Skip if inside a series match
       if (seriesMatches.some(s => m!.index >= s.start && m!.index < s.end)) continue;
       const mins = parseInt(m[1]);
       const secs = m[2] ? parseInt(m[2]) : 0;
-      bulletTotal += mins + secs / 60;
+      bulletTotal += (mins + secs / 60) * multiplier;
       bulletFound = true;
     }
 
