@@ -91,6 +91,7 @@ const BookingFlow = () => {
   const [servicio, setServicio] = useState<Servicio | null>(null);
   const [disponibilidades, setDisponibilidades] = useState<Disponibilidad[]>([]);
   const [reservasExistentes, setReservasExistentes] = useState<any[]>([]);
+  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
 
