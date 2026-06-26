@@ -278,6 +278,15 @@ const AdminTurnera = () => {
           </Table>
         </TabsContent>
       </Tabs>
+
+      {configServ && (
+        <ServicioConfigDialog
+          servicio={configServ}
+          open={!!configServ}
+          onOpenChange={(o) => !o && setConfigServ(null)}
+          onSaved={loadAll}
+        />
+      )}
     </div>
   );
 };
