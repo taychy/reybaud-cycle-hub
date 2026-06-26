@@ -260,7 +260,10 @@ const BookingFlow = () => {
       esMenor ? `[Menor de edad: ${edad} años — autorización de tutor confirmada al reservar]` : "",
     ].filter(Boolean).join("\n");
 
-    const { data: insertedRes, error } = await supabase.from("reservas_turnera").insert({
+    const reservationId = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const { error } = await supabase.from("reservas_turnera").insert({
+      id: reservationId,
       servicio_id: servicio.id,
       coach_id: selectedSlot.coach_id,
       alumno_id: alumnoId,
@@ -272,13 +275,13 @@ const BookingFlow = () => {
       email: form.email,
       celular: form.celular || null,
       documento: form.documento || null,
-      fecha_nacimiento: fechaNac,
+      fecha_nacimiento: fechaNac && !fechaNac.startsWith("--") ? fechaNac : null,
       nota: notaFinal || null,
       acepto_politica: form.acepto_politica,
       precio_snapshot: servicio.precio,
       moneda_snapshot: servicio.moneda,
       origen_link: window.location.href,
-    } as any).select("id").single();
+    } as any);
 
     if (error) {
       toast({ title: "Error al reservar", description: error.message, variant: "destructive" });
@@ -286,7 +289,7 @@ const BookingFlow = () => {
       return;
     }
 
-    const reservationId = insertedRes?.id;
+
     const requierePagoOnline = servicio.pago_modo && servicio.pago_modo !== "ninguno";
 
     // Movimiento de liquidación siempre (queda como pendiente_revision)
