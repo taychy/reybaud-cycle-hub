@@ -279,6 +279,85 @@ export default function TrainingDetailView({
   );
 }
 
+// --- Inline pill renderers ---
+function ZonePill({ z }: { z: Zone }) {
+  const c = ZONE_HSL[z];
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-heading font-black tracking-wider uppercase align-middle mx-0.5"
+      style={{
+        backgroundColor: `hsl(${c} / 0.18)`,
+        color: `hsl(${c})`,
+        border: `1px solid hsl(${c} / 0.35)`,
+      }}
+    >
+      {z}
+    </span>
+  );
+}
+
+function DurChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-heading font-bold tabular-nums bg-muted/60 text-foreground border border-border/60 align-middle mx-0.5">
+      {children}
+    </span>
+  );
+}
+
+function RpmChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-heading font-bold uppercase bg-muted/60 text-secondary-foreground border border-border/60 align-middle mx-0.5">
+      <Cog className="w-2.5 h-2.5" />
+      {children}
+    </span>
+  );
+}
+
+/** Replace inline mentions of "Zona: N", "Z3", "100 RPM" with pills. */
+function inlineTokens(text: string): ReactNode[] {
+  const re = /Zona[:\s]+(\d)(?:\s*[-/]\s*(\d))?|\bZ([1-5])\b|(\d+(?:\/\d+)?)\s*RPM\b/gi;
+  const out: ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(<span key={`t${key++}`}>{text.slice(last, m.index)}</span>);
+    if (m[1]) {
+      out.push(<ZonePill key={`z${key++}`} z={`Z${m[1]}` as Zone} />);
+      if (m[2]) out.push(<ZonePill key={`z${key++}`} z={`Z${m[2]}` as Zone} />);
+    } else if (m[3]) {
+      out.push(<ZonePill key={`z${key++}`} z={`Z${m[3]}` as Zone} />);
+    } else if (m[4]) {
+      out.push(<RpmChip key={`r${key++}`}>{m[4]} RPM</RpmChip>);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(<span key={`t${key++}`}>{text.slice(last)}</span>);
+  return out;
+}
+
+/** "2-1", "3", "2/3" -> array of zones */
+function parseZoneValue(value: string): Zone[] {
+  const nums = value.match(/[1-5]/g) || [];
+  return nums.map(n => `Z${n}` as Zone);
+}
+
+/** Detect interval row: "10' Zona: 1", "6 × 1'30\" Zona: 3". */
+function parseIntervalRow(b: string): { duration: string; zones: Zone[]; rest: string } | null {
+  const clean = b.replace(/^[•\-–]\s*/, "").trim();
+  const durMatch = clean.match(/^(\d+(?:\s*[×x]\s*\d+(?:['′]\s*\d*\s*["″]?)?)?(?:\s*['′]\s*\d*\s*["″]?)?)\s+/);
+  if (!durMatch) return null;
+  const rest1 = clean.slice(durMatch[0].length);
+  const zMatch = rest1.match(/^Zona[:\s]+(\d)(?:\s*[-/]\s*(\d))?/i);
+  if (!zMatch) return null;
+  const zones: Zone[] = [`Z${zMatch[1]}` as Zone];
+  if (zMatch[2]) zones.push(`Z${zMatch[2]}` as Zone);
+  const rest = rest1.slice(zMatch[0].length).replace(/^[\s,;:.\-]+/, "").trim();
+  return { duration: durMatch[1].trim(), zones, rest };
+}
+
+
+
 function MetricTile({
   Icon,
   label,
