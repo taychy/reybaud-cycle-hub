@@ -129,7 +129,7 @@ function blockIcon(block: TrainingBlock, index: number, total: number, zone: Zon
   if (/CALOR|ACTIV/.test(text)) return Flame;
   if (/CALMA|VUELTA|RECUPER|REGENER/.test(text)) return Moon;
   if (/SERIE|INTERV|UMBRAL|TEMPO|SPRINT|VO2|MÁXIMO|MAXIMO/.test(text)) return Zap;
-  if (/CADENCIA|RPM|MOLINE/.test(text)) return Cog;
+  if (/CADENCIA|RPM|MOLINE|CAD\b/.test(text)) return RotateCw;
   if (/ROD|BICI|RUTA/.test(text)) return Bike;
   if (index === 0) return Flame;
   if (index === total - 1) return Moon;
