@@ -515,3 +515,109 @@ function TrainingBlockCard({
     </div>
   );
 }
+
+function BlockBody({
+  bullets,
+  structured,
+  zoneHsl,
+  comfortMode,
+}: {
+  bullets: string[];
+  structured: { key: string; value: string }[] | null;
+  zoneHsl: string | null;
+  comfortMode: boolean;
+}) {
+  // Try parsing as interval list: all bullets share "duration + zone" shape
+  const intervals = useMemo(() => {
+    const rows = bullets.map(parseIntervalRow);
+    const matched = rows.filter(Boolean).length;
+    if (matched >= 2 && matched / bullets.length >= 0.6) return rows;
+    return null;
+  }, [bullets]);
+
+  const bulletSize = comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed";
+  const dotStyle = { backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" };
+
+  return (
+    <div className="px-4 pb-4">
+      <div className={`rounded-lg border border-border/50 bg-background/40 p-3 ${comfortMode ? "space-y-2" : "space-y-1.5"}`}>
+        {intervals ? (
+          // Compact interval table
+          <div className="space-y-1.5">
+            {intervals.map((row, i) => {
+              const raw = bullets[i];
+              if (!row) {
+                return (
+                  <div key={i} className="flex gap-2 items-start">
+                    <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={dotStyle} />
+                    <p className={`text-secondary-foreground ${bulletSize}`}>
+                      {inlineTokens(raw.replace(/^[•\-–]\s*/, ""))}
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <div key={i} className="flex items-center gap-2 py-0.5">
+                  <DurChip>{row.duration}</DurChip>
+                  {row.zones.map((z, j) => <ZonePill key={j} z={z} />)}
+                  {row.rest && (
+                    <span className={`text-secondary-foreground ${bulletSize} flex-1 min-w-0 truncate`}>
+                      {inlineTokens(row.rest)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : structured ? (
+          structured.map((item, i) => {
+            const keyLower = item.key.toLowerCase();
+            const isZoneKey = /zona/.test(keyLower);
+            const isRpmKey = /cadencia|rpm/.test(keyLower);
+            return (
+              <div key={i} className={`${item.key ? "flex gap-2 items-center flex-wrap" : "flex gap-2 items-start"}`}>
+                {item.key ? (
+                  <>
+                    <span className={`font-heading font-semibold text-primary/90 shrink-0 ${
+                      comfortMode ? "text-sm min-w-[90px]" : "text-[13px] min-w-[80px]"
+                    }`}>
+                      {item.key}:
+                    </span>
+                    {isZoneKey ? (
+                      <span className="flex items-center gap-1 flex-wrap">
+                        {parseZoneValue(item.value).map((z, j) => <ZonePill key={j} z={z} />)}
+                      </span>
+                    ) : isRpmKey ? (
+                      <RpmChip>{item.value}</RpmChip>
+                    ) : (
+                      <span className={`text-secondary-foreground ${bulletSize}`}>
+                        {inlineTokens(item.value)}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={dotStyle} />
+                    <p className={`text-secondary-foreground ${bulletSize}`}>
+                      {inlineTokens(item.value)}
+                    </p>
+                  </>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          bullets.map((bullet, i) => (
+            <div key={i} className="flex gap-2 items-start">
+              <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={dotStyle} />
+              <p className={`text-secondary-foreground ${bulletSize}`}>
+                {inlineTokens(bullet.replace(/^[•\-–]\s*/, ""))}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
