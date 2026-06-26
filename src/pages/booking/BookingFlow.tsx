@@ -142,10 +142,11 @@ const BookingFlow = () => {
   const getAvailableSlots = (date: Date): Slot[] => {
     if (!servicio) return [];
     const dayOfWeek = date.getDay();
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     const dayDisps = filteredDisps.filter(d => d.dia_semana === dayOfWeek);
-    const slots: Slot[] = [];
     const duration = servicio.duracion_minutos;
+    // Dedupe by coach+time (un coach puede tener varias filas de disponibilidad solapadas)
+    const map = new Map<string, Slot>();
     for (const disp of dayDisps) {
       const [sH, sM] = disp.hora_inicio.split(":").map(Number);
       const [eH, eM] = disp.hora_fin.split(":").map(Number);
@@ -159,12 +160,17 @@ const BookingFlow = () => {
           r => r.fecha === dateStr && r.hora_inicio === t && r.coach_id === disp.coach_id,
         );
         if (!isBooked) {
-          slots.push({ time: `${h}:${m}`, coach_id: disp.coach_id, disponibilidad_id: disp.id, sede_id: disp.sede_id });
+          const key = `${disp.coach_id}|${h}:${m}`;
+          if (!map.has(key)) {
+            map.set(key, { time: `${h}:${m}`, coach_id: disp.coach_id, disponibilidad_id: disp.id, sede_id: disp.sede_id });
+          } else if (selectedSede && selectedSede !== "any" && disp.sede_id === selectedSede) {
+            map.set(key, { time: `${h}:${m}`, coach_id: disp.coach_id, disponibilidad_id: disp.id, sede_id: disp.sede_id });
+          }
         }
         cur += duration;
       }
     }
-    return slots;
+    return Array.from(map.values()).sort((a, b) => a.time.localeCompare(b.time) || a.coach_id.localeCompare(b.coach_id));
   };
 
   const disabledDay = (date: Date) => {
