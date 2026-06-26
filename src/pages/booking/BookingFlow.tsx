@@ -70,12 +70,14 @@ const BookingFlow = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [alumnoLogged, setAlumnoLogged] = useState<{ id: string; nombre: string; apellido: string; email: string } | null>(null);
 
   const [form, setForm] = useState({
     nombre: "", apellido: "", email: "", celular: "", documento: "",
     fnac_dia: "", fnac_mes: "", fnac_anio: "",
     nota: "", acepto_politica: false, acepto_tutor: false,
   });
+
 
   useEffect(() => {
     const load = async () => {
@@ -118,6 +120,37 @@ const BookingFlow = () => {
     };
     load();
   }, [slug]);
+
+  // Detectar si hay un alumno logueado y precargar sus datos
+  useEffect(() => {
+    const detectAlumno = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
+      if (!email) return;
+      const { data: alu } = await supabase
+        .from("alumnos")
+        .select("id, nombre, apellido, email, documento, telefono")
+        .eq("email", email)
+        .maybeSingle();
+      if (!alu) return;
+      setAlumnoLogged({
+        id: (alu as any).id,
+        nombre: (alu as any).nombre || "",
+        apellido: (alu as any).apellido || "",
+        email: (alu as any).email || email,
+      });
+      setForm(f => ({
+        ...f,
+        nombre: (alu as any).nombre || f.nombre,
+        apellido: (alu as any).apellido || f.apellido,
+        email: (alu as any).email || email,
+        celular: (alu as any).telefono || f.celular,
+        documento: (alu as any).documento || f.documento,
+      }));
+    };
+    detectAlumno();
+  }, []);
+
 
   const coachById = useMemo(() => {
     const m = new Map<string, Coach>();
@@ -186,14 +219,17 @@ const BookingFlow = () => {
   const esMenor = edad !== null && edad < 18;
 
   const validForm = () => {
-    if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) return "Completá nombre, apellido y email.";
-    if (!form.celular.trim()) return "El celular es obligatorio.";
-    if (!form.documento.trim() || form.documento.trim().length < 7) return "El DNI es obligatorio (mínimo 7 dígitos).";
-    if (!form.fnac_dia || !form.fnac_mes || !form.fnac_anio) return "Completá tu fecha de nacimiento.";
+    if (!alumnoLogged) {
+      if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) return "Completá nombre, apellido y email.";
+      if (!form.celular.trim()) return "El celular es obligatorio.";
+      if (!form.documento.trim() || form.documento.trim().length < 7) return "El DNI es obligatorio (mínimo 7 dígitos).";
+      if (!form.fnac_dia || !form.fnac_mes || !form.fnac_anio) return "Completá tu fecha de nacimiento.";
+      if (esMenor && !form.acepto_tutor) return "Como menor de edad, confirmá la autorización del tutor.";
+    }
     if (servicio?.politica_cancelacion && !form.acepto_politica) return "Debés aceptar la política de cancelación.";
-    if (esMenor && !form.acepto_tutor) return "Como menor de edad, confirmá la autorización del tutor.";
     return null;
   };
+
 
   const handleSubmit = async () => {
     if (!servicio || !selectedDate || !selectedSlot) return;
@@ -543,88 +579,106 @@ const BookingFlow = () => {
           <div className="space-y-4">
             <h2 className="text-lg font-heading font-semibold text-foreground">Tus datos</h2>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Nombre *</Label>
-                  <Input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Apellido *</Label>
-                  <Input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Email *</Label>
-                <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Celular *</Label>
-                  <Input value={form.celular} onChange={e => setForm({ ...form, celular: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">DNI *</Label>
-                  <Input value={form.documento} onChange={e => setForm({ ...form, documento: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Fecha de nacimiento * <span className="text-muted-foreground font-normal">(para verificar mayoría de edad)</span></Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-                    value={form.fnac_dia}
-                    onChange={e => setForm({ ...form, fnac_dia: e.target.value })}
-                  >
-                    <option value="">Día</option>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                      <option key={d} value={String(d)}>{d}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-                    value={form.fnac_mes}
-                    onChange={e => setForm({ ...form, fnac_mes: e.target.value })}
-                  >
-                    <option value="">Mes</option>
-                    {MESES.map((n, i) => <option key={n} value={String(i + 1)}>{n}</option>)}
-                  </select>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-                    value={form.fnac_anio}
-                    onChange={e => setForm({ ...form, fnac_anio: e.target.value })}
-                  >
-                    <option value="">Año</option>
-                    {Array.from({ length: 90 }, (_, i) => new Date().getFullYear() - 5 - i).map(y => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {esMenor && (
-                <Card className="border-amber-500/40 bg-amber-500/5">
-                  <CardContent className="p-3 flex gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                    <div className="space-y-2 flex-1">
-                      <p className="text-sm font-medium text-foreground">Sos menor de edad ({edad} años)</p>
-                      <p className="text-xs text-muted-foreground">
-                        Necesitás venir acompañado/a por tu padre, madre o tutor legal, o presentar una autorización firmada al llegar.
+              {alumnoLogged ? (
+                <Card className="border-primary/40 bg-primary/5">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium text-foreground">
+                        Reservando como {alumnoLogged.nombre} {alumnoLogged.apellido}
                       </p>
-                      <div className="flex items-start gap-2 pt-1">
-                        <Checkbox
-                          checked={form.acepto_tutor}
-                          onCheckedChange={c => setForm({ ...form, acepto_tutor: c === true })}
-                          className="mt-0.5"
-                        />
-                        <label className="text-xs text-foreground">
-                          Confirmo que vendré con un tutor o llevaré la autorización firmada.
-                        </label>
-                      </div>
+                      <p className="text-xs text-muted-foreground">{alumnoLogged.email}</p>
+                      <p className="text-xs text-muted-foreground">Usamos los datos de tu cuenta automáticamente.</p>
                     </div>
                   </CardContent>
                 </Card>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nombre *</Label>
+                      <Input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Apellido *</Label>
+                      <Input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Email *</Label>
+                    <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Celular *</Label>
+                      <Input value={form.celular} onChange={e => setForm({ ...form, celular: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">DNI *</Label>
+                      <Input value={form.documento} onChange={e => setForm({ ...form, documento: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fecha de nacimiento * <span className="text-muted-foreground font-normal">(para verificar mayoría de edad)</span></Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                        value={form.fnac_dia}
+                        onChange={e => setForm({ ...form, fnac_dia: e.target.value })}
+                      >
+                        <option value="">Día</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                          <option key={d} value={String(d)}>{d}</option>
+                        ))}
+                      </select>
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                        value={form.fnac_mes}
+                        onChange={e => setForm({ ...form, fnac_mes: e.target.value })}
+                      >
+                        <option value="">Mes</option>
+                        {MESES.map((n, i) => <option key={n} value={String(i + 1)}>{n}</option>)}
+                      </select>
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                        value={form.fnac_anio}
+                        onChange={e => setForm({ ...form, fnac_anio: e.target.value })}
+                      >
+                        <option value="">Año</option>
+                        {Array.from({ length: 90 }, (_, i) => new Date().getFullYear() - 5 - i).map(y => (
+                          <option key={y} value={String(y)}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {esMenor && (
+                    <Card className="border-amber-500/40 bg-amber-500/5">
+                      <CardContent className="p-3 flex gap-2">
+                        <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm font-medium text-foreground">Sos menor de edad ({edad} años)</p>
+                          <p className="text-xs text-muted-foreground">
+                            Necesitás venir acompañado/a por tu padre, madre o tutor legal, o presentar una autorización firmada al llegar.
+                          </p>
+                          <div className="flex items-start gap-2 pt-1">
+                            <Checkbox
+                              checked={form.acepto_tutor}
+                              onCheckedChange={c => setForm({ ...form, acepto_tutor: c === true })}
+                              className="mt-0.5"
+                            />
+                            <label className="text-xs text-foreground">
+                              Confirmo que vendré con un tutor o llevaré la autorización firmada.
+                            </label>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
+
 
               <div className="space-y-1">
                 <Label className="text-xs">Nota (opcional)</Label>
