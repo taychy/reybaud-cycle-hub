@@ -129,15 +129,14 @@ Deno.serve(async (req) => {
 
     const { data: r, error: errR } = await supabase
       .from("reservas_turnera")
-      .select("id, servicio_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email")
+      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota")
       .eq("id", reservation_id)
       .maybeSingle();
     if (errR || !r) return new Response(JSON.stringify({ error: "reservation_not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    if (!r.email) return new Response(JSON.stringify({ error: "no_email" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: s } = await supabase
       .from("servicios_turnera")
-      .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, ics_adjunto")
+      .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, email_coach_enabled, ics_adjunto, sedes:sede_id(nombre)")
       .eq("id", r.servicio_id)
       .maybeSingle();
 
@@ -148,6 +147,22 @@ Deno.serve(async (req) => {
     if (tipo === "recordatorio" && s && s.email_recordatorio_enabled === false) {
       return new Response(JSON.stringify({ skipped: true, reason: "email_recordatorio_disabled" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    if (tipo === "coach_aviso" && s && s.email_coach_enabled === false) {
+      return new Response(JSON.stringify({ skipped: true, reason: "email_coach_disabled" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Resolve recipient
+    let recipientEmail = r.email as string;
+    let recipientName = r.nombre as string;
+    if (tipo === "coach_aviso") {
+      const { data: coach } = await supabase.from("coaches").select("email, nombre").eq("id", r.coach_id).maybeSingle();
+      if (!coach?.email) {
+        return new Response(JSON.stringify({ skipped: true, reason: "coach_no_email" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      recipientEmail = coach.email;
+      recipientName = coach.nombre || "coach";
+    }
+    if (!recipientEmail) return new Response(JSON.stringify({ error: "no_email" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const servicioNombre = s?.nombre || "Reserva";
     const modalidad = s?.modalidad === "virtual" ? "Online" : s?.modalidad === "hibrida" ? "Híbrida" : "Presencial — Reybaud Ciclismo";
