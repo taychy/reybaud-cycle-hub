@@ -499,6 +499,14 @@ const ManageCoaches = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* Ausencias dialog */}
+      <Dialog open={!!ausenciasCoach} onOpenChange={open => { if (!open) setAusenciasCoach(null); }}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
+          {ausenciasCoach && (
+            <AusenciasCoachManager coachId={ausenciasCoach.id} coachNombre={ausenciasCoach.nombre} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
