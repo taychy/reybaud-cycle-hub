@@ -342,18 +342,45 @@ function parseZoneValue(value: string): Zone[] {
   return nums.map(n => `Z${n}` as Zone);
 }
 
-/** Detect interval row: "10' Zona: 1", "6 × 1'30\" Zona: 3". */
-function parseIntervalRow(b: string): { duration: string; zones: Zone[]; rest: string } | null {
+/** Format raw duration token like "10'", "1'30\"", "6 x 1'30\"" into human "10 min" / "6 × 1 min 30 s". */
+function formatDuration(raw: string): { reps?: string; label: string } {
+  const repsMatch = raw.match(/^(\d+)\s*[×x]\s*(.+)$/);
+  let reps: string | undefined;
+  let rest = raw;
+  if (repsMatch) {
+    reps = repsMatch[1];
+    rest = repsMatch[2];
+  }
+  const dm = rest.match(/^(\d+)\s*['′]?\s*(\d+)?\s*["″]?$/);
+  if (dm) {
+    const mins = parseInt(dm[1]);
+    const secs = dm[2] ? parseInt(dm[2]) : 0;
+    const label = secs > 0 ? `${mins} min ${secs} s` : `${mins} min`;
+    return { reps, label };
+  }
+  return { reps, label: rest.replace(/['′]/g, " min").replace(/["″]/g, " s").trim() };
+}
+
+/** Detect interval row: "10' Zona: 1", "6 × 1'30\" Zona: 3", "6 x 1'30\" Z3 110/115 RPM". */
+function parseIntervalRow(b: string): { reps?: string; duration: string; zones: Zone[]; rpm?: string; rest: string } | null {
   const clean = b.replace(/^[•\-–]\s*/, "").trim();
   const durMatch = clean.match(/^(\d+(?:\s*[×x]\s*\d+(?:['′]\s*\d*\s*["″]?)?)?(?:\s*['′]\s*\d*\s*["″]?)?)\s+/);
   if (!durMatch) return null;
   const rest1 = clean.slice(durMatch[0].length);
-  const zMatch = rest1.match(/^Zona[:\s]+(\d)(?:\s*[-/]\s*(\d))?/i);
+  // Accept either "Zona: N" or "Z N"
+  const zMatch = rest1.match(/^(?:Zona[:\s]+|Z\s*)(\d)(?:\s*[-/]\s*(\d))?/i);
   if (!zMatch) return null;
   const zones: Zone[] = [`Z${zMatch[1]}` as Zone];
   if (zMatch[2]) zones.push(`Z${zMatch[2]}` as Zone);
-  const rest = rest1.slice(zMatch[0].length).replace(/^[\s,;:.\-]+/, "").trim();
-  return { duration: durMatch[1].trim(), zones, rest };
+  let rest = rest1.slice(zMatch[0].length).replace(/^[\s,;:.\-]+/, "").trim();
+  let rpm: string | undefined;
+  const rpmMatch = rest.match(/(\d+(?:\/\d+)?)\s*RPM\b/i);
+  if (rpmMatch) {
+    rpm = rpmMatch[1];
+    rest = (rest.slice(0, rpmMatch.index) + rest.slice(rpmMatch.index! + rpmMatch[0].length)).replace(/[\s,;:.\-()]+/g, " ").trim();
+  }
+  const fmt = formatDuration(durMatch[1].trim());
+  return { reps: fmt.reps, duration: fmt.label, zones, rpm, rest };
 }
 
 
