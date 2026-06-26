@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote } from "lucide-react";
+import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote, Plane } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 import MisClasesHoy from "@/components/coach/MisClasesHoy";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
