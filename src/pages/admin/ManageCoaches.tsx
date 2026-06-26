@@ -91,6 +91,7 @@ const ManageCoaches = () => {
   const [deleteCoach, setDeleteCoach] = useState<Coach | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [agendaCoach, setAgendaCoach] = useState<Coach | null>(null);
+  const [ausenciasCoach, setAusenciasCoach] = useState<Coach | null>(null);
 
   const handleResendInvite = async (coach: Coach) => {
     const lastSent = (coach as any).last_invite_sent_at;
