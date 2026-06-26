@@ -351,20 +351,20 @@ function formatDuration(raw: string): { reps?: string; label: string } {
     reps = repsMatch[1];
     rest = repsMatch[2];
   }
-  const dm = rest.match(/^(\d+)\s*['′]?\s*(\d+)?\s*["″]?$/);
+  const dm = rest.match(/^(\d+)\s*['′´’]?\s*(\d+)?\s*["″]?$/);
   if (dm) {
     const mins = parseInt(dm[1]);
     const secs = dm[2] ? parseInt(dm[2]) : 0;
     const label = secs > 0 ? `${mins} min ${secs} s` : `${mins} min`;
     return { reps, label };
   }
-  return { reps, label: rest.replace(/['′]/g, " min").replace(/["″]/g, " s").trim() };
+  return { reps, label: rest.replace(/['′´’]/g, " min").replace(/["″]/g, " s").trim() };
 }
 
 /** Detect interval row: "10' Zona: 1", "6 × 1'30\" Zona: 3", "6 x 1'30\" Z3 110/115 RPM". */
 function parseIntervalRow(b: string): { reps?: string; duration: string; zones: Zone[]; rpm?: string; rest: string } | null {
   const clean = b.replace(/^[•\-–]\s*/, "").trim();
-  const durMatch = clean.match(/^(\d+(?:\s*[×x]\s*\d+(?:['′]\s*\d*\s*["″]?)?)?(?:\s*['′]\s*\d*\s*["″]?)?)\s+/);
+  const durMatch = clean.match(/^(\d+(?:\s*[×x]\s*\d+(?:['′´’]\s*\d*\s*["″]?)?)?(?:\s*['′´’]\s*\d*\s*["″]?)?)\s+/);
   if (!durMatch) return null;
   const rest1 = clean.slice(durMatch[0].length);
   // Accept either "Zona: N" or "Z N"
