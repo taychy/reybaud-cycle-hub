@@ -171,6 +171,12 @@ const SuperAdminGastos = () => {
   const [historialLoading, setHistorialLoading] = useState(false);
   const [historialSearch, setHistorialSearch] = useState("");
 
+  // Nueva deuda rápida
+  const [quickDeudaOpen, setQuickDeudaOpen] = useState(false);
+  const [quickDeudaRecId, setQuickDeudaRecId] = useState<string>("");
+  const [quickDeudaTipo, setQuickDeudaTipo] = useState<"cargo" | "pago" | "ajuste">("cargo");
+
+
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
   const [payingEjec, setPayingEjec] = useState<{ ejec: Ejecucion; rec: Recurrente } | null>(null);
@@ -672,6 +678,76 @@ const SuperAdminGastos = () => {
     setHistorialLoading(false);
   }, []);
 
+  // -------- Export CSV ----------
+  const downloadCSV = (filename: string, rows: (string | number | null | undefined)[][], headers: string[]) => {
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n;]/.test(s) ? `"${s}"` : s;
+    };
+    const content = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
+    // BOM para que Excel detecte UTF-8
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const exportGastosCSV = async () => {
+    // Trae TODO el histórico (no solo los 200 cargados)
+    const { data, error } = await supabase
+      .from("gastos")
+      .select("fecha, descripcion, categoria, subcategoria, proveedor, monto, moneda, forma_pago, recurrente, frecuencia, estado_conciliacion, origen_registro, mp_payment_id, notas, created_at")
+      .order("fecha", { ascending: false });
+    if (error) { toast({ title: "Error al exportar", description: error.message, variant: "destructive" }); return; }
+    const headers = ["Fecha","Descripción","Categoría","Subcategoría","Proveedor","Monto","Moneda","Forma de pago","Recurrente","Frecuencia","Conciliación","Origen","MP Payment ID","Notas","Cargado el"];
+    const rows = (data || []).map((g: any) => [
+      g.fecha, g.descripcion, g.categoria, g.subcategoria, g.proveedor,
+      g.monto, g.moneda, g.forma_pago, g.recurrente ? "sí" : "no", g.frecuencia,
+      g.estado_conciliacion, g.origen_registro, g.mp_payment_id, g.notas,
+      g.created_at ? new Date(g.created_at).toISOString() : "",
+    ]);
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCSV(`gastos_${today}.csv`, rows, headers);
+    toast({ title: "Exportado", description: `${rows.length} gastos descargados` });
+  };
+
+  const exportHistorialCSV = () => {
+    const headers = ["Fecha","Usuario","Rol","Acción","Entidad","Concepto/Descripción","Monto","Moneda"];
+    const rows = historial.map(h => {
+      const obj = h.details?.after || h.details?.before || {};
+      const label = obj?.concepto || obj?.descripcion || obj?.proveedor || h.entity_id;
+      const monto = obj?.monto ?? obj?.monto_estimado ?? obj?.monto_previsto ?? "";
+      return [
+        new Date(h.created_at).toISOString(),
+        h.user_email || "Sistema", h.user_role, h.action, h.entity_type, label, monto, obj?.moneda || "",
+      ];
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCSV(`historial_gastos_${today}.csv`, rows, headers);
+    toast({ title: "Exportado", description: `${rows.length} eventos descargados` });
+  };
+
+  // Abrir deuda rápida desde el header
+  const openQuickDeuda = () => {
+    setQuickDeudaRecId("");
+    setQuickDeudaTipo("cargo");
+    setQuickDeudaOpen(true);
+  };
+
+  const confirmQuickDeuda = async () => {
+    if (!quickDeudaRecId) { toast({ title: "Elegí un concepto", variant: "destructive" }); return; }
+    const rec = recurrentes.find(r => r.id === quickDeudaRecId);
+    if (!rec) return;
+    await openDeuda(rec);
+    setDeudaForm(f => ({ ...f, tipo: quickDeudaTipo }));
+    setQuickDeudaOpen(false);
+  };
+
+
+
   // -------- Matriz (concepto × mes) ----------
   const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
   const [matrizData, setMatrizData] = useState<Record<string, Record<number, Ejecucion | null>>>({});
@@ -729,10 +805,16 @@ const SuperAdminGastos = () => {
           </div>
         </CardContent>
       </Card>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-56 pr-3 text-foreground [color-scheme:dark]" />
           <Button variant="outline" size="sm" onClick={generarMes} className="gap-1">
             <RefreshCw className="w-4 h-4" /> Generar mes
+          </Button>
+          <Button variant="outline" size="sm" onClick={openQuickDeuda} className="gap-1">
+            <Plus className="w-4 h-4" /> Nueva deuda
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportGastosCSV} className="gap-1">
+            <Receipt className="w-4 h-4" /> Exportar gastos
           </Button>
         </div>
       </div>
@@ -1170,12 +1252,17 @@ const SuperAdminGastos = () => {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Histórico contable</CardTitle>
-              <Input
-                placeholder="Buscar descripción, categoría o forma de pago..."
-                value={searchHistorico}
-                onChange={(e) => setSearchHistorico(e.target.value)}
-                className="h-8 w-full sm:w-80 text-xs"
-              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Input
+                  placeholder="Buscar descripción, categoría o forma de pago..."
+                  value={searchHistorico}
+                  onChange={(e) => setSearchHistorico(e.target.value)}
+                  className="h-8 w-full sm:w-80 text-xs"
+                />
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportGastosCSV}>
+                  <Receipt className="w-3 h-3" /> Exportar CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {(() => {
@@ -1313,6 +1400,9 @@ const SuperAdminGastos = () => {
                 />
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={loadHistorial}>
                   <RefreshCw className="w-3 h-3" /> Refrescar
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportHistorialCSV} disabled={historial.length === 0}>
+                  <Receipt className="w-3 h-3" /> Exportar CSV
                 </Button>
               </div>
             </CardHeader>
@@ -1649,6 +1739,51 @@ const SuperAdminGastos = () => {
       </Dialog>
 
       {/* DIALOG: Deuda */}
+      {/* DIALOG: Nueva deuda rápida */}
+      <Dialog open={quickDeudaOpen} onOpenChange={setQuickDeudaOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider">Nueva deuda</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label className="text-xs">Concepto del catálogo</Label>
+              <Select value={quickDeudaRecId} onValueChange={setQuickDeudaRecId}>
+                <SelectTrigger><SelectValue placeholder="Elegí un concepto..." /></SelectTrigger>
+                <SelectContent>
+                  {recurrentes
+                    .filter(r => !r.archivado_at)
+                    .sort((a, b) => a.concepto.localeCompare(b.concepto))
+                    .map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.concepto} <span className="text-muted-foreground text-xs">— {r.categoria}</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Si no está en la lista, primero agregalo en <b>Catálogo → Nuevo</b>.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Tipo de movimiento</Label>
+              <Select value={quickDeudaTipo} onValueChange={(v) => setQuickDeudaTipo(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cargo">Cargo (suma a la deuda)</SelectItem>
+                  <SelectItem value="pago">Pago (resta de la deuda)</SelectItem>
+                  <SelectItem value="ajuste">Ajuste manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setQuickDeudaOpen(false)}>Cancelar</Button>
+              <Button variant="gold" onClick={confirmQuickDeuda} disabled={!quickDeudaRecId}>Continuar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deudaDialogOpen} onOpenChange={(o) => { setDeudaDialogOpen(o); if (!o) { setDeudaRec(null); setEditingDeudaMovId(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
