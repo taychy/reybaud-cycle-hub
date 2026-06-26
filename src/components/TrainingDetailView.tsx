@@ -29,12 +29,65 @@ function extractBadge(trabajo: string): { badge: string; title: string } {
 }
 
 function inferBlockMinutes(block: TrainingBlock): number {
-  const text = [block.title, ...block.bullets].join(" ");
-  const totalMatch = text.match(/(\d{1,3})\s*(?:'|min|minutos)/i);
-  if (totalMatch) return parseInt(totalMatch[1]);
-  const seriesMatch = text.match(/(\d+)\s*x\s*(\d+)\s*(?:'|min)/i);
-  if (seriesMatch) return parseInt(seriesMatch[1]) * parseInt(seriesMatch[2]);
-  return 0;
+  // Sum every duration mention in title + bullets. Each bullet contributes once.
+  // Patterns supported per bullet:
+  //   "N x M'SS\""  -> N * (M + SS/60)
+  //   "M'SS\""      -> M + SS/60
+  //   "M min[utos]" -> M
+  // Skips numbers immediately followed by RPM / km/h / % / kg / W.
+  const APO = "['′´’]";
+  const QUO = "[\"″]";
+  const reSeries = new RegExp(`(\\d+)\\s*[x×]\\s*(\\d+)\\s*${APO}?\\s*(\\d{0,2})\\s*${QUO}?`, "gi");
+  const reSingle = new RegExp(`(?<![x×]\\s*)(\\d+)\\s*${APO}\\s*(\\d{0,2})\\s*${QUO}?`, "gi");
+  const reMinutes = /(\d+)\s*(?:min|minutos)\b/gi;
+
+  const parts = [block.title, ...block.bullets];
+  let total = 0;
+  let foundAny = false;
+
+  for (const raw of parts) {
+    // Strip parts that aren't durations
+    const text = raw.replace(/\d+\s*(?:RPM|km\/h|%|kg|w|watts?|ppm|bpm)/gi, " ");
+    let bulletTotal = 0;
+    let bulletFound = false;
+    let m: RegExpExecArray | null;
+
+    reSeries.lastIndex = 0;
+    const seriesMatches: Array<{ start: number; end: number }> = [];
+    while ((m = reSeries.exec(text))) {
+      const reps = parseInt(m[1]);
+      const mins = parseInt(m[2]);
+      const secs = m[3] ? parseInt(m[3]) : 0;
+      bulletTotal += reps * (mins + secs / 60);
+      bulletFound = true;
+      seriesMatches.push({ start: m.index, end: m.index + m[0].length });
+    }
+
+    reSingle.lastIndex = 0;
+    while ((m = reSingle.exec(text))) {
+      // Skip if inside a series match
+      if (seriesMatches.some(s => m!.index >= s.start && m!.index < s.end)) continue;
+      const mins = parseInt(m[1]);
+      const secs = m[2] ? parseInt(m[2]) : 0;
+      bulletTotal += mins + secs / 60;
+      bulletFound = true;
+    }
+
+    if (!bulletFound) {
+      reMinutes.lastIndex = 0;
+      while ((m = reMinutes.exec(text))) {
+        bulletTotal += parseInt(m[1]);
+        bulletFound = true;
+      }
+    }
+
+    if (bulletFound) {
+      total += bulletTotal;
+      foundAny = true;
+    }
+  }
+
+  return foundAny ? Math.round(total) : 0;
 }
 
 export function parseDescriptionBlocks(descripcion: string): { totalMinutes: number; blocks: TrainingBlock[] } {
