@@ -4,19 +4,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote } from "lucide-react";
+import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote, Plane } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 import MisClasesHoy from "@/components/coach/MisClasesHoy";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
 const CoachDashboard = () => {
   const navigate = useNavigate();
   const [coachName, setCoachName] = useState("");
+  const [coachId, setCoachId] = useState<string | null>(null);
   const [grupos, setGrupos] = useState<string[]>([]);
   const [proximaClase, setProximaClase] = useState<Entrenamiento | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAusencias, setShowAusencias] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -34,6 +38,7 @@ const CoachDashboard = () => {
       if (!coach) return; // ProtectedRoute handles access
 
       setCoachName((coach as any).nombre);
+      setCoachId((coach as any).id);
       const coachGrupos = (coach as any).grupos || [];
       setGrupos(coachGrupos);
 
@@ -218,6 +223,15 @@ const CoachDashboard = () => {
           </Button>
 
           <Button
+            variant="outline"
+            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
+            onClick={() => setShowAusencias(true)}
+          >
+            <Plane className="w-5 h-5 text-primary" />
+            Mis ausencias / vacaciones
+          </Button>
+
+          <Button
             variant="gold"
             className="w-full h-14 justify-start gap-3 text-base"
             onClick={() => navigate("/coach/eventos/record-de-la-hora")}
@@ -227,6 +241,12 @@ const CoachDashboard = () => {
           </Button>
         </div>
       </main>
+
+      <Dialog open={showAusencias} onOpenChange={setShowAusencias}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
+          {coachId && <AusenciasCoachManager coachId={coachId} coachNombre={coachName} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

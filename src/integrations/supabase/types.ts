@@ -631,6 +631,56 @@ export type Database = {
         }
         Relationships: []
       }
+      ausencias_coaches: {
+        Row: {
+          coach_id: string
+          creado_por: string | null
+          created_at: string
+          fecha_fin: string
+          fecha_inicio: string
+          hora_fin: string | null
+          hora_inicio: string | null
+          id: string
+          motivo: string | null
+          todo_el_dia: boolean
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          creado_por?: string | null
+          created_at?: string
+          fecha_fin: string
+          fecha_inicio: string
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: string
+          motivo?: string | null
+          todo_el_dia?: boolean
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          creado_por?: string | null
+          created_at?: string
+          fecha_fin?: string
+          fecha_inicio?: string
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: string
+          motivo?: string | null
+          todo_el_dia?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ausencias_coaches_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bajas_solicitudes: {
         Row: {
           alumno_id: string

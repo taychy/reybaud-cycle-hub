@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2, Calendar } from "lucide-react";
+import { UserCog, Edit2, Plus, Eye, MailPlus, Trash2, Calendar, Plane } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
+import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
@@ -90,6 +91,7 @@ const ManageCoaches = () => {
   const [deleteCoach, setDeleteCoach] = useState<Coach | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [agendaCoach, setAgendaCoach] = useState<Coach | null>(null);
+  const [ausenciasCoach, setAusenciasCoach] = useState<Coach | null>(null);
 
   const handleResendInvite = async (coach: Coach) => {
     const lastSent = (coach as any).last_invite_sent_at;
@@ -375,6 +377,12 @@ const ManageCoaches = () => {
                 }}>
                   <Calendar className="w-3 h-3 mr-2" /> Ver agenda grupal
                 </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {
+                  setAusenciasCoach(detailCoach);
+                  setDetailCoach(null);
+                }}>
+                  <Plane className="w-3 h-3 mr-2" /> Ausencias / Vacaciones
+                </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => {
                   setDeleteCoach(detailCoach);
                   setDetailCoach(null);
@@ -488,6 +496,14 @@ const ManageCoaches = () => {
         <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
           {agendaCoach && (
             <CoachAgendaGrupal coachId={agendaCoach.id} coachNombre={agendaCoach.nombre} />
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* Ausencias dialog */}
+      <Dialog open={!!ausenciasCoach} onOpenChange={open => { if (!open) setAusenciasCoach(null); }}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
+          {ausenciasCoach && (
+            <AusenciasCoachManager coachId={ausenciasCoach.id} coachNombre={ausenciasCoach.nombre} />
           )}
         </DialogContent>
       </Dialog>
