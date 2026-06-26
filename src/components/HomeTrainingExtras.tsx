@@ -6,10 +6,12 @@ import { CoachFeedbackCard, type FeedbackRecord } from "@/components/progress/Co
 import { ChevronRight, ShoppingBag } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import jerseyImg from "@/assets/store/jersey.jpg";
+import BuyProductDialog from "@/components/store/BuyProductDialog";
 
 type StoreProduct = Tables<"store_products">;
 
 const STORE_URL = "https://ciclismoreybaud.mitiendanube.com/";
+
 
 const formatPrice = (n: number) => "$" + n.toLocaleString("es-AR");
 
@@ -23,6 +25,21 @@ interface Props {
 const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
   const [featured, setFeatured] = useState<StoreProduct[]>([]);
+  const [buyProduct, setBuyProduct] = useState<StoreProduct | null>(null);
+  const [alumnoInfo, setAlumnoInfo] = useState<{ nombre?: string; email?: string }>({});
+
+  useEffect(() => {
+    if (!alumnoId) return;
+    (async () => {
+      const { data: al } = await supabase
+        .from("alumnos")
+        .select("nombre, apellido, email")
+        .eq("id", alumnoId)
+        .maybeSingle();
+      if (al) setAlumnoInfo({ nombre: `${al.nombre || ""} ${al.apellido || ""}`.trim(), email: al.email || undefined });
+    })();
+  }, [alumnoId]);
+
 
   useEffect(() => {
     if (!alumnoId) return;
@@ -143,6 +160,20 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
                 );
               }
 
+              const isInApp = (p as any).checkout_mode === "in_app";
+              if (isInApp) {
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setBuyProduct(p)}
+                    className={`${className} text-left`}
+                  >
+                    {commonContent}
+                  </button>
+                );
+              }
+
               return (
                 <a
                   key={p.id}
@@ -158,8 +189,18 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
           </div>
         )}
       </div>
+
+      <BuyProductDialog
+        open={!!buyProduct}
+        onOpenChange={(v) => !v && setBuyProduct(null)}
+        product={buyProduct as any}
+        alumnoId={alumnoId}
+        customerName={alumnoInfo.nombre}
+        customerEmail={alumnoInfo.email}
+      />
     </div>
   );
 };
+
 
 export default HomeTrainingExtras;
