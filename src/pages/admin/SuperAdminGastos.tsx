@@ -678,6 +678,76 @@ const SuperAdminGastos = () => {
     setHistorialLoading(false);
   }, []);
 
+  // -------- Export CSV ----------
+  const downloadCSV = (filename: string, rows: (string | number | null | undefined)[][], headers: string[]) => {
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n;]/.test(s) ? `"${s}"` : s;
+    };
+    const content = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
+    // BOM para que Excel detecte UTF-8
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const exportGastosCSV = async () => {
+    // Trae TODO el histórico (no solo los 200 cargados)
+    const { data, error } = await supabase
+      .from("gastos")
+      .select("fecha, descripcion, categoria, subcategoria, proveedor, monto, moneda, forma_pago, recurrente, frecuencia, estado_conciliacion, origen_registro, mp_payment_id, notas, created_at")
+      .order("fecha", { ascending: false });
+    if (error) { toast({ title: "Error al exportar", description: error.message, variant: "destructive" }); return; }
+    const headers = ["Fecha","Descripción","Categoría","Subcategoría","Proveedor","Monto","Moneda","Forma de pago","Recurrente","Frecuencia","Conciliación","Origen","MP Payment ID","Notas","Cargado el"];
+    const rows = (data || []).map((g: any) => [
+      g.fecha, g.descripcion, g.categoria, g.subcategoria, g.proveedor,
+      g.monto, g.moneda, g.forma_pago, g.recurrente ? "sí" : "no", g.frecuencia,
+      g.estado_conciliacion, g.origen_registro, g.mp_payment_id, g.notas,
+      g.created_at ? new Date(g.created_at).toISOString() : "",
+    ]);
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCSV(`gastos_${today}.csv`, rows, headers);
+    toast({ title: "Exportado", description: `${rows.length} gastos descargados` });
+  };
+
+  const exportHistorialCSV = () => {
+    const headers = ["Fecha","Usuario","Rol","Acción","Entidad","Concepto/Descripción","Monto","Moneda"];
+    const rows = historial.map(h => {
+      const obj = h.details?.after || h.details?.before || {};
+      const label = obj?.concepto || obj?.descripcion || obj?.proveedor || h.entity_id;
+      const monto = obj?.monto ?? obj?.monto_estimado ?? obj?.monto_previsto ?? "";
+      return [
+        new Date(h.created_at).toISOString(),
+        h.user_email || "Sistema", h.user_role, h.action, h.entity_type, label, monto, obj?.moneda || "",
+      ];
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCSV(`historial_gastos_${today}.csv`, rows, headers);
+    toast({ title: "Exportado", description: `${rows.length} eventos descargados` });
+  };
+
+  // Abrir deuda rápida desde el header
+  const openQuickDeuda = () => {
+    setQuickDeudaRecId("");
+    setQuickDeudaTipo("cargo");
+    setQuickDeudaOpen(true);
+  };
+
+  const confirmQuickDeuda = async () => {
+    if (!quickDeudaRecId) { toast({ title: "Elegí un concepto", variant: "destructive" }); return; }
+    const rec = recurrentes.find(r => r.id === quickDeudaRecId);
+    if (!rec) return;
+    await openDeuda(rec);
+    setDeudaForm(f => ({ ...f, tipo: quickDeudaTipo }));
+    setQuickDeudaOpen(false);
+  };
+
+
+
   // -------- Matriz (concepto × mes) ----------
   const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
   const [matrizData, setMatrizData] = useState<Record<string, Record<number, Ejecucion | null>>>({});
