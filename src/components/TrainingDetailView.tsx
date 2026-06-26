@@ -495,57 +495,14 @@ function TrainingBlockCard({
 
       {/* Body */}
       {expanded && block.bullets.length > 0 && (
-        <div className="px-4 pb-4">
-          <div className={`rounded-lg border border-border/50 bg-background/40 p-3 ${comfortMode ? "space-y-2.5" : "space-y-2"}`}>
-            {structured ? (
-              structured.map((item, i) => (
-                <div key={i} className={`${item.key ? "flex gap-2" : "flex gap-2 items-start"}`}>
-                  {item.key ? (
-                    <>
-                      <span className={`font-heading font-semibold text-primary/90 shrink-0 ${
-                        comfortMode ? "text-sm min-w-[100px]" : "text-[13px] min-w-[90px]"
-                      }`}>
-                        {item.key}:
-                      </span>
-                      <span className={`text-secondary-foreground ${
-                        comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed"
-                      }`}>
-                        {item.value}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span
-                        className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
-                      />
-                      <p className={`text-secondary-foreground ${
-                        comfortMode ? "text-sm leading-[1.7]" : "text-[13px] leading-relaxed"
-                      }`}>
-                        {item.value}
-                      </p>
-                    </>
-                  )}
-                </div>
-              ))
-            ) : (
-              block.bullets.map((bullet, i) => (
-                <div key={i} className="flex gap-2 items-start">
-                  <span
-                    className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: zoneHsl ? `hsl(${zoneHsl})` : "hsl(var(--primary))" }}
-                  />
-                  <p className={`text-secondary-foreground ${
-                    comfortMode ? "text-sm leading-[1.8]" : "text-[13px] leading-[1.7]"
-                  }`}>
-                    {bullet.replace(/^[•\-–]\s*/, "")}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <BlockBody
+          bullets={block.bullets}
+          structured={structured}
+          zoneHsl={zoneHsl}
+          comfortMode={comfortMode}
+        />
       )}
+
 
       {/* Footer */}
       {expanded && block.footer && (
