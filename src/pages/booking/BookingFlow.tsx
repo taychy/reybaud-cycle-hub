@@ -549,10 +549,11 @@ const BookingFlow = () => {
           <div className="grid grid-cols-3 gap-2">
             {slots.map((s) => {
               const c = coachById.get(s.coach_id);
-              const selected = selectedSlot?.time === s.time && selectedSlot?.coach_id === s.coach_id;
+              const sedeNombre = s.sede_id ? sedeById.get(s.sede_id)?.nombre : null;
+              const selected = selectedSlot?.time === s.time && selectedSlot?.coach_id === s.coach_id && selectedSlot?.sede_id === s.sede_id;
               return (
                 <Button
-                  key={`${s.coach_id}-${s.time}`}
+                  key={`${s.coach_id}-${s.sede_id ?? "nosede"}-${s.time}`}
                   variant={selected ? "default" : "outline"}
                   size="sm"
                   className="text-sm font-mono h-auto py-2 flex flex-col gap-0.5"
@@ -560,6 +561,9 @@ const BookingFlow = () => {
                 >
                   <span>{s.time}</span>
                   {c && <span className="text-[10px] font-sans opacity-75 truncate w-full">{c.nombre}</span>}
+                  {!selectedSede && sedeNombre && (
+                    <span className="text-[9px] font-sans opacity-60 truncate w-full">{sedeNombre}</span>
+                  )}
                 </Button>
               );
             })}
