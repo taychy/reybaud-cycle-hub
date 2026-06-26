@@ -584,11 +584,17 @@ function BlockBody({
                 );
               }
               return (
-                <div key={i} className="flex items-center gap-2 py-0.5">
+                <div key={i} className="flex items-center gap-2 py-0.5 flex-wrap">
+                  {row.reps && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-heading font-black tabular-nums bg-primary/15 text-primary border border-primary/30">
+                      {row.reps}×
+                    </span>
+                  )}
                   <DurChip>{row.duration}</DurChip>
                   {row.zones.map((z, j) => <ZonePill key={j} z={z} />)}
+                  {row.rpm && <RpmChip>{row.rpm} RPM</RpmChip>}
                   {row.rest && (
-                    <span className={`text-secondary-foreground ${bulletSize} flex-1 min-w-0 truncate`}>
+                    <span className={`text-secondary-foreground ${bulletSize} flex-1 min-w-0`}>
                       {inlineTokens(row.rest)}
                     </span>
                   )}
