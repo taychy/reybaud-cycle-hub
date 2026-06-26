@@ -43,6 +43,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
   const [politica, setPolitica] = useState("");
   const [emailConf, setEmailConf] = useState(true);
   const [emailRec, setEmailRec] = useState(true);
+  const [emailCoach, setEmailCoach] = useState(true);
   const [recHoras, setRecHoras] = useState("24");
   const [ics, setIcs] = useState(true);
   const [pagoModo, setPagoModo] = useState<"ninguno" | "sena" | "total">("ninguno");
