@@ -263,7 +263,7 @@ const BookingFlow = () => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     const dayDisps = filteredDisps.filter(d => d.dia_semana === dayOfWeek);
     const duration = servicio.duracion_minutos;
-    // Dedupe by coach+time (un coach puede tener varias filas de disponibilidad solapadas)
+    // Dedupe por coach+hora+SEDE (el mismo coach puede trabajar misma hora en distintas sedes)
     const map = new Map<string, Slot>();
     for (const disp of dayDisps) {
       const [sH, sM] = disp.hora_inicio.split(":").map(Number);
@@ -278,17 +278,19 @@ const BookingFlow = () => {
           r => r.fecha === dateStr && r.hora_inicio === t && r.coach_id === disp.coach_id,
         );
         if (!isBooked) {
-          const key = `${disp.coach_id}|${h}:${m}`;
+          const key = `${disp.coach_id}|${disp.sede_id ?? "nosede"}|${h}:${m}`;
           if (!map.has(key)) {
-            map.set(key, { time: `${h}:${m}`, coach_id: disp.coach_id, disponibilidad_id: disp.id, sede_id: disp.sede_id });
-          } else if (selectedSede && selectedSede !== "any" && disp.sede_id === selectedSede) {
             map.set(key, { time: `${h}:${m}`, coach_id: disp.coach_id, disponibilidad_id: disp.id, sede_id: disp.sede_id });
           }
         }
         cur += duration;
       }
     }
-    return Array.from(map.values()).sort((a, b) => a.time.localeCompare(b.time) || a.coach_id.localeCompare(b.coach_id));
+    return Array.from(map.values()).sort((a, b) =>
+      a.time.localeCompare(b.time) ||
+      a.coach_id.localeCompare(b.coach_id) ||
+      String(a.sede_id ?? "").localeCompare(String(b.sede_id ?? ""))
+    );
   };
 
   const disabledDay = (date: Date) => {
@@ -514,17 +516,22 @@ const BookingFlow = () => {
     // After date: if modo=fecha and no coach picked, show coach chips (with "cualquiera")
     if (modo === "fecha" && !selectedCoach) {
       const dow = selectedDate.getDay();
-      const coachesDelDia = Array.from(new Set(
-        disponibilidades.filter(d => d.dia_semana === dow).map(d => d.coach_id)
-      )).map(id => coachById.get(id)).filter(Boolean) as Coach[];
+      const dispsDelDia = disponibilidades.filter(d => d.dia_semana === dow);
+      const coachIdsDelDia = Array.from(new Set(dispsDelDia.map(d => d.coach_id)));
       return (
         <SectionPick title={`Coach para ${selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}`}>
           <PickCard label="Cualquier coach disponible" sub="Te asignamos el mejor horario" onClick={() => setSelectedCoach("any")} />
-          {coachesDelDia.map(c => (
-            <PickCard key={c.id} label={c.nombre}
-              sub={c.sede_id ? sedeById.get(c.sede_id)?.nombre : undefined}
-              onClick={() => setSelectedCoach(c.id)} />
-          ))}
+          {coachIdsDelDia.map(cid => {
+            const c = coachById.get(cid);
+            if (!c) return null;
+            const sedesCoachDia = Array.from(new Set(
+              dispsDelDia.filter(d => d.coach_id === cid).map(d => d.sede_id).filter(Boolean) as string[]
+            )).map(sid => sedeById.get(sid)?.nombre).filter(Boolean) as string[];
+            const sub = sedesCoachDia.length ? sedesCoachDia.join(" · ") : undefined;
+            return (
+              <PickCard key={c.id} label={c.nombre} sub={sub} onClick={() => setSelectedCoach(c.id)} />
+            );
+          })}
         </SectionPick>
       );
     }
@@ -542,10 +549,11 @@ const BookingFlow = () => {
           <div className="grid grid-cols-3 gap-2">
             {slots.map((s) => {
               const c = coachById.get(s.coach_id);
-              const selected = selectedSlot?.time === s.time && selectedSlot?.coach_id === s.coach_id;
+              const sedeNombre = s.sede_id ? sedeById.get(s.sede_id)?.nombre : null;
+              const selected = selectedSlot?.time === s.time && selectedSlot?.coach_id === s.coach_id && selectedSlot?.sede_id === s.sede_id;
               return (
                 <Button
-                  key={`${s.coach_id}-${s.time}`}
+                  key={`${s.coach_id}-${s.sede_id ?? "nosede"}-${s.time}`}
                   variant={selected ? "default" : "outline"}
                   size="sm"
                   className="text-sm font-mono h-auto py-2 flex flex-col gap-0.5"
@@ -553,6 +561,9 @@ const BookingFlow = () => {
                 >
                   <span>{s.time}</span>
                   {c && <span className="text-[10px] font-sans opacity-75 truncate w-full">{c.nombre}</span>}
+                  {!selectedSede && sedeNombre && (
+                    <span className="text-[9px] font-sans opacity-60 truncate w-full">{sedeNombre}</span>
+                  )}
                 </Button>
               );
             })}
