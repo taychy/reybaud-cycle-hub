@@ -19,6 +19,7 @@ type Servicio = {
   id: string; slug: string; nombre: string; descripcion: string | null;
   duracion_minutos: number; precio: number | null; moneda: string;
   modalidad: string; politica_cancelacion: string | null; tipo_actividad?: string | null;
+  pago_modo?: string | null; pago_monto_sena?: number | null;
 };
 
 type Disponibilidad = {
