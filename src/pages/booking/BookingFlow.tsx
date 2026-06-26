@@ -121,6 +121,37 @@ const BookingFlow = () => {
     load();
   }, [slug]);
 
+  // Detectar si hay un alumno logueado y precargar sus datos
+  useEffect(() => {
+    const detectAlumno = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
+      if (!email) return;
+      const { data: alu } = await supabase
+        .from("alumnos")
+        .select("id, nombre, apellido, email, documento, telefono")
+        .eq("email", email)
+        .maybeSingle();
+      if (!alu) return;
+      setAlumnoLogged({
+        id: (alu as any).id,
+        nombre: (alu as any).nombre || "",
+        apellido: (alu as any).apellido || "",
+        email: (alu as any).email || email,
+      });
+      setForm(f => ({
+        ...f,
+        nombre: (alu as any).nombre || f.nombre,
+        apellido: (alu as any).apellido || f.apellido,
+        email: (alu as any).email || email,
+        celular: (alu as any).telefono || f.celular,
+        documento: (alu as any).documento || f.documento,
+      }));
+    };
+    detectAlumno();
+  }, []);
+
+
   const coachById = useMemo(() => {
     const m = new Map<string, Coach>();
     coaches.forEach(c => m.set(c.id, c));
