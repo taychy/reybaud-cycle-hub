@@ -604,7 +604,7 @@ export type Database = {
           entity_type: string
           id: string
           user_email: string | null
-          user_id: string
+          user_id: string | null
           user_role: string
         }
         Insert: {
@@ -615,7 +615,7 @@ export type Database = {
           entity_type: string
           id?: string
           user_email?: string | null
-          user_id: string
+          user_id?: string | null
           user_role: string
         }
         Update: {
@@ -626,7 +626,7 @@ export type Database = {
           entity_type?: string
           id?: string
           user_email?: string | null
-          user_id?: string
+          user_id?: string | null
           user_role?: string
         }
         Relationships: []
@@ -3444,6 +3444,8 @@ export type Database = {
         Row: {
           activo: boolean
           ambito: Database["public"]["Enums"]["gasto_ambito"]
+          archivado_at: string | null
+          archivado_por: string | null
           categoria: string
           concepto: string
           created_at: string
@@ -3464,6 +3466,8 @@ export type Database = {
         Insert: {
           activo?: boolean
           ambito?: Database["public"]["Enums"]["gasto_ambito"]
+          archivado_at?: string | null
+          archivado_por?: string | null
           categoria: string
           concepto: string
           created_at?: string
@@ -3484,6 +3488,8 @@ export type Database = {
         Update: {
           activo?: boolean
           ambito?: Database["public"]["Enums"]["gasto_ambito"]
+          archivado_at?: string | null
+          archivado_por?: string | null
           categoria?: string
           concepto?: string
           created_at?: string
