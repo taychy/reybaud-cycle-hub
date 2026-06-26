@@ -219,14 +219,17 @@ const BookingFlow = () => {
   const esMenor = edad !== null && edad < 18;
 
   const validForm = () => {
-    if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) return "Completá nombre, apellido y email.";
-    if (!form.celular.trim()) return "El celular es obligatorio.";
-    if (!form.documento.trim() || form.documento.trim().length < 7) return "El DNI es obligatorio (mínimo 7 dígitos).";
-    if (!form.fnac_dia || !form.fnac_mes || !form.fnac_anio) return "Completá tu fecha de nacimiento.";
+    if (!alumnoLogged) {
+      if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) return "Completá nombre, apellido y email.";
+      if (!form.celular.trim()) return "El celular es obligatorio.";
+      if (!form.documento.trim() || form.documento.trim().length < 7) return "El DNI es obligatorio (mínimo 7 dígitos).";
+      if (!form.fnac_dia || !form.fnac_mes || !form.fnac_anio) return "Completá tu fecha de nacimiento.";
+      if (esMenor && !form.acepto_tutor) return "Como menor de edad, confirmá la autorización del tutor.";
+    }
     if (servicio?.politica_cancelacion && !form.acepto_politica) return "Debés aceptar la política de cancelación.";
-    if (esMenor && !form.acepto_tutor) return "Como menor de edad, confirmá la autorización del tutor.";
     return null;
   };
+
 
   const handleSubmit = async () => {
     if (!servicio || !selectedDate || !selectedSlot) return;
