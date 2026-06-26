@@ -128,8 +128,51 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         </DialogHeader>
 
         <div className="space-y-6 py-2">
+          {/* Datos básicos */}
+          <Section icon={<Info className="w-4 h-4" />} title="Datos del servicio">
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Nombre *</Label>
+                <Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Clase evaluatoria" />
+              </div>
+              <div>
+                <Label className="text-xs">Descripción</Label>
+                <Textarea rows={2} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Breve descripción visible al reservar" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Duración (min)</Label>
+                  <Input type="number" value={duracion} onChange={e => setDuracion(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Precio ($)</Label>
+                  <Input type="number" value={precio} onChange={e => setPrecio(e.target.value)} placeholder="Opcional" />
+                </div>
+                <div>
+                  <Label className="text-xs">Modalidad</Label>
+                  <Select value={modalidad} onValueChange={setModalidad}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="presencial">Presencial</SelectItem>
+                      <SelectItem value="virtual">Virtual</SelectItem>
+                      <SelectItem value="hibrida">Híbrida</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  <Label>Servicio activo</Label>
+                  <p className="text-xs text-muted-foreground">Si está apagado, no aparece en el link público.</p>
+                </div>
+                <Switch checked={activo} onCheckedChange={setActivo} />
+              </div>
+            </div>
+          </Section>
+
           {/* Formulario de reserva */}
           <Section icon={<ListChecks className="w-4 h-4" />} title="Formulario de reserva" subtitle="Campos adicionales que pedirás al alumno. Nombre, apellido y email ya están incluidos.">
+
             <div className="space-y-2">
               {fields.length === 0 && (
                 <p className="text-xs text-muted-foreground">Sin campos extra.</p>
