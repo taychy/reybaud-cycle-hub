@@ -374,6 +374,8 @@ const BookingFlow = () => {
                 selected={selectedDate}
                 onSelect={(d) => { setSelectedDate(d); setSelectedSlot(null); }}
                 disabled={disabledDay}
+                locale={es}
+                weekStartsOn={1}
                 className="pointer-events-auto"
               />
             </CardContent>
