@@ -157,6 +157,19 @@ const BookingFlow = () => {
         p_hasta: future.toISOString().split("T")[0],
       } as any);
       setReservasExistentes((res as any[]) || []);
+
+      // Ausencias de coaches que afecten el rango visible
+      if (coachIds.length) {
+        const futureStr = future.toISOString().split("T")[0];
+        const { data: aus } = await supabase
+          .from("ausencias_coaches" as any)
+          .select("coach_id, fecha_inicio, fecha_fin, todo_el_dia, hora_inicio, hora_fin")
+          .in("coach_id", coachIds)
+          .lte("fecha_inicio", futureStr)
+          .gte("fecha_fin", today);
+        setAusencias(((aus as any) || []) as Ausencia[]);
+      }
+
       setLoading(false);
     };
     load();
