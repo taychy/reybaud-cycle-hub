@@ -171,42 +171,72 @@ Deno.serve(async (req) => {
     const icsUrl = s?.ics_adjunto !== false
       ? `${SUPABASE_URL}/functions/v1/turnera-ics?id=${r.id}`
       : null;
+    const sedeNombre = (s as any)?.sedes?.nombre || "";
+    const gcalTitle = tipo === "coach_aviso"
+      ? `${servicioNombre} · ${r.nombre} ${r.apellido || ""}`.trim()
+      : servicioNombre;
+    const gcalDesc = tipo === "coach_aviso"
+      ? [
+          `Alumno: ${r.nombre} ${r.apellido || ""}`.trim(),
+          r.email ? `Email: ${r.email}` : "",
+          r.celular ? `Celular: ${r.celular}` : "",
+          r.documento ? `DNI: ${r.documento}` : "",
+          r.nota ? `Nota: ${r.nota}` : "",
+        ].filter(Boolean).join("\n")
+      : (s?.descripcion || "");
     const gcal = googleCalLink(
-      servicioNombre,
+      gcalTitle,
       r.fecha as string,
       r.hora_inicio as string,
       r.hora_fin as string,
-      s?.descripcion || "",
-      modalidad,
+      gcalDesc,
+      sedeNombre || modalidad,
     );
 
-    const html = renderEmail({
+    let html = renderEmail({
       tipo,
       servicioNombre,
-      nombre: r.nombre,
+      nombre: recipientName,
       fechaTxt,
       horaTxt,
       modalidad,
-      politica: s?.politica_cancelacion || "",
+      politica: tipo === "coach_aviso" ? "" : (s?.politica_cancelacion || ""),
       icsUrl,
       gcalUrl: gcal,
     });
+
+    // For coach: append alumno contact block
+    if (tipo === "coach_aviso") {
+      const contactBlock = `<div style="background:#fff5ec;border:1px solid #f0c69a;border-radius:12px;padding:16px;margin-top:16px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Datos del alumno</div>
+        <div style="font-size:14px;color:#0f1115;line-height:1.6;">
+          <strong>${escapeHtml(`${r.nombre} ${r.apellido || ""}`.trim())}</strong><br/>
+          ${r.email ? `📧 ${escapeHtml(r.email)}<br/>` : ""}
+          ${r.celular ? `📱 ${escapeHtml(r.celular)}<br/>` : ""}
+          ${r.documento ? `🪪 DNI ${escapeHtml(r.documento)}<br/>` : ""}
+          ${sedeNombre ? `📍 Sede ${escapeHtml(sedeNombre)}<br/>` : ""}
+          ${r.nota ? `<br/><em>${escapeHtml(r.nota)}</em>` : ""}
+        </div>
+      </div>`;
+      html = html.replace("</div></body></html>", `${contactBlock}</div></body></html>`);
+    }
 
     const subjects: Record<Tipo, string> = {
       confirmacion: `Reserva confirmada · ${servicioNombre} · ${fechaTxt}`,
       recordatorio: `Recordatorio · ${servicioNombre} · ${fechaTxt}`,
       cancelacion: `Reserva cancelada · ${servicioNombre} · ${fechaTxt}`,
+      coach_aviso: `Nueva clase agendada · ${fechaTxt} ${fmtHora(r.hora_inicio as string)} · ${r.nombre}`,
     };
 
     const messageId = crypto.randomUUID();
-    const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, r.email);
+    const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipientEmail);
     const idempotencyKey = `turnera-${tipo}-${r.id}`;
 
     const { error: qErr } = await supabase.rpc("enqueue_email", {
       queue_name: "transactional_emails",
       payload: {
         message_id: messageId,
-        to: r.email,
+        to: recipientEmail,
         from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
         subject: subjects[tipo],
@@ -229,7 +259,7 @@ Deno.serve(async (req) => {
       await supabase.from("reservas_turnera").update({ recordatorio_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
     }
 
-    return new Response(JSON.stringify({ success: true, tipo, recipient: r.email }), {
+    return new Response(JSON.stringify({ success: true, tipo, recipient: recipientEmail }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
