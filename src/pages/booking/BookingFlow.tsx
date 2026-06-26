@@ -32,6 +32,7 @@ type Coach = { id: string; nombre: string; sede_id: string | null };
 type Sede = { id: string; nombre: string; ciudad: string | null };
 
 type Slot = { time: string; coach_id: string; disponibilidad_id: string; sede_id: string | null };
+type AlumnoLogged = { id: string; nombre: string; apellido: string; email: string; celular?: string; documento?: string };
 
 type Modo = "sede" | "fecha" | "coach";
 
@@ -53,6 +54,32 @@ const calcAge = (y: string, m: string, d: string): number | null => {
   return age;
 };
 
+const normalizeAlumnoForBooking = (raw: any, fallbackEmail: string): AlumnoLogged => {
+  const fullNombre = String(raw?.nombre || "").trim();
+  const rawApellido = String(raw?.apellido || "").trim();
+  let nombre = fullNombre;
+  let apellido = rawApellido;
+
+  if (apellido && nombre.toLowerCase().endsWith(` ${apellido.toLowerCase()}`)) {
+    nombre = nombre.slice(0, -apellido.length).trim();
+  }
+
+  if (!apellido && nombre.includes(" ")) {
+    const parts = nombre.split(/\s+/).filter(Boolean);
+    apellido = parts.pop() || "";
+    nombre = parts.join(" ");
+  }
+
+  return {
+    id: String(raw?.id || ""),
+    nombre: nombre || fullNombre || "Alumno",
+    apellido: apellido || "—",
+    email: String(raw?.email || fallbackEmail).toLowerCase().trim(),
+    celular: raw?.telefono || "",
+    documento: raw?.documento || "",
+  };
+};
+
 const BookingFlow = () => {
   const { slug } = useParams<{ slug: string }>();
   const [servicio, setServicio] = useState<Servicio | null>(null);
@@ -70,7 +97,8 @@ const BookingFlow = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [alumnoLogged, setAlumnoLogged] = useState<{ id: string; nombre: string; apellido: string; email: string } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [alumnoLogged, setAlumnoLogged] = useState<AlumnoLogged | null>(null);
 
   const [form, setForm] = useState({
     nombre: "", apellido: "", email: "", celular: "", documento: "",
@@ -123,32 +151,81 @@ const BookingFlow = () => {
 
   // Detectar si hay un alumno logueado y precargar sus datos
   useEffect(() => {
-    const detectAlumno = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const email = session?.user?.email;
-      if (!email) return;
-      const { data: alu } = await supabase
-        .from("alumnos")
-        .select("id, nombre, apellido, email, documento, telefono")
-        .eq("email", email)
-        .maybeSingle();
-      if (!alu) return;
-      setAlumnoLogged({
-        id: (alu as any).id,
-        nombre: (alu as any).nombre || "",
-        apellido: (alu as any).apellido || "",
-        email: (alu as any).email || email,
-      });
+    let cancelled = false;
+
+    const applyAlumno = (raw: any, fallbackEmail: string) => {
+      const alu = normalizeAlumnoForBooking(raw, fallbackEmail);
+      setAlumnoLogged(alu);
       setForm(f => ({
         ...f,
-        nombre: (alu as any).nombre || f.nombre,
-        apellido: (alu as any).apellido || f.apellido,
-        email: (alu as any).email || email,
-        celular: (alu as any).telefono || f.celular,
-        documento: (alu as any).documento || f.documento,
+        nombre: alu.nombre,
+        apellido: alu.apellido,
+        email: alu.email,
+        celular: alu.celular || "",
+        documento: alu.documento || "",
       }));
     };
-    detectAlumno();
+
+    const detectAlumno = async (session: any) => {
+      const email = session?.user?.email?.toLowerCase().trim();
+      const userId = session?.user?.id;
+      if (!email) {
+        if (!cancelled) {
+          setAlumnoLogged(null);
+          setAuthChecking(false);
+        }
+        return;
+      }
+
+      try {
+        let alu: any = null;
+
+        if (userId) {
+          const { data } = await supabase
+            .from("alumnos")
+            .select("id, nombre, apellido, email, documento, telefono")
+            .eq("user_id", userId)
+            .maybeSingle();
+          alu = data;
+        }
+
+        if (!alu) {
+          const { data } = await supabase
+            .from("alumnos")
+            .select("id, nombre, apellido, email, documento, telefono")
+            .eq("email", email)
+            .maybeSingle();
+          alu = data;
+        }
+
+        if (!alu) {
+          const { data } = await supabase
+            .rpc("lookup_alumno_by_email", { p_email: email })
+            .maybeSingle();
+          alu = data;
+        }
+
+        if (cancelled) return;
+        if (alu?.id) applyAlumno(alu, email);
+        else setAlumnoLogged(null);
+      } finally {
+        if (!cancelled) setAuthChecking(false);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthChecking(true);
+      setTimeout(() => { void detectAlumno(session); }, 0);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      void detectAlumno(session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
 
@@ -219,6 +296,7 @@ const BookingFlow = () => {
   const esMenor = edad !== null && edad < 18;
 
   const validForm = () => {
+    if (authChecking) return "Esperá un segundo mientras cargamos tus datos.";
     if (!alumnoLogged) {
       if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) return "Completá nombre, apellido y email.";
       if (!form.celular.trim()) return "El celular es obligatorio.";
@@ -245,8 +323,8 @@ const BookingFlow = () => {
 
     const fechaNac = `${form.fnac_anio}-${form.fnac_mes.padStart(2, "0")}-${form.fnac_dia.padStart(2, "0")}`;
 
-    let alumnoId: string | null = null;
-    if (form.documento) {
+    let alumnoId: string | null = alumnoLogged?.id || null;
+    if (!alumnoId && form.documento) {
       const { data: byDoc } = await supabase.from("alumnos").select("id").eq("documento", form.documento).limit(1);
       if (byDoc && byDoc.length > 0) alumnoId = byDoc[0].id;
     }
