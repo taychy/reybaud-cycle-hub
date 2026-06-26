@@ -1075,13 +1075,17 @@ const SuperAdminGastos = () => {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Catálogo de gastos recurrentes</CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Input
                   placeholder="Buscar concepto, categoría o proveedor..."
                   value={searchCatalogo}
                   onChange={(e) => setSearchCatalogo(e.target.value)}
                   className="h-8 w-full sm:w-72 text-xs"
                 />
+                <Button size="sm" variant={showArchivados ? "default" : "outline"} className="gap-1 h-8" onClick={() => setShowArchivados(v => !v)} title={showArchivados ? "Ocultar archivados" : "Ver archivados"}>
+                  {showArchivados ? <EyeOff className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+                  {showArchivados ? "Ocultar archivados" : `Archivados (${recurrentes.filter(r => !!r.archivado_at).length})`}
+                </Button>
                 <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); setRecForm(f => ({ ...f, concepto: "", categoria: "Otros", ambito: "emprendimiento", responsable: "Tay", monto_estimado: "", moneda: "ARS", frecuencia: catalogoTipoTab === "variable" ? "variable" : "mensual", dia_vencimiento: "10", forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true, tipo: catalogoTipoTab })); setCatDialogOpen(true); }}>
                   <Plus className="w-4 h-4" /> Nuevo
                 </Button>
