@@ -62,6 +62,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     setPolitica(servicio.politica_cancelacion || "");
     setEmailConf(servicio.email_confirmacion_enabled ?? true);
     setEmailRec(servicio.email_recordatorio_enabled ?? true);
+    setEmailCoach(servicio.email_coach_enabled ?? true);
     setRecHoras(String(servicio.recordatorio_horas_antes ?? 24));
     setIcs(servicio.ics_adjunto ?? true);
     setPagoModo((servicio.pago_modo as any) || "ninguno");
