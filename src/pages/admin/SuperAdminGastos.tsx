@@ -1117,6 +1117,7 @@ const SuperAdminGastos = () => {
                     <TableBody>
                       {recurrentes
                         .filter(r => (r.tipo || "fijo") === catalogoTipoTab)
+                        .filter(r => showArchivados ? !!r.archivado_at : !r.archivado_at)
                         .filter(r => {
                           const q = searchCatalogo.trim().toLowerCase();
                           if (!q) return true;
@@ -1124,19 +1125,29 @@ const SuperAdminGastos = () => {
                             .filter(Boolean).join(" ").toLowerCase().includes(q);
                         })
                         .map(r => (
-                        <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
-                          <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
+                        <TableRow key={r.id} className={r.archivado_at ? "opacity-60 bg-muted/30" : (!r.activo ? "opacity-50" : "")}>
+                          <TableCell className="font-medium text-sm">
+                            {r.concepto}
+                            {r.archivado_at && <Badge variant="outline" className="ml-2 text-[10px] gap-1"><Archive className="w-3 h-3" />Archivado</Badge>}
+                          </TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
                           <TableCell>{ambitoBadge(r.ambito)}</TableCell>
                           <TableCell className="text-xs">{r.frecuencia}</TableCell>
                           <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
                           <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
-                          <TableCell>{r.activo ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
+                          <TableCell>{r.activo && !r.archivado_at ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)}><Edit2 className="w-3 h-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteRec(r.id)}><Trash2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                              {r.archivado_at ? (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => archiveRec(r)} title="Reactivar"><ArchiveRestore className="w-3 h-3" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => hardDeleteRec(r)} title="Eliminar definitivamente (solo si no tiene historial)"><Trash2 className="w-3 h-3" /></Button>
+                                </>
+                              ) : (
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => archiveRec(r)} title="Archivar (conserva historial)"><Archive className="w-3 h-3" /></Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
