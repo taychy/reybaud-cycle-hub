@@ -33,6 +33,7 @@ type Sede = { id: string; nombre: string; ciudad: string | null };
 
 type Slot = { time: string; coach_id: string; disponibilidad_id: string; sede_id: string | null };
 type AlumnoLogged = { id: string; nombre: string; apellido: string; email: string; celular?: string; documento?: string };
+type SessionLike = { user?: { id?: string; email?: string } } | null;
 
 type Modo = "sede" | "fecha" | "coach";
 
@@ -166,7 +167,7 @@ const BookingFlow = () => {
       }));
     };
 
-    const detectAlumno = async (session: any) => {
+    const detectAlumno = async (session: SessionLike) => {
       const email = session?.user?.email?.toLowerCase().trim();
       const userId = session?.user?.id;
       if (!email) {
@@ -184,7 +185,7 @@ const BookingFlow = () => {
           const { data } = await supabase
             .from("alumnos")
             .select("id, nombre, apellido, email, documento, telefono")
-            .eq("user_id", userId)
+            .eq("user_id", userId as string)
             .maybeSingle();
           alu = data;
         }
@@ -660,7 +661,13 @@ const BookingFlow = () => {
           <div className="space-y-4">
             <h2 className="text-lg font-heading font-semibold text-foreground">Tus datos</h2>
             <div className="space-y-3">
-              {alumnoLogged ? (
+              {authChecking ? (
+                <Card className="border-border bg-card">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    Cargando tus datos...
+                  </CardContent>
+                </Card>
+              ) : alumnoLogged ? (
                 <Card className="border-primary/40 bg-primary/5">
                   <CardContent className="p-4 flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
