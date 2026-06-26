@@ -4393,6 +4393,7 @@ export type Database = {
           estado_operativo: string
           fecha: string
           fecha_nacimiento: string | null
+          form_responses: Json
           hora_fin: string
           hora_inicio: string
           id: string
@@ -4400,7 +4401,12 @@ export type Database = {
           nombre: string
           nota: string | null
           origen_link: string | null
+          pago_estado: string | null
+          pago_monto: number | null
+          pago_mp_payment_id: string | null
+          pago_mp_preference_id: string | null
           precio_snapshot: number | null
+          recordatorio_enviado_at: string | null
           sede_id: string | null
           servicio_id: string
           updated_at: string
@@ -4418,6 +4424,7 @@ export type Database = {
           estado_operativo?: string
           fecha: string
           fecha_nacimiento?: string | null
+          form_responses?: Json
           hora_fin: string
           hora_inicio: string
           id?: string
@@ -4425,7 +4432,12 @@ export type Database = {
           nombre: string
           nota?: string | null
           origen_link?: string | null
+          pago_estado?: string | null
+          pago_monto?: number | null
+          pago_mp_payment_id?: string | null
+          pago_mp_preference_id?: string | null
           precio_snapshot?: number | null
+          recordatorio_enviado_at?: string | null
           sede_id?: string | null
           servicio_id: string
           updated_at?: string
@@ -4443,6 +4455,7 @@ export type Database = {
           estado_operativo?: string
           fecha?: string
           fecha_nacimiento?: string | null
+          form_responses?: Json
           hora_fin?: string
           hora_inicio?: string
           id?: string
@@ -4450,7 +4463,12 @@ export type Database = {
           nombre?: string
           nota?: string | null
           origen_link?: string | null
+          pago_estado?: string | null
+          pago_monto?: number | null
+          pago_mp_payment_id?: string | null
+          pago_mp_preference_id?: string | null
           precio_snapshot?: number | null
+          recordatorio_enviado_at?: string | null
           sede_id?: string | null
           servicio_id?: string
           updated_at?: string
@@ -5315,12 +5333,19 @@ export type Database = {
           created_at: string
           descripcion: string | null
           duracion_minutos: number
+          email_confirmacion_enabled: boolean
+          email_recordatorio_enabled: boolean
+          form_fields: Json
+          ics_adjunto: boolean
           id: string
           modalidad: string | null
           moneda: string
           nombre: string
+          pago_modo: string
+          pago_monto_sena: number | null
           politica_cancelacion: string | null
           precio: number | null
+          recordatorio_horas_antes: number
           sede_id: string | null
           slug: string
           tipo_actividad: string
@@ -5331,12 +5356,19 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
+          email_confirmacion_enabled?: boolean
+          email_recordatorio_enabled?: boolean
+          form_fields?: Json
+          ics_adjunto?: boolean
           id?: string
           modalidad?: string | null
           moneda?: string
           nombre: string
+          pago_modo?: string
+          pago_monto_sena?: number | null
           politica_cancelacion?: string | null
           precio?: number | null
+          recordatorio_horas_antes?: number
           sede_id?: string | null
           slug: string
           tipo_actividad?: string
@@ -5347,12 +5379,19 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
+          email_confirmacion_enabled?: boolean
+          email_recordatorio_enabled?: boolean
+          form_fields?: Json
+          ics_adjunto?: boolean
           id?: string
           modalidad?: string | null
           moneda?: string
           nombre?: string
+          pago_modo?: string
+          pago_monto_sena?: number | null
           politica_cancelacion?: string | null
           precio?: number | null
+          recordatorio_horas_antes?: number
           sede_id?: string | null
           slug?: string
           tipo_actividad?: string
