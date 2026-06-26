@@ -74,11 +74,13 @@ const renderEmail = (opts: {
     confirmacion: "✅ Tu reserva está confirmada",
     recordatorio: "⏰ Recordatorio de tu reserva",
     cancelacion: "❌ Tu reserva fue cancelada",
+    coach_aviso: "📌 Nueva clase agendada en tu calendario",
   };
   const intros: Record<Tipo, string> = {
     confirmacion: "Recibimos tu reserva. Acá tenés los detalles:",
     recordatorio: "Te recordamos que tenés una reserva próxima:",
     cancelacion: "Te avisamos que tu reserva fue cancelada. Si fue un error, escribinos.",
+    coach_aviso: "Un alumno reservó una clase con vos. Te dejamos los datos para que la sumes a tu calendario:",
   };
   const calBtn = tipo !== "cancelacion"
     ? `<div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap;">
