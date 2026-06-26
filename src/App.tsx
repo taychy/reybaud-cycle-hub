@@ -87,6 +87,7 @@ import AdminBajas from "./pages/admin/AdminBajas";
 
 import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
+import TurneraConfirmacion from "./pages/booking/TurneraConfirmacion";
 import BookingLanding from "./pages/booking/BookingLanding";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
@@ -212,6 +213,7 @@ const App = () => (
             <Route path="cambios" element={<DepositoCambios />} />
           </Route>
           <Route path="/reservar" element={<BookingLanding />} />
+          <Route path="/reservar/confirmacion" element={<TurneraConfirmacion />} />
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="/preventa/:productId" element={<PublicPreorderPage />} />

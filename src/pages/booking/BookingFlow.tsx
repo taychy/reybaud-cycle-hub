@@ -19,6 +19,7 @@ type Servicio = {
   id: string; slug: string; nombre: string; descripcion: string | null;
   duracion_minutos: number; precio: number | null; moneda: string;
   modalidad: string; politica_cancelacion: string | null; tipo_actividad?: string | null;
+  pago_modo?: string | null; pago_monto_sena?: number | null;
 };
 
 type Disponibilidad = {
@@ -242,13 +243,10 @@ const BookingFlow = () => {
       return;
     }
 
-    // Fire-and-forget confirmation email (respects per-service email_confirmacion_enabled)
-    if (insertedRes?.id) {
-      supabase.functions.invoke("send-turnera-email", {
-        body: { reservation_id: insertedRes.id, tipo: "confirmacion" },
-      }).catch(() => { /* silent — UX continues even if email fails */ });
-    }
+    const reservationId = insertedRes?.id;
+    const requierePagoOnline = servicio.pago_modo && servicio.pago_modo !== "ninguno";
 
+    // Movimiento de liquidación siempre (queda como pendiente_revision)
     await supabase.from("movimientos_liquidacion").insert({
       coach_id: selectedSlot.coach_id,
       fecha: dateStr,
@@ -261,6 +259,36 @@ const BookingFlow = () => {
       estado_operativo: "reservada",
       estado_economico: "pendiente_revision",
     } as any);
+
+    if (requierePagoOnline && reservationId) {
+      // No mandamos email aún: el webhook MP lo dispara recién al aprobar
+      try {
+        const { data: mp, error: mpErr } = await supabase.functions.invoke("create-turnera-mp-preference", {
+          body: { reservation_id: reservationId },
+        });
+        if (mpErr || !mp?.init_point) {
+          throw new Error(mpErr?.message || "No se pudo iniciar el pago");
+        }
+        window.location.href = mp.init_point;
+        return;
+      } catch (e: any) {
+        toast({
+          title: "Reserva creada, pero falló el pago online",
+          description: `${e.message || "Intentá nuevamente desde el link de pago."}`,
+          variant: "destructive",
+        });
+        setStep(6);
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // Sin pago online: email de confirmación directo
+    if (reservationId) {
+      supabase.functions.invoke("send-turnera-email", {
+        body: { reservation_id: reservationId, tipo: "confirmacion" },
+      }).catch(() => { /* silent */ });
+    }
 
     setStep(6);
     setSubmitting(false);
