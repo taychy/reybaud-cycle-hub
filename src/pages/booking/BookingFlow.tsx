@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
+import { es } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Clock, MapPin, DollarSign, CheckCircle,
