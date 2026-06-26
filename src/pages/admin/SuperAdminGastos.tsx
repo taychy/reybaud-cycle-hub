@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
   CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown, Link2,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Archive, ArchiveRestore, History, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -42,6 +42,8 @@ interface Recurrente {
   activo: boolean;
   tipo: TipoGasto;
   modalidad_pago: ModalidadPago;
+  archivado_at?: string | null;
+  archivado_por?: string | null;
 }
 
 interface Ejecucion {
@@ -160,7 +162,14 @@ const SuperAdminGastos = () => {
     modalidad_pago: "anticipado" as ModalidadPago,
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
+  const [showArchivados, setShowArchivados] = useState(false);
   const [deudaExpanded, setDeudaExpanded] = useState(false);
+
+  // Historial / auditoría
+  type AuditRow = { id: string; created_at: string; user_email: string | null; user_role: string; action: string; entity_type: string; entity_id: string | null; details: any };
+  const [historial, setHistorial] = useState<AuditRow[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(false);
+  const [historialSearch, setHistorialSearch] = useState("");
 
   // Pago dialog
   const [pagoDialogOpen, setPagoDialogOpen] = useState(false);
@@ -613,13 +622,55 @@ const SuperAdminGastos = () => {
     loadData();
   };
 
-  const deleteRec = async (id: string) => {
-    if (!confirm("¿Eliminar este concepto recurrente? También se borrarán sus ejecuciones futuras.")) return;
-    const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", id);
+  const archiveRec = async (r: Recurrente) => {
+    const accion = r.archivado_at ? "desarchivar" : "archivar";
+    if (!confirm(`¿${accion === "archivar" ? "Archivar" : "Reactivar"} "${r.concepto}"?\n\n${accion === "archivar" ? "No aparecerá en el catálogo activo pero el historial completo se conserva. Podés reactivarlo cuando quieras." : "Volverá a aparecer en el catálogo activo."}`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id || null;
+    const patch = accion === "archivar"
+      ? { archivado_at: new Date().toISOString(), archivado_por: uid, activo: false }
+      : { archivado_at: null, archivado_por: null, activo: true };
+    const { error } = await supabase.from("gastos_recurrentes").update(patch as any).eq("id", r.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: accion === "archivar" ? "Archivado" : "Reactivado", description: r.concepto });
+    loadData();
+  };
+
+  const hardDeleteRec = async (r: Recurrente) => {
+    // Verificar que no tenga ejecuciones ni movimientos de deuda
+    const [ejecCount, movCount] = await Promise.all([
+      supabase.from("gastos_ejecuciones").select("id", { count: "exact", head: true }).eq("recurrente_id", r.id),
+      supabase.from("gastos_deuda_movimientos" as any).select("id", { count: "exact", head: true }).eq("recurrente_id", r.id),
+    ]);
+    const ej = ejecCount.count || 0;
+    const mv = movCount.count || 0;
+    if (ej > 0 || mv > 0) {
+      toast({
+        title: "No se puede eliminar",
+        description: `Tiene ${ej} ejecución(es) y ${mv} movimiento(s) de deuda en el historial. Archívalo en su lugar para conservar la trazabilidad.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!confirm(`Eliminar definitivamente "${r.concepto}".\n\nNo tiene historial asociado, así que es seguro borrar.\n\n¿Continuar?`)) return;
+    const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", r.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Eliminado" });
     loadData();
   };
+
+  // -------- Historial / auditoría ----------
+  const loadHistorial = useCallback(async () => {
+    setHistorialLoading(true);
+    const { data, error } = await supabase
+      .from("audit_log")
+      .select("id, created_at, user_email, user_role, action, entity_type, entity_id, details")
+      .in("entity_type", ["gastos", "gastos_recurrentes", "gastos_ejecuciones", "gastos_deuda_movimientos"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (!error) setHistorial((data || []) as any);
+    setHistorialLoading(false);
+  }, []);
 
   // -------- Matriz (concepto × mes) ----------
   const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
@@ -736,7 +787,7 @@ const SuperAdminGastos = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="agenda">
+      <Tabs defaultValue="agenda" onValueChange={(v) => { if (v === "historial") loadHistorial(); }}>
         <TabsList>
           <TabsTrigger value="agenda" className="gap-1"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
@@ -750,6 +801,7 @@ const SuperAdminGastos = () => {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="historial" className="gap-1"><History className="w-4 h-4" />Historial</TabsTrigger>
         </TabsList>
 
         {/* AGENDA */}
@@ -1024,13 +1076,17 @@ const SuperAdminGastos = () => {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Catálogo de gastos recurrentes</CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Input
                   placeholder="Buscar concepto, categoría o proveedor..."
                   value={searchCatalogo}
                   onChange={(e) => setSearchCatalogo(e.target.value)}
                   className="h-8 w-full sm:w-72 text-xs"
                 />
+                <Button size="sm" variant={showArchivados ? "default" : "outline"} className="gap-1 h-8" onClick={() => setShowArchivados(v => !v)} title={showArchivados ? "Ocultar archivados" : "Ver archivados"}>
+                  {showArchivados ? <EyeOff className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+                  {showArchivados ? "Ocultar archivados" : `Archivados (${recurrentes.filter(r => !!r.archivado_at).length})`}
+                </Button>
                 <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); setRecForm(f => ({ ...f, concepto: "", categoria: "Otros", ambito: "emprendimiento", responsable: "Tay", monto_estimado: "", moneda: "ARS", frecuencia: catalogoTipoTab === "variable" ? "variable" : "mensual", dia_vencimiento: "10", forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true, tipo: catalogoTipoTab })); setCatDialogOpen(true); }}>
                   <Plus className="w-4 h-4" /> Nuevo
                 </Button>
@@ -1066,6 +1122,7 @@ const SuperAdminGastos = () => {
                     <TableBody>
                       {recurrentes
                         .filter(r => (r.tipo || "fijo") === catalogoTipoTab)
+                        .filter(r => showArchivados ? !!r.archivado_at : !r.archivado_at)
                         .filter(r => {
                           const q = searchCatalogo.trim().toLowerCase();
                           if (!q) return true;
@@ -1073,19 +1130,29 @@ const SuperAdminGastos = () => {
                             .filter(Boolean).join(" ").toLowerCase().includes(q);
                         })
                         .map(r => (
-                        <TableRow key={r.id} className={!r.activo ? "opacity-50" : ""}>
-                          <TableCell className="font-medium text-sm">{r.concepto}</TableCell>
+                        <TableRow key={r.id} className={r.archivado_at ? "opacity-60 bg-muted/30" : (!r.activo ? "opacity-50" : "")}>
+                          <TableCell className="font-medium text-sm">
+                            {r.concepto}
+                            {r.archivado_at && <Badge variant="outline" className="ml-2 text-[10px] gap-1"><Archive className="w-3 h-3" />Archivado</Badge>}
+                          </TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
                           <TableCell>{ambitoBadge(r.ambito)}</TableCell>
                           <TableCell className="text-xs">{r.frecuencia}</TableCell>
                           <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
                           <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
-                          <TableCell>{r.activo ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
+                          <TableCell>{r.activo && !r.archivado_at ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)}><Edit2 className="w-3 h-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteRec(r.id)}><Trash2 className="w-3 h-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                              {r.archivado_at ? (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => archiveRec(r)} title="Reactivar"><ArchiveRestore className="w-3 h-3" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => hardDeleteRec(r)} title="Eliminar definitivamente (solo si no tiene historial)"><Trash2 className="w-3 h-3" /></Button>
+                                </>
+                              ) : (
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => archiveRec(r)} title="Archivar (conserva historial)"><Archive className="w-3 h-3" /></Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1221,6 +1288,93 @@ const SuperAdminGastos = () => {
                   </Table>
                 );
               })()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* HISTORIAL / AUDITORÍA */}
+        <TabsContent value="historial" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
+              <div>
+                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                  <History className="w-4 h-4" /> Historial de cambios
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Toda creación, edición, archivado, pago y eliminación sobre gastos, deudas y catálogo queda registrada acá.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Buscar usuario, acción, concepto..."
+                  value={historialSearch}
+                  onChange={(e) => setHistorialSearch(e.target.value)}
+                  className="h-8 w-full sm:w-80 text-xs"
+                />
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={loadHistorial}>
+                  <RefreshCw className="w-3 h-3" /> Refrescar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {historialLoading ? (
+                <div className="text-center py-10 text-muted-foreground text-sm animate-pulse">Cargando historial...</div>
+              ) : historial.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm">
+                  Sin registros. A partir de ahora todas las acciones nuevas quedan acá.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-40">Fecha</TableHead>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Acción</TableHead>
+                      <TableHead>Entidad</TableHead>
+                      <TableHead>Detalle</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historial
+                      .filter(h => {
+                        const q = historialSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        const det = JSON.stringify(h.details || {}).toLowerCase();
+                        return [h.user_email, h.action, h.entity_type, det].filter(Boolean).join(" ").toLowerCase().includes(q);
+                      })
+                      .map(h => {
+                        const after = h.details?.after || {};
+                        const before = h.details?.before || {};
+                        const obj = after || before;
+                        const label = obj?.concepto || obj?.descripcion || obj?.proveedor || h.entity_id?.slice(0, 8) || "—";
+                        const monto = obj?.monto ?? obj?.monto_estimado ?? obj?.monto_previsto;
+                        const moneda = obj?.moneda || "ARS";
+                        const actionColor =
+                          h.action.startsWith("eliminar") ? "bg-destructive/15 text-destructive border-destructive/30" :
+                          h.action.startsWith("archivar") ? "bg-orange-500/15 text-orange-500 border-orange-500/30" :
+                          h.action.startsWith("crear") ? "bg-green-500/15 text-green-500 border-green-500/30" :
+                          "bg-blue-500/15 text-blue-500 border-blue-500/30";
+                        return (
+                          <TableRow key={h.id}>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(h.created_at).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <div className="font-medium">{h.user_email || "Sistema"}</div>
+                              <div className="text-[10px] text-muted-foreground">{h.user_role}</div>
+                            </TableCell>
+                            <TableCell><Badge variant="outline" className={`text-[10px] ${actionColor}`}>{h.action.replace(/_/g, " ")}</Badge></TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{h.entity_type.replace("gastos_", "")}</TableCell>
+                            <TableCell className="text-xs">
+                              <div className="font-medium">{label}</div>
+                              {monto != null && <div className="text-muted-foreground">{fmt(Number(monto), moneda)}</div>}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
