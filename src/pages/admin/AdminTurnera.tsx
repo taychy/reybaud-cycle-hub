@@ -111,6 +111,11 @@ const AdminTurnera = () => {
 
   const updateReservaEstado = async (id: string, estado_operativo: string) => {
     await supabase.from("reservas_turnera").update({ estado_operativo } as any).eq("id", id);
+    if (estado_operativo === "cancelada") {
+      supabase.functions.invoke("send-turnera-email", {
+        body: { reservation_id: id, tipo: "cancelacion" },
+      }).catch(() => {});
+    }
     toast({ title: `Reserva marcada como ${estado_operativo}` });
     loadAll();
   };
