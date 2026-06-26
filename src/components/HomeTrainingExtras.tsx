@@ -160,6 +160,20 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
                 );
               }
 
+              const isInApp = (p as any).checkout_mode === "in_app";
+              if (isInApp) {
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setBuyProduct(p)}
+                    className={`${className} text-left`}
+                  >
+                    {commonContent}
+                  </button>
+                );
+              }
+
               return (
                 <a
                   key={p.id}
@@ -175,8 +189,18 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
           </div>
         )}
       </div>
+
+      <BuyProductDialog
+        open={!!buyProduct}
+        onOpenChange={(v) => !v && setBuyProduct(null)}
+        product={buyProduct as any}
+        alumnoId={alumnoId}
+        customerName={alumnoInfo.nombre}
+        customerEmail={alumnoInfo.email}
+      />
     </div>
   );
 };
+
 
 export default HomeTrainingExtras;
