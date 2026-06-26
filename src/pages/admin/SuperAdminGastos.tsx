@@ -1396,6 +1396,9 @@ const SuperAdminGastos = () => {
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={loadHistorial}>
                   <RefreshCw className="w-3 h-3" /> Refrescar
                 </Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportHistorialCSV} disabled={historial.length === 0}>
+                  <Receipt className="w-3 h-3" /> Exportar CSV
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
