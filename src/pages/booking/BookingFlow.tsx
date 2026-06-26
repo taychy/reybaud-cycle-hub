@@ -516,17 +516,22 @@ const BookingFlow = () => {
     // After date: if modo=fecha and no coach picked, show coach chips (with "cualquiera")
     if (modo === "fecha" && !selectedCoach) {
       const dow = selectedDate.getDay();
-      const coachesDelDia = Array.from(new Set(
-        disponibilidades.filter(d => d.dia_semana === dow).map(d => d.coach_id)
-      )).map(id => coachById.get(id)).filter(Boolean) as Coach[];
+      const dispsDelDia = disponibilidades.filter(d => d.dia_semana === dow);
+      const coachIdsDelDia = Array.from(new Set(dispsDelDia.map(d => d.coach_id)));
       return (
         <SectionPick title={`Coach para ${selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}`}>
           <PickCard label="Cualquier coach disponible" sub="Te asignamos el mejor horario" onClick={() => setSelectedCoach("any")} />
-          {coachesDelDia.map(c => (
-            <PickCard key={c.id} label={c.nombre}
-              sub={c.sede_id ? sedeById.get(c.sede_id)?.nombre : undefined}
-              onClick={() => setSelectedCoach(c.id)} />
-          ))}
+          {coachIdsDelDia.map(cid => {
+            const c = coachById.get(cid);
+            if (!c) return null;
+            const sedesCoachDia = Array.from(new Set(
+              dispsDelDia.filter(d => d.coach_id === cid).map(d => d.sede_id).filter(Boolean) as string[]
+            )).map(sid => sedeById.get(sid)?.nombre).filter(Boolean) as string[];
+            const sub = sedesCoachDia.length ? sedesCoachDia.join(" · ") : undefined;
+            return (
+              <PickCard key={c.id} label={c.nombre} sub={sub} onClick={() => setSelectedCoach(c.id)} />
+            );
+          })}
         </SectionPick>
       );
     }
