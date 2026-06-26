@@ -609,6 +609,15 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify({ reservation_id: reservationId, tipo: "confirmacion" }),
           });
+          // Aviso al coach (no bloqueante si falla)
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-turnera-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ reservation_id: reservationId, tipo: "coach_aviso" }),
+          });
         } catch (e) {
           console.error("[mp-webhook] turnera: error enviando confirmación", (e as Error).message);
         }
