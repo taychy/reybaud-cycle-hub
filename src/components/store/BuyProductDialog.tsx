@@ -87,6 +87,41 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     }
 
     setLoading(true);
+
+    // Anti-duplicado: pedidos pendientes del mismo alumno+producto+variante en las últimas 24hs
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const targetStatus = metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago";
+      const { data: prev } = await supabase
+        .from("store_orders")
+        .select("id, order_number, store_order_items!inner(product_id, variant_selection)")
+        .eq("alumno_id", alumnoId)
+        .eq("status", targetStatus)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const dup = (prev || []).find((o: any) =>
+        o.store_order_items?.some((it: any) =>
+          it.product_id === product.id &&
+          JSON.stringify(it.variant_selection || {}) === JSON.stringify(variante || {})
+        )
+      );
+      if (dup) {
+        setLoading(false);
+        const ok = window.confirm(
+          `Ya tenés un pedido pendiente de este producto (#${(dup as any).order_number}). ¿Querés crear otro igual de todas formas?`
+        );
+        if (!ok) {
+          onOpenChange(false);
+          return;
+        }
+        setLoading(true);
+      }
+    } catch (e) {
+      // si falla el chequeo, seguimos (no bloqueamos la venta)
+      console.warn("[BuyProductDialog] dup-check failed", e);
+    }
+
     const { data: order, error } = await supabase
       .from("store_orders")
       .insert({
@@ -98,7 +133,7 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
         status: metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago",
         metodo_pago: metodoPago === "efectivo" ? "efectivo" : "mp",
       } as any)
-      .select("id")
+      .select("id, order_number")
       .single();
 
     if (error || !order) {
@@ -124,16 +159,10 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
 
     if (metodoPago === "efectivo") {
       setLoading(false);
-      toast({
-        title: "Pedido reservado",
-        description: "Vas a pagar en efectivo al retirar en sede.",
-      });
-      onOpenChange(false);
+      setSuccessOrder({ number: (order as any).order_number ?? null, metodo: "efectivo" });
       return;
     }
 
-    try {
-      const { data: pref, error: prefErr } = await supabase.functions.invoke("create-store-order-mp-preference", {
         body: { order_id: order.id },
       });
       if (prefErr) throw prefErr;
