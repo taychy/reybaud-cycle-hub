@@ -181,6 +181,33 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     }
   };
 
+  if (successOrder) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">¡Pedido reservado!</DialogTitle>
+            <DialogDescription>Tu reserva quedó registrada correctamente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {successOrder.number != null && (
+              <div className="rounded-lg border border-primary/30 bg-primary/10 p-4 text-center">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">N° de pedido</p>
+                <p className="text-3xl font-heading font-bold text-primary">#{successOrder.number}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {successOrder.metodo === "efectivo"
+                ? "Vas a pagar en efectivo al retirar en sede. Mostrá este número al personal."
+                : "Tu pedido quedó pendiente de pago."}
+            </p>
+            <Button className="w-full" onClick={() => onOpenChange(false)}>Listo</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
