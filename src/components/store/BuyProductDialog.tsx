@@ -56,11 +56,14 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     return typeof product.stock === "number" ? product.stock : null;
   }, [product, variantSpecs, variantSig]);
 
+  const [successOrder, setSuccessOrder] = useState<{ number: number | null; metodo: "mp" | "efectivo" } | null>(null);
+
   useEffect(() => {
     if (!open) return;
     setCantidad(1);
     setVariante({});
     setMetodoPago("mp");
+    setSuccessOrder(null);
   }, [open]);
 
   if (!product) return null;
