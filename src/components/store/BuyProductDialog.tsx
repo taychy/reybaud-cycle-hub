@@ -163,6 +163,8 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
       return;
     }
 
+    try {
+      const { data: pref, error: prefErr } = await supabase.functions.invoke("create-store-order-mp-preference", {
         body: { order_id: order.id },
       });
       if (prefErr) throw prefErr;
