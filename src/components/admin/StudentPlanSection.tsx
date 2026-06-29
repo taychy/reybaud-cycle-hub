@@ -446,6 +446,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setPayMetodo("efectivo");
     setPayFecha(todayStr);
     setUsarPrecioActual(true);
+    setPayStatus("pagado");
     setShowPlanDialog(true);
   };
 
@@ -453,6 +454,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const sub = subs.find(s => s.id === subId);
     const todayStr = new Date().toISOString().split("T")[0];
     setDialogMode("change");
+    setPayStatus("pagado");
     setDialogSubId(subId);
     setNewPlanId(sub?.plan_id || "");
     setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
