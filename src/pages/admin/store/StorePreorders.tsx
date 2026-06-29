@@ -626,8 +626,14 @@ const StorePreorders = () => {
             {filtered.map((r) => {
               const al = alumnosMap[r.alumno_id];
               const tieneItems = Array.isArray(r.items) && r.items.length > 0;
+              const pagoStatus = getPagoStatus(r);
+              const saldo = Number(r.saldo_pendiente || 0);
+              const isDeudaEntregada = pagoStatus === "deuda_entregada";
+              const rowCls = isDeudaEntregada
+                ? "hover:bg-destructive/10 cursor-pointer bg-destructive/5 border-l-2 border-destructive"
+                : "hover:bg-muted/30 cursor-pointer";
               return (
-                <tr key={r.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetail(r)}>
+                <tr key={r.id} className={rowCls} onClick={() => setDetail(r)}>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-3 py-2">
                     <div>{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || (r as any).alumno_nombre || "—"}</div>
@@ -654,20 +660,47 @@ const StorePreorders = () => {
                   </td>
                   <td className="px-3 py-2 text-right font-heading">{formatPrice(Number(r.precio_total), r.moneda)}</td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <span
-                      className={`inline-block text-[10px] font-heading uppercase px-2 py-1 rounded ${
-                        r.estado_pago_sena === "confirmada"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : r.estado_pago_sena === "rechazada"
-                          ? "bg-destructive/20 text-destructive"
-                          : r.estado_pago_sena === "pendiente_verificacion"
-                          ? "bg-amber-500/20 text-amber-400"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                      title="Para cambiar el estado de pago abrí el detalle y registrá un pago"
-                    >
-                      {(r.estado_pago_sena || "—").replace(/_/g, " ")}
-                    </span>
+                    {pagoStatus === "pagado" ? (
+                      <span
+                        className="inline-block text-[10px] font-heading uppercase px-2 py-1 rounded bg-emerald-500/20 text-emerald-400"
+                        title="Seña y saldo cobrados"
+                      >
+                        Pagado
+                      </span>
+                    ) : pagoStatus === "deuda_entregada" ? (
+                      <span
+                        className="inline-flex flex-col items-center gap-0.5 text-[10px] font-heading uppercase px-2 py-1 rounded bg-destructive text-destructive-foreground"
+                        title="Producto entregado con saldo pendiente — cobrar"
+                      >
+                        <span>⚠ Debe</span>
+                        <span className="font-mono normal-case">{formatPrice(saldo, r.moneda)}</span>
+                      </span>
+                    ) : pagoStatus === "saldo_resta" ? (
+                      <span
+                        className="inline-flex flex-col items-center gap-0.5 text-[10px] font-heading uppercase px-2 py-1 rounded bg-amber-500/20 text-amber-400"
+                        title="Seña confirmada, resta saldo"
+                      >
+                        <span>Seña ✓</span>
+                        <span className="font-mono normal-case">resta {formatPrice(saldo, r.moneda)}</span>
+                      </span>
+                    ) : pagoStatus === "irrelevante" ? (
+                      <span className="inline-block text-[10px] font-heading uppercase px-2 py-1 rounded bg-muted text-muted-foreground">
+                        —
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-block text-[10px] font-heading uppercase px-2 py-1 rounded ${
+                          r.estado_pago_sena === "rechazada"
+                            ? "bg-destructive/20 text-destructive"
+                            : r.estado_pago_sena === "pendiente_verificacion"
+                            ? "bg-amber-500/20 text-amber-400"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                        title="Sin pago registrado"
+                      >
+                        {(r.estado_pago_sena || "pendiente").replace(/_/g, " ")}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                     <Select value={r.estado} onValueChange={(v) => updateField(r.id, { estado: v } as any)}>
