@@ -133,7 +133,7 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "" });
+  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "", nombres_bancarios: "" });
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
