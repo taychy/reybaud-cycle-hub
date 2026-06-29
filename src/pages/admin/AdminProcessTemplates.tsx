@@ -290,16 +290,17 @@ function StageEditDialog({
   const [entidadControl, setEntidadControl] = useState<EntidadControl>("none");
   const [accionFinal, setAccionFinal] = useState<AccionFinal>("none");
 
-  useState(() => {});
-  // sync when stage changes
-  if (stage && titulo === "" && stage.titulo) {
-    setTitulo(stage.titulo);
-    setInstrucciones(stage.instrucciones || "");
-    setRequiereFoto(stage.requiere_foto);
-    setRequiereNota(stage.requiere_nota);
-    setEntidadControl(stage.entidad_control);
-    setAccionFinal(stage.accion_final);
-  }
+  useEffect(() => {
+    if (stage) {
+      setTitulo(stage.titulo);
+      setInstrucciones(stage.instrucciones || "");
+      setRequiereFoto(stage.requiere_foto);
+      setRequiereNota(stage.requiere_nota);
+      setEntidadControl(stage.entidad_control);
+      setAccionFinal(stage.accion_final);
+    }
+  }, [stage?.id]);
+
 
   const save = async () => {
     if (!stage) return;
