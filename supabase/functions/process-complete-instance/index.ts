@@ -32,22 +32,36 @@ Deno.serve(async (req) => {
     const { data: profile } = await sb.from("deposito_profiles").select("first_name, last_name, email").eq("user_id", instance.iniciado_por).maybeSingle();
     if (profile) iniciadoNombre = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email || iniciadoNombre;
 
-    // Signed URLs for photos
+    // Signed URLs for photos (foto_url may be a single path or a JSON array of paths)
     const stagesHtml: string[] = [];
     for (const s of instStages || []) {
       const t = (tplStages || []).find((x: any) => x.id === s.template_stage_id);
       let fotoHtml = "";
       if (s.foto_url) {
-        const { data: signed } = await sb.storage.from("process-photos").createSignedUrl(s.foto_url, 60 * 60 * 24 * 7);
-        if (signed?.signedUrl) {
-          fotoHtml = `<p><a href="${signed.signedUrl}" target="_blank"><img src="${signed.signedUrl}" alt="foto" style="max-width:400px;border-radius:6px;border:1px solid #ddd"/></a></p>`;
+        let paths: string[] = [];
+        try {
+          const parsed = JSON.parse(s.foto_url);
+          paths = Array.isArray(parsed) ? parsed : [s.foto_url];
+        } catch {
+          paths = [s.foto_url];
         }
+        const imgs: string[] = [];
+        for (const p of paths) {
+          const { data: signed } = await sb.storage.from("process-photos").createSignedUrl(p, 60 * 60 * 24 * 7);
+          if (signed?.signedUrl) {
+            imgs.push(`<a href="${signed.signedUrl}" target="_blank" style="display:inline-block;margin:4px"><img src="${signed.signedUrl}" alt="foto" style="max-width:280px;border-radius:6px;border:1px solid #ddd"/></a>`);
+          }
+        }
+        if (imgs.length) fotoHtml = `<div style="margin-top:8px">${imgs.join("")}</div>`;
       }
+      const notaHtml = s.nota
+        ? `<pre style="white-space:pre-wrap;background:#f9fafb;padding:8px;border-radius:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin:6px 0">${escapeHtml(s.nota)}</pre>`
+        : "";
       stagesHtml.push(`
         <div style="margin:16px 0;padding:12px;border:1px solid #e5e7eb;border-radius:8px">
           <h3 style="margin:0 0 4px;color:#111">Etapa ${s.orden}: ${escapeHtml(t?.titulo || "—")}</h3>
           ${t?.instrucciones ? `<p style="color:#666;font-size:12px;margin:4px 0">${escapeHtml(t.instrucciones)}</p>` : ""}
-          ${s.nota ? `<p><strong>Nota:</strong> ${escapeHtml(s.nota)}</p>` : ""}
+          ${notaHtml}
           ${s.entidad_ref_texto ? `<p><strong>Referencia:</strong> ${escapeHtml(s.entidad_ref_texto)}</p>` : ""}
           ${s.entidad_ref_id ? `<p><strong>Entidad ref:</strong> <code>${s.entidad_ref_id}</code></p>` : ""}
           ${fotoHtml}
