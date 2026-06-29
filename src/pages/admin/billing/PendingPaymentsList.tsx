@@ -361,10 +361,14 @@ export function PendingPaymentsList() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
+    const min = montoMin.trim() === "" ? null : Number(montoMin);
+    const max = montoMax.trim() === "" ? null : Number(montoMax);
     return rows.filter((r) => {
       const facturada = r.factura_estado === "emitida" && !!r.factura_cae;
       if (!showFacturadas && facturada) return false;
       if (sourceFilter !== "todos" && r.source !== sourceFilter) return false;
+      if (min !== null && !isNaN(min) && r.monto < min) return false;
+      if (max !== null && !isNaN(max) && r.monto > max) return false;
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -374,7 +378,7 @@ export function PendingPaymentsList() {
       }
       return true;
     });
-  }, [rows, sourceFilter, search, showFacturadas]);
+  }, [rows, sourceFilter, search, showFacturadas, montoMin, montoMax]);
 
   const selectableFiltered = useMemo(
     () => filtered.filter((r) => !(r.factura_estado === "emitida" && !!r.factura_cae)),
