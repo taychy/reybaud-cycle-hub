@@ -171,7 +171,33 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Order | null>(null);
   const [payOrder, setPayOrder] = useState<Order | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const { toast } = useToast();
+
+  const anularPedido = async () => {
+    if (!cancelOrder) return;
+    if (!cancelReason.trim()) {
+      toast({ title: "Falta el motivo", description: "Indicá por qué se anula el pedido.", variant: "destructive" });
+      return;
+    }
+    setCancelling(true);
+    const { error } = await supabase.rpc("cancel_store_order", {
+      _order_id: cancelOrder.id,
+      _reason: cancelReason.trim(),
+    });
+    setCancelling(false);
+    if (error) {
+      toast({ title: "Error al anular", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Pedido anulado", description: "Stock devuelto y movimiento registrado." });
+    setCancelOrder(null);
+    setCancelReason("");
+    if (detail?.id === cancelOrder.id) setDetail(null);
+    load();
+  };
 
   const load = async () => {
     const { data: orders } = await supabase
