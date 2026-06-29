@@ -505,7 +505,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
           mp_status: isUnpaidAdd ? null : payMetodo,
-          metodo_pago: isUnpaidAdd ? null : payMetodo,
+          metodo_pago: isUnpaidAdd ? "pendiente" : payMetodo,
           origen_registro: "cargado_admin",
           descuento_id: discount?.id || null,
           precio_base: precioBase,
