@@ -211,6 +211,17 @@ const DepositoProcesoRunner = () => {
 
       {/* Etapa actual */}
       {current && currentTpl && (
+        /\bconteo\b.*\bcategor/i.test(currentTpl.titulo) ? (
+          <StockCountStage
+            saving={saving}
+            isLast={currentIdx === totalStages - 1}
+            initialNota={current.nota}
+            onConfirm={({ nota, entidad_ref_texto }) =>
+              submitStageWithPayload({ nota, entidad_ref_texto, foto_url: null, entidad_ref_id: null })
+            }
+            onCancel={handleCancel}
+          />
+        ) : (
         <Card className="border-primary/40">
           <CardHeader>
             <CardTitle className="text-base">{currentTpl.titulo}</CardTitle>
@@ -266,6 +277,7 @@ const DepositoProcesoRunner = () => {
             </div>
           </CardContent>
         </Card>
+        )
       )}
     </div>
   );
