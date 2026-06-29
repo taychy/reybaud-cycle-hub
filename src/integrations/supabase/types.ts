@@ -4331,6 +4331,205 @@ export type Database = {
           },
         ]
       }
+      process_instance_stages: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          entidad_ref_id: string | null
+          entidad_ref_texto: string | null
+          estado: Database["public"]["Enums"]["process_stage_estado"]
+          foto_url: string | null
+          id: string
+          instance_id: string
+          nota: string | null
+          orden: number
+          template_stage_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          entidad_ref_id?: string | null
+          entidad_ref_texto?: string | null
+          estado?: Database["public"]["Enums"]["process_stage_estado"]
+          foto_url?: string | null
+          id?: string
+          instance_id: string
+          nota?: string | null
+          orden: number
+          template_stage_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          entidad_ref_id?: string | null
+          entidad_ref_texto?: string | null
+          estado?: Database["public"]["Enums"]["process_stage_estado"]
+          foto_url?: string | null
+          id?: string
+          instance_id?: string
+          nota?: string | null
+          orden?: number
+          template_stage_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_instance_stages_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "process_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "process_instance_stages_template_stage_id_fkey"
+            columns: ["template_stage_id"]
+            isOneToOne: false
+            referencedRelation: "process_template_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_instances: {
+        Row: {
+          asignado_a: string | null
+          completed_at: string | null
+          created_at: string
+          destinatario_reporte_email: string | null
+          estado: Database["public"]["Enums"]["process_instance_estado"]
+          id: string
+          iniciado_por: string
+          metadata: Json
+          started_at: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          asignado_a?: string | null
+          completed_at?: string | null
+          created_at?: string
+          destinatario_reporte_email?: string | null
+          estado?: Database["public"]["Enums"]["process_instance_estado"]
+          id?: string
+          iniciado_por: string
+          metadata?: Json
+          started_at?: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          asignado_a?: string | null
+          completed_at?: string | null
+          created_at?: string
+          destinatario_reporte_email?: string | null
+          estado?: Database["public"]["Enums"]["process_instance_estado"]
+          id?: string
+          iniciado_por?: string
+          metadata?: Json
+          started_at?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_template_stages: {
+        Row: {
+          accion_final: Database["public"]["Enums"]["process_accion_final"]
+          created_at: string
+          entidad_control: Database["public"]["Enums"]["process_entidad_control"]
+          id: string
+          instrucciones: string | null
+          orden: number
+          requiere_foto: boolean
+          requiere_nota: boolean
+          template_id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          accion_final?: Database["public"]["Enums"]["process_accion_final"]
+          created_at?: string
+          entidad_control?: Database["public"]["Enums"]["process_entidad_control"]
+          id?: string
+          instrucciones?: string | null
+          orden: number
+          requiere_foto?: boolean
+          requiere_nota?: boolean
+          template_id: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          accion_final?: Database["public"]["Enums"]["process_accion_final"]
+          created_at?: string
+          entidad_control?: Database["public"]["Enums"]["process_entidad_control"]
+          id?: string
+          instrucciones?: string | null
+          orden?: number
+          requiere_foto?: boolean
+          requiere_nota?: boolean
+          template_id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_template_stages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_templates: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          icono: string | null
+          id: string
+          nombre: string
+          rol_destino: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre: string
+          rol_destino?: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre?: string
+          rol_destino?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       redes_sociales_tareas: {
         Row: {
           clase_dictada_id: string | null
@@ -7807,6 +8006,10 @@ export type Database = {
         | "reprogramar_a_hoy"
         | "mantener_fechas_fijas"
       payment_plan_sena_tipo: "monto_fijo" | "porcentaje_paquete"
+      process_accion_final: "none" | "send_report"
+      process_entidad_control: "none" | "store_preorder" | "supplier_order"
+      process_instance_estado: "en_curso" | "completada" | "cancelada"
+      process_stage_estado: "pendiente" | "en_curso" | "completada"
       tarea_estado: "pendiente" | "en_curso" | "hecha" | "pospuesta"
       tarea_prioridad: "baja" | "media" | "alta" | "critica"
       tarea_rol: "super_admin" | "admin" | "coach" | "deposito"
@@ -8018,6 +8221,10 @@ export const Constants = {
         "mantener_fechas_fijas",
       ],
       payment_plan_sena_tipo: ["monto_fijo", "porcentaje_paquete"],
+      process_accion_final: ["none", "send_report"],
+      process_entidad_control: ["none", "store_preorder", "supplier_order"],
+      process_instance_estado: ["en_curso", "completada", "cancelada"],
+      process_stage_estado: ["pendiente", "en_curso", "completada"],
       tarea_estado: ["pendiente", "en_curso", "hecha", "pospuesta"],
       tarea_prioridad: ["baja", "media", "alta", "critica"],
       tarea_rol: ["super_admin", "admin", "coach", "deposito"],

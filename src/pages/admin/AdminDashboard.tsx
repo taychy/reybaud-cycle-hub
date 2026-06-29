@@ -429,7 +429,14 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen</h1>
+        <Link to="/admin/procesos/plantillas">
+          <Button variant="outline" size="sm">
+            <FileText className="w-4 h-4 mr-1" /> Plantillas de procesos
+          </Button>
+        </Link>
+      </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">

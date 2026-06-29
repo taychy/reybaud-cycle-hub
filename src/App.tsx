@@ -71,6 +71,8 @@ import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
+import DepositoProcesoRunner from "./pages/deposito/DepositoProcesoRunner";
+import AdminProcessTemplates from "./pages/admin/AdminProcessTemplates";
 import DepositoVentas from "./pages/deposito/DepositoVentas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
@@ -200,6 +202,7 @@ const App = () => (
             <Route path="tienda/stock" element={<StoreStock />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
+            <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
           </Route>
           <Route path="/deposito/login" element={<Navigate to="/admin/login?returnTo=/deposito" replace />} />
           <Route path="/deposito" element={<ProtectedRoute allowedRoles={["deposito"]} loginPath="/admin/login?returnTo=/deposito"><DepositoLayout /></ProtectedRoute>}>
@@ -211,6 +214,7 @@ const App = () => (
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
+            <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
           <Route path="/reservar" element={<BookingLanding />} />
           <Route path="/reservar/confirmacion" element={<TurneraConfirmacion />} />
