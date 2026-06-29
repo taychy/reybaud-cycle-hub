@@ -5993,6 +5993,12 @@ export type Database = {
           customer_email: string | null
           customer_name: string
           delivered_at: string | null
+          entrega_metodo: string | null
+          envio_contacto: string | null
+          envio_costo: number | null
+          envio_direccion: string | null
+          envio_estado: string | null
+          envio_notas: string | null
           id: string
           metodo_pago: string | null
           mp_external_reference: string | null
@@ -6003,6 +6009,7 @@ export type Database = {
           order_number: number
           origen_registro: string | null
           pagado_at: string | null
+          sede_retiro_id: string | null
           shipping_tracking: string | null
           status: string
           tienda_emisor_id: string | null
@@ -6017,6 +6024,12 @@ export type Database = {
           customer_email?: string | null
           customer_name: string
           delivered_at?: string | null
+          entrega_metodo?: string | null
+          envio_contacto?: string | null
+          envio_costo?: number | null
+          envio_direccion?: string | null
+          envio_estado?: string | null
+          envio_notas?: string | null
           id?: string
           metodo_pago?: string | null
           mp_external_reference?: string | null
@@ -6027,6 +6040,7 @@ export type Database = {
           order_number?: number
           origen_registro?: string | null
           pagado_at?: string | null
+          sede_retiro_id?: string | null
           shipping_tracking?: string | null
           status?: string
           tienda_emisor_id?: string | null
@@ -6041,6 +6055,12 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string
           delivered_at?: string | null
+          entrega_metodo?: string | null
+          envio_contacto?: string | null
+          envio_costo?: number | null
+          envio_direccion?: string | null
+          envio_estado?: string | null
+          envio_notas?: string | null
           id?: string
           metodo_pago?: string | null
           mp_external_reference?: string | null
@@ -6051,6 +6071,7 @@ export type Database = {
           order_number?: number
           origen_registro?: string | null
           pagado_at?: string | null
+          sede_retiro_id?: string | null
           shipping_tracking?: string | null
           status?: string
           tienda_emisor_id?: string | null
@@ -6070,6 +6091,13 @@ export type Database = {
             columns: ["cuenta_mp_id"]
             isOneToOne: false
             referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_sede_retiro_id_fkey"
+            columns: ["sede_retiro_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
           {
