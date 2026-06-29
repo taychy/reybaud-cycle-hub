@@ -7,11 +7,11 @@ const DepositoLayout = () => {
   const navigate = useNavigate();
 
   const navItems = [
-    { to: "/deposito/stock", icon: Package, label: "Stock" },
-    { to: "/deposito/ventas", icon: ShoppingBag, label: "Ventas" },
-    { to: "/deposito/movimientos", icon: History, label: "Movimientos" },
     { to: "/deposito/alertas", icon: AlertTriangle, label: "Alertas" },
+    { to: "/deposito/ventas", icon: ShoppingBag, label: "Ventas" },
     { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
+    { to: "/deposito/movimientos", icon: History, label: "Movimientos" },
+    { to: "/deposito/stock", icon: Package, label: "Stock" },
   ];
 
   const handleLogout = async () => {
