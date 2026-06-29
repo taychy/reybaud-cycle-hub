@@ -485,94 +485,182 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                   rx.medio_pago || rx.metodo_pago || rx.payment_method || rx.forma_pago_sena || null;
                 const medioLabel = medioRaw ? getPaymentMethodLabel(medioRaw) : "—";
                 const referencia = rx.referencia_externa || rx.mp_payment_id || null;
+                const cuentaMpNombre = rx.cuenta_mp_id ? (cuentasMp[rx.cuenta_mp_id] || "Cuenta MP") : null;
+                const fechaPago = rx.fecha_pago ? String(rx.fecha_pago).slice(0, 10) : null;
+                const comprobante: string | null = rx.comprobante_url || rx.proof_url || null;
+                const notas = rx.notas || rx.notes || null;
+                const rowKey = `${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`;
+                const isPago = m.haber > 0;
+                const hasDetalle = isPago && (medioRaw || referencia || cuentaMpNombre || fechaPago || comprobante || notas);
+                const isExpanded = expandedRow === rowKey;
                 return (
-                  <TableRow key={`${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`} className="text-sm">
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatDate(m.fecha)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${tipoInfo.className}`}>
-                        {tipoInfo.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm">{m.concepto}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      <div className="flex flex-col leading-tight">
-                        <span className={medioRaw ? "text-foreground" : ""}>{medioLabel}</span>
-                        {referencia && (
-                          <span className="text-[10px] text-muted-foreground/70 truncate max-w-[110px]" title={String(referencia)}>
-                            ref {String(referencia)}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs text-destructive whitespace-nowrap">
-                      {m.debe > 0 ? formatPrice(Number(m.debe), m.moneda) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs text-emerald-400 whitespace-nowrap">
-                      {m.haber > 0 ? formatPrice(Number(m.haber), m.moneda) : "—"}
-                    </TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground capitalize" title={m.estado || ""}>
-                      {m.estado || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        {isAjuste ? (
-                          <>
+                  <>
+                    <TableRow key={rowKey} className="text-sm">
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDate(m.fecha)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${tipoInfo.className}`}>
+                          {tipoInfo.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-foreground text-sm">{m.concepto}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        <div className="flex flex-col leading-tight">
+                          <span className={medioRaw ? "text-foreground" : ""}>{medioLabel}</span>
+                          {cuentaMpNombre && (
+                            <span className="text-[10px] text-primary/80 truncate max-w-[140px]" title={cuentaMpNombre}>
+                              {cuentaMpNombre}
+                            </span>
+                          )}
+                          {referencia && (
+                            <span className="text-[10px] text-muted-foreground/70 truncate max-w-[140px]" title={String(referencia)}>
+                              ref {String(referencia)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-destructive whitespace-nowrap">
+                        {m.debe > 0 ? formatPrice(Number(m.debe), m.moneda) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-emerald-400 whitespace-nowrap">
+                        {m.haber > 0 ? formatPrice(Number(m.haber), m.moneda) : "—"}
+                      </TableCell>
+                      <TableCell className="text-[10px] text-muted-foreground capitalize" title={m.estado || ""}>
+                        {m.estado || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          {hasDetalle && (
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-7 w-7"
-                              onClick={() => handleEditAjuste(m)}
-                              title="Editar ajuste"
+                              onClick={() => setExpandedRow(isExpanded ? null : rowKey)}
+                              title={isExpanded ? "Ocultar detalle" : "Ver detalle del pago"}
                             >
-                              <ExternalLink className="h-3.5 w-3.5" />
+                              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <Info className="h-3.5 w-3.5" />}
                             </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => setDeletingId(m.fuente_id)}
-                              title="Eliminar ajuste"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        ) : m.tipo === "cargo_suscripcion" && m.estado !== "cancelada" ? (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                setChangeSub({
-                                  id: m.fuente_id,
-                                  concepto: m.concepto,
-                                  currentPlanId: m.referencia_extra?.plan_id || null,
-                                  currentPrice: Number(m.debe) || 0,
-                                  currentMoneda: m.moneda,
-                                });
-                                setChangeNewPlanId(m.referencia_extra?.plan_id || "");
-                                setAbsorbCredit(true);
-                              }}
-                              title="Corregir / cambiar plan de esta suscripción"
-                            >
-                              <ArrowRightLeft className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => setCancelSub({ id: m.fuente_id, concepto: m.concepto })}
-                              title="Anular suscripción"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          )}
+                          {isAjuste ? (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => handleEditAjuste(m)}
+                                title="Editar ajuste"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => setDeletingId(m.fuente_id)}
+                                title="Eliminar ajuste"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          ) : m.tipo === "cargo_suscripcion" && m.estado !== "cancelada" ? (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setChangeSub({
+                                    id: m.fuente_id,
+                                    concepto: m.concepto,
+                                    currentPlanId: m.referencia_extra?.plan_id || null,
+                                    currentPrice: Number(m.debe) || 0,
+                                    currentMoneda: m.moneda,
+                                  });
+                                  setChangeNewPlanId(m.referencia_extra?.plan_id || "");
+                                  setAbsorbCredit(true);
+                                }}
+                                title="Corregir / cambiar plan de esta suscripción"
+                              >
+                                <ArrowRightLeft className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => setCancelSub({ id: m.fuente_id, concepto: m.concepto })}
+                                title="Anular suscripción"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && hasDetalle && (
+                      <TableRow key={`${rowKey}-detalle`} className="bg-secondary/30 hover:bg-secondary/30">
+                        <TableCell colSpan={8} className="py-3">
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                            {medioRaw && (
+                              <div className="flex items-start gap-2">
+                                <Banknote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Medio de pago</div>
+                                  <div className="text-foreground font-medium">{medioLabel}</div>
+                                </div>
+                              </div>
+                            )}
+                            {cuentaMpNombre && (
+                              <div className="flex items-start gap-2">
+                                <Wallet className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Cuenta de cobro</div>
+                                  <div className="text-foreground font-medium">{cuentaMpNombre}</div>
+                                </div>
+                              </div>
+                            )}
+                            {referencia && (
+                              <div className="flex items-start gap-2">
+                                <Hash className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div className="min-w-0">
+                                  <div className="text-muted-foreground text-[10px] uppercase">Nº de operación</div>
+                                  <div className="text-foreground font-mono break-all">{String(referencia)}</div>
+                                </div>
+                              </div>
+                            )}
+                            {fechaPago && (
+                              <div className="flex items-start gap-2">
+                                <Calendar className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Fecha del pago</div>
+                                  <div className="text-foreground">{formatDate(fechaPago)}</div>
+                                </div>
+                              </div>
+                            )}
+                            {comprobante && (
+                              <div className="flex items-start gap-2">
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Comprobante</div>
+                                  <a href={comprobante} target="_blank" rel="noreferrer" className="text-primary hover:underline">Ver archivo</a>
+                                </div>
+                              </div>
+                            )}
+                            {notas && (
+                              <div className="flex items-start gap-2 col-span-2 md:col-span-3 lg:col-span-4">
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Notas</div>
+                                  <div className="text-foreground whitespace-pre-wrap">{notas}</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 );
               })
             )}
