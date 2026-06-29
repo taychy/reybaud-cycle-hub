@@ -94,11 +94,13 @@ export function useAlumnoSession() {
     }
 
     // Check for any subscription that grants access (active, grace period, or pending verification)
+    // Check for any subscription that grants access (active, grace period, pending verification,
+    // or admin-loaded pendiente/vencida → acceso restringido pero alumno puede entrar)
     const { data: recentSubs } = await supabase
       .from("suscripciones")
       .select("id, estado, fecha_fin, cancelada_at")
       .eq("alumno_id", alumnoData.id)
-      .in("estado", ["activa", "pendiente_verificacion"])
+      .in("estado", ["activa", "pendiente_verificacion", "pendiente", "vencida"])
       .is("cancelada_at", null)
       .order("fecha_fin", { ascending: false })
       .limit(10);
