@@ -138,6 +138,7 @@ const AdminTurnera = () => {
         <TabsList>
           <TabsTrigger value="servicios">Servicios</TabsTrigger>
           <TabsTrigger value="disponibilidad">Disponibilidad</TabsTrigger>
+          <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
         </TabsList>
 
