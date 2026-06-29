@@ -214,7 +214,18 @@ const DepositoProcesoRunner = () => {
 
       {/* Etapa actual */}
       {current && currentTpl && (
-        /\bconteo\b.*\bcategor/i.test(currentTpl.titulo) ? (
+        currentTpl.accion_final === "send_report" ? (
+          <FinalReportStage
+            instanceId={instanceId!}
+            destinatarioEmail={instance.destinatario_reporte_email}
+            initialNota={current.nota}
+            saving={saving}
+            onConfirm={({ nota }) =>
+              submitStageWithPayload({ nota, foto_url: null, entidad_ref_texto: null, entidad_ref_id: null })
+            }
+            onCancel={handleCancel}
+          />
+        ) : /\bconteo\b.*\bcategor/i.test(currentTpl.titulo) ? (
           <StockCountStage
             saving={saving}
             isLast={currentIdx === totalStages - 1}
