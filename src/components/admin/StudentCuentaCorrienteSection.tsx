@@ -21,7 +21,7 @@ import {
   Select as SelectPlan, SelectContent as SelectPlanContent, SelectItem as SelectPlanItem,
   SelectTrigger as SelectPlanTrigger, SelectValue as SelectPlanValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft, Info, FileText, Banknote, Hash, Calendar } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { toast } from "sonner";
@@ -94,6 +94,8 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [editing, setEditing] = useState<AjusteCuentaValue | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [cuentasMp, setCuentasMp] = useState<Record<string, string>>({});
 
   // Subscription actions (cancel & change plan) launched from cargo_suscripcion rows
   const [planes, setPlanes] = useState<PlanOption[]>([]);
@@ -158,6 +160,16 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
       });
     return () => { cancel = true; };
   }, []);
+
+  // Cargar nombres de cuentas MP (para mostrar en detalle de cada movimiento)
+  useEffect(() => {
+    supabase.from("cuentas_mp").select("id, nombre").then(({ data }) => {
+      const map: Record<string, string> = {};
+      (data || []).forEach((c: any) => { map[c.id] = c.nombre; });
+      setCuentasMp(map);
+    });
+  }, []);
+
 
   // ---- Cancelar suscripción (misma lógica que StudentPlanSection.handleRemovePlan) ----
   const handleCancelSubscription = async () => {
