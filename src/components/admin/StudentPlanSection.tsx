@@ -128,6 +128,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [payMetodo, setPayMetodo] = useState<string>("efectivo");
   const [payFecha, setPayFecha] = useState<string>("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
+  const [aligningId, setAligningId] = useState<string | null>(null);
   // Estado de pago al crear/cargar el plan (sólo aplica en modo "add")
   // - pagado: comportamiento previo, sub queda 'activa' y NO aparece en /admin/pagos
   // - pendiente: sub queda 'pendiente' (aparece como "Por cobrar"), alumno usa la app con restricciones
