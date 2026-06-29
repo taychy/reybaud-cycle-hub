@@ -140,6 +140,7 @@ const StorePreorders = () => {
   const [filterEntrega, setFilterEntrega] = useState("all");
   const [filterProducto, setFilterProducto] = useState("all");
   const [search, setSearch] = useState("");
+  const [soloDeudores, setSoloDeudores] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Preorder | null>(null);
   const [payDialog, setPayDialog] = useState<{ row: Preorder; mode: "total" | "saldo" } | null>(null);
