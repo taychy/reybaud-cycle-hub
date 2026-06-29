@@ -617,7 +617,7 @@ const StorePreorders = () => {
               <th className="px-3 py-3 text-center text-xs font-heading uppercase">Cant.</th>
               <th className="px-3 py-3 text-center text-xs font-heading uppercase">Entrega</th>
               <th className="px-3 py-3 text-right text-xs font-heading uppercase">Total</th>
-              <th className="px-3 py-3 text-center text-xs font-heading uppercase">Pago seña</th>
+              <th className="px-3 py-3 text-center text-xs font-heading uppercase">Pago</th>
               <th className="px-3 py-3 text-center text-xs font-heading uppercase">Estado</th>
               <th className="px-3 py-3 text-right text-xs font-heading uppercase"></th>
             </tr>
