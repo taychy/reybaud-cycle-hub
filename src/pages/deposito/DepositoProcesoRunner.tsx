@@ -129,6 +129,35 @@ const DepositoProcesoRunner = () => {
     }
   };
 
+  // Permite a sub-componentes especializados (ej. StockCountStage) confirmar la etapa con su propio payload.
+  const submitStageWithPayload = async (patch: { nota?: string | null; entidad_ref_texto?: string | null; foto_url?: string | null; entidad_ref_id?: string | null }) => {
+    if (!current || !currentTpl) return;
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const nextStage = instStages[currentIdx + 1];
+      const isLast = !nextStage;
+      await completeStage({
+        instanceStageId: current.id,
+        nextInstanceStageId: nextStage?.id || null,
+        patch,
+        userId: user!.id,
+      });
+      if (isLast) {
+        await finalizeInstance(instanceId!);
+        toast({ title: "Proceso completado", description: currentTpl.accion_final === "send_report" ? "Se envió el reporte por mail." : undefined });
+        navigate("/deposito/alertas");
+        return;
+      }
+      toast({ title: "Etapa confirmada" });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCancel = async () => {
     if (!confirm("¿Cancelar el proceso? No se podrá retomar.")) return;
     await cancelInstance(instanceId!);
