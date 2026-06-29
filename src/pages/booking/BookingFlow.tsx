@@ -180,6 +180,16 @@ const BookingFlow = () => {
         setAusencias(((aus as any) || []) as Ausencia[]);
       }
 
+      // Disponibilidad ajustada (global o por coach) en el rango visible
+      {
+        const futureStr = future.toISOString().split("T")[0];
+        const { data: aj } = await supabase.rpc("get_disponibilidad_ajustada_publica" as any, {
+          p_desde: today,
+          p_hasta: futureStr,
+        });
+        setAjustes(((aj as any) || []) as Ajuste[]);
+      }
+
       setLoading(false);
     };
     load();
