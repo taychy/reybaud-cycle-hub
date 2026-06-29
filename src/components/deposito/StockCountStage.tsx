@@ -235,7 +235,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
                       const v = e.target.value;
                       setRows((prev) => prev.map((x, i) => i === idx ? { ...x, contado: v } : x));
                     }}
-                    className={`h-10 w-20 text-center font-semibold ${state === "dif" ? "text-orange-500 border-orange-500/60" : ""}`}
+                    className={`h-10 w-20 text-center font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden ${state === "dif" ? "text-orange-500 border-orange-500/60" : ""}`}
                   />
                   <div className="w-4 text-center">
                     {state === "ok" && <span className="text-green-500">✓</span>}
