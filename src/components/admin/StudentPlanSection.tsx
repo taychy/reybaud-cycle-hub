@@ -128,6 +128,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [payMetodo, setPayMetodo] = useState<string>("efectivo");
   const [payFecha, setPayFecha] = useState<string>("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
+  const [aligningId, setAligningId] = useState<string | null>(null);
   // Estado de pago al crear/cargar el plan (sólo aplica en modo "add")
   // - pagado: comportamiento previo, sub queda 'activa' y NO aparece en /admin/pagos
   // - pendiente: sub queda 'pendiente' (aparece como "Por cobrar"), alumno usa la app con restricciones
@@ -597,6 +598,34 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     );
   }
 
+  const alignSubPrice = async (sub: SuscripcionData) => {
+    const newPrice = sub.planes?.precio;
+    if (newPrice == null) return;
+    const oldPrice = sub.precio_base ?? 0;
+    if (!confirm(`Alinear precio de la suscripción al precio actual del plan?\n\n${sub.planes?.nombre}\nAntes: ${sub.planes?.moneda || "ARS"} ${oldPrice}\nAhora: ${sub.planes?.moneda || "ARS"} ${newPrice}\n\nEsto actualiza precio_base y precio_final de la suscripción (no modifica facturas ya emitidas ni movimientos pasados).`)) return;
+    setAligningId(sub.id);
+    try {
+      const { error } = await supabase.from("suscripciones")
+        .update({ precio_base: newPrice, precio_final: newPrice, descuento_id: null })
+        .eq("id", sub.id);
+      if (error) throw error;
+      await logStudentActivity({
+        alumnoId: alumno.id,
+        eventType: "cambio_plan",
+        title: "Precio alineado al plan actual",
+        description: `${sub.planes?.nombre || "Plan"}: ${sub.planes?.moneda || "ARS"} ${oldPrice} → ${sub.planes?.moneda || "ARS"} ${newPrice}`,
+        actorRole, referenceType: "plan", referenceId: sub.plan_id, referenceLabel: sub.planes?.nombre || "—",
+      });
+      toast.success("Precio actualizado");
+      fetchData();
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || "No se pudo alinear el precio");
+    } finally {
+      setAligningId(null);
+    }
+  };
+
   const renderSubCard = (sub: SuscripcionData, index: number, isHistoric: boolean) => {
     const effectiveEstado = getEffStatus(sub);
     const badgeCfg = SUB_STATUS_BADGE[effectiveEstado] || SUB_STATUS_BADGE.cancelada || { className: "text-muted-foreground border-dashed" };
@@ -608,18 +637,24 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const planPrice = sub.planes?.precio || 0;
     const moneda = sub.planes?.moneda || "ARS";
     const hasSavedDiscount = sub.descuento_id && sub.descuentos;
-    const liveDiscount = !hasSavedDiscount ? applyDiscount(planPrice, "planes", isSecondary) : null;
+    // Precio REAL de la suscripción (con el que se generó factura y cuenta corriente).
+    // Si no hay precio guardado, recién ahí caemos al precio actual del plan.
+    const subBase = sub.precio_base ?? planPrice;
+    const subFinal = sub.precio_final ?? subBase;
+    const liveDiscount = !hasSavedDiscount ? applyDiscount(subBase, "planes", isSecondary) : null;
     const hasLiveDiscount = liveDiscount && liveDiscount.discount;
     const hasAnyDiscount = hasSavedDiscount || hasLiveDiscount;
 
-    const displayBase = hasSavedDiscount ? (sub.precio_base ?? planPrice) : planPrice;
+    const displayBase = subBase;
     const displayFinal = hasSavedDiscount
-      ? (sub.precio_final ?? planPrice)
-      : hasLiveDiscount ? liveDiscount.final : planPrice;
+      ? subFinal
+      : hasLiveDiscount ? liveDiscount.final : subFinal;
     const discountLabel = hasSavedDiscount
       ? `${sub.descuentos!.nombre} (${sub.descuentos!.tipo === "fijo" ? `$${sub.descuentos!.valor}` : `${sub.descuentos!.valor}%`})`
       : hasLiveDiscount ? `${liveDiscount.discount!.nombre} (${liveDiscount.discount!.tipo === "fijo" ? `$${liveDiscount.discount!.valor}` : `${liveDiscount.discount!.valor}%`})` : "";
     const savings = displayBase - displayFinal;
+    // Aviso si el plan tiene hoy otro precio distinto al guardado en la sub (sin descuentos)
+    const planPriceMismatch = !hasAnyDiscount && sub.precio_base != null && planPrice > 0 && Number(sub.precio_base) !== Number(planPrice);
 
     // Etiqueta de período (sólo para activas)
     const fiISO = (sub.fecha_inicio || "").slice(0, 10);
@@ -724,6 +759,22 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                 <span className="text-foreground font-mono font-medium">{moneda} {displayFinal}</span>
               </div>
             </>
+          )}
+          {planPriceMismatch && !isHistoric && (
+            <div className="flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">
+              <span>
+                Precio actual del plan: <span className="font-mono">{moneda} {planPrice}</span> (la sub se generó con {moneda} {sub.precio_base})
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-5 px-2 text-[10px] border-amber-500/40 hover:bg-amber-500/20"
+                disabled={aligningId === sub.id}
+                onClick={() => alignSubPrice(sub)}
+              >
+                {aligningId === sub.id ? "..." : "Alinear"}
+              </Button>
+            </div>
           )}
 
           {/* Show cancellation reason in history */}
