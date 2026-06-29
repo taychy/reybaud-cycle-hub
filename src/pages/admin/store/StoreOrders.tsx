@@ -17,7 +17,16 @@ const STATUSES = [
   { value: "entregado", label: "Entregado", color: "bg-muted text-muted-foreground" },
 ];
 
-const StoreOrders = () => {
+interface StoreOrdersProps {
+  /** Si se pasa, solo muestra pedidos con estos status y bloquea el filtro */
+  restrictStatuses?: string[];
+  /** Título visible. Default: "Pedidos" */
+  title?: string;
+  /** Subtítulo opcional */
+  subtitle?: string;
+}
+
+const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrdersProps = {}) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
