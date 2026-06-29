@@ -589,7 +589,22 @@ const StorePreorders = () => {
             {ESTADOS.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="text-xs text-muted-foreground self-center ml-auto">{filtered.length} reservas</div>
+        <div className="flex items-center gap-3 self-center ml-auto text-xs">
+          <button
+            type="button"
+            onClick={() => setSoloDeudores((v) => !v)}
+            className={`px-2 py-1 rounded font-heading uppercase tracking-wider transition-colors ${
+              soloDeudores
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-destructive/15 text-destructive hover:bg-destructive/25"
+            }`}
+            title="Mostrar solo preventas con saldo o seña pendiente"
+          >
+            {soloDeudores ? "✓ " : ""}Deudores: {deudoresCount}
+            {deudaEntregadaCount > 0 && <span className="ml-1 opacity-80">({deudaEntregadaCount} entregados)</span>}
+          </button>
+          <span className="text-muted-foreground">{filtered.length} reservas</span>
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
