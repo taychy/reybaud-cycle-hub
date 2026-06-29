@@ -1007,6 +1007,38 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           }}
         />
       )}
+
+      {/* Anular pedido */}
+      <AlertDialog open={!!cancelOrder} onOpenChange={(v) => { if (!v) { setCancelOrder(null); setCancelReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anular pedido #{cancelOrder?.order_number}</AlertDialogTitle>
+            <AlertDialogDescription>
+              El pedido quedará marcado como <b>cancelado</b> y los productos volverán al stock automáticamente. Esta acción queda registrada en el historial de movimientos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cancel-reason">Motivo de la anulación *</Label>
+            <Textarea
+              id="cancel-reason"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Ej: cliente arrepentido, error de carga, sin stock real…"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); anularPedido(); }}
+              disabled={cancelling || !cancelReason.trim()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? "Anulando…" : "Anular y devolver stock"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
