@@ -95,8 +95,11 @@ const estadoColor = (e: string) => {
   }
 };
 
-const isPagado = (o: Order) =>
-  !!o.pagado_at || ["pagado", "preparando", "enviado", "entregado"].includes(o.status);
+// El pago es independiente del estado de fulfillment.
+// Solo se considera pagado cuando hay un registro real en `pagado_at`
+// (lo setea el admin al confirmar el cobro) o cuando el flujo
+// originó el pedido ya pago (status inicial "pagado" sin tránsito por entrega).
+const isPagado = (o: Order) => !!o.pagado_at;
 
 const isEntregado = (o: Order) => o.status === "entregado" || !!o.delivered_at;
 
