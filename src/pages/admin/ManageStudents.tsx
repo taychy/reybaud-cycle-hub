@@ -395,10 +395,12 @@ const ManageStudents = () => {
   const filtered = alumnos.filter((a) => {
     const normalizedSearch = search.toLowerCase().trim();
     const fullName = `${a.nombre} ${getApellido(a)}`.toLowerCase().replace(/\s+/g, " ").trim();
+    const nombresBancarios: string[] = ((a as any).nombres_bancarios || []) as string[];
     const matchesSearch = fullName.includes(normalizedSearch) ||
       a.email.toLowerCase().includes(normalizedSearch) ||
       a.nombre.toLowerCase().includes(normalizedSearch) ||
-      getApellido(a).toLowerCase().includes(normalizedSearch);
+      getApellido(a).toLowerCase().includes(normalizedSearch) ||
+      nombresBancarios.some((nb) => (nb || "").toLowerCase().includes(normalizedSearch));
     if (!matchesSearch) return false;
     switch (statusFilter) {
       case "pendientes": return a.estado === "pendiente";
