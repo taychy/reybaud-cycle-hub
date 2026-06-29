@@ -1,51 +1,113 @@
-## Problema
 
-El modal "Nuevo ajuste manual" hoy solo registra **tipo, moneda, concepto, monto, fecha y notas**. Cuando cargás un crédito (pago recibido) no queda registro de **cómo entró la plata** (efectivo / transferencia / MP Josi / MP Scarlett / etc.), por lo que no se puede:
-- Cruzar el ingreso con el resumen real de cada cuenta MP o caja
-- Filtrar pagos por cuenta receptora
-- Conciliar contra los reportes de las cuentas externas
+## Objetivo
+Que la pestaña **Pedidos** (productos que NO son preventa) tenga el mismo look & feel y las mismas acciones operativas que **Preventas**, pero conservando su lógica de **pago único** (sin seña ni saldo parcial).
 
-Ya tenemos toda la infraestructura armada (`PAYMENT_METHODS` en `src/lib/paymentMethods.ts` con Efectivo, Transferencia, MP Josi, MP Scarlett, MP Claudio, Tarjeta, Externo; y la tabla `cuentas_mp` con las cuentas MP reales). Solo falta enchufarla al ajuste.
+---
 
-## Solución propuesta
+## 1. Migración de base de datos
 
-### 1. Base de datos
-Agregar a la tabla `cuenta_ajustes` dos columnas opcionales:
-- `medio_pago text` → uno de los `PaymentMethodKey` (efectivo, transferencia, mp_externo_josi, mp_externo_scarlett, mp_externo_claudio, tarjeta, plataforma_externa, otro)
-- `cuenta_mp_id uuid` → FK opcional a `cuentas_mp` cuando el medio es una cuenta MP específica (para reportes finos)
-- `referencia_externa text` → opcional, para guardar nº de operación / últimos 4 dígitos / alias bancario
+Agregar a `store_orders` los campos que hoy solo tiene `store_preorders` para entrega:
 
-Solo aplica a `tipo = 'credito'` (ingreso). En `cargo` queda en NULL.
-
-### 2. UI del modal "Nuevo ajuste manual"
-Cuando el tipo es **Crédito (a favor)**, agregar:
-- Selector **"Medio de pago"** (obligatorio si es crédito) usando `PAYMENT_METHODS`
-- Si elige "MP Josi / Scarlett / Claudio / MercadoPago" → resolver `cuenta_mp_id` automáticamente desde `cuentas_mp` por slug
-- Campo opcional **"Nº operación / referencia"** (transferencia bancaria, comprobante, etc.)
-
-Si el tipo es **Cargo** estos campos se ocultan.
-
-### 3. Vista cuenta corriente
-Agregar en `vw_cuenta_corriente_movimientos` el `medio_pago` dentro de `referencia_extra` para los `ajuste_credito`, y mostrarlo en la columna **"Concepto"** o como sub-línea: `Crédito manual · MP Josi · ref 162457…`.
-
-### 4. Listado de pagos del admin (`/admin/pagos`)
-Los ajustes manuales tipo crédito ya deberían aparecer como ingresos. Verificar que el filtro por **medio de pago** los incluya correctamente y que el reporte por cuenta MP los sume.
-
-## Archivos a tocar
-
-```text
-supabase/migrations/<nueva>.sql        # ALTER TABLE cuenta_ajustes
-src/components/admin/StudentCuentaCorrienteSection.tsx   # modal + insert
-src/lib/paymentMethods.ts              # (sin cambios; se reutiliza)
-supabase/migrations/<nueva>.sql        # CREATE OR REPLACE VIEW vw_cuenta_corriente_movimientos
+```sql
+ALTER TABLE public.store_orders
+  ADD COLUMN entrega_metodo text,           -- 'retiro_sede' | 'envio_moto'
+  ADD COLUMN sede_retiro_id uuid REFERENCES public.sedes(id),
+  ADD COLUMN envio_direccion text,
+  ADD COLUMN envio_contacto text,
+  ADD COLUMN envio_notas text,
+  ADD COLUMN envio_costo numeric,
+  ADD COLUMN envio_estado text;             -- 'a_cotizar' | 'cotizado' | 'pagado' | 'enviado' | 'entregado'
 ```
 
-## Caso de uso resuelto
+Sin defaults para no tocar pedidos viejos (quedan en NULL → la UI muestra "—").
 
-Daniel transfiere $169.065 a la cuenta de Josi → admin entra a la cuenta corriente de Daniel, **+ Ajuste manual → Crédito → MP Josi → ref 162457749966** → queda asentado tanto en la cuenta corriente del alumno como en los ingresos de la cuenta MP Josi para la conciliación mensual.
+---
 
-## Pendiente de tu confirmación
+## 2. Rewrite de `src/pages/admin/store/StoreOrders.tsx`
 
-1. ¿El selector de medio de pago debe ser **obligatorio** en créditos, o lo dejamos opcional con default "Otro"?
-2. ¿Querés que también permitamos elegir cuenta en los **cargos** (por si la deuda se origina en una cuenta puntual)? Por defecto digo que no.
-3. ¿Mostramos el medio de pago directamente en la columna "Concepto" de la tabla, o agregamos una columna nueva "Medio"?
+Mismo layout que `StorePreorders.tsx`:
+
+**Header / filtros**
+- Título "Pedidos" + botones export (Excel proveedor + PDF resumen).
+- Buscador (cliente, #pedido, producto, DNI/teléfono).
+- Filtros: Producto, Entrega (Sede/Moto), Estado.
+- Chip "Deudores: N (M entregados)" clickeable que filtra deudores.
+- Contador "N pedidos" a la derecha.
+
+**Tabla** (mismas columnas que preventas):
+
+| FECHA | CLIENTE | PRODUCTO | CANT. | ENTREGA | TOTAL | PAGO | ESTADO | ACCIONES |
+
+- **Producto**: agrega cantidad de líneas desde `store_order_items` ("2 productos" o nombre único si es uno solo).
+- **Entrega**: `Sede` (cyan) / `Moto` (orange) / `—`.
+- **PAGO** (pago único, no seña):
+  - 🟢 `PAGADO` → `status` en `pagado/preparando/enviado/entregado` y `pagado_at` no null.
+  - 🔴 `⚠ DEBE $X` (fila con borde rojo + tinte) → `status = entregado` sin `pagado_at`.
+  - 🟡 `PENDIENTE` → resto.
+- **ESTADO**: select con `pendiente`, `pendiente_pago`, `pagado`, `preparando`, `enviado`, `entregado`, `cancelado`.
+- **ACCIONES**: ✉️ recordatorio, 💬 WhatsApp con link de pago, 🏷️ QR/etiqueta, 👁️ ver detalle, 💲 registrar pago.
+
+**Sheet de detalle** (igual que preventas)
+- Cliente (DNI, tel, email).
+- Pedido: lista de `store_order_items` con variante, cantidad, precio.
+- Entrega: editable (cambiar Sede/Moto, dirección, contacto, notas, costo, estado de envío).
+- Pago: botón único "Registrar pago" (abre `ConfirmFullPaymentDialog` con monto total fijo) — sin opción parcial.
+- Notas con trazabilidad.
+
+**Acciones que copio 1:1 de preventas**
+- `enviarRecordatorio` → reusa edge function o adapta `preorder-payment-reminders` para pedidos (ver punto 4).
+- `enviarWhatsApp` → arma link con `/pagar-pedido/:id` (si existe) o `/checkout/:id`. Si no hay flujo público, manda link genérico al perfil del alumno.
+- `imprimirEtiqueta` → reusar `printSinglePreorderLabel` con shape adaptado (sin sena/saldo).
+- `exportarProveedor` (Excel 2 hojas: resumen por talle + detalle por alumno).
+- `exportarPDF` (resumen por talle/variante).
+- `exportarOrdenVenta` (PDF individual).
+
+---
+
+## 3. Helper de etiquetas
+
+`src/lib/preorderLabels.ts` ya acepta los campos. Le paso `sena_monto: total`, `saldo_pendiente: 0`, `estado_pago_sena: pagado_at ? 'confirmada' : 'pendiente'` para que la etiqueta funcione sin cambios, o creo `printSingleOrderLabel` espejo que omita la sección de seña.
+
+Decisión: **crear `printSingleOrderLabel`** para mantener limpio.
+
+---
+
+## 4. Recordatorio por email
+
+Hoy `preorder-payment-reminders` es solo para preventas. Opciones:
+- (a) Crear edge function `order-payment-reminder` espejo (preferido).
+- (b) Agregar a la existente un branch `target: 'order'`.
+
+Voy con (a) para no tocar lo de preventas.
+
+---
+
+## 5. Wrapper `StoreVentas.tsx`
+
+Sin cambios estructurales: ya está la pestaña "Nuevos" + "Pedidos" + "Preventas". La pestaña "Pedidos" pasa a usar el nuevo componente.
+
+La pestaña "Nuevos" hoy reutiliza `StoreOrders` con `restrictStatuses`. **Decisión**: mantener esa prop en el rewrite para no romper "Nuevos".
+
+---
+
+## 6. Lo que NO incluye este plan
+
+- No agrego seña/saldo a pedidos (confirmaste pago único).
+- No toco preventas.
+- No toco la app del alumno (la vista pública sigue como está).
+- La edge function `order-payment-reminder` solo se crea si el template de mail está claro; si no lo está, dejo el botón ✉️ deshabilitado con tooltip y lo activamos en una segunda iteración.
+
+---
+
+## Resumen de cambios
+
+```text
++ supabase/migrations/xxxx_store_orders_entrega.sql
+~ src/pages/admin/store/StoreOrders.tsx           (rewrite completo)
++ src/lib/orderLabels.ts                          (espejo de preorderLabels sin seña)
++ supabase/functions/order-payment-reminder/...   (opcional, ver punto 4)
+```
+
+Sin cambios en `StoreVentas.tsx`, `StorePreorders.tsx`, ni en el portal del alumno.
+
+¿Avanzo así?
