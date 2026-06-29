@@ -5635,6 +5635,7 @@ export type Database = {
       servicios_turnera: {
         Row: {
           activo: boolean
+          anticipacion_horas_minima: number
           created_at: string
           descripcion: string | null
           duracion_minutos: number
@@ -5659,6 +5660,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          anticipacion_horas_minima?: number
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
@@ -5683,6 +5685,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          anticipacion_horas_minima?: number
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number

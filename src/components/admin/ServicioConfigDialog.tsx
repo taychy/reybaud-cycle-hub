@@ -45,6 +45,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
   const [emailRec, setEmailRec] = useState(true);
   const [emailCoach, setEmailCoach] = useState(true);
   const [recHoras, setRecHoras] = useState("24");
+  const [anticipHoras, setAnticipHoras] = useState("24");
   const [ics, setIcs] = useState(true);
   const [pagoModo, setPagoModo] = useState<"ninguno" | "sena" | "total">("ninguno");
   const [pagoSena, setPagoSena] = useState("");
@@ -64,6 +65,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     setEmailRec(servicio.email_recordatorio_enabled ?? true);
     setEmailCoach(servicio.email_coach_enabled ?? true);
     setRecHoras(String(servicio.recordatorio_horas_antes ?? 24));
+    setAnticipHoras(String(servicio.anticipacion_horas_minima ?? 24));
     setIcs(servicio.ics_adjunto ?? true);
     setPagoModo((servicio.pago_modo as any) || "ninguno");
     setPagoSena(servicio.pago_monto_sena != null ? String(servicio.pago_monto_sena) : "");
@@ -107,6 +109,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         email_recordatorio_enabled: emailRec,
         email_coach_enabled: emailCoach,
         recordatorio_horas_antes: Number(recHoras),
+        anticipacion_horas_minima: Math.max(0, Number(anticipHoras) || 0),
         ics_adjunto: ics,
         pago_modo: pagoModo,
         pago_monto_sena: pagoModo === "sena" ? Number(pagoSena) : null,
@@ -162,6 +165,19 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">Anticipación mínima para reservar (horas)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={anticipHoras}
+                  onChange={e => setAnticipHoras(e.target.value)}
+                  placeholder="24"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tiempo mínimo entre el momento de la reserva y el turno. Por defecto 24 horas.
+                </p>
               </div>
               <div className="flex items-center justify-between pt-2">
                 <div>

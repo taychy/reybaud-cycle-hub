@@ -347,6 +347,8 @@ const BookingFlow = () => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     const dayDisps = filteredDisps.filter(d => d.dia_semana === dayOfWeek);
     const duration = servicio.duracion_minutos;
+    const anticipHoras = Number((servicio as any).anticipacion_horas_minima ?? 24);
+    const cutoff = new Date(Date.now() + anticipHoras * 3600 * 1000);
     const map = new Map<string, Slot>();
 
     // Agrupar por coach para aplicar bien los ajustes
@@ -376,7 +378,10 @@ const BookingFlow = () => {
             rv => rv.fecha === dateStr && rv.hora_inicio === t && rv.coach_id === coachId,
           );
           const ausente = isCoachAusente(coachId, dateStr, slotStart, slotEnd);
-          if (!isBooked && !ausente) {
+          const [yy, mm2, dd] = dateStr.split("-").map(Number);
+          const slotDate = new Date(yy, mm2 - 1, dd, Math.floor(cur / 60), cur % 60, 0);
+          const tooSoon = slotDate < cutoff;
+          if (!isBooked && !ausente && !tooSoon) {
             const key = `${coachId}|${r.sede_id ?? "nosede"}|${h}:${m}`;
             if (!map.has(key)) {
               map.set(key, { time: `${h}:${m}`, coach_id: coachId, disponibilidad_id: r.dispId, sede_id: r.sede_id });
