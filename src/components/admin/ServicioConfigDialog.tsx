@@ -65,6 +65,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     setEmailRec(servicio.email_recordatorio_enabled ?? true);
     setEmailCoach(servicio.email_coach_enabled ?? true);
     setRecHoras(String(servicio.recordatorio_horas_antes ?? 24));
+    setAnticipHoras(String(servicio.anticipacion_horas_minima ?? 24));
     setIcs(servicio.ics_adjunto ?? true);
     setPagoModo((servicio.pago_modo as any) || "ninguno");
     setPagoSena(servicio.pago_monto_sena != null ? String(servicio.pago_monto_sena) : "");
