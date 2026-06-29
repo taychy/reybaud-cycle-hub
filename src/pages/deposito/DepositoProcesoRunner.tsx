@@ -22,6 +22,7 @@ import {
 import StockCountStage from "@/components/deposito/StockCountStage";
 import StockComparisonStage from "@/components/deposito/StockComparisonStage";
 import SupplierOrderCheckStage from "@/components/deposito/SupplierOrderCheckStage";
+import FinalReportStage from "@/components/deposito/FinalReportStage";
 
 const DepositoProcesoRunner = () => {
   const { instanceId } = useParams<{ instanceId: string }>();
