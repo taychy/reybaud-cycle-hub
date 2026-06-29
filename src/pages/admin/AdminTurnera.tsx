@@ -228,6 +228,10 @@ const AdminTurnera = () => {
           />
         </TabsContent>
 
+        <TabsContent value="ajustes" className="space-y-4 mt-4">
+          <DisponibilidadAjustadaManager coaches={coaches} />
+        </TabsContent>
+
         <TabsContent value="reservas" className="mt-4">
           <Table>
             <TableHeader>
