@@ -1698,6 +1698,53 @@ export type Database = {
           },
         ]
       }
+      disponibilidad_ajustada: {
+        Row: {
+          coach_id: string | null
+          creado_por: string | null
+          created_at: string
+          fecha: string
+          hora_fin: string | null
+          hora_inicio: string | null
+          id: string
+          motivo: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          coach_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          fecha: string
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: string
+          motivo?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          fecha?: string
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: string
+          motivo?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disponibilidad_ajustada_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disponibilidad_coaches: {
         Row: {
           activo: boolean
@@ -7342,6 +7389,17 @@ export type Database = {
       get_cuenta_publica: {
         Args: { p_ip?: string; p_token: string; p_user_agent?: string }
         Returns: Json
+      }
+      get_disponibilidad_ajustada_publica: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          coach_id: string
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          tipo: string
+        }[]
       }
       get_gasto_recurrente_saldo_deuda: {
         Args: { p_rec_id: string }
