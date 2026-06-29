@@ -608,18 +608,24 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const planPrice = sub.planes?.precio || 0;
     const moneda = sub.planes?.moneda || "ARS";
     const hasSavedDiscount = sub.descuento_id && sub.descuentos;
-    const liveDiscount = !hasSavedDiscount ? applyDiscount(planPrice, "planes", isSecondary) : null;
+    // Precio REAL de la suscripción (con el que se generó factura y cuenta corriente).
+    // Si no hay precio guardado, recién ahí caemos al precio actual del plan.
+    const subBase = sub.precio_base ?? planPrice;
+    const subFinal = sub.precio_final ?? subBase;
+    const liveDiscount = !hasSavedDiscount ? applyDiscount(subBase, "planes", isSecondary) : null;
     const hasLiveDiscount = liveDiscount && liveDiscount.discount;
     const hasAnyDiscount = hasSavedDiscount || hasLiveDiscount;
 
-    const displayBase = hasSavedDiscount ? (sub.precio_base ?? planPrice) : planPrice;
+    const displayBase = subBase;
     const displayFinal = hasSavedDiscount
-      ? (sub.precio_final ?? planPrice)
-      : hasLiveDiscount ? liveDiscount.final : planPrice;
+      ? subFinal
+      : hasLiveDiscount ? liveDiscount.final : subFinal;
     const discountLabel = hasSavedDiscount
       ? `${sub.descuentos!.nombre} (${sub.descuentos!.tipo === "fijo" ? `$${sub.descuentos!.valor}` : `${sub.descuentos!.valor}%`})`
       : hasLiveDiscount ? `${liveDiscount.discount!.nombre} (${liveDiscount.discount!.tipo === "fijo" ? `$${liveDiscount.discount!.valor}` : `${liveDiscount.discount!.valor}%`})` : "";
     const savings = displayBase - displayFinal;
+    // Aviso si el plan tiene hoy otro precio distinto al guardado en la sub (sin descuentos)
+    const planPriceMismatch = !hasAnyDiscount && sub.precio_base != null && planPrice > 0 && Number(sub.precio_base) !== Number(planPrice);
 
     // Etiqueta de período (sólo para activas)
     const fiISO = (sub.fecha_inicio || "").slice(0, 10);
