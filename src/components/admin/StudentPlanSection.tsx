@@ -472,11 +472,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
       // Compose internal note with payment data
-      const fechaPagoLabel = payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
+      const isUnpaidAdd = dialogMode === "add" && payStatus !== "pagado";
+      const fechaPagoLabel = !isUnpaidAdd && payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
       const metodoLabel = PAYMENT_METHODS.find(m => m.key === payMetodo)?.label || payMetodo;
       const payTagParts: string[] = [];
-      if (fechaPagoLabel) payTagParts.push(`Pagado el ${fechaPagoLabel}`);
-      payTagParts.push(`vía ${metodoLabel}`);
+      if (isUnpaidAdd) {
+        payTagParts.push(payStatus === "vencida" ? "Cargado como VENCIDO (deuda)" : "Cargado como PENDIENTE de pago");
+      } else {
+        if (fechaPagoLabel) payTagParts.push(`Pagado el ${fechaPagoLabel}`);
+        payTagParts.push(`vía ${metodoLabel}`);
+      }
       const payTag = `[${payTagParts.join(" ")}]`;
       const composedNote = [changeNote?.trim() || null, payTag].filter(Boolean).join(" ");
 
@@ -491,14 +496,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             : Math.max(0, precioBase - discount.valor);
         }
 
+        const subEstado = payStatus === "pagado" ? "activa" : payStatus; // 'pendiente' | 'vencida'
+
         const { data: newSub, error: insertError } = await supabase.from("suscripciones").insert({
           alumno_id: alumno.id,
           plan_id: newPlanId,
-          estado: "activa",
+          estado: subEstado,
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
-          mp_status: payMetodo,
-          metodo_pago: payMetodo,
+          mp_status: isUnpaidAdd ? null : payMetodo,
+          metodo_pago: isUnpaidAdd ? null : payMetodo,
           origen_registro: "cargado_admin",
           descuento_id: discount?.id || null,
           precio_base: precioBase,
@@ -522,10 +529,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         }
 
         const discountText = discount ? ` (con dto. ${discount.nombre}: ${discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`})` : "";
-        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}`);
+        const statusText = isUnpaidAdd ? ` · ${payStatus === "vencida" ? "VENCIDO (deuda manual)" : "PENDIENTE de pago"}` : "";
+        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}${statusText}`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${isUnpaidAdd ? statusText : (fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`)}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
