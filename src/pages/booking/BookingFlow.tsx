@@ -347,6 +347,8 @@ const BookingFlow = () => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     const dayDisps = filteredDisps.filter(d => d.dia_semana === dayOfWeek);
     const duration = servicio.duracion_minutos;
+    const anticipHoras = Number((servicio as any).anticipacion_horas_minima ?? 24);
+    const cutoff = new Date(Date.now() + anticipHoras * 3600 * 1000);
     const map = new Map<string, Slot>();
 
     // Agrupar por coach para aplicar bien los ajustes
