@@ -723,10 +723,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                     )}
                   </td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <Select value={r.status} onValueChange={(v) => updateField(r.id, { status: v } as any)}>
+                    <Select
+                      value={r.status}
+                      onValueChange={(v) => updateField(r.id, { status: v } as any)}
+                      disabled={r.status === "cancelado"}
+                    >
                       <SelectTrigger className={`h-7 text-xs w-[160px] mx-auto ${estadoColor(r.status)}`}><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {STATUSES.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
+                        {STATUSES.filter((e) => e !== "cancelado").map((e) => (
+                          <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -746,6 +752,11 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
                         <Eye className="w-4 h-4" />
                       </Button>
+                      {r.status !== "cancelado" && (
+                        <Button size="sm" variant="ghost" title="Anular pedido (devuelve stock)" className="text-destructive hover:text-destructive" onClick={() => { setCancelOrder(r); setCancelReason(""); }}>
+                          <Ban className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
