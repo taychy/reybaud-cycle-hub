@@ -214,6 +214,7 @@ const App = () => (
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
+            <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
           <Route path="/reservar" element={<BookingLanding />} />
           <Route path="/reservar/confirmacion" element={<TurneraConfirmacion />} />
