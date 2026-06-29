@@ -142,12 +142,14 @@ export default function AdminCuentaCorriente() {
       if (saldoFilter === "a_favor" && saldo >= -0.01) return false;
       if (saldoFilter === "al_dia" && Math.abs(saldo) > 0.01) return false;
       if (q) {
-        const haystack = `${r.nombre} ${r.apellido} ${r.email || ""} ${r.telefono || ""}`.toLowerCase();
+        const bancarios = (bancariosMap[r.alumno_id] || []).join(" ");
+        const haystack = `${r.nombre} ${r.apellido} ${r.email || ""} ${r.telefono || ""} ${bancarios}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [rows, search, monedaFilter, sedeFilter, grupoFilter, saldoFilter]);
+  }, [rows, search, monedaFilter, sedeFilter, grupoFilter, saldoFilter, bancariosMap]);
+
 
   // KPIs por moneda (sobre TODOS los rows, no los filtrados)
   const kpis = useMemo(() => {
