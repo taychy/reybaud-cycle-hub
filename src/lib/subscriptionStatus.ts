@@ -157,6 +157,8 @@ export function getAccessPermissions(subs: SubStatusInput[]): AccessPermissions 
   const hasPendingVerification = statuses.includes("pendiente_verificacion");
   const hasPagoPendiente = statuses.includes("pago_pendiente");
   const hasAccesoPausado = statuses.includes("acceso_pausado");
+  // Subs cargadas por admin sin pago (Gustavo Rosa et al): deben restringir igual que acceso_pausado
+  const hasDeudaManual = statuses.includes("pendiente") || statuses.includes("vencida");
 
   // Best status wins
   if (hasActive || hasPendingVerification) {
