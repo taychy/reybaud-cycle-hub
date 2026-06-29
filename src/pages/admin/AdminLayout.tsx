@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -46,6 +46,7 @@ const storeItems: NavItem[] = [
   { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
   { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
   { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
+  { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
   { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
   { to: "/admin/tienda/banners", label: "Banners", icon: Image },
   { to: "/admin/tienda/stock", label: "Stock", icon: Package },

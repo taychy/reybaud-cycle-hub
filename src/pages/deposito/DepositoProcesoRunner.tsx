@@ -20,6 +20,7 @@ import {
   ProcessInstanceStage,
 } from "@/hooks/useProcesses";
 import StockCountStage from "@/components/deposito/StockCountStage";
+import SupplierOrderCheckStage from "@/components/deposito/SupplierOrderCheckStage";
 
 const DepositoProcesoRunner = () => {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -218,6 +219,17 @@ const DepositoProcesoRunner = () => {
             initialNota={current.nota}
             onConfirm={({ nota, entidad_ref_texto }) =>
               submitStageWithPayload({ nota, entidad_ref_texto, foto_url: null, entidad_ref_id: null })
+            }
+            onCancel={handleCancel}
+          />
+        ) : currentTpl.entidad_control === "supplier_order" ? (
+          <SupplierOrderCheckStage
+            saving={saving}
+            isLast={currentIdx === totalStages - 1}
+            initialOrderId={current.entidad_ref_id}
+            initialNota={current.nota}
+            onConfirm={({ nota, entidad_ref_id }) =>
+              submitStageWithPayload({ nota, entidad_ref_id, entidad_ref_texto: null, foto_url: null })
             }
             onCancel={handleCancel}
           />
