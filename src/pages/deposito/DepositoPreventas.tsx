@@ -105,6 +105,7 @@ const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {})
   };
 
   const filtered = rows.filter((r) => {
+    if (restrictEstados && !restrictEstados.includes(r.estado)) return false;
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
     if (search) {
       const s = search.toLowerCase();
