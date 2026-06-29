@@ -660,7 +660,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })
             )}
