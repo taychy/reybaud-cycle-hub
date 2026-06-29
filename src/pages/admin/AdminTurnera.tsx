@@ -15,6 +15,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ServicioConfigDialog } from "@/components/admin/ServicioConfigDialog";
+import { DisponibilidadAjustadaManager } from "@/components/admin/DisponibilidadAjustadaManager";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -137,6 +138,7 @@ const AdminTurnera = () => {
         <TabsList>
           <TabsTrigger value="servicios">Servicios</TabsTrigger>
           <TabsTrigger value="disponibilidad">Disponibilidad</TabsTrigger>
+          <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
         </TabsList>
 
@@ -224,6 +226,10 @@ const AdminTurnera = () => {
             disponibilidades={disponibilidades}
             reload={loadAll}
           />
+        </TabsContent>
+
+        <TabsContent value="ajustes" className="space-y-4 mt-4">
+          <DisponibilidadAjustadaManager coaches={coaches} />
         </TabsContent>
 
         <TabsContent value="reservas" className="mt-4">
