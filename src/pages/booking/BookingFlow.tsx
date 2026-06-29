@@ -378,7 +378,10 @@ const BookingFlow = () => {
             rv => rv.fecha === dateStr && rv.hora_inicio === t && rv.coach_id === coachId,
           );
           const ausente = isCoachAusente(coachId, dateStr, slotStart, slotEnd);
-          if (!isBooked && !ausente) {
+          const [yy, mm2, dd] = dateStr.split("-").map(Number);
+          const slotDate = new Date(yy, mm2 - 1, dd, Math.floor(cur / 60), cur % 60, 0);
+          const tooSoon = slotDate < cutoff;
+          if (!isBooked && !ausente && !tooSoon) {
             const key = `${coachId}|${r.sede_id ?? "nosede"}|${h}:${m}`;
             if (!map.has(key)) {
               map.set(key, { time: `${h}:${m}`, coach_id: coachId, disponibilidad_id: r.dispId, sede_id: r.sede_id });
