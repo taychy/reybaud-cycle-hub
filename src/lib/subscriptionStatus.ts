@@ -208,6 +208,21 @@ export function getAccessPermissions(subs: SubStatusInput[]): AccessPermissions 
     };
   }
 
+  if (hasDeudaManual) {
+    return {
+      canViewHome: true,
+      canViewEvents: false,
+      canViewProgress: false,
+      canViewStore: false,
+      canViewMore: true,
+      canMarkTraining: false,
+      canReserveActivities: false,
+      bannerMessage: "Tenés una mensualidad pendiente de pago. Regularizá tu cuota para reactivar el acceso completo.",
+      bannerType: "error",
+      status: "acceso_pausado",
+    };
+  }
+
   // No subs at all, or all cancelled/vencida — alumno needs to pick/regularize a plan
   const hasAnySub = subs.length > 0;
   const allInactive = statuses.every(
