@@ -107,6 +107,9 @@ export function useAlumnoSession() {
 
     const hasAccess = (recentSubs || []).some((sub: any) => {
       if (sub.estado === "pendiente_verificacion") return true;
+      // Subs cargadas como pendientes/vencidas por admin: el alumno entra a la app
+      // con acceso restringido (banner "pago pendiente" lo limita en getAccessPermissions).
+      if (sub.estado === "pendiente" || sub.estado === "vencida") return true;
       if (sub.estado !== "activa") return false;
       if (!sub.fecha_fin) return true;
       // Parse date parts to avoid timezone drift
