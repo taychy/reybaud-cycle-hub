@@ -316,6 +316,7 @@ export type Database = {
           motivo_baja: string | null
           nombre: string
           nombre_fiscal: string | null
+          nombres_bancarios: string[]
           notas: string | null
           obra_social_nombre: string | null
           obra_social_numero_socio: string | null
@@ -375,6 +376,7 @@ export type Database = {
           motivo_baja?: string | null
           nombre: string
           nombre_fiscal?: string | null
+          nombres_bancarios?: string[]
           notas?: string | null
           obra_social_nombre?: string | null
           obra_social_numero_socio?: string | null
@@ -434,6 +436,7 @@ export type Database = {
           motivo_baja?: string | null
           nombre?: string
           nombre_fiscal?: string | null
+          nombres_bancarios?: string[]
           notas?: string | null
           obra_social_nombre?: string | null
           obra_social_numero_socio?: string | null

@@ -65,6 +65,7 @@ export default function AdminCuentaCorriente() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Saldo[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
+  const [bancariosMap, setBancariosMap] = useState<Record<string, string[]>>({});
 
   const [search, setSearch] = useState("");
   const [monedaFilter, setMonedaFilter] = useState<string>("all");
@@ -75,9 +76,10 @@ export default function AdminCuentaCorriente() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [saldosRes, sedesRes] = await Promise.all([
+    const [saldosRes, sedesRes, alumnosRes] = await Promise.all([
       supabase.rpc("get_saldos_todos_alumnos" as any),
       supabase.from("sedes").select("id, nombre").order("nombre"),
+      supabase.from("alumnos").select("id, nombres_bancarios" as any),
     ]);
     if (saldosRes.error) {
       console.error(saldosRes.error);
@@ -86,8 +88,16 @@ export default function AdminCuentaCorriente() {
       setRows((saldosRes.data || []) as Saldo[]);
     }
     if (sedesRes.data) setSedes(sedesRes.data as Sede[]);
+    const map: Record<string, string[]> = {};
+    for (const a of (alumnosRes.data || []) as any[]) {
+      if (Array.isArray(a.nombres_bancarios) && a.nombres_bancarios.length) {
+        map[a.id] = a.nombres_bancarios as string[];
+      }
+    }
+    setBancariosMap(map);
     setLoading(false);
   }, []);
+
 
   useEffect(() => {
     fetchData();
@@ -132,12 +142,14 @@ export default function AdminCuentaCorriente() {
       if (saldoFilter === "a_favor" && saldo >= -0.01) return false;
       if (saldoFilter === "al_dia" && Math.abs(saldo) > 0.01) return false;
       if (q) {
-        const haystack = `${r.nombre} ${r.apellido} ${r.email || ""} ${r.telefono || ""}`.toLowerCase();
+        const bancarios = (bancariosMap[r.alumno_id] || []).join(" ");
+        const haystack = `${r.nombre} ${r.apellido} ${r.email || ""} ${r.telefono || ""} ${bancarios}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [rows, search, monedaFilter, sedeFilter, grupoFilter, saldoFilter]);
+  }, [rows, search, monedaFilter, sedeFilter, grupoFilter, saldoFilter, bancariosMap]);
+
 
   // KPIs por moneda (sobre TODOS los rows, no los filtrados)
   const kpis = useMemo(() => {
@@ -312,7 +324,7 @@ export default function AdminCuentaCorriente() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar alumno, email, teléfono…"
+            placeholder="Buscar alumno, email, teléfono o nombre bancario…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9 bg-secondary border-border"

@@ -133,7 +133,7 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "" });
+  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "", nombres_bancarios: "" });
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
@@ -395,10 +395,12 @@ const ManageStudents = () => {
   const filtered = alumnos.filter((a) => {
     const normalizedSearch = search.toLowerCase().trim();
     const fullName = `${a.nombre} ${getApellido(a)}`.toLowerCase().replace(/\s+/g, " ").trim();
+    const nombresBancarios: string[] = ((a as any).nombres_bancarios || []) as string[];
     const matchesSearch = fullName.includes(normalizedSearch) ||
       a.email.toLowerCase().includes(normalizedSearch) ||
       a.nombre.toLowerCase().includes(normalizedSearch) ||
-      getApellido(a).toLowerCase().includes(normalizedSearch);
+      getApellido(a).toLowerCase().includes(normalizedSearch) ||
+      nombresBancarios.some((nb) => (nb || "").toLowerCase().includes(normalizedSearch));
     if (!matchesSearch) return false;
     switch (statusFilter) {
       case "pendientes": return a.estado === "pendiente";
@@ -573,11 +575,17 @@ const ManageStudents = () => {
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
       notas: alumno.notas || "",
+      nombres_bancarios: ((alumno as any).nombres_bancarios || []).join(", "),
     });
   };
 
   const saveDetail = async () => {
     if (!drawerAlumno) return;
+
+    const nombresBancariosArr = detailForm.nombres_bancarios
+      .split(/[,\n;]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const payload = {
       nombre: detailForm.nombre.trim(),
@@ -586,6 +594,7 @@ const ManageStudents = () => {
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
       notas: detailForm.notas.trim() || null,
+      nombres_bancarios: nombresBancariosArr,
     } as any;
 
     const { data, error } = await supabase
@@ -614,6 +623,7 @@ const ManageStudents = () => {
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
       notas: updatedAlumno.notas || "",
+      nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
 
     toast.success("Datos actualizados");
@@ -1063,7 +1073,8 @@ const ManageStudents = () => {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nombre o email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-secondary border-border" />
+              <Input placeholder="Buscar por nombre, email o nombre bancario..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-secondary border-border" />
+
             </div>
             <Button variant="gold" size={isMobile ? "sm" : "default"} onClick={() => setShowCreate(true)}>
               <Plus className="w-4 h-4 mr-1" /> {isMobile ? "Nuevo" : "Agregar Alumno"}
@@ -1448,6 +1459,18 @@ const ManageStudents = () => {
                               <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                             </div>
                           </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Nombres bancarios / titulares</Label>
+                            <Input
+                              value={detailForm.nombres_bancarios}
+                              onChange={(e) => setDetailForm({ ...detailForm, nombres_bancarios: e.target.value })}
+                              className="bg-secondary border-border text-sm h-8"
+                              placeholder="Ej: Juan Pérez SRL, María García"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Titulares con los que el alumno aparece en transferencias bancarias / MP (separar con coma). Aparece en el buscador.
+                            </p>
+                          </div>
                           {/* Las notas internas se gestionan abajo como lista (multiples notas) */}
                           <Button variant="gold" size="sm" onClick={saveDetail} className="w-full">Guardar cambios</Button>
                         </div>
@@ -1458,9 +1481,16 @@ const ManageStudents = () => {
                           <DetailRow label="Email" value={drawerAlumno.email} mono />
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
+                          {(((drawerAlumno as any).nombres_bancarios as string[]) || []).length > 0 && (
+                            <DetailRow
+                              label="Nombres bancarios"
+                              value={(((drawerAlumno as any).nombres_bancarios as string[]) || []).join(", ")}
+                            />
+                          )}
                         </div>
                       )}
                     </div>
+
 
                     <Separator />
 
