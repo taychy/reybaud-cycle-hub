@@ -310,6 +310,49 @@ const BookingFlow = () => {
     });
   };
 
+  // Ajustes para un coach + fecha (incluye los globales)
+  const ajustesFor = (coachId: string, dateStr: string) =>
+    ajustes.filter(a => a.fecha === dateStr && (a.coach_id === null || a.coach_id === coachId));
+
+  // Construye los rangos efectivos [iniMin, finMin] de un coach para una fecha
+  // a partir de la disponibilidad semanal + ajustes (bloquear/reemplazar/agregar)
+  const rangosEfectivos = (coachId: string, sedeId: string | null, baseRanges: Disponibilidad[], dateStr: string): Array<{ ini: number; fin: number; sede_id: string | null; dispId: string }> => {
+    const aj = ajustesFor(coachId, dateStr);
+    if (aj.some(a => a.tipo === "bloquear")) return [];
+
+    const reemplazos = aj.filter(a => a.tipo === "reemplazar" && a.hora_inicio && a.hora_fin);
+    const extras = aj.filter(a => a.tipo === "agregar" && a.hora_inicio && a.hora_fin);
+
+    const toMin = (hhmmss: string) => {
+      const [h, m] = hhmmss.split(":").map(Number); return h * 60 + m;
+    };
+
+    const baseSinDispId = baseRanges.map(d => ({
+      ini: toMin(d.hora_inicio), fin: toMin(d.hora_fin), sede_id: d.sede_id, dispId: d.id,
+    }));
+
+    // Si hay reemplazos, esos sustituyen el horario base de ese día
+    const principales = reemplazos.length > 0
+      ? reemplazos.map(a => ({ ini: toMin(a.hora_inicio!), fin: toMin(a.hora_fin!), sede_id: sedeId, dispId: `ajuste-${a.id}` }))
+      : baseSinDispId;
+
+    const extrasMap = extras.map(a => ({ ini: toMin(a.hora_inicio!), fin: toMin(a.hora_fin!), sede_id: sedeId, dispId: `ajuste-${a.id}` }));
+    return [...principales, ...extrasMap];
+  };
+
+  // Devuelve true si el coach está ausente ese día/hora
+  const isCoachAusente = (coachId: string, dateStr: string, slotStart: string, slotEnd: string) => {
+    return ausencias.some(a => {
+      if (a.coach_id !== coachId) return false;
+      if (dateStr < a.fecha_inicio || dateStr > a.fecha_fin) return false;
+      if (a.todo_el_dia) return true;
+      if (!a.hora_inicio || !a.hora_fin) return true;
+      const aIni = a.hora_inicio.slice(0, 5);
+      const aFin = a.hora_fin.slice(0, 5);
+      return slotStart < aFin && slotEnd > aIni;
+    });
+  };
+
   const getAvailableSlots = (date: Date): Slot[] => {
     if (!servicio) return [];
     const dayOfWeek = date.getDay();
@@ -317,29 +360,42 @@ const BookingFlow = () => {
     const dayDisps = filteredDisps.filter(d => d.dia_semana === dayOfWeek);
     const duration = servicio.duracion_minutos;
     const map = new Map<string, Slot>();
-    for (const disp of dayDisps) {
-      const [sH, sM] = disp.hora_inicio.split(":").map(Number);
-      const [eH, eM] = disp.hora_fin.split(":").map(Number);
-      let cur = sH * 60 + sM;
-      const end = eH * 60 + eM;
-      while (cur + duration <= end) {
-        const h = String(Math.floor(cur / 60)).padStart(2, "0");
-        const m = String(cur % 60).padStart(2, "0");
-        const t = `${h}:${m}:00`;
-        const slotStart = `${h}:${m}`;
-        const slotEndMin = cur + duration;
-        const slotEnd = `${String(Math.floor(slotEndMin / 60)).padStart(2, "0")}:${String(slotEndMin % 60).padStart(2, "0")}`;
-        const isBooked = reservasExistentes.some(
-          r => r.fecha === dateStr && r.hora_inicio === t && r.coach_id === disp.coach_id,
-        );
-        const ausente = isCoachAusente(disp.coach_id, dateStr, slotStart, slotEnd);
-        if (!isBooked && !ausente) {
-          const key = `${disp.coach_id}|${disp.sede_id ?? "nosede"}|${h}:${m}`;
-          if (!map.has(key)) {
-            map.set(key, { time: `${h}:${m}`, coach_id: disp.coach_id, disponibilidad_id: disp.id, sede_id: disp.sede_id });
+
+    // Agrupar por coach para aplicar bien los ajustes
+    const coachIdsDelDia = Array.from(new Set([
+      ...dayDisps.map(d => d.coach_id),
+      ...ajustes.filter(a => a.fecha === dateStr && a.tipo !== "bloquear").map(a => a.coach_id).filter(Boolean) as string[],
+    ]));
+
+    for (const coachId of coachIdsDelDia) {
+      // Respetar filtro de coach seleccionado
+      if (selectedCoach && selectedCoach !== "any" && coachId !== selectedCoach) continue;
+
+      const baseCoachRanges = dayDisps.filter(d => d.coach_id === coachId);
+      const sedeBase = baseCoachRanges[0]?.sede_id ?? null;
+      const ranges = rangosEfectivos(coachId, sedeBase, baseCoachRanges, dateStr);
+
+      for (const r of ranges) {
+        let cur = r.ini;
+        while (cur + duration <= r.fin) {
+          const h = String(Math.floor(cur / 60)).padStart(2, "0");
+          const m = String(cur % 60).padStart(2, "0");
+          const t = `${h}:${m}:00`;
+          const slotStart = `${h}:${m}`;
+          const slotEndMin = cur + duration;
+          const slotEnd = `${String(Math.floor(slotEndMin / 60)).padStart(2, "0")}:${String(slotEndMin % 60).padStart(2, "0")}`;
+          const isBooked = reservasExistentes.some(
+            rv => rv.fecha === dateStr && rv.hora_inicio === t && rv.coach_id === coachId,
+          );
+          const ausente = isCoachAusente(coachId, dateStr, slotStart, slotEnd);
+          if (!isBooked && !ausente) {
+            const key = `${coachId}|${r.sede_id ?? "nosede"}|${h}:${m}`;
+            if (!map.has(key)) {
+              map.set(key, { time: `${h}:${m}`, coach_id: coachId, disponibilidad_id: r.dispId, sede_id: r.sede_id });
+            }
           }
+          cur += duration;
         }
-        cur += duration;
       }
     }
     return Array.from(map.values()).sort((a, b) =>
@@ -353,15 +409,28 @@ const BookingFlow = () => {
     if (date < new Date(new Date().setHours(0, 0, 0, 0))) return true;
     const dow = date.getDay();
     const dayDisps = filteredDisps.filter(d => d.dia_semana === dow);
-    if (dayDisps.length === 0) return true;
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    // Si todos los coaches con disponibilidad ese día están ausentes el día completo, deshabilitar
-    const coachesDelDia = Array.from(new Set(dayDisps.map(d => d.coach_id)));
-    const todosAusentesTodoElDia = coachesDelDia.every(cid =>
-      ausencias.some(a => a.coach_id === cid && a.todo_el_dia && dateStr >= a.fecha_inicio && dateStr <= a.fecha_fin)
-    );
-    return todosAusentesTodoElDia;
+
+    // Coaches con disponibilidad ese día (semanal o por ajuste agregar/reemplazar)
+    const coachesSemana = Array.from(new Set(dayDisps.map(d => d.coach_id)));
+    const coachesExtra = Array.from(new Set(
+      ajustes.filter(a => a.fecha === dateStr && a.tipo !== "bloquear" && a.coach_id).map(a => a.coach_id as string)
+    ));
+    const coachesDelDia = Array.from(new Set([...coachesSemana, ...coachesExtra]));
+    if (coachesDelDia.length === 0) return true;
+
+    // Bloqueo global ese día
+    if (ajustes.some(a => a.fecha === dateStr && a.tipo === "bloquear" && a.coach_id === null)) return true;
+
+    // Todos los coaches del día están bloqueados/ausentes ese día
+    const todosFuera = coachesDelDia.every(cid => {
+      const blockedByAjuste = ajustes.some(a => a.fecha === dateStr && a.tipo === "bloquear" && (a.coach_id === null || a.coach_id === cid));
+      const ausenteTodoElDia = ausencias.some(a => a.coach_id === cid && a.todo_el_dia && dateStr >= a.fecha_inicio && dateStr <= a.fecha_fin);
+      return blockedByAjuste || ausenteTodoElDia;
+    });
+    return todosFuera;
   };
+
 
 
   const slots = selectedDate ? getAvailableSlots(selectedDate) : [];
