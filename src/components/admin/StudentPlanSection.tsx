@@ -973,30 +973,59 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Select>
             </div>
 
+            {/* Estado de pago — sólo al AGREGAR */}
+            {dialogMode === "add" && (
+              <div className="space-y-2 rounded-md bg-secondary/40 border border-border p-3">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Estado del pago</Label>
+                <RadioGroup
+                  value={payStatus}
+                  onValueChange={(v) => setPayStatus(v as "pagado" | "pendiente" | "vencida")}
+                  className="gap-2"
+                >
+                  <label className="flex items-start gap-2 cursor-pointer text-xs">
+                    <RadioGroupItem value="pagado" className="mt-0.5" />
+                    <span><span className="font-medium text-foreground">Ya pagado</span> — registra la suscripción como activa y pagada.</span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer text-xs">
+                    <RadioGroupItem value="pendiente" className="mt-0.5" />
+                    <span><span className="font-medium text-amber-300">Pendiente de pago</span> — el alumno tiene acceso restringido y aparece en "Por cobrar".</span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer text-xs">
+                    <RadioGroupItem value="vencida" className="mt-0.5" />
+                    <span><span className="font-medium text-destructive">Vencido (deuda)</span> — pago a mes vencido tipo Gustavo Rosa: queda como deuda hasta que se registre el cobro.</span>
+                  </label>
+                </RadioGroup>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-xs">Fecha de inicio</Label>
                 <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Fecha de pago</Label>
-                <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
-              </div>
+              {(dialogMode === "change" || payStatus === "pagado") && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Fecha de pago</Label>
+                  <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs">Método de pago</Label>
-              <Select value={payMetodo} onValueChange={setPayMetodo}>
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue placeholder="Seleccionar método" />
-                </SelectTrigger>
-                <SelectContent className="z-[200]">
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {(dialogMode === "change" || payStatus === "pagado") && (
+              <div className="space-y-2">
+                <Label className="text-xs">Método de pago</Label>
+                <Select value={payMetodo} onValueChange={setPayMetodo}>
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue placeholder="Seleccionar método" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[200]">
+                    {PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Use current (updated) price toggle — only when changing an existing plan */}
             {dialogMode === "change" && newPlanId && (() => {
