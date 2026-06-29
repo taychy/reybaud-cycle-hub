@@ -118,6 +118,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
 
 
   const filtered = orders.filter((o) => {
+    if (restrictStatuses && !restrictStatuses.includes(o.status)) return false;
     if (search && !o.customer_name.toLowerCase().includes(search.toLowerCase()) && !String(o.order_number).includes(search)) return false;
     if (filterStatus !== "all" && o.status !== filterStatus) return false;
     return true;
@@ -127,9 +128,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
 
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando pedidos...</div>;
 
+  const statusesParaFiltro = restrictStatuses
+    ? STATUSES.filter((s) => restrictStatuses.includes(s.value))
+    : STATUSES;
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-heading font-bold">Pedidos</h1>
+      <div>
+        <h1 className="text-2xl font-heading font-bold">{title}</h1>
+        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
@@ -139,11 +147,13 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            <SelectItem value="all">{restrictStatuses ? "Todos (nuevos)" : "Todos"}</SelectItem>
+            {statusesParaFiltro.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        <div className="text-xs text-muted-foreground self-center ml-auto">{filtered.length} pedido(s)</div>
       </div>
+
 
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
