@@ -71,6 +71,8 @@ import DepositoLayout from "./pages/deposito/DepositoLayout";
 import DepositoStock from "./pages/deposito/DepositoStock";
 import DepositoMovimientos from "./pages/deposito/DepositoMovimientos";
 import DepositoAlertas from "./pages/deposito/DepositoAlertas";
+import DepositoProcesoRunner from "./pages/deposito/DepositoProcesoRunner";
+import AdminProcessTemplates from "./pages/admin/AdminProcessTemplates";
 import DepositoVentas from "./pages/deposito/DepositoVentas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
