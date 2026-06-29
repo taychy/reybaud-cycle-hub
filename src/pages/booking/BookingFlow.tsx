@@ -340,18 +340,6 @@ const BookingFlow = () => {
     return [...principales, ...extrasMap];
   };
 
-  // Devuelve true si el coach está ausente ese día/hora
-  const isCoachAusente = (coachId: string, dateStr: string, slotStart: string, slotEnd: string) => {
-    return ausencias.some(a => {
-      if (a.coach_id !== coachId) return false;
-      if (dateStr < a.fecha_inicio || dateStr > a.fecha_fin) return false;
-      if (a.todo_el_dia) return true;
-      if (!a.hora_inicio || !a.hora_fin) return true;
-      const aIni = a.hora_inicio.slice(0, 5);
-      const aFin = a.hora_fin.slice(0, 5);
-      return slotStart < aFin && slotEnd > aIni;
-    });
-  };
 
   const getAvailableSlots = (date: Date): Slot[] => {
     if (!servicio) return [];
