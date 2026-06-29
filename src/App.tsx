@@ -202,6 +202,7 @@ const App = () => (
             <Route path="tienda/stock" element={<StoreStock />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
+            <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
           </Route>
           <Route path="/deposito/login" element={<Navigate to="/admin/login?returnTo=/deposito" replace />} />
           <Route path="/deposito" element={<ProtectedRoute allowedRoles={["deposito"]} loginPath="/admin/login?returnTo=/deposito"><DepositoLayout /></ProtectedRoute>}>
