@@ -177,10 +177,32 @@ const StorePreorders = () => {
     [rows]
   );
 
+  // Estado de pago consolidado de la preventa
+  // - "pagado": no debe nada
+  // - "deuda_entregada": entregada con saldo > 0 (caso crítico)
+  // - "saldo_resta": pagó seña, queda saldo (pre-entrega)
+  // - "sin_pago": no pagó ni seña
+  // - "irrelevante": cancelada / vencida
+  const getPagoStatus = (r: Preorder) => {
+    if (r.estado === "cancelada" || r.estado === "vencida") return "irrelevante" as const;
+    const total = Number(r.precio_total || 0);
+    const cobrado = Number(r.sena_monto || 0);
+    const saldo = Number(r.saldo_pendiente ?? (total - cobrado));
+    const senaConfirmada = r.estado_pago_sena === "confirmada";
+    if (saldo <= 0.01 && senaConfirmada) return "pagado" as const;
+    if (r.estado === "entregada" && saldo > 0) return "deuda_entregada" as const;
+    if (senaConfirmada && saldo > 0) return "saldo_resta" as const;
+    return "sin_pago" as const;
+  };
+
   const filtered = rows.filter((r) => {
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
     if (filterEntrega !== "all" && (r.entrega_metodo || "") !== filterEntrega) return false;
     if (filterProducto !== "all" && r.producto_nombre !== filterProducto) return false;
+    if (soloDeudores) {
+      const s = getPagoStatus(r);
+      if (s !== "deuda_entregada" && s !== "saldo_resta" && s !== "sin_pago") return false;
+    }
     if (search) {
       const s = search.toLowerCase();
       const al = alumnosMap[r.alumno_id];
@@ -192,6 +214,18 @@ const StorePreorders = () => {
     }
     return true;
   });
+
+  const deudoresCount = useMemo(
+    () => rows.filter((r) => {
+      const s = getPagoStatus(r);
+      return s === "deuda_entregada" || s === "saldo_resta" || s === "sin_pago";
+    }).length,
+    [rows],
+  );
+  const deudaEntregadaCount = useMemo(
+    () => rows.filter((r) => getPagoStatus(r) === "deuda_entregada").length,
+    [rows],
+  );
 
   const updateField = async (id: string, patch: Partial<Preorder>) => {
     const { error } = await supabase.from("store_preorders" as any).update(patch as any).eq("id", id);
