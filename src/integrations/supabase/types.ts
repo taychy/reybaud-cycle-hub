@@ -6034,6 +6034,8 @@ export type Database = {
       store_orders: {
         Row: {
           alumno_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
           created_at: string
           cuenta_mp_id: string | null
           currency: string
@@ -6059,12 +6061,15 @@ export type Database = {
           sede_retiro_id: string | null
           shipping_tracking: string | null
           status: string
+          stock_restored_at: string | null
           tienda_emisor_id: string | null
           total: number
           updated_at: string
         }
         Insert: {
           alumno_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
           cuenta_mp_id?: string | null
           currency?: string
@@ -6090,12 +6095,15 @@ export type Database = {
           sede_retiro_id?: string | null
           shipping_tracking?: string | null
           status?: string
+          stock_restored_at?: string | null
           tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
         }
         Update: {
           alumno_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
           cuenta_mp_id?: string | null
           currency?: string
@@ -6121,6 +6129,7 @@ export type Database = {
           sede_retiro_id?: string | null
           shipping_tracking?: string | null
           status?: string
+          stock_restored_at?: string | null
           tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
@@ -7251,7 +7260,9 @@ export type Database = {
       }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
-      cancel_store_order: { Args: { p_order_id: string }; Returns: undefined }
+      cancel_store_order:
+        | { Args: { _order_id: string; _reason: string }; Returns: Json }
+        | { Args: { p_order_id: string }; Returns: undefined }
       cancelar_solicitud_baja: {
         Args: { p_solicitud_id: string }
         Returns: undefined
