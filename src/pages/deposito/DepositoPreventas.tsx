@@ -199,7 +199,7 @@ const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {})
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl font-heading font-bold">Preventas</h1>
+        <h1 className="text-2xl font-heading font-bold">{title}</h1>
         {selectedCount > 0 && (
           <Button onClick={printBulk} disabled={printing} className="gap-2">
             <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
