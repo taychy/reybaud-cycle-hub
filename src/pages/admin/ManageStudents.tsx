@@ -575,6 +575,7 @@ const ManageStudents = () => {
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
       notas: alumno.notas || "",
+      nombres_bancarios: ((alumno as any).nombres_bancarios || []).join(", "),
     });
   };
 
