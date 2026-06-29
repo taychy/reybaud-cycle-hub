@@ -166,6 +166,19 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                   </Select>
                 </div>
               </div>
+              <div>
+                <Label className="text-xs">Anticipación mínima para reservar (horas)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={anticipHoras}
+                  onChange={e => setAnticipHoras(e.target.value)}
+                  placeholder="24"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tiempo mínimo entre el momento de la reserva y el turno. Por defecto 24 horas.
+                </p>
+              </div>
               <div className="flex items-center justify-between pt-2">
                 <div>
                   <Label>Servicio activo</Label>
