@@ -74,6 +74,8 @@ export function PendingPaymentsList() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"todos" | Source>("todos");
   const [showFacturadas, setShowFacturadas] = useState(false);
+  const [montoMin, setMontoMin] = useState<string>("");
+  const [montoMax, setMontoMax] = useState<string>("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [emisores, setEmisores] = useState<any[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -359,10 +361,14 @@ export function PendingPaymentsList() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
+    const min = montoMin.trim() === "" ? null : Number(montoMin);
+    const max = montoMax.trim() === "" ? null : Number(montoMax);
     return rows.filter((r) => {
       const facturada = r.factura_estado === "emitida" && !!r.factura_cae;
       if (!showFacturadas && facturada) return false;
       if (sourceFilter !== "todos" && r.source !== sourceFilter) return false;
+      if (min !== null && !isNaN(min) && r.monto < min) return false;
+      if (max !== null && !isNaN(max) && r.monto > max) return false;
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -372,7 +378,7 @@ export function PendingPaymentsList() {
       }
       return true;
     });
-  }, [rows, sourceFilter, search, showFacturadas]);
+  }, [rows, sourceFilter, search, showFacturadas, montoMin, montoMax]);
 
   const selectableFiltered = useMemo(
     () => filtered.filter((r) => !(r.factura_estado === "emitida" && !!r.factura_cae)),
@@ -501,10 +507,10 @@ export function PendingPaymentsList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente o concepto..."
+            placeholder="Buscar cliente, servicio o producto..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -519,6 +525,35 @@ export function PendingPaymentsList() {
             <SelectItem value="tienda">Tienda ({counts.tienda})</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            inputMode="decimal"
+            placeholder="Monto mín."
+            value={montoMin}
+            onChange={(e) => setMontoMin(e.target.value)}
+            className="w-28"
+          />
+          <span className="text-muted-foreground text-xs">—</span>
+          <Input
+            type="number"
+            inputMode="decimal"
+            placeholder="Monto máx."
+            value={montoMax}
+            onChange={(e) => setMontoMax(e.target.value)}
+            className="w-28"
+          />
+          {(montoMin || montoMax) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={() => { setMontoMin(""); setMontoMax(""); }}
+            >
+              Limpiar
+            </Button>
+          )}
+        </div>
         <Button variant="outline" size="sm" onClick={() => setShowFacturadas((v) => !v)}>
           {showFacturadas ? "Ocultar ya facturadas" : "Ver también facturadas"}
         </Button>
