@@ -157,6 +157,8 @@ export function getAccessPermissions(subs: SubStatusInput[]): AccessPermissions 
   const hasPendingVerification = statuses.includes("pendiente_verificacion");
   const hasPagoPendiente = statuses.includes("pago_pendiente");
   const hasAccesoPausado = statuses.includes("acceso_pausado");
+  // Subs cargadas por admin sin pago (Gustavo Rosa et al): deben restringir igual que acceso_pausado
+  const hasDeudaManual = statuses.includes("pendiente") || statuses.includes("vencida");
 
   // Best status wins
   if (hasActive || hasPendingVerification) {
@@ -201,6 +203,21 @@ export function getAccessPermissions(subs: SubStatusInput[]): AccessPermissions 
       canMarkTraining: false,
       canReserveActivities: false,
       bannerMessage: "Tu acceso está pausado por pago pendiente. Cuando regularices tu mensualidad, reactivamos tu plan.",
+      bannerType: "error",
+      status: "acceso_pausado",
+    };
+  }
+
+  if (hasDeudaManual) {
+    return {
+      canViewHome: true,
+      canViewEvents: false,
+      canViewProgress: false,
+      canViewStore: false,
+      canViewMore: true,
+      canMarkTraining: false,
+      canReserveActivities: false,
+      bannerMessage: "Tenés una mensualidad pendiente de pago. Regularizá tu cuota para reactivar el acceso completo.",
       bannerType: "error",
       status: "acceso_pausado",
     };

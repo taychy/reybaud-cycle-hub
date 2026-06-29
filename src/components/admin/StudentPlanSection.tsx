@@ -128,6 +128,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [payMetodo, setPayMetodo] = useState<string>("efectivo");
   const [payFecha, setPayFecha] = useState<string>("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
+  // Estado de pago al crear/cargar el plan (sólo aplica en modo "add")
+  // - pagado: comportamiento previo, sub queda 'activa' y NO aparece en /admin/pagos
+  // - pendiente: sub queda 'pendiente' (aparece como "Por cobrar"), alumno usa la app con restricciones
+  // - vencida: sub queda 'vencida' (deuda explícita / cargo manual a mes vencido tipo Gustavo Rosa)
+  const [payStatus, setPayStatus] = useState<"pagado" | "pendiente" | "vencida">("pagado");
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
@@ -441,6 +446,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setPayMetodo("efectivo");
     setPayFecha(todayStr);
     setUsarPrecioActual(true);
+    setPayStatus("pagado");
     setShowPlanDialog(true);
   };
 
@@ -448,6 +454,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     const sub = subs.find(s => s.id === subId);
     const todayStr = new Date().toISOString().split("T")[0];
     setDialogMode("change");
+    setPayStatus("pagado");
     setDialogSubId(subId);
     setNewPlanId(sub?.plan_id || "");
     setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
@@ -465,11 +472,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
       // Compose internal note with payment data
-      const fechaPagoLabel = payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
+      const isUnpaidAdd = dialogMode === "add" && payStatus !== "pagado";
+      const fechaPagoLabel = !isUnpaidAdd && payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
       const metodoLabel = PAYMENT_METHODS.find(m => m.key === payMetodo)?.label || payMetodo;
       const payTagParts: string[] = [];
-      if (fechaPagoLabel) payTagParts.push(`Pagado el ${fechaPagoLabel}`);
-      payTagParts.push(`vía ${metodoLabel}`);
+      if (isUnpaidAdd) {
+        payTagParts.push(payStatus === "vencida" ? "Cargado como VENCIDO (deuda)" : "Cargado como PENDIENTE de pago");
+      } else {
+        if (fechaPagoLabel) payTagParts.push(`Pagado el ${fechaPagoLabel}`);
+        payTagParts.push(`vía ${metodoLabel}`);
+      }
       const payTag = `[${payTagParts.join(" ")}]`;
       const composedNote = [changeNote?.trim() || null, payTag].filter(Boolean).join(" ");
 
@@ -484,14 +496,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
             : Math.max(0, precioBase - discount.valor);
         }
 
+        const subEstado = payStatus === "pagado" ? "activa" : payStatus; // 'pendiente' | 'vencida'
+
         const { data: newSub, error: insertError } = await supabase.from("suscripciones").insert({
           alumno_id: alumno.id,
           plan_id: newPlanId,
-          estado: "activa",
+          estado: subEstado,
           fecha_inicio: changeFechaInicio,
           fecha_fin: endStr,
-          mp_status: payMetodo,
-          metodo_pago: payMetodo,
+          mp_status: isUnpaidAdd ? null : payMetodo,
+          metodo_pago: isUnpaidAdd ? null : payMetodo,
           origen_registro: "cargado_admin",
           descuento_id: discount?.id || null,
           precio_base: precioBase,
@@ -515,10 +529,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         }
 
         const discountText = discount ? ` (con dto. ${discount.nombre}: ${discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`})` : "";
-        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}`);
+        const statusText = isUnpaidAdd ? ` · ${payStatus === "vencida" ? "VENCIDO (deuda manual)" : "PENDIENTE de pago"}` : "";
+        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}${statusText}`);
         await logStudentActivity({
           alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${isUnpaidAdd ? statusText : (fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`)}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
@@ -958,30 +973,59 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Select>
             </div>
 
+            {/* Estado de pago — sólo al AGREGAR */}
+            {dialogMode === "add" && (
+              <div className="space-y-2 rounded-md bg-secondary/40 border border-border p-3">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Estado del pago</Label>
+                <RadioGroup
+                  value={payStatus}
+                  onValueChange={(v) => setPayStatus(v as "pagado" | "pendiente" | "vencida")}
+                  className="gap-2"
+                >
+                  <label className="flex items-start gap-2 cursor-pointer text-xs">
+                    <RadioGroupItem value="pagado" className="mt-0.5" />
+                    <span><span className="font-medium text-foreground">Ya pagado</span> — registra la suscripción como activa y pagada.</span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer text-xs">
+                    <RadioGroupItem value="pendiente" className="mt-0.5" />
+                    <span><span className="font-medium text-amber-300">Pendiente de pago</span> — el alumno tiene acceso restringido y aparece en "Por cobrar".</span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer text-xs">
+                    <RadioGroupItem value="vencida" className="mt-0.5" />
+                    <span><span className="font-medium text-destructive">Vencido (deuda)</span> — pago a mes vencido tipo Gustavo Rosa: queda como deuda hasta que se registre el cobro.</span>
+                  </label>
+                </RadioGroup>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-xs">Fecha de inicio</Label>
                 <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Fecha de pago</Label>
-                <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
-              </div>
+              {(dialogMode === "change" || payStatus === "pagado") && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Fecha de pago</Label>
+                  <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs">Método de pago</Label>
-              <Select value={payMetodo} onValueChange={setPayMetodo}>
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue placeholder="Seleccionar método" />
-                </SelectTrigger>
-                <SelectContent className="z-[200]">
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {(dialogMode === "change" || payStatus === "pagado") && (
+              <div className="space-y-2">
+                <Label className="text-xs">Método de pago</Label>
+                <Select value={payMetodo} onValueChange={setPayMetodo}>
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue placeholder="Seleccionar método" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[200]">
+                    {PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Use current (updated) price toggle — only when changing an existing plan */}
             {dialogMode === "change" && newPlanId && (() => {

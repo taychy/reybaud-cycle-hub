@@ -94,17 +94,22 @@ export function useAlumnoSession() {
     }
 
     // Check for any subscription that grants access (active, grace period, or pending verification)
+    // Check for any subscription that grants access (active, grace period, pending verification,
+    // or admin-loaded pendiente/vencida → acceso restringido pero alumno puede entrar)
     const { data: recentSubs } = await supabase
       .from("suscripciones")
       .select("id, estado, fecha_fin, cancelada_at")
       .eq("alumno_id", alumnoData.id)
-      .in("estado", ["activa", "pendiente_verificacion"])
+      .in("estado", ["activa", "pendiente_verificacion", "pendiente", "vencida"])
       .is("cancelada_at", null)
       .order("fecha_fin", { ascending: false })
       .limit(10);
 
     const hasAccess = (recentSubs || []).some((sub: any) => {
       if (sub.estado === "pendiente_verificacion") return true;
+      // Subs cargadas como pendientes/vencidas por admin: el alumno entra a la app
+      // con acceso restringido (banner "pago pendiente" lo limita en getAccessPermissions).
+      if (sub.estado === "pendiente" || sub.estado === "vencida") return true;
       if (sub.estado !== "activa") return false;
       if (!sub.fecha_fin) return true;
       // Parse date parts to avoid timezone drift
