@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -494,8 +494,8 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 const hasDetalle = isPago && (medioRaw || referencia || cuentaMpNombre || fechaPago || comprobante || notas);
                 const isExpanded = expandedRow === rowKey;
                 return (
-                  <>
-                    <TableRow key={rowKey} className="text-sm">
+                  <Fragment key={rowKey}>
+                    <TableRow className="text-sm">
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         {formatDate(m.fecha)}
                       </TableCell>
