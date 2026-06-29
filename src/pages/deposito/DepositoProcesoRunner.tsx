@@ -20,6 +20,7 @@ import {
   ProcessInstanceStage,
 } from "@/hooks/useProcesses";
 import StockCountStage from "@/components/deposito/StockCountStage";
+import StockComparisonStage from "@/components/deposito/StockComparisonStage";
 import SupplierOrderCheckStage from "@/components/deposito/SupplierOrderCheckStage";
 
 const DepositoProcesoRunner = () => {
