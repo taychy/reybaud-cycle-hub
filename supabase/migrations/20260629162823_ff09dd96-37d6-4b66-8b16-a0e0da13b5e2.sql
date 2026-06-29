@@ -1,0 +1,1 @@
+SELECT cron.unschedule('notify-incomplete-student-data-weekly');
