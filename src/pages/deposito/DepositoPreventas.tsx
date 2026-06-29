@@ -34,7 +34,12 @@ const estadoColor = (e: string) => {
 
 const labelEstado = (e: string) => e.replace(/_/g, " ");
 
-const DepositoPreventas = () => {
+interface Props {
+  restrictEstados?: string[];
+  title?: string;
+}
+
+const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {}) => {
   const [rows, setRows] = useState<any[]>([]);
   const [alumnos, setAlumnos] = useState<Record<string, any>>({});
   const [sedes, setSedes] = useState<Record<string, any>>({});
