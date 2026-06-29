@@ -598,6 +598,34 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     );
   }
 
+  const alignSubPrice = async (sub: SuscripcionData) => {
+    const newPrice = sub.planes?.precio;
+    if (newPrice == null) return;
+    const oldPrice = sub.precio_base ?? 0;
+    if (!confirm(`Alinear precio de la suscripción al precio actual del plan?\n\n${sub.planes?.nombre}\nAntes: ${sub.planes?.moneda || "ARS"} ${oldPrice}\nAhora: ${sub.planes?.moneda || "ARS"} ${newPrice}\n\nEsto actualiza precio_base y precio_final de la suscripción (no modifica facturas ya emitidas ni movimientos pasados).`)) return;
+    setAligningId(sub.id);
+    try {
+      const { error } = await supabase.from("suscripciones")
+        .update({ precio_base: newPrice, precio_final: newPrice, descuento_id: null })
+        .eq("id", sub.id);
+      if (error) throw error;
+      await logStudentActivity({
+        alumnoId: alumno.id,
+        eventType: "cambio_plan",
+        title: "Precio alineado al plan actual",
+        description: `${sub.planes?.nombre || "Plan"}: ${sub.planes?.moneda || "ARS"} ${oldPrice} → ${sub.planes?.moneda || "ARS"} ${newPrice}`,
+        actorRole, referenceType: "plan", referenceId: sub.plan_id, referenceLabel: sub.planes?.nombre || "—",
+      });
+      toast.success("Precio actualizado");
+      fetchData();
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || "No se pudo alinear el precio");
+    } finally {
+      setAligningId(null);
+    }
+  };
+
   const renderSubCard = (sub: SuscripcionData, index: number, isHistoric: boolean) => {
     const effectiveEstado = getEffStatus(sub);
     const badgeCfg = SUB_STATUS_BADGE[effectiveEstado] || SUB_STATUS_BADGE.cancelada || { className: "text-muted-foreground border-dashed" };
