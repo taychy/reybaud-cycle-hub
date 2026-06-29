@@ -20,6 +20,7 @@ import {
   ProcessInstanceStage,
 } from "@/hooks/useProcesses";
 import StockCountStage from "@/components/deposito/StockCountStage";
+import StockComparisonStage from "@/components/deposito/StockComparisonStage";
 import SupplierOrderCheckStage from "@/components/deposito/SupplierOrderCheckStage";
 
 const DepositoProcesoRunner = () => {
@@ -219,6 +220,20 @@ const DepositoProcesoRunner = () => {
             initialNota={current.nota}
             onConfirm={({ nota, entidad_ref_texto }) =>
               submitStageWithPayload({ nota, entidad_ref_texto, foto_url: null, entidad_ref_id: null })
+            }
+            onCancel={handleCancel}
+          />
+        ) : /comparaci[oó]n.*sistema/i.test(currentTpl.titulo) ? (
+          <StockComparisonStage
+            instanceId={instanceId!}
+            currentStageId={current.id}
+            currentOrden={current.orden}
+            initialNota={current.nota}
+            initialFotoUrl={current.foto_url}
+            saving={saving}
+            isLast={currentIdx === totalStages - 1}
+            onConfirm={({ nota, foto_url }) =>
+              submitStageWithPayload({ nota, foto_url, entidad_ref_texto: null, entidad_ref_id: null })
             }
             onCancel={handleCancel}
           />
