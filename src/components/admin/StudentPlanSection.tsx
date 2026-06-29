@@ -128,6 +128,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [payMetodo, setPayMetodo] = useState<string>("efectivo");
   const [payFecha, setPayFecha] = useState<string>("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
+  // Estado de pago al crear/cargar el plan (sólo aplica en modo "add")
+  // - pagado: comportamiento previo, sub queda 'activa' y NO aparece en /admin/pagos
+  // - pendiente: sub queda 'pendiente' (aparece como "Por cobrar"), alumno usa la app con restricciones
+  // - vencida: sub queda 'vencida' (deuda explícita / cargo manual a mes vencido tipo Gustavo Rosa)
+  const [payStatus, setPayStatus] = useState<"pagado" | "pendiente" | "vencida">("pagado");
   const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; nombre: string; valor: number; tipo: string }[]>([]);
   // Remove plan confirm
   const [showRemovePlan, setShowRemovePlan] = useState(false);
