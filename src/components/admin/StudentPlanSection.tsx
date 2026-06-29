@@ -731,6 +731,22 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </div>
             </>
           )}
+          {planPriceMismatch && !isHistoric && (
+            <div className="flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">
+              <span>
+                Precio actual del plan: <span className="font-mono">{moneda} {planPrice}</span> (la sub se generó con {moneda} {sub.precio_base})
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-5 px-2 text-[10px] border-amber-500/40 hover:bg-amber-500/20"
+                disabled={aligningId === sub.id}
+                onClick={() => alignSubPrice(sub)}
+              >
+                {aligningId === sub.id ? "..." : "Alinear"}
+              </Button>
+            </div>
+          )}
 
           {/* Show cancellation reason in history */}
           {isHistoric && sub.cancelada_motivo && (
