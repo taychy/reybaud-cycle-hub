@@ -114,7 +114,8 @@ const AdminLayout = () => {
         .maybeSingle();
       if (isMounted) {
         if (profile?.role === "super_admin") setIsSuperAdmin(true);
-        if (profile?.role === "deposito" || (!isAdmin && isDepo)) setIsDeposito(true);
+        // Solo restringir a Tienda si es deposito puro (sin rol admin)
+        if (!isAdmin && (profile?.role === "deposito" || isDepo)) setIsDeposito(true);
       }
 
       if (isMounted) setLoading(false);
