@@ -1,113 +1,106 @@
+# Procesos guiados de Depósito — Fase 1
 
-## Objetivo
-Que la pestaña **Pedidos** (productos que NO son preventa) tenga el mismo look & feel y las mismas acciones operativas que **Preventas**, pero conservando su lógica de **pago único** (sin seña ni saldo parcial).
+Sistema de gestión de tareas con procesos establecidos, plantillas reusables y stepper visual para el usuario de depósito.
 
----
+## Decisiones confirmadas
 
-## 1. Migración de base de datos
+1. **Ubicación admin:** sub-sección "Gestión de plantillas de procesos" dentro de `Resumen` del dashboard admin.
+2. **Entidad de control etapa 2:** **ambas, configurable por plantilla** (campo `entidad_control` en la etapa: `store_preorder` | `supplier_order` | `ninguna`).
+3. **Destinatario reporte final:** **se elige al lanzar cada instancia** (un combo en el "Iniciar proceso" con los admins disponibles).
+4. **Alertas de stock actuales:** se mantienen arriba en `/deposito/alertas`; los procesos van debajo en la misma ruta.
+5. **Plantillas precargadas Fase 1:** 3 — Ingreso de mercadería, Devolución a proveedor, Conteo de stock.
 
-Agregar a `store_orders` los campos que hoy solo tiene `store_preorders` para entrega:
+## Arquitectura de datos
 
-```sql
-ALTER TABLE public.store_orders
-  ADD COLUMN entrega_metodo text,           -- 'retiro_sede' | 'envio_moto'
-  ADD COLUMN sede_retiro_id uuid REFERENCES public.sedes(id),
-  ADD COLUMN envio_direccion text,
-  ADD COLUMN envio_contacto text,
-  ADD COLUMN envio_notas text,
-  ADD COLUMN envio_costo numeric,
-  ADD COLUMN envio_estado text;             -- 'a_cotizar' | 'cotizado' | 'pagado' | 'enviado' | 'entregado'
-```
+4 tablas nuevas:
 
-Sin defaults para no tocar pedidos viejos (quedan en NULL → la UI muestra "—").
+- **`process_templates`** — plantillas reusables.
+  Campos clave: `nombre`, `descripcion`, `rol_destino` (default `deposito`), `icono`, `activo`, `created_by`.
 
----
+- **`process_template_stages`** — etapas ordenadas de cada plantilla.
+  Campos clave: `template_id`, `orden`, `titulo`, `instrucciones`, `requiere_foto` (bool), `requiere_nota` (bool), `entidad_control` (enum: `none|store_preorder|supplier_order`), `accion_final` (enum: `none|send_report`).
 
-## 2. Rewrite de `src/pages/admin/store/StoreOrders.tsx`
+- **`process_instances`** — ejecución concreta de una plantilla.
+  Campos clave: `template_id`, `iniciado_por` (user), `asignado_a` (user, opcional), `destinatario_reporte_email`, `estado` (`en_curso|completada|cancelada`), `started_at`, `completed_at`, `metadata` jsonb.
 
-Mismo layout que `StorePreorders.tsx`:
+- **`process_instance_stages`** — estado por etapa.
+  Campos clave: `instance_id`, `template_stage_id`, `orden`, `estado` (`pendiente|en_curso|completada`), `foto_url`, `nota`, `entidad_ref_id` (uuid del preorder/orden vinculado), `completed_by`, `completed_at`.
 
-**Header / filtros**
-- Título "Pedidos" + botones export (Excel proveedor + PDF resumen).
-- Buscador (cliente, #pedido, producto, DNI/teléfono).
-- Filtros: Producto, Entrega (Sede/Moto), Estado.
-- Chip "Deudores: N (M entregados)" clickeable que filtra deudores.
-- Contador "N pedidos" a la derecha.
+Trigger: al insertar `process_instance` se crean automáticamente sus `process_instance_stages` desde el template, en orden.
 
-**Tabla** (mismas columnas que preventas):
+RLS:
+- Admin/super_admin: full access a plantillas + instancias.
+- `deposito`: lee plantillas activas, lee/actualiza instancias asignadas o de su rol, completa etapas.
 
-| FECHA | CLIENTE | PRODUCTO | CANT. | ENTREGA | TOTAL | PAGO | ESTADO | ACCIONES |
+GRANTs: `authenticated` (SELECT/INSERT/UPDATE en instancias y stages, SELECT en templates), `service_role` ALL.
 
-- **Producto**: agrega cantidad de líneas desde `store_order_items` ("2 productos" o nombre único si es uno solo).
-- **Entrega**: `Sede` (cyan) / `Moto` (orange) / `—`.
-- **PAGO** (pago único, no seña):
-  - 🟢 `PAGADO` → `status` en `pagado/preparando/enviado/entregado` y `pagado_at` no null.
-  - 🔴 `⚠ DEBE $X` (fila con borde rojo + tinte) → `status = entregado` sin `pagado_at`.
-  - 🟡 `PENDIENTE` → resto.
-- **ESTADO**: select con `pendiente`, `pendiente_pago`, `pagado`, `preparando`, `enviado`, `entregado`, `cancelado`.
-- **ACCIONES**: ✉️ recordatorio, 💬 WhatsApp con link de pago, 🏷️ QR/etiqueta, 👁️ ver detalle, 💲 registrar pago.
+## UI
 
-**Sheet de detalle** (igual que preventas)
-- Cliente (DNI, tel, email).
-- Pedido: lista de `store_order_items` con variante, cantidad, precio.
-- Entrega: editable (cambiar Sede/Moto, dirección, contacto, notas, costo, estado de envío).
-- Pago: botón único "Registrar pago" (abre `ConfirmFullPaymentDialog` con monto total fijo) — sin opción parcial.
-- Notas con trazabilidad.
+### Admin → Resumen → "Gestión de plantillas de procesos"
+- Listado de plantillas con toggle activo/inactivo.
+- Editor por plantilla:
+  - Datos generales (nombre, descripción, icono, rol destino).
+  - Lista ordenable de etapas (drag&drop) con: título, instrucciones (textarea/markdown), checks "Requiere foto" / "Requiere nota", combo `entidad_control`, combo `accion_final`.
+- Botón "Crear plantilla nueva".
 
-**Acciones que copio 1:1 de preventas**
-- `enviarRecordatorio` → reusa edge function o adapta `preorder-payment-reminders` para pedidos (ver punto 4).
-- `enviarWhatsApp` → arma link con `/pagar-pedido/:id` (si existe) o `/checkout/:id`. Si no hay flujo público, manda link genérico al perfil del alumno.
-- `imprimirEtiqueta` → reusar `printSinglePreorderLabel` con shape adaptado (sin sena/saldo).
-- `exportarProveedor` (Excel 2 hojas: resumen por talle + detalle por alumno).
-- `exportarPDF` (resumen por talle/variante).
-- `exportarOrdenVenta` (PDF individual).
+### Depósito → `/deposito/alertas`
+Layout:
+1. **Arriba:** card actual de alertas de stock (sin tocar).
+2. **Abajo, sección "Procesos":**
+   - Botones grandes "Iniciar: {plantilla}" (uno por plantilla activa).
+   - Lista de instancias en curso del usuario (con badge de etapa actual y % progreso).
 
----
+### Diálogo "Iniciar proceso"
+- Confirmación + combo "Destinatario del reporte final" (lista de admins activos).
+- Crea la instancia y navega al stepper.
 
-## 3. Helper de etiquetas
+### Stepper de ejecución (`/deposito/procesos/:instanceId`)
+- Header: nombre del proceso, progreso (1/3), botón "Pausar".
+- Card de la etapa actual:
+  - Instrucciones.
+  - Si `requiere_foto`: uploader (Supabase Storage, bucket `process-photos`).
+  - Si `requiere_nota`: textarea.
+  - Si `entidad_control != none`: selector del preorder/orden a controlar + checklist visible.
+  - Botón "Confirmar etapa" (deshabilitado hasta cumplir requisitos).
+- Avance automático a la próxima etapa.
+- En la última etapa, si `accion_final = send_report`: dispara edge function `process-complete-instance`.
 
-`src/lib/preorderLabels.ts` ya acepta los campos. Le paso `sena_monto: total`, `saldo_pendiente: 0`, `estado_pago_sena: pagado_at ? 'confirmada' : 'pendiente'` para que la etiqueta funcione sin cambios, o creo `printSingleOrderLabel` espejo que omita la sección de seña.
+## Edge function `process-complete-instance`
+Genera HTML del reporte (plantilla + etapas + fotos + notas + entidad vinculada + tiempos), lo envía por mail al `destinatario_reporte_email` de la instancia, marca `estado = completada` y `completed_at`. Reusa el sender existente (`notify-reservation` con tipo `novedad`) para evitar nueva infra.
 
-Decisión: **crear `printSingleOrderLabel`** para mantener limpio.
+## Plantillas precargadas (seed en la misma migración)
 
----
+**1. Ingreso de mercadería al depósito** (3 etapas)
+- Recepción de mercadería: foto de la factura del proveedor + nota con cantidades recibidas.
+- Control contra pedido: `entidad_control = store_preorder` (o supplier_order si existe) + nota de discrepancias.
+- Reporte final: confirmación + `accion_final = send_report`.
 
-## 4. Recordatorio por email
+**2. Devolución a proveedor** (3 etapas)
+- Identificación de productos a devolver: nota con motivo + foto opcional.
+- Preparación y empaque: foto del paquete listo.
+- Reporte final: confirmación + mail al admin.
 
-Hoy `preorder-payment-reminders` es solo para preventas. Opciones:
-- (a) Crear edge function `order-payment-reminder` espejo (preferido).
-- (b) Agregar a la existente un branch `target: 'order'`.
+**3. Conteo de stock** (3 etapas)
+- Conteo físico por categoría: nota con totales.
+- Comparación con sistema: nota con diferencias.
+- Reporte final: mail al admin con resumen.
 
-Voy con (a) para no tocar lo de preventas.
+## Storage
+Bucket nuevo `process-photos` (privado). Policies: deposito/admin pueden insertar; admin/super_admin pueden leer todo; deposito puede leer sus propias subidas.
 
----
+## Plan de entrega
 
-## 5. Wrapper `StoreVentas.tsx`
+1. Migración (tablas + RLS + GRANTs + bucket + seed de 3 plantillas).
+2. Hook `useProcesses` (lista templates activos, instancias del user, completar etapa, iniciar instancia).
+3. Pantalla admin "Gestión de plantillas" dentro de Resumen.
+4. Refactor `/deposito/alertas` (stock arriba, procesos abajo + diálogo iniciar).
+5. Stepper `/deposito/procesos/:instanceId`.
+6. Edge function `process-complete-instance` + mail HTML.
+7. Probar flujo end-to-end con la plantilla "Ingreso de mercadería".
 
-Sin cambios estructurales: ya está la pestaña "Nuevos" + "Pedidos" + "Preventas". La pestaña "Pedidos" pasa a usar el nuevo componente.
+## Fuera de alcance Fase 1
+- Plantillas para otros roles (coach/admin) — se reutiliza la misma arquitectura cambiando `rol_destino` en Fase 2.
+- CRUD de `supplier_orders` (si se elige esa entidad en una plantilla, en Fase 1 queda como input de texto libre; el mini-CRUD entra en Fase 2 si se necesita).
+- Recordatorios / SLA por etapa.
 
-La pestaña "Nuevos" hoy reutiliza `StoreOrders` con `restrictStatuses`. **Decisión**: mantener esa prop en el rewrite para no romper "Nuevos".
-
----
-
-## 6. Lo que NO incluye este plan
-
-- No agrego seña/saldo a pedidos (confirmaste pago único).
-- No toco preventas.
-- No toco la app del alumno (la vista pública sigue como está).
-- La edge function `order-payment-reminder` solo se crea si el template de mail está claro; si no lo está, dejo el botón ✉️ deshabilitado con tooltip y lo activamos en una segunda iteración.
-
----
-
-## Resumen de cambios
-
-```text
-+ supabase/migrations/xxxx_store_orders_entrega.sql
-~ src/pages/admin/store/StoreOrders.tsx           (rewrite completo)
-+ src/lib/orderLabels.ts                          (espejo de preorderLabels sin seña)
-+ supabase/functions/order-payment-reminder/...   (opcional, ver punto 4)
-```
-
-Sin cambios en `StoreVentas.tsx`, `StorePreorders.tsx`, ni en el portal del alumno.
-
-¿Avanzo así?
+¿Apruebo y arranco con la migración?
