@@ -1458,6 +1458,18 @@ const ManageStudents = () => {
                               <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
                             </div>
                           </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Nombres bancarios / titulares</Label>
+                            <Input
+                              value={detailForm.nombres_bancarios}
+                              onChange={(e) => setDetailForm({ ...detailForm, nombres_bancarios: e.target.value })}
+                              className="bg-secondary border-border text-sm h-8"
+                              placeholder="Ej: Juan Pérez SRL, María García"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Titulares con los que el alumno aparece en transferencias bancarias / MP (separar con coma). Aparece en el buscador.
+                            </p>
+                          </div>
                           {/* Las notas internas se gestionan abajo como lista (multiples notas) */}
                           <Button variant="gold" size="sm" onClick={saveDetail} className="w-full">Guardar cambios</Button>
                         </div>
@@ -1468,9 +1480,16 @@ const ManageStudents = () => {
                           <DetailRow label="Email" value={drawerAlumno.email} mono />
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
+                          {(((drawerAlumno as any).nombres_bancarios as string[]) || []).length > 0 && (
+                            <DetailRow
+                              label="Nombres bancarios"
+                              value={(((drawerAlumno as any).nombres_bancarios as string[]) || []).join(", ")}
+                            />
+                          )}
                         </div>
                       )}
                     </div>
+
 
                     <Separator />
 
