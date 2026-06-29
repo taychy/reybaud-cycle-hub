@@ -582,6 +582,11 @@ const ManageStudents = () => {
   const saveDetail = async () => {
     if (!drawerAlumno) return;
 
+    const nombresBancariosArr = detailForm.nombres_bancarios
+      .split(/[,\n;]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const payload = {
       nombre: detailForm.nombre.trim(),
       apellido: detailForm.apellido.trim() || null,
@@ -589,6 +594,7 @@ const ManageStudents = () => {
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
       notas: detailForm.notas.trim() || null,
+      nombres_bancarios: nombresBancariosArr,
     } as any;
 
     const { data, error } = await supabase
@@ -617,6 +623,7 @@ const ManageStudents = () => {
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
       notas: updatedAlumno.notas || "",
+      nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
 
     toast.success("Datos actualizados");
