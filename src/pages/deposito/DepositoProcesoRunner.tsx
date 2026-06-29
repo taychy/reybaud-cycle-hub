@@ -19,6 +19,7 @@ import {
   ProcessInstance,
   ProcessInstanceStage,
 } from "@/hooks/useProcesses";
+import StockCountStage from "@/components/deposito/StockCountStage";
 
 const DepositoProcesoRunner = () => {
   const { instanceId } = useParams<{ instanceId: string }>();
