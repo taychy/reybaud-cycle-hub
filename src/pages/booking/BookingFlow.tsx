@@ -33,6 +33,15 @@ type Ausencia = {
   todo_el_dia: boolean; hora_inicio: string | null; hora_fin: string | null;
 };
 
+type Ajuste = {
+  id: string;
+  coach_id: string | null;
+  fecha: string;
+  tipo: "bloquear" | "reemplazar" | "agregar";
+  hora_inicio: string | null;
+  hora_fin: string | null;
+};
+
 type Coach = { id: string; nombre: string; sede_id: string | null };
 type Sede = { id: string; nombre: string; ciudad: string | null };
 
