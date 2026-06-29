@@ -34,7 +34,12 @@ const estadoColor = (e: string) => {
 
 const labelEstado = (e: string) => e.replace(/_/g, " ");
 
-const DepositoPreventas = () => {
+interface Props {
+  restrictEstados?: string[];
+  title?: string;
+}
+
+const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {}) => {
   const [rows, setRows] = useState<any[]>([]);
   const [alumnos, setAlumnos] = useState<Record<string, any>>({});
   const [sedes, setSedes] = useState<Record<string, any>>({});
@@ -100,6 +105,7 @@ const DepositoPreventas = () => {
   };
 
   const filtered = rows.filter((r) => {
+    if (restrictEstados && !restrictEstados.includes(r.estado)) return false;
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
     if (search) {
       const s = search.toLowerCase();
@@ -193,7 +199,7 @@ const DepositoPreventas = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl font-heading font-bold">Preventas</h1>
+        <h1 className="text-2xl font-heading font-bold">{title}</h1>
         {selectedCount > 0 && (
           <Button onClick={printBulk} disabled={printing} className="gap-2">
             <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
