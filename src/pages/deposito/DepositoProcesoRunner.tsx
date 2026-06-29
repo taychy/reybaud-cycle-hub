@@ -223,6 +223,20 @@ const DepositoProcesoRunner = () => {
             }
             onCancel={handleCancel}
           />
+        ) : /comparaci[oó]n.*sistema/i.test(currentTpl.titulo) ? (
+          <StockComparisonStage
+            instanceId={instanceId!}
+            currentStageId={current.id}
+            currentOrden={current.orden}
+            initialNota={current.nota}
+            initialFotoUrl={current.foto_url}
+            saving={saving}
+            isLast={currentIdx === totalStages - 1}
+            onConfirm={({ nota, foto_url }) =>
+              submitStageWithPayload({ nota, foto_url, entidad_ref_texto: null, entidad_ref_id: null })
+            }
+            onCancel={handleCancel}
+          />
         ) : currentTpl.entidad_control === "supplier_order" ? (
           <SupplierOrderCheckStage
             saving={saving}
