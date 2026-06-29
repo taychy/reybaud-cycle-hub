@@ -90,39 +90,52 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Send through send-transactional-email if available, else log
-    try {
-      const r = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
-        body: JSON.stringify({
-          templateName: "raw-html",
-          recipientEmail: to,
-          idempotencyKey: `process-report-${instance_id}`,
-          templateData: { html, subject: `Reporte de proceso: ${template?.nombre || ""}` },
-        }),
-      });
-      if (!r.ok) {
-        // Fallback: log to audit_log only
-        await sb.from("audit_log").insert({
-          action: "process.report.send_failed",
-          entity_type: "process_instance",
-          entity_id: instance_id,
-          user_role: "edge_function",
-          details: { to, http: r.status, body: await r.text().catch(() => "") },
-        });
-      }
-    } catch (e: any) {
+    const SENDER_DOMAIN = "notify.reybaud-app.com";
+    const FROM_NAME = "Reybaud Ciclismo";
+    const subject = `Reporte de proceso: ${template?.nombre || ""}`;
+    const messageId = crypto.randomUUID();
+
+    // Encolar en la cola transactional_emails (cron process-email-queue se ocupa del envío real)
+    const { error: qErr } = await sb.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      payload: {
+        message_id: messageId,
+        to,
+        from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN,
+        subject,
+        html,
+        text: `${subject}\nProceso completado.`,
+        purpose: "transactional",
+        label: "process_report",
+        idempotency_key: `process-report-${instance_id}`,
+        queued_at: new Date().toISOString(),
+      },
+    });
+
+    if (qErr) {
       await sb.from("audit_log").insert({
-        action: "process.report.send_failed",
+        action: "process.report.enqueue_failed",
         entity_type: "process_instance",
         entity_id: instance_id,
         user_role: "edge_function",
-        details: { to, error: e.message },
+        details: { to, error: qErr.message },
+      });
+      return new Response(JSON.stringify({ ok: false, error: qErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, to }), {
+    await sb.from("audit_log").insert({
+      action: "process.report.enqueued",
+      entity_type: "process_instance",
+      entity_id: instance_id,
+      user_role: "edge_function",
+      details: { to, message_id: messageId },
+    });
+
+    return new Response(JSON.stringify({ ok: true, to, message_id: messageId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
