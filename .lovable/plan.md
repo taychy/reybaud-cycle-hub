@@ -1,106 +1,76 @@
-# Procesos guiados de Depósito — Fase 1
+# Pedidos a Proveedor + Ingreso de mercadería con chequeo ítem por ítem
 
-Sistema de gestión de tareas con procesos establecidos, plantillas reusables y stepper visual para el usuario de depósito.
+## 1. Base de datos (migración)
 
-## Decisiones confirmadas
+Dos tablas nuevas en `public`:
 
-1. **Ubicación admin:** sub-sección "Gestión de plantillas de procesos" dentro de `Resumen` del dashboard admin.
-2. **Entidad de control etapa 2:** **ambas, configurable por plantilla** (campo `entidad_control` en la etapa: `store_preorder` | `supplier_order` | `ninguna`).
-3. **Destinatario reporte final:** **se elige al lanzar cada instancia** (un combo en el "Iniciar proceso" con los admins disponibles).
-4. **Alertas de stock actuales:** se mantienen arriba en `/deposito/alertas`; los procesos van debajo en la misma ruta.
-5. **Plantillas precargadas Fase 1:** 3 — Ingreso de mercadería, Devolución a proveedor, Conteo de stock.
+- `supplier_orders`
+  - `id`, `numero` (autoincremental visible, ej. `PP-0001`), `proveedor_nombre` (texto), `proveedor_contacto` (texto, opcional)
+  - `fecha_pedido` (date), `fecha_estimada_entrega` (date, opcional)
+  - `estado`: `abierto` | `recibido_parcial` | `cerrado` | `cancelado`
+  - `notas` (texto), `total_estimado` (numeric), `moneda` (text, default ARS)
+  - `created_by`, `created_at`, `updated_at`
+- `supplier_order_items`
+  - `id`, `supplier_order_id` (FK cascade)
+  - `product_id` (FK opcional a `store_products`, nullable para items sueltos)
+  - `producto_nombre` (texto — snapshot), `variante` (jsonb, ej. `{talle, color}`)
+  - `cantidad_pedida` (int), `cantidad_recibida` (int default 0)
+  - `precio_unitario` (numeric, opcional)
+  - `notas` (texto)
 
-## Arquitectura de datos
+RLS + GRANTS:
+- `authenticated` puede SELECT/INSERT/UPDATE/DELETE si es `admin`, `super_admin`, `support` o `deposito` (vía `has_role`).
+- `service_role` ALL.
+- Trigger `update_updated_at`.
 
-4 tablas nuevas:
+## 2. Módulo "Pedidos a Proveedor"
 
-- **`process_templates`** — plantillas reusables.
-  Campos clave: `nombre`, `descripcion`, `rol_destino` (default `deposito`), `icono`, `activo`, `created_by`.
+Página única reutilizable, accesible desde:
+- **Admin** → menú lateral "Tienda" → "Pedidos a Proveedor" (`/admin/tienda/pedidos-proveedor`)
+- **Depósito** → menú lateral "Pedidos a Proveedor" (`/deposito/pedidos-proveedor`)
 
-- **`process_template_stages`** — etapas ordenadas de cada plantilla.
-  Campos clave: `template_id`, `orden`, `titulo`, `instrucciones`, `requiere_foto` (bool), `requiere_nota` (bool), `entidad_control` (enum: `none|store_preorder|supplier_order`), `accion_final` (enum: `none|send_report`).
+UI:
+- Listado con filtros por estado y búsqueda por proveedor / número.
+- Botón "Nuevo pedido": dialog con datos de cabecera + tabla de ítems (autocomplete contra `store_products` con sus variantes, o ítem libre).
+- Editar pedido: misma dialog.
+- Acciones: "Marcar como cerrado", "Cancelar".
+- En cada fila, badge de estado y conteo `recibidos/pedidos`.
 
-- **`process_instances`** — ejecución concreta de una plantilla.
-  Campos clave: `template_id`, `iniciado_por` (user), `asignado_a` (user, opcional), `destinatario_reporte_email`, `estado` (`en_curso|completada|cancelada`), `started_at`, `completed_at`, `metadata` jsonb.
+## 3. Ingreso de mercadería (runner)
 
-- **`process_instance_stages`** — estado por etapa.
-  Campos clave: `instance_id`, `template_stage_id`, `orden`, `estado` (`pendiente|en_curso|completada`), `foto_url`, `nota`, `entidad_ref_id` (uuid del preorder/orden vinculado), `completed_by`, `completed_at`.
+Cuando la plantilla de proceso es "Ingreso de mercadería" (detectada por nombre, ej. `/ingreso.*mercader/i`):
 
-Trigger: al insertar `process_instance` se crean automáticamente sus `process_instance_stages` desde el template, en orden.
+**Etapa 1 — Recepción** (queda como hoy: foto + nota).
 
-RLS:
-- Admin/super_admin: full access a plantillas + instancias.
-- `deposito`: lee plantillas activas, lee/actualiza instancias asignadas o de su rol, completa etapas.
+**Etapa 2 — Control contra pedido** (renderiza componente especializado `SupplierOrderCheckStage`):
+- Dropdown: pedidos a proveedor con estado `abierto` o `recibido_parcial` (formato: `PP-0023 · Proveedor X · 15/06`).
+- Al elegir uno, se listan sus ítems con: nombre + variante, cantidad pedida, input de cantidad recibida (precargado con `cantidad_recibida` previa), badge `✓ / ! / —`.
+- Botón "Confirmar etapa" que:
+  - Actualiza `cantidad_recibida` de cada item.
+  - Si todos los items quedan `recibida >= pedida` → `supplier_orders.estado = 'cerrado'`; si hay algunos parciales → `recibido_parcial`.
+  - Guarda en la etapa: `entidad_ref_id = supplier_order_id`, `nota = resumen (ok / faltantes / sobrantes)`.
 
-GRANTs: `authenticated` (SELECT/INSERT/UPDATE en instancias y stages, SELECT en templates), `service_role` ALL.
+**Etapa 3 — Reporte y cierre** (genérico, se mantiene; `accion_final = send_report` ya envía mail con todas las etapas).
 
-## UI
+## 4. Datos de seed / plantilla
 
-### Admin → Resumen → "Gestión de plantillas de procesos"
-- Listado de plantillas con toggle activo/inactivo.
-- Editor por plantilla:
-  - Datos generales (nombre, descripción, icono, rol destino).
-  - Lista ordenable de etapas (drag&drop) con: título, instrucciones (textarea/markdown), checks "Requiere foto" / "Requiere nota", combo `entidad_control`, combo `accion_final`.
-- Botón "Crear plantilla nueva".
+Si la plantilla "Ingreso de mercadería" no existe aún en la DB, la creo en la migración con 3 etapas:
+1. Recepción (requiere_foto + requiere_nota opcional)
+2. Control contra pedido (`entidad_control = supplier_order`)
+3. Reporte y cierre (`accion_final = send_report`)
 
-### Depósito → `/deposito/alertas`
-Layout:
-1. **Arriba:** card actual de alertas de stock (sin tocar).
-2. **Abajo, sección "Procesos":**
-   - Botones grandes "Iniciar: {plantilla}" (uno por plantilla activa).
-   - Lista de instancias en curso del usuario (con badge de etapa actual y % progreso).
+## 5. Detalles técnicos
 
-### Diálogo "Iniciar proceso"
-- Confirmación + combo "Destinatario del reporte final" (lista de admins activos).
-- Crea la instancia y navega al stepper.
+- Rutas nuevas en `src/App.tsx` y entradas en sidebars (`AdminLayout` y `DepositoLayout`).
+- Hook `useSupplierOrders` para listar/crear/actualizar.
+- Componente `SupplierOrdersAdmin.tsx` (página compartida) + `SupplierOrderDialog.tsx`.
+- Componente `SupplierOrderCheckStage.tsx` para la etapa 2 del runner.
+- Tipos en `src/integrations/supabase/types.ts` se regeneran tras la migración.
 
-### Stepper de ejecución (`/deposito/procesos/:instanceId`)
-- Header: nombre del proceso, progreso (1/3), botón "Pausar".
-- Card de la etapa actual:
-  - Instrucciones.
-  - Si `requiere_foto`: uploader (Supabase Storage, bucket `process-photos`).
-  - Si `requiere_nota`: textarea.
-  - Si `entidad_control != none`: selector del preorder/orden a controlar + checklist visible.
-  - Botón "Confirmar etapa" (deshabilitado hasta cumplir requisitos).
-- Avance automático a la próxima etapa.
-- En la última etapa, si `accion_final = send_report`: dispara edge function `process-complete-instance`.
+## 6. Fuera de alcance
 
-## Edge function `process-complete-instance`
-Genera HTML del reporte (plantilla + etapas + fotos + notas + entidad vinculada + tiempos), lo envía por mail al `destinatario_reporte_email` de la instancia, marca `estado = completada` y `completed_at`. Reusa el sender existente (`notify-reservation` con tipo `novedad`) para evitar nueva infra.
+- Importar pedidos a proveedor desde CSV (se puede agregar después).
+- Notificaciones automáticas al proveedor.
+- Integración con stock (sumar al stock real al recibir) — se puede agregar luego como acción opcional.
 
-## Plantillas precargadas (seed en la misma migración)
-
-**1. Ingreso de mercadería al depósito** (3 etapas)
-- Recepción de mercadería: foto de la factura del proveedor + nota con cantidades recibidas.
-- Control contra pedido: `entidad_control = store_preorder` (o supplier_order si existe) + nota de discrepancias.
-- Reporte final: confirmación + `accion_final = send_report`.
-
-**2. Devolución a proveedor** (3 etapas)
-- Identificación de productos a devolver: nota con motivo + foto opcional.
-- Preparación y empaque: foto del paquete listo.
-- Reporte final: confirmación + mail al admin.
-
-**3. Conteo de stock** (3 etapas)
-- Conteo físico por categoría: nota con totales.
-- Comparación con sistema: nota con diferencias.
-- Reporte final: mail al admin con resumen.
-
-## Storage
-Bucket nuevo `process-photos` (privado). Policies: deposito/admin pueden insertar; admin/super_admin pueden leer todo; deposito puede leer sus propias subidas.
-
-## Plan de entrega
-
-1. Migración (tablas + RLS + GRANTs + bucket + seed de 3 plantillas).
-2. Hook `useProcesses` (lista templates activos, instancias del user, completar etapa, iniciar instancia).
-3. Pantalla admin "Gestión de plantillas" dentro de Resumen.
-4. Refactor `/deposito/alertas` (stock arriba, procesos abajo + diálogo iniciar).
-5. Stepper `/deposito/procesos/:instanceId`.
-6. Edge function `process-complete-instance` + mail HTML.
-7. Probar flujo end-to-end con la plantilla "Ingreso de mercadería".
-
-## Fuera de alcance Fase 1
-- Plantillas para otros roles (coach/admin) — se reutiliza la misma arquitectura cambiando `rol_destino` en Fase 2.
-- CRUD de `supplier_orders` (si se elige esa entidad en una plantilla, en Fase 1 queda como input de texto libre; el mini-CRUD entra en Fase 2 si se necesita).
-- Recordatorios / SLA por etapa.
-
-¿Apruebo y arranco con la migración?
+¿Confirmás avanzar así?

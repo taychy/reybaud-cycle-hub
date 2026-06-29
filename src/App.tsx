@@ -74,6 +74,7 @@ import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import DepositoProcesoRunner from "./pages/deposito/DepositoProcesoRunner";
 import AdminProcessTemplates from "./pages/admin/AdminProcessTemplates";
 import DepositoVentas from "./pages/deposito/DepositoVentas";
+import SupplierOrders from "./pages/SupplierOrders";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
@@ -202,6 +203,7 @@ const App = () => (
             <Route path="tienda/stock" element={<StoreStock />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
+            <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
             <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
           </Route>
           <Route path="/deposito/login" element={<Navigate to="/admin/login?returnTo=/deposito" replace />} />
@@ -214,6 +216,7 @@ const App = () => (
             <Route path="movimientos" element={<DepositoMovimientos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
+            <Route path="pedidos-proveedor" element={<SupplierOrders />} />
             <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
           <Route path="/reservar" element={<BookingLanding />} />

@@ -6751,6 +6751,111 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_order_items: {
+        Row: {
+          cantidad_pedida: number
+          cantidad_recibida: number
+          created_at: string
+          id: string
+          notas: string | null
+          precio_unitario: number | null
+          product_id: string | null
+          producto_nombre: string
+          supplier_order_id: string
+          updated_at: string
+          variante: Json | null
+        }
+        Insert: {
+          cantidad_pedida?: number
+          cantidad_recibida?: number
+          created_at?: string
+          id?: string
+          notas?: string | null
+          precio_unitario?: number | null
+          product_id?: string | null
+          producto_nombre: string
+          supplier_order_id: string
+          updated_at?: string
+          variante?: Json | null
+        }
+        Update: {
+          cantidad_pedida?: number
+          cantidad_recibida?: number
+          created_at?: string
+          id?: string
+          notas?: string | null
+          precio_unitario?: number | null
+          product_id?: string | null
+          producto_nombre?: string
+          supplier_order_id?: string
+          updated_at?: string
+          variante?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_order_items_supplier_order_id_fkey"
+            columns: ["supplier_order_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          estado: string
+          fecha_estimada_entrega: string | null
+          fecha_pedido: string
+          id: string
+          moneda: string
+          notas: string | null
+          numero: string
+          proveedor_contacto: string | null
+          proveedor_nombre: string
+          total_estimado: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          fecha_estimada_entrega?: string | null
+          fecha_pedido?: string
+          id?: string
+          moneda?: string
+          notas?: string | null
+          numero?: string
+          proveedor_contacto?: string | null
+          proveedor_nombre: string
+          total_estimado?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          fecha_estimada_entrega?: string | null
+          fecha_pedido?: string
+          id?: string
+          moneda?: string
+          notas?: string | null
+          numero?: string
+          proveedor_contacto?: string | null
+          proveedor_nombre?: string
+          total_estimado?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
