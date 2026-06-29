@@ -74,6 +74,8 @@ export function PendingPaymentsList() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"todos" | Source>("todos");
   const [showFacturadas, setShowFacturadas] = useState(false);
+  const [montoMin, setMontoMin] = useState<string>("");
+  const [montoMax, setMontoMax] = useState<string>("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [emisores, setEmisores] = useState<any[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
