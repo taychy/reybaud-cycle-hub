@@ -109,6 +109,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         email_recordatorio_enabled: emailRec,
         email_coach_enabled: emailCoach,
         recordatorio_horas_antes: Number(recHoras),
+        anticipacion_horas_minima: Math.max(0, Number(anticipHoras) || 0),
         ics_adjunto: ics,
         pago_modo: pagoModo,
         pago_monto_sena: pagoModo === "sena" ? Number(pagoSena) : null,
