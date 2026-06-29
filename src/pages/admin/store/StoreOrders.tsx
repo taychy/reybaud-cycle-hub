@@ -8,8 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin,
-  Phone, User, QrCode, MessageCircle, Mail, DollarSign,
+  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { formatPrice } from "@/lib/currency";
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
@@ -95,8 +100,11 @@ const estadoColor = (e: string) => {
   }
 };
 
-const isPagado = (o: Order) =>
-  !!o.pagado_at || ["pagado", "preparando", "enviado", "entregado"].includes(o.status);
+// El pago es independiente del estado de fulfillment.
+// Solo se considera pagado cuando hay un registro real en `pagado_at`
+// (lo setea el admin al confirmar el cobro) o cuando el flujo
+// originó el pedido ya pago (status inicial "pagado" sin tránsito por entrega).
+const isPagado = (o: Order) => !!o.pagado_at;
 
 const isEntregado = (o: Order) => o.status === "entregado" || !!o.delivered_at;
 
@@ -163,7 +171,33 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Order | null>(null);
   const [payOrder, setPayOrder] = useState<Order | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const { toast } = useToast();
+
+  const anularPedido = async () => {
+    if (!cancelOrder) return;
+    if (!cancelReason.trim()) {
+      toast({ title: "Falta el motivo", description: "Indicá por qué se anula el pedido.", variant: "destructive" });
+      return;
+    }
+    setCancelling(true);
+    const { error } = await supabase.rpc("cancel_store_order", {
+      _order_id: cancelOrder.id,
+      _reason: cancelReason.trim(),
+    });
+    setCancelling(false);
+    if (error) {
+      toast({ title: "Error al anular", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Pedido anulado", description: "Stock devuelto y movimiento registrado." });
+    setCancelOrder(null);
+    setCancelReason("");
+    if (detail?.id === cancelOrder.id) setDetail(null);
+    load();
+  };
 
   const load = async () => {
     const { data: orders } = await supabase
@@ -689,10 +723,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                     )}
                   </td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <Select value={r.status} onValueChange={(v) => updateField(r.id, { status: v } as any)}>
+                    <Select
+                      value={r.status}
+                      onValueChange={(v) => updateField(r.id, { status: v } as any)}
+                      disabled={r.status === "cancelado"}
+                    >
                       <SelectTrigger className={`h-7 text-xs w-[160px] mx-auto ${estadoColor(r.status)}`}><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {STATUSES.map((e) => <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>)}
+                        {STATUSES.filter((e) => e !== "cancelado").map((e) => (
+                          <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -712,6 +752,11 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
                         <Eye className="w-4 h-4" />
                       </Button>
+                      {r.status !== "cancelado" && (
+                        <Button size="sm" variant="ghost" title="Anular pedido (devuelve stock)" className="text-destructive hover:text-destructive" onClick={() => { setCancelOrder(r); setCancelReason(""); }}>
+                          <Ban className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -962,6 +1007,38 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           }}
         />
       )}
+
+      {/* Anular pedido */}
+      <AlertDialog open={!!cancelOrder} onOpenChange={(v) => { if (!v) { setCancelOrder(null); setCancelReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anular pedido #{cancelOrder?.order_number}</AlertDialogTitle>
+            <AlertDialogDescription>
+              El pedido quedará marcado como <b>cancelado</b> y los productos volverán al stock automáticamente. Esta acción queda registrada en el historial de movimientos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cancel-reason">Motivo de la anulación *</Label>
+            <Textarea
+              id="cancel-reason"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Ej: cliente arrepentido, error de carga, sin stock real…"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); anularPedido(); }}
+              disabled={cancelling || !cancelReason.trim()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? "Anulando…" : "Anular y devolver stock"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
