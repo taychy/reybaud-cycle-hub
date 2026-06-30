@@ -113,6 +113,16 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         .eq("activo", true)
         .order("sort_order", { ascending: true });
       const rows = ((data as unknown as PackageRow[]) || []);
+      // Aplicar etapa de precio vigente si existe
+      if (rows.length > 0) {
+        const stagesMap = await fetchPriceStages(rows.map((p) => p.id));
+        rows.forEach((p) => {
+          const resolved = resolveActivePrice(p.precio, p.currency, stagesMap[p.id]);
+          p.precio = resolved.precio;
+          p.currency = resolved.currency;
+          p.active_stage_id = resolved.activeStage?.id ?? null;
+        });
+      }
       // Conteo de reservas activas por paquete (totales + por género)
       if (rows.length > 0) {
         const { data: reservas } = await supabase
