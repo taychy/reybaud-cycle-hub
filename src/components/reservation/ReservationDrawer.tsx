@@ -57,6 +57,8 @@ interface PackageRow {
   used_mujeres?: number;
   used_varones?: number;
   used_mixto?: number;
+  // etapa de precio vigente (si aplica)
+  active_stage_id?: string | null;
 }
 
 type RoomGender = "femenina" | "masculina" | "mixta";
