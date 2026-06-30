@@ -28,6 +28,8 @@ interface Pkg {
   precio: number;
   currency: string;
   plan: Plan | null;
+  activeStage: PriceStage | null;
+  nextStage: PriceStage | null;
 }
 
 
