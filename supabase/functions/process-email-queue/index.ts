@@ -52,6 +52,49 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+// Centralized unsubscribe-token resolver. Brevo requires `unsubscribe_token`
+// on every transactional send. Instead of patching every sender function,
+// the queue worker injects a token here based on the recipient address.
+// Tokens are persisted in `email_unsubscribe_tokens` (one per email) so the
+// /handle-email-unsubscribe endpoint can validate them.
+async function ensureUnsubscribeToken(
+  supabase: ReturnType<typeof createClient>,
+  email: string
+): Promise<string | null> {
+  if (!email || typeof email !== 'string') return null
+  const normalized = email.trim().toLowerCase()
+  if (!normalized) return null
+
+  const { data: existing, error: selErr } = await supabase
+    .from('email_unsubscribe_tokens')
+    .select('token')
+    .eq('email', normalized)
+    .maybeSingle()
+
+  if (selErr) {
+    console.error('ensureUnsubscribeToken select failed', { email: normalized, error: selErr })
+  }
+  if (existing?.token) return existing.token as string
+
+  const token = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')
+  const { data: inserted, error: insErr } = await supabase
+    .from('email_unsubscribe_tokens')
+    .insert({ email: normalized, token })
+    .select('token')
+    .single()
+
+  if (insErr) {
+    // Race: another worker inserted concurrently — re-read.
+    const { data: retry } = await supabase
+      .from('email_unsubscribe_tokens')
+      .select('token')
+      .eq('email', normalized)
+      .maybeSingle()
+    return (retry?.token as string) ?? null
+  }
+  return (inserted?.token as string) ?? token
+}
+
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
