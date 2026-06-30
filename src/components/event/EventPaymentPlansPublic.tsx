@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, CalendarDays, Wallet } from "lucide-react";
+import { ChevronDown, ChevronUp, CalendarDays, Wallet, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
+import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 
 interface PlanInstallment {
   numero: number;
