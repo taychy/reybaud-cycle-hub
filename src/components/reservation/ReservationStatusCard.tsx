@@ -20,6 +20,7 @@ import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
 import TripTransportDrawer from "./TripTransportDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
+import TripExtrasDrawer from "./TripExtrasDrawer";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 import StudentInstallmentsPlan, { StudentInstallmentsPlanHandle } from "./StudentInstallmentsPlan";
 
@@ -56,6 +57,7 @@ interface ReservationStatusCardProps {
   reservation: Reservation;
   alumnoId: string;
   eventCurrency: string;
+  eventId: string;
   eventDate: string;
   eventTitle: string;
   eventType?: string;
@@ -204,7 +206,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
       label: "Configurar mi viaje",
       description: "Habitación, comidas, bici y extras",
       icon: Package,
-      completed: false,
+      completed: !!checklistData["extras"]?.completed,
       actionType: "extras",
     },
     {
@@ -259,7 +261,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 };
 
 const ReservationStatusCard = ({
-  reservation, alumnoId, eventCurrency, eventDate, eventTitle, eventType, eventMetadata,
+  reservation, alumnoId, eventCurrency, eventId, eventDate, eventTitle, eventType, eventMetadata,
   reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported,
 }: ReservationStatusCardProps) => {
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
@@ -279,6 +281,7 @@ const ReservationStatusCard = ({
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
   const [showTransportDrawer, setShowTransportDrawer] = useState(false);
+  const [showExtrasDrawer, setShowExtrasDrawer] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
@@ -430,10 +433,15 @@ const ReservationStatusCard = ({
       : null;
 
   /* ─── Next step message ─── */
-  // Dispara la acción del primer paso de preparación pendiente (excluye reserva, pago y extras umbrella)
+  // Dispara la acción del primer paso de preparación pendiente.
   const openFirstPrepDrawer = () => {
-    const order = ["bici", "pedales", "pasaje", "seguro"];
     const list = buildChecklist(reservation, eventMetadata, checklistData);
+    const extras = list.find((c) => c.id === "extras");
+    if (extras && !extras.completed) {
+      setShowExtrasDrawer(true);
+      return;
+    }
+    const order = ["bici", "pedales", "pasaje", "seguro"];
     for (const id of order) {
       const item = list.find((c) => c.id === id);
       if (item && !item.completed) {
@@ -1264,6 +1272,19 @@ const ReservationStatusCard = ({
         icon={docDrawer.icon}
         helpText={docDrawer.helpText}
         onSaved={loadChecklistData}
+      />
+
+      <TripExtrasDrawer
+        open={showExtrasDrawer}
+        onOpenChange={setShowExtrasDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        eventId={eventId}
+        eventCurrency={currency}
+        onSaved={() => {
+          loadChecklistData();
+          onPaymentReported();
+        }}
       />
     </>
   );
