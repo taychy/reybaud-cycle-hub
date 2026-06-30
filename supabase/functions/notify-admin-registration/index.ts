@@ -51,28 +51,28 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    const messageId = crypto.randomUUID();
-    const emailPayload = {
-      message_id: messageId,
-      to: adminEmails.join(", "),
-      from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      subject: `Nuevo alumno: ${alumno.nombre} (${grupo_preferido})`,
-      html: emailHtml,
-      text: '',
-      purpose: 'transactional',
-      label: 'admin_registration_notification',
-      idempotency_key: messageId,
-      queued_at: new Date().toISOString(),
-    };
-
-    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
-      queue_name: 'transactional_emails',
-      payload: emailPayload,
-    });
-
-    if (enqueueErr) {
-      console.error("Queue error:", enqueueErr.message);
+    for (const adminEmail of adminEmails) {
+      const messageId = crypto.randomUUID();
+      const unsubToken = await getOrCreateUnsubscribeToken(supabase, adminEmail);
+      const emailPayload = {
+        message_id: messageId,
+        to: adminEmail,
+        from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN,
+        subject: `Nuevo alumno: ${alumno.nombre} (${grupo_preferido})`,
+        html: emailHtml,
+        text: '',
+        purpose: 'transactional',
+        label: 'admin_registration_notification',
+        idempotency_key: `${messageId}-${adminEmail}`,
+        queued_at: new Date().toISOString(),
+        unsubscribe_token: unsubToken,
+      };
+      const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+        queue_name: 'transactional_emails',
+        payload: emailPayload,
+      });
+      if (enqueueErr) console.error("Queue error:", enqueueErr.message);
     }
 
     return new Response(JSON.stringify({ ok: true, emailsSent: adminEmails.length }), {
