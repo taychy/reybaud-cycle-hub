@@ -12,6 +12,7 @@ import {
 import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
+import { PackagePriceStagesEditor } from "./PackagePriceStagesEditor";
 
 
 interface PackageRow {
