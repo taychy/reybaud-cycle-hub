@@ -26,6 +26,7 @@ interface ReservationData {
   moneda: string;
   currency_snapshot: string | null;
   external_participant_id: string | null;
+  alumno_id: string | null;
   event_id: string;
   access_token: string;
 }
