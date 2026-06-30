@@ -2427,6 +2427,7 @@ export type Database = {
           last_installment_absorbs_rounding: boolean
           nombre: string
           package_id: string
+          price_stage_id: string | null
           regla_reserva_tardia: Database["public"]["Enums"]["payment_plan_regla_tardia"]
           sena_tipo: Database["public"]["Enums"]["payment_plan_sena_tipo"]
           sena_valor: number
@@ -2443,6 +2444,7 @@ export type Database = {
           last_installment_absorbs_rounding?: boolean
           nombre?: string
           package_id: string
+          price_stage_id?: string | null
           regla_reserva_tardia?: Database["public"]["Enums"]["payment_plan_regla_tardia"]
           sena_tipo?: Database["public"]["Enums"]["payment_plan_sena_tipo"]
           sena_valor?: number
@@ -2459,6 +2461,7 @@ export type Database = {
           last_installment_absorbs_rounding?: boolean
           nombre?: string
           package_id?: string
+          price_stage_id?: string | null
           regla_reserva_tardia?: Database["public"]["Enums"]["payment_plan_regla_tardia"]
           sena_tipo?: Database["public"]["Enums"]["payment_plan_sena_tipo"]
           sena_valor?: number
@@ -2469,6 +2472,66 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "event_package_payment_plans_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_payment_plans_price_stage_id_fkey"
+            columns: ["price_stage_id"]
+            isOneToOne: false
+            referencedRelation: "event_package_price_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_package_price_stages: {
+        Row: {
+          activo: boolean
+          created_at: string
+          currency: string
+          id: string
+          incremento_pct: number | null
+          nombre: string
+          package_id: string
+          precio: number
+          sort_order: number
+          updated_at: string
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          currency?: string
+          id?: string
+          incremento_pct?: number | null
+          nombre: string
+          package_id: string
+          precio: number
+          sort_order?: number
+          updated_at?: string
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          currency?: string
+          id?: string
+          incremento_pct?: number | null
+          nombre?: string
+          package_id?: string
+          precio?: number
+          sort_order?: number
+          updated_at?: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_package_price_stages_package_id_fkey"
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "event_packages"
@@ -7694,6 +7757,29 @@ export type Database = {
       }
       generate_tareas_automaticas: { Args: never; Returns: number }
       generate_tareas_gastos_pendientes: { Args: never; Returns: number }
+      get_active_price_stage: {
+        Args: { _at?: string; _package_id: string }
+        Returns: {
+          activo: boolean
+          created_at: string
+          currency: string
+          id: string
+          incremento_pct: number | null
+          nombre: string
+          package_id: string
+          precio: number
+          sort_order: number
+          updated_at: string
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "event_package_price_stages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_admin_notification_emails_masked: { Args: never; Returns: Json }
       get_all_gastos_saldo_deuda: {
         Args: never
