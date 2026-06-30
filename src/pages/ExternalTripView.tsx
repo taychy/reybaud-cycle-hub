@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle, AlertCircle, Clock, Shield, Bike, Footprints,
   Plane, ShieldCheck, Package, Banknote, Loader2, CalendarDays,
-  MapPin, CreditCard, ChevronRight, Bell, XCircle,
+  MapPin, CreditCard, ChevronRight, Bell, XCircle, MessageCircle,
 } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
@@ -26,6 +27,7 @@ interface ReservationData {
   moneda: string;
   currency_snapshot: string | null;
   external_participant_id: string | null;
+  alumno_id: string | null;
   event_id: string;
   access_token: string;
 }
@@ -276,6 +278,40 @@ const ExternalTripView = () => {
                 </p>
               </div>
             </div>
+            {(reservation.balance_due ?? 0) > 0 && reservation.reservation_status !== "cancelada" && (
+              reservation.alumno_id ? (
+                <Button
+                  variant="gold"
+                  size="lg"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem("post_login_redirect", "/mis-reservas");
+                    } catch { /* ignore */ }
+                    window.location.href = "/mis-reservas";
+                  }}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Gestionar pagos en mi cuenta
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              ) : (
+                <a
+                  href={buildWhatsAppUrl(
+                    `Hola! Soy ${participant?.nombre ?? ""} ${participant?.apellido ?? ""}. Quiero coordinar el pago de mi reserva para ${event.title}. Saldo pendiente: ${formatPrice(reservation.balance_due ?? 0, currency)}.`.trim()
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <Button variant="gold" size="lg" className="w-full gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Coordinar pago por WhatsApp
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </a>
+              )
+            )}
           </div>
         )}
 
