@@ -160,11 +160,6 @@ Deno.serve(async (req) => {
       });
       if (enqueueErr) console.error("Queue error:", enqueueErr.message);
     }
-    const enqueueErr = null as any;
-
-    if (enqueueErr) {
-      console.error("Queue error:", enqueueErr.message);
-    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
