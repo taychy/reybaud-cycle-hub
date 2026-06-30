@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle, AlertCircle, Clock, Shield, Bike, Footprints,
   Plane, ShieldCheck, Package, Banknote, Loader2, CalendarDays,
-  MapPin, CreditCard, ChevronRight, Bell, XCircle,
+  MapPin, CreditCard, ChevronRight, Bell, XCircle, MessageCircle,
 } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
