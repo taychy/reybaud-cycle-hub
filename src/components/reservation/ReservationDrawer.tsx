@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
+import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
 
 
 type Alumno = Tables<"alumnos">;
@@ -56,6 +57,8 @@ interface PackageRow {
   used_mujeres?: number;
   used_varones?: number;
   used_mixto?: number;
+  // etapa de precio vigente (si aplica)
+  active_stage_id?: string | null;
 }
 
 type RoomGender = "femenina" | "masculina" | "mixta";
@@ -110,6 +113,16 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         .eq("activo", true)
         .order("sort_order", { ascending: true });
       const rows = ((data as unknown as PackageRow[]) || []);
+      // Aplicar etapa de precio vigente si existe
+      if (rows.length > 0) {
+        const stagesMap = await fetchPriceStages(rows.map((p) => p.id));
+        rows.forEach((p) => {
+          const resolved = resolveActivePrice(p.precio, p.currency, stagesMap[p.id]);
+          p.precio = resolved.precio;
+          p.currency = resolved.currency;
+          p.active_stage_id = resolved.activeStage?.id ?? null;
+        });
+      }
       // Conteo de reservas activas por paquete (totales + por género)
       if (rows.length > 0) {
         const { data: reservas } = await supabase
@@ -159,15 +172,35 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     }
     let cancelled = false;
     (async () => {
-      const { data: plan } = await supabase
-        .from("event_package_payment_plans" as any)
-        .select("*")
-        .eq("package_id", selectedPackage.id)
-        .is("archived_at", null)
-        .eq("activo", true)
-        .order("version", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const stageId = selectedPackage.active_stage_id ?? null;
+      // Buscar primero plan específico para la etapa vigente
+      let plan: any = null;
+      if (stageId) {
+        const { data } = await supabase
+          .from("event_package_payment_plans" as any)
+          .select("*")
+          .eq("package_id", selectedPackage.id)
+          .eq("price_stage_id", stageId)
+          .is("archived_at", null)
+          .eq("activo", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        plan = data;
+      }
+      if (!plan) {
+        const { data } = await supabase
+          .from("event_package_payment_plans" as any)
+          .select("*")
+          .eq("package_id", selectedPackage.id)
+          .is("price_stage_id", null)
+          .is("archived_at", null)
+          .eq("activo", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        plan = data;
+      }
 
       if (cancelled) return;
       if (!plan) {
@@ -452,15 +485,34 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     // Materializar plan de cuotas si el paquete tiene uno activo
     if (selectedPackage && !isInscriptionOnly && effectivePrice > 0) {
       try {
-        const { data: plan } = await supabase
-          .from("event_package_payment_plans" as any)
-          .select("*")
-          .eq("package_id", selectedPackage.id)
-          .is("archived_at", null)
-          .eq("activo", true)
-          .order("version", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const stageId = selectedPackage.active_stage_id ?? null;
+        let plan: any = null;
+        if (stageId) {
+          const { data } = await supabase
+            .from("event_package_payment_plans" as any)
+            .select("*")
+            .eq("package_id", selectedPackage.id)
+            .eq("price_stage_id", stageId)
+            .is("archived_at", null)
+            .eq("activo", true)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          plan = data;
+        }
+        if (!plan) {
+          const { data } = await supabase
+            .from("event_package_payment_plans" as any)
+            .select("*")
+            .eq("package_id", selectedPackage.id)
+            .is("price_stage_id", null)
+            .is("archived_at", null)
+            .eq("activo", true)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          plan = data;
+        }
 
         if (plan) {
           const p = plan as any;

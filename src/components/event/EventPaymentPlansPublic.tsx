@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, CalendarDays, Wallet } from "lucide-react";
+import { ChevronDown, ChevronUp, CalendarDays, Wallet, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
+import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 
 interface PlanInstallment {
   numero: number;
@@ -27,6 +28,8 @@ interface Pkg {
   precio: number;
   currency: string;
   plan: Plan | null;
+  activeStage: PriceStage | null;
+  nextStage: PriceStage | null;
 }
 
 
@@ -59,18 +62,53 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
       const pkgList = (pkgs as any[]) || [];
       if (pkgList.length === 0) { setLoading(false); return; }
 
+      const stagesMap = await fetchPriceStages(pkgList.map((p) => p.id));
+
       const enriched: Pkg[] = await Promise.all(pkgList.map(async (p: any) => {
-        const { data: plan } = await supabase
-          .from("event_package_payment_plans" as any)
-          .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas")
-          .eq("package_id", p.id)
-          .is("archived_at", null)
-          .eq("activo", true)
-          .order("version", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const base = { id: p.id, nombre: p.nombre, descripcion: p.descripcion ?? null, precio: Number(p.precio), currency: p.currency };
-        if (!plan) return { ...base, plan: null };
+        const stages = stagesMap[p.id] || [];
+        const resolved = resolveActivePrice(Number(p.precio), p.currency, stages);
+        const stageId = resolved.activeStage?.id ?? null;
+
+        // Plan específico para la etapa vigente, o plan genérico si no hay
+        let plan: any = null;
+        if (stageId) {
+          const { data } = await supabase
+            .from("event_package_payment_plans" as any)
+            .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas")
+            .eq("package_id", p.id)
+            .eq("price_stage_id", stageId)
+            .is("archived_at", null)
+            .eq("activo", true)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          plan = data;
+        }
+        if (!plan) {
+          const { data } = await supabase
+            .from("event_package_payment_plans" as any)
+            .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas")
+            .eq("package_id", p.id)
+            .is("price_stage_id", null)
+            .is("archived_at", null)
+            .eq("activo", true)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          plan = data;
+        }
+
+        const base: Pkg = {
+          id: p.id,
+          nombre: p.nombre,
+          descripcion: p.descripcion ?? null,
+          precio: resolved.precio,
+          currency: resolved.currency,
+          plan: null,
+          activeStage: resolved.activeStage,
+          nextStage: resolved.nextStage,
+        };
+        if (!plan) return base;
         const { data: insts } = await supabase
           .from("event_package_payment_plan_installments" as any)
           .select("numero, descripcion, monto_tipo, monto_valor, fecha_vencimiento")
@@ -132,6 +170,15 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                 </div>
                 {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
               </button>
+              {pkg.nextStage && (
+                <div className="px-3 pb-2 flex items-center gap-1.5 text-[10px] text-amber-300">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>
+                    Sube a <strong>{formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}</strong> {formatCountdown(pkg.nextStage.vigente_desde)}
+                    {pkg.nextStage.incremento_pct != null && <> (+{pkg.nextStage.incremento_pct}%)</>}
+                  </span>
+                </div>
+              )}
               {open && (
                 <div className="px-3 py-2.5 border-t border-border/40 bg-muted/20 space-y-2 text-xs">
                   {pkg.descripcion && (
