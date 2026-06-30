@@ -376,6 +376,11 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                 {isOpen && (
                   <div className="px-2 pb-2 pl-7 space-y-2 animate-fade-in">
                     {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
+                    <PackagePriceStagesEditor
+                      packageId={p.id}
+                      packageBasePrice={p.precio}
+                      baseCurrency={p.currency}
+                    />
                     <PackagePaymentPlanEditor
                       packageId={p.id}
                       packagePrice={p.precio}
