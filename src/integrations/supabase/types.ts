@@ -1809,6 +1809,42 @@ export type Database = {
           },
         ]
       }
+      email_dlq_decisions: {
+        Row: {
+          decided_at: string
+          decided_by: string | null
+          decision: string
+          id: string
+          message_id: string | null
+          original_error: string | null
+          reason: string | null
+          recipient_email: string | null
+          template_name: string | null
+        }
+        Insert: {
+          decided_at?: string
+          decided_by?: string | null
+          decision: string
+          id?: string
+          message_id?: string | null
+          original_error?: string | null
+          reason?: string | null
+          recipient_email?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string | null
+          decision?: string
+          id?: string
+          message_id?: string | null
+          original_error?: string | null
+          reason?: string | null
+          recipient_email?: string | null
+          template_name?: string | null
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
