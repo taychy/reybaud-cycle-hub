@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
+import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
 
 
 type Alumno = Tables<"alumnos">;
