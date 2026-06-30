@@ -12,6 +12,19 @@ const FROM_NAME = "Ciclismo Reybaud";
 const APP_PORTAL_URL = "https://reybaud-app.com";
 const BRAND = "#FF6B1A";
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+async function getOrCreateUnsubscribeToken(supabase: any, email: string): Promise<string> {
+  const e = normalizeEmail(email);
+  const { data: ex } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (ex?.token) return ex.token;
+  const t = crypto.randomUUID();
+  const { data: ins, error } = await supabase.from('email_unsubscribe_tokens').insert({ email: e, token: t }).select('token').single();
+  if (!error && ins?.token) return ins.token;
+  const { data: fb } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (fb?.token) return fb.token;
+  throw error ?? new Error('Could not create unsubscribe token');
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -75,6 +88,8 @@ Deno.serve(async (req) => {
     const messageId = crypto.randomUUID();
     const subject = `Tu factura ${factura.numero_comprobante || ""} de Reybaud Ciclismo`.trim();
 
+    const unsubToken = await getOrCreateUnsubscribeToken(supabase, alumno.email);
+
     const { error: enqueueErr } = await supabase.rpc("enqueue_email", {
       queue_name: "transactional_emails",
       payload: {
@@ -89,6 +104,7 @@ Deno.serve(async (req) => {
         label: "factura_emitida",
         idempotency_key: `factura-${factura_id}`,
         queued_at: new Date().toISOString(),
+        unsubscribe_token: unsubToken,
       },
     });
     if (enqueueErr) {

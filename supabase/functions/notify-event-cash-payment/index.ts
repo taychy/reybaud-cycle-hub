@@ -9,6 +9,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+async function getOrCreateUnsubscribeToken(supabase: any, email: string): Promise<string> {
+  const e = normalizeEmail(email);
+  const { data: ex } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (ex?.token) return ex.token;
+  const t = crypto.randomUUID();
+  const { data: ins, error } = await supabase.from('email_unsubscribe_tokens').insert({ email: e, token: t }).select('token').single();
+  if (!error && ins?.token) return ins.token;
+  const { data: fb } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (fb?.token) return fb.token;
+  throw error ?? new Error('Could not create unsubscribe token');
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -68,28 +81,29 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    const messageId = crypto.randomUUID();
-    const emailPayload = {
-      message_id: messageId,
-      to: adminEmails.join(", "),
-      from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      subject: `🏕️ Reserva efectivo: ${alumno.nombre} — ${event.title}`,
-      html: emailHtml,
-      text: '',
-      purpose: 'transactional',
-      label: 'event_cash_payment_notification',
-      idempotency_key: messageId,
-      queued_at: new Date().toISOString(),
-    };
-
-    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
-      queue_name: 'transactional_emails',
-      payload: emailPayload,
-    });
-
-    if (enqueueErr) {
-      console.error("Queue error:", enqueueErr.message);
+    // 1 mail por admin con su propio unsubscribe_token (API exige token por destinatario)
+    for (const adminEmail of adminEmails) {
+      const messageId = crypto.randomUUID();
+      const unsubToken = await getOrCreateUnsubscribeToken(supabase, adminEmail);
+      const emailPayload = {
+        message_id: messageId,
+        to: adminEmail,
+        from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN,
+        subject: `🏕️ Reserva efectivo: ${alumno.nombre} — ${event.title}`,
+        html: emailHtml,
+        text: '',
+        purpose: 'transactional',
+        label: 'event_cash_payment_notification',
+        idempotency_key: `${messageId}-${adminEmail}`,
+        queued_at: new Date().toISOString(),
+        unsubscribe_token: unsubToken,
+      };
+      const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
+        queue_name: 'transactional_emails',
+        payload: emailPayload,
+      });
+      if (enqueueErr) console.error("Queue error:", enqueueErr.message);
     }
 
     return new Response(JSON.stringify({ ok: true }), {

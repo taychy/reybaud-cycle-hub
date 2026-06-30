@@ -147,8 +147,22 @@ async function getDefaultAlertEmails(supabase: any): Promise<string[]> {
   return [];
 }
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+async function getOrCreateUnsubscribeToken(supabase: any, email: string): Promise<string> {
+  const e = normalizeEmail(email);
+  const { data: ex } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (ex?.token) return ex.token;
+  const t = crypto.randomUUID();
+  const { data: ins, error } = await supabase.from('email_unsubscribe_tokens').insert({ email: e, token: t }).select('token').single();
+  if (!error && ins?.token) return ins.token;
+  const { data: fb } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (fb?.token) return fb.token;
+  throw error ?? new Error('Could not create unsubscribe token');
+}
+
 async function enqueueEmail(supabase: any, to: string, subject: string, html: string, idempotencyKey: string, label: string) {
   const messageId = crypto.randomUUID();
+  const unsubToken = await getOrCreateUnsubscribeToken(supabase, to);
   const payload = {
     message_id: messageId,
     to,
@@ -161,6 +175,7 @@ async function enqueueEmail(supabase: any, to: string, subject: string, html: st
     label,
     idempotency_key: idempotencyKey,
     queued_at: new Date().toISOString(),
+    unsubscribe_token: unsubToken,
   };
   const { error } = await supabase.rpc('enqueue_email', { queue_name: 'transactional_emails', payload });
   if (error) throw error;
