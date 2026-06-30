@@ -515,6 +515,7 @@ const EventDetail = () => {
               reservation={reservation}
               alumnoId={alumno.id}
               eventCurrency={event.currency}
+              eventId={event.id}
               eventDate={event.date}
               eventTitle={event.title}
               eventType={event.type}
