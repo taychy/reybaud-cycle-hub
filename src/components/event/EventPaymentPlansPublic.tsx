@@ -170,6 +170,15 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                 </div>
                 {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
               </button>
+              {pkg.nextStage && (
+                <div className="px-3 pb-2 flex items-center gap-1.5 text-[10px] text-amber-300">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>
+                    Sube a <strong>{formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}</strong> {formatCountdown(pkg.nextStage.vigente_desde)}
+                    {pkg.nextStage.incremento_pct != null && <> (+{pkg.nextStage.incremento_pct}%)</>}
+                  </span>
+                </div>
+              )}
               {open && (
                 <div className="px-3 py-2.5 border-t border-border/40 bg-muted/20 space-y-2 text-xs">
                   {pkg.descripcion && (
