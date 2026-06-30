@@ -9,6 +9,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+async function getOrCreateUnsubscribeToken(supabase: any, email: string): Promise<string> {
+  const e = normalizeEmail(email);
+  const { data: ex } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (ex?.token) return ex.token;
+  const t = crypto.randomUUID();
+  const { data: ins, error } = await supabase.from('email_unsubscribe_tokens').insert({ email: e, token: t }).select('token').single();
+  if (!error && ins?.token) return ins.token;
+  const { data: fb } = await supabase.from('email_unsubscribe_tokens').select('token').eq('email', e).maybeSingle();
+  if (fb?.token) return fb.token;
+  throw error ?? new Error('Could not create unsubscribe token');
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
