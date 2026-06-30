@@ -172,15 +172,35 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     }
     let cancelled = false;
     (async () => {
-      const { data: plan } = await supabase
-        .from("event_package_payment_plans" as any)
-        .select("*")
-        .eq("package_id", selectedPackage.id)
-        .is("archived_at", null)
-        .eq("activo", true)
-        .order("version", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const stageId = selectedPackage.active_stage_id ?? null;
+      // Buscar primero plan específico para la etapa vigente
+      let plan: any = null;
+      if (stageId) {
+        const { data } = await supabase
+          .from("event_package_payment_plans" as any)
+          .select("*")
+          .eq("package_id", selectedPackage.id)
+          .eq("price_stage_id", stageId)
+          .is("archived_at", null)
+          .eq("activo", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        plan = data;
+      }
+      if (!plan) {
+        const { data } = await supabase
+          .from("event_package_payment_plans" as any)
+          .select("*")
+          .eq("package_id", selectedPackage.id)
+          .is("price_stage_id", null)
+          .is("archived_at", null)
+          .eq("activo", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        plan = data;
+      }
 
       if (cancelled) return;
       if (!plan) {
