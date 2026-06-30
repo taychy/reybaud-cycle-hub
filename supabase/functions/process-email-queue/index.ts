@@ -292,6 +292,14 @@ Deno.serve(async (req) => {
       }
 
       try {
+        // Central guarantee: every transactional send MUST include an
+        // unsubscribe_token (Brevo rejects with 400 missing_unsubscribe
+        // otherwise). If the producer didn't include one, mint/lookup here.
+        let unsubscribeToken = payload.unsubscribe_token as string | undefined
+        if (!unsubscribeToken && queue === 'transactional_emails' && typeof payload.to === 'string') {
+          unsubscribeToken = (await ensureUnsubscribeToken(supabase, payload.to)) ?? undefined
+        }
+
         const text =
           typeof payload.text === 'string' && payload.text.trim()
             ? payload.text
