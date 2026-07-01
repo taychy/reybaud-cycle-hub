@@ -143,8 +143,14 @@ Deno.serve(async (req) => {
   const renewals: any[] = [];
   const skipped: any[] = [];
 
+  // Mes destino de la renovación = mes de `target` (día 1 al último día).
+  // Si la vieja terminó hace tiempo, igual la renovación va al mes en curso, no a un mes pasado.
+  const [ty, tm] = target.split("-").map(Number);
+  const targetMonthStart = `${ty}-${String(tm).padStart(2, "0")}-01`;
+
   for (const old of eligible) {
-    const newFechaIni = addDaysISO(old.fecha_fin, 1);
+    const naturalNext = addDaysISO(old.fecha_fin, 1);
+    const newFechaIni = naturalNext > targetMonthStart ? naturalNext : targetMonthStart;
     const newFechaFin = endOfMonthISO(newFechaIni);
 
     const { data: existing } = await supabase
