@@ -53,6 +53,8 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.send-reservation-payment-recorded]
     verify_jwt = false
+  [functions.renew-monthly-subscriptions]
+    verify_jwt = false
 
   [functions.register-record-participant]
     verify_jwt = false
