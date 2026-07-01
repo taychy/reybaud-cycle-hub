@@ -533,6 +533,40 @@ const EventDetail = () => {
             />
           )}
 
+          {/* Cambiar paquete — cuando el evento lo permite y falta más que dias_limite */}
+          {alumno && isActiveReservation && reservation && event.permite_cambio_paquete_alumno && packagesCount > 1 && (() => {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const [ey, em, ed] = event.date.substring(0, 10).split("-").map(Number);
+            const evDate = new Date(ey, em - 1, ed);
+            const days = Math.ceil((evDate.getTime() - today.getTime()) / 86400000);
+            const limit = event.dias_limite_cambio_alumno ?? 60;
+            if (days < limit) return null;
+            return (
+              <button
+                type="button"
+                onClick={() => setShowChangePackage(true)}
+                className="w-full rounded-xl border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 px-4 py-3 text-left transition-colors"
+              >
+                <p className="text-sm font-medium text-primary">¿Querés cambiar tu paquete?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Simulá el impacto y enviá tu solicitud · disponible hasta {limit} días antes del viaje
+                </p>
+              </button>
+            );
+          })()}
+
+          {alumno && reservation && (
+            <StudentChangePackageDrawer
+              open={showChangePackage}
+              onOpenChange={setShowChangePackage}
+              reservationId={reservation.id}
+              eventId={event.id}
+              alumnoId={alumno.id}
+              currentPackageId={reservation.package_id}
+              eventTitle={event.title}
+              onSubmitted={loadReservation}
+            />
+
           {/* Event Announcements — show after status when reserved */}
           {id && isActiveReservation && !["carrera"].includes(event.type) && (
             <>
