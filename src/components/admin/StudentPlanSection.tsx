@@ -803,6 +803,11 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         {/* Actions for ACTIVE subs only */}
         {!isHistoric && isActive && (
           <div className="flex flex-wrap gap-1 pt-1">
+            {isAdminPayableSubscription({ estado: sub.estado, fecha_fin: getSubStatusEndDate(sub), cancelada_at: sub.cancelada_at }) && (
+              <Button variant="default" size="sm" className="text-[10px] h-6 px-2 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setRegPaySubId(sub.id)}>
+                <DollarSign className="w-3 h-3 mr-0.5" /> Registrar pago
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openChangePlan(sub.id)}>
               <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
             </Button>
