@@ -3,7 +3,8 @@
  *
  * Business rules:
  *  - Plan expires on the last day of the month (fecha_fin).
- *  - Day 1-5 of next month with no approved payment → pago_pendiente (gracia).
+ *  - Day 1-5 of next month with no approved payment for the new period → pago_pendiente (gracia).
+ *  - Expired period that is already paid → finalizada (never pago_pendiente).
  *  - After day 5 with no approved payment → acceso_pausado.
  *
  * MAPPING DB raw → effective → UI label:
@@ -17,9 +18,8 @@
  *                                 → acceso_pausado          → "Vencido"
  *   pendiente                     → pendiente               → "Por cobrar"
  *   pendiente_verificacion        → pendiente_verificacion  → "Informado"
- *   vencida                       → vencida                 → "Vencido"
- *                                                             (excepto si origen_registro∈{automatico,cargado_admin}
- *                                                              → "Pagado" en su período)
+   *   vencida + paga                → finalizada              → "Finalizada"
+   *   vencida + impaga              → vencida                 → "Vencido"
  *   conciliado                    → conciliado (raw)        → "Conciliado"
  *   cancelada / cancelada_at      → activa hasta fecha_fin
  *                                   luego cancelada         → "Cancelado"
@@ -106,10 +106,9 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
 
   // If the subscription isn't "activa" in the DB, check for "vencida pero paga"
   if (sub.estado !== "activa") {
-    // "vencida" en DB pero con pago aprobado: el período contable está cerrado,
-    // PERO el alumno mantiene la ventana de gracia día 1-5 del mes siguiente
-    // (igual que una sub activa que acaba de vencer). Pasada la gracia sí
-    // pasa a "finalizada" (sin deuda, sin acceso, requiere renovar).
+    // "vencida" en DB pero con pago aprobado/cargado: el período contable está cerrado
+    // y NO debe entrar en gracia ni mostrarse como deuda. Si existe una renovación
+    // del mes siguiente sin pagar, esa nueva sub es la que queda "pago_pendiente".
     if (sub.estado === "vencida" && isSubPaid(sub)) {
       if (sub.fecha_fin) {
         const today = new Date();
@@ -117,10 +116,6 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
         const [fy, fm, fd] = sub.fecha_fin.substring(0, 10).split("-").map((n) => parseInt(n, 10));
         const fin = new Date(fy, fm - 1, fd, 23, 59, 59);
         if (today <= fin) return "activa";
-        const isNextMonth =
-          (today.getFullYear() === fin.getFullYear() && today.getMonth() === fin.getMonth() + 1) ||
-          (today.getFullYear() === fin.getFullYear() + 1 && fin.getMonth() === 11 && today.getMonth() === 0);
-        if (isNextMonth && today.getDate() <= 5) return "pago_pendiente";
       }
       return "finalizada";
     }
