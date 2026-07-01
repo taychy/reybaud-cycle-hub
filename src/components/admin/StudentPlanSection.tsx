@@ -1048,7 +1048,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                   </label>
                   <label className="flex items-start gap-2 cursor-pointer text-xs">
                     <RadioGroupItem value="vencida" className="mt-0.5" />
-                    <span><span className="font-medium text-destructive">Vencido (deuda)</span> — pago a mes vencido tipo Gustavo Rosa: queda como deuda hasta que se registre el cobro.</span>
+                    <span><span className="font-medium text-destructive">Vencido (deuda)</span> — cargo a mes vencido: queda como deuda hasta que se registre el cobro.</span>
                   </label>
                 </RadioGroup>
               </div>
