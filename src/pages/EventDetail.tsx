@@ -566,6 +566,8 @@ const EventDetail = () => {
               eventTitle={event.title}
               onSubmitted={loadReservation}
             />
+          )}
+
 
           {/* Event Announcements — show after status when reserved */}
           {id && isActiveReservation && !["carrera"].includes(event.type) && (
