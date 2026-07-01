@@ -272,27 +272,66 @@ export function RegisterPaymentModal({
 
 
   const handleSubmit = async () => {
-    if (!selectedSubId || !selectedAlumnoId) {
-      toast.error("Seleccioná un alumno y una suscripción pendiente.");
+    if (!selectedAlumnoId) {
+      toast.error("Seleccioná un alumno.");
+      return;
+    }
+    if (!nuevaSubMode && !selectedSubId) {
+      toast.error("Seleccioná una suscripción a cobrar o activá 'Nueva suscripción / renovación'.");
+      return;
+    }
+    if (nuevaSubMode && !nuevoPlanId) {
+      toast.error("Elegí el plan para la nueva suscripción.");
       return;
     }
     if (!fechaPago) {
       toast.error("Ingresá la fecha de pago.");
       return;
     }
-    // fecha_fin: respetar la de la sub seleccionada (su período); solo recalcular
-    // si la sub no tenía período definido.
-    const subForUpdate = pendingSubs.find(s => s.id === selectedSubId);
-    const fechaInicioFinal = subForUpdate?.fecha_inicio?.substring(0, 10) || fechaPago;
-    const fechaFinNorm = subForUpdate?.fecha_fin?.substring(0, 10)
-      || endOfCalendarMonth(fechaInicioFinal);
 
     setSaving(true);
     try {
+      const nuevoPlan = availablePlans.find(p => p.id === nuevoPlanId);
+      const subForUpdate = pendingSubs.find(s => s.id === selectedSubId);
+
+      const fechaInicioFinal = nuevaSubMode
+        ? fechaPago
+        : (subForUpdate?.fecha_inicio?.substring(0, 10) || fechaPago);
+      const fechaFinNorm = (fechaFin && fechaFin.length >= 10)
+        ? fechaFin
+        : (nuevaSubMode
+            ? endOfCalendarMonth(fechaInicioFinal)
+            : (subForUpdate?.fecha_fin?.substring(0, 10) || endOfCalendarMonth(fechaInicioFinal)));
+
       const montoNum = parseFloat(montoPagado) || 0;
       const creditoNum = aplicarCredito ? Math.min(parseFloat(creditoAplicado) || 0, availableCredit) : 0;
-      const sub = subForUpdate;
-      const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
+
+      // Precio esperado + descuentos
+      let expectedAmount = 0;
+      let effDiscountId: string | null = null;
+      let baseUsed = 0;
+      let planName = "—";
+      let moneda = "ARS";
+      let planIdFinal: string | null = null;
+
+      if (nuevaSubMode && nuevoPlan) {
+        planIdFinal = nuevoPlan.id;
+        planName = nuevoPlan.nombre;
+        moneda = nuevoPlan.moneda || "ARS";
+        baseUsed = nuevoPlan.precio;
+        const live = applyDiscount(nuevoPlan.precio, "planes", false);
+        expectedAmount = live.final;
+        effDiscountId = live.discount?.id ?? null;
+      } else {
+        const eff = getEffectivePrice(subForUpdate);
+        expectedAmount = eff.price;
+        effDiscountId = eff.discountId;
+        baseUsed = eff.baseUsed;
+        planName = subForUpdate?.planes?.nombre || "—";
+        moneda = subForUpdate?.planes?.moneda || "ARS";
+        planIdFinal = subForUpdate?.plan_id || null;
+      }
+
       const totalRecibido = montoNum + creditoNum;
       const isParcial = totalRecibido > 0 && totalRecibido < expectedAmount;
       const excedente = montoNum > Math.max(0, expectedAmount - creditoNum) ? montoNum - Math.max(0, expectedAmount - creditoNum) : 0;
@@ -305,24 +344,52 @@ export function RegisterPaymentModal({
       if (excedente > 0) notasParts.push(`Excedente acreditado a cuenta: ${excedente}`);
       notasParts.push(`Registrado por admin el ${fechaPago}`);
 
-      const { error } = await supabase
-        .from("suscripciones")
-        .update({
-          estado: newEstado,
-          fecha_inicio: fechaInicioFinal,
-          fecha_fin: fechaFinNorm,
-          metodo_pago: metodo,
-          origen_registro: "cargado_admin",
-          notas: notasParts.join(" | "),
-          precio_base: baseUsed || undefined,
-          precio_final: isParcial ? expectedAmount : expectedAmount,
-          descuento_id: effDiscountId ?? undefined,
-        } as any)
-        .eq("id", selectedSubId);
+      let targetSubId = selectedSubId;
 
-      if (error) {
-        if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
-        throw error;
+      if (nuevaSubMode) {
+        // INSERT nueva suscripción
+        const { data: inserted, error: insErr } = await supabase
+          .from("suscripciones")
+          .insert({
+            alumno_id: selectedAlumnoId,
+            plan_id: planIdFinal!,
+            estado: newEstado,
+            fecha_inicio: fechaInicioFinal,
+            fecha_fin: fechaFinNorm,
+            metodo_pago: metodo,
+            origen_registro: "cargado_admin",
+            notas: notasParts.join(" | "),
+            precio_base: baseUsed || null,
+            precio_final: expectedAmount,
+            descuento_id: effDiscountId ?? null,
+            auto_renovacion: false,
+          } as any)
+          .select("id")
+          .single();
+        if (insErr) {
+          if (isDuplicateSubError(insErr)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw insErr;
+        }
+        targetSubId = (inserted as any)?.id;
+      } else {
+        const { error } = await supabase
+          .from("suscripciones")
+          .update({
+            estado: newEstado,
+            fecha_inicio: fechaInicioFinal,
+            fecha_fin: fechaFinNorm,
+            metodo_pago: metodo,
+            origen_registro: "cargado_admin",
+            notas: notasParts.join(" | "),
+            precio_base: baseUsed || undefined,
+            precio_final: expectedAmount,
+            descuento_id: effDiscountId ?? undefined,
+          } as any)
+          .eq("id", selectedSubId!);
+        if (error) {
+          if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw error;
+        }
       }
 
       // Activate student if full payment
@@ -331,59 +398,59 @@ export function RegisterPaymentModal({
       }
 
       // Log activity
-      const planName = sub?.planes?.nombre || "—";
       const methodLabel = PAYMENT_METHODS.find(m => m.key === metodo)?.label || metodo;
       await logStudentActivity({
         alumnoId: selectedAlumnoId,
         eventType: "pago_registrado",
-        title: "Pago registrado por admin",
+        title: nuevaSubMode ? "Nueva suscripción registrada por admin" : "Pago registrado por admin",
         description: `${methodLabel} — $${montoNum} — ${planName}${isParcial ? " (parcial)" : ""}`,
         actorRole: "admin",
         referenceType: "suscripcion",
-        referenceId: selectedSubId,
+        referenceId: targetSubId || undefined,
         referenceLabel: planName,
       });
 
       // Audit log
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session && targetSubId) {
         const { data: adminProfile } = await supabase.from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
         await supabase.from("audit_log").insert([{
           user_id: session.user.id,
           user_email: adminProfile?.email || session.user.email || "",
           user_role: adminProfile?.role || "admin",
-          action: "registrar_pago",
+          action: nuevaSubMode ? "crear_suscripcion_pago" : "registrar_pago",
           entity_type: "suscripcion",
-          entity_id: selectedSubId,
+          entity_id: targetSubId,
           details: {
             alumno: selectedAlumnoName || selectedAlumnoId,
             plan: planName,
             monto: montoNum,
             metodo,
             fecha_pago: fechaPago,
+            fecha_fin: fechaFinNorm,
             parcial: isParcial,
+            nueva_suscripcion: nuevaSubMode,
           },
         }]);
       }
 
       // Auto-facturar
-      if (sub?.planes && newEstado === "activa") {
+      if (newEstado === "activa" && targetSubId) {
         supabase.functions.invoke("auto-facturar", {
           body: {
             alumno_id: selectedAlumnoId,
             concepto: `Suscripción ${planName}`,
-            monto: montoNum || sub.planes.precio,
+            monto: montoNum || expectedAmount,
             referencia_tipo: "suscripcion",
-            referencia_id: selectedSubId,
+            referencia_id: targetSubId,
             segmento: "escuela",
           },
         }).catch(() => {});
       }
 
-      // Registrar excedente como saldo a favor (cuenta_ajustes credito)
+      // Registrar excedente como saldo a favor
       if (excedente > 0) {
         const { data: { user } } = await supabase.auth.getUser();
-        const moneda = sub?.planes?.moneda || "ARS";
         const { error: ajusteErr } = await supabase.from("cuenta_ajustes").insert({
           alumno_id: selectedAlumnoId,
           tipo: "credito",
@@ -397,10 +464,9 @@ export function RegisterPaymentModal({
         if (ajusteErr) console.error("No se pudo registrar saldo a favor:", ajusteErr);
       }
 
-      // Consumir saldo a favor aplicado (cuenta_ajustes cargo)
-      if (creditoNum > 0) {
+      // Consumir saldo a favor aplicado
+      if (creditoNum > 0 && targetSubId) {
         const { data: { user } } = await supabase.auth.getUser();
-        const moneda = sub?.planes?.moneda || "ARS";
         const { error: consumeErr } = await supabase.from("cuenta_ajustes").insert({
           alumno_id: selectedAlumnoId,
           tipo: "cargo",
@@ -408,8 +474,8 @@ export function RegisterPaymentModal({
           monto: creditoNum,
           moneda,
           fecha: fechaPago,
-          notas: `Saldo a favor aplicado al pago de la suscripción ${selectedSubId}`,
-          referencia_externa: `suscripcion:${selectedSubId}`,
+          notas: `Saldo a favor aplicado al pago de la suscripción ${targetSubId}`,
+          referencia_externa: `suscripcion:${targetSubId}`,
           created_by: user?.id || null,
         });
         if (consumeErr) console.error("No se pudo consumir saldo a favor:", consumeErr);
@@ -424,7 +490,9 @@ export function RegisterPaymentModal({
               ? `Pago registrado · saldo a favor $${excedente}`
               : creditoNum > 0
                 ? `Pago registrado · saldo aplicado $${creditoNum}`
-                : "Pago registrado correctamente"
+                : nuevaSubMode
+                  ? "Nueva suscripción registrada"
+                  : "Pago registrado correctamente"
       );
       onOpenChange(false);
       onSuccess?.();
@@ -434,6 +502,7 @@ export function RegisterPaymentModal({
       setSaving(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
