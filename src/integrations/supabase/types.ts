@@ -68,6 +68,13 @@ export type Database = {
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admin_notification_events_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
         ]
       }
       admin_profiles: {
@@ -2406,6 +2413,122 @@ export type Database = {
           },
         ]
       }
+      event_package_change_requests: {
+        Row: {
+          alumno_id: string | null
+          applied_at: string | null
+          created_at: string
+          estado: string
+          event_id: string
+          expires_at: string | null
+          id: string
+          motivo_alumno: string | null
+          nota_admin: string | null
+          override_plaza_libre: boolean
+          package_actual_id: string | null
+          package_nuevo_id: string
+          preview_snapshot: Json | null
+          requested_by: string | null
+          reservation_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          roommate_propuesto_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          applied_at?: string | null
+          created_at?: string
+          estado?: string
+          event_id: string
+          expires_at?: string | null
+          id?: string
+          motivo_alumno?: string | null
+          nota_admin?: string | null
+          override_plaza_libre?: boolean
+          package_actual_id?: string | null
+          package_nuevo_id: string
+          preview_snapshot?: Json | null
+          requested_by?: string | null
+          reservation_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          roommate_propuesto_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          applied_at?: string | null
+          created_at?: string
+          estado?: string
+          event_id?: string
+          expires_at?: string | null
+          id?: string
+          motivo_alumno?: string | null
+          nota_admin?: string | null
+          override_plaza_libre?: boolean
+          package_actual_id?: string | null
+          package_nuevo_id?: string
+          preview_snapshot?: Json | null
+          requested_by?: string | null
+          reservation_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          roommate_propuesto_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_package_change_requests_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_package_actual_id_fkey"
+            columns: ["package_actual_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_package_nuevo_id_fkey"
+            columns: ["package_nuevo_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_roommate_propuesto_id_fkey"
+            columns: ["roommate_propuesto_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_package_payment_plan_installments: {
         Row: {
           created_at: string
@@ -2753,6 +2876,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_participants_event_reservation_id_fkey"
+            columns: ["event_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
             foreignKeyName: "event_participants_package_id_fkey"
             columns: ["package_id"]
             isOneToOne: false
@@ -3024,10 +3154,13 @@ export type Database = {
       events: {
         Row: {
           admin_alert_emails: string[]
+          bloquear_cambios_despues_de_inicio: boolean
           created_at: string
+          credito_valido_solo_en_evento: boolean
           currency: string
           date: string
           description: string | null
+          dias_limite_cambio_alumno: number
           duration_days: number | null
           duration_nights: number | null
           end_date: string | null
@@ -3043,6 +3176,9 @@ export type Database = {
           metadata: Json
           no_incluye: string[]
           payment_mode: Database["public"]["Enums"]["event_payment_mode"]
+          permite_cambio_paquete_alumno: boolean
+          permitir_downgrade: boolean
+          politica_precio_cambio: string
           precio_aviso_activo: boolean
           precio_aviso_hasta: string | null
           precio_aviso_texto: string | null
@@ -3062,10 +3198,13 @@ export type Database = {
         }
         Insert: {
           admin_alert_emails?: string[]
+          bloquear_cambios_despues_de_inicio?: boolean
           created_at?: string
+          credito_valido_solo_en_evento?: boolean
           currency?: string
           date: string
           description?: string | null
+          dias_limite_cambio_alumno?: number
           duration_days?: number | null
           duration_nights?: number | null
           end_date?: string | null
@@ -3081,6 +3220,9 @@ export type Database = {
           metadata?: Json
           no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
+          permite_cambio_paquete_alumno?: boolean
+          permitir_downgrade?: boolean
+          politica_precio_cambio?: string
           precio_aviso_activo?: boolean
           precio_aviso_hasta?: string | null
           precio_aviso_texto?: string | null
@@ -3100,10 +3242,13 @@ export type Database = {
         }
         Update: {
           admin_alert_emails?: string[]
+          bloquear_cambios_despues_de_inicio?: boolean
           created_at?: string
+          credito_valido_solo_en_evento?: boolean
           currency?: string
           date?: string
           description?: string | null
+          dias_limite_cambio_alumno?: number
           duration_days?: number | null
           duration_nights?: number | null
           end_date?: string | null
@@ -3119,6 +3264,9 @@ export type Database = {
           metadata?: Json
           no_incluye?: string[]
           payment_mode?: Database["public"]["Enums"]["event_payment_mode"]
+          permite_cambio_paquete_alumno?: boolean
+          permitir_downgrade?: boolean
+          politica_precio_cambio?: string
           precio_aviso_activo?: boolean
           precio_aviso_hasta?: string | null
           precio_aviso_texto?: string | null
@@ -4963,6 +5111,13 @@ export type Database = {
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservation_addons_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
         ]
       }
       reservation_cash_announcements: {
@@ -5040,6 +5195,13 @@ export type Database = {
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservation_cash_announcements_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
         ]
       }
       reservation_checklist_data: {
@@ -5093,6 +5255,103 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_checklist_data_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      reservation_financial_adjustments: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          created_by: string | null
+          estado: string
+          event_id: string
+          id: string
+          moneda: string
+          monto_disponible: number
+          monto_original: number
+          motivo: string | null
+          origen_cambio_id: string | null
+          reservation_id: string
+          tipo: string
+          updated_at: string
+          vence_el: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          event_id: string
+          id?: string
+          moneda?: string
+          monto_disponible?: number
+          monto_original: number
+          motivo?: string | null
+          origen_cambio_id?: string | null
+          reservation_id: string
+          tipo: string
+          updated_at?: string
+          vence_el?: string | null
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          event_id?: string
+          id?: string
+          moneda?: string
+          monto_disponible?: number
+          monto_original?: number
+          motivo?: string | null
+          origen_cambio_id?: string | null
+          reservation_id?: string
+          tipo?: string
+          updated_at?: string
+          vence_el?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_financial_adjustments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_financial_adjustments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_financial_adjustments_origen_cambio_id_fkey"
+            columns: ["origen_cambio_id"]
+            isOneToOne: false
+            referencedRelation: "event_package_change_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_financial_adjustments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_financial_adjustments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
           },
         ]
       }
@@ -5306,6 +5565,13 @@ export type Database = {
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservation_installments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
         ]
       }
       reservation_notifications: {
@@ -5365,6 +5631,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_notifications_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
           },
         ]
       }
@@ -5472,6 +5745,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_payment_intents_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
           },
         ]
       }
@@ -5595,6 +5875,13 @@ export type Database = {
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservation_payments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
         ]
       }
       reservation_roommates: {
@@ -5649,6 +5936,13 @@ export type Database = {
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservation_roommates_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
         ]
       }
       reservation_status_history: {
@@ -5695,6 +5989,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "event_reservations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_status_history_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
           },
         ]
       }
@@ -7519,6 +7820,60 @@ export type Database = {
           },
         ]
       }
+      v_reservation_account: {
+        Row: {
+          alumno_id: string | null
+          amount_paid: number | null
+          amount_total: number | null
+          balance_due: number | null
+          credito_disponible: number | null
+          debitos_pendientes: number | null
+          event_id: string | null
+          moneda: string | null
+          reembolsado: number | null
+          reservation_id: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          amount_paid?: number | null
+          amount_total?: number | null
+          balance_due?: number | null
+          credito_disponible?: never
+          debitos_pendientes?: never
+          event_id?: string | null
+          moneda?: string | null
+          reembolsado?: never
+          reservation_id?: string | null
+        }
+        Update: {
+          alumno_id?: string | null
+          amount_paid?: number | null
+          amount_total?: number | null
+          balance_due?: number | null
+          credito_disponible?: never
+          debitos_pendientes?: never
+          event_id?: string | null
+          moneda?: string | null
+          reembolsado?: never
+          reservation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reservations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reservations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_bajas_metricas_mensuales: {
         Row: {
           antiguedad_promedio_dias: number | null
@@ -7667,6 +8022,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_package_change: {
+        Args: {
+          p_admin_note?: string
+          p_override_plaza_libre?: boolean
+          p_package_nuevo_id: string
+          p_request_id?: string
+          p_reservation_id: string
+          p_revalidation_token: string
+        }
+        Returns: Json
+      }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
       cancel_store_order:
@@ -7677,6 +8043,14 @@ export type Database = {
         Returns: undefined
       }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
+      classify_package_change: {
+        Args: {
+          p_package_nuevo_id: string
+          p_reservation_id: string
+          p_room_impact: Json
+        }
+        Returns: string
+      }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
@@ -7777,6 +8151,14 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      evaluate_room_impact: {
+        Args: {
+          p_package_nuevo_id: string
+          p_reservation_id: string
+          p_roommate_propuesto_id?: string
+        }
+        Returns: Json
+      }
       expire_descuentos_alumno: { Args: never; Returns: number }
       expire_overdue_pausas: {
         Args: never
@@ -7864,6 +8246,19 @@ export type Database = {
       get_my_reservation: {
         Args: { _external_token?: string; _reservation_id: string }
         Returns: Json
+      }
+      get_package_active_price: {
+        Args: { p_now?: string; p_package_id: string }
+        Returns: {
+          currency: string
+          precio: number
+          stage_id: string
+          stage_nombre: string
+        }[]
+      }
+      get_package_available_spots: {
+        Args: { p_package_id: string }
+        Returns: number
       }
       get_preorder_reserved_units: {
         Args: { p_product_id: string }
@@ -7976,6 +8371,14 @@ export type Database = {
           p_notas?: string
         }
         Returns: string
+      }
+      preview_package_change: {
+        Args: {
+          p_package_nuevo_id: string
+          p_reservation_id: string
+          p_roommate_propuesto_id?: string
+        }
+        Returns: Json
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
       reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }
