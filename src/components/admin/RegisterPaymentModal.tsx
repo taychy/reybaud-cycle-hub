@@ -711,10 +711,9 @@ export function RegisterPaymentModal({
                 );
               })()}
 
-              {selectedSub && !nuevaSubMode && (
+              {/* Plan info (sub existente) */}
+              {(!nuevaSubMode && selectedSub) && (() => {
 
-              {/* Plan info */}
-              {(() => {
                 const moneda = selectedSub.planes?.moneda || "ARS";
                 const baseAmount = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
                 const { price: effectivePrice, discountId: effDiscountId } = getEffectivePrice(selectedSub);
