@@ -146,6 +146,32 @@ export default function StudentChangePackageDrawer({
     }
   };
 
+  const handleApply = async () => {
+    if (!preview || !selectedId || !preview.revalidation_token) return;
+    setApplying(true);
+    try {
+      const res = await applyPackageChange({
+        reservationId,
+        packageNuevoId: selectedId,
+        revalidationToken: preview.revalidation_token,
+      });
+      toast.success("¡Paquete actualizado!", {
+        description: res.credit_created
+          ? `Se generó un crédito a favor de $${res.credit_created.toLocaleString("es-AR")}`
+          : res.debit_created
+          ? `Nuevo saldo pendiente: $${res.debit_created.toLocaleString("es-AR")}`
+          : "Tu reserva quedó actualizada.",
+      });
+      setConfirmApply(false);
+      onSubmitted?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("No se pudo aplicar el cambio", { description: e.message });
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const handleCancel = async () => {
     if (!pending) return;
     setCancelling(true);
@@ -163,6 +189,7 @@ export default function StudentChangePackageDrawer({
       setCancelling(false);
     }
   };
+
 
   const pendingBadge = pending ? ESTADO_BADGE[pending.estado] : null;
   const pendingPackage = pending ? packages.find(p => p.id === pending.package_nuevo_id) : null;
