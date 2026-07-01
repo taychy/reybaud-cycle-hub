@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
   // 1) Candidatas: subs 'activa' con fecha_fin < target, pagadas, no canceladas.
   const { data: candidates, error: candErr } = await supabase
     .from("suscripciones")
-    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, fecha_fin, activo)")
+    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, vigencia_hasta, activo)")
     .eq("estado", "activa")
     .lt("fecha_fin", target)
     .is("cancelada_at", null);
