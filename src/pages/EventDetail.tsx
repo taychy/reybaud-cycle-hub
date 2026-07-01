@@ -61,6 +61,8 @@ interface Event {
   precio_aviso_tipo?: string | null;
   precio_aviso_hasta?: string | null;
   precio_aviso_activo?: boolean | null;
+  permite_cambio_paquete_alumno?: boolean | null;
+  dias_limite_cambio_alumno?: number | null;
 }
 
 interface Reservation {
