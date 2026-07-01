@@ -42,6 +42,7 @@ export type EffectiveSubStatus =
   | "pendiente"
   | "pendiente_verificacion"
   | "vencida"
+  | "finalizada"
   | "cancelada"
   | "pausa"
   | "sin_plan";
@@ -50,6 +51,8 @@ export interface SubStatusInput {
   estado: string;
   fecha_fin: string | null;
   cancelada_at?: string | null;
+  mp_status?: string | null;
+  origen_registro?: string | null;
 }
 
 export const ADMIN_PAYABLE_EFFECTIVE_STATUSES: EffectiveSubStatus[] = [
@@ -60,16 +63,23 @@ export const ADMIN_PAYABLE_EFFECTIVE_STATUSES: EffectiveSubStatus[] = [
   "acceso_pausado",
 ];
 
+/** Una sub se considera "pagada" cuando MP la aprobó o el admin la marcó como cargada. */
+export function isSubPaid(sub: SubStatusInput): boolean {
+  if (sub.mp_status === "approved") return true;
+  if (sub.origen_registro === "cargado_admin" || sub.origen_registro === "automatico") return true;
+  return false;
+}
+
 export function isAdminPayableSubscription(sub: SubStatusInput): boolean {
   if (sub.cancelada_at || sub.estado === "cancelada") return false;
-  // estado='activa' raw significa que YA está pagada (admin o cobro automático
-  // la dejaron en ese estado). Aunque su fecha_fin haya quedado en el pasado
-  // porque terminó el mes, esa sub no debe volver a aparecer como "por cobrar"
-  // — la plata de ese período ya entró. Si el alumno no pagó el período
-  // siguiente, eso se refleja con una sub NUEVA en estado 'pendiente'.
+  // estado='activa' raw significa que YA está pagada
   if (sub.estado === "activa") return false;
+  // Sub finalizada (período cerrado y pagada) tampoco se cobra de nuevo:
+  // se debe crear una NUEVA suscripción para el próximo período.
+  if (getEffectiveSubStatus(sub) === "finalizada") return false;
   return ADMIN_PAYABLE_EFFECTIVE_STATUSES.includes(getEffectiveSubStatus(sub));
 }
+
 
 /**
  * Computes the effective subscription status based on current date and grace period rules.
