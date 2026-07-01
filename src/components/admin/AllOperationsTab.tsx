@@ -119,6 +119,7 @@ async function loadSuscripciones(): Promise<UnifiedOp[]> {
     if (s.cancelada_at) estado = "cancelado";
     else if (s.estado === "activa" && paid) estado = "pagado";
     else if (s.estado === "pendiente_verificacion") estado = "informado";
+    else if (s.estado === "vencida" && paid) estado = "pagado"; // finalizada pagada: se cuenta en su período
     else if (s.estado === "vencida" || (s.fecha_fin && s.fecha_fin < today && !paid)) estado = "vencido";
     else if (s.estado === "cancelada") estado = "cancelado";
 
