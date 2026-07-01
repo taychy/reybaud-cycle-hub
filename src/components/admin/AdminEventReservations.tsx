@@ -13,7 +13,7 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
-  Send, Bell, History, Copy, Pencil, Ban, Trash2,
+  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +32,7 @@ import {
 import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
+import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
 import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
@@ -60,6 +61,7 @@ interface EventReservation {
   confirmed_at: string | null;
   cancelled_at: string | null;
   access_token?: string;
+  package_id?: string | null;
   alumno?: { nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
   external_participant?: { id: string; nombre: string; apellido: string | null; email: string; telefono: string | null } | null;
 }
@@ -301,6 +303,7 @@ const AdminEventReservations = ({
 
   // Detail drawer
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
+  const [changePackageFor, setChangePackageFor] = useState<EventReservation | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentToReview, setPaymentToReview] = useState<Payment | null>(null);
   const [paymentToEdit, setPaymentToEdit] = useState<Payment | null>(null);
@@ -1402,6 +1405,9 @@ const AdminEventReservations = ({
                               <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => setChangePackageFor(r)}>
+                            <Package className="w-3.5 h-3.5 mr-2" /> Cambiar paquete
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {waUrl && (
                             <DropdownMenuItem asChild>
@@ -2276,6 +2282,17 @@ const AdminEventReservations = ({
           loadReservations();
         }}
       />
+
+      {changePackageFor && (
+        <AdminChangePackageDialog
+          open={!!changePackageFor}
+          onOpenChange={(o) => !o && setChangePackageFor(null)}
+          reservationId={changePackageFor.id}
+          eventId={changePackageFor.event_id}
+          currentPackageId={changePackageFor.package_id || null}
+          onDone={() => { setChangePackageFor(null); loadReservations(); }}
+        />
+      )}
     </div>
   );
 };
