@@ -15,6 +15,23 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const REUSE_SUB_KEY = "alumno_pay_existing_sub_id";
 
+/**
+ * Marca como "vencida" cualquier sub del alumno con estado='activa' pero
+ * fecha_fin ya pasada (caso típico: el cron aún no corrió). Se llama antes
+ * de crear una sub nueva para evitar que el trigger de duplicado bloquee.
+ * Nunca lanza; si falla, deja seguir el flujo — el error real lo verá el INSERT.
+ */
+export async function expireStaleSubs(alumnoId: string, planId?: string): Promise<void> {
+  try {
+    await supabase.rpc("expire_stale_subscriptions_for_alumno" as any, {
+      p_alumno_id: alumnoId,
+      p_plan_id: planId ?? null,
+    });
+  } catch (e) {
+    console.warn("[expireStaleSubs] failed (non-fatal)", e);
+  }
+}
+
 
 
 
