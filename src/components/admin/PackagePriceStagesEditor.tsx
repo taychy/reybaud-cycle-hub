@@ -5,12 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, TrendingUp, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Trash2, TrendingUp, ChevronDown, Copy } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import type { PriceStage } from "@/lib/priceStages";
+
 
 interface Props {
   packageId: string;
@@ -57,9 +62,17 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
   const [draft, setDraft] = useState<Draft>(emptyDraft(baseCurrency));
   const [open, setOpen] = useState(false);
 
+  // Propagación a otros paquetes del mismo evento
+  interface SiblingPkg { id: string; nombre: string; precio: number; currency: string; lastStagePrice: number; computedPrice: number; selected: boolean; }
+  const [propagateOpen, setPropagateOpen] = useState(false);
+  const [siblings, setSiblings] = useState<SiblingPkg[]>([]);
+  const [lastAdded, setLastAdded] = useState<{ nombre: string; desde: string; hasta: string | null; pct: number | null; precio: number; currency: string } | null>(null);
+  const [propagating, setPropagating] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
+
       .from("event_package_price_stages" as any)
       .select("*")
       .eq("package_id", packageId)
@@ -117,9 +130,97 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
     setSaving(false);
     if (error) { toast.error("Error: " + error.message); return; }
     toast.success("Etapa agregada");
+    const addedInfo = {
+      nombre: draft.nombre.trim(),
+      desde, hasta,
+      pct: pct != null && !isNaN(pct) ? pct : null,
+      precio, currency: draft.currency,
+    };
     setDraft(emptyDraft(baseCurrency));
     load();
+    // Ofrecer propagar a otros paquetes del mismo evento
+    await offerPropagate(addedInfo);
   };
+
+  const offerPropagate = async (added: NonNullable<typeof lastAdded>) => {
+    // 1) Buscar event_id del paquete actual
+    const { data: pkg } = await supabase
+      .from("event_packages")
+      .select("event_id")
+      .eq("id", packageId)
+      .maybeSingle();
+    const eventId = (pkg as any)?.event_id;
+    if (!eventId) return;
+
+    // 2) Buscar hermanos activos
+    const { data: sibs } = await supabase
+      .from("event_packages")
+      .select("id, nombre, precio, currency, activo")
+      .eq("event_id", eventId)
+      .neq("id", packageId)
+      .eq("activo", true)
+      .order("sort_order", { ascending: true });
+    const list = (sibs || []) as any[];
+    if (list.length === 0) return;
+
+    // 3) Para cada hermano: última etapa (o precio base) → aplicar % (o precio absoluto)
+    const sibIds = list.map((s) => s.id);
+    const { data: sibStages } = await supabase
+      .from("event_package_price_stages" as any)
+      .select("package_id, precio, vigente_desde")
+      .in("package_id", sibIds)
+      .order("vigente_desde", { ascending: false });
+    const lastByPkg = new Map<string, number>();
+    for (const st of (sibStages as any[]) || []) {
+      if (!lastByPkg.has(st.package_id)) lastByPkg.set(st.package_id, Number(st.precio));
+    }
+
+    const built: SiblingPkg[] = list.map((s) => {
+      const basePrice = lastByPkg.get(s.id) ?? Number(s.precio);
+      const computed = added.pct != null
+        ? Math.round(basePrice * (1 + added.pct / 100))
+        : added.precio;
+      return {
+        id: s.id,
+        nombre: s.nombre,
+        precio: Number(s.precio),
+        currency: s.currency,
+        lastStagePrice: basePrice,
+        computedPrice: computed,
+        selected: true,
+      };
+    });
+
+    setSiblings(built);
+    setLastAdded(added);
+    setPropagateOpen(true);
+  };
+
+  const propagateNow = async () => {
+    if (!lastAdded) return;
+    const selected = siblings.filter((s) => s.selected);
+    if (selected.length === 0) { setPropagateOpen(false); return; }
+    setPropagating(true);
+    const rows = selected.map((s) => ({
+      package_id: s.id,
+      nombre: lastAdded.nombre,
+      precio: s.computedPrice,
+      currency: s.currency, // respeta la moneda propia del paquete
+      vigente_desde: lastAdded.desde,
+      vigente_hasta: lastAdded.hasta,
+      incremento_pct: lastAdded.pct,
+      sort_order: 999,
+      activo: true,
+    }));
+    const { error } = await supabase.from("event_package_price_stages" as any).insert(rows);
+    setPropagating(false);
+    if (error) { toast.error("Error propagando: " + error.message); return; }
+    toast.success(`Etapa copiada a ${selected.length} paquete${selected.length === 1 ? "" : "s"}`);
+    setPropagateOpen(false);
+    setLastAdded(null);
+    setSiblings([]);
+  };
+
 
   const toggleActive = async (s: PriceStage) => {
     const { error } = await supabase.from("event_package_price_stages" as any)
@@ -281,8 +382,64 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
           </p>
         </div>
       )}
+
+      <Dialog open={propagateOpen} onOpenChange={(v) => !propagating && setPropagateOpen(v)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="w-4 h-4" /> ¿Copiar esta etapa a otros paquetes?
+            </DialogTitle>
+          </DialogHeader>
+          {lastAdded && (
+            <div className="text-xs text-muted-foreground mb-2">
+              Etapa <b>"{lastAdded.nombre}"</b> desde {new Date(lastAdded.desde).toLocaleString("es-AR")}
+              {lastAdded.pct != null
+                ? <> · <span className="text-amber-600">+{lastAdded.pct}%</span> sobre la última etapa de cada paquete</>
+                : <> · precio fijo {formatPrice(lastAdded.precio, lastAdded.currency as any)}</>}
+            </div>
+          )}
+          <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+            {siblings.map((s, i) => (
+              <label key={s.id} className="flex items-center gap-2 p-2 rounded border border-border/40 hover:bg-muted/30 cursor-pointer">
+                <Checkbox
+                  checked={s.selected}
+                  onCheckedChange={(v) => setSiblings((arr) => arr.map((x, j) => j === i ? { ...x, selected: !!v } : x))}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{s.nombre}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Base actual: {formatPrice(s.lastStagePrice, s.currency as any)} →{" "}
+                    <span className="text-primary font-semibold">{formatPrice(s.computedPrice, s.currency as any)}</span>
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center justify-between pt-2 text-xs">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                const allSel = siblings.every((s) => s.selected);
+                setSiblings((arr) => arr.map((s) => ({ ...s, selected: !allSel })));
+              }}
+            >
+              {siblings.every((s) => s.selected) ? "Desmarcar todos" : "Marcar todos"}
+            </button>
+            <span className="text-muted-foreground">{siblings.filter(s => s.selected).length} / {siblings.length} seleccionados</span>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPropagateOpen(false)} disabled={propagating}>No, gracias</Button>
+            <Button onClick={propagateNow} disabled={propagating || siblings.filter(s => s.selected).length === 0}>
+              {propagating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+              Copiar etapa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
 
 export default PackagePriceStagesEditor;
