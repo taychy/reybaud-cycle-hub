@@ -410,6 +410,11 @@ const PlanSelection = () => {
         console.error("[handleMercadoPago] cancelPausedSubs failed", e);
       }
 
+      // Limpieza previa: si el alumno tiene subs "activas" cuya fecha_fin ya
+      // pasó (cron aún no corrió), las marcamos vencidas para que el trigger
+      // de duplicado no bloquee al insertar la sub del período nuevo.
+      await expireStaleSubs(alumnoId, plan.id);
+
       const disc = selectedDiscount;
       let fechaInicio: string;
       let fechaFin: string;
