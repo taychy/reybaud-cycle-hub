@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: candErr.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 
-  const filtered = (candidates || []).filter((s: any) => {
+  const paidCandidates = (candidates || []).filter((s: any) => {
     // Sólo pagadas
     const paid = s.mp_status === "approved" || PAID_ORIGENES.includes(s.origen_registro);
     if (!paid) return false;
@@ -101,6 +101,16 @@ Deno.serve(async (req) => {
     if (cat === "pausa" || cat === "asesoria") return false;
     return true;
   });
+
+  // Deduplicar: por alumno+plan quedarse con la más reciente (max fecha_fin).
+  // Evita generar renovaciones para períodos viejos ya cerrados.
+  const latestByKey = new Map<string, any>();
+  for (const s of paidCandidates) {
+    const key = `${s.alumno_id}|${s.plan_id}`;
+    const cur = latestByKey.get(key);
+    if (!cur || s.fecha_fin > cur.fecha_fin) latestByKey.set(key, s);
+  }
+  const filtered = Array.from(latestByKey.values());
 
   // 2) Excluir alumnos con baja en trámite
   const alumnoIds = Array.from(new Set(filtered.map((s: any) => s.alumno_id)));
