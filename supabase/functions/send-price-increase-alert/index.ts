@@ -190,6 +190,11 @@ Deno.serve(async (req) => {
     const testVariants: Variant[] = Array.isArray(body.test_variants) && body.test_variants.length
       ? body.test_variants
       : ['paid_full', 'with_balance', 'interested'];
+    const sendVariants: Set<Variant> = new Set(
+      Array.isArray(body.send_variants) && body.send_variants.length
+        ? body.send_variants
+        : ['paid_full', 'with_balance', 'interested']
+    );
     if (mode === 'test' && !testEmail) return json({ error: 'test_email requerido cuando mode=test' }, 400);
 
     const now = new Date();
