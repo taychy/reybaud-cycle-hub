@@ -83,6 +83,12 @@ async function enqueue(supabase: any, to: string, subject: string, html: string,
   if (error) throw error;
 }
 
+interface PkgRow {
+  name: string;
+  currentPrice: number | null;
+  newPrice: number | null;
+  currency: string;
+}
 interface RenderCtx {
   variant: Variant;
   nombre: string;
@@ -92,6 +98,7 @@ interface RenderCtx {
   oldMin: number | null;
   newMin: number;
   currency: string;
+  packages?: PkgRow[];
   balanceDue?: number | null;   // with_balance
   shareUrl?: string;            // paid_full
   reserveUrl?: string;          // interested
