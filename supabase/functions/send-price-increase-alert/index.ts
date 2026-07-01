@@ -100,83 +100,98 @@ interface RenderCtx {
 }
 
 function subjectFor(v: Variant, eventTitle: string): string {
-  if (v === 'paid_full')    return `📣 Tu precio en ${eventTitle} está congelado — compartilo antes del aumento`;
-  if (v === 'with_balance') return `⏰ Pagá la seña y congelá el precio de ${eventTitle}`;
+  if (v === 'paid_full')    return `🎉 ¡Tu lugar en ${eventTitle} ya está asegurado a precio congelado!`;
+  if (v === 'with_balance') return `⏰ Última llamada — el precio de ${eventTitle} sube en breve`;
   return `⏰ Última chance al precio actual de ${eventTitle}`;
 }
 
 function renderEmail(ctx: RenderCtx): string {
   const { variant, nombre, eventTitle, stageName, vigenteDesde, oldMin, newMin, currency, testFooter } = ctx;
   const diff = oldMin && oldMin > 0 ? Math.round(((newMin - oldMin) / oldMin) * 100) : null;
+  const diffPct = diff && diff !== 0 ? `${diff > 0 ? '+' : ''}${diff}%` : null;
+  const ahorro = oldMin ? Math.max(0, newMin - oldMin) : 0;
+  const fechaCorta = fmtDateShort(vigenteDesde);
 
+  // Colores fijos, con buen contraste sobre fondo blanco
+  const TEXT = '#1a1a1a';
+  const MUTED = '#555555';
+  const LABEL = '#374151';
+  const VALUE = '#111827';
+
+  let tag = '⏰ AVISO IMPORTANTE';
+  let headline = eventTitle;
   let intro = '';
+  let table = '';
   let extraBlock = '';
   let ctaHref = `${APP_URL}/eventos`;
   let ctaLabel = 'Ver el evento';
-  let tag = '⏰ AVISO IMPORTANTE';
 
   if (variant === 'paid_full') {
-    tag = '🎉 TU PRECIO ESTÁ CONGELADO';
-    intro = `Hola ${escapeHtml(nombre)}, ya reservaste <b>${escapeHtml(eventTitle)}</b> y hiciste al menos un pago, así que <b>tu precio ya está congelado</b> y no te afecta el aumento. Te escribimos porque el <b>${fmtDateAR(vigenteDesde)}</b> arranca la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''} y quien no haya reservado ya no va a poder entrar al precio actual.`;
+    tag = '🎉 ¡Tu lugar ya está asegurado a precio congelado!';
+    intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Ya reservaste y con tu seña <b>tu precio quedó congelado para siempre</b> :) . El resto de la gente no corre con la misma suerte: el <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}.`;
+    table = `
+      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio actual</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
+      <tr><td style="color:${LABEL};padding:6px 0;">Tu precio (congelado)</td><td style="text-align:right;padding:6px 0;color:#166534;font-weight:700;">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))} ✅</td></tr>
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
     extraBlock = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#166534;">Si conocés a alguien que quiera sumarse</div>
-      <div style="font-size:14px;color:#14532d;margin-top:6px;line-height:1.5;">
-        Es el momento: reservando <b>antes del ${fmtDateAR(vigenteDesde)}</b> congela el precio actual. Después de esa fecha va a pagar <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
+      <div style="font-size:14px;color:#14532d;line-height:1.55;">
+        💡 <b>Tip:</b> si tenés amigos que quieran sumarse, avisales que les conviene reservar <b>antes del ${fechaCorta}</b> para entrar en este precio. Después pagan <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
       </div>
     </div>`;
     ctaHref = ctx.shareUrl || `${APP_URL}/eventos`;
-    ctaLabel = 'Compartir el evento';
+    ctaLabel = 'Compartir el evento →';
   }
 
   if (variant === 'with_balance') {
-    tag = '⏰ AVISO — SUBE EL PRECIO';
-    intro = `Hola ${escapeHtml(nombre)}, tenés reservado <b>${escapeHtml(eventTitle)}</b> pero <b>todavía no pagaste la seña</b>, así que tu precio aún no está congelado. El <b>${fmtDateAR(vigenteDesde)}</b> entra en vigencia la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''}. <b>Si pagás la seña antes de esa fecha, congelás el precio actual</b>. Si no, el total se recalcula con el precio nuevo.`;
+    tag = '⏰ Última llamada — el precio sube en breve';
+    intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Tenés tu lugar reservado, pero como <b>todavía no pagaste la seña</b>, tu precio no está congelado. El <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}.`;
+    table = `
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</td></tr>
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
     extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#9a3412;">Precio actual vs. precio nuevo</div>
-      <div style="font-size:14px;color:#7c2d12;margin-top:6px;line-height:1.5;">
-        Hoy: <b>${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</b> · Desde el ${fmtDateAR(vigenteDesde)}: <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
+      <div style="font-size:14px;color:#7c2d12;line-height:1.55;">
+        Pagá la seña <b>antes del ${fechaCorta}</b>${ahorro > 0 ? ` y te ahorrás <b>${escapeHtml(fmtMoney(ahorro, currency))}</b>` : ''}. Después de esa fecha, <b>no hay vuelta atrás</b>.
       </div>
-      <div style="font-size:12px;color:#7c2d12;margin-top:6px;">Pagá la seña antes de esa fecha para no pagar el aumento.</div>
     </div>`;
     ctaHref = ctx.payUrl || `${APP_URL}/mis-reservas`;
-    ctaLabel = 'Ir a mi reserva y pagar la seña';
+    ctaLabel = 'Ir a mi reserva y pagar la seña →';
   }
 
   if (variant === 'interested') {
     tag = '⏰ ÚLTIMA CHANCE AL PRECIO ACTUAL';
-    intro = `Hola ${escapeHtml(nombre)}, sabemos que te interesa <b>${escapeHtml(eventTitle)}</b>. El <b>${fmtDateAR(vigenteDesde)}</b> arranca la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''}. <b>Reservando ahora congelás el precio actual</b>.`;
+    intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Sabemos que te interesa <b>${escapeHtml(eventTitle)}</b>. El <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}. <b>Reservando ahora congelás el precio actual</b>.`;
+    table = `
+      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
     extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#9a3412;">Cómo congelás el precio</div>
-      <div style="font-size:14px;color:#7c2d12;margin-top:6px;line-height:1.5;">
-        Con la <b>seña de reserva</b> te asegurás el precio actual (${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}). Después de ${fmtDateAR(vigenteDesde)} vas a pagar ${escapeHtml(fmtMoney(newMin, currency))}.
+      <div style="font-size:14px;color:#7c2d12;line-height:1.55;">
+        Con la <b>seña de reserva</b> te asegurás el precio actual${oldMin ? ` (<b>${escapeHtml(fmtMoney(oldMin, currency))}</b>)` : ''}. Después del ${fechaCorta} vas a pagar <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
       </div>
     </div>`;
     ctaHref = ctx.reserveUrl || `${APP_URL}/eventos`;
-    ctaLabel = 'Reservar antes del aumento';
+    ctaLabel = 'Reservar antes del aumento →';
   }
 
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;">
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:${TEXT};">
   <div style="max-width:560px;margin:0 auto;padding:28px 22px;">
     <div style="border-top:4px solid ${BRAND};padding-top:22px;">
-      <p style="margin:0 0 4px;color:${BRAND};font-weight:700;font-size:13px;letter-spacing:0.4px;">${tag}</p>
-      <h1 style="font-size:22px;margin:0 0 10px;">${variant === 'paid_full' ? 'Compartí' : 'Sube el precio de'} <span style="color:${BRAND}">${escapeHtml(eventTitle)}</span></h1>
-      <p style="margin:0 0 16px;color:#555;font-size:14px;line-height:1.55;">${intro}</p>
+      <p style="margin:0 0 10px;color:${BRAND};font-weight:700;font-size:14px;letter-spacing:0.3px;line-height:1.4;">${tag}</p>
+      <h1 style="font-size:22px;margin:0 0 14px;color:${BRAND};line-height:1.25;">${escapeHtml(headline)}</h1>
+      <p style="margin:0 0 16px;color:${TEXT};font-size:15px;line-height:1.6;">${intro}</p>
 
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:16px;margin:12px 0;">
-        <table style="width:100%;font-size:14px;">
-          ${oldMin ? `<tr><td style="color:#777;padding:4px 0;">Precio actual (desde)</td><td style="text-align:right;padding:4px 0;">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
-          <tr><td style="color:#777;padding:4px 0;">Precio nuevo (desde)</td><td style="text-align:right;padding:4px 0;font-weight:700;color:${BRAND};">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>
-          <tr><td style="color:#777;padding:4px 0;">Vigente desde</td><td style="text-align:right;padding:4px 0;">${fmtDateAR(vigenteDesde)}</td></tr>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:12px 0;">
+        <table style="width:100%;font-size:14px;border-collapse:collapse;">
+          ${table}
         </table>
       </div>
 
       ${extraBlock}
 
       <div style="text-align:center;margin:26px 0;">
-        <a href="${ctaHref}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:14px 26px;border-radius:10px;font-weight:600;font-size:14px;">${ctaLabel}</a>
+        <a href="${ctaHref}" style="display:inline-block;background:${BRAND};color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:10px;font-weight:600;font-size:15px;">${ctaLabel}</a>
       </div>
 
-      <p style="font-size:12px;color:#888;line-height:1.5;margin:22px 0 0;">
+      <p style="font-size:12px;color:${MUTED};line-height:1.5;margin:22px 0 0;">
         Ante cualquier duda respondé este mail o escribinos por WhatsApp.
       </p>
       ${testFooter ? `<hr style="border:0;border-top:1px dashed #ccc;margin:22px 0 10px;"/><pre style="background:#f5f5f5;padding:10px;border-radius:6px;font-size:11px;color:#333;white-space:pre-wrap;">${escapeHtml(testFooter)}</pre>` : ''}
