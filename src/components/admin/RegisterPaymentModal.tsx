@@ -234,12 +234,21 @@ export function RegisterPaymentModal({
     if (!sub) return;
     const { price } = getEffectivePrice(sub);
     setMontoPagado(String(price));
-    // Si la sub ya tiene fecha_fin, respetarla. Si no, calcularla desde fecha_inicio
-    // de la sub (no desde fechaPago, que por default es hoy).
+    if (fechaFinDirty) return;
     const basePeriodo = sub.fecha_fin?.substring(0, 10)
       || (sub.fecha_inicio ? endOfCalendarMonth(sub.fecha_inicio.substring(0, 10)) : endOfCalendarMonth(fechaPago));
     setFechaFin(basePeriodo);
   }, [selectedSubId, pendingSubs, activeNonPausaCount, usarPrecioActual]);
+
+  // Pre-fill amount + fecha_fin when a plan is chosen in "nueva suscripción" mode
+  useEffect(() => {
+    if (!nuevaSubMode || !nuevoPlanId) return;
+    const plan = availablePlans.find(p => p.id === nuevoPlanId);
+    if (!plan) return;
+    setMontoPagado(String(plan.precio));
+    if (!fechaFinDirty) setFechaFin(endOfCalendarMonth(fechaPago));
+  }, [nuevaSubMode, nuevoPlanId, availablePlans, fechaPago]);
+
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
