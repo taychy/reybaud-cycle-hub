@@ -82,9 +82,17 @@ export function RegisterPaymentModal({
   const [montoPagado, setMontoPagado] = useState("");
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [fechaFin, setFechaFin] = useState("");
+  const [fechaFinDirty, setFechaFinDirty] = useState(false);
   const [observaciones, setObservaciones] = useState("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Modo "nueva suscripción / renovación" — crea una sub nueva en vez de actualizar una pendiente
+  const [nuevaSubMode, setNuevaSubMode] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<PlanOption[]>([]);
+  const [nuevoPlanId, setNuevoPlanId] = useState<string>("");
+  const [historicalSubs, setHistoricalSubs] = useState<PendingSub[]>([]);
+
 
   // Reset state when modal opens/closes or alumnoId changes
   useEffect(() => {
