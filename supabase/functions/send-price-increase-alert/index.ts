@@ -207,10 +207,11 @@ Deno.serve(async (req) => {
       .from('event_package_price_stages')
       .select('id, package_id, nombre, precio, currency, vigente_desde, sort_order, activo, event_packages!inner(id, event_id, nombre, events!inner(id, title, status))')
       .eq('activo', true)
-      .gt('vigente_desde', now.toISOString())
       .order('vigente_desde', { ascending: true });
-    if (!(mode === 'test' && requestedEventId)) {
-      stagesQuery = stagesQuery.lte('vigente_desde', in24.toISOString());
+    // Cuando NO se especifica event_id, solo tomamos etapas que activan en las próximas 24h.
+    // Con event_id explícito (test o envío manual) bypasseamos el filtro temporal.
+    if (!requestedEventId) {
+      stagesQuery = stagesQuery.gt('vigente_desde', now.toISOString()).lte('vigente_desde', in24.toISOString());
     }
     const { data: stages, error: sErr } = await stagesQuery;
     if (sErr) throw sErr;
