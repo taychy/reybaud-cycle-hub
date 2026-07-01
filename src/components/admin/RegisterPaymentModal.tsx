@@ -61,6 +61,11 @@ export function RegisterPaymentModal({
   const [selectedSubId, setSelectedSubId] = useState<string | null>(subscripcionId || null);
   const [loadingSubs, setLoadingSubs] = useState(false);
 
+  // Saldos (para aplicar saldo a favor a la suscripción)
+  const [saldos, setSaldos] = useState<Array<{ moneda: string; saldo: number }>>([]);
+  const [aplicarCredito, setAplicarCredito] = useState(false);
+  const [creditoAplicado, setCreditoAplicado] = useState<string>("");
+
   // Payment fields
   const [metodo, setMetodo] = useState("efectivo");
   const [montoPagado, setMontoPagado] = useState("");
@@ -84,6 +89,9 @@ export function RegisterPaymentModal({
       setUsarPrecioActual(false);
       setSearchQuery("");
       setSearchResults([]);
+      setAplicarCredito(false);
+      setCreditoAplicado("");
+      setSaldos([]);
     }
   }, [open, alumnoId, alumnoNombre, subscripcionId]);
 
