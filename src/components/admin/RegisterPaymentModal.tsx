@@ -238,7 +238,8 @@ export function RegisterPaymentModal({
       const newEstado = isParcial ? "pendiente" : "activa";
       const notasParts: string[] = [];
       if (observaciones.trim()) notasParts.push(observaciones.trim());
-      if (isParcial) notasParts.push(`Pago parcial: ${montoNum} de ${expectedAmount}`);
+      if (creditoNum > 0) notasParts.push(`Saldo a favor aplicado: ${creditoNum}`);
+      if (isParcial) notasParts.push(`Pago parcial: ${totalRecibido} de ${expectedAmount}`);
       if (excedente > 0) notasParts.push(`Excedente acreditado a cuenta: ${excedente}`);
       notasParts.push(`Registrado por admin el ${fechaPago}`);
 
