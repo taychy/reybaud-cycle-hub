@@ -93,8 +93,8 @@ interface RenderCtx {
 }
 
 function subjectFor(v: Variant, eventTitle: string): string {
-  if (v === 'paid_full')    return `📣 Tu lugar en ${eventTitle} está confirmado — compartilo antes del aumento`;
-  if (v === 'with_balance') return `⏰ Pagá tu saldo y congelá el precio de ${eventTitle}`;
+  if (v === 'paid_full')    return `📣 Tu precio en ${eventTitle} está congelado — compartilo antes del aumento`;
+  if (v === 'with_balance') return `⏰ Pagá la seña y congelá el precio de ${eventTitle}`;
   return `⏰ Última chance al precio actual de ${eventTitle}`;
 }
 
@@ -109,12 +109,12 @@ function renderEmail(ctx: RenderCtx): string {
   let tag = '⏰ AVISO IMPORTANTE';
 
   if (variant === 'paid_full') {
-    tag = '🎉 TU LUGAR ESTÁ CONFIRMADO';
-    intro = `Hola ${escapeHtml(nombre)}, ya pagaste el total de <b>${escapeHtml(eventTitle)}</b>, así que <b>tu precio está congelado</b>. Este mail es para que lo sepas y, si querés, invites a tus amigos: el <b>${fmtDateAR(vigenteDesde)}</b> arranca la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''} y ya no van a poder entrar al precio actual.`;
+    tag = '🎉 TU PRECIO ESTÁ CONGELADO';
+    intro = `Hola ${escapeHtml(nombre)}, ya reservaste <b>${escapeHtml(eventTitle)}</b> y hiciste al menos un pago, así que <b>tu precio ya está congelado</b> y no te afecta el aumento. Te escribimos porque el <b>${fmtDateAR(vigenteDesde)}</b> arranca la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''} y quien no haya reservado ya no va a poder entrar al precio actual.`;
     extraBlock = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#166534;">Compartí con alguien que quiera sumarse</div>
+      <div style="font-size:12px;color:#166534;">Si conocés a alguien que quiera sumarse</div>
       <div style="font-size:14px;color:#14532d;margin-top:6px;line-height:1.5;">
-        Si conocés a alguien que le interesa el viaje, este es el momento: reservando ahora, congela el precio de <b>${escapeHtml(fmtMoney(newMin, currency))}</b> que arranca ${fmtDateAR(vigenteDesde)}.
+        Es el momento: reservando <b>antes del ${fmtDateAR(vigenteDesde)}</b> congela el precio actual. Después de esa fecha va a pagar <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
       </div>
     </div>`;
     ctaHref = ctx.shareUrl || `${APP_URL}/eventos`;
@@ -123,15 +123,16 @@ function renderEmail(ctx: RenderCtx): string {
 
   if (variant === 'with_balance') {
     tag = '⏰ AVISO — SUBE EL PRECIO';
-    intro = `Hola ${escapeHtml(nombre)}, tenés reservado <b>${escapeHtml(eventTitle)}</b> pero todavía queda saldo pendiente. El <b>${fmtDateAR(vigenteDesde)}</b> entra en vigencia la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''}. <b>Si pagás tu saldo antes de esa fecha, congelás el precio actual</b>. Si no, el saldo se recalcula con el precio nuevo.`;
-    const bal = ctx.balanceDue ?? 0;
+    intro = `Hola ${escapeHtml(nombre)}, tenés reservado <b>${escapeHtml(eventTitle)}</b> pero <b>todavía no pagaste la seña</b>, así que tu precio aún no está congelado. El <b>${fmtDateAR(vigenteDesde)}</b> entra en vigencia la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''}. <b>Si pagás la seña antes de esa fecha, congelás el precio actual</b>. Si no, el total se recalcula con el precio nuevo.`;
     extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#9a3412;">Tu saldo pendiente</div>
-      <div style="font-size:22px;font-weight:700;color:${BRAND};">${escapeHtml(fmtMoney(bal, currency))}</div>
-      <div style="font-size:12px;color:#7c2d12;margin-top:4px;">Pagalo antes del ${fmtDateAR(vigenteDesde)} para no pagar el aumento.</div>
+      <div style="font-size:12px;color:#9a3412;">Precio actual vs. precio nuevo</div>
+      <div style="font-size:14px;color:#7c2d12;margin-top:6px;line-height:1.5;">
+        Hoy: <b>${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</b> · Desde el ${fmtDateAR(vigenteDesde)}: <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
+      </div>
+      <div style="font-size:12px;color:#7c2d12;margin-top:6px;">Pagá la seña antes de esa fecha para no pagar el aumento.</div>
     </div>`;
     ctaHref = ctx.payUrl || `${APP_URL}/mis-reservas`;
-    ctaLabel = 'Ir a mi reserva y pagar';
+    ctaLabel = 'Ir a mi reserva y pagar la seña';
   }
 
   if (variant === 'interested') {
@@ -193,14 +194,20 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const in24 = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const overrideVigenteDesde: string | null = body.override_vigente_desde || null;
 
-    const { data: stages, error: sErr } = await supabase
+    // En modo test con event_id explícito, no aplicamos el filtro de 24h: tomamos cualquier
+    // etapa futura activa del evento (para poder previsualizar el mail con la fecha real).
+    let stagesQuery = supabase
       .from('event_package_price_stages')
       .select('id, package_id, nombre, precio, currency, vigente_desde, sort_order, activo, event_packages!inner(id, event_id, nombre, events!inner(id, title, status))')
       .eq('activo', true)
       .gt('vigente_desde', now.toISOString())
-      .lte('vigente_desde', in24.toISOString())
       .order('vigente_desde', { ascending: true });
+    if (!(mode === 'test' && requestedEventId)) {
+      stagesQuery = stagesQuery.lte('vigente_desde', in24.toISOString());
+    }
+    const { data: stages, error: sErr } = await stagesQuery;
     if (sErr) throw sErr;
 
     const byEvent = new Map<string, { event: any; upcoming: any[] }>();
@@ -217,7 +224,7 @@ Deno.serve(async (req) => {
     for (const [eventId, { event, upcoming }] of byEvent) {
       const currency = upcoming[0].currency || 'ARS';
       const newMin = Math.min(...upcoming.map((u: any) => Number(u.precio)));
-      const vigenteDesde = new Date(upcoming.map((u: any) => u.vigente_desde).sort()[0]);
+      const vigenteDesde = overrideVigenteDesde ? new Date(overrideVigenteDesde) : new Date(upcoming.map((u: any) => u.vigente_desde).sort()[0]);
       const stageName = upcoming[0].nombre || 'Nueva etapa';
 
       const { data: currentStages } = await supabase
@@ -245,16 +252,20 @@ Deno.serve(async (req) => {
         .is('cancelled_at', null)
         .not('reservation_status', 'in', '(cancelada,rechazada)');
       for (const r of reservas ?? []) {
+        const paid = Number(r.amount_paid ?? 0);
         const total = Number(r.amount_total ?? 0);
-        const balance = r.balance_due != null ? Number(r.balance_due) : Math.max(0, total - Number(r.amount_paid ?? 0));
+        const balance = r.balance_due != null ? Number(r.balance_due) : Math.max(0, total - paid);
         const email = (r as any).alumnos?.email || r.external_email;
         const nombre = (r as any).alumnos?.nombre || r.external_first_name || 'Hola';
         if (!email) continue;
         const key = normalize(email);
-        if (balance <= 0 && total > 0) {
-          paidFull.set(key, { email: key, nombre });
-        } else if (balance > 0) {
-          withBalance.set(key, { email: key, nombre, balance });
+        // NUEVA SEGMENTACIÓN:
+        // paid_full  = reservó y ya hizo al menos un pago (cualquier monto > 0) → precio congelado
+        // with_balance = reservó pero NO pagó ni siquiera la seña → debe pagar seña para congelar
+        if (paid > 0) {
+          paidFull.set(key, { email: key, nombre, balance });
+        } else {
+          withBalance.set(key, { email: key, nombre, balance: total > 0 ? total : null });
         }
       }
 
