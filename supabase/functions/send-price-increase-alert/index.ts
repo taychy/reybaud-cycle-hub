@@ -113,7 +113,7 @@ function subjectFor(v: Variant, eventTitle: string): string {
 }
 
 function renderEmail(ctx: RenderCtx): string {
-  const { variant, nombre, eventTitle, stageName, vigenteDesde, oldMin, newMin, currency, testFooter } = ctx;
+  const { variant, nombre, eventTitle, stageName, vigenteDesde, oldMin, newMin, currency, packages, testFooter } = ctx;
   const diff = oldMin && oldMin > 0 ? Math.round(((newMin - oldMin) / oldMin) * 100) : null;
   const diffPct = diff && diff !== 0 ? `${diff > 0 ? '+' : ''}${diff}%` : null;
   const ahorro = oldMin ? Math.max(0, newMin - oldMin) : 0;
@@ -137,12 +137,12 @@ function renderEmail(ctx: RenderCtx): string {
     tag = '🎉 ¡Tu lugar ya está asegurado a precio congelado!';
     intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Ya reservaste y con tu seña <b>tu precio quedó congelado para siempre</b> :) . El resto de la gente no corre con la misma suerte: el <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}.`;
     table = `
-      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio actual</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
+      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio base (más económico)</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
       <tr><td style="color:${LABEL};padding:6px 0;">Tu precio (congelado)</td><td style="text-align:right;padding:6px 0;color:#166534;font-weight:700;">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))} ✅</td></tr>
-      <tr><td style="color:${LABEL};padding:6px 0;">Precio desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio base desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
     extraBlock = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:16px 0;">
       <div style="font-size:14px;color:#14532d;line-height:1.55;">
-        💡 <b>Tip:</b> si tenés amigos que quieran sumarse, avisales que les conviene reservar <b>antes del ${fechaCorta}</b> para entrar en este precio. Después pagan <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
+        💡 <b>Tip:</b> si tenés amigos que quieran sumarse, avisales que les conviene reservar <b>antes del ${fechaCorta}</b> para entrar al precio actual.
       </div>
     </div>`;
     ctaHref = ctx.shareUrl || `${APP_URL}/eventos`;
@@ -153,11 +153,11 @@ function renderEmail(ctx: RenderCtx): string {
     tag = '⏰ Última llamada — el precio sube en breve';
     intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Tenés tu lugar reservado, pero como <b>todavía no pagaste la seña</b>, tu precio no está congelado. El <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}.`;
     table = `
-      <tr><td style="color:${LABEL};padding:6px 0;">Precio hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</td></tr>
-      <tr><td style="color:${LABEL};padding:6px 0;">Precio desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio base hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</td></tr>
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio base desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
     extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
       <div style="font-size:14px;color:#7c2d12;line-height:1.55;">
-        Pagá la seña <b>antes del ${fechaCorta}</b>${ahorro > 0 ? ` y te ahorrás <b>${escapeHtml(fmtMoney(ahorro, currency))}</b>` : ''}. Después de esa fecha, <b>no hay vuelta atrás</b>.
+        Pagá la seña <b>antes del ${fechaCorta}</b>${ahorro > 0 ? ` y evitás el aumento` : ''}. Después de esa fecha, <b>no hay vuelta atrás</b>.
       </div>
     </div>`;
     ctaHref = ctx.payUrl || `${APP_URL}/mis-reservas`;
@@ -168,8 +168,8 @@ function renderEmail(ctx: RenderCtx): string {
     tag = '⏰ ÚLTIMA CHANCE AL PRECIO ACTUAL';
     intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Sabemos que te interesa <b>${escapeHtml(eventTitle)}</b>. El <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}. <b>Reservando ahora congelás el precio actual</b>.`;
     table = `
-      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
-      <tr><td style="color:${LABEL};padding:6px 0;">Precio desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
+      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio base hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
+      <tr><td style="color:${LABEL};padding:6px 0;">Precio base desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
     extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
       <div style="font-size:14px;color:#7c2d12;line-height:1.55;">
         Con la <b>seña de reserva</b> te asegurás el precio actual${oldMin ? ` (<b>${escapeHtml(fmtMoney(oldMin, currency))}</b>)` : ''}. Después del ${fechaCorta} vas a pagar <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
@@ -178,6 +178,39 @@ function renderEmail(ctx: RenderCtx): string {
     ctaHref = ctx.reserveUrl || `${APP_URL}/eventos`;
     ctaLabel = 'Reservar antes del aumento →';
   }
+
+  // Bloque de paquetes: muestra cada paquete con su precio actual vs nuevo
+  let packagesBlock = '';
+  if (packages && packages.length > 0) {
+    const rows = packages.map((p) => {
+      const cur = p.currentPrice != null ? escapeHtml(fmtMoney(p.currentPrice, p.currency)) : '—';
+      const nw = p.newPrice != null ? escapeHtml(fmtMoney(p.newPrice, p.currency)) : '—';
+      const nwColor = p.newPrice != null && p.currentPrice != null && p.newPrice > p.currentPrice ? BRAND : VALUE;
+      const nwWeight = p.newPrice != null && p.currentPrice != null && p.newPrice > p.currentPrice ? '700' : '500';
+      return `<tr>
+        <td style="padding:8px 8px 8px 0;color:${TEXT};font-size:13px;border-top:1px solid #f0f0f0;">${escapeHtml(p.name)}</td>
+        <td style="padding:8px 4px;text-align:right;color:${VALUE};font-size:13px;border-top:1px solid #f0f0f0;">${cur}</td>
+        <td style="padding:8px 0 8px 4px;text-align:right;color:${nwColor};font-weight:${nwWeight};font-size:13px;border-top:1px solid #f0f0f0;">${nw}</td>
+      </tr>`;
+    }).join('');
+    packagesBlock = `<div style="margin:18px 0;">
+      <div style="font-size:13px;color:${LABEL};font-weight:600;margin-bottom:8px;">Aumento por paquete ⬇</div>
+      <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px;">
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:6px 8px 6px 0;color:${MUTED};font-weight:600;font-size:12px;">Paquete</th>
+              <th style="text-align:right;padding:6px 4px;color:${MUTED};font-weight:600;font-size:12px;">Actual</th>
+              <th style="text-align:right;padding:6px 0 6px 4px;color:${MUTED};font-weight:600;font-size:12px;">Desde ${fechaCorta}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  const secondaryLink = ctx.shareUrl || ctx.reserveUrl || ctx.payUrl || `${APP_URL}/eventos`;
 
   return `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:${TEXT};">
   <div style="max-width:560px;margin:0 auto;padding:28px 22px;">
@@ -190,12 +223,18 @@ function renderEmail(ctx: RenderCtx): string {
         <table style="width:100%;font-size:14px;border-collapse:collapse;">
           ${table}
         </table>
+        <div style="font-size:11px;color:${MUTED};margin-top:8px;line-height:1.4;">* Precio base = el paquete más económico. Detalle por paquete abajo ⬇</div>
       </div>
+
+      ${packagesBlock}
 
       ${extraBlock}
 
-      <div style="text-align:center;margin:26px 0;">
+      <div style="text-align:center;margin:26px 0 8px;">
         <a href="${ctaHref}" style="display:inline-block;background:${BRAND};color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:10px;font-weight:600;font-size:15px;">${ctaLabel}</a>
+      </div>
+      <div style="text-align:center;margin:0 0 22px;">
+        <a href="${secondaryLink}" style="color:${MUTED};text-decoration:underline;font-size:12px;">Ver todos los paquetes en el sitio →</a>
       </div>
 
       <p style="font-size:12px;color:${MUTED};line-height:1.5;margin:22px 0 0;">
