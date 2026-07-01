@@ -335,12 +335,34 @@ export function RegisterPaymentModal({
         if (ajusteErr) console.error("No se pudo registrar saldo a favor:", ajusteErr);
       }
 
+      // Consumir saldo a favor aplicado (cuenta_ajustes cargo)
+      if (creditoNum > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const moneda = sub?.planes?.moneda || "ARS";
+        const { error: consumeErr } = await supabase.from("cuenta_ajustes").insert({
+          alumno_id: selectedAlumnoId,
+          tipo: "cargo",
+          concepto: `Aplicado a ${planName}`,
+          monto: creditoNum,
+          moneda,
+          fecha: fechaPago,
+          notas: `Saldo a favor aplicado al pago de la suscripción ${selectedSubId}`,
+          referencia_externa: `suscripcion:${selectedSubId}`,
+          created_by: user?.id || null,
+        });
+        if (consumeErr) console.error("No se pudo consumir saldo a favor:", consumeErr);
+      }
+
       toast.success(
         isParcial
           ? "Pago parcial registrado"
-          : excedente > 0
-            ? `Pago registrado · saldo a favor $${excedente}`
-            : "Pago registrado correctamente"
+          : creditoNum > 0 && montoNum === 0
+            ? `Suscripción cubierta con saldo a favor ($${creditoNum})`
+            : excedente > 0
+              ? `Pago registrado · saldo a favor $${excedente}`
+              : creditoNum > 0
+                ? `Pago registrado · saldo aplicado $${creditoNum}`
+                : "Pago registrado correctamente"
       );
       onOpenChange(false);
       onSuccess?.();
