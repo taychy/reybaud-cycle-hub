@@ -69,7 +69,10 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
   const [lastAdded, setLastAdded] = useState<{ nombre: string; desde: string; hasta: string | null; pct: number | null; precio: number; currency: string } | null>(null);
   const [propagating, setPropagating] = useState(false);
 
+  const load = useCallback(async () => {
+    setLoading(true);
     const { data, error } = await supabase
+
       .from("event_package_price_stages" as any)
       .select("*")
       .eq("package_id", packageId)
