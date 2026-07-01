@@ -10,9 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Package, Info, CheckCircle2, Clock, XCircle } from "lucide-react";
 import {
-  previewPackageChange, type PackageChangePreview,
+  previewPackageChange, applyPackageChange, type PackageChangePreview,
 } from "@/lib/packageChangePreview";
 import PackageChangePreviewCard from "@/components/admin/PackageChangePreviewCard";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   open: boolean;
@@ -64,6 +68,8 @@ export default function StudentChangePackageDrawer({
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState<PendingRequest | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [confirmApply, setConfirmApply] = useState(false);
+  const [applying, setApplying] = useState(false);
 
   const loadPending = async () => {
     const { data } = await supabase
@@ -140,6 +146,32 @@ export default function StudentChangePackageDrawer({
     }
   };
 
+  const handleApply = async () => {
+    if (!preview || !selectedId || !preview.revalidation_token) return;
+    setApplying(true);
+    try {
+      const res = await applyPackageChange({
+        reservationId,
+        packageNuevoId: selectedId,
+        revalidationToken: preview.revalidation_token,
+      });
+      toast.success("¡Paquete actualizado!", {
+        description: res.credit_created
+          ? `Se generó un crédito a favor de $${res.credit_created.toLocaleString("es-AR")}`
+          : res.debit_created
+          ? `Nuevo saldo pendiente: $${res.debit_created.toLocaleString("es-AR")}`
+          : "Tu reserva quedó actualizada.",
+      });
+      setConfirmApply(false);
+      onSubmitted?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("No se pudo aplicar el cambio", { description: e.message });
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const handleCancel = async () => {
     if (!pending) return;
     setCancelling(true);
@@ -157,6 +189,7 @@ export default function StudentChangePackageDrawer({
       setCancelling(false);
     }
   };
+
 
   const pendingBadge = pending ? ESTADO_BADGE[pending.estado] : null;
   const pendingPackage = pending ? packages.find(p => p.id === pending.package_nuevo_id) : null;
@@ -246,6 +279,17 @@ export default function StudentChangePackageDrawer({
               {selectedId && (
                 <>
                   <PackageChangePreviewCard preview={preview} loading={loadingPreview} />
+                  {preview?.status === "auto_applicable" && (
+                    <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-xs flex gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-emerald-400">Podés aplicar este cambio ahora mismo</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          No afecta habitaciones ni cupos críticos. Al confirmar, actualizamos tu reserva y el saldo automáticamente.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {preview?.status === "requiere_aprobacion" && (
                     <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs flex gap-2">
                       <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -258,16 +302,19 @@ export default function StudentChangePackageDrawer({
                     </div>
                   )}
 
-                  <div>
-                    <Label className="text-xs">Contanos por qué querés cambiar (opcional)</Label>
-                    <Textarea
-                      value={motivo}
-                      onChange={(e) => setMotivo(e.target.value)}
-                      rows={3}
-                      placeholder="Ej: mi hermano ya reservó y quiero compartir habitación con él…"
-                      className="mt-1"
-                    />
-                  </div>
+                  {preview?.status !== "auto_applicable" && (
+                    <div>
+                      <Label className="text-xs">Contanos por qué querés cambiar (opcional)</Label>
+                      <Textarea
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        rows={3}
+                        placeholder="Ej: mi hermano ya reservó y quiero compartir habitación con él…"
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+
                 </>
               )}
             </>
@@ -275,15 +322,23 @@ export default function StudentChangePackageDrawer({
         </div>
 
         <SheetFooter className="mt-6 flex-col gap-2 sm:flex-col">
-          {!pending && (
+          {!pending && preview?.status === "auto_applicable" && (
+            <Button
+              className="w-full"
+              onClick={() => setConfirmApply(true)}
+              disabled={!selectedId || applying}
+            >
+              {applying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Confirmar cambio ahora
+            </Button>
+          )}
+          {!pending && preview?.status !== "auto_applicable" && (
             <Button
               className="w-full"
               onClick={handleSubmit}
               disabled={!selectedId || submitting || !preview || preview.status === "no_posible"}
             >
-              {submitting
-                ? <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                : null}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Enviar solicitud
             </Button>
           )}
@@ -292,6 +347,26 @@ export default function StudentChangePackageDrawer({
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      <AlertDialog open={confirmApply} onOpenChange={setConfirmApply}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cambio de paquete</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vamos a actualizar tu reserva a <b>{options.find(p => p.id === selectedId)?.nombre}</b>.
+              {preview?.credit_to_create ? ` Se generará un crédito a favor de $${preview.credit_to_create.toLocaleString("es-AR")}.` : ""}
+              {preview?.debit_to_create ? ` Tu nuevo saldo pendiente será de $${preview.debit_to_create.toLocaleString("es-AR")}.` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={applying}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApply} disabled={applying}>
+              {applying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Sí, aplicar cambio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
