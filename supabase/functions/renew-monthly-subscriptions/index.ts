@@ -221,7 +221,33 @@ Deno.serve(async (req) => {
     }, null, 2), { headers: { ...cors, "Content-Type": "application/json" } });
   }
 
-  // 4) Ejecutar: marcar vieja 'vencida' + insertar nueva
+  // 4) Ejecutar: marcar vieja 'vencida' + insertar nueva + encolar mail
+  // Precargar plantilla renewal_pending (una sola vez) para wiring desde DB
+  const { data: tplRow } = await supabase
+    .from("email_templates")
+    .select("subject, html_body, is_active")
+    .eq("key", "renewal_pending")
+    .maybeSingle();
+  const renewalTpl = tplRow?.is_active === false ? null : tplRow;
+
+  const SENDER_DOMAIN = "notify.reybaud-app.com";
+  const FROM_NAME = "Reybaud Ciclismo";
+  const SITE_URL = "https://reybaud-app.com";
+
+  const fmtDateAR = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+  const fmtMoney = (n: number | null, currency?: string) => {
+    if (n == null) return "-";
+    const cur = (currency || "ARS").toUpperCase();
+    const symbol = cur === "USD" ? "US$" : cur === "EUR" ? "€" : "$";
+    return `${symbol}${new Intl.NumberFormat("es-AR").format(Number(n))}`;
+  };
+  const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  const interpolate = (s: string, vars: Record<string, string>) =>
+    s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+
   const results: any[] = [];
   for (const r of renewals) {
     // insertar nueva
@@ -261,8 +287,58 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    results.push({ old_sub_id: r.old_sub_id, new_sub_id: newSub.id, ok: true });
+    // Encolar mail renewal_pending (best-effort, no bloquea si falla)
+    let emailQueued = false;
+    if (renewalTpl) {
+      try {
+        const { data: alumno } = await supabase
+          .from("alumnos")
+          .select("nombre, apellido, email")
+          .eq("id", r.alumno_id)
+          .maybeSingle();
+        const to = (alumno as any)?.email;
+        if (to) {
+          // Fetch plan info for currency
+          const { data: plan } = await supabase
+            .from("planes")
+            .select("nombre, moneda")
+            .eq("id", r.plan_id)
+            .maybeSingle();
+          const vars = {
+            alumno_nombre: escapeHtml(`${(alumno as any).nombre || ""}`.trim() || "hola"),
+            plan_nombre: escapeHtml((plan as any)?.nombre || "tu plan"),
+            fecha_inicio: fmtDateAR(r.fecha_inicio),
+            fecha_fin: fmtDateAR(r.fecha_fin),
+            monto: fmtMoney(r.precio_final, (plan as any)?.moneda),
+            link_pago: `${SITE_URL}/planes`,
+          };
+          const subject = interpolate(renewalTpl.subject, vars);
+          const html = interpolate(renewalTpl.html_body, vars);
+          const messageId = `renewal-pending-${newSub.id}`;
+          const { error: enqErr } = await supabase.rpc("enqueue_email", {
+            queue_name: "transactional_emails",
+            payload: {
+              message_id: messageId,
+              to, from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+              sender_domain: SENDER_DOMAIN,
+              subject, html,
+              text: `Tu plan ${vars.plan_nombre} se renovó. Regularizá antes del 5.`,
+              purpose: "transactional", label: "renewal_pending",
+              idempotency_key: messageId,
+              queued_at: new Date().toISOString(),
+            },
+          });
+          emailQueued = !enqErr;
+          if (enqErr) console.warn("[renew-monthly-subs] enqueue email failed", { new_sub: newSub.id, err: enqErr.message });
+        }
+      } catch (e) {
+        console.warn("[renew-monthly-subs] email step threw", e);
+      }
+    }
+
+    results.push({ old_sub_id: r.old_sub_id, new_sub_id: newSub.id, ok: true, emailQueued });
   }
+
 
   console.log("[renew-monthly-subs] done", {
     target, renewed: results.filter(x => x.ok).length, failed: results.filter(x => !x.ok).length, skipped: skipped.length,

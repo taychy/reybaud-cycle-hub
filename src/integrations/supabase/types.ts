@@ -1915,6 +1915,101 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          html_body: string
+          is_active: boolean
+          key: string
+          required_variables: Json
+          subject: string
+          text_body: string | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+          variables: Json
+          wired: boolean
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          html_body: string
+          is_active?: boolean
+          key: string
+          required_variables?: Json
+          subject: string
+          text_body?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+          variables?: Json
+          wired?: boolean
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          html_body?: string
+          is_active?: boolean
+          key?: string
+          required_variables?: Json
+          subject?: string
+          text_body?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+          variables?: Json
+          wired?: boolean
+        }
+        Relationships: []
+      }
+      email_templates_versions: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          html_body: string
+          id: string
+          note: string | null
+          subject: string
+          template_key: string
+          text_body: string | null
+          version_number: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          html_body: string
+          id?: string
+          note?: string | null
+          subject: string
+          template_key: string
+          text_body?: string | null
+          version_number: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          html_body?: string
+          id?: string
+          note?: string | null
+          subject?: string
+          template_key?: string
+          text_body?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_versions_template_key_fkey"
+            columns: ["template_key"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       email_unsubscribe_tokens: {
         Row: {
           created_at: string

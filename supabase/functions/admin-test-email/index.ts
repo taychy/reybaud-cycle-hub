@@ -40,8 +40,22 @@ Deno.serve(async (req) => {
     }
 
     const messageId = `test-${crypto.randomUUID()}`;
-    const subject = "✅ Email de prueba — Reybaud Admin";
-    const html = `<div style="font-family:system-ui,sans-serif;color:#111;max-width:560px"><h2>Email de prueba</h2><p>Si recibís este mensaje, el dominio de envío y la cola de notificaciones funcionan correctamente.</p><p style="color:#6b7280;font-size:12px">${new Date().toISOString()}</p></div>`;
+    // Preferir plantilla editable en DB; fallback al HTML original si no existe
+    const { data: tpl } = await sb
+      .from("email_templates")
+      .select("subject, html_body, is_active")
+      .eq("key", "admin_test_email")
+      .maybeSingle();
+    const interpolate = (s: string, vars: Record<string, string>) =>
+      s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+    const vars = { timestamp: new Date().toISOString() };
+    const subject = tpl?.is_active !== false && tpl?.subject
+      ? interpolate(tpl.subject, vars)
+      : "✅ Email de prueba — Reybaud Admin";
+    const html = tpl?.is_active !== false && tpl?.html_body
+      ? interpolate(tpl.html_body, vars)
+      : `<div style="font-family:system-ui,sans-serif;color:#111;max-width:560px"><h2>Email de prueba</h2><p>Si recibís este mensaje, el dominio de envío y la cola de notificaciones funcionan correctamente.</p><p style="color:#6b7280;font-size:12px">${vars.timestamp}</p></div>`;
+
 
     const results: any[] = [];
     for (const to of emails) {
