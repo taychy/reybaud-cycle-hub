@@ -382,8 +382,64 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
           </p>
         </div>
       )}
+
+      <Dialog open={propagateOpen} onOpenChange={(v) => !propagating && setPropagateOpen(v)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="w-4 h-4" /> ¿Copiar esta etapa a otros paquetes?
+            </DialogTitle>
+          </DialogHeader>
+          {lastAdded && (
+            <div className="text-xs text-muted-foreground mb-2">
+              Etapa <b>"{lastAdded.nombre}"</b> desde {new Date(lastAdded.desde).toLocaleString("es-AR")}
+              {lastAdded.pct != null
+                ? <> · <span className="text-amber-600">+{lastAdded.pct}%</span> sobre la última etapa de cada paquete</>
+                : <> · precio fijo {formatPrice(lastAdded.precio, lastAdded.currency as any)}</>}
+            </div>
+          )}
+          <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+            {siblings.map((s, i) => (
+              <label key={s.id} className="flex items-center gap-2 p-2 rounded border border-border/40 hover:bg-muted/30 cursor-pointer">
+                <Checkbox
+                  checked={s.selected}
+                  onCheckedChange={(v) => setSiblings((arr) => arr.map((x, j) => j === i ? { ...x, selected: !!v } : x))}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{s.nombre}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Base actual: {formatPrice(s.lastStagePrice, s.currency as any)} →{" "}
+                    <span className="text-primary font-semibold">{formatPrice(s.computedPrice, s.currency as any)}</span>
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center justify-between pt-2 text-xs">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                const allSel = siblings.every((s) => s.selected);
+                setSiblings((arr) => arr.map((s) => ({ ...s, selected: !allSel })));
+              }}
+            >
+              {siblings.every((s) => s.selected) ? "Desmarcar todos" : "Marcar todos"}
+            </button>
+            <span className="text-muted-foreground">{siblings.filter(s => s.selected).length} / {siblings.length} seleccionados</span>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPropagateOpen(false)} disabled={propagating}>No, gracias</Button>
+            <Button onClick={propagateNow} disabled={propagating || siblings.filter(s => s.selected).length === 0}>
+              {propagating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+              Copiar etapa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
 
 export default PackagePriceStagesEditor;
