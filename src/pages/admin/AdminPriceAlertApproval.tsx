@@ -48,10 +48,11 @@ const AdminPriceAlertApproval = () => {
     supabase
       .from("events")
       .select("id, title")
-      .order("start_date", { ascending: false })
-      .limit(50)
+      .order("date", { ascending: false })
+      .limit(100)
       .then(({ data }) => setEvents((data as EventRow[]) || []));
   }, []);
+
 
   const loadPreviews = async () => {
     if (!eventId) return;
