@@ -145,19 +145,26 @@ export function RegisterPaymentModal({
     setLoadingSubs(true);
     supabase
       .from("suscripciones")
-      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, descuento_id, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
+      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, descuento_id, metodo_pago, alumno_id, cancelada_at, mp_status, origen_registro, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        const allSubs = (data as unknown as (PendingSub & { cancelada_at?: string | null })[]) || [];
+        const allSubs = (data as unknown as PendingSub[]) || [];
         const subs = allSubs.filter(isAdminPayableSubscription);
         setPendingSubs(subs);
+        setHistoricalSubs(allSubs);
         // Auto-select if only one or if subscripcionId matches
         if (subscripcionId && subs.find(s => s.id === subscripcionId)) {
           setSelectedSubId(subscripcionId);
+          setNuevaSubMode(false);
         } else if (subs.length === 1) {
           setSelectedSubId(subs[0].id);
+          setNuevaSubMode(false);
+        } else if (subs.length === 0) {
+          // No hay nada por cobrar → sugerir renovación / nueva suscripción
+          setNuevaSubMode(true);
         }
+
         setLoadingSubs(false);
       });
   }, [selectedAlumnoId, open]);
