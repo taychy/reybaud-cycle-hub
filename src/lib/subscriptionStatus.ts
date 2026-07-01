@@ -287,6 +287,7 @@ export const SUB_STATUS_BADGE: Record<string, { className: string }> = {
   pendiente: { className: "border-yellow-500/50 text-yellow-400" },
   pendiente_verificacion: { className: "border-yellow-500/50 text-yellow-400" },
   vencida: { className: "bg-destructive/10 text-destructive border-destructive/30" },
+  finalizada: { className: "bg-muted/40 text-muted-foreground border-border" },
   cancelada: { className: "text-muted-foreground border-dashed" },
   pausa: { className: "border-amber-500/50 text-amber-400" },
   duplicada: { className: "text-muted-foreground border-dashed bg-muted/30" },
