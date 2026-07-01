@@ -387,10 +387,48 @@ export default function AdminBroadcasts() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => setShowSenderDialog(true)}>
-          <Settings className="w-4 h-4 mr-1" /> Remitente
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {stageAlerts.length > 0 ? (
+            <Button asChild size="sm" className="bg-red-600 hover:bg-red-700 text-white border-red-700 animate-pulse">
+              <a href="/admin/aprobar-aviso-precio" title={stageAlerts.map(s => `${s.eventTitle} — ${s.stageName} (en ${s.daysLeft}d)`).join("\n")}>
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                Aprobar aviso de aumento ({stageAlerts.length})
+              </a>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" size="sm">
+              <a href="/admin/aprobar-aviso-precio">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                Aviso de aumento
+              </a>
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setShowSenderDialog(true)}>
+            <Settings className="w-4 h-4 mr-1" /> Remitente
+          </Button>
+        </div>
       </div>
+
+      {stageAlerts.length > 0 && (
+        <Card className="p-3 border-red-500/40 bg-red-500/5">
+          <div className="flex items-start gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <div className="font-semibold text-red-500">
+                {stageAlerts.length === 1 ? "1 evento" : `${stageAlerts.length} eventos`} cambia{stageAlerts.length === 1 ? "" : "n"} de etapa de precio en los próximos 7 días
+              </div>
+              <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                {stageAlerts.slice(0, 5).map((s, i) => (
+                  <li key={i}>
+                    <b className="text-foreground">{s.eventTitle}</b> — "{s.stageName}" en {s.daysLeft} día{s.daysLeft === 1 ? "" : "s"} ({new Date(s.vigenteDesde).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
 
       {sender.sender_email && (
         <div className="text-xs text-muted-foreground flex items-center gap-2">
