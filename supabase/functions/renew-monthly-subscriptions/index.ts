@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
     let inheritPrecio: number | null = null;
     const d = old.descuentos;
     if (old.descuento_id && d?.activo) {
-      const notExpired = !d.fecha_fin || d.fecha_fin >= newFechaIni;
+      const notExpired = !d.vigencia_hasta || d.vigencia_hasta >= newFechaIni;
       if (notExpired) {
         inheritDesc = old.descuento_id;
         inheritPrecio = old.precio_final ?? null;
