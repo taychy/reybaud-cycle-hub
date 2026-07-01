@@ -38,9 +38,20 @@ interface PendingSub {
   descuento_id: string | null;
   metodo_pago: string;
   alumno_id: string;
+  mp_status?: string | null;
+  origen_registro?: string | null;
+  cancelada_at?: string | null;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
   alumnos?: { id: string; nombre: string; email: string } | null;
 }
+
+interface PlanOption {
+  id: string;
+  nombre: string;
+  precio: number;
+  moneda: string;
+}
+
 
 export function RegisterPaymentModal({
   open,
