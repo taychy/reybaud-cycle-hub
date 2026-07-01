@@ -311,7 +311,30 @@ Deno.serve(async (req) => {
           `price-alert:${variant}:${eventId}:${upcoming[0].id}:${r.email}`, `price_alert_${variant}`);
       };
 
-      if (mode === 'test') {
+      if (mode === 'preview') {
+        // Devolvemos todos los destinatarios con el HTML renderizado, sin encolar nada.
+        const buildPreview = (variant: Variant, r: Rec) => {
+          const ctx: RenderCtx = {
+            variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
+            oldMin, newMin, currency,
+            balanceDue: r.balance ?? null,
+            shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
+          };
+          return {
+            variant,
+            email: r.email,
+            nombre: r.nombre,
+            subject: subjectFor(variant, event.title),
+            html: renderEmail(ctx),
+            balance: r.balance ?? null,
+          };
+        };
+        summary.previews = [
+          ...Array.from(paidFull.values()).map((r) => buildPreview('paid_full', r)),
+          ...Array.from(withBalance.values()).map((r) => buildPreview('with_balance', r)),
+          ...Array.from(interested.values()).map((r) => buildPreview('interested', r)),
+        ];
+      } else if (mode === 'test') {
         for (const variant of testVariants) {
           const sampleFromBucket = variant === 'paid_full' ? Array.from(paidFull.values())[0]
             : variant === 'with_balance' ? Array.from(withBalance.values())[0]
@@ -334,9 +357,10 @@ Deno.serve(async (req) => {
           } catch (e: any) { summary.errors.push(`${variant}: ${e.message || e}`); }
         }
       } else {
-        if (sendVariants.has('paid_full'))    for (const r of paidFull.values())    { try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
-        if (sendVariants.has('with_balance')) for (const r of withBalance.values()) { try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
-        if (sendVariants.has('interested'))   for (const r of interested.values())  { try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
+        const passesApproval = (email: string) => !approvedEmails || approvedEmails.has(email);
+        if (sendVariants.has('paid_full'))    for (const r of paidFull.values())    { if (!passesApproval(r.email)) continue; try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('with_balance')) for (const r of withBalance.values()) { if (!passesApproval(r.email)) continue; try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('interested'))   for (const r of interested.values())  { if (!passesApproval(r.email)) continue; try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
       }
 
       results.push(summary);
