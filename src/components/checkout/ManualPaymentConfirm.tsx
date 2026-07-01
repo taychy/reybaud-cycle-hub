@@ -95,6 +95,12 @@ const ManualPaymentConfirm = ({
         : null;
     const notas = [upgradeMarker, earlyMarker, userNotas].filter(Boolean).join(" | ") || null;
 
+    // Limpieza previa: expira subs "activas" con fecha_fin vencida (cron dormido)
+    // para que el trigger de duplicado no bloquee al insertar la sub del período nuevo.
+    if (!earlyRenewal && !upgradeFromSubId) {
+      await expireStaleSubs(alumnoId, planId);
+    }
+
     // Si el alumno está pagando una sub del período actual (Natalia case),
     // reutilizamos esa sub en vez de generar una nueva.
     const reused = !earlyRenewal && !upgradeFromSubId
