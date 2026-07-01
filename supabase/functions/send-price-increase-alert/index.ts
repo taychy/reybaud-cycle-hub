@@ -390,7 +390,7 @@ Deno.serve(async (req) => {
       const sendOne = async (variant: Variant, r: Rec) => {
         const ctx: RenderCtx = {
           variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
-          oldMin, newMin, currency,
+          oldMin, newMin, currency, packages: packagesList,
           balanceDue: r.balance ?? null,
           shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
         };
@@ -404,7 +404,7 @@ Deno.serve(async (req) => {
         const buildPreview = (variant: Variant, r: Rec) => {
           const ctx: RenderCtx = {
             variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
-            oldMin, newMin, currency,
+            oldMin, newMin, currency, packages: packagesList,
             balanceDue: r.balance ?? null,
             shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
           };
