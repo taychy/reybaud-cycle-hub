@@ -40,6 +40,13 @@ function fmtDateAR(d: Date): string {
   const [y, m, dd] = date.split('-');
   return `${dd}/${m}/${y} ${time.slice(0,5)} hs`;
 }
+function fmtDateShort(d: Date): string {
+  // "2/07 a las 00 hs"
+  const s = new Date(d.getTime() - 3 * 60 * 60 * 1000).toISOString();
+  const [date, time] = s.split('T');
+  const [, m, dd] = date.split('-');
+  return `${parseInt(dd, 10)}/${m} a las ${time.slice(0,2)} hs`;
+}
 function escapeHtml(s: string): string {
   return (s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]!));
 }
