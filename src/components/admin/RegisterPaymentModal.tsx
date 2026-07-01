@@ -104,6 +104,7 @@ export function RegisterPaymentModal({
       setMontoPagado("");
       setFechaPago(new Date().toISOString().split("T")[0]);
       setFechaFin("");
+      setFechaFinDirty(false);
       setObservaciones("");
       setUsarPrecioActual(false);
       setSearchQuery("");
@@ -111,6 +112,10 @@ export function RegisterPaymentModal({
       setAplicarCredito(false);
       setCreditoAplicado("");
       setSaldos([]);
+      setNuevaSubMode(false);
+      setNuevoPlanId("");
+      setHistoricalSubs([]);
+      setAvailablePlans([]);
     }
   }, [open, alumnoId, alumnoNombre, subscripcionId]);
 
