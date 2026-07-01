@@ -10,9 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Package, Info, CheckCircle2, Clock, XCircle } from "lucide-react";
 import {
-  previewPackageChange, type PackageChangePreview,
+  previewPackageChange, applyPackageChange, type PackageChangePreview,
 } from "@/lib/packageChangePreview";
 import PackageChangePreviewCard from "@/components/admin/PackageChangePreviewCard";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   open: boolean;
