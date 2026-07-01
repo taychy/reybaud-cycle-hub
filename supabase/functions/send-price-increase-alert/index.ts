@@ -190,6 +190,11 @@ Deno.serve(async (req) => {
     const testVariants: Variant[] = Array.isArray(body.test_variants) && body.test_variants.length
       ? body.test_variants
       : ['paid_full', 'with_balance', 'interested'];
+    const sendVariants: Set<Variant> = new Set(
+      Array.isArray(body.send_variants) && body.send_variants.length
+        ? body.send_variants
+        : ['paid_full', 'with_balance', 'interested']
+    );
     if (mode === 'test' && !testEmail) return json({ error: 'test_email requerido cuando mode=test' }, 400);
 
     const now = new Date();
@@ -202,10 +207,11 @@ Deno.serve(async (req) => {
       .from('event_package_price_stages')
       .select('id, package_id, nombre, precio, currency, vigente_desde, sort_order, activo, event_packages!inner(id, event_id, nombre, events!inner(id, title, status))')
       .eq('activo', true)
-      .gt('vigente_desde', now.toISOString())
       .order('vigente_desde', { ascending: true });
-    if (!(mode === 'test' && requestedEventId)) {
-      stagesQuery = stagesQuery.lte('vigente_desde', in24.toISOString());
+    // Cuando NO se especifica event_id, solo tomamos etapas que activan en las próximas 24h.
+    // Con event_id explícito (test o envío manual) bypasseamos el filtro temporal.
+    if (!requestedEventId) {
+      stagesQuery = stagesQuery.gt('vigente_desde', now.toISOString()).lte('vigente_desde', in24.toISOString());
     }
     const { data: stages, error: sErr } = await stagesQuery;
     if (sErr) throw sErr;
@@ -324,9 +330,9 @@ Deno.serve(async (req) => {
           } catch (e: any) { summary.errors.push(`${variant}: ${e.message || e}`); }
         }
       } else {
-        for (const r of paidFull.values())     { try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
-        for (const r of withBalance.values())  { try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
-        for (const r of interested.values())   { try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('paid_full'))    for (const r of paidFull.values())    { try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('with_balance')) for (const r of withBalance.values()) { try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('interested'))   for (const r of interested.values())  { try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
       }
 
       results.push(summary);
