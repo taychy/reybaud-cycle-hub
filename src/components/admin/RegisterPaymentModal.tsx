@@ -138,6 +138,17 @@ export function RegisterPaymentModal({
       });
   }, [selectedAlumnoId, open]);
 
+  // Load saldos (para poder aplicar saldo a favor)
+  useEffect(() => {
+    if (!selectedAlumnoId || !open) {
+      setSaldos([]);
+      return;
+    }
+    supabase
+      .rpc("get_saldo_alumno" as any, { p_alumno_id: selectedAlumnoId })
+      .then(({ data }) => setSaldos(((data as any) || []).map((r: any) => ({ moneda: r.moneda, saldo: Number(r.saldo) || 0 }))));
+  }, [selectedAlumnoId, open]);
+
   // Discounts for selected student (live calc when sub has no saved discount)
   const { applyDiscount, isSubSecondary, activeNonPausaCount } = useStudentDiscounts(selectedAlumnoId);
 
