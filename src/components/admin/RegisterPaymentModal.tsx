@@ -265,13 +265,19 @@ export function RegisterPaymentModal({
 
   // Cuando se activa "aplicar saldo", precargar el máximo aplicable
   useEffect(() => {
-    if (!aplicarCredito || !selectedSub) return;
-    const { price } = getEffectivePrice(selectedSub);
+    if (!aplicarCredito) return;
+    let price = 0;
+    if (nuevaSubMode && selectedNuevoPlan) {
+      price = applyDiscount(selectedNuevoPlan.precio, "planes", false).final;
+    } else if (selectedSub) {
+      price = getEffectivePrice(selectedSub).price;
+    }
+    if (price <= 0) return;
     const applied = Math.min(availableCredit, price);
     setCreditoAplicado(String(applied));
-    // Restar del monto cash sugerido
     setMontoPagado(String(Math.max(0, price - applied)));
-  }, [aplicarCredito, availableCredit, selectedSubId]);
+  }, [aplicarCredito, availableCredit, selectedSubId, nuevoPlanId, nuevaSubMode]);
+
 
 
   const handleSubmit = async () => {
