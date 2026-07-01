@@ -315,7 +315,27 @@ Deno.serve(async (req) => {
         ? Math.min(...currentStages.map((c: any) => Number(c.precio)))
         : null;
 
+      // Detalle por paquete: precio actual (última etapa <= now) vs precio nuevo (primera etapa > now)
+      const { data: pkgs } = await supabase
+        .from('event_packages')
+        .select('id, nombre, sort_order, activo, event_package_price_stages(precio, currency, vigente_desde, activo)')
+        .eq('event_id', eventId)
+        .eq('activo', true)
+        .order('sort_order', { ascending: true });
+      const packagesList: PkgRow[] = (pkgs ?? []).map((p: any) => {
+        const stages = (p.event_package_price_stages ?? []).filter((s: any) => s.activo);
+        const past = stages.filter((s: any) => new Date(s.vigente_desde) <= now)
+          .sort((a: any, b: any) => new Date(b.vigente_desde).getTime() - new Date(a.vigente_desde).getTime());
+        const future = stages.filter((s: any) => new Date(s.vigente_desde) > now)
+          .sort((a: any, b: any) => new Date(a.vigente_desde).getTime() - new Date(b.vigente_desde).getTime());
+        const cur = past[0] ? Number(past[0].precio) : null;
+        const nw = future[0] ? Number(future[0].precio) : cur;
+        const cur0 = past[0]?.currency || future[0]?.currency || currency;
+        return { name: p.nombre || 'Paquete', currentPrice: cur, newPrice: nw, currency: cur0 };
+      }).filter((p) => p.currentPrice != null || p.newPrice != null);
+
       const eventUrl = `${APP_URL}/eventos/${eventId}`;
+
 
       // Recipientes por variante
       type Rec = { email: string; nombre: string; balance?: number | null };
