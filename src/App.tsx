@@ -95,6 +95,7 @@ import BookingLanding from "./pages/booking/BookingLanding";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
 import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
+import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
 import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 
@@ -179,6 +180,7 @@ const App = () => (
             <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
             <Route path="comunicaciones" element={<AdminEmailTemplates />} />
             <Route path="email-masivo" element={<AdminBroadcasts />} />
+            <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
