@@ -1405,6 +1405,9 @@ const AdminEventReservations = ({
                               <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => setChangePackageFor(r)}>
+                            <Package className="w-3.5 h-3.5 mr-2" /> Cambiar paquete
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {waUrl && (
                             <DropdownMenuItem asChild>
