@@ -434,7 +434,7 @@ Deno.serve(async (req) => {
           const testFooter = `[TEST — variante ${variant}]\nEste mail iría a ${bucketCount} destinatario(s) reales del bucket "${variant}".\nEvento: ${event.title}`;
           const html = renderEmail({
             variant, nombre: sampleName, eventTitle: event.title, stageName, vigenteDesde,
-            oldMin, newMin, currency, balanceDue: sampleBalance,
+            oldMin, newMin, currency, packages: packagesList, balanceDue: sampleBalance,
             shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
             testFooter,
           });
