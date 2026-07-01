@@ -329,9 +329,9 @@ Deno.serve(async (req) => {
           } catch (e: any) { summary.errors.push(`${variant}: ${e.message || e}`); }
         }
       } else {
-        for (const r of paidFull.values())     { try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
-        for (const r of withBalance.values())  { try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
-        for (const r of interested.values())   { try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('paid_full'))    for (const r of paidFull.values())    { try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('with_balance')) for (const r of withBalance.values()) { try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
+        if (sendVariants.has('interested'))   for (const r of interested.values())  { try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
       }
 
       results.push(summary);
