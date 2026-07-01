@@ -68,6 +68,8 @@ export default function StudentChangePackageDrawer({
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState<PendingRequest | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [confirmApply, setConfirmApply] = useState(false);
+  const [applying, setApplying] = useState(false);
 
   const loadPending = async () => {
     const { data } = await supabase
