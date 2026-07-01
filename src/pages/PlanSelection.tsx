@@ -15,7 +15,7 @@ import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
-import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
 interface Plan {
