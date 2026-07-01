@@ -251,14 +251,17 @@ export function RegisterPaymentModal({
 
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
+  const selectedNuevoPlan = availablePlans.find(p => p.id === nuevoPlanId);
+  const activeMoneda = nuevaSubMode
+    ? (selectedNuevoPlan?.moneda || "ARS")
+    : (selectedSub?.planes?.moneda || "ARS");
 
-  // Saldo a favor disponible para la moneda de la sub seleccionada
+  // Saldo a favor disponible para la moneda activa
   const availableCredit = useMemo(() => {
-    if (!selectedSub) return 0;
-    const moneda = selectedSub.planes?.moneda || "ARS";
-    const row = saldos.find(s => s.moneda === moneda);
+    const row = saldos.find(s => s.moneda === activeMoneda);
     return row ? Math.max(0, -row.saldo) : 0;
-  }, [selectedSub, saldos]);
+  }, [activeMoneda, saldos]);
+
 
   // Cuando se activa "aplicar saldo", precargar el máximo aplicable
   useEffect(() => {
