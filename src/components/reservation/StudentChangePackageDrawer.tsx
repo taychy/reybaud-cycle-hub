@@ -279,6 +279,17 @@ export default function StudentChangePackageDrawer({
               {selectedId && (
                 <>
                   <PackageChangePreviewCard preview={preview} loading={loadingPreview} />
+                  {preview?.status === "auto_applicable" && (
+                    <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-xs flex gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-emerald-400">Podés aplicar este cambio ahora mismo</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          No afecta habitaciones ni cupos críticos. Al confirmar, actualizamos tu reserva y el saldo automáticamente.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {preview?.status === "requiere_aprobacion" && (
                     <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs flex gap-2">
                       <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -291,16 +302,19 @@ export default function StudentChangePackageDrawer({
                     </div>
                   )}
 
-                  <div>
-                    <Label className="text-xs">Contanos por qué querés cambiar (opcional)</Label>
-                    <Textarea
-                      value={motivo}
-                      onChange={(e) => setMotivo(e.target.value)}
-                      rows={3}
-                      placeholder="Ej: mi hermano ya reservó y quiero compartir habitación con él…"
-                      className="mt-1"
-                    />
-                  </div>
+                  {preview?.status !== "auto_applicable" && (
+                    <div>
+                      <Label className="text-xs">Contanos por qué querés cambiar (opcional)</Label>
+                      <Textarea
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        rows={3}
+                        placeholder="Ej: mi hermano ya reservó y quiero compartir habitación con él…"
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+
                 </>
               )}
             </>
