@@ -13,7 +13,7 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
-  Send, Bell, History, Copy, Pencil, Ban, Trash2,
+  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
