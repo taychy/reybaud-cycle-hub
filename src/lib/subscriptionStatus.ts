@@ -271,6 +271,7 @@ export const SUB_STATUS_LABELS: Record<string, string> = {
   pendiente: "Pendiente",
   pendiente_verificacion: "Pendiente de validación",
   vencida: "Vencida",
+  finalizada: "Finalizada",
   cancelada: "Cancelada",
   pausa: "Pausada",
   duplicada: "Duplicada",
