@@ -130,9 +130,97 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
     setSaving(false);
     if (error) { toast.error("Error: " + error.message); return; }
     toast.success("Etapa agregada");
+    const addedInfo = {
+      nombre: draft.nombre.trim(),
+      desde, hasta,
+      pct: pct != null && !isNaN(pct) ? pct : null,
+      precio, currency: draft.currency,
+    };
     setDraft(emptyDraft(baseCurrency));
     load();
+    // Ofrecer propagar a otros paquetes del mismo evento
+    await offerPropagate(addedInfo);
   };
+
+  const offerPropagate = async (added: NonNullable<typeof lastAdded>) => {
+    // 1) Buscar event_id del paquete actual
+    const { data: pkg } = await supabase
+      .from("event_packages")
+      .select("event_id")
+      .eq("id", packageId)
+      .maybeSingle();
+    const eventId = (pkg as any)?.event_id;
+    if (!eventId) return;
+
+    // 2) Buscar hermanos activos
+    const { data: sibs } = await supabase
+      .from("event_packages")
+      .select("id, nombre, precio, currency, activo")
+      .eq("event_id", eventId)
+      .neq("id", packageId)
+      .eq("activo", true)
+      .order("sort_order", { ascending: true });
+    const list = (sibs || []) as any[];
+    if (list.length === 0) return;
+
+    // 3) Para cada hermano: última etapa (o precio base) → aplicar % (o precio absoluto)
+    const sibIds = list.map((s) => s.id);
+    const { data: sibStages } = await supabase
+      .from("event_package_price_stages" as any)
+      .select("package_id, precio, vigente_desde")
+      .in("package_id", sibIds)
+      .order("vigente_desde", { ascending: false });
+    const lastByPkg = new Map<string, number>();
+    for (const st of (sibStages as any[]) || []) {
+      if (!lastByPkg.has(st.package_id)) lastByPkg.set(st.package_id, Number(st.precio));
+    }
+
+    const built: SiblingPkg[] = list.map((s) => {
+      const basePrice = lastByPkg.get(s.id) ?? Number(s.precio);
+      const computed = added.pct != null
+        ? Math.round(basePrice * (1 + added.pct / 100))
+        : added.precio;
+      return {
+        id: s.id,
+        nombre: s.nombre,
+        precio: Number(s.precio),
+        currency: s.currency,
+        lastStagePrice: basePrice,
+        computedPrice: computed,
+        selected: true,
+      };
+    });
+
+    setSiblings(built);
+    setLastAdded(added);
+    setPropagateOpen(true);
+  };
+
+  const propagateNow = async () => {
+    if (!lastAdded) return;
+    const selected = siblings.filter((s) => s.selected);
+    if (selected.length === 0) { setPropagateOpen(false); return; }
+    setPropagating(true);
+    const rows = selected.map((s) => ({
+      package_id: s.id,
+      nombre: lastAdded.nombre,
+      precio: s.computedPrice,
+      currency: s.currency, // respeta la moneda propia del paquete
+      vigente_desde: lastAdded.desde,
+      vigente_hasta: lastAdded.hasta,
+      incremento_pct: lastAdded.pct,
+      sort_order: 999,
+      activo: true,
+    }));
+    const { error } = await supabase.from("event_package_price_stages" as any).insert(rows);
+    setPropagating(false);
+    if (error) { toast.error("Error propagando: " + error.message); return; }
+    toast.success(`Etapa copiada a ${selected.length} paquete${selected.length === 1 ? "" : "s"}`);
+    setPropagateOpen(false);
+    setLastAdded(null);
+    setSiblings([]);
+  };
+
 
   const toggleActive = async (s: PriceStage) => {
     const { error } = await supabase.from("event_package_price_stages" as any)
