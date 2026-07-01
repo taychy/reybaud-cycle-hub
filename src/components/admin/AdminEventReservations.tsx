@@ -2282,6 +2282,17 @@ const AdminEventReservations = ({
           loadReservations();
         }}
       />
+
+      {changePackageFor && (
+        <AdminChangePackageDialog
+          open={!!changePackageFor}
+          onOpenChange={(o) => !o && setChangePackageFor(null)}
+          reservationId={changePackageFor.id}
+          eventId={changePackageFor.event_id}
+          currentPackageId={changePackageFor.package_id || null}
+          onDone={() => { setChangePackageFor(null); loadReservations(); }}
+        />
+      )}
     </div>
   );
 };
