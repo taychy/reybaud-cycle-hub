@@ -67,15 +67,24 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  let body: { dryRun?: boolean; targetDate?: string } = {};
+  // maxAgeMonths: cuán "vieja" puede ser la última sub pagada para renovarla al mes actual.
+  //   1 = sólo renueva si la última terminó en el mes anterior al target (default seguro).
+  //   Aumentar sólo en backfills conscientes; sino se generan deudas retroactivas.
+  let body: { dryRun?: boolean; targetDate?: string; maxAgeMonths?: number } = {};
   try {
     if (req.method === "POST") body = await req.json();
   } catch { /* empty body ok */ }
 
   const target = body.targetDate || todayISO();
   const dryRun = !!body.dryRun;
+  const maxAgeMonths = Math.max(1, body.maxAgeMonths ?? 1);
 
-  console.log("[renew-monthly-subs] start", { target, dryRun });
+  // Cutoff: fecha_fin >= (primer día del mes = target_month - maxAgeMonths)
+  const [ty0, tm0] = target.split("-").map(Number);
+  const cutoffDate = new Date(Date.UTC(ty0, tm0 - 1 - maxAgeMonths, 1));
+  const cutoffISO = cutoffDate.toISOString().slice(0, 10);
+
+  console.log("[renew-monthly-subs] start", { target, dryRun, maxAgeMonths, cutoffISO });
 
   // 1) Candidatas: subs 'activa' o 'vencida' con fecha_fin < target, pagadas, no canceladas.
   //    Ambos estados representan períodos cerrados: 'activa' = aún no procesada por este cron;
