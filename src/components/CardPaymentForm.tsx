@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CreditCard, Loader2, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { Checkbox } from "@/components/ui/checkbox";
-import { tryReuseExistingSubscription } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, expireStaleSubs } from "@/lib/paymentReuseSub";
 
 interface CardPaymentFormProps {
   planId: string;
@@ -175,6 +175,10 @@ const CardPaymentForm = ({
                 setProcessing(false);
                 return;
               }
+
+              // Limpieza previa: expira subs "activas" con fecha_fin vencida (cron dormido)
+              // para que el trigger de duplicado no bloquee al insertar la sub del período nuevo.
+              await expireStaleSubs(alumnoId, planId);
 
               // Reutilizar sub del período actual si venimos de "Pagar este plan"
               const reused = await tryReuseExistingSubscription(alumnoId, planId, {

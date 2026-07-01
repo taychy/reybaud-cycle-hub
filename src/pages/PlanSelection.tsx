@@ -15,7 +15,7 @@ import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
-import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
 interface Plan {
@@ -410,6 +410,11 @@ const PlanSelection = () => {
         console.error("[handleMercadoPago] cancelPausedSubs failed", e);
       }
 
+      // Limpieza previa: si el alumno tiene subs "activas" cuya fecha_fin ya
+      // pasó (cron aún no corrió), las marcamos vencidas para que el trigger
+      // de duplicado no bloquee al insertar la sub del período nuevo.
+      await expireStaleSubs(alumnoId, plan.id);
+
       const disc = selectedDiscount;
       let fechaInicio: string;
       let fechaFin: string;
@@ -476,11 +481,11 @@ const PlanSelection = () => {
           } else if (msg.includes("PAUSA_TOO_LONG")) {
             setError("La pausa no puede durar más de 2 meses.");
           } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
-            setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
+            setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez. Si creés que es un error, escribinos por WhatsApp a administración y lo resolvemos.");
           } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
-            setError("Ya tenés este mismo plan activo para este período.");
+            setError("Ya tenés este mismo plan activo para este período. Si querés renovarlo antes de tiempo o creés que es un error, contactá a administración.");
           } else {
-            setError("Error al procesar. Intentá nuevamente.");
+            setError("No pudimos crear el pago. Recargá la página e intentá de nuevo; si sigue fallando, escribinos a administración.");
           }
           setProcessing(false);
           return;
