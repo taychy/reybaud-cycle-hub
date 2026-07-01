@@ -62,8 +62,13 @@ export const PackagePriceStagesEditor = ({ packageId, packageBasePrice, baseCurr
   const [draft, setDraft] = useState<Draft>(emptyDraft(baseCurrency));
   const [open, setOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // Propagación a otros paquetes del mismo evento
+  interface SiblingPkg { id: string; nombre: string; precio: number; currency: string; lastStagePrice: number; computedPrice: number; selected: boolean; }
+  const [propagateOpen, setPropagateOpen] = useState(false);
+  const [siblings, setSiblings] = useState<SiblingPkg[]>([]);
+  const [lastAdded, setLastAdded] = useState<{ nombre: string; desde: string; hasta: string | null; pct: number | null; precio: number; currency: string } | null>(null);
+  const [propagating, setPropagating] = useState(false);
+
     const { data, error } = await supabase
       .from("event_package_price_stages" as any)
       .select("*")
