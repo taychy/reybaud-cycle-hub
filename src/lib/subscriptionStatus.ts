@@ -106,11 +106,27 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
 
   // If the subscription isn't "activa" in the DB, check for "vencida pero paga"
   if (sub.estado !== "activa") {
-    // "vencida" en DB pero con pago aprobado → período cerrado, contabilidad OK.
-    // Se muestra como "Finalizada" (no genera deuda ni acción admin).
-    if (sub.estado === "vencida" && isSubPaid(sub)) return "finalizada";
+    // "vencida" en DB pero con pago aprobado: el período contable está cerrado,
+    // PERO el alumno mantiene la ventana de gracia día 1-5 del mes siguiente
+    // (igual que una sub activa que acaba de vencer). Pasada la gracia sí
+    // pasa a "finalizada" (sin deuda, sin acceso, requiere renovar).
+    if (sub.estado === "vencida" && isSubPaid(sub)) {
+      if (sub.fecha_fin) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const [fy, fm, fd] = sub.fecha_fin.substring(0, 10).split("-").map((n) => parseInt(n, 10));
+        const fin = new Date(fy, fm - 1, fd, 23, 59, 59);
+        if (today <= fin) return "activa";
+        const isNextMonth =
+          (today.getFullYear() === fin.getFullYear() && today.getMonth() === fin.getMonth() + 1) ||
+          (today.getFullYear() === fin.getFullYear() + 1 && fin.getMonth() === 11 && today.getMonth() === 0);
+        if (isNextMonth && today.getDate() <= 5) return "pago_pendiente";
+      }
+      return "finalizada";
+    }
     return sub.estado as EffectiveSubStatus;
   }
+
 
   // Active subscription — check expiry
   if (!sub.fecha_fin) return "activa";
