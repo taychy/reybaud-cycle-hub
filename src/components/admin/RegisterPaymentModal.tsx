@@ -169,6 +169,28 @@ export function RegisterPaymentModal({
       });
   }, [selectedAlumnoId, open]);
 
+  // Load available plans when "nueva suscripción" mode
+  useEffect(() => {
+    if (!open || !nuevaSubMode || !selectedAlumnoId) return;
+    supabase
+      .from("planes")
+      .select("id, nombre, precio, moneda, activo, visibilidad")
+      .eq("activo", true)
+      .order("precio", { ascending: true })
+      .then(({ data }) => {
+        const plans = ((data as any[]) || [])
+          .filter(p => p.visibilidad !== "oculto")
+          .map(p => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio) || 0, moneda: p.moneda || "ARS" }));
+        setAvailablePlans(plans);
+        // Pre-seleccionar el último plan que tuvo (para renovar)
+        if (!nuevoPlanId && historicalSubs.length > 0) {
+          const lastPaid = historicalSubs.find(s => s.plan_id && plans.some(p => p.id === s.plan_id));
+          if (lastPaid) setNuevoPlanId(lastPaid.plan_id);
+        }
+      });
+  }, [open, nuevaSubMode, selectedAlumnoId, historicalSubs]);
+
+
   // Load saldos (para poder aplicar saldo a favor)
   useEffect(() => {
     if (!selectedAlumnoId || !open) {
