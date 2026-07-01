@@ -128,9 +128,14 @@ const AdminEmailTemplates = () => {
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-6xl">
-      <div>
-        <h1 className="text-2xl font-heading font-bold flex items-center gap-2"><Mail className="w-6 h-6" /> Comunicaciones</h1>
-        <p className="text-sm text-muted-foreground">Plantillas de emails automáticos enviadas por la plataforma.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-heading font-bold flex items-center gap-2"><Mail className="w-6 h-6" /> Comunicaciones</h1>
+          <p className="text-sm text-muted-foreground">Plantillas de emails automáticos enviadas por la plataforma.</p>
+        </div>
+        <Button asChild variant="gold" size="sm">
+          <a href="/admin/aprobar-aviso-precio">Aprobar aviso de aumento →</a>
+        </Button>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
