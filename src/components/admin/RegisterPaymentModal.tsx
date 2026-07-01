@@ -795,7 +795,9 @@ export function RegisterPaymentModal({
                         onChange={(e) => {
                           const v = e.target.value;
                           setCreditoAplicado(v);
-                          const { price } = getEffectivePrice(selectedSub);
+                          const price = nuevaSubMode && selectedNuevoPlan
+                            ? applyDiscount(selectedNuevoPlan.precio, "planes", false).final
+                            : (selectedSub ? getEffectivePrice(selectedSub).price : 0);
                           const applied = Math.min(availableCredit, parseFloat(v) || 0);
                           setMontoPagado(String(Math.max(0, price - applied)));
                         }}
@@ -818,10 +820,11 @@ export function RegisterPaymentModal({
                 />
                 {aplicarCredito && parseFloat(creditoAplicado) > 0 && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Se combinará con {selectedSub.planes?.moneda || "ARS"} {parseFloat(creditoAplicado || "0").toLocaleString("es-AR")} de saldo a favor.
+                    Se combinará con {activeMoneda} {parseFloat(creditoAplicado || "0").toLocaleString("es-AR")} de saldo a favor.
                   </p>
                 )}
               </div>
+
 
               <div>
                 <Label className="text-xs">Método de pago</Label>
