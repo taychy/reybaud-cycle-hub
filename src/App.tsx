@@ -182,6 +182,7 @@ const App = () => (
             <Route path="comunicaciones" element={<AdminEmailTemplates />} />
             <Route path="email-masivo" element={<AdminBroadcasts />} />
             <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
+            <Route path="cambios-paquete" element={<AdminPackageChangeRequests />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
