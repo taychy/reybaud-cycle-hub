@@ -112,9 +112,12 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
     return sub.estado as EffectiveSubStatus;
   }
 
+  // Active subscription — check expiry
+  if (!sub.fecha_fin) return "activa";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
 
   // Parse fecha_fin robustly — extract YYYY-MM-DD parts to avoid timezone drift
   const finParts = sub.fecha_fin.substring(0, 10).split("-");
