@@ -93,8 +93,8 @@ interface RenderCtx {
 }
 
 function subjectFor(v: Variant, eventTitle: string): string {
-  if (v === 'paid_full')    return `📣 Tu lugar en ${eventTitle} está confirmado — compartilo antes del aumento`;
-  if (v === 'with_balance') return `⏰ Pagá tu saldo y congelá el precio de ${eventTitle}`;
+  if (v === 'paid_full')    return `📣 Tu precio en ${eventTitle} está congelado — compartilo antes del aumento`;
+  if (v === 'with_balance') return `⏰ Pagá la seña y congelá el precio de ${eventTitle}`;
   return `⏰ Última chance al precio actual de ${eventTitle}`;
 }
 
@@ -109,12 +109,12 @@ function renderEmail(ctx: RenderCtx): string {
   let tag = '⏰ AVISO IMPORTANTE';
 
   if (variant === 'paid_full') {
-    tag = '🎉 TU LUGAR ESTÁ CONFIRMADO';
-    intro = `Hola ${escapeHtml(nombre)}, ya pagaste el total de <b>${escapeHtml(eventTitle)}</b>, así que <b>tu precio está congelado</b>. Este mail es para que lo sepas y, si querés, invites a tus amigos: el <b>${fmtDateAR(vigenteDesde)}</b> arranca la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''} y ya no van a poder entrar al precio actual.`;
+    tag = '🎉 TU PRECIO ESTÁ CONGELADO';
+    intro = `Hola ${escapeHtml(nombre)}, ya reservaste <b>${escapeHtml(eventTitle)}</b> y hiciste al menos un pago, así que <b>tu precio ya está congelado</b> y no te afecta el aumento. Te escribimos porque el <b>${fmtDateAR(vigenteDesde)}</b> arranca la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''} y quien no haya reservado ya no va a poder entrar al precio actual.`;
     extraBlock = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#166534;">Compartí con alguien que quiera sumarse</div>
+      <div style="font-size:12px;color:#166534;">Si conocés a alguien que quiera sumarse</div>
       <div style="font-size:14px;color:#14532d;margin-top:6px;line-height:1.5;">
-        Si conocés a alguien que le interesa el viaje, este es el momento: reservando ahora, congela el precio de <b>${escapeHtml(fmtMoney(newMin, currency))}</b> que arranca ${fmtDateAR(vigenteDesde)}.
+        Es el momento: reservando <b>antes del ${fmtDateAR(vigenteDesde)}</b> congela el precio actual. Después de esa fecha va a pagar <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
       </div>
     </div>`;
     ctaHref = ctx.shareUrl || `${APP_URL}/eventos`;
@@ -123,15 +123,16 @@ function renderEmail(ctx: RenderCtx): string {
 
   if (variant === 'with_balance') {
     tag = '⏰ AVISO — SUBE EL PRECIO';
-    intro = `Hola ${escapeHtml(nombre)}, tenés reservado <b>${escapeHtml(eventTitle)}</b> pero todavía queda saldo pendiente. El <b>${fmtDateAR(vigenteDesde)}</b> entra en vigencia la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''}. <b>Si pagás tu saldo antes de esa fecha, congelás el precio actual</b>. Si no, el saldo se recalcula con el precio nuevo.`;
-    const bal = ctx.balanceDue ?? 0;
+    intro = `Hola ${escapeHtml(nombre)}, tenés reservado <b>${escapeHtml(eventTitle)}</b> pero <b>todavía no pagaste la seña</b>, así que tu precio aún no está congelado. El <b>${fmtDateAR(vigenteDesde)}</b> entra en vigencia la etapa <b>${escapeHtml(stageName)}</b>${diff && diff !== 0 ? ` (${diff > 0 ? '+' : ''}${diff}% aprox.)` : ''}. <b>Si pagás la seña antes de esa fecha, congelás el precio actual</b>. Si no, el total se recalcula con el precio nuevo.`;
     extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:12px;color:#9a3412;">Tu saldo pendiente</div>
-      <div style="font-size:22px;font-weight:700;color:${BRAND};">${escapeHtml(fmtMoney(bal, currency))}</div>
-      <div style="font-size:12px;color:#7c2d12;margin-top:4px;">Pagalo antes del ${fmtDateAR(vigenteDesde)} para no pagar el aumento.</div>
+      <div style="font-size:12px;color:#9a3412;">Precio actual vs. precio nuevo</div>
+      <div style="font-size:14px;color:#7c2d12;margin-top:6px;line-height:1.5;">
+        Hoy: <b>${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</b> · Desde el ${fmtDateAR(vigenteDesde)}: <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
+      </div>
+      <div style="font-size:12px;color:#7c2d12;margin-top:6px;">Pagá la seña antes de esa fecha para no pagar el aumento.</div>
     </div>`;
     ctaHref = ctx.payUrl || `${APP_URL}/mis-reservas`;
-    ctaLabel = 'Ir a mi reserva y pagar';
+    ctaLabel = 'Ir a mi reserva y pagar la seña';
   }
 
   if (variant === 'interested') {
