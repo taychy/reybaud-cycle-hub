@@ -96,6 +96,7 @@ import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
 import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
+import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests";
 import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 
