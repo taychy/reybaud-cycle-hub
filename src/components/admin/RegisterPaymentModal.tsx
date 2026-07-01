@@ -897,9 +897,10 @@ export function RegisterPaymentModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving || !selectedSubId}>
-            {saving ? "Registrando..." : "Registrar pago"}
+          <Button onClick={handleSubmit} disabled={saving || (!selectedSubId && !(nuevaSubMode && nuevoPlanId))}>
+            {saving ? "Registrando..." : nuevaSubMode ? "Crear y registrar pago" : "Registrar pago"}
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>
