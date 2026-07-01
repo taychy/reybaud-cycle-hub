@@ -230,7 +230,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setLastHandledOverduePreviewToken(openOverduePreviewToken);
   }, [openOverduePreviewToken, lastHandledOverduePreviewToken, subs]);
 
-  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: getSubStatusEndDate(s), cancelada_at: s.cancelada_at });
+  const getEffStatus = (s: SuscripcionData) => getEffectiveSubStatus({ estado: s.estado, fecha_fin: getSubStatusEndDate(s), cancelada_at: s.cancelada_at, mp_status: (s as any).mp_status, origen_registro: (s as any).origen_registro });
 
   // Categorize subscriptions: active operational vs history
   // Orden: la suscripción del período actual (vigente hoy) primero,
