@@ -322,15 +322,23 @@ export default function StudentChangePackageDrawer({
         </div>
 
         <SheetFooter className="mt-6 flex-col gap-2 sm:flex-col">
-          {!pending && (
+          {!pending && preview?.status === "auto_applicable" && (
+            <Button
+              className="w-full"
+              onClick={() => setConfirmApply(true)}
+              disabled={!selectedId || applying}
+            >
+              {applying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Confirmar cambio ahora
+            </Button>
+          )}
+          {!pending && preview?.status !== "auto_applicable" && (
             <Button
               className="w-full"
               onClick={handleSubmit}
               disabled={!selectedId || submitting || !preview || preview.status === "no_posible"}
             >
-              {submitting
-                ? <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                : null}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Enviar solicitud
             </Button>
           )}
@@ -339,6 +347,26 @@ export default function StudentChangePackageDrawer({
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      <AlertDialog open={confirmApply} onOpenChange={setConfirmApply}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cambio de paquete</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vamos a actualizar tu reserva a <b>{options.find(p => p.id === selectedId)?.nombre}</b>.
+              {preview?.credit_to_create ? ` Se generará un crédito a favor de $${preview.credit_to_create.toLocaleString("es-AR")}.` : ""}
+              {preview?.debit_to_create ? ` Tu nuevo saldo pendiente será de $${preview.debit_to_create.toLocaleString("es-AR")}.` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={applying}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApply} disabled={applying}>
+              {applying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Sí, aplicar cambio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
