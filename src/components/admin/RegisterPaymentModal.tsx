@@ -511,8 +511,46 @@ export function RegisterPaymentModal({
                   </div>
                 );
               })()}
+
+              {/* Aplicar saldo a favor si hay disponible */}
+              {availableCredit > 0 && (
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-emerald-400">
+                        Saldo a favor disponible
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {(selectedSub.planes?.moneda || "ARS")} {availableCredit.toLocaleString("es-AR")} · se descontará del pago
+                      </p>
+                    </div>
+                    <Switch checked={aplicarCredito} onCheckedChange={setAplicarCredito} />
+                  </div>
+                  {aplicarCredito && (
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Monto a aplicar</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={availableCredit}
+                        value={creditoAplicado}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCreditoAplicado(v);
+                          const { price } = getEffectivePrice(selectedSub);
+                          const applied = Math.min(availableCredit, parseFloat(v) || 0);
+                          setMontoPagado(String(Math.max(0, price - applied)));
+                        }}
+                        className="h-8 text-sm mt-1"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
-                <Label className="text-xs">Monto pagado</Label>
+                <Label className="text-xs">Monto pagado (efectivo/transferencia)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -521,6 +559,11 @@ export function RegisterPaymentModal({
                   className="h-9 text-sm mt-1"
                   placeholder="0.00"
                 />
+                {aplicarCredito && parseFloat(creditoAplicado) > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Se combinará con {selectedSub.planes?.moneda || "ARS"} {parseFloat(creditoAplicado || "0").toLocaleString("es-AR")} de saldo a favor.
+                  </p>
+                )}
               </div>
 
               <div>
