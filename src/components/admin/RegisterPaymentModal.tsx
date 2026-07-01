@@ -190,6 +190,24 @@ export function RegisterPaymentModal({
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
+  // Saldo a favor disponible para la moneda de la sub seleccionada
+  const availableCredit = useMemo(() => {
+    if (!selectedSub) return 0;
+    const moneda = selectedSub.planes?.moneda || "ARS";
+    const row = saldos.find(s => s.moneda === moneda);
+    return row ? Math.max(0, -row.saldo) : 0;
+  }, [selectedSub, saldos]);
+
+  // Cuando se activa "aplicar saldo", precargar el máximo aplicable
+  useEffect(() => {
+    if (!aplicarCredito || !selectedSub) return;
+    const { price } = getEffectivePrice(selectedSub);
+    const applied = Math.min(availableCredit, price);
+    setCreditoAplicado(String(applied));
+    // Restar del monto cash sugerido
+    setMontoPagado(String(Math.max(0, price - applied)));
+  }, [aplicarCredito, availableCredit, selectedSubId]);
+
 
   const handleSubmit = async () => {
     if (!selectedSubId || !selectedAlumnoId) {
@@ -210,10 +228,12 @@ export function RegisterPaymentModal({
     setSaving(true);
     try {
       const montoNum = parseFloat(montoPagado) || 0;
+      const creditoNum = aplicarCredito ? Math.min(parseFloat(creditoAplicado) || 0, availableCredit) : 0;
       const sub = subForUpdate;
       const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
-      const isParcial = montoNum > 0 && montoNum < expectedAmount;
-      const excedente = montoNum > expectedAmount ? montoNum - expectedAmount : 0;
+      const totalRecibido = montoNum + creditoNum;
+      const isParcial = totalRecibido > 0 && totalRecibido < expectedAmount;
+      const excedente = montoNum > Math.max(0, expectedAmount - creditoNum) ? montoNum - Math.max(0, expectedAmount - creditoNum) : 0;
 
       const newEstado = isParcial ? "pendiente" : "activa";
       const notasParts: string[] = [];
