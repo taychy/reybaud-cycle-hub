@@ -165,6 +165,33 @@ export default function AdminBroadcasts() {
     })();
   }, [tab]);
 
+  // Alerta: etapas de precio que entran en vigencia en los próximos 7 días
+  const [stageAlerts, setStageAlerts] = useState<Array<{ eventTitle: string; stageName: string; vigenteDesde: string; daysLeft: number }>>([]);
+  useEffect(() => {
+    (async () => {
+      const now = new Date();
+      const in7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const { data } = await supabase
+        .from("event_package_price_stages" as any)
+        .select("nombre, vigente_desde, event_packages(title, event_id, events(title))")
+        .eq("activo", true)
+        .gte("vigente_desde", now.toISOString())
+        .lte("vigente_desde", in7.toISOString())
+        .order("vigente_desde", { ascending: true });
+      const rows = ((data as any[]) || []).map((r) => {
+        const t = new Date(r.vigente_desde).getTime();
+        const daysLeft = Math.max(0, Math.ceil((t - now.getTime()) / (24 * 60 * 60 * 1000)));
+        const eventTitle = r.event_packages?.events?.title || "Evento";
+        return { eventTitle, stageName: r.nombre, vigenteDesde: r.vigente_desde, daysLeft };
+      });
+      // dedup por evento (mostramos la más próxima por evento)
+      const byEvent = new Map<string, typeof rows[number]>();
+      rows.forEach((r) => { if (!byEvent.has(r.eventTitle)) byEvent.set(r.eventTitle, r); });
+      setStageAlerts(Array.from(byEvent.values()));
+    })();
+  }, []);
+
+
   const previewSegment = async () => {
     setLoadingPreview(true);
     try {
