@@ -165,6 +165,33 @@ export default function AdminBroadcasts() {
     })();
   }, [tab]);
 
+  // Alerta: etapas de precio que entran en vigencia en los próximos 7 días
+  const [stageAlerts, setStageAlerts] = useState<Array<{ eventTitle: string; stageName: string; vigenteDesde: string; daysLeft: number }>>([]);
+  useEffect(() => {
+    (async () => {
+      const now = new Date();
+      const in7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const { data } = await supabase
+        .from("event_package_price_stages" as any)
+        .select("nombre, vigente_desde, event_packages(title, event_id, events(title))")
+        .eq("activo", true)
+        .gte("vigente_desde", now.toISOString())
+        .lte("vigente_desde", in7.toISOString())
+        .order("vigente_desde", { ascending: true });
+      const rows = ((data as any[]) || []).map((r) => {
+        const t = new Date(r.vigente_desde).getTime();
+        const daysLeft = Math.max(0, Math.ceil((t - now.getTime()) / (24 * 60 * 60 * 1000)));
+        const eventTitle = r.event_packages?.events?.title || "Evento";
+        return { eventTitle, stageName: r.nombre, vigenteDesde: r.vigente_desde, daysLeft };
+      });
+      // dedup por evento (mostramos la más próxima por evento)
+      const byEvent = new Map<string, typeof rows[number]>();
+      rows.forEach((r) => { if (!byEvent.has(r.eventTitle)) byEvent.set(r.eventTitle, r); });
+      setStageAlerts(Array.from(byEvent.values()));
+    })();
+  }, []);
+
+
   const previewSegment = async () => {
     setLoadingPreview(true);
     try {
@@ -360,10 +387,48 @@ export default function AdminBroadcasts() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => setShowSenderDialog(true)}>
-          <Settings className="w-4 h-4 mr-1" /> Remitente
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {stageAlerts.length > 0 ? (
+            <Button asChild size="sm" className="bg-red-600 hover:bg-red-700 text-white border-red-700 animate-pulse">
+              <a href="/admin/aprobar-aviso-precio" title={stageAlerts.map(s => `${s.eventTitle} — ${s.stageName} (en ${s.daysLeft}d)`).join("\n")}>
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                Aprobar aviso de aumento ({stageAlerts.length})
+              </a>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" size="sm">
+              <a href="/admin/aprobar-aviso-precio">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                Aviso de aumento
+              </a>
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setShowSenderDialog(true)}>
+            <Settings className="w-4 h-4 mr-1" /> Remitente
+          </Button>
+        </div>
       </div>
+
+      {stageAlerts.length > 0 && (
+        <Card className="p-3 border-red-500/40 bg-red-500/5">
+          <div className="flex items-start gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <div className="font-semibold text-red-500">
+                {stageAlerts.length === 1 ? "1 evento" : `${stageAlerts.length} eventos`} cambia{stageAlerts.length === 1 ? "" : "n"} de etapa de precio en los próximos 7 días
+              </div>
+              <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                {stageAlerts.slice(0, 5).map((s, i) => (
+                  <li key={i}>
+                    <b className="text-foreground">{s.eventTitle}</b> — "{s.stageName}" en {s.daysLeft} día{s.daysLeft === 1 ? "" : "s"} ({new Date(s.vigenteDesde).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
 
       {sender.sender_email && (
         <div className="text-xs text-muted-foreground flex items-center gap-2">
