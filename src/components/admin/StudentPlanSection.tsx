@@ -1200,10 +1200,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           
           {previewSub && (() => {
             const firstName = alumno.nombre?.split(" ")[0] || alumno.nombre;
-            const fechaText = previewSub.fecha_fin
+            const periodo = previewSub.fecha_fin
               ? (() => {
                   const [y, m, d] = previewSub.fecha_fin.split("-").map(Number);
-                  return new Date(y, m - 1, d).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" });
+                  return new Date(y, m - 1, d).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+                })()
+              : null;
+            const mes = previewSub.fecha_fin
+              ? (() => {
+                  const [y, m, d] = previewSub.fecha_fin.split("-").map(Number);
+                  return new Date(y, m - 1, d).toLocaleDateString("es-AR", { month: "long" });
                 })()
               : null;
             return (
@@ -1215,26 +1221,30 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                   </div>
                   <div className="flex gap-2">
                     <span className="text-muted-foreground font-medium w-16">Asunto:</span>
-                    <span className="text-foreground">⚠️ Tu mensualidad está vencida</span>
+                    <span className="text-foreground">🚴 ¡Arrancó un nuevo mes de entrenamiento!</span>
                   </div>
                 </div>
 
                 <div className="rounded-md border border-border bg-white p-4 space-y-3">
-                  <h3 className="text-[#d4820a] font-semibold text-base">⚠️ Mensualidad vencida</h3>
+                  <h3 className="text-[#d4820a] font-semibold text-base">🚴 ¡Arrancó un nuevo mes de entrenamiento!</h3>
+                  <p className="text-sm text-[#666] capitalize">{periodo ? `Nuevo período — ${periodo}` : "Nuevo período"}</p>
                   <p className="text-sm text-[#333]">
-                    Hola <strong>{firstName}</strong>, te informamos que tu mensualidad en Ciclismo Reybaud venció{fechaText ? <> el <strong>{fechaText}</strong></> : ""}.
+                    Hola <strong>{firstName}</strong> 👋
                   </p>
                   <p className="text-sm text-[#333]">
-                    Para mantener tu acceso completo a la app y a tus entrenamientos, te pedimos que regularices tu pago lo antes posible.
+                    Empezó {mes || "el nuevo mes"} y con él, un nuevo mes de entrenamientos.
                   </p>
                   <p className="text-sm text-[#333]">
-                    Podés hacerlo directamente desde la app o contactando a administración.
+                    Para que sigas con acceso completo a la app y tus entrenamientos sin interrupciones, podés abonar tu mensualidad de {mes || "este mes"} directamente acá:
                   </p>
                   <div className="text-center pt-2">
                     <span className="inline-block px-5 py-2 bg-[#d4820a] text-white rounded-lg text-sm font-semibold">
-                      Regularizar pago
+                      Abonar mensualidad de {mes || "este mes"}
                     </span>
                   </div>
+                  <p className="text-sm text-[#333] pt-2">
+                    También podés hacerlo desde la app o contactando a administración.
+                  </p>
                   <p className="text-[#999] text-xs text-center pt-2">
                     Ciclismo Reybaud — Escuela de ciclismo
                   </p>
@@ -1246,8 +1256,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
                     <span className="text-foreground font-medium">{previewSub.planes?.nombre || "—"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Vencimiento</span>
-                    <span className="text-foreground font-medium">{fechaText || "—"}</span>
+                    <span className="text-muted-foreground">Período</span>
+                    <span className="text-foreground font-medium">{periodo || "—"}</span>
                   </div>
                 </div>
               </div>
