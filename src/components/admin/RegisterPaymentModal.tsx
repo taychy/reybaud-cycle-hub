@@ -679,9 +679,40 @@ export function RegisterPaymentModal({
           )}
 
 
-          {/* Payment details — only show when sub is selected */}
-          {selectedSub && (
+          {/* Payment details — sub existente o nuevo plan */}
+          {(selectedSub || (nuevaSubMode && selectedNuevoPlan)) && (
             <>
+              {nuevaSubMode && selectedNuevoPlan && (() => {
+                const live = applyDiscount(selectedNuevoPlan.precio, "planes", false);
+                const hasDiscount = live.final < selectedNuevoPlan.precio;
+                return (
+                  <div className="bg-secondary/30 rounded-md p-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Plan (nueva sub)</span>
+                      <span className="font-medium">{selectedNuevoPlan.nombre}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Precio base</span>
+                      <span className={hasDiscount ? "line-through text-muted-foreground" : "font-medium"}>
+                        {selectedNuevoPlan.moneda} {selectedNuevoPlan.precio}
+                      </span>
+                    </div>
+                    {hasDiscount && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-emerald-500">{live.discount?.nombre || "Descuento"}</span>
+                        <span className="text-emerald-500 font-medium">−{selectedNuevoPlan.moneda} {selectedNuevoPlan.precio - live.final}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground">Monto esperado</span>
+                      <span className="font-bold text-foreground">{selectedNuevoPlan.moneda} {live.final}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {selectedSub && !nuevaSubMode && (
+
               {/* Plan info */}
               {(() => {
                 const moneda = selectedSub.planes?.moneda || "ARS";
