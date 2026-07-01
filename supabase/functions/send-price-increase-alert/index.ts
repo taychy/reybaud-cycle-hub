@@ -245,16 +245,20 @@ Deno.serve(async (req) => {
         .is('cancelled_at', null)
         .not('reservation_status', 'in', '(cancelada,rechazada)');
       for (const r of reservas ?? []) {
+        const paid = Number(r.amount_paid ?? 0);
         const total = Number(r.amount_total ?? 0);
-        const balance = r.balance_due != null ? Number(r.balance_due) : Math.max(0, total - Number(r.amount_paid ?? 0));
+        const balance = r.balance_due != null ? Number(r.balance_due) : Math.max(0, total - paid);
         const email = (r as any).alumnos?.email || r.external_email;
         const nombre = (r as any).alumnos?.nombre || r.external_first_name || 'Hola';
         if (!email) continue;
         const key = normalize(email);
-        if (balance <= 0 && total > 0) {
-          paidFull.set(key, { email: key, nombre });
-        } else if (balance > 0) {
-          withBalance.set(key, { email: key, nombre, balance });
+        // NUEVA SEGMENTACIÓN:
+        // paid_full  = reservó y ya hizo al menos un pago (cualquier monto > 0) → precio congelado
+        // with_balance = reservó pero NO pagó ni siquiera la seña → debe pagar seña para congelar
+        if (paid > 0) {
+          paidFull.set(key, { email: key, nombre, balance });
+        } else {
+          withBalance.set(key, { email: key, nombre, balance: total > 0 ? total : null });
         }
       }
 
