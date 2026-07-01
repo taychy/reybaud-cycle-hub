@@ -180,6 +180,7 @@ const App = () => (
             <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
             <Route path="comunicaciones" element={<AdminEmailTemplates />} />
             <Route path="email-masivo" element={<AdminBroadcasts />} />
+            <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
