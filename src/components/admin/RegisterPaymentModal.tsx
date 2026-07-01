@@ -845,24 +845,41 @@ export function RegisterPaymentModal({
                   value={fechaPago}
                   onChange={(e) => {
                     setFechaPago(e.target.value);
-                    if (e.target.value) setFechaFin(endOfCalendarMonth(e.target.value));
+                    if (e.target.value && !fechaFinDirty) setFechaFin(endOfCalendarMonth(e.target.value));
                   }}
                   className="h-9 text-sm mt-1"
                 />
               </div>
 
               <div>
-                <Label className="text-xs">Vence (fin de mes calendario)</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Fecha de vencimiento</Label>
+                  {fechaFinDirty && (
+                    <button
+                      type="button"
+                      className="text-[10px] text-primary underline"
+                      onClick={() => {
+                        setFechaFinDirty(false);
+                        setFechaFin(endOfCalendarMonth(fechaPago));
+                      }}
+                    >
+                      Volver al fin de mes
+                    </button>
+                  )}
+                </div>
                 <Input
                   type="date"
                   value={fechaFin}
-                  readOnly
-                  className="h-9 text-sm mt-1 bg-muted/40 cursor-not-allowed"
+                  onChange={(e) => { setFechaFin(e.target.value); setFechaFinDirty(true); }}
+                  className="h-9 text-sm mt-1"
                 />
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Las mensualidades cierran el último día del mes calendario de la fecha de pago.
+                  {fechaFinDirty
+                    ? "Fecha de vencimiento personalizada."
+                    : "Por defecto, cierra el último día del mes calendario de la fecha de pago. Podés editarla."}
                 </p>
               </div>
+
 
               <div>
                 <Label className="text-xs">Observación interna (opcional)</Label>
