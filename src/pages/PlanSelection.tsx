@@ -396,101 +396,105 @@ const PlanSelection = () => {
     setProcessing(true);
     setError(null);
 
-    const plan = planes.find((p) => p.id === selected);
-    if (!plan) return;
-
-    await cancelPausedSubs();
-
-    const disc = selectedDiscount;
-    let fechaInicio: string;
-    let fechaFin: string;
-    if (earlyRenewal) {
-      fechaInicio = earlyRenewal.fechaInicio;
-      fechaFin = earlyRenewal.fechaFin;
-      // Si la sub vigente tenía auto-renovación, la desactivamos para evitar doble cobro.
-      if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
-        await supabase
-          .from("suscripciones")
-          .update({ auto_renovacion: false } as any)
-          .eq("id", earlyRenewal.subId);
-      }
-    } else if (pausaFechaRegreso && plan.categoria === "pausa") {
-      // Pausa: fecha_fin = fecha de regreso elegida en el diálogo
-      const now = new Date();
-      fechaInicio = now.toISOString().split("T")[0];
-      fechaFin = pausaFechaRegreso;
-    } else {
-      const now = new Date();
-      fechaInicio = now.toISOString().split("T")[0];
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      fechaFin = lastDay.toISOString().split("T")[0];
-    }
-
-    const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
-    const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
-    const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
-
-    // Si venimos de "Pagar este plan" sobre una sub del período actual, reutilizamos
-    // esa sub en vez de generar una nueva (evita el bug de Natalia: pagaba junio y
-    // se creaba julio). Solo aplica si el alumno paga el mismo plan.
-    let subId: string | null = null;
-    const reused = !earlyRenewal && !isUpgradeFlow
-      ? await tryReuseExistingSubscription(alumnoId, plan.id, {
-          estado: "pendiente",
-          descuento_id: disc?.discount?.id ?? null,
-          precio_base: disc?.original ?? plan.precio,
-          precio_final: disc?.final ?? plan.precio,
-        })
-      : null;
-
-    if (reused) {
-      subId = reused.id;
-    } else {
-      const { data: sub, error: subError } = await supabase
-        .from("suscripciones")
-        .insert({
-          alumno_id: alumnoId,
-          plan_id: plan.id,
-          estado: "pendiente",
-          descuento_id: disc?.discount?.id ?? null,
-          precio_base: disc?.original ?? plan.precio,
-          precio_final: disc?.final ?? plan.precio,
-          fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
-          notas: notasMarker,
-        } as any)
-        .select("id")
-        .single();
-
-      if (subError) {
-        const msg = (subError as any)?.message || "";
-        if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
-          setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
-        } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
-          setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
-        } else if (msg.includes("PAUSA_TOO_LONG")) {
-          setError("La pausa no puede durar más de 2 meses.");
-        } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
-          setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
-        } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
-          setError("Ya tenés este mismo plan activo para este período.");
-        } else {
-          setError("Error al procesar. Intentá nuevamente.");
-        }
+    try {
+      const plan = planes.find((p) => p.id === selected);
+      if (!plan) {
+        setError("No pudimos encontrar el plan seleccionado. Recargá la página e intentá de nuevo.");
         setProcessing(false);
         return;
       }
-      subId = sub.id;
-    }
 
+      try {
+        await cancelPausedSubs();
+      } catch (e) {
+        console.error("[handleMercadoPago] cancelPausedSubs failed", e);
+      }
 
-    try {
+      const disc = selectedDiscount;
+      let fechaInicio: string;
+      let fechaFin: string;
+      if (earlyRenewal) {
+        fechaInicio = earlyRenewal.fechaInicio;
+        fechaFin = earlyRenewal.fechaFin;
+        if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
+          await supabase
+            .from("suscripciones")
+            .update({ auto_renovacion: false } as any)
+            .eq("id", earlyRenewal.subId);
+        }
+      } else if (pausaFechaRegreso && plan.categoria === "pausa") {
+        const now = new Date();
+        fechaInicio = now.toISOString().split("T")[0];
+        fechaFin = pausaFechaRegreso;
+      } else {
+        const now = new Date();
+        fechaInicio = now.toISOString().split("T")[0];
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        fechaFin = lastDay.toISOString().split("T")[0];
+      }
+
+      const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
+      const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+      const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
+
+      let subId: string | null = null;
+      const reused = !earlyRenewal && !isUpgradeFlow
+        ? await tryReuseExistingSubscription(alumnoId, plan.id, {
+            estado: "pendiente",
+            descuento_id: disc?.discount?.id ?? null,
+            precio_base: disc?.original ?? plan.precio,
+            precio_final: disc?.final ?? plan.precio,
+          })
+        : null;
+
+      if (reused) {
+        subId = reused.id;
+      } else {
+        const { data: sub, error: subError } = await supabase
+          .from("suscripciones")
+          .insert({
+            alumno_id: alumnoId,
+            plan_id: plan.id,
+            estado: "pendiente",
+            descuento_id: disc?.discount?.id ?? null,
+            precio_base: disc?.original ?? plan.precio,
+            precio_final: disc?.final ?? plan.precio,
+            fecha_inicio: fechaInicio,
+            fecha_fin: fechaFin,
+            notas: notasMarker,
+          } as any)
+          .select("id")
+          .single();
+
+        if (subError) {
+          const msg = (subError as any)?.message || "";
+          console.error("[handleMercadoPago] subscription insert failed", subError);
+          if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
+            setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
+          } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
+            setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
+          } else if (msg.includes("PAUSA_TOO_LONG")) {
+            setError("La pausa no puede durar más de 2 meses.");
+          } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
+            setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez (Pase Libre, Grupal 1x, Grupal 2x o Grupo de formación).");
+          } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
+            setError("Ya tenés este mismo plan activo para este período.");
+          } else {
+            setError("Error al procesar. Intentá nuevamente.");
+          }
+          setProcessing(false);
+          return;
+        }
+        subId = sub.id;
+      }
+
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
       const response = await fetch(functionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           plan_id: plan.id,
@@ -499,17 +503,19 @@ const PlanSelection = () => {
         }),
       });
 
-      const mpData = await response.json();
+      const mpData = await response.json().catch(() => null);
 
       if (!response.ok || !mpData?.init_point) {
-        setError(mpData?.error || "Error al crear la preferencia de pago.");
+        console.error("[handleMercadoPago] MP preference error", response.status, mpData);
+        setError(mpData?.error || `Error al crear la preferencia de pago (${response.status}). Intentá nuevamente.`);
         setProcessing(false);
         return;
       }
 
       window.location.href = mpData.init_point;
-    } catch {
-      setError("Error inesperado al conectar con Mercado Pago.");
+    } catch (e) {
+      console.error("[handleMercadoPago] unexpected error", e);
+      setError("Error inesperado al conectar con Mercado Pago. Recargá y probá de nuevo.");
       setProcessing(false);
     }
   };
