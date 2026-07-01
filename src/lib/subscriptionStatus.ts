@@ -104,11 +104,14 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
     return "activa";
   }
 
-  // If the subscription isn't "activa" in the DB, return the raw state
-  if (sub.estado !== "activa") return sub.estado as EffectiveSubStatus;
+  // If the subscription isn't "activa" in the DB, check for "vencida pero paga"
+  if (sub.estado !== "activa") {
+    // "vencida" en DB pero con pago aprobado → período cerrado, contabilidad OK.
+    // Se muestra como "Finalizada" (no genera deuda ni acción admin).
+    if (sub.estado === "vencida" && isSubPaid(sub)) return "finalizada";
+    return sub.estado as EffectiveSubStatus;
+  }
 
-  // Active subscription — check expiry
-  if (!sub.fecha_fin) return "activa";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
