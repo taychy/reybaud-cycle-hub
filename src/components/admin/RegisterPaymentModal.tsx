@@ -38,9 +38,20 @@ interface PendingSub {
   descuento_id: string | null;
   metodo_pago: string;
   alumno_id: string;
+  mp_status?: string | null;
+  origen_registro?: string | null;
+  cancelada_at?: string | null;
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
   alumnos?: { id: string; nombre: string; email: string } | null;
 }
+
+interface PlanOption {
+  id: string;
+  nombre: string;
+  precio: number;
+  moneda: string;
+}
+
 
 export function RegisterPaymentModal({
   open,
@@ -71,9 +82,17 @@ export function RegisterPaymentModal({
   const [montoPagado, setMontoPagado] = useState("");
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [fechaFin, setFechaFin] = useState("");
+  const [fechaFinDirty, setFechaFinDirty] = useState(false);
   const [observaciones, setObservaciones] = useState("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Modo "nueva suscripción / renovación" — crea una sub nueva en vez de actualizar una pendiente
+  const [nuevaSubMode, setNuevaSubMode] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<PlanOption[]>([]);
+  const [nuevoPlanId, setNuevoPlanId] = useState<string>("");
+  const [historicalSubs, setHistoricalSubs] = useState<PendingSub[]>([]);
+
 
   // Reset state when modal opens/closes or alumnoId changes
   useEffect(() => {
@@ -85,6 +104,7 @@ export function RegisterPaymentModal({
       setMontoPagado("");
       setFechaPago(new Date().toISOString().split("T")[0]);
       setFechaFin("");
+      setFechaFinDirty(false);
       setObservaciones("");
       setUsarPrecioActual(false);
       setSearchQuery("");
@@ -92,6 +112,10 @@ export function RegisterPaymentModal({
       setAplicarCredito(false);
       setCreditoAplicado("");
       setSaldos([]);
+      setNuevaSubMode(false);
+      setNuevoPlanId("");
+      setHistoricalSubs([]);
+      setAvailablePlans([]);
     }
   }, [open, alumnoId, alumnoNombre, subscripcionId]);
 
@@ -121,22 +145,51 @@ export function RegisterPaymentModal({
     setLoadingSubs(true);
     supabase
       .from("suscripciones")
-      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, descuento_id, metodo_pago, alumno_id, cancelada_at, planes(id, nombre, precio, moneda)")
+      .select("id, plan_id, estado, fecha_inicio, fecha_fin, precio_base, precio_final, descuento_id, metodo_pago, alumno_id, cancelada_at, mp_status, origen_registro, planes(id, nombre, precio, moneda)")
       .eq("alumno_id", selectedAlumnoId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        const allSubs = (data as unknown as (PendingSub & { cancelada_at?: string | null })[]) || [];
+        const allSubs = (data as unknown as PendingSub[]) || [];
         const subs = allSubs.filter(isAdminPayableSubscription);
         setPendingSubs(subs);
+        setHistoricalSubs(allSubs);
         // Auto-select if only one or if subscripcionId matches
         if (subscripcionId && subs.find(s => s.id === subscripcionId)) {
           setSelectedSubId(subscripcionId);
+          setNuevaSubMode(false);
         } else if (subs.length === 1) {
           setSelectedSubId(subs[0].id);
+          setNuevaSubMode(false);
+        } else if (subs.length === 0) {
+          // No hay nada por cobrar → sugerir renovación / nueva suscripción
+          setNuevaSubMode(true);
         }
+
         setLoadingSubs(false);
       });
   }, [selectedAlumnoId, open]);
+
+  // Load available plans when "nueva suscripción" mode
+  useEffect(() => {
+    if (!open || !nuevaSubMode || !selectedAlumnoId) return;
+    supabase
+      .from("planes")
+      .select("id, nombre, precio, moneda, activo, visibilidad")
+      .eq("activo", true)
+      .order("precio", { ascending: true })
+      .then(({ data }) => {
+        const plans = ((data as any[]) || [])
+          .filter(p => p.visibilidad !== "oculto")
+          .map(p => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio) || 0, moneda: p.moneda || "ARS" }));
+        setAvailablePlans(plans);
+        // Pre-seleccionar el último plan que tuvo (para renovar)
+        if (!nuevoPlanId && historicalSubs.length > 0) {
+          const lastPaid = historicalSubs.find(s => s.plan_id && plans.some(p => p.id === s.plan_id));
+          if (lastPaid) setNuevoPlanId(lastPaid.plan_id);
+        }
+      });
+  }, [open, nuevaSubMode, selectedAlumnoId, historicalSubs]);
+
 
   // Load saldos (para poder aplicar saldo a favor)
   useEffect(() => {
@@ -181,56 +234,113 @@ export function RegisterPaymentModal({
     if (!sub) return;
     const { price } = getEffectivePrice(sub);
     setMontoPagado(String(price));
-    // Si la sub ya tiene fecha_fin, respetarla. Si no, calcularla desde fecha_inicio
-    // de la sub (no desde fechaPago, que por default es hoy).
+    if (fechaFinDirty) return;
     const basePeriodo = sub.fecha_fin?.substring(0, 10)
       || (sub.fecha_inicio ? endOfCalendarMonth(sub.fecha_inicio.substring(0, 10)) : endOfCalendarMonth(fechaPago));
     setFechaFin(basePeriodo);
   }, [selectedSubId, pendingSubs, activeNonPausaCount, usarPrecioActual]);
 
-  const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
+  // Pre-fill amount + fecha_fin when a plan is chosen in "nueva suscripción" mode
+  useEffect(() => {
+    if (!nuevaSubMode || !nuevoPlanId) return;
+    const plan = availablePlans.find(p => p.id === nuevoPlanId);
+    if (!plan) return;
+    setMontoPagado(String(plan.precio));
+    if (!fechaFinDirty) setFechaFin(endOfCalendarMonth(fechaPago));
+  }, [nuevaSubMode, nuevoPlanId, availablePlans, fechaPago]);
 
-  // Saldo a favor disponible para la moneda de la sub seleccionada
+
+  const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
+  const selectedNuevoPlan = availablePlans.find(p => p.id === nuevoPlanId);
+  const activeMoneda = nuevaSubMode
+    ? (selectedNuevoPlan?.moneda || "ARS")
+    : (selectedSub?.planes?.moneda || "ARS");
+
+  // Saldo a favor disponible para la moneda activa
   const availableCredit = useMemo(() => {
-    if (!selectedSub) return 0;
-    const moneda = selectedSub.planes?.moneda || "ARS";
-    const row = saldos.find(s => s.moneda === moneda);
+    const row = saldos.find(s => s.moneda === activeMoneda);
     return row ? Math.max(0, -row.saldo) : 0;
-  }, [selectedSub, saldos]);
+  }, [activeMoneda, saldos]);
+
 
   // Cuando se activa "aplicar saldo", precargar el máximo aplicable
   useEffect(() => {
-    if (!aplicarCredito || !selectedSub) return;
-    const { price } = getEffectivePrice(selectedSub);
+    if (!aplicarCredito) return;
+    let price = 0;
+    if (nuevaSubMode && selectedNuevoPlan) {
+      price = applyDiscount(selectedNuevoPlan.precio, "planes", false).final;
+    } else if (selectedSub) {
+      price = getEffectivePrice(selectedSub).price;
+    }
+    if (price <= 0) return;
     const applied = Math.min(availableCredit, price);
     setCreditoAplicado(String(applied));
-    // Restar del monto cash sugerido
     setMontoPagado(String(Math.max(0, price - applied)));
-  }, [aplicarCredito, availableCredit, selectedSubId]);
+  }, [aplicarCredito, availableCredit, selectedSubId, nuevoPlanId, nuevaSubMode]);
+
 
 
   const handleSubmit = async () => {
-    if (!selectedSubId || !selectedAlumnoId) {
-      toast.error("Seleccioná un alumno y una suscripción pendiente.");
+    if (!selectedAlumnoId) {
+      toast.error("Seleccioná un alumno.");
+      return;
+    }
+    if (!nuevaSubMode && !selectedSubId) {
+      toast.error("Seleccioná una suscripción a cobrar o activá 'Nueva suscripción / renovación'.");
+      return;
+    }
+    if (nuevaSubMode && !nuevoPlanId) {
+      toast.error("Elegí el plan para la nueva suscripción.");
       return;
     }
     if (!fechaPago) {
       toast.error("Ingresá la fecha de pago.");
       return;
     }
-    // fecha_fin: respetar la de la sub seleccionada (su período); solo recalcular
-    // si la sub no tenía período definido.
-    const subForUpdate = pendingSubs.find(s => s.id === selectedSubId);
-    const fechaInicioFinal = subForUpdate?.fecha_inicio?.substring(0, 10) || fechaPago;
-    const fechaFinNorm = subForUpdate?.fecha_fin?.substring(0, 10)
-      || endOfCalendarMonth(fechaInicioFinal);
 
     setSaving(true);
     try {
+      const nuevoPlan = availablePlans.find(p => p.id === nuevoPlanId);
+      const subForUpdate = pendingSubs.find(s => s.id === selectedSubId);
+
+      const fechaInicioFinal = nuevaSubMode
+        ? fechaPago
+        : (subForUpdate?.fecha_inicio?.substring(0, 10) || fechaPago);
+      const fechaFinNorm = (fechaFin && fechaFin.length >= 10)
+        ? fechaFin
+        : (nuevaSubMode
+            ? endOfCalendarMonth(fechaInicioFinal)
+            : (subForUpdate?.fecha_fin?.substring(0, 10) || endOfCalendarMonth(fechaInicioFinal)));
+
       const montoNum = parseFloat(montoPagado) || 0;
       const creditoNum = aplicarCredito ? Math.min(parseFloat(creditoAplicado) || 0, availableCredit) : 0;
-      const sub = subForUpdate;
-      const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
+
+      // Precio esperado + descuentos
+      let expectedAmount = 0;
+      let effDiscountId: string | null = null;
+      let baseUsed = 0;
+      let planName = "—";
+      let moneda = "ARS";
+      let planIdFinal: string | null = null;
+
+      if (nuevaSubMode && nuevoPlan) {
+        planIdFinal = nuevoPlan.id;
+        planName = nuevoPlan.nombre;
+        moneda = nuevoPlan.moneda || "ARS";
+        baseUsed = nuevoPlan.precio;
+        const live = applyDiscount(nuevoPlan.precio, "planes", false);
+        expectedAmount = live.final;
+        effDiscountId = live.discount?.id ?? null;
+      } else {
+        const eff = getEffectivePrice(subForUpdate);
+        expectedAmount = eff.price;
+        effDiscountId = eff.discountId;
+        baseUsed = eff.baseUsed;
+        planName = subForUpdate?.planes?.nombre || "—";
+        moneda = subForUpdate?.planes?.moneda || "ARS";
+        planIdFinal = subForUpdate?.plan_id || null;
+      }
+
       const totalRecibido = montoNum + creditoNum;
       const isParcial = totalRecibido > 0 && totalRecibido < expectedAmount;
       const excedente = montoNum > Math.max(0, expectedAmount - creditoNum) ? montoNum - Math.max(0, expectedAmount - creditoNum) : 0;
@@ -243,24 +353,52 @@ export function RegisterPaymentModal({
       if (excedente > 0) notasParts.push(`Excedente acreditado a cuenta: ${excedente}`);
       notasParts.push(`Registrado por admin el ${fechaPago}`);
 
-      const { error } = await supabase
-        .from("suscripciones")
-        .update({
-          estado: newEstado,
-          fecha_inicio: fechaInicioFinal,
-          fecha_fin: fechaFinNorm,
-          metodo_pago: metodo,
-          origen_registro: "cargado_admin",
-          notas: notasParts.join(" | "),
-          precio_base: baseUsed || undefined,
-          precio_final: isParcial ? expectedAmount : expectedAmount,
-          descuento_id: effDiscountId ?? undefined,
-        } as any)
-        .eq("id", selectedSubId);
+      let targetSubId = selectedSubId;
 
-      if (error) {
-        if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
-        throw error;
+      if (nuevaSubMode) {
+        // INSERT nueva suscripción
+        const { data: inserted, error: insErr } = await supabase
+          .from("suscripciones")
+          .insert({
+            alumno_id: selectedAlumnoId,
+            plan_id: planIdFinal!,
+            estado: newEstado,
+            fecha_inicio: fechaInicioFinal,
+            fecha_fin: fechaFinNorm,
+            metodo_pago: metodo,
+            origen_registro: "cargado_admin",
+            notas: notasParts.join(" | "),
+            precio_base: baseUsed || null,
+            precio_final: expectedAmount,
+            descuento_id: effDiscountId ?? null,
+            auto_renovacion: false,
+          } as any)
+          .select("id")
+          .single();
+        if (insErr) {
+          if (isDuplicateSubError(insErr)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw insErr;
+        }
+        targetSubId = (inserted as any)?.id;
+      } else {
+        const { error } = await supabase
+          .from("suscripciones")
+          .update({
+            estado: newEstado,
+            fecha_inicio: fechaInicioFinal,
+            fecha_fin: fechaFinNorm,
+            metodo_pago: metodo,
+            origen_registro: "cargado_admin",
+            notas: notasParts.join(" | "),
+            precio_base: baseUsed || undefined,
+            precio_final: expectedAmount,
+            descuento_id: effDiscountId ?? undefined,
+          } as any)
+          .eq("id", selectedSubId!);
+        if (error) {
+          if (isDuplicateSubError(error)) { toast.error(DUPLICATE_SUB_MSG); setSaving(false); return; }
+          throw error;
+        }
       }
 
       // Activate student if full payment
@@ -269,59 +407,59 @@ export function RegisterPaymentModal({
       }
 
       // Log activity
-      const planName = sub?.planes?.nombre || "—";
       const methodLabel = PAYMENT_METHODS.find(m => m.key === metodo)?.label || metodo;
       await logStudentActivity({
         alumnoId: selectedAlumnoId,
         eventType: "pago_registrado",
-        title: "Pago registrado por admin",
+        title: nuevaSubMode ? "Nueva suscripción registrada por admin" : "Pago registrado por admin",
         description: `${methodLabel} — $${montoNum} — ${planName}${isParcial ? " (parcial)" : ""}`,
         actorRole: "admin",
         referenceType: "suscripcion",
-        referenceId: selectedSubId,
+        referenceId: targetSubId || undefined,
         referenceLabel: planName,
       });
 
       // Audit log
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session && targetSubId) {
         const { data: adminProfile } = await supabase.from("admin_profiles").select("email, role").eq("user_id", session.user.id).single();
         await supabase.from("audit_log").insert([{
           user_id: session.user.id,
           user_email: adminProfile?.email || session.user.email || "",
           user_role: adminProfile?.role || "admin",
-          action: "registrar_pago",
+          action: nuevaSubMode ? "crear_suscripcion_pago" : "registrar_pago",
           entity_type: "suscripcion",
-          entity_id: selectedSubId,
+          entity_id: targetSubId,
           details: {
             alumno: selectedAlumnoName || selectedAlumnoId,
             plan: planName,
             monto: montoNum,
             metodo,
             fecha_pago: fechaPago,
+            fecha_fin: fechaFinNorm,
             parcial: isParcial,
+            nueva_suscripcion: nuevaSubMode,
           },
         }]);
       }
 
       // Auto-facturar
-      if (sub?.planes && newEstado === "activa") {
+      if (newEstado === "activa" && targetSubId) {
         supabase.functions.invoke("auto-facturar", {
           body: {
             alumno_id: selectedAlumnoId,
             concepto: `Suscripción ${planName}`,
-            monto: montoNum || sub.planes.precio,
+            monto: montoNum || expectedAmount,
             referencia_tipo: "suscripcion",
-            referencia_id: selectedSubId,
+            referencia_id: targetSubId,
             segmento: "escuela",
           },
         }).catch(() => {});
       }
 
-      // Registrar excedente como saldo a favor (cuenta_ajustes credito)
+      // Registrar excedente como saldo a favor
       if (excedente > 0) {
         const { data: { user } } = await supabase.auth.getUser();
-        const moneda = sub?.planes?.moneda || "ARS";
         const { error: ajusteErr } = await supabase.from("cuenta_ajustes").insert({
           alumno_id: selectedAlumnoId,
           tipo: "credito",
@@ -335,10 +473,9 @@ export function RegisterPaymentModal({
         if (ajusteErr) console.error("No se pudo registrar saldo a favor:", ajusteErr);
       }
 
-      // Consumir saldo a favor aplicado (cuenta_ajustes cargo)
-      if (creditoNum > 0) {
+      // Consumir saldo a favor aplicado
+      if (creditoNum > 0 && targetSubId) {
         const { data: { user } } = await supabase.auth.getUser();
-        const moneda = sub?.planes?.moneda || "ARS";
         const { error: consumeErr } = await supabase.from("cuenta_ajustes").insert({
           alumno_id: selectedAlumnoId,
           tipo: "cargo",
@@ -346,8 +483,8 @@ export function RegisterPaymentModal({
           monto: creditoNum,
           moneda,
           fecha: fechaPago,
-          notas: `Saldo a favor aplicado al pago de la suscripción ${selectedSubId}`,
-          referencia_externa: `suscripcion:${selectedSubId}`,
+          notas: `Saldo a favor aplicado al pago de la suscripción ${targetSubId}`,
+          referencia_externa: `suscripcion:${targetSubId}`,
           created_by: user?.id || null,
         });
         if (consumeErr) console.error("No se pudo consumir saldo a favor:", consumeErr);
@@ -362,7 +499,9 @@ export function RegisterPaymentModal({
               ? `Pago registrado · saldo a favor $${excedente}`
               : creditoNum > 0
                 ? `Pago registrado · saldo aplicado $${creditoNum}`
-                : "Pago registrado correctamente"
+                : nuevaSubMode
+                  ? "Nueva suscripción registrada"
+                  : "Pago registrado correctamente"
       );
       onOpenChange(false);
       onSuccess?.();
@@ -372,6 +511,7 @@ export function RegisterPaymentModal({
       setSaving(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -429,56 +569,151 @@ export function RegisterPaymentModal({
           {selectedAlumnoId && (
             <div>
               <div className="flex items-center justify-between">
-                <Label className="text-xs">Suscripción a cobrar</Label>
-                {pendingSubs.length > 1 && (
+                <Label className="text-xs">
+                  {nuevaSubMode ? "Nueva suscripción / renovación" : "Suscripción a cobrar"}
+                </Label>
+                {pendingSubs.length > 1 && !nuevaSubMode && (
                   <span className="text-[10px] font-medium text-amber-400">
                     ⚠ {pendingSubs.length} pendientes · elegí la correcta
                   </span>
                 )}
               </div>
+
               {loadingSubs ? (
                 <p className="text-xs text-muted-foreground mt-1">Cargando...</p>
-              ) : pendingSubs.length === 0 ? (
-                <p className="text-xs text-muted-foreground mt-1">Este alumno no tiene suscripciones pendientes detectadas. Revisá su ficha o el historial de suscripciones.</p>
-              ) : (
-                <Select value={selectedSubId || ""} onValueChange={setSelectedSubId}>
-                  <SelectTrigger className={`mt-1 h-auto min-h-9 text-sm ${pendingSubs.length > 1 ? "border-amber-500/50" : ""}`}>
-                    <SelectValue placeholder="Seleccionar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pendingSubs.map(s => {
-                      const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as PendingSub & { cancelada_at?: string | null }).cancelada_at });
-                      const statusLabel = effective === "pago_pendiente" ? "Pago pendiente" : effective === "acceso_pausado" ? "Acceso pausado" : s.estado;
-                      const periodo = s.fecha_inicio && s.fecha_fin
-                        ? `${s.fecha_inicio.substring(5, 10).split("-").reverse().join("/")}→${s.fecha_fin.substring(5, 10).split("-").reverse().join("/")}`
-                        : "";
-                      return (
-                        <SelectItem key={s.id} value={s.id}>
+              ) : nuevaSubMode ? (
+                <>
+                  <Select value={nuevoPlanId} onValueChange={(v) => { setNuevoPlanId(v); setFechaFinDirty(false); }}>
+                    <SelectTrigger className="mt-1 h-auto min-h-9 text-sm">
+                      <SelectValue placeholder="Elegí el plan a registrar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePlans.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
                           <div className="flex flex-col text-left">
-                            <span className="font-medium">{s.planes?.nombre || "Sin plan"}</span>
+                            <span className="font-medium">{p.nombre}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {statusLabel}{periodo ? ` · ${periodo}` : ""} · ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
+                              {p.moneda} {p.precio.toLocaleString("es-AR")}
                             </span>
                           </div>
                         </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              )}
-              {pendingSubs.length > 1 && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Hay varias suscripciones sin cobrar. Verificá que estés cargando el pago sobre el plan correcto.
-                </p>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-emerald-400 mt-1">
+                    Se creará una nueva suscripción con el pago cargado.
+                  </p>
+                  {pendingSubs.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-[10px] text-primary underline mt-1"
+                      onClick={() => { setNuevaSubMode(false); setNuevoPlanId(""); }}
+                    >
+                      ← Volver a cobrar una suscripción pendiente
+                    </button>
+                  )}
+                </>
+              ) : pendingSubs.length === 0 ? (
+                <div className="mt-1 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Este alumno no tiene suscripciones pendientes. Podés registrar el pago como una nueva suscripción o renovación.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs w-full"
+                    onClick={() => setNuevaSubMode(true)}
+                  >
+                    + Registrar nueva suscripción / renovación
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Select value={selectedSubId || ""} onValueChange={setSelectedSubId}>
+                    <SelectTrigger className={`mt-1 h-auto min-h-9 text-sm ${pendingSubs.length > 1 ? "border-amber-500/50" : ""}`}>
+                      <SelectValue placeholder="Seleccionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pendingSubs.map(s => {
+                        const effective = getEffectiveSubStatus({
+                          estado: s.estado,
+                          fecha_fin: s.fecha_fin,
+                          cancelada_at: s.cancelada_at,
+                          mp_status: s.mp_status,
+                          origen_registro: s.origen_registro,
+                        });
+                        const statusLabel = effective === "pago_pendiente" ? "Pago pendiente" : effective === "acceso_pausado" ? "Acceso pausado" : effective === "finalizada" ? "Finalizada" : s.estado;
+                        const periodo = s.fecha_inicio && s.fecha_fin
+                          ? `${s.fecha_inicio.substring(5, 10).split("-").reverse().join("/")}→${s.fecha_fin.substring(5, 10).split("-").reverse().join("/")}`
+                          : "";
+                        return (
+                          <SelectItem key={s.id} value={s.id}>
+                            <div className="flex flex-col text-left">
+                              <span className="font-medium">{s.planes?.nombre || "Sin plan"}</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {statusLabel}{periodo ? ` · ${periodo}` : ""} · ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center justify-between mt-1">
+                    {pendingSubs.length > 1 ? (
+                      <p className="text-[10px] text-muted-foreground">
+                        Hay varias suscripciones sin cobrar. Verificá que estés cargando el pago sobre el plan correcto.
+                      </p>
+                    ) : <span />}
+                    <button
+                      type="button"
+                      className="text-[10px] text-primary underline shrink-0"
+                      onClick={() => { setNuevaSubMode(true); setSelectedSubId(null); }}
+                    >
+                      + Nueva suscripción
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           )}
 
-          {/* Payment details — only show when sub is selected */}
-          {selectedSub && (
+
+          {/* Payment details — sub existente o nuevo plan */}
+          {(selectedSub || (nuevaSubMode && selectedNuevoPlan)) && (
             <>
-              {/* Plan info */}
-              {(() => {
+              {nuevaSubMode && selectedNuevoPlan && (() => {
+                const live = applyDiscount(selectedNuevoPlan.precio, "planes", false);
+                const hasDiscount = live.final < selectedNuevoPlan.precio;
+                return (
+                  <div className="bg-secondary/30 rounded-md p-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Plan (nueva sub)</span>
+                      <span className="font-medium">{selectedNuevoPlan.nombre}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Precio base</span>
+                      <span className={hasDiscount ? "line-through text-muted-foreground" : "font-medium"}>
+                        {selectedNuevoPlan.moneda} {selectedNuevoPlan.precio}
+                      </span>
+                    </div>
+                    {hasDiscount && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-emerald-500">{live.discount?.nombre || "Descuento"}</span>
+                        <span className="text-emerald-500 font-medium">−{selectedNuevoPlan.moneda} {selectedNuevoPlan.precio - live.final}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground">Monto esperado</span>
+                      <span className="font-bold text-foreground">{selectedNuevoPlan.moneda} {live.final}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Plan info (sub existente) */}
+              {(!nuevaSubMode && selectedSub) && (() => {
+
                 const moneda = selectedSub.planes?.moneda || "ARS";
                 const baseAmount = selectedSub.precio_base ?? selectedSub.planes?.precio ?? 0;
                 const { price: effectivePrice, discountId: effDiscountId } = getEffectivePrice(selectedSub);
@@ -543,7 +778,7 @@ export function RegisterPaymentModal({
                         Saldo a favor disponible
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {(selectedSub.planes?.moneda || "ARS")} {availableCredit.toLocaleString("es-AR")} · se descontará del pago
+                        {activeMoneda} {availableCredit.toLocaleString("es-AR")} · se descontará del pago
                       </p>
                     </div>
                     <Switch checked={aplicarCredito} onCheckedChange={setAplicarCredito} />
@@ -560,7 +795,9 @@ export function RegisterPaymentModal({
                         onChange={(e) => {
                           const v = e.target.value;
                           setCreditoAplicado(v);
-                          const { price } = getEffectivePrice(selectedSub);
+                          const price = nuevaSubMode && selectedNuevoPlan
+                            ? applyDiscount(selectedNuevoPlan.precio, "planes", false).final
+                            : (selectedSub ? getEffectivePrice(selectedSub).price : 0);
                           const applied = Math.min(availableCredit, parseFloat(v) || 0);
                           setMontoPagado(String(Math.max(0, price - applied)));
                         }}
@@ -583,10 +820,11 @@ export function RegisterPaymentModal({
                 />
                 {aplicarCredito && parseFloat(creditoAplicado) > 0 && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Se combinará con {selectedSub.planes?.moneda || "ARS"} {parseFloat(creditoAplicado || "0").toLocaleString("es-AR")} de saldo a favor.
+                    Se combinará con {activeMoneda} {parseFloat(creditoAplicado || "0").toLocaleString("es-AR")} de saldo a favor.
                   </p>
                 )}
               </div>
+
 
               <div>
                 <Label className="text-xs">Método de pago</Label>
@@ -607,24 +845,41 @@ export function RegisterPaymentModal({
                   value={fechaPago}
                   onChange={(e) => {
                     setFechaPago(e.target.value);
-                    if (e.target.value) setFechaFin(endOfCalendarMonth(e.target.value));
+                    if (e.target.value && !fechaFinDirty) setFechaFin(endOfCalendarMonth(e.target.value));
                   }}
                   className="h-9 text-sm mt-1"
                 />
               </div>
 
               <div>
-                <Label className="text-xs">Vence (fin de mes calendario)</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Fecha de vencimiento</Label>
+                  {fechaFinDirty && (
+                    <button
+                      type="button"
+                      className="text-[10px] text-primary underline"
+                      onClick={() => {
+                        setFechaFinDirty(false);
+                        setFechaFin(endOfCalendarMonth(fechaPago));
+                      }}
+                    >
+                      Volver al fin de mes
+                    </button>
+                  )}
+                </div>
                 <Input
                   type="date"
                   value={fechaFin}
-                  readOnly
-                  className="h-9 text-sm mt-1 bg-muted/40 cursor-not-allowed"
+                  onChange={(e) => { setFechaFin(e.target.value); setFechaFinDirty(true); }}
+                  className="h-9 text-sm mt-1"
                 />
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Las mensualidades cierran el último día del mes calendario de la fecha de pago.
+                  {fechaFinDirty
+                    ? "Fecha de vencimiento personalizada."
+                    : "Por defecto, cierra el último día del mes calendario de la fecha de pago. Podés editarla."}
                 </p>
               </div>
+
 
               <div>
                 <Label className="text-xs">Observación interna (opcional)</Label>
@@ -642,9 +897,10 @@ export function RegisterPaymentModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving || !selectedSubId}>
-            {saving ? "Registrando..." : "Registrar pago"}
+          <Button onClick={handleSubmit} disabled={saving || (!selectedSubId && !(nuevaSubMode && nuevoPlanId))}>
+            {saving ? "Registrando..." : nuevaSubMode ? "Crear y registrar pago" : "Registrar pago"}
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

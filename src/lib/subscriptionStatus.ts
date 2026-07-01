@@ -42,6 +42,7 @@ export type EffectiveSubStatus =
   | "pendiente"
   | "pendiente_verificacion"
   | "vencida"
+  | "finalizada"
   | "cancelada"
   | "pausa"
   | "sin_plan";
@@ -50,6 +51,8 @@ export interface SubStatusInput {
   estado: string;
   fecha_fin: string | null;
   cancelada_at?: string | null;
+  mp_status?: string | null;
+  origen_registro?: string | null;
 }
 
 export const ADMIN_PAYABLE_EFFECTIVE_STATUSES: EffectiveSubStatus[] = [
@@ -60,16 +63,23 @@ export const ADMIN_PAYABLE_EFFECTIVE_STATUSES: EffectiveSubStatus[] = [
   "acceso_pausado",
 ];
 
+/** Una sub se considera "pagada" cuando MP la aprobó o el admin la marcó como cargada. */
+export function isSubPaid(sub: SubStatusInput): boolean {
+  if (sub.mp_status === "approved") return true;
+  if (sub.origen_registro === "cargado_admin" || sub.origen_registro === "automatico") return true;
+  return false;
+}
+
 export function isAdminPayableSubscription(sub: SubStatusInput): boolean {
   if (sub.cancelada_at || sub.estado === "cancelada") return false;
-  // estado='activa' raw significa que YA está pagada (admin o cobro automático
-  // la dejaron en ese estado). Aunque su fecha_fin haya quedado en el pasado
-  // porque terminó el mes, esa sub no debe volver a aparecer como "por cobrar"
-  // — la plata de ese período ya entró. Si el alumno no pagó el período
-  // siguiente, eso se refleja con una sub NUEVA en estado 'pendiente'.
+  // estado='activa' raw significa que YA está pagada
   if (sub.estado === "activa") return false;
+  // Sub finalizada (período cerrado y pagada) tampoco se cobra de nuevo:
+  // se debe crear una NUEVA suscripción para el próximo período.
+  if (getEffectiveSubStatus(sub) === "finalizada") return false;
   return ADMIN_PAYABLE_EFFECTIVE_STATUSES.includes(getEffectiveSubStatus(sub));
 }
+
 
 /**
  * Computes the effective subscription status based on current date and grace period rules.
@@ -94,14 +104,20 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
     return "activa";
   }
 
-  // If the subscription isn't "activa" in the DB, return the raw state
-  if (sub.estado !== "activa") return sub.estado as EffectiveSubStatus;
+  // If the subscription isn't "activa" in the DB, check for "vencida pero paga"
+  if (sub.estado !== "activa") {
+    // "vencida" en DB pero con pago aprobado → período cerrado, contabilidad OK.
+    // Se muestra como "Finalizada" (no genera deuda ni acción admin).
+    if (sub.estado === "vencida" && isSubPaid(sub)) return "finalizada";
+    return sub.estado as EffectiveSubStatus;
+  }
 
   // Active subscription — check expiry
   if (!sub.fecha_fin) return "activa";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
 
   // Parse fecha_fin robustly — extract YYYY-MM-DD parts to avoid timezone drift
   const finParts = sub.fecha_fin.substring(0, 10).split("-");
@@ -255,6 +271,7 @@ export const SUB_STATUS_LABELS: Record<string, string> = {
   pendiente: "Pendiente",
   pendiente_verificacion: "Pendiente de validación",
   vencida: "Vencida",
+  finalizada: "Finalizada",
   cancelada: "Cancelada",
   pausa: "Pausada",
   duplicada: "Duplicada",
@@ -270,6 +287,7 @@ export const SUB_STATUS_BADGE: Record<string, { className: string }> = {
   pendiente: { className: "border-yellow-500/50 text-yellow-400" },
   pendiente_verificacion: { className: "border-yellow-500/50 text-yellow-400" },
   vencida: { className: "bg-destructive/10 text-destructive border-destructive/30" },
+  finalizada: { className: "bg-muted/40 text-muted-foreground border-border" },
   cancelada: { className: "text-muted-foreground border-dashed" },
   pausa: { className: "border-amber-500/50 text-amber-400" },
   duplicada: { className: "text-muted-foreground border-dashed bg-muted/30" },
