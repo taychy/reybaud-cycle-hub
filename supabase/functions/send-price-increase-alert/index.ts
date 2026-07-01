@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const mode: 'test' | 'send' = body.mode === 'send' ? 'send' : 'test';
+    const mode: 'test' | 'send' | 'preview' = body.mode === 'send' ? 'send' : body.mode === 'preview' ? 'preview' : 'test';
     const requestedEventId: string | null = body.event_id || null;
     const testEmail: string | null = body.test_email || null;
     const testVariants: Variant[] = Array.isArray(body.test_variants) && body.test_variants.length
@@ -195,23 +195,27 @@ Deno.serve(async (req) => {
         ? body.send_variants
         : ['paid_full', 'with_balance', 'interested']
     );
+    // Whitelist de emails aprobados. Si viene en mode='send', solo se envía a esos.
+    const approvedEmails: Set<string> | null = Array.isArray(body.approved_emails) && body.approved_emails.length
+      ? new Set(body.approved_emails.map((e: string) => normalize(e)))
+      : null;
     if (mode === 'test' && !testEmail) return json({ error: 'test_email requerido cuando mode=test' }, 400);
 
     const now = new Date();
     const in24 = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const overrideVigenteDesde: string | null = body.override_vigente_desde || null;
 
-    // En modo test con event_id explícito, no aplicamos el filtro de 24h: tomamos cualquier
-    // etapa futura activa del evento (para poder previsualizar el mail con la fecha real).
+    // FIX: siempre filtramos por etapas FUTURAS (vigente_desde > now).
+    // Antes, con event_id el filtro se salteaba y agarrábamos la etapa histórica
+    // "Precio actual" (vigente_desde año 2000) → mails con fecha 31/12/1999.
     let stagesQuery = supabase
       .from('event_package_price_stages')
       .select('id, package_id, nombre, precio, currency, vigente_desde, sort_order, activo, event_packages!inner(id, event_id, nombre, events!inner(id, title, status))')
       .eq('activo', true)
+      .gt('vigente_desde', now.toISOString())
       .order('vigente_desde', { ascending: true });
-    // Cuando NO se especifica event_id, solo tomamos etapas que activan en las próximas 24h.
-    // Con event_id explícito (test o envío manual) bypasseamos el filtro temporal.
     if (!requestedEventId) {
-      stagesQuery = stagesQuery.gt('vigente_desde', now.toISOString()).lte('vigente_desde', in24.toISOString());
+      stagesQuery = stagesQuery.lte('vigente_desde', in24.toISOString());
     }
     const { data: stages, error: sErr } = await stagesQuery;
     if (sErr) throw sErr;
