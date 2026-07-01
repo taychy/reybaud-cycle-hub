@@ -428,26 +428,48 @@ export function RegisterPaymentModal({
           {/* Subscription selection */}
           {selectedAlumnoId && (
             <div>
-              <Label className="text-xs">Suscripción pendiente</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Suscripción a cobrar</Label>
+                {pendingSubs.length > 1 && (
+                  <span className="text-[10px] font-medium text-amber-400">
+                    ⚠ {pendingSubs.length} pendientes · elegí la correcta
+                  </span>
+                )}
+              </div>
               {loadingSubs ? (
                 <p className="text-xs text-muted-foreground mt-1">Cargando...</p>
               ) : pendingSubs.length === 0 ? (
                 <p className="text-xs text-muted-foreground mt-1">Este alumno no tiene suscripciones pendientes detectadas. Revisá su ficha o el historial de suscripciones.</p>
               ) : (
                 <Select value={selectedSubId || ""} onValueChange={setSelectedSubId}>
-                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                  <SelectTrigger className={`mt-1 h-auto min-h-9 text-sm ${pendingSubs.length > 1 ? "border-amber-500/50" : ""}`}>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {pendingSubs.map(s => {
                       const effective = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as PendingSub & { cancelada_at?: string | null }).cancelada_at });
                       const statusLabel = effective === "pago_pendiente" ? "Pago pendiente" : effective === "acceso_pausado" ? "Acceso pausado" : s.estado;
+                      const periodo = s.fecha_inicio && s.fecha_fin
+                        ? `${s.fecha_inicio.substring(5, 10).split("-").reverse().join("/")}→${s.fecha_fin.substring(5, 10).split("-").reverse().join("/")}`
+                        : "";
                       return (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.planes?.nombre || "Sin plan"} — {statusLabel} — ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">{s.planes?.nombre || "Sin plan"}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {statusLabel}{periodo ? ` · ${periodo}` : ""} · ${s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0}
+                            </span>
+                          </div>
                         </SelectItem>
                       );
                     })}
                   </SelectContent>
                 </Select>
+              )}
+              {pendingSubs.length > 1 && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Hay varias suscripciones sin cobrar. Verificá que estés cargando el pago sobre el plan correcto.
+                </p>
               )}
             </div>
           )}
