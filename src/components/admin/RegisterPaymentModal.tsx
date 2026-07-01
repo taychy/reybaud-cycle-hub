@@ -778,7 +778,7 @@ export function RegisterPaymentModal({
                         Saldo a favor disponible
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {(selectedSub.planes?.moneda || "ARS")} {availableCredit.toLocaleString("es-AR")} · se descontará del pago
+                        {activeMoneda} {availableCredit.toLocaleString("es-AR")} · se descontará del pago
                       </p>
                     </div>
                     <Switch checked={aplicarCredito} onCheckedChange={setAplicarCredito} />
