@@ -7788,6 +7788,10 @@ export type Database = {
           suscripcion_id: string
         }[]
       }
+      expire_stale_subscriptions_for_alumno: {
+        Args: { p_alumno_id: string; p_plan_id?: string }
+        Returns: number
+      }
       generate_gastos_ejecuciones_month: {
         Args: { p_mes: string }
         Returns: number
