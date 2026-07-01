@@ -61,6 +61,11 @@ export function RegisterPaymentModal({
   const [selectedSubId, setSelectedSubId] = useState<string | null>(subscripcionId || null);
   const [loadingSubs, setLoadingSubs] = useState(false);
 
+  // Saldos (para aplicar saldo a favor a la suscripción)
+  const [saldos, setSaldos] = useState<Array<{ moneda: string; saldo: number }>>([]);
+  const [aplicarCredito, setAplicarCredito] = useState(false);
+  const [creditoAplicado, setCreditoAplicado] = useState<string>("");
+
   // Payment fields
   const [metodo, setMetodo] = useState("efectivo");
   const [montoPagado, setMontoPagado] = useState("");
@@ -84,6 +89,9 @@ export function RegisterPaymentModal({
       setUsarPrecioActual(false);
       setSearchQuery("");
       setSearchResults([]);
+      setAplicarCredito(false);
+      setCreditoAplicado("");
+      setSaldos([]);
     }
   }, [open, alumnoId, alumnoNombre, subscripcionId]);
 
@@ -130,6 +138,17 @@ export function RegisterPaymentModal({
       });
   }, [selectedAlumnoId, open]);
 
+  // Load saldos (para poder aplicar saldo a favor)
+  useEffect(() => {
+    if (!selectedAlumnoId || !open) {
+      setSaldos([]);
+      return;
+    }
+    supabase
+      .rpc("get_saldo_alumno" as any, { p_alumno_id: selectedAlumnoId })
+      .then(({ data }) => setSaldos(((data as any) || []).map((r: any) => ({ moneda: r.moneda, saldo: Number(r.saldo) || 0 }))));
+  }, [selectedAlumnoId, open]);
+
   // Discounts for selected student (live calc when sub has no saved discount)
   const { applyDiscount, isSubSecondary, activeNonPausaCount } = useStudentDiscounts(selectedAlumnoId);
 
@@ -171,6 +190,24 @@ export function RegisterPaymentModal({
 
   const selectedSub = pendingSubs.find(s => s.id === selectedSubId);
 
+  // Saldo a favor disponible para la moneda de la sub seleccionada
+  const availableCredit = useMemo(() => {
+    if (!selectedSub) return 0;
+    const moneda = selectedSub.planes?.moneda || "ARS";
+    const row = saldos.find(s => s.moneda === moneda);
+    return row ? Math.max(0, -row.saldo) : 0;
+  }, [selectedSub, saldos]);
+
+  // Cuando se activa "aplicar saldo", precargar el máximo aplicable
+  useEffect(() => {
+    if (!aplicarCredito || !selectedSub) return;
+    const { price } = getEffectivePrice(selectedSub);
+    const applied = Math.min(availableCredit, price);
+    setCreditoAplicado(String(applied));
+    // Restar del monto cash sugerido
+    setMontoPagado(String(Math.max(0, price - applied)));
+  }, [aplicarCredito, availableCredit, selectedSubId]);
+
 
   const handleSubmit = async () => {
     if (!selectedSubId || !selectedAlumnoId) {
@@ -191,15 +228,18 @@ export function RegisterPaymentModal({
     setSaving(true);
     try {
       const montoNum = parseFloat(montoPagado) || 0;
+      const creditoNum = aplicarCredito ? Math.min(parseFloat(creditoAplicado) || 0, availableCredit) : 0;
       const sub = subForUpdate;
       const { price: expectedAmount, discountId: effDiscountId, baseUsed } = getEffectivePrice(sub);
-      const isParcial = montoNum > 0 && montoNum < expectedAmount;
-      const excedente = montoNum > expectedAmount ? montoNum - expectedAmount : 0;
+      const totalRecibido = montoNum + creditoNum;
+      const isParcial = totalRecibido > 0 && totalRecibido < expectedAmount;
+      const excedente = montoNum > Math.max(0, expectedAmount - creditoNum) ? montoNum - Math.max(0, expectedAmount - creditoNum) : 0;
 
       const newEstado = isParcial ? "pendiente" : "activa";
       const notasParts: string[] = [];
       if (observaciones.trim()) notasParts.push(observaciones.trim());
-      if (isParcial) notasParts.push(`Pago parcial: ${montoNum} de ${expectedAmount}`);
+      if (creditoNum > 0) notasParts.push(`Saldo a favor aplicado: ${creditoNum}`);
+      if (isParcial) notasParts.push(`Pago parcial: ${totalRecibido} de ${expectedAmount}`);
       if (excedente > 0) notasParts.push(`Excedente acreditado a cuenta: ${excedente}`);
       notasParts.push(`Registrado por admin el ${fechaPago}`);
 
@@ -295,12 +335,34 @@ export function RegisterPaymentModal({
         if (ajusteErr) console.error("No se pudo registrar saldo a favor:", ajusteErr);
       }
 
+      // Consumir saldo a favor aplicado (cuenta_ajustes cargo)
+      if (creditoNum > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const moneda = sub?.planes?.moneda || "ARS";
+        const { error: consumeErr } = await supabase.from("cuenta_ajustes").insert({
+          alumno_id: selectedAlumnoId,
+          tipo: "cargo",
+          concepto: `Aplicado a ${planName}`,
+          monto: creditoNum,
+          moneda,
+          fecha: fechaPago,
+          notas: `Saldo a favor aplicado al pago de la suscripción ${selectedSubId}`,
+          referencia_externa: `suscripcion:${selectedSubId}`,
+          created_by: user?.id || null,
+        });
+        if (consumeErr) console.error("No se pudo consumir saldo a favor:", consumeErr);
+      }
+
       toast.success(
         isParcial
           ? "Pago parcial registrado"
-          : excedente > 0
-            ? `Pago registrado · saldo a favor $${excedente}`
-            : "Pago registrado correctamente"
+          : creditoNum > 0 && montoNum === 0
+            ? `Suscripción cubierta con saldo a favor ($${creditoNum})`
+            : excedente > 0
+              ? `Pago registrado · saldo a favor $${excedente}`
+              : creditoNum > 0
+                ? `Pago registrado · saldo aplicado $${creditoNum}`
+                : "Pago registrado correctamente"
       );
       onOpenChange(false);
       onSuccess?.();
@@ -449,8 +511,46 @@ export function RegisterPaymentModal({
                   </div>
                 );
               })()}
+
+              {/* Aplicar saldo a favor si hay disponible */}
+              {availableCredit > 0 && (
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-emerald-400">
+                        Saldo a favor disponible
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {(selectedSub.planes?.moneda || "ARS")} {availableCredit.toLocaleString("es-AR")} · se descontará del pago
+                      </p>
+                    </div>
+                    <Switch checked={aplicarCredito} onCheckedChange={setAplicarCredito} />
+                  </div>
+                  {aplicarCredito && (
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Monto a aplicar</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={availableCredit}
+                        value={creditoAplicado}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCreditoAplicado(v);
+                          const { price } = getEffectivePrice(selectedSub);
+                          const applied = Math.min(availableCredit, parseFloat(v) || 0);
+                          setMontoPagado(String(Math.max(0, price - applied)));
+                        }}
+                        className="h-8 text-sm mt-1"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
-                <Label className="text-xs">Monto pagado</Label>
+                <Label className="text-xs">Monto pagado (efectivo/transferencia)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -459,6 +559,11 @@ export function RegisterPaymentModal({
                   className="h-9 text-sm mt-1"
                   placeholder="0.00"
                 />
+                {aplicarCredito && parseFloat(creditoAplicado) > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Se combinará con {selectedSub.planes?.moneda || "ARS"} {parseFloat(creditoAplicado || "0").toLocaleString("es-AR")} de saldo a favor.
+                  </p>
+                )}
               </div>
 
               <div>
