@@ -194,14 +194,20 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const in24 = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const overrideVigenteDesde: string | null = body.override_vigente_desde || null;
 
-    const { data: stages, error: sErr } = await supabase
+    // En modo test con event_id explícito, no aplicamos el filtro de 24h: tomamos cualquier
+    // etapa futura activa del evento (para poder previsualizar el mail con la fecha real).
+    let stagesQuery = supabase
       .from('event_package_price_stages')
       .select('id, package_id, nombre, precio, currency, vigente_desde, sort_order, activo, event_packages!inner(id, event_id, nombre, events!inner(id, title, status))')
       .eq('activo', true)
       .gt('vigente_desde', now.toISOString())
-      .lte('vigente_desde', in24.toISOString())
       .order('vigente_desde', { ascending: true });
+    if (!(mode === 'test' && requestedEventId)) {
+      stagesQuery = stagesQuery.lte('vigente_desde', in24.toISOString());
+    }
+    const { data: stages, error: sErr } = await stagesQuery;
     if (sErr) throw sErr;
 
     const byEvent = new Map<string, { event: any; upcoming: any[] }>();
@@ -218,7 +224,7 @@ Deno.serve(async (req) => {
     for (const [eventId, { event, upcoming }] of byEvent) {
       const currency = upcoming[0].currency || 'ARS';
       const newMin = Math.min(...upcoming.map((u: any) => Number(u.precio)));
-      const vigenteDesde = new Date(upcoming.map((u: any) => u.vigente_desde).sort()[0]);
+      const vigenteDesde = overrideVigenteDesde ? new Date(overrideVigenteDesde) : new Date(upcoming.map((u: any) => u.vigente_desde).sort()[0]);
       const stageName = upcoming[0].nombre || 'Nueva etapa';
 
       const { data: currentStages } = await supabase
