@@ -24,6 +24,7 @@ import { getAccessPermissions, type SubStatusInput, type AccessPermissions } fro
 import HomeNewsCarousel from "@/components/HomeNewsCarousel";
 import HomePendingResultBanner from "@/components/HomePendingResultBanner";
 import FailedRenewalBanner from "@/components/FailedRenewalBanner";
+import PendingAutoRenewalBanner from "@/components/PendingAutoRenewalBanner";
 import HomeTrainingExtras from "@/components/HomeTrainingExtras";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
