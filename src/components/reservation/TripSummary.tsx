@@ -38,7 +38,7 @@ interface ChecklistRow {
 }
 interface AddonRow { id: string; addon_id: string; cantidad: number; precio_unitario: number; subtotal: number; currency: string; }
 interface AddonMeta { id: string; nombre: string; }
-interface AdjRow { id: string; tipo: string; concepto: string | null; amount: number; currency: string; created_at: string; }
+interface AdjRow { id: string; tipo: string; motivo: string | null; monto_original: number; moneda: string; estado: string; created_at: string; }
 interface InstallmentRow { id: string; installment_number: number; label: string | null; amount: number; currency: string; due_date: string; status: string; paid_amount: number; balance_due: number; }
 interface PaymentRow { id: string; amount: number; currency: string; payment_date: string; payment_method: string; status: string; notes: string | null; installment_number: number | null; }
 interface RoommateRow { id: string; posicion: number; nombre: string | null; email: string | null; telefono: string | null; confirmado: boolean; }
@@ -109,7 +109,7 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
         .select("id, addon_id, cantidad, precio_unitario, subtotal, currency")
         .eq("reservation_id", reservationId),
       supabase.from("reservation_financial_adjustments")
-        .select("id, tipo, concepto, amount, currency, created_at")
+        .select("id, tipo, motivo, monto_original, moneda, estado, created_at")
         .eq("reservation_id", reservationId).order("created_at"),
       supabase.from("reservation_installments")
         .select("id, installment_number, label, amount, currency, due_date, status, paid_amount, balance_due")
@@ -224,12 +224,12 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
             )}
             {adjustments.length > 0 && (
               <div className="pt-2 border-t border-border/50 space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase">Ajustes</p>
+                <p className="text-[10px] text-muted-foreground uppercase">Ajustes / créditos</p>
                 {adjustments.map(a => (
                   <div key={a.id} className="flex justify-between text-xs">
-                    <span>{a.concepto || a.tipo}</span>
-                    <span className={`font-medium ${Number(a.amount) < 0 ? "text-emerald-500" : "text-amber-500"}`}>
-                      {Number(a.amount) < 0 ? "" : "+"}{fmt(Number(a.amount), a.currency || currency)}
+                    <span className="capitalize">{a.motivo || a.tipo?.replace(/_/g, " ")}</span>
+                    <span className={`font-medium ${Number(a.monto_original) < 0 ? "text-amber-500" : "text-emerald-500"}`}>
+                      {fmt(Number(a.monto_original), a.moneda || currency)}
                     </span>
                   </div>
                 ))}
