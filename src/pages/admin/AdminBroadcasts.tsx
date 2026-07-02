@@ -721,19 +721,6 @@ export default function AdminBroadcasts() {
               </Button>
               <div className="ml-auto flex gap-2">
                 <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingTemplate({
-                      key: "", name: "", description: "",
-                      subject: composer.subject, content_html: composer.content_html,
-                    });
-                    setShowTemplateDialog(true);
-                  }}
-                  disabled={!composer.subject || !composer.content_html}
-                >
-                  <Save className="w-4 h-4 mr-1" />Guardar como plantilla
-                </Button>
-                <Button
                   variant="gold"
                   onClick={() => setShowConfirmSend(true)}
                   disabled={sending || previewCount === null || previewCount === 0 || !composer.subject || !composer.content_html}
