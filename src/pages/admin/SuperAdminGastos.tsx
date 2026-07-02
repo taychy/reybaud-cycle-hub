@@ -83,17 +83,12 @@ interface GastoRow {
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
-const FORMA_PAGO_OPTS = [
-  { v: "efectivo", l: "Efectivo" },
-  { v: "transferencia", l: "Transferencia" },
-  { v: "tarjeta_credito", l: "Tarjeta de Crédito" },
-  { v: "mp_personal", l: "MP Personal" },
-  { v: "mp_josi", l: "MP Josi" },
-  { v: "mp_escuela", l: "MP Escuela" },
-  { v: "mp_tienda", l: "MP Tienda" },
-  { v: "mc_personal", l: "MC Personal" },
-  { v: "banco", l: "Banco" },
-];
+import { GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS } from "@/lib/gastoPaymentMethods";
+const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label }));
+
+const FORMA_PAGO_LABELS = GASTO_PAYMENT_LABELS;
+
+
 
 const FORMA_PAGO_LABELS: Record<string, string> = Object.fromEntries(FORMA_PAGO_OPTS.map(o => [o.v, o.l]));
 
