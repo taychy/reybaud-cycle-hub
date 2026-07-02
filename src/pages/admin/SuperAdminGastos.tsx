@@ -18,6 +18,7 @@ import {
   ChevronDown, ChevronUp, Archive, ArchiveRestore, History, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import AgendaMes from "@/components/admin/gastos/AgendaMes";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
@@ -873,155 +874,15 @@ const SuperAdminGastos = () => {
 
         {/* AGENDA */}
         <TabsContent value="agenda" className="mt-4 space-y-4">
-          {(() => {
-            const deudasList = recurrentes
-              .filter(r => deudaSaldos[r.id] && deudaSaldos[r.id].saldo > 0)
-              .sort((a, b) => (deudaSaldos[b.id]?.saldo || 0) - (deudaSaldos[a.id]?.saldo || 0));
-            if (deudasList.length === 0) return null;
-            const totalesPorMoneda: Record<string, number> = {};
-            deudasList.forEach(r => {
-              const d = deudaSaldos[r.id];
-              totalesPorMoneda[d.moneda] = (totalesPorMoneda[d.moneda] || 0) + d.saldo;
-            });
-            return (
-              <Card className="border-destructive/40 bg-destructive/5">
-                <button
-                  type="button"
-                  onClick={() => setDeudaExpanded(v => !v)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-destructive/10 transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                    <CreditCard className="w-4 h-4 text-destructive shrink-0" />
-                    <span className="text-xs font-heading font-bold uppercase tracking-wider text-destructive">
-                      Con deuda acumulada
-                    </span>
-                    <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">
-                      {deudasList.length}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    {Object.entries(totalesPorMoneda).map(([moneda, total], i) => (
-                      <span key={moneda} className="text-xs font-heading font-bold text-destructive">
-                        {i > 0 && <span className="text-muted-foreground mx-1">+</span>}
-                        {fmt(total, moneda)}
-                      </span>
-                    ))}
-                  </div>
-                  {deudaExpanded
-                    ? <ChevronUp className="w-4 h-4 text-destructive shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-destructive shrink-0" />}
-                </button>
-                {deudaExpanded && (
-                  <CardContent className="p-0 border-t border-destructive/20">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Concepto</TableHead>
-                          <TableHead>Categoría</TableHead>
-                          <TableHead>Ámbito</TableHead>
-                          <TableHead className="text-right">Saldo deuda</TableHead>
-                          <TableHead className="w-32">Acción</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {deudasList.map(r => (
-                          <TableRow key={r.id}>
-                            <TableCell className="font-medium">{r.concepto}</TableCell>
-                            <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
-                            <TableCell>{ambitoBadge(r.ambito)}</TableCell>
-                            <TableCell className="text-right font-heading font-bold text-destructive">
-                              {fmt(deudaSaldos[r.id].saldo, deudaSaldos[r.id].moneda)}
-                            </TableCell>
-                            <TableCell>
-                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => openDeuda(r)}>
-                                <TrendingDown className="w-3 h-3" /> Gestionar
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })()}
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
-              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Pendientes de pagar — {monthLabel(mes)}</CardTitle>
-              <Input
-                placeholder="Buscar concepto, categoría o responsable..."
-                value={searchAgenda}
-                onChange={(e) => setSearchAgenda(e.target.value)}
-                className="h-8 w-full sm:w-72 text-xs"
-              />
-            </CardHeader>
-            <CardContent className="p-0">
-              {(() => {
-                const q = searchAgenda.trim().toLowerCase();
-                const filtered = q
-                  ? agenda.filter(({ rec }) =>
-                      [rec.concepto, rec.categoria, rec.responsable, rec.proveedor]
-                        .filter(Boolean).join(" ").toLowerCase().includes(q))
-                  : agenda;
-                return filtered.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground text-sm">
-                  {q ? "Sin resultados para tu búsqueda." : <>No hay pagos pendientes este mes. {ejecuciones.length === 0 && "Generá el mes para crear las cuotas."}</>}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Concepto</TableHead>
-                        <TableHead>Ámbito</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead>Vence</TableHead>
-                        <TableHead>Resp.</TableHead>
-                        <TableHead className="text-right">Monto</TableHead>
-                        <TableHead className="w-32">Acción</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map(({ e, rec }) => {
-                        const d = daysTo(e.fecha_vencimiento);
-                        return (
-                          <TableRow key={e.id} className={e.estado === "vencido" ? "bg-destructive/5" : ""}>
-                            <TableCell>{estadoBadge(e.estado, d)}</TableCell>
-                            <TableCell className="font-medium">{rec.concepto}</TableCell>
-                            <TableCell>{ambitoBadge(rec.ambito)}</TableCell>
-                            <TableCell><Badge variant="outline" className="text-xs">{rec.categoria}</Badge></TableCell>
-                            <TableCell className="text-xs">
-                              {e.fecha_vencimiento ? parseDate(e.fecha_vencimiento)!.toLocaleDateString("es-AR") : "—"}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{rec.responsable || "—"}</TableCell>
-                            <TableCell className="text-right font-heading font-bold">
-                              {e.estado === "parcial" && e.monto_pagado ? (
-                                <div className="flex flex-col items-end leading-tight">
-                                  <span className="text-yellow-500 text-xs">{fmt(e.monto_pagado, e.moneda)} pagado</span>
-                                  <span>Resta {fmt((e.monto_previsto || 0) - (e.monto_pagado || 0), e.moneda)}</span>
-                                </div>
-                              ) : fmt(e.monto_previsto, e.moneda)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="gold" className="h-7 text-xs" onClick={() => openPagar(e, rec)}>Pagar</Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => omitirEjec(e.id)} title="Marcar omitido">
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              );
-              })()}
-            </CardContent>
-          </Card>
+          <AgendaMes
+            ejecuciones={ejecuciones as any}
+            recurrentes={recurrentes as any}
+            deudaSaldos={deudaSaldos}
+            onChanged={loadData}
+            onOpenDeuda={(rec) => openDeuda(rec as any)}
+          />
         </TabsContent>
+
 
         {/* MATRIZ */}
         <TabsContent value="matriz" className="mt-4">
