@@ -49,17 +49,14 @@ interface Props {
 
 type FilterTab = "pendientes" | "vencidos" | "pagados";
 
-const FORMA_PAGO_OPTS = [
-  { v: "transferencia", l: "Transferencia" },
-  { v: "efectivo", l: "Efectivo" },
-  { v: "tarjeta_credito", l: "Tarjeta" },
-  { v: "mp_personal", l: "MP Personal" },
-  { v: "mp_josi", l: "MP Josi" },
-  { v: "mp_escuela", l: "MP Escuela" },
-  { v: "mp_tienda", l: "MP Tienda" },
-  { v: "banco", l: "Banco" },
-];
-const FORMA_PAGO_LABELS: Record<string, string> = Object.fromEntries(FORMA_PAGO_OPTS.map(o => [o.v, o.l]));
+import {
+  GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS, normalizeGastoPaymentMethod,
+} from "@/lib/gastoPaymentMethods";
+
+const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label }));
+const FORMA_PAGO_LABELS: Record<string, string> = GASTO_PAYMENT_LABELS;
+
+
 
 const AMBITO_LABEL: Record<Ambito, string> = {
   emprendimiento: "Empresa",
@@ -142,7 +139,8 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
     (amounts[e.id] ?? null) !== null && amounts[e.id] !== getSuggested(e, rec);
 
   const getMethod = (e: AgendaEjecucion, rec: AgendaRecurrente) =>
-    methods[e.id] ?? e.forma_pago ?? rec.forma_pago_default ?? "transferencia";
+    methods[e.id] ?? normalizeGastoPaymentMethod(e.forma_pago ?? rec.forma_pago_default);
+
 
   const handlePay = async (e: AgendaEjecucion, rec: AgendaRecurrente) => {
     const monto = Number(getAmount(e, rec));
@@ -260,16 +258,20 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
                   fading ? "opacity-0 -translate-y-1" : "opacity-100"
                 } ${
                   hasDeuda
-                    ? "border-destructive/50 bg-destructive/5"
+                    ? "border-destructive/60 bg-destructive/[0.07]"
                     : isVencido
-                      ? "border-destructive/40 bg-destructive/[0.03]"
+                      ? "border-destructive/50 bg-destructive/[0.06]"
                       : "border-border bg-card"
                 }`}
               >
-                {hasDeuda && (
-                  <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg bg-destructive" aria-hidden />
+                {(hasDeuda || isVencido) && (
+                  <span
+                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg bg-destructive"
+                    aria-hidden
+                  />
                 )}
-                <div className={`flex flex-col md:flex-row md:items-center gap-3 p-3 ${hasDeuda ? "pl-4" : ""}`}>
+                <div className={`flex flex-col md:flex-row md:items-center gap-3 p-3 ${(hasDeuda || isVencido) ? "pl-4" : ""}`}>
+
                   {/* Info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">

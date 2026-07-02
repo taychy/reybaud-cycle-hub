@@ -83,19 +83,11 @@ interface GastoRow {
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
-const FORMA_PAGO_OPTS = [
-  { v: "efectivo", l: "Efectivo" },
-  { v: "transferencia", l: "Transferencia" },
-  { v: "tarjeta_credito", l: "Tarjeta de Crédito" },
-  { v: "mp_personal", l: "MP Personal" },
-  { v: "mp_josi", l: "MP Josi" },
-  { v: "mp_escuela", l: "MP Escuela" },
-  { v: "mp_tienda", l: "MP Tienda" },
-  { v: "mc_personal", l: "MC Personal" },
-  { v: "banco", l: "Banco" },
-];
+import { GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS } from "@/lib/gastoPaymentMethods";
+const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label }));
 
-const FORMA_PAGO_LABELS: Record<string, string> = Object.fromEntries(FORMA_PAGO_OPTS.map(o => [o.v, o.l]));
+const FORMA_PAGO_LABELS = GASTO_PAYMENT_LABELS;
+
 
 const fmt = (n: number, m: string = "ARS") => formatPrice(n || 0, m);
 const monthLabel = (m: string) => {
@@ -140,6 +132,8 @@ const estadoBadge = (e: EstadoEjec, dias: number | null) => {
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
   const [mes, setMes] = useState(nowMonth());
+  const [activeTab, setActiveTab] = useState<string>("agenda");
+
   const [recurrentes, setRecurrentes] = useState<Recurrente[]>([]);
   const [ejecuciones, setEjecuciones] = useState<Ejecucion[]>([]);
   const [gastos, setGastos] = useState<GastoRow[]>([]);
@@ -802,7 +796,19 @@ const SuperAdminGastos = () => {
           <Button variant="outline" size="sm" onClick={exportGastosCSV} className="gap-1">
             <Receipt className="w-4 h-4" /> Exportar gastos
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setActiveTab("catalogo")} className="gap-1">
+            <Wallet className="w-4 h-4" /> Catálogo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setActiveTab("historico"); }}
+            className="gap-1"
+          >
+            <History className="w-4 h-4" /> Histórico
+          </Button>
         </div>
+
       </div>
 
       {/* KPIs */}
@@ -855,7 +861,7 @@ const SuperAdminGastos = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="agenda" onValueChange={(v) => { if (v === "historial") loadHistorial(); }}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "historial") loadHistorial(); }}>
         <TabsList>
           <TabsTrigger value="agenda" className="gap-1"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
