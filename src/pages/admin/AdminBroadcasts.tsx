@@ -42,7 +42,7 @@ interface Broadcast {
   segment_filters: any;
 }
 interface Template {
-  id: string; name: string; description: string | null; subject: string; content_html: string;
+  key: string; name: string; description: string | null; subject: string; content_html: string;
 }
 interface Sede { id: string; nombre: string }
 interface Contact {
