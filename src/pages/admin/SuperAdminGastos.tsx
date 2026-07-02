@@ -796,7 +796,19 @@ const SuperAdminGastos = () => {
           <Button variant="outline" size="sm" onClick={exportGastosCSV} className="gap-1">
             <Receipt className="w-4 h-4" /> Exportar gastos
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setActiveTab("catalogo")} className="gap-1">
+            <Wallet className="w-4 h-4" /> Catálogo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setActiveTab("historico"); }}
+            className="gap-1"
+          >
+            <History className="w-4 h-4" /> Histórico
+          </Button>
         </div>
+
       </div>
 
       {/* KPIs */}
