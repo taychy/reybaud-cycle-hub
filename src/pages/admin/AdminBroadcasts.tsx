@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search, Contact as ContactIcon } from "lucide-react";
+import { Send, Eye, Settings, Mail, History, Users, AlertTriangle, Loader2, Search, Contact as ContactIcon } from "lucide-react";
 import MarketingContactsManager from "@/components/admin/MarketingContactsManager";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
@@ -40,9 +40,6 @@ interface Broadcast {
   created_at: string;
   sent_at: string | null;
   segment_filters: any;
-}
-interface Template {
-  key: string; name: string; description: string | null; subject: string; content_html: string;
 }
 interface Sede { id: string; nombre: string }
 interface Contact {
@@ -78,7 +75,6 @@ export default function AdminBroadcasts() {
   const [tab, setTab] = useState("composer");
   const [composer, setComposer] = useState(emptyComposer);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactSearch, setContactSearch] = useState("");
@@ -96,28 +92,18 @@ export default function AdminBroadcasts() {
   const [sending, setSending] = useState(false);
   const [showConfirmSend, setShowConfirmSend] = useState(false);
   const [showSenderDialog, setShowSenderDialog] = useState(false);
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [showDetail, setShowDetail] = useState<Broadcast | null>(null);
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
 
   const loadAll = async () => {
-    const [bres, tres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
+    const [bres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
       supabase.from("broadcasts" as any).select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("email_templates" as any).select("key, subject, html_body, description, category").eq("category", "broadcast").order("updated_at", { ascending: false }),
       supabase.from("sedes" as any).select("id, nombre").order("nombre"),
       supabase.from("broadcast_sender_config" as any).select("*").limit(1).maybeSingle(),
       supabase.from("alumnos" as any).select("id, nombre, apellido, email, estado, grupo, sede_id").not("email", "is", null).order("nombre"),
       supabase.from("coaches" as any).select("id, nombre, email, estado, grupos, sede_id").not("email", "is", null).order("nombre"),
     ]);
     setBroadcasts((bres.data as any) || []);
-    setTemplates(((tres.data as any[]) || []).map((r) => ({
-      key: r.key,
-      name: (r.description as string) || (r.key as string).replace(/_/g, " "),
-      description: r.description,
-      subject: r.subject,
-      content_html: r.html_body,
-    })));
     setSedes((sres.data as any) || []);
     setContacts([
       ...(((alumnosRes.data as any[]) || []).map((a) => ({
@@ -312,57 +298,6 @@ export default function AdminBroadcasts() {
     loadAll();
   };
 
-  const saveTemplate = async () => {
-    if (!editingTemplate?.name || !editingTemplate?.subject || !editingTemplate?.content_html) {
-      toast({ title: "Faltan datos", variant: "destructive" });
-      return;
-    }
-    const slug = (editingTemplate.name || "")
-      .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 60);
-    if (editingTemplate.key) {
-      await supabase.from("email_templates" as any)
-        .update({
-          description: editingTemplate.description || editingTemplate.name,
-          subject: editingTemplate.subject,
-          html_body: editingTemplate.content_html,
-        } as any)
-        .eq("key", editingTemplate.key);
-    } else {
-      if (!slug) { toast({ title: "Nombre inválido para plantilla", variant: "destructive" }); return; }
-      const { error } = await supabase.from("email_templates" as any).insert({
-        key: `broadcast_${slug}_${Date.now().toString(36)}`,
-        subject: editingTemplate.subject,
-        html_body: editingTemplate.content_html,
-        description: editingTemplate.description || editingTemplate.name,
-        category: "broadcast",
-        wired: false,
-        is_active: true,
-        variables: [],
-        required_variables: [],
-      } as any);
-      if (error) { toast({ title: "Error al guardar", description: error.message, variant: "destructive" }); return; }
-    }
-    toast({ title: "Plantilla guardada" });
-    setShowTemplateDialog(false);
-    setEditingTemplate(null);
-    loadAll();
-  };
-
-  const useTemplate = (t: Template) => {
-    setComposer({ ...composer, subject: t.subject, content_html: t.content_html });
-    setTab("composer");
-    toast({ title: `Plantilla "${t.name}" cargada` });
-  };
-
-  const deleteTemplate = async (key: string) => {
-    await supabase.from("email_templates" as any).delete().eq("key", key);
-    loadAll();
-  };
-
   const openDetail = async (b: Broadcast) => {
     setShowDetail(b);
     const { data } = await supabase
@@ -460,7 +395,6 @@ export default function AdminBroadcasts() {
           <TabsTrigger value="composer"><Send className="w-4 h-4 mr-1" />Nuevo envío</TabsTrigger>
           <TabsTrigger value="contacts"><ContactIcon className="w-4 h-4 mr-1" />Contactos</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-1" />Historial</TabsTrigger>
-          <TabsTrigger value="templates"><FileText className="w-4 h-4 mr-1" />Plantillas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="contacts" className="space-y-4">
@@ -722,19 +656,6 @@ export default function AdminBroadcasts() {
               </Button>
               <div className="ml-auto flex gap-2">
                 <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingTemplate({
-                      key: "", name: "", description: "",
-                      subject: composer.subject, content_html: composer.content_html,
-                    });
-                    setShowTemplateDialog(true);
-                  }}
-                  disabled={!composer.subject || !composer.content_html}
-                >
-                  <Save className="w-4 h-4 mr-1" />Guardar como plantilla
-                </Button>
-                <Button
                   variant="gold"
                   onClick={() => setShowConfirmSend(true)}
                   disabled={sending || previewCount === null || previewCount === 0 || !composer.subject || !composer.content_html}
@@ -773,33 +694,6 @@ export default function AdminBroadcasts() {
             </Card>
           ))}
         </TabsContent>
-
-        {/* TEMPLATES */}
-        <TabsContent value="templates" className="space-y-2">
-          <Button variant="gold" onClick={() => { setEditingTemplate({ key: "", name: "", description: "", subject: "", content_html: "" }); setShowTemplateDialog(true); }}>
-            <Plus className="w-4 h-4 mr-1" />Nueva plantilla
-          </Button>
-          {templates.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No hay plantillas. Guardá una desde el composer o creala acá.
-            </div>
-          ) : templates.map(t => (
-            <Card key={t.key} className="p-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{t.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{t.subject}</div>
-                {t.description && <div className="text-[11px] text-muted-foreground">{t.description}</div>}
-              </div>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => useTemplate(t)}>Usar</Button>
-                <Button variant="ghost" size="sm" onClick={() => { setEditingTemplate(t); setShowTemplateDialog(true); }}>Editar</Button>
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteTemplate(t.key)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </TabsContent>
       </Tabs>
 
       {/* Sender dialog */}
@@ -828,44 +722,6 @@ export default function AdminBroadcasts() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSenderDialog(false)}>Cancelar</Button>
             <Button variant="gold" onClick={saveSender}>Guardar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Template dialog */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingTemplate?.key ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
-          </DialogHeader>
-          {editingTemplate && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Nombre interno *</Label>
-                <Input value={editingTemplate.name}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
-                  placeholder="Ej: Anuncio nuevo evento" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Descripción</Label>
-                <Input value={editingTemplate.description || ""}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, description: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Asunto *</Label>
-                <Input value={editingTemplate.subject}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, subject: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Contenido *</Label>
-                <Textarea rows={10} value={editingTemplate.content_html}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, content_html: e.target.value })} />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>Cancelar</Button>
-            <Button variant="gold" onClick={saveTemplate}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
