@@ -452,6 +452,7 @@ const AdminEventReservations = ({
       plan_pagos: "#1a1a2e",
       cuota_pendiente: "#d97706",
       cuota_proxima: "#2563eb",
+      cuota_pago_mp: "#009ee3",
       novedad: "#1a1a2e",
       recordatorio_checklist: "#d97706",
     };
@@ -460,14 +461,18 @@ const AdminEventReservations = ({
       plan_pagos: "Tu plan de pagos",
       cuota_pendiente: "Cuota pendiente",
       cuota_proxima: "Próximo vencimiento",
+      cuota_pago_mp: "Pagá tu cuota",
       novedad: "Novedad",
       recordatorio_checklist: "Falta tu información del viaje",
     };
     const color = colorMap[tipo] || "#1a1a2e";
     const title = titleMap[tipo] || "Notificación";
     const htmlBody = text.replace(/\n/g, "<br/>");
-    const cta = buildCtaButton(reservaLink);
-    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
+    const mpBtn = (tipo === "cuota_pago_mp" && mpPayUrl)
+      ? `<div style="text-align:center;margin:24px 0"><a href="${mpPayUrl}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div>`
+      : "";
+    const cta = tipo === "cuota_pago_mp" ? "" : buildCtaButton(reservaLink);
+    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${mpBtn}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
   };
 
   const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, _contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
