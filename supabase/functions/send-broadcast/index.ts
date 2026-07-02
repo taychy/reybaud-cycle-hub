@@ -85,6 +85,21 @@ ${pre}
 </table></body></html>`;
 }
 
+function encodeUrlValue(value: unknown) {
+  return encodeURIComponent(String(value ?? ""));
+}
+
+function personalize(value: string | undefined, recipient: any) {
+  if (!value) return value;
+  const nombre = recipient?.display_name || `${recipient?.nombre ?? ""} ${recipient?.apellido ?? ""}`.trim();
+  const email = recipient?.email || "";
+  return value
+    .replaceAll("{nombre_url}", encodeUrlValue(nombre))
+    .replaceAll("{email_url}", encodeUrlValue(email))
+    .replaceAll("{nombre}", nombre)
+    .replaceAll("{email}", email);
+}
+
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
   const explicitSelection = Boolean(
     filters.alumno_ids?.length ||
@@ -271,7 +286,12 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const html = htmlWrap(body.content_html, body.preheader, cta);
+      const testRecipient = { email: body.test_email, display_name: "Test Reybaud" };
+      const html = htmlWrap(
+        personalize(body.content_html, testRecipient) || "",
+        body.preheader,
+        { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
+      );
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
         to: [{ email: body.test_email }],
@@ -324,9 +344,12 @@ Deno.serve(async (req) => {
 
       let sent = 0, failed = 0;
       const marketingSentEmails: string[] = [];
-      const html = htmlWrap(body.content_html, body.preheader, cta);
-
       for (const r of recipients) {
+        const html = htmlWrap(
+          personalize(body.content_html, r) || "",
+          body.preheader,
+          { url: personalize(body.cta_url, r), label: body.cta_label },
+        );
         const r1 = await sendOne({
           sender: { name: senderName, email: senderEmail },
           to: [{ email: r.email, name: r.display_name || undefined }],
