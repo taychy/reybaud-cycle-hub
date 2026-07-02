@@ -1917,6 +1917,7 @@ export type Database = {
       }
       email_templates: {
         Row: {
+          category: string
           created_at: string
           description: string | null
           html_body: string
@@ -1932,6 +1933,7 @@ export type Database = {
           wired: boolean
         }
         Insert: {
+          category?: string
           created_at?: string
           description?: string | null
           html_body: string
@@ -1947,6 +1949,7 @@ export type Database = {
           wired?: boolean
         }
         Update: {
+          category?: string
           created_at?: string
           description?: string | null
           html_body?: string

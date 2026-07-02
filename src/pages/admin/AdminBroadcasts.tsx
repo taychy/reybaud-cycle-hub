@@ -42,7 +42,7 @@ interface Broadcast {
   segment_filters: any;
 }
 interface Template {
-  id: string; name: string; description: string | null; subject: string; content_html: string;
+  key: string; name: string; description: string | null; subject: string; content_html: string;
 }
 interface Sede { id: string; nombre: string }
 interface Contact {
@@ -104,14 +104,20 @@ export default function AdminBroadcasts() {
   const loadAll = async () => {
     const [bres, tres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
       supabase.from("broadcasts" as any).select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("broadcast_templates" as any).select("*").order("updated_at", { ascending: false }),
+      supabase.from("email_templates" as any).select("key, subject, html_body, description, category").eq("category", "broadcast").order("updated_at", { ascending: false }),
       supabase.from("sedes" as any).select("id, nombre").order("nombre"),
       supabase.from("broadcast_sender_config" as any).select("*").limit(1).maybeSingle(),
       supabase.from("alumnos" as any).select("id, nombre, apellido, email, estado, grupo, sede_id").not("email", "is", null).order("nombre"),
       supabase.from("coaches" as any).select("id, nombre, email, estado, grupos, sede_id").not("email", "is", null).order("nombre"),
     ]);
     setBroadcasts((bres.data as any) || []);
-    setTemplates((tres.data as any) || []);
+    setTemplates(((tres.data as any[]) || []).map((r) => ({
+      key: r.key,
+      name: (r.description as string) || (r.key as string).replace(/_/g, " "),
+      description: r.description,
+      subject: r.subject,
+      content_html: r.html_body,
+    })));
     setSedes((sres.data as any) || []);
     setContacts([
       ...(((alumnosRes.data as any[]) || []).map((a) => ({
@@ -311,23 +317,34 @@ export default function AdminBroadcasts() {
       toast({ title: "Faltan datos", variant: "destructive" });
       return;
     }
-    if (editingTemplate.id) {
-      await supabase.from("broadcast_templates" as any)
+    const slug = (editingTemplate.name || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 60);
+    if (editingTemplate.key) {
+      await supabase.from("email_templates" as any)
         .update({
-          name: editingTemplate.name,
-          description: editingTemplate.description,
+          description: editingTemplate.description || editingTemplate.name,
           subject: editingTemplate.subject,
-          content_html: editingTemplate.content_html,
-          updated_at: new Date().toISOString(),
+          html_body: editingTemplate.content_html,
         } as any)
-        .eq("id", editingTemplate.id);
+        .eq("key", editingTemplate.key);
     } else {
-      await supabase.from("broadcast_templates" as any).insert({
-        name: editingTemplate.name,
-        description: editingTemplate.description,
+      if (!slug) { toast({ title: "Nombre inválido para plantilla", variant: "destructive" }); return; }
+      const { error } = await supabase.from("email_templates" as any).insert({
+        key: `broadcast_${slug}_${Date.now().toString(36)}`,
         subject: editingTemplate.subject,
-        content_html: editingTemplate.content_html,
+        html_body: editingTemplate.content_html,
+        description: editingTemplate.description || editingTemplate.name,
+        category: "broadcast",
+        wired: false,
+        is_active: true,
+        variables: [],
+        required_variables: [],
       } as any);
+      if (error) { toast({ title: "Error al guardar", description: error.message, variant: "destructive" }); return; }
     }
     toast({ title: "Plantilla guardada" });
     setShowTemplateDialog(false);
@@ -341,8 +358,8 @@ export default function AdminBroadcasts() {
     toast({ title: `Plantilla "${t.name}" cargada` });
   };
 
-  const deleteTemplate = async (id: string) => {
-    await supabase.from("broadcast_templates" as any).delete().eq("id", id);
+  const deleteTemplate = async (key: string) => {
+    await supabase.from("email_templates" as any).delete().eq("key", key);
     loadAll();
   };
 
@@ -708,7 +725,7 @@ export default function AdminBroadcasts() {
                   variant="outline"
                   onClick={() => {
                     setEditingTemplate({
-                      id: "", name: "", description: "",
+                      key: "", name: "", description: "",
                       subject: composer.subject, content_html: composer.content_html,
                     });
                     setShowTemplateDialog(true);
@@ -759,7 +776,7 @@ export default function AdminBroadcasts() {
 
         {/* TEMPLATES */}
         <TabsContent value="templates" className="space-y-2">
-          <Button variant="gold" onClick={() => { setEditingTemplate({ id: "", name: "", description: "", subject: "", content_html: "" }); setShowTemplateDialog(true); }}>
+          <Button variant="gold" onClick={() => { setEditingTemplate({ key: "", name: "", description: "", subject: "", content_html: "" }); setShowTemplateDialog(true); }}>
             <Plus className="w-4 h-4 mr-1" />Nueva plantilla
           </Button>
           {templates.length === 0 ? (
@@ -767,7 +784,7 @@ export default function AdminBroadcasts() {
               No hay plantillas. Guardá una desde el composer o creala acá.
             </div>
           ) : templates.map(t => (
-            <Card key={t.id} className="p-3 flex items-center gap-3">
+            <Card key={t.key} className="p-3 flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{t.name}</div>
                 <div className="text-xs text-muted-foreground truncate">{t.subject}</div>
@@ -776,7 +793,7 @@ export default function AdminBroadcasts() {
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => useTemplate(t)}>Usar</Button>
                 <Button variant="ghost" size="sm" onClick={() => { setEditingTemplate(t); setShowTemplateDialog(true); }}>Editar</Button>
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteTemplate(t.id)}>
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteTemplate(t.key)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -819,7 +836,7 @@ export default function AdminBroadcasts() {
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingTemplate?.id ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
+            <DialogTitle>{editingTemplate?.key ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
           </DialogHeader>
           {editingTemplate && (
             <div className="space-y-3">

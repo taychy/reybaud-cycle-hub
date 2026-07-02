@@ -106,80 +106,56 @@ interface RenderCtx {
   testFooter?: string;
 }
 
-function subjectFor(v: Variant, eventTitle: string): string {
+const TEMPLATE_KEYS: Record<Variant, string> = {
+  paid_full: 'price_alert_paid_full',
+  with_balance: 'price_alert_with_balance',
+  interested: 'price_alert_interested',
+};
+
+let TEMPLATE_CACHE: Record<string, { subject: string; html_body: string }> | null = null;
+async function loadTemplates(supabase: any) {
+  if (TEMPLATE_CACHE) return TEMPLATE_CACHE;
+  const keys = Object.values(TEMPLATE_KEYS);
+  const { data, error } = await supabase.from('email_templates').select('key, subject, html_body').in('key', keys);
+  if (error) throw error;
+  const map: Record<string, { subject: string; html_body: string }> = {};
+  for (const t of data ?? []) map[t.key] = { subject: t.subject, html_body: t.html_body };
+  TEMPLATE_CACHE = map;
+  return map;
+}
+
+function subjectFor(v: Variant, eventTitle: string, tpls: Record<string, { subject: string }>): string {
+  const raw = tpls[TEMPLATE_KEYS[v]]?.subject;
+  if (raw) return raw.replace(/\{eventTitle\}/g, eventTitle);
   if (v === 'paid_full')    return `🎉 ¡Tu lugar en ${eventTitle} ya está asegurado a precio congelado!`;
   if (v === 'with_balance') return `⏰ Última llamada — el precio de ${eventTitle} sube en breve`;
   return `⏰ Última chance al precio actual de ${eventTitle}`;
 }
 
-function renderEmail(ctx: RenderCtx): string {
-  const { variant, nombre, eventTitle, stageName, vigenteDesde, oldMin, newMin, currency, packages, testFooter } = ctx;
+function renderEmail(ctx: RenderCtx, tpls: Record<string, { subject: string; html_body: string }>): string {
+  const { variant, nombre, eventTitle, vigenteDesde, oldMin, newMin, currency, packages, testFooter } = ctx;
   const diff = oldMin && oldMin > 0 ? Math.round(((newMin - oldMin) / oldMin) * 100) : null;
   const diffPct = diff && diff !== 0 ? `${diff > 0 ? '+' : ''}${diff}%` : null;
-  const ahorro = oldMin ? Math.max(0, newMin - oldMin) : 0;
+  const diffPctSuffix = diffPct ? ` un <b>${diffPct}</b>` : '';
   const fechaCorta = fmtDateShort(vigenteDesde);
 
-  // Colores fijos, con buen contraste sobre fondo blanco
   const TEXT = '#1a1a1a';
   const MUTED = '#555555';
   const LABEL = '#374151';
   const VALUE = '#111827';
 
-  let tag = '⏰ AVISO IMPORTANTE';
-  let headline = eventTitle;
-  let intro = '';
-  let table = '';
-  let extraBlock = '';
-  let ctaHref = `${APP_URL}/eventos`;
-  let ctaLabel = 'Ver el evento';
-
+  let priceRows = '';
   if (variant === 'paid_full') {
-    tag = '🎉 ¡Tu lugar ya está asegurado a precio congelado!';
-    intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Ya reservaste y con tu seña <b>tu precio quedó congelado para siempre</b> :) . El resto de la gente no corre con la misma suerte: el <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}.`;
-    table = `
+    priceRows = `
       ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio base (más económico)</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
       <tr><td style="color:${LABEL};padding:6px 0;">Tu precio (congelado)</td><td style="text-align:right;padding:6px 0;color:#166534;font-weight:700;">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))} ✅</td></tr>
       <tr><td style="color:${LABEL};padding:6px 0;">Precio base desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
-    extraBlock = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:14px;color:#14532d;line-height:1.55;">
-        💡 <b>Tip:</b> si tenés amigos que quieran sumarse, avisales que les conviene reservar <b>antes del ${fechaCorta}</b> para entrar al precio actual.
-      </div>
-    </div>`;
-    ctaHref = ctx.shareUrl || `${APP_URL}/eventos`;
-    ctaLabel = 'Compartir el evento →';
-  }
-
-  if (variant === 'with_balance') {
-    tag = '⏰ Última llamada — el precio sube en breve';
-    intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Tenés tu lugar reservado, pero como <b>todavía no pagaste la seña</b>, tu precio no está congelado. El <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}.`;
-    table = `
+  } else {
+    priceRows = `
       <tr><td style="color:${LABEL};padding:6px 0;">Precio base hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin ?? newMin, currency))}</td></tr>
       <tr><td style="color:${LABEL};padding:6px 0;">Precio base desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
-    extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:14px;color:#7c2d12;line-height:1.55;">
-        Pagá la seña <b>antes del ${fechaCorta}</b>${ahorro > 0 ? ` y evitás el aumento` : ''}. Después de esa fecha, <b>no hay vuelta atrás</b>.
-      </div>
-    </div>`;
-    ctaHref = ctx.payUrl || `${APP_URL}/mis-reservas`;
-    ctaLabel = 'Ir a mi reserva y pagar la seña →';
   }
 
-  if (variant === 'interested') {
-    tag = '⏰ ÚLTIMA CHANCE AL PRECIO ACTUAL';
-    intro = `Hola ${escapeHtml(nombre)} 👋<br/><br/>Sabemos que te interesa <b>${escapeHtml(eventTitle)}</b>. El <b>${fechaCorta}</b> sube${diffPct ? ` un <b>${diffPct}</b>` : ''}. <b>Reservando ahora congelás el precio actual</b>.`;
-    table = `
-      ${oldMin ? `<tr><td style="color:${LABEL};padding:6px 0;">Precio base hoy</td><td style="text-align:right;padding:6px 0;color:${VALUE};">${escapeHtml(fmtMoney(oldMin, currency))}</td></tr>` : ''}
-      <tr><td style="color:${LABEL};padding:6px 0;">Precio base desde el ${fechaCorta}</td><td style="text-align:right;padding:6px 0;color:${BRAND};font-weight:700;">${escapeHtml(fmtMoney(newMin, currency))}</td></tr>`;
-    extraBlock = `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
-      <div style="font-size:14px;color:#7c2d12;line-height:1.55;">
-        Con la <b>seña de reserva</b> te asegurás el precio actual${oldMin ? ` (<b>${escapeHtml(fmtMoney(oldMin, currency))}</b>)` : ''}. Después del ${fechaCorta} vas a pagar <b>${escapeHtml(fmtMoney(newMin, currency))}</b>.
-      </div>
-    </div>`;
-    ctaHref = ctx.reserveUrl || `${APP_URL}/eventos`;
-    ctaLabel = 'Reservar antes del aumento →';
-  }
-
-  // Bloque de paquetes: muestra cada paquete con su precio actual vs nuevo
   let packagesBlock = '';
   if (packages && packages.length > 0) {
     const rows = packages.map((p) => {
@@ -210,37 +186,37 @@ function renderEmail(ctx: RenderCtx): string {
     </div>`;
   }
 
-  const secondaryLink = ctx.shareUrl || ctx.reserveUrl || ctx.payUrl || `${APP_URL}/eventos`;
+  const ctaHref = variant === 'paid_full' ? (ctx.shareUrl || `${APP_URL}/eventos`)
+    : variant === 'with_balance' ? (ctx.payUrl || `${APP_URL}/mis-reservas`)
+    : (ctx.reserveUrl || `${APP_URL}/eventos`);
+
+  const vars: Record<string, string> = {
+    nombre: escapeHtml(nombre),
+    eventTitle: escapeHtml(eventTitle),
+    fechaCorta,
+    diffPctSuffix,
+    priceRows,
+    packagesBlock,
+    ctaHref,
+    brandColor: BRAND,
+  };
+
+  const key = TEMPLATE_KEYS[variant];
+  const bodyTpl = tpls[key]?.html_body || '';
+  const body = bodyTpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+
+  const testBlock = testFooter
+    ? `<hr style="border:0;border-top:1px dashed #ccc;margin:22px 0 10px;"/><pre style="background:#f5f5f5;padding:10px;border-radius:6px;font-size:11px;color:#333;white-space:pre-wrap;">${escapeHtml(testFooter)}</pre>`
+    : '';
 
   return `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:${TEXT};">
   <div style="max-width:560px;margin:0 auto;padding:28px 22px;">
     <div style="border-top:4px solid ${BRAND};padding-top:22px;">
-      <p style="margin:0 0 10px;color:${BRAND};font-weight:700;font-size:14px;letter-spacing:0.3px;line-height:1.4;">${tag}</p>
-      <h1 style="font-size:22px;margin:0 0 14px;color:${BRAND};line-height:1.25;">${escapeHtml(headline)}</h1>
-      <p style="margin:0 0 16px;color:${TEXT};font-size:15px;line-height:1.6;">${intro}</p>
-
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:12px 0;">
-        <table style="width:100%;font-size:14px;border-collapse:collapse;">
-          ${table}
-        </table>
-        <div style="font-size:11px;color:${MUTED};margin-top:8px;line-height:1.4;">* Precio base = el paquete más económico. Detalle por paquete abajo ⬇</div>
-      </div>
-
-      ${packagesBlock}
-
-      ${extraBlock}
-
-      <div style="text-align:center;margin:26px 0 8px;">
-        <a href="${ctaHref}" style="display:inline-block;background:${BRAND};color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:10px;font-weight:600;font-size:15px;">${ctaLabel}</a>
-      </div>
-      <div style="text-align:center;margin:0 0 22px;">
-        <a href="${secondaryLink}" style="color:${MUTED};text-decoration:underline;font-size:12px;">Ver todos los paquetes en el sitio →</a>
-      </div>
-
+      ${body}
       <p style="font-size:12px;color:${MUTED};line-height:1.5;margin:22px 0 0;">
         Ante cualquier duda respondé este mail o escribinos por WhatsApp.
       </p>
-      ${testFooter ? `<hr style="border:0;border-top:1px dashed #ccc;margin:22px 0 10px;"/><pre style="background:#f5f5f5;padding:10px;border-radius:6px;font-size:11px;color:#333;white-space:pre-wrap;">${escapeHtml(testFooter)}</pre>` : ''}
+      ${testBlock}
     </div>
   </div>
 </body></html>`;
@@ -251,6 +227,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    const tpls = await loadTemplates(supabase);
     const body = await req.json().catch(() => ({}));
     const mode: 'test' | 'send' | 'preview' = body.mode === 'send' ? 'send' : body.mode === 'preview' ? 'preview' : 'test';
     const requestedEventId: string | null = body.event_id || null;
@@ -387,6 +364,8 @@ Deno.serve(async (req) => {
         emails_sent: 0, errors: [] as string[],
       };
 
+      const sentRecipients: Array<{ email: string; nombre: string; variant: Variant; ok: boolean; error?: string }> = [];
+
       const sendOne = async (variant: Variant, r: Rec) => {
         const ctx: RenderCtx = {
           variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
@@ -394,13 +373,12 @@ Deno.serve(async (req) => {
           balanceDue: r.balance ?? null,
           shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
         };
-        const html = renderEmail(ctx);
-        await enqueue(supabase, r.email, subjectFor(variant, event.title), html,
+        const html = renderEmail(ctx, tpls);
+        await enqueue(supabase, r.email, subjectFor(variant, event.title, tpls), html,
           `price-alert:${variant}:${eventId}:${upcoming[0].id}:${r.email}`, `price_alert_${variant}`);
       };
 
       if (mode === 'preview') {
-        // Devolvemos todos los destinatarios con el HTML renderizado, sin encolar nada.
         const buildPreview = (variant: Variant, r: Rec) => {
           const ctx: RenderCtx = {
             variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
@@ -409,11 +387,9 @@ Deno.serve(async (req) => {
             shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
           };
           return {
-            variant,
-            email: r.email,
-            nombre: r.nombre,
-            subject: subjectFor(variant, event.title),
-            html: renderEmail(ctx),
+            variant, email: r.email, nombre: r.nombre,
+            subject: subjectFor(variant, event.title, tpls),
+            html: renderEmail(ctx, tpls),
             balance: r.balance ?? null,
           };
         };
@@ -437,18 +413,69 @@ Deno.serve(async (req) => {
             oldMin, newMin, currency, packages: packagesList, balanceDue: sampleBalance,
             shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
             testFooter,
-          });
+          }, tpls);
           try {
-            await enqueue(supabase, testEmail!, `[TEST ${variant}] ${subjectFor(variant, event.title)}`, html,
+            await enqueue(supabase, testEmail!, `[TEST ${variant}] ${subjectFor(variant, event.title, tpls)}`, html,
               `price-alert-test:${variant}:${eventId}:${upcoming[0].id}:${Date.now()}`, `price_alert_${variant}_test`);
             summary.emails_sent++;
           } catch (e: any) { summary.errors.push(`${variant}: ${e.message || e}`); }
         }
       } else {
         const passesApproval = (email: string) => !approvedEmails || approvedEmails.has(email);
-        if (sendVariants.has('paid_full'))    for (const r of paidFull.values())    { if (!passesApproval(r.email)) continue; try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
-        if (sendVariants.has('with_balance')) for (const r of withBalance.values()) { if (!passesApproval(r.email)) continue; try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
-        if (sendVariants.has('interested'))   for (const r of interested.values())  { if (!passesApproval(r.email)) continue; try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
+        const runVariant = async (variant: Variant, bucket: Map<string, Rec>) => {
+          if (!sendVariants.has(variant)) return;
+          for (const r of bucket.values()) {
+            if (!passesApproval(r.email)) continue;
+            try {
+              await sendOne(variant, r);
+              summary.emails_sent++;
+              sentRecipients.push({ email: r.email, nombre: r.nombre, variant, ok: true });
+            } catch (e: any) {
+              const msg = e.message || String(e);
+              summary.errors.push(`${variant} ${r.email}: ${msg}`);
+              sentRecipients.push({ email: r.email, nombre: r.nombre, variant, ok: false, error: msg });
+            }
+          }
+        };
+        await runVariant('paid_full', paidFull);
+        await runVariant('with_balance', withBalance);
+        await runVariant('interested', interested);
+
+        // Log a la tabla broadcasts para que aparezca en el historial de Email Masivo
+        if (sentRecipients.length > 0) {
+          try {
+            const okCount = sentRecipients.filter((x) => x.ok).length;
+            const failCount = sentRecipients.length - okCount;
+            const subject = `[Aviso de aumento] ${event.title} — etapa "${stageName}" (${new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit' }).format(vigenteDesde)})`;
+            const { data: bc, error: bcErr } = await supabase.from('broadcasts').insert({
+              subject,
+              content_html: `<i>Aviso automático de aumento generado desde /admin/aprobar-aviso-precio para el evento <b>${event.title}</b>. Vigencia nueva etapa: ${vigenteDesde.toISOString()}. Buckets: paid_full=${paidFull.size}, with_balance=${withBalance.size}, interested=${interested.size}.</i>`,
+              sender_email: `notificaciones@${SENDER_DOMAIN}`,
+              sender_name: FROM_NAME,
+              segment_filters: { source: 'price_alert', event_id: eventId, stage_name: stageName, vigente_desde: vigenteDesde.toISOString() },
+              status: failCount === sentRecipients.length ? 'failed' : 'sent',
+              total_recipients: sentRecipients.length,
+              sent_count: okCount,
+              failed_count: failCount,
+              sent_at: new Date().toISOString(),
+            } as any).select('id').single();
+            if (!bcErr && bc?.id) {
+              await supabase.from('broadcast_recipients').insert(
+                sentRecipients.map((r) => ({
+                  broadcast_id: bc.id,
+                  email: r.email,
+                  name: r.nombre,
+                  status: r.ok ? 'sent' : 'failed',
+                  error_message: r.error ?? null,
+                  sent_at: r.ok ? new Date().toISOString() : null,
+                }))
+              );
+              summary.broadcast_id = bc.id;
+            } else if (bcErr) {
+              console.error('broadcast log insert failed', bcErr);
+            }
+          } catch (e) { console.error('broadcast log error', e); }
+        }
       }
 
       results.push(summary);
