@@ -726,44 +726,6 @@ export default function AdminBroadcasts() {
         </DialogContent>
       </Dialog>
 
-      {/* Template dialog */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingTemplate?.key ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
-          </DialogHeader>
-          {editingTemplate && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Nombre interno *</Label>
-                <Input value={editingTemplate.name}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
-                  placeholder="Ej: Anuncio nuevo evento" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Descripción</Label>
-                <Input value={editingTemplate.description || ""}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, description: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Asunto *</Label>
-                <Input value={editingTemplate.subject}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, subject: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Contenido *</Label>
-                <Textarea rows={10} value={editingTemplate.content_html}
-                  onChange={e => setEditingTemplate({ ...editingTemplate, content_html: e.target.value })} />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>Cancelar</Button>
-            <Button variant="gold" onClick={saveTemplate}>Guardar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Confirm send */}
       <AlertDialog open={showConfirmSend} onOpenChange={setShowConfirmSend}>
         <AlertDialogContent>
