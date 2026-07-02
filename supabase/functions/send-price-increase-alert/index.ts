@@ -364,6 +364,8 @@ Deno.serve(async (req) => {
         emails_sent: 0, errors: [] as string[],
       };
 
+      const sentRecipients: Array<{ email: string; nombre: string; variant: Variant; ok: boolean; error?: string }> = [];
+
       const sendOne = async (variant: Variant, r: Rec) => {
         const ctx: RenderCtx = {
           variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
@@ -371,13 +373,12 @@ Deno.serve(async (req) => {
           balanceDue: r.balance ?? null,
           shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
         };
-        const html = renderEmail(ctx);
-        await enqueue(supabase, r.email, subjectFor(variant, event.title), html,
+        const html = renderEmail(ctx, tpls);
+        await enqueue(supabase, r.email, subjectFor(variant, event.title, tpls), html,
           `price-alert:${variant}:${eventId}:${upcoming[0].id}:${r.email}`, `price_alert_${variant}`);
       };
 
       if (mode === 'preview') {
-        // Devolvemos todos los destinatarios con el HTML renderizado, sin encolar nada.
         const buildPreview = (variant: Variant, r: Rec) => {
           const ctx: RenderCtx = {
             variant, nombre: r.nombre, eventTitle: event.title, stageName, vigenteDesde,
@@ -386,11 +387,9 @@ Deno.serve(async (req) => {
             shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
           };
           return {
-            variant,
-            email: r.email,
-            nombre: r.nombre,
-            subject: subjectFor(variant, event.title),
-            html: renderEmail(ctx),
+            variant, email: r.email, nombre: r.nombre,
+            subject: subjectFor(variant, event.title, tpls),
+            html: renderEmail(ctx, tpls),
             balance: r.balance ?? null,
           };
         };
@@ -414,18 +413,69 @@ Deno.serve(async (req) => {
             oldMin, newMin, currency, packages: packagesList, balanceDue: sampleBalance,
             shareUrl: eventUrl, reserveUrl: eventUrl, payUrl: `${APP_URL}/mis-reservas`,
             testFooter,
-          });
+          }, tpls);
           try {
-            await enqueue(supabase, testEmail!, `[TEST ${variant}] ${subjectFor(variant, event.title)}`, html,
+            await enqueue(supabase, testEmail!, `[TEST ${variant}] ${subjectFor(variant, event.title, tpls)}`, html,
               `price-alert-test:${variant}:${eventId}:${upcoming[0].id}:${Date.now()}`, `price_alert_${variant}_test`);
             summary.emails_sent++;
           } catch (e: any) { summary.errors.push(`${variant}: ${e.message || e}`); }
         }
       } else {
         const passesApproval = (email: string) => !approvedEmails || approvedEmails.has(email);
-        if (sendVariants.has('paid_full'))    for (const r of paidFull.values())    { if (!passesApproval(r.email)) continue; try { await sendOne('paid_full', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`paid_full ${r.email}: ${e.message||e}`); } }
-        if (sendVariants.has('with_balance')) for (const r of withBalance.values()) { if (!passesApproval(r.email)) continue; try { await sendOne('with_balance', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`with_balance ${r.email}: ${e.message||e}`); } }
-        if (sendVariants.has('interested'))   for (const r of interested.values())  { if (!passesApproval(r.email)) continue; try { await sendOne('interested', r); summary.emails_sent++; } catch (e: any) { summary.errors.push(`interested ${r.email}: ${e.message||e}`); } }
+        const runVariant = async (variant: Variant, bucket: Map<string, Rec>) => {
+          if (!sendVariants.has(variant)) return;
+          for (const r of bucket.values()) {
+            if (!passesApproval(r.email)) continue;
+            try {
+              await sendOne(variant, r);
+              summary.emails_sent++;
+              sentRecipients.push({ email: r.email, nombre: r.nombre, variant, ok: true });
+            } catch (e: any) {
+              const msg = e.message || String(e);
+              summary.errors.push(`${variant} ${r.email}: ${msg}`);
+              sentRecipients.push({ email: r.email, nombre: r.nombre, variant, ok: false, error: msg });
+            }
+          }
+        };
+        await runVariant('paid_full', paidFull);
+        await runVariant('with_balance', withBalance);
+        await runVariant('interested', interested);
+
+        // Log a la tabla broadcasts para que aparezca en el historial de Email Masivo
+        if (sentRecipients.length > 0) {
+          try {
+            const okCount = sentRecipients.filter((x) => x.ok).length;
+            const failCount = sentRecipients.length - okCount;
+            const subject = `[Aviso de aumento] ${event.title} — etapa "${stageName}" (${new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit' }).format(vigenteDesde)})`;
+            const { data: bc, error: bcErr } = await supabase.from('broadcasts').insert({
+              subject,
+              content_html: `<i>Aviso automático de aumento generado desde /admin/aprobar-aviso-precio para el evento <b>${event.title}</b>. Vigencia nueva etapa: ${vigenteDesde.toISOString()}. Buckets: paid_full=${paidFull.size}, with_balance=${withBalance.size}, interested=${interested.size}.</i>`,
+              sender_email: `notificaciones@${SENDER_DOMAIN}`,
+              sender_name: FROM_NAME,
+              segment_filters: { source: 'price_alert', event_id: eventId, stage_name: stageName, vigente_desde: vigenteDesde.toISOString() },
+              status: failCount === sentRecipients.length ? 'failed' : 'sent',
+              total_recipients: sentRecipients.length,
+              sent_count: okCount,
+              failed_count: failCount,
+              sent_at: new Date().toISOString(),
+            } as any).select('id').single();
+            if (!bcErr && bc?.id) {
+              await supabase.from('broadcast_recipients').insert(
+                sentRecipients.map((r) => ({
+                  broadcast_id: bc.id,
+                  email: r.email,
+                  name: r.nombre,
+                  status: r.ok ? 'sent' : 'failed',
+                  error_message: r.error ?? null,
+                  sent_at: r.ok ? new Date().toISOString() : null,
+                }))
+              );
+              summary.broadcast_id = bc.id;
+            } else if (bcErr) {
+              console.error('broadcast log insert failed', bcErr);
+            }
+          } catch (e) { console.error('broadcast log error', e); }
+        }
       }
 
       results.push(summary);
