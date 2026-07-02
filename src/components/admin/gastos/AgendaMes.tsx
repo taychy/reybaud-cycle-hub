@@ -49,17 +49,11 @@ interface Props {
 
 type FilterTab = "pendientes" | "vencidos" | "pagados";
 
-const FORMA_PAGO_OPTS = [
-  { v: "transferencia", l: "Transferencia" },
-  { v: "efectivo", l: "Efectivo" },
-  { v: "tarjeta_credito", l: "Tarjeta" },
-  { v: "mp_personal", l: "MP Personal" },
-  { v: "mp_josi", l: "MP Josi" },
-  { v: "mp_escuela", l: "MP Escuela" },
-  { v: "mp_tienda", l: "MP Tienda" },
-  { v: "banco", l: "Banco" },
-];
-const FORMA_PAGO_LABELS: Record<string, string> = Object.fromEntries(FORMA_PAGO_OPTS.map(o => [o.v, o.l]));
+import { GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS } from "@/lib/gastoPaymentMethods";
+
+const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label }));
+const FORMA_PAGO_LABELS: Record<string, string> = GASTO_PAYMENT_LABELS;
+
 
 const AMBITO_LABEL: Record<Ambito, string> = {
   emprendimiento: "Empresa",
