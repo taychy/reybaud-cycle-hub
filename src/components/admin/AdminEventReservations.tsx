@@ -29,7 +29,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
+
 import TripSummary from "@/components/reservation/TripSummary";
 import EventTripReports from "@/components/admin/EventTripReports";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
