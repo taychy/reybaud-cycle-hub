@@ -2225,6 +2225,7 @@ const AdminEventReservations = ({
                             return;
                           }
                           setMpPayUrl(mpData.init_point);
+                          const plan = buildPlanPagos(instsList, evCurr);
                           extra = {
                             monto_cuota: Number(nextInst.balance_due ?? nextInst.amount ?? 0),
                             vencimiento: nextInst.due_date
@@ -2232,6 +2233,10 @@ const AdminEventReservations = ({
                               : "a coordinar",
                             cuota_label: nextInst.label || `Cuota ${nextInst.installment_number || ""}`.trim(),
                             mp_link: mpData.init_point,
+                            reserva_link: getReservaLink(selectedRes),
+                            total: formatPrice(selectedRes.amount_total || 0, evCurr),
+                            plan_text: plan.text,
+                            plan_html: plan.html,
                           };
                         } finally {
                           setPreparingMpLink(false);
