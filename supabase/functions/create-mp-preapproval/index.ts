@@ -165,17 +165,63 @@ Deno.serve(async (req) => {
     // con status=authorized — recién ahí confirmamos que la autorización
     // existe de verdad en Mercado Pago.
     const isAuthorized = mpData.status === "authorized";
+    const subUpdate: Record<string, unknown> = {
+      auto_renovacion: isAuthorized,
+      mp_preapproval_id: String(mpData.id),
+      mp_preapproval_status: mpData.status || "pending",
+      auto_cobro_activo: isAuthorized,
+      intentos_cobro_fallidos: 0,
+      cuenta_mp_id: cuenta.cuenta_id,
+    };
+
+    // Si vino con card_token_id y MP autorizó: es el flujo "sin redirect"
+    // (nuevo). Además de guardar el preapproval, activamos la sub y el
+    // alumno YA — MP cobrará la primera cuota como authorized_payment y el
+    // webhook enriquecerá con mp_payment_id.
+    if (isAuthorized && card_token_id) {
+      const today = new Date();
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      subUpdate.estado = "activa";
+      subUpdate.metodo_pago = "mercadopago";
+      subUpdate.origen_registro = "automatico";
+      subUpdate.fecha_inicio = today.toISOString().split("T")[0];
+      subUpdate.fecha_fin = endOfMonth.toISOString().split("T")[0];
+    }
+
     await supabaseAdmin
       .from("suscripciones")
-      .update({
-        auto_renovacion: isAuthorized,
-        mp_preapproval_id: String(mpData.id),
-        mp_preapproval_status: mpData.status || "pending",
-        auto_cobro_activo: isAuthorized,
-        intentos_cobro_fallidos: 0,
-        cuenta_mp_id: cuenta.cuenta_id,
-      })
+      .update(subUpdate)
       .eq("id", suscripcion_id);
+
+    if (isAuthorized && card_token_id) {
+      await supabaseAdmin
+        .from("alumnos")
+        .update({ estado: "activo" })
+        .eq("id", alumno_id);
+    }
+
+    // Modo redirect: MP devolvió init_point y el alumno tiene que autorizar
+    // en su web. Mandamos email con el link para que no se pierda el flujo
+    // si cierra la pestaña. (Fire-and-forget: no bloqueamos la respuesta.)
+    if (!isAuthorized && mpData.init_point) {
+      try {
+        const notifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-pending-autorenewal`;
+        fetch(notifyUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            alumno_id,
+            init_point: mpData.init_point,
+            plan_nombre: plan.nombre,
+          }),
+        }).catch((e) => console.warn("[create-mp-preapproval] notify email failed:", e));
+      } catch (e) {
+        console.warn("[create-mp-preapproval] notify email dispatch error:", e);
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -183,6 +229,7 @@ Deno.serve(async (req) => {
         preapproval_id: mpData.id,
         status: mpData.status,
         init_point: mpData.init_point || null,
+        activated: isAuthorized && !!card_token_id,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

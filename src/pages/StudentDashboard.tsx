@@ -24,6 +24,7 @@ import { getAccessPermissions, type SubStatusInput, type AccessPermissions } fro
 import HomeNewsCarousel from "@/components/HomeNewsCarousel";
 import HomePendingResultBanner from "@/components/HomePendingResultBanner";
 import FailedRenewalBanner from "@/components/FailedRenewalBanner";
+import PendingAutoRenewalBanner from "@/components/PendingAutoRenewalBanner";
 import HomeTrainingExtras from "@/components/HomeTrainingExtras";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
@@ -556,6 +557,9 @@ const StudentDashboard = () => {
 
             {/* Failed auto-renewal banner */}
             {alumno && <FailedRenewalBanner alumnoId={alumno.id} />}
+
+            {/* Pending auto-renewal authorization banner */}
+            {alumno && <PendingAutoRenewalBanner alumnoId={alumno.id} />}
 
             {/* Banner: completar datos de facturación */}
             {alumno && !alumno.documento && !localStorage.getItem(`hide_billing_banner_${alumno.id}`) && (

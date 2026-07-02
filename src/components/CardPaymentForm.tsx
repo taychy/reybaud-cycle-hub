@@ -220,7 +220,46 @@ const CardPaymentForm = ({
                 subId = sub.id;
               }
 
-              // Process payment via edge function
+              // ── Flow A: auto-renovación tildada ─────────────────────
+              // Creamos el preapproval CON card_token_id → MP lo deja
+              // authorized sin redirect y cobra la primera cuota como
+              // authorized_payment (webhook la registra). Elimina el
+              // paso extra que hacía que muchos alumnos quedaran sin
+              // renovación activada por no completar la pantalla de MP.
+              // Si falla, hacemos fallback al pago simple + email con
+              // el init_point.
+              const wantsAutoRenewal = autoRenewalChecked && allowAutoRenewal;
+
+              if (wantsAutoRenewal) {
+                const preapprovalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`;
+                const ppRes = await fetch(preapprovalUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  },
+                  body: JSON.stringify({
+                    card_token_id: formData.token,
+                    payer_email: email,
+                    suscripcion_id: subId,
+                    alumno_id: alumnoId,
+                    plan_id: planId,
+                    transaction_amount: planPrice,
+                  }),
+                });
+                const ppData = await ppRes.json().catch(() => ({}));
+
+                if (ppRes.ok && ppData?.activated) {
+                  // MP autorizó + cobrará primera cuota. Sub ya está activa.
+                  navigate("/pago-resultado?status=approved");
+                  return;
+                }
+
+                console.warn("Preapproval-first path failed, falling back to single payment:", ppData);
+                // Continúa abajo con el flujo de pago simple.
+              }
+
+              // ── Flow B: pago simple (sin auto-renovación, o fallback) ──
               const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-card-payment`;
               const res = await fetch(functionUrl, {
                 method: "POST",
@@ -261,8 +300,11 @@ const CardPaymentForm = ({
 
               // Payment approved
               if (result.status === "approved") {
-                // Opt-in to monthly auto-renewal via MP Preapproval (redirect mode)
-                if (autoRenewalChecked && allowAutoRenewal) {
+                // Si el alumno tildó auto-renovación y llegamos acá es porque
+                // el flujo A falló (token ya se consumió en process-card-payment).
+                // Fallback: pedimos preapproval SIN token → init_point.
+                // create-mp-preapproval mandará el mail con el link.
+                if (wantsAutoRenewal) {
                   try {
                     const preapprovalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`;
                     const ppRes = await fetch(preapprovalUrl, {
@@ -279,15 +321,16 @@ const CardPaymentForm = ({
                         transaction_amount: planPrice,
                       }),
                     });
-                    const ppData = await ppRes.json();
+                    const ppData = await ppRes.json().catch(() => null);
                     if (ppRes.ok && ppData?.init_point) {
-                      // Redirect to MP for the user to authorize the recurring agreement.
+                      // Redirigimos a MP para autorizar; si no completa,
+                      // el mail que ya salió le va a permitir volver luego.
                       window.location.href = ppData.init_point;
                       return;
                     }
-                    console.warn("Preapproval setup failed, continuing without auto-renewal:", ppData);
+                    console.warn("Preapproval fallback (redirect) failed:", ppData);
                   } catch (ppErr) {
-                    console.warn("Preapproval setup error:", ppErr);
+                    console.warn("Preapproval fallback error:", ppErr);
                   }
                 }
                 navigate("/pago-resultado?status=approved");
