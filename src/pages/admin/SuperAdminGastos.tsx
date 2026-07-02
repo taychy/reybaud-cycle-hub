@@ -89,9 +89,6 @@ const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label
 const FORMA_PAGO_LABELS = GASTO_PAYMENT_LABELS;
 
 
-
-const FORMA_PAGO_LABELS: Record<string, string> = Object.fromEntries(FORMA_PAGO_OPTS.map(o => [o.v, o.l]));
-
 const fmt = (n: number, m: string = "ARS") => formatPrice(n || 0, m);
 const monthLabel = (m: string) => {
   const [y, mm] = m.split("-");
