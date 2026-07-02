@@ -49,10 +49,13 @@ interface Props {
 
 type FilterTab = "pendientes" | "vencidos" | "pagados";
 
-import { GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS } from "@/lib/gastoPaymentMethods";
+import {
+  GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS, normalizeGastoPaymentMethod,
+} from "@/lib/gastoPaymentMethods";
 
 const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label }));
 const FORMA_PAGO_LABELS: Record<string, string> = GASTO_PAYMENT_LABELS;
+
 
 
 const AMBITO_LABEL: Record<Ambito, string> = {
