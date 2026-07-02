@@ -111,7 +111,7 @@ interface Notification {
   created_at: string;
 }
 
-type NotifTemplateKey = "pago_registrado" | "plan_pagos" | "cuota_pendiente" | "cuota_proxima" | "novedad" | "recordatorio_checklist";
+type NotifTemplateKey = "pago_registrado" | "plan_pagos" | "cuota_pendiente" | "cuota_proxima" | "cuota_pago_mp" | "novedad" | "recordatorio_checklist";
 
 /** Construye texto + HTML con el plan de pagos a partir de las cuotas materializadas. */
 const buildPlanPagos = (
@@ -187,6 +187,12 @@ const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; 
     asunto: "Tu cuota vence pronto — {{evento}}",
     contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe avisamos que ${ctx.cuota_label || "tu próxima cuota"}${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento} vence el ${ctx.vencimiento || "a coordinar"}.\n\nSaldo actual: ${ctx.saldo}\n\nRecordá realizar el pago antes del vencimiento.`,
     html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#2563eb">Próximo vencimiento</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p><strong>${ctx.cuota_label || "Tu próxima cuota"}</strong>${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong> vence el <strong>${ctx.vencimiento || "a coordinar"}</strong>.</p><p>Saldo actual: <strong>${ctx.saldo}</strong></p><p>Recordá realizar el pago antes del vencimiento.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
+  },
+  cuota_pago_mp: {
+    label: "Cuota con link de pago (MP)",
+    asunto: "Pagá tu cuota — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés ${ctx.cuota_label || "una cuota"} pendiente${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento || "a coordinar"}\n\nPodés abonarla directamente por Mercado Pago desde este link:\n${ctx.mp_link || "(link no disponible)"}\n\nCualquier duda, escribinos.\n\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Pagá tu cuota</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés <strong>${ctx.cuota_label || "una cuota"}</strong> pendiente${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento || "a coordinar"}</strong></p>${ctx.mp_link ? `<div style="text-align:center;margin:24px 0"><a href="${ctx.mp_link}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div><p style="text-align:center;font-size:12px;color:#6b7280">o copiá este link: ${ctx.mp_link}</p>` : `<p style="color:#dc2626">Link de pago no disponible.</p>`}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`,
   },
 
   novedad: {
@@ -351,6 +357,8 @@ const AdminEventReservations = ({
   const [notifyHtml, setNotifyHtml] = useState("");
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
+  const [mpPayUrl, setMpPayUrl] = useState<string>("");
+  const [preparingMpLink, setPreparingMpLink] = useState(false);
   const [detailTab, setDetailTab] = useState("info");
   const [participantResult, setParticipantResult] = useState<any | null>(null);
 
@@ -446,6 +454,7 @@ const AdminEventReservations = ({
       plan_pagos: "#1a1a2e",
       cuota_pendiente: "#d97706",
       cuota_proxima: "#2563eb",
+      cuota_pago_mp: "#009ee3",
       novedad: "#1a1a2e",
       recordatorio_checklist: "#d97706",
     };
@@ -454,14 +463,18 @@ const AdminEventReservations = ({
       plan_pagos: "Tu plan de pagos",
       cuota_pendiente: "Cuota pendiente",
       cuota_proxima: "Próximo vencimiento",
+      cuota_pago_mp: "Pagá tu cuota",
       novedad: "Novedad",
       recordatorio_checklist: "Falta tu información del viaje",
     };
     const color = colorMap[tipo] || "#1a1a2e";
     const title = titleMap[tipo] || "Notificación";
     const htmlBody = text.replace(/\n/g, "<br/>");
-    const cta = buildCtaButton(reservaLink);
-    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
+    const mpBtn = (tipo === "cuota_pago_mp" && mpPayUrl)
+      ? `<div style="text-align:center;margin:24px 0"><a href="${mpPayUrl}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div>`
+      : "";
+    const cta = tipo === "cuota_pago_mp" ? "" : buildCtaButton(reservaLink);
+    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${mpBtn}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
   };
 
   const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, _contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
@@ -2183,6 +2196,45 @@ const AdminEventReservations = ({
                           plan_html: plan.html,
                           total: formatPrice(selectedRes.amount_total || 0, evCurr),
                         };
+                      }
+                      // Reset MP link for any template switch
+                      setMpPayUrl("");
+                      if (key === "cuota_pago_mp") {
+                        setPreparingMpLink(true);
+                        try {
+                          const instsList = await ensureMatInstallments(selectedRes.id);
+                          const nextInst: any = instsList.find((i: any) =>
+                            (i.status === "pendiente" || i.status === "parcial" || i.status === "vencida") &&
+                            Number(i.balance_due ?? i.amount ?? 0) > 0
+                          );
+                          if (!nextInst) {
+                            toast({ title: "No hay cuotas pendientes", variant: "destructive" });
+                            setPreparingMpLink(false);
+                            return;
+                          }
+                          const { data: mpData, error: mpErr } = await supabase.functions.invoke("create-event-mp-preference", {
+                            body: {
+                              reservation_id: selectedRes.id,
+                              installment_number: nextInst.installment_number,
+                            },
+                          });
+                          if (mpErr || !mpData?.init_point) {
+                            toast({ title: "No se pudo generar el link de Mercado Pago", description: mpErr?.message || mpData?.error || "", variant: "destructive" });
+                            setPreparingMpLink(false);
+                            return;
+                          }
+                          setMpPayUrl(mpData.init_point);
+                          extra = {
+                            monto_cuota: Number(nextInst.balance_due ?? nextInst.amount ?? 0),
+                            vencimiento: nextInst.due_date
+                              ? new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+                              : "a coordinar",
+                            cuota_label: nextInst.label || `Cuota ${nextInst.installment_number || ""}`.trim(),
+                            mp_link: mpData.init_point,
+                          };
+                        } finally {
+                          setPreparingMpLink(false);
+                        }
                       }
                       prepareTemplate(key, selectedRes, extra);
                     }}>
