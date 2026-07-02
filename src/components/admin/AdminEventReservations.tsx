@@ -562,14 +562,36 @@ const AdminEventReservations = ({
     const { data: sessionData } = await supabase.auth.getSession();
     const adminEmail = sessionData?.session?.user?.email || "admin";
     const adminId = sessionData?.session?.user?.id;
-    const tpl = notifTemplates.recordatorio_checklist;
+
+    // Cargar plantilla editable desde `email_templates`; si no existe o está inactiva,
+    // caemos al template hardcodeado (compatibilidad hacia atrás).
+    const { data: tplRow } = await supabase
+      .from("email_templates")
+      .select("subject, html_body, text_body, is_active")
+      .eq("key", "reservation_checklist_reminder")
+      .maybeSingle();
+    const fallback = notifTemplates.recordatorio_checklist;
+    const useDb = !!tplRow && tplRow.is_active !== false;
+
+    const applyVars = (s: string, vars: Record<string, string>) =>
+      s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+
     let ok = 0, fail = 0;
     for (const res of targets) {
       const ctx = getNotifContext(res);
-      const subject = tpl.asunto.replace("{{evento}}", eventTitle);
-      const body = tpl.contenido(ctx);
       const reservaLink = getReservaLink(res);
-      const html = buildHtmlFromText(body, "recordatorio_checklist", reservaLink);
+      const vars = { nombre: ctx.nombre, evento: eventTitle, reserva_link: reservaLink };
+
+      const subject = useDb
+        ? applyVars(tplRow!.subject, vars)
+        : fallback.asunto.replace("{{evento}}", eventTitle);
+      const body = useDb && tplRow!.text_body
+        ? applyVars(tplRow!.text_body, vars)
+        : fallback.contenido(ctx);
+      const html = useDb && tplRow!.html_body
+        ? applyVars(tplRow!.html_body, vars)
+        : buildHtmlFromText(body, "recordatorio_checklist", reservaLink);
+
       const { error } = await supabase.functions.invoke("notify-reservation", {
         body: {
           reservation_id: res.id,
@@ -580,7 +602,7 @@ const AdminEventReservations = ({
           contenido_texto: body,
           enviado_por: adminId,
           enviado_por_email: adminEmail,
-          metadata: { bulk: true },
+          metadata: { bulk: true, template_key: useDb ? "reservation_checklist_reminder" : "hardcoded_fallback" },
           idempotency_key: `bulk-checklist-${res.id}-${new Date().toISOString().slice(0, 10)}`,
           canal: "email",
         },
