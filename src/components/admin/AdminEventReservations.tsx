@@ -309,6 +309,8 @@ const AdminEventReservations = ({
   const [filterPayStatus, setFilterPayStatus] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
+  const [showTripReports, setShowTripReports] = useState(false);
+
 
   // Detail drawer
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
@@ -1243,6 +1245,11 @@ const AdminEventReservations = ({
           >
             {sendingBulkReminder ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Bell className="w-4 h-4 mr-1.5" />}
             Recordar preparación
+          </Button>
+        )}
+        {isTripLike && (
+          <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
+            <FileText className="w-4 h-4 mr-1.5" /> Reportes
           </Button>
         )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
