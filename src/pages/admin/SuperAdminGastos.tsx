@@ -1176,57 +1176,109 @@ const SuperAdminGastos = () => {
             <CardContent className="p-0">
               {(() => {
                 const q = searchHistorico.trim().toLowerCase();
-                const filteredG = q
-                  ? gastos.filter(g => [g.descripcion, g.categoria, g.subcategoria, g.proveedor, FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago, g.notas]
-                      .filter(Boolean).join(" ").toLowerCase().includes(q))
-                  : gastos;
-                return filteredG.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground text-sm">{q ? "Sin resultados." : "Sin movimientos"}</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Categoría</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Forma de pago</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead className="w-20">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(q ? filteredG : filteredG.slice(0, 30)).map(g => (
-                      <TableRow key={g.id}>
-                        <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
-                        <TableCell className="text-sm max-w-[300px] truncate">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate">{g.descripcion}</span>
-                            {g.mp_payment_id && (
-                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0" title={`MP ${g.mp_payment_id} · ${g.mp_status ?? ""}`}>
-                                MP
-                              </Badge>
-                            )}
-                            {g.estado_conciliacion === "pendiente_conciliar" && (
-                              <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0" title="Pendiente de conciliar">
-                                ⚠
-                              </Badge>
-                            )}
+                const years = Array.from(new Set(gastos.map(g => g.fecha?.slice(0, 4)).filter(Boolean))).sort().reverse();
+                const cats = Array.from(new Set(gastos.map(g => g.categoria).filter(Boolean))).sort();
+                const filteredG = gastos
+                  .filter(g => histYearFilter === "todos" ? true : g.fecha?.startsWith(histYearFilter))
+                  .filter(g => histMonthFilter === "todos" ? true : g.fecha?.slice(5, 7) === histMonthFilter)
+                  .filter(g => histCategoriaFilter === "todas" ? true : g.categoria === histCategoriaFilter)
+                  .filter(g => !q ? true : [g.descripcion, g.categoria, g.subcategoria, g.proveedor, FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago, g.notas]
+                    .filter(Boolean).join(" ").toLowerCase().includes(q));
+                const totalMonto = filteredG.reduce((a, g) => a + (Number(g.monto) || 0), 0);
+                const visible = filteredG.slice(0, histLimit);
+                return (
+                  <>
+                    <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b">
+                      <Select value={histYearFilter} onValueChange={(v) => { setHistYearFilter(v); setHistLimit(50); }}>
+                        <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Año" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos los años</SelectItem>
+                          {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={histMonthFilter} onValueChange={(v) => { setHistMonthFilter(v); setHistLimit(50); }}>
+                        <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="Mes" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos los meses</SelectItem>
+                          {["01","02","03","04","05","06","07","08","09","10","11","12"].map(m => (
+                            <SelectItem key={m} value={m}>{new Date(2000, Number(m) - 1, 1).toLocaleDateString("es-AR", { month: "long" })}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={histCategoriaFilter} onValueChange={(v) => { setHistCategoriaFilter(v); setHistLimit(50); }}>
+                        <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="Categoría" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Todas las categorías</SelectItem>
+                          {cats.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {(histYearFilter !== "todos" || histMonthFilter !== "todos" || histCategoriaFilter !== "todas") && (
+                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setHistYearFilter("todos"); setHistMonthFilter("todos"); setHistCategoriaFilter("todas"); setHistLimit(50); }}>
+                          Limpiar filtros
+                        </Button>
+                      )}
+                    </div>
+                    {filteredG.length === 0 ? (
+                      <div className="py-12 text-center text-muted-foreground text-sm">No hay movimientos con los filtros aplicados.</div>
+                    ) : (
+                      <>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Fecha</TableHead>
+                              <TableHead>Categoría</TableHead>
+                              <TableHead>Descripción</TableHead>
+                              <TableHead>Forma de pago</TableHead>
+                              <TableHead className="text-right">Monto</TableHead>
+                              <TableHead className="w-20">Acción</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {visible.map(g => (
+                              <TableRow key={g.id}>
+                                <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
+                                <TableCell><Badge variant="outline" className="text-xs">{g.categoria}</Badge></TableCell>
+                                <TableCell className="text-sm max-w-[300px] truncate">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="truncate">{g.descripcion}</span>
+                                    {g.mp_payment_id && (
+                                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0" title={`MP ${g.mp_payment_id} · ${g.mp_status ?? ""}`}>MP</Badge>
+                                    )}
+                                    {g.estado_conciliacion === "pendiente_conciliar" && (
+                                      <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0" title="Pendiente de conciliar">⚠</Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
+                                <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <div className="px-4 py-3 border-t bg-muted/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="text-muted-foreground">
+                            Mostrando <span className="font-semibold text-foreground">{visible.length}</span> de <span className="font-semibold text-foreground">{filteredG.length}</span> movimiento{filteredG.length !== 1 ? "s" : ""}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
-                        <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
+                          <div className="flex items-center gap-3">
+                            {visible.length < filteredG.length && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setHistLimit(l => l + 50)}>Cargar 50 más</Button>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Total filtrado:</span>
+                              <span className="font-heading font-bold text-sm">{fmt(totalMonto)}</span>
+                            </div>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              );
+                        </div>
+                      </>
+                    )}
+                  </>
+                );
               })()}
             </CardContent>
           </Card>
