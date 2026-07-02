@@ -104,14 +104,20 @@ export default function AdminBroadcasts() {
   const loadAll = async () => {
     const [bres, tres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
       supabase.from("broadcasts" as any).select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("broadcast_templates" as any).select("*").order("updated_at", { ascending: false }),
+      supabase.from("email_templates" as any).select("key, subject, html_body, description, category").eq("category", "broadcast").order("updated_at", { ascending: false }),
       supabase.from("sedes" as any).select("id, nombre").order("nombre"),
       supabase.from("broadcast_sender_config" as any).select("*").limit(1).maybeSingle(),
       supabase.from("alumnos" as any).select("id, nombre, apellido, email, estado, grupo, sede_id").not("email", "is", null).order("nombre"),
       supabase.from("coaches" as any).select("id, nombre, email, estado, grupos, sede_id").not("email", "is", null).order("nombre"),
     ]);
     setBroadcasts((bres.data as any) || []);
-    setTemplates((tres.data as any) || []);
+    setTemplates(((tres.data as any[]) || []).map((r) => ({
+      key: r.key,
+      name: (r.description as string) || (r.key as string).replace(/_/g, " "),
+      description: r.description,
+      subject: r.subject,
+      content_html: r.html_body,
+    })));
     setSedes((sres.data as any) || []);
     setContacts([
       ...(((alumnosRes.data as any[]) || []).map((a) => ({
