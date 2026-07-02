@@ -31,6 +31,7 @@ const STEP_LABELS: Record<string, string> = {
   alojamiento: "Alojamiento",
   equipaje: "Equipaje",
   alquiler: "Alquiler de bici",
+  extras: "Extras",
 };
 
 const ALL_STEPS = ["bici", "pedales", "pasaje", "seguro"];
@@ -40,9 +41,29 @@ const labelFor = (key: string) =>
 
 const isImage = (url: string) => /\.(jpe?g|png|webp|gif|jfif|heic)(\?|$)/i.test(url);
 
-const formatDataValue = (key: string, value: any) => {
+const formatMoney = (n: number, currency = "ARS") => {
+  try { return new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 0 }).format(n); }
+  catch { return `${currency} ${n.toLocaleString("es-AR")}`; }
+};
+
+const isAddonLike = (v: any) =>
+  v && typeof v === "object" && ("nombre" in v || "addon_id" in v || "precio_unitario" in v);
+
+const formatDataValue = (key: string, value: any): string => {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    if (value.every(isAddonLike)) {
+      return value.map((it: any) => {
+        const qty = it.cantidad && it.cantidad > 1 ? ` ×${it.cantidad}` : "";
+        const price = it.precio_unitario != null ? ` — ${formatMoney(Number(it.precio_unitario) * (it.cantidad || 1), it.currency)}` : "";
+        return `${it.nombre || it.addon_id || "—"}${qty}${price}`;
+      }).join("\n");
+    }
+    return value.map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(", ");
+  }
+  if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 };
 
@@ -64,6 +85,8 @@ const dataLabel = (key: string) => {
     needs_transfer: "Transfer",
     arrival_notes: "Comentarios llegada",
     departure_date: "Regreso",
+    selected: "Extras elegidos",
+    declined: "Rechazó extras",
   };
   return map[key] || key.replace(/_/g, " ");
 };
@@ -227,12 +250,15 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
 
               {row && dataEntries.length > 0 && (
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 pl-6 text-xs mb-2">
-                  {dataEntries.map(([k, v]) => (
-                    <div key={k} className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground capitalize">{dataLabel(k)}</span>
-                      <span className="font-medium">{formatDataValue(k, v)}</span>
-                    </div>
-                  ))}
+                  {dataEntries.map(([k, v]) => {
+                    const wide = Array.isArray(v);
+                    return (
+                      <div key={k} className={`flex flex-col ${wide ? "col-span-2" : ""}`}>
+                        <span className="text-[10px] text-muted-foreground capitalize">{dataLabel(k)}</span>
+                        <span className="font-medium whitespace-pre-line">{formatDataValue(k, v)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
