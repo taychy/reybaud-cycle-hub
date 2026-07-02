@@ -2364,6 +2364,13 @@ const AdminEventReservations = ({
           onDone={() => { setChangePackageFor(null); loadReservations(); }}
         />
       )}
+
+      <EventTripReports
+        open={showTripReports}
+        onOpenChange={setShowTripReports}
+        eventId={eventId}
+        eventTitle={eventTitle}
+      />
     </div>
   );
 };
