@@ -759,33 +759,6 @@ export default function AdminBroadcasts() {
             </Card>
           ))}
         </TabsContent>
-
-        {/* TEMPLATES */}
-        <TabsContent value="templates" className="space-y-2">
-          <Button variant="gold" onClick={() => { setEditingTemplate({ key: "", name: "", description: "", subject: "", content_html: "" }); setShowTemplateDialog(true); }}>
-            <Plus className="w-4 h-4 mr-1" />Nueva plantilla
-          </Button>
-          {templates.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No hay plantillas. Guardá una desde el composer o creala acá.
-            </div>
-          ) : templates.map(t => (
-            <Card key={t.key} className="p-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{t.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{t.subject}</div>
-                {t.description && <div className="text-[11px] text-muted-foreground">{t.description}</div>}
-              </div>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => useTemplate(t)}>Usar</Button>
-                <Button variant="ghost" size="sm" onClick={() => { setEditingTemplate(t); setShowTemplateDialog(true); }}>Editar</Button>
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteTemplate(t.key)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </TabsContent>
       </Tabs>
 
       {/* Sender dialog */}
