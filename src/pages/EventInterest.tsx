@@ -62,6 +62,17 @@ export default function EventInterest() {
               Un asesor de Reybaud te va a contactar en las próximas horas para conversar sobre {titulo.toLowerCase()}.
             </p>
             <Button asChild variant="gold" className="w-full">
+              <a
+                href={`https://wa.me/5491140312299?text=${encodeURIComponent(
+                  `Hola! Soy ${nombre || "(nombre)"}. Vi el mail del Training Camp San Luis 2026 y quiero info sobre ${titulo.toLowerCase()}.`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Escribirnos por WhatsApp
+              </a>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
               <Link to={`/eventos/${eventId}`}>Ver detalle del camp</Link>
             </Button>
           </div>
