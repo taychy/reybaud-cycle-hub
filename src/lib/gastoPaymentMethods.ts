@@ -42,3 +42,24 @@ export const formatGastoPaymentMethod = (value: string | null | undefined): stri
   if (!value) return "—";
   return GASTO_PAYMENT_LABELS[value] ?? value;
 };
+
+/**
+ * Mapea valores heredados a los nuevos códigos vigentes.
+ * Se usa para inicializar selectores sin dejarlos vacíos.
+ */
+const LEGACY_ALIAS: Record<string, string> = {
+  transferencia: "bbva_claudio",
+  tarjeta_credito: "tarjeta",
+  mp_personal: "mp_claudio",
+  mp_escuela: "mp_scarlett_viajes",
+  mp_tienda: "mp_scarlett_tienda",
+  mc_personal: "mp_claudio",
+  banco: "bbva_claudio",
+};
+
+export const normalizeGastoPaymentMethod = (value: string | null | undefined): string => {
+  if (!value) return "efectivo";
+  if (GASTO_PAYMENT_LABELS[value] && GASTO_PAYMENT_METHODS.some(m => m.value === value)) return value;
+  return LEGACY_ALIAS[value] ?? "efectivo";
+};
+
