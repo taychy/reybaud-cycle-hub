@@ -725,7 +725,7 @@ export default function AdminBroadcasts() {
                   variant="outline"
                   onClick={() => {
                     setEditingTemplate({
-                      id: "", name: "", description: "",
+                      key: "", name: "", description: "",
                       subject: composer.subject, content_html: composer.content_html,
                     });
                     setShowTemplateDialog(true);
