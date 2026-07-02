@@ -357,6 +357,8 @@ const AdminEventReservations = ({
   const [notifyHtml, setNotifyHtml] = useState("");
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifyCustomMessage, setNotifyCustomMessage] = useState("");
+  const [mpPayUrl, setMpPayUrl] = useState<string>("");
+  const [preparingMpLink, setPreparingMpLink] = useState(false);
   const [detailTab, setDetailTab] = useState("info");
   const [participantResult, setParticipantResult] = useState<any | null>(null);
 
