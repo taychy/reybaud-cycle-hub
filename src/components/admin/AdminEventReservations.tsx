@@ -474,8 +474,9 @@ const AdminEventReservations = ({
     const mpBtn = (tipo === "cuota_pago_mp" && mpPayUrl)
       ? `<div style="text-align:center;margin:24px 0"><a href="${mpPayUrl}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div>`
       : "";
-    const cta = tipo === "cuota_pago_mp" ? "" : buildCtaButton(reservaLink);
-    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${mpBtn}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
+    const cta = buildCtaButton(reservaLink);
+    const ctaLabel = tipo === "cuota_pago_mp" ? cta.replace("Ver mi reserva", "Ver estado de mi reserva") : cta;
+    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${mpBtn}${ctaLabel}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
   };
 
   const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, _contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
