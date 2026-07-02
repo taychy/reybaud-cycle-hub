@@ -41,9 +41,6 @@ interface Broadcast {
   sent_at: string | null;
   segment_filters: any;
 }
-interface Template {
-  key: string; name: string; description: string | null; subject: string; content_html: string;
-}
 interface Sede { id: string; nombre: string }
 interface Contact {
   id: string;
