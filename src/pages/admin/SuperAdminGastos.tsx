@@ -1045,65 +1045,116 @@ const SuperAdminGastos = () => {
                   </TabsList>
                 </div>
                 <TabsContent value={catalogoTipoTab} className="mt-2">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Concepto</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead>Ámbito</TableHead>
-                        <TableHead>Frec.</TableHead>
-                        <TableHead>Vence día</TableHead>
-                        <TableHead>Resp.</TableHead>
-                        <TableHead className="text-right">Estimado</TableHead>
-                        <TableHead>Activo</TableHead>
-                        <TableHead className="w-20">Acción</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {recurrentes
-                        .filter(r => (r.tipo || "fijo") === catalogoTipoTab)
-                        .filter(r => showArchivados ? !!r.archivado_at : !r.archivado_at)
-                        .filter(r => {
-                          const q = searchCatalogo.trim().toLowerCase();
-                          if (!q) return true;
-                          return [r.concepto, r.categoria, r.proveedor, r.responsable]
-                            .filter(Boolean).join(" ").toLowerCase().includes(q);
-                        })
-                        .map(r => (
-                        <TableRow key={r.id} className={r.archivado_at ? "opacity-60 bg-muted/30" : (!r.activo ? "opacity-50" : "")}>
-                          <TableCell className="font-medium text-sm">
-                            {r.concepto}
-                            {r.archivado_at && <Badge variant="outline" className="ml-2 text-[10px] gap-1"><Archive className="w-3 h-3" />Archivado</Badge>}
-                          </TableCell>
-                          <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
-                          <TableCell>{ambitoBadge(r.ambito)}</TableCell>
-                          <TableCell className="text-xs">{r.frecuencia}</TableCell>
-                          <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
-                          <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
-                          <TableCell>{r.activo && !r.archivado_at ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
-                              {r.archivado_at ? (
-                                <>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => archiveRec(r)} title="Reactivar"><ArchiveRestore className="w-3 h-3" /></Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => hardDeleteRec(r)} title="Eliminar definitivamente (solo si no tiene historial)"><Trash2 className="w-3 h-3" /></Button>
-                                </>
-                              ) : (
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => archiveRec(r)} title="Archivar (conserva historial)"><Archive className="w-3 h-3" /></Button>
-                              )}
+                  {(() => {
+                    const baseRows = recurrentes
+                      .filter(r => (r.tipo || "fijo") === catalogoTipoTab)
+                      .filter(r => showArchivados ? !!r.archivado_at : !r.archivado_at);
+                    const cats = Array.from(new Set(baseRows.map(r => r.categoria).filter(Boolean))).sort();
+                    const filtered = baseRows
+                      .filter(r => catAmbitoFilter === "todos" ? true : r.ambito === catAmbitoFilter)
+                      .filter(r => catCategoriaFilter === "todas" ? true : r.categoria === catCategoriaFilter)
+                      .filter(r => {
+                        const q = searchCatalogo.trim().toLowerCase();
+                        if (!q) return true;
+                        return [r.concepto, r.categoria, r.proveedor, r.responsable]
+                          .filter(Boolean).join(" ").toLowerCase().includes(q);
+                      });
+                    const totalsByAmbito = filtered.reduce((acc, r) => {
+                      const key = r.ambito;
+                      const monto = Number(r.monto_estimado) || 0;
+                      const factor = r.frecuencia === "bimestral" ? 0.5 : r.frecuencia === "trimestral" ? 1/3 : r.frecuencia === "semestral" ? 1/6 : r.frecuencia === "anual" ? 1/12 : 1;
+                      acc[key] = (acc[key] || 0) + monto * factor;
+                      return acc;
+                    }, {} as Record<string, number>);
+                    const totalMensual = Object.values(totalsByAmbito).reduce((a, b) => a + b, 0);
+                    return (
+                      <>
+                        <div className="px-4 pb-3 flex flex-wrap items-center gap-2 border-b">
+                          <div className="flex gap-1">
+                            {(["todos","emprendimiento","personal","mixto"] as const).map(a => (
+                              <Button key={a} size="sm" variant={catAmbitoFilter === a ? "default" : "outline"} className="h-7 text-xs capitalize" onClick={() => setCatAmbitoFilter(a)}>
+                                {a === "todos" ? "Todos" : a === "emprendimiento" ? "Empresa" : a === "personal" ? "Personal" : "Mixto"}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            <Button size="sm" variant={catCategoriaFilter === "todas" ? "default" : "outline"} className="h-7 text-xs" onClick={() => setCatCategoriaFilter("todas")}>Todas categorías</Button>
+                            {cats.map(c => (
+                              <Button key={c} size="sm" variant={catCategoriaFilter === c ? "default" : "outline"} className="h-7 text-xs" onClick={() => setCatCategoriaFilter(c)}>{c}</Button>
+                            ))}
+                          </div>
+                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Concepto</TableHead>
+                              <TableHead>Categoría</TableHead>
+                              <TableHead>Ámbito</TableHead>
+                              <TableHead>Frec.</TableHead>
+                              <TableHead>Vence día</TableHead>
+                              <TableHead>Resp.</TableHead>
+                              <TableHead className="text-right">Estimado</TableHead>
+                              <TableHead>Activo</TableHead>
+                              <TableHead className="w-20">Acción</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filtered.length === 0 && (
+                              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-8">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                            )}
+                            {filtered.map(r => (
+                              <TableRow key={r.id} className={r.archivado_at ? "opacity-60 bg-muted/30" : (!r.activo ? "opacity-50" : "")}>
+                                <TableCell className="font-medium text-sm">
+                                  {r.concepto}
+                                  {r.archivado_at && <Badge variant="outline" className="ml-2 text-[10px] gap-1"><Archive className="w-3 h-3" />Archivado</Badge>}
+                                </TableCell>
+                                <TableCell><Badge variant="outline" className="text-xs">{r.categoria}</Badge></TableCell>
+                                <TableCell>{ambitoBadge(r.ambito)}</TableCell>
+                                <TableCell className="text-xs">{r.frecuencia}</TableCell>
+                                <TableCell className="text-xs">{r.dia_vencimiento || "—"}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{r.responsable || "—"}</TableCell>
+                                <TableCell className="text-right text-sm">{fmt(r.monto_estimado, r.moneda)}</TableCell>
+                                <TableCell>{r.activo && !r.archivado_at ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : "—"}</TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditRec(r)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                                    {r.archivado_at ? (
+                                      <>
+                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => archiveRec(r)} title="Reactivar"><ArchiveRestore className="w-3 h-3" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => hardDeleteRec(r)} title="Eliminar definitivamente (solo si no tiene historial)"><Trash2 className="w-3 h-3" /></Button>
+                                      </>
+                                    ) : (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => archiveRec(r)} title="Archivar (conserva historial)"><Archive className="w-3 h-3" /></Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {filtered.length > 0 && (
+                          <div className="px-4 py-3 border-t bg-muted/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+                            <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
+                              <span>{filtered.length} concepto{filtered.length !== 1 ? "s" : ""}</span>
+                              {(["emprendimiento","personal","mixto"] as const).map(a => totalsByAmbito[a] ? (
+                                <span key={a} className="flex items-center gap-1">{ambitoBadge(a)}<span className="font-mono">{fmt(totalsByAmbito[a])}</span></span>
+                              ) : null)}
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Total mensual estimado:</span>
+                              <span className="font-heading font-bold text-sm">{fmt(totalMensual)}</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
+
 
         {/* HISTORICO */}
         <TabsContent value="historico" className="mt-4">
