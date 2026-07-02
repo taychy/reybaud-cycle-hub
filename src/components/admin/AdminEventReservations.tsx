@@ -2197,6 +2197,45 @@ const AdminEventReservations = ({
                           total: formatPrice(selectedRes.amount_total || 0, evCurr),
                         };
                       }
+                      // Reset MP link for any template switch
+                      setMpPayUrl("");
+                      if (key === "cuota_pago_mp") {
+                        setPreparingMpLink(true);
+                        try {
+                          const instsList = await ensureMatInstallments(selectedRes.id);
+                          const nextInst: any = instsList.find((i: any) =>
+                            (i.status === "pendiente" || i.status === "parcial" || i.status === "vencida") &&
+                            Number(i.balance_due ?? i.amount ?? 0) > 0
+                          );
+                          if (!nextInst) {
+                            toast({ title: "No hay cuotas pendientes", variant: "destructive" });
+                            setPreparingMpLink(false);
+                            return;
+                          }
+                          const { data: mpData, error: mpErr } = await supabase.functions.invoke("create-event-mp-preference", {
+                            body: {
+                              reservation_id: selectedRes.id,
+                              installment_number: nextInst.installment_number,
+                            },
+                          });
+                          if (mpErr || !mpData?.init_point) {
+                            toast({ title: "No se pudo generar el link de Mercado Pago", description: mpErr?.message || mpData?.error || "", variant: "destructive" });
+                            setPreparingMpLink(false);
+                            return;
+                          }
+                          setMpPayUrl(mpData.init_point);
+                          extra = {
+                            monto_cuota: Number(nextInst.balance_due ?? nextInst.amount ?? 0),
+                            vencimiento: nextInst.due_date
+                              ? new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+                              : "a coordinar",
+                            cuota_label: nextInst.label || `Cuota ${nextInst.installment_number || ""}`.trim(),
+                            mp_link: mpData.init_point,
+                          };
+                        } finally {
+                          setPreparingMpLink(false);
+                        }
+                      }
                       prepareTemplate(key, selectedRes, extra);
                     }}>
 
