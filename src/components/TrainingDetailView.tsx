@@ -53,6 +53,11 @@ function inferBlockMinutes(block: TrainingBlock): number {
   }
 
   for (const raw of parts) {
+    // Skip explanatory/limit bullets (e.g. "Calentamiento 30 minutos - No pasar"),
+    // which describe a ceiling/rule instead of adding to duration.
+    if (/\bno\s+(pasar|superar|exceder|bajar|subir)\b|\bm[áa]x(imo)?\b|\bm[íi]n(imo)?\b|\bl[íi]mite\b|\bhasta\b/i.test(raw)) {
+      continue;
+    }
     // Strip parts that aren't durations
     const text = raw.replace(/\d+\s*(?:RPM|km\/h|%|kg|w|watts?|ppm|bpm)/gi, " ");
     let bulletTotal = 0;
