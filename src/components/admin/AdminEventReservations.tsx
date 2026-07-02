@@ -188,6 +188,12 @@ const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; 
     contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe avisamos que ${ctx.cuota_label || "tu próxima cuota"}${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento} vence el ${ctx.vencimiento || "a coordinar"}.\n\nSaldo actual: ${ctx.saldo}\n\nRecordá realizar el pago antes del vencimiento.`,
     html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#2563eb">Próximo vencimiento</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p><strong>${ctx.cuota_label || "Tu próxima cuota"}</strong>${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong> vence el <strong>${ctx.vencimiento || "a coordinar"}</strong>.</p><p>Saldo actual: <strong>${ctx.saldo}</strong></p><p>Recordá realizar el pago antes del vencimiento.</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`,
   },
+  cuota_pago_mp: {
+    label: "Cuota con link de pago (MP)",
+    asunto: "Pagá tu cuota — {{evento}}",
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés ${ctx.cuota_label || "una cuota"} pendiente${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento || "a coordinar"}\n\nPodés abonarla directamente por Mercado Pago desde este link:\n${ctx.mp_link || "(link no disponible)"}\n\nCualquier duda, escribinos.\n\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Pagá tu cuota</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés <strong>${ctx.cuota_label || "una cuota"}</strong> pendiente${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento || "a coordinar"}</strong></p>${ctx.mp_link ? `<div style="text-align:center;margin:24px 0"><a href="${ctx.mp_link}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div><p style="text-align:center;font-size:12px;color:#6b7280">o copiá este link: ${ctx.mp_link}</p>` : `<p style="color:#dc2626">Link de pago no disponible.</p>`}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`,
+  },
 
   novedad: {
     label: "Novedad / comunicado",
