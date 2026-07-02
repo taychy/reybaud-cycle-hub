@@ -180,6 +180,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agenda_grupal_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agenda_grupal_honorario_id_fkey"
             columns: ["honorario_id"]
             isOneToOne: false
@@ -558,6 +565,13 @@ export type Database = {
             referencedRelation: "coaches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "asesoria_asignaciones_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       asistencias: {
@@ -687,6 +701,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ausencias_coaches_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1078,6 +1099,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "clases_consumidas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
             columns: ["suscripcion_id"]
             isOneToOne: false
@@ -1151,6 +1179,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_dictadas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
           {
@@ -1753,6 +1788,13 @@ export type Database = {
             referencedRelation: "coaches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "disponibilidad_ajustada_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       disponibilidad_coaches: {
@@ -1798,6 +1840,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_coaches_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
           {
@@ -3550,6 +3599,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "feedback_coach_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "feedback_coach_entrenamiento_id_fkey"
             columns: ["entrenamiento_id"]
             isOneToOne: false
@@ -4073,6 +4129,13 @@ export type Database = {
             referencedRelation: "coaches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "honorarios_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       importaciones_usuarios: {
@@ -4157,6 +4220,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_mensuales_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4358,6 +4428,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
           {
@@ -4946,6 +5023,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "redes_sociales_tareas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "redes_sociales_tareas_sede_id_fkey"
             columns: ["sede_id"]
             isOneToOne: false
@@ -5136,6 +5220,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
           {
@@ -7862,6 +7953,38 @@ export type Database = {
       }
     }
     Views: {
+      coaches_public: {
+        Row: {
+          estado: string | null
+          grupos: Database["public"]["Enums"]["grupo_ciclismo"][] | null
+          id: string | null
+          nombre: string | null
+          sede_id: string | null
+        }
+        Insert: {
+          estado?: string | null
+          grupos?: Database["public"]["Enums"]["grupo_ciclismo"][] | null
+          id?: string | null
+          nombre?: string | null
+          sede_id?: string | null
+        }
+        Update: {
+          estado?: string | null
+          grupos?: Database["public"]["Enums"]["grupo_ciclismo"][] | null
+          id?: string | null
+          nombre?: string | null
+          sede_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaches_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emisor_facturado_anual: {
         Row: {
           cuit: string | null
