@@ -557,6 +557,9 @@ const StudentDashboard = () => {
             {/* Failed auto-renewal banner */}
             {alumno && <FailedRenewalBanner alumnoId={alumno.id} />}
 
+            {/* Pending auto-renewal authorization banner */}
+            {alumno && <PendingAutoRenewalBanner alumnoId={alumno.id} />}
+
             {/* Banner: completar datos de facturación */}
             {alumno && !alumno.documento && !localStorage.getItem(`hide_billing_banner_${alumno.id}`) && (
               <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm">
