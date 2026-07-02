@@ -776,7 +776,7 @@ export default function AdminBroadcasts() {
 
         {/* TEMPLATES */}
         <TabsContent value="templates" className="space-y-2">
-          <Button variant="gold" onClick={() => { setEditingTemplate({ id: "", name: "", description: "", subject: "", content_html: "" }); setShowTemplateDialog(true); }}>
+          <Button variant="gold" onClick={() => { setEditingTemplate({ key: "", name: "", description: "", subject: "", content_html: "" }); setShowTemplateDialog(true); }}>
             <Plus className="w-4 h-4 mr-1" />Nueva plantilla
           </Button>
           {templates.length === 0 ? (
