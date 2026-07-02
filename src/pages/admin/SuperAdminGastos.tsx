@@ -158,6 +158,12 @@ const SuperAdminGastos = () => {
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
   const [showArchivados, setShowArchivados] = useState(false);
+  const [catAmbitoFilter, setCatAmbitoFilter] = useState<"todos" | Ambito>("todos");
+  const [catCategoriaFilter, setCatCategoriaFilter] = useState<string>("todas");
+  const [histYearFilter, setHistYearFilter] = useState<string>("todos");
+  const [histMonthFilter, setHistMonthFilter] = useState<string>("todos");
+  const [histCategoriaFilter, setHistCategoriaFilter] = useState<string>("todas");
+  const [histLimit, setHistLimit] = useState<number>(50);
   const [deudaExpanded, setDeudaExpanded] = useState(false);
 
   // Historial / auditoría
