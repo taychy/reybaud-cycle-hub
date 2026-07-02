@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Eye, Save, Settings, Mail, History, FileText, Users, AlertTriangle, Plus, Trash2, Loader2, Search, Contact as ContactIcon } from "lucide-react";
+import { Send, Eye, Settings, Mail, History, Users, AlertTriangle, Loader2, Search, Contact as ContactIcon } from "lucide-react";
 import MarketingContactsManager from "@/components/admin/MarketingContactsManager";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
