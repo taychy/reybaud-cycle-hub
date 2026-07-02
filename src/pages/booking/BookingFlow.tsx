@@ -144,7 +144,7 @@ const BookingFlow = () => {
 
       if (coachIds.length) {
         const { data: cs } = await supabase
-          .from("coaches").select("id, nombre, sede_id, estado")
+          .from("coaches_public" as any).select("id, nombre, sede_id, estado")
           .in("id", coachIds).eq("estado", "activo");
         const activos = (cs as any[]) || [];
         setCoaches(activos);
