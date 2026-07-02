@@ -1,23 +1,28 @@
-// Registra interés en un evento desde el email masivo (público).
-// Crea una tarea para admin con los datos del interesado.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3.23.8";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const BodySchema = z.object({
+  event_id: z.string().uuid(),
+  tipo: z.enum(["contacto", "personalizado", "reserva"]).default("contacto"),
+  email: z.string().email().max(320).optional().or(z.literal("")),
+  nombre: z.string().max(140).optional().or(z.literal("")),
+  fuente: z.string().max(80).optional().or(z.literal("")),
+});
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { event_id, email, tipo, nombre, fuente } = await req.json();
-    if (!event_id || !tipo) {
-      return new Response(JSON.stringify({ error: "event_id y tipo requeridos" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const parsed = BodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { event_id, email, tipo, nombre, fuente } = parsed.data;
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -35,7 +40,7 @@ Deno.serve(async (req) => {
 
     const dedupe = `interes:${event_id}:${tipo}:${(email || "sin-email").toLowerCase()}`;
 
-    await supabase.from("tareas").insert({
+    const { error: taskError } = await supabase.from("tareas").upsert({
       tipo: "automatica",
       origen: "email_masivo_interes",
       titulo: `${label} — ${evName}`,
@@ -47,7 +52,10 @@ Deno.serve(async (req) => {
       estado: "pendiente",
       dedupe_key: dedupe,
       metadata: { email, nombre, tipo, fuente, event_id },
-    });
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "dedupe_key" });
+
+    if (taskError) throw taskError;
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -11,10 +11,12 @@ export default function EventInterest() {
   const tipo = params.get("tipo") || "contacto";
   const emailQ = params.get("email") || "";
   const nombreQ = params.get("nombre") || "";
+  const isValidEmailQuery = /.+@.+\..+/.test(emailQ) && !/[{}]/.test(emailQ);
+  const cleanNombreQ = /[{}]/.test(nombreQ) ? "" : nombreQ;
 
-  const [email, setEmail] = useState(emailQ);
-  const [nombre, setNombre] = useState(nombreQ);
-  const [state, setState] = useState<"idle" | "sending" | "ok" | "error">(emailQ ? "sending" : "idle");
+  const [email, setEmail] = useState(isValidEmailQuery ? emailQ : "");
+  const [nombre, setNombre] = useState(cleanNombreQ);
+  const [state, setState] = useState<"idle" | "sending" | "ok" | "error">(isValidEmailQuery ? "sending" : "idle");
   const [error, setError] = useState("");
 
   const send = async (e?: React.FormEvent) => {
@@ -34,7 +36,7 @@ export default function EventInterest() {
   };
 
   useEffect(() => {
-    if (emailQ) send();
+    if (isValidEmailQuery) send();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

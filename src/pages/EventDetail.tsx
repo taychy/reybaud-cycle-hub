@@ -197,6 +197,12 @@ const EventDetail = () => {
       });
   }, [id]);
 
+  useEffect(() => {
+    if (!loading && window.location.hash === "#precios") {
+      window.setTimeout(() => document.getElementById("precios")?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+    }
+  }, [loading, packagesCount]);
+
 
   const loadReservation = useCallback(async () => {
     if (!id || !alumno) return;
@@ -682,7 +688,9 @@ const EventDetail = () => {
 
           {/* Botón siempre visible: ver precios, paquetes e inclusiones (también funciona sin login) */}
           {!isActiveReservation && id && packagesCount > 0 && (
-            <EventPackagesDrawer eventId={id} />
+            <div id="precios" className="scroll-mt-6">
+              <EventPackagesDrawer eventId={id} />
+            </div>
           )}
 
 
