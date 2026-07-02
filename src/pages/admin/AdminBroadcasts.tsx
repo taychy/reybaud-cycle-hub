@@ -298,57 +298,6 @@ export default function AdminBroadcasts() {
     loadAll();
   };
 
-  const saveTemplate = async () => {
-    if (!editingTemplate?.name || !editingTemplate?.subject || !editingTemplate?.content_html) {
-      toast({ title: "Faltan datos", variant: "destructive" });
-      return;
-    }
-    const slug = (editingTemplate.name || "")
-      .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 60);
-    if (editingTemplate.key) {
-      await supabase.from("email_templates" as any)
-        .update({
-          description: editingTemplate.description || editingTemplate.name,
-          subject: editingTemplate.subject,
-          html_body: editingTemplate.content_html,
-        } as any)
-        .eq("key", editingTemplate.key);
-    } else {
-      if (!slug) { toast({ title: "Nombre inválido para plantilla", variant: "destructive" }); return; }
-      const { error } = await supabase.from("email_templates" as any).insert({
-        key: `broadcast_${slug}_${Date.now().toString(36)}`,
-        subject: editingTemplate.subject,
-        html_body: editingTemplate.content_html,
-        description: editingTemplate.description || editingTemplate.name,
-        category: "broadcast",
-        wired: false,
-        is_active: true,
-        variables: [],
-        required_variables: [],
-      } as any);
-      if (error) { toast({ title: "Error al guardar", description: error.message, variant: "destructive" }); return; }
-    }
-    toast({ title: "Plantilla guardada" });
-    setShowTemplateDialog(false);
-    setEditingTemplate(null);
-    loadAll();
-  };
-
-  const useTemplate = (t: Template) => {
-    setComposer({ ...composer, subject: t.subject, content_html: t.content_html });
-    setTab("composer");
-    toast({ title: `Plantilla "${t.name}" cargada` });
-  };
-
-  const deleteTemplate = async (key: string) => {
-    await supabase.from("email_templates" as any).delete().eq("key", key);
-    loadAll();
-  };
-
   const openDetail = async (b: Broadcast) => {
     setShowDetail(b);
     const { data } = await supabase
