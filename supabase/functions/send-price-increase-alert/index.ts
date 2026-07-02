@@ -227,6 +227,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    const tpls = await loadTemplates(supabase);
     const body = await req.json().catch(() => ({}));
     const mode: 'test' | 'send' | 'preview' = body.mode === 'send' ? 'send' : body.mode === 'preview' ? 'preview' : 'test';
     const requestedEventId: string | null = body.event_id || null;
