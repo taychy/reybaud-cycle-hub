@@ -1710,10 +1710,13 @@ const AdminEventReservations = ({
               )}
 
               {/* Trip preparation checklist — only for camp/viaje */}
+              {/* Resumen consolidado del viaje (compra + pagos + configuración + comunicación) */}
               {isTripLike && (
-                <ReservationChecklistViewer
+                <TripSummary
                   reservationId={selectedRes.id}
                   alumnoId={selectedRes.alumno_id}
+                  eventCurrency={curr(selectedRes)}
+                  mode="admin"
                 />
               )}
               {/* Precio base del viaje (override por participante) */}
