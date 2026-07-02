@@ -18,6 +18,7 @@ import {
   ChevronDown, ChevronUp, Archive, ArchiveRestore, History, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import AgendaMes from "@/components/admin/gastos/AgendaMes";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
