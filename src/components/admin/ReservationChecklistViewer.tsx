@@ -250,12 +250,15 @@ export function ReservationChecklistViewer({ reservationId, alumnoId }: Props) {
 
               {row && dataEntries.length > 0 && (
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 pl-6 text-xs mb-2">
-                  {dataEntries.map(([k, v]) => (
-                    <div key={k} className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground capitalize">{dataLabel(k)}</span>
-                      <span className="font-medium">{formatDataValue(k, v)}</span>
-                    </div>
-                  ))}
+                  {dataEntries.map(([k, v]) => {
+                    const wide = Array.isArray(v);
+                    return (
+                      <div key={k} className={`flex flex-col ${wide ? "col-span-2" : ""}`}>
+                        <span className="text-[10px] text-muted-foreground capitalize">{dataLabel(k)}</span>
+                        <span className="font-medium whitespace-pre-line">{formatDataValue(k, v)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
