@@ -836,7 +836,7 @@ export default function AdminBroadcasts() {
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingTemplate?.id ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
+            <DialogTitle>{editingTemplate?.key ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
           </DialogHeader>
           {editingTemplate && (
             <div className="space-y-3">
