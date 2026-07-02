@@ -793,7 +793,7 @@ export default function AdminBroadcasts() {
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => useTemplate(t)}>Usar</Button>
                 <Button variant="ghost" size="sm" onClick={() => { setEditingTemplate(t); setShowTemplateDialog(true); }}>Editar</Button>
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteTemplate(t.id)}>
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteTemplate(t.key)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
