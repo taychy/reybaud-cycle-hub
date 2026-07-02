@@ -139,7 +139,8 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
     (amounts[e.id] ?? null) !== null && amounts[e.id] !== getSuggested(e, rec);
 
   const getMethod = (e: AgendaEjecucion, rec: AgendaRecurrente) =>
-    methods[e.id] ?? e.forma_pago ?? rec.forma_pago_default ?? "transferencia";
+    methods[e.id] ?? normalizeGastoPaymentMethod(e.forma_pago ?? rec.forma_pago_default);
+
 
   const handlePay = async (e: AgendaEjecucion, rec: AgendaRecurrente) => {
     const monto = Number(getAmount(e, rec));
