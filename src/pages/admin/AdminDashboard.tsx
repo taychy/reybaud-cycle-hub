@@ -164,7 +164,13 @@ const AdminDashboard = () => {
         .filter(s => !(s as any).cancelada_at && s.estado !== "cancelada")
         .map(s => ({
           s,
-          eff: getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as any).cancelada_at }),
+          eff: getEffectiveSubStatus({
+            estado: s.estado,
+            fecha_fin: s.fecha_fin,
+            cancelada_at: (s as any).cancelada_at,
+            mp_status: (s as any).mp_status,
+            origen_registro: (s as any).origen_registro,
+          }),
         }));
 
       const porCobrar = subsConEffect.filter(x => x.eff === "pendiente" || x.eff === "pago_pendiente");
