@@ -29,7 +29,9 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ReservationChecklistViewer } from "@/components/admin/ReservationChecklistViewer";
+
+import TripSummary from "@/components/reservation/TripSummary";
+import EventTripReports from "@/components/admin/EventTripReports";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
@@ -307,6 +309,8 @@ const AdminEventReservations = ({
   const [filterPayStatus, setFilterPayStatus] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
+  const [showTripReports, setShowTripReports] = useState(false);
+
 
   // Detail drawer
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
@@ -1243,6 +1247,11 @@ const AdminEventReservations = ({
             Recordar preparación
           </Button>
         )}
+        {isTripLike && (
+          <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
+            <FileText className="w-4 h-4 mr-1.5" /> Reportes
+          </Button>
+        )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
         </Button>
@@ -1701,10 +1710,13 @@ const AdminEventReservations = ({
               )}
 
               {/* Trip preparation checklist — only for camp/viaje */}
+              {/* Resumen consolidado del viaje (compra + pagos + configuración + comunicación) */}
               {isTripLike && (
-                <ReservationChecklistViewer
+                <TripSummary
                   reservationId={selectedRes.id}
                   alumnoId={selectedRes.alumno_id}
+                  eventCurrency={curr(selectedRes)}
+                  mode="admin"
                 />
               )}
               {/* Precio base del viaje (override por participante) */}
@@ -2352,6 +2364,13 @@ const AdminEventReservations = ({
           onDone={() => { setChangePackageFor(null); loadReservations(); }}
         />
       )}
+
+      <EventTripReports
+        open={showTripReports}
+        onOpenChange={setShowTripReports}
+        eventId={eventId}
+        eventTitle={eventTitle}
+      />
     </div>
   );
 };
