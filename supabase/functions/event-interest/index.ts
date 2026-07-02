@@ -40,21 +40,25 @@ Deno.serve(async (req) => {
 
     const dedupe = `interes:${event_id}:${tipo}:${(email || "sin-email").toLowerCase()}`;
 
-    const { error: taskError } = await supabase.from("tareas").upsert({
+    const baseTask = {
       tipo: "automatica",
       origen: "email_masivo_interes",
       titulo: `${label} — ${evName}`,
       descripcion: `Contacto: ${nombre || "sin nombre"} · ${email || "sin email"}\nFuente: ${fuente || "email masivo"}`,
-      rol_destino: "admin",
       entidad_tipo: "event",
       entidad_id: event_id,
       prioridad: "alta",
       estado: "pendiente",
-      dedupe_key: dedupe,
       metadata: { email, nombre, tipo, fuente, event_id },
       updated_at: new Date().toISOString(),
-    }, { onConflict: "dedupe_key" });
+    };
 
+    // Alerta para admin y super_admin (dos filas con dedupe distinto)
+    const rows = [
+      { ...baseTask, rol_destino: "admin", dedupe_key: `${dedupe}:admin` },
+      { ...baseTask, rol_destino: "super_admin", dedupe_key: `${dedupe}:super_admin` },
+    ];
+    const { error: taskError } = await supabase.from("tareas").upsert(rows, { onConflict: "dedupe_key" });
     if (taskError) throw taskError;
 
     return new Response(JSON.stringify({ ok: true }), {
