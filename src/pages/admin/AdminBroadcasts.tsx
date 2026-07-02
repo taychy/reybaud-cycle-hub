@@ -784,7 +784,7 @@ export default function AdminBroadcasts() {
               No hay plantillas. Guardá una desde el composer o creala acá.
             </div>
           ) : templates.map(t => (
-            <Card key={t.id} className="p-3 flex items-center gap-3">
+            <Card key={t.key} className="p-3 flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{t.name}</div>
                 <div className="text-xs text-muted-foreground truncate">{t.subject}</div>
