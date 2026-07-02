@@ -191,9 +191,10 @@ const notifTemplates: Record<NotifTemplateKey, { label: string; asunto: string; 
   cuota_pago_mp: {
     label: "Cuota con link de pago (MP)",
     asunto: "Pagá tu cuota — {{evento}}",
-    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés ${ctx.cuota_label || "una cuota"} pendiente${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento || "a coordinar"}\n\nPodés abonarla directamente por Mercado Pago desde este link:\n${ctx.mp_link || "(link no disponible)"}\n\nCualquier duda, escribinos.\n\nReybaud Ciclismo`,
-    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Pagá tu cuota</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés <strong>${ctx.cuota_label || "una cuota"}</strong> pendiente${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento || "a coordinar"}</strong></p>${ctx.mp_link ? `<div style="text-align:center;margin:24px 0"><a href="${ctx.mp_link}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div><p style="text-align:center;font-size:12px;color:#6b7280">o copiá este link: ${ctx.mp_link}</p>` : `<p style="color:#dc2626">Link de pago no disponible.</p>`}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`,
+    contenido: (ctx) => `Hola ${ctx.nombre},\n\nTe recordamos que tenés ${ctx.cuota_label || "una cuota"} pendiente${ctx.monto_cuota ? ` de ${ctx.monto_cuota}` : ""} para ${ctx.evento}.\nVencimiento: ${ctx.vencimiento || "a coordinar"}\n\nPodés abonarla directamente por Mercado Pago desde este link:\n${ctx.mp_link || "(link no disponible)"}\n\nResumen de tu reserva:\n• Total: ${ctx.total || ctx.monto}\n• Abonado: ${ctx.abonado}\n• Saldo pendiente: ${ctx.saldo}${ctx.plan_text || ""}\n\nTambién podés ver el detalle completo y el estado de todos tus pagos desde tu reserva:\n${ctx.reserva_link || ""}\n\nCualquier duda, escribinos.\n\nReybaud Ciclismo`,
+    html: (ctx) => `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#d97706">Pagá tu cuota</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te recordamos que tenés <strong>${ctx.cuota_label || "una cuota"}</strong> pendiente${ctx.monto_cuota ? ` de <strong>${ctx.monto_cuota}</strong>` : ""} para <strong>${ctx.evento}</strong>.</p><p>Vencimiento: <strong>${ctx.vencimiento || "a coordinar"}</strong></p>${ctx.mp_link ? `<div style="text-align:center;margin:24px 0"><a href="${ctx.mp_link}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div><p style="text-align:center;font-size:12px;color:#6b7280">o copiá este link: <a href="${ctx.mp_link}" style="color:#6b7280">${ctx.mp_link}</a></p>` : `<p style="color:#dc2626">Link de pago no disponible.</p>`}<h3 style="color:#1a1a2e;margin:24px 0 8px;font-size:15px">Resumen de tu reserva</h3><table style="width:100%;border-collapse:collapse;margin:8px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Total</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;text-align:right">${ctx.total || ctx.monto}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669;text-align:right">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706;text-align:right">${ctx.saldo}</td></tr></table>${ctx.plan_html || ""}${ctx.reserva_link ? `<div style="text-align:center;margin:24px 0 8px"><a href="${ctx.reserva_link}" style="display:inline-block;padding:12px 28px;background-color:#1a1a2e;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:14px">Ver estado de mi reserva</a></div>` : ""}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`,
   },
+
 
   novedad: {
     label: "Novedad / comunicado",
@@ -473,8 +474,9 @@ const AdminEventReservations = ({
     const mpBtn = (tipo === "cuota_pago_mp" && mpPayUrl)
       ? `<div style="text-align:center;margin:24px 0"><a href="${mpPayUrl}" style="display:inline-block;padding:14px 32px;background-color:#009ee3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px">Pagar con Mercado Pago</a></div>`
       : "";
-    const cta = tipo === "cuota_pago_mp" ? "" : buildCtaButton(reservaLink);
-    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${mpBtn}${cta}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
+    const cta = buildCtaButton(reservaLink);
+    const ctaLabel = tipo === "cuota_pago_mp" ? cta.replace("Ver mi reserva", "Ver estado de mi reserva") : cta;
+    return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:${color}">${title}</h2>${htmlBody}${mpBtn}${ctaLabel}<p style="color:#6b7280;font-size:12px;margin-top:24px">Reybaud Ciclismo</p></div>`;
   };
 
   const sendNotification = async (tipo: string, asunto: string, contenidoTexto: string, _contenidoHtml: string, meta: Record<string, any> = {}, idempKey?: string) => {
@@ -2224,6 +2226,7 @@ const AdminEventReservations = ({
                             return;
                           }
                           setMpPayUrl(mpData.init_point);
+                          const plan = buildPlanPagos(instsList, evCurr);
                           extra = {
                             monto_cuota: Number(nextInst.balance_due ?? nextInst.amount ?? 0),
                             vencimiento: nextInst.due_date
@@ -2231,6 +2234,10 @@ const AdminEventReservations = ({
                               : "a coordinar",
                             cuota_label: nextInst.label || `Cuota ${nextInst.installment_number || ""}`.trim(),
                             mp_link: mpData.init_point,
+                            reserva_link: getReservaLink(selectedRes),
+                            total: formatPrice(selectedRes.amount_total || 0, evCurr),
+                            plan_text: plan.text,
+                            plan_html: plan.html,
                           };
                         } finally {
                           setPreparingMpLink(false);
