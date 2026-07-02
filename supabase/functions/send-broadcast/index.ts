@@ -262,7 +262,6 @@ Deno.serve(async (req) => {
       replyTo = replyTo || cfg?.reply_to || undefined;
     }
 
-    const cta = { url: body.cta_url, label: body.cta_label };
     const excludedSet = new Set((body.excluded_emails || []).map((e) => e.toLowerCase()));
 
     if (body.mode === "preview_count") {
