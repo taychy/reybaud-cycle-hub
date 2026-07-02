@@ -111,7 +111,7 @@ interface Notification {
   created_at: string;
 }
 
-type NotifTemplateKey = "pago_registrado" | "plan_pagos" | "cuota_pendiente" | "cuota_proxima" | "novedad" | "recordatorio_checklist";
+type NotifTemplateKey = "pago_registrado" | "plan_pagos" | "cuota_pendiente" | "cuota_proxima" | "cuota_pago_mp" | "novedad" | "recordatorio_checklist";
 
 /** Construye texto + HTML con el plan de pagos a partir de las cuotas materializadas. */
 const buildPlanPagos = (
