@@ -15,7 +15,7 @@ import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
-import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
 interface Plan {
@@ -492,6 +492,10 @@ const PlanSelection = () => {
         }
         subId = sub.id;
       }
+
+      // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
+      if (subId) await closeOrphanPendingSubs(alumnoId, plan.id, subId);
+
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
       const response = await fetch(functionUrl, {

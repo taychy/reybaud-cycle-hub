@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CreditCard, Loader2, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { Checkbox } from "@/components/ui/checkbox";
-import { tryReuseExistingSubscription, expireStaleSubs } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
 
 interface CardPaymentFormProps {
   planId: string;
@@ -219,6 +219,11 @@ const CardPaymentForm = ({
                 }
                 subId = sub.id;
               }
+
+              // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
+              await closeOrphanPendingSubs(alumnoId, planId, subId);
+
+
 
               // ── Flow A: auto-renovación tildada ─────────────────────
               // Creamos el preapproval CON card_token_id → MP lo deja

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { getEarlyRenewal } from "@/lib/earlyRenewal";
-import { tryReuseExistingSubscription, clearReuseSubId, expireStaleSubs } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, clearReuseSubId, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
 
 type DeclaredManualMethod =
   | "efectivo"
@@ -144,6 +144,10 @@ const ManualPaymentConfirm = ({
       }
       subId = sub.id;
     }
+
+    // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
+    await closeOrphanPendingSubs(alumnoId, planId, subId);
+
 
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cash-payment`;

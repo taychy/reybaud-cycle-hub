@@ -90,3 +90,48 @@ export async function tryReuseExistingSubscription(
   if (error || !data) return null;
   return { id: existingId };
 }
+
+/**
+ * Tras un pago exitoso de un plan, cierra las subs "pendientes" huérfanas del
+ * mismo alumno cuyo plan_id sea DISTINTO al recién pagado y cuyo período aún
+ * esté vigente (fecha_fin >= hoy o null). Evita el patrón "sub fantasma": si el
+ * cron generó pendiente del Plan A pero el alumno pagó el Plan B desde /planes,
+ * la pendiente de A quedaba viva ensuciando cuenta corriente.
+ *
+ * Nunca lanza — el pago ya se aplicó, esto es best-effort.
+ */
+export async function closeOrphanPendingSubs(
+  alumnoId: string,
+  paidPlanId: string,
+  paidSubId?: string,
+): Promise<void> {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const { data: orphans } = await supabase
+      .from("suscripciones")
+      .select("id, plan_id, planes:plan_id(nombre)")
+      .eq("alumno_id", alumnoId)
+      .eq("estado", "pendiente")
+      .neq("plan_id", paidPlanId)
+      .or(`fecha_fin.is.null,fecha_fin.gte.${today}`);
+
+    if (!orphans || orphans.length === 0) return;
+
+    for (const o of orphans as any[]) {
+      if (paidSubId && o.id === paidSubId) continue;
+      await supabase
+        .from("suscripciones")
+        .update({
+          estado: "cancelada",
+          cancelada_at: new Date().toISOString(),
+          cancelada_motivo: `Reemplazada por pago de otro plan`,
+          auto_renovacion: false,
+        } as any)
+        .eq("id", o.id);
+    }
+    clearReuseSubId();
+  } catch (e) {
+    console.warn("[closeOrphanPendingSubs] failed (non-fatal)", e);
+  }
+}
+
