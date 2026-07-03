@@ -517,7 +517,7 @@ Deno.serve(async (req) => {
       const preorderId = refUuid;
       const { data: preorder } = await supabaseAdmin
         .from("store_preorders")
-        .select("id, estado, estado_pago_sena")
+        .select("id, estado, estado_pago_sena, sena_monto, notas")
         .eq("id", preorderId)
         .maybeSingle();
 
@@ -534,9 +534,21 @@ Deno.serve(async (req) => {
       };
 
       if (payment.status === "approved") {
-        update.estado_pago_sena = "confirmada";
-        update.sena_pagada_at = new Date().toISOString();
-        if (preorder.estado === "pendiente_pago_sena") update.estado = "reservada";
+        // ── GUARD: comparar monto pagado vs seña esperada ──
+        const paid = Number(payment.transaction_amount ?? 0);
+        const expected = Number(preorder.sena_monto || 0);
+        const tolerance = 1; // ARS de tolerancia por redondeo
+        if (expected > 0 && paid + tolerance < expected) {
+          // Pago parcial: NO confirmar, dejar en estado 'parcial' para revisión admin
+          update.estado_pago_sena = "parcial";
+          const stamp = `[${new Date().toISOString()}] Pago seña PARCIAL vía MP: recibido $${paid.toFixed(2)} de $${expected.toFixed(2)} esperado (op ${payment.id}). Revisar y registrar saldo faltante.`;
+          update.notas = preorder.notas ? `${preorder.notas}\n${stamp}` : stamp;
+          console.warn("[mp-webhook] preorder sena PARTIAL:", { preorderId, paid, expected });
+        } else {
+          update.estado_pago_sena = "confirmada";
+          update.sena_pagada_at = new Date().toISOString();
+          if (preorder.estado === "pendiente_pago_sena") update.estado = "reservada";
+        }
       } else if (payment.status === "rejected" || payment.status === "cancelled") {
         update.estado_pago_sena = "rechazada";
       } else if (payment.status === "pending" || payment.status === "in_process") {
@@ -551,6 +563,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // ─── TURNERA RESERVATION FLOW ───
     // external_reference: "turnera:<reservation_id>"
