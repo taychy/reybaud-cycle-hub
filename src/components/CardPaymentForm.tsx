@@ -220,6 +220,11 @@ const CardPaymentForm = ({
                 subId = sub.id;
               }
 
+              // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
+              await closeOrphanPendingSubs(alumnoId, planId, subId);
+
+
+
               // ── Flow A: auto-renovación tildada ─────────────────────
               // Creamos el preapproval CON card_token_id → MP lo deja
               // authorized sin redirect y cobra la primera cuota como
