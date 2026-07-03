@@ -29,7 +29,7 @@ interface SegmentFilters {
 }
 
 interface SendBody {
-  mode: "test" | "send" | "preview_count";
+  mode: "test" | "send" | "preview_count" | "retry_failed";
   test_email?: string;
   broadcast_id?: string;
   subject?: string;
@@ -222,6 +222,26 @@ async function sendOne(payload: any) {
   return { ok, status: resp.status, body: json ?? text };
 }
 
+// Envío con reintentos + backoff exponencial. Se reintenta en 429/5xx/red.
+async function sendWithRetries(payload: any, maxAttempts = 3) {
+  let last: Awaited<ReturnType<typeof sendOne>> | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      last = await sendOne(payload);
+    } catch (e) {
+      last = { ok: false, status: 0, body: `network_error: ${(e as Error).message}` } as any;
+    }
+    if (last!.ok) return { ...last!, attempts: attempt };
+    const retriable = last!.status === 0 || last!.status === 429 || last!.status >= 500;
+    if (!retriable || attempt === maxAttempts) return { ...last!, attempts: attempt };
+    const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 8000) + Math.floor(Math.random() * 250);
+    console.log(`[brevo] retry ${attempt}/${maxAttempts - 1} in ${backoffMs}ms (status ${last!.status})`);
+    await new Promise((res) => setTimeout(res, backoffMs));
+  }
+  return { ...(last as any), attempts: maxAttempts };
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!LOVABLE_API_KEY || !BREVO_API_KEY) {
@@ -355,7 +375,7 @@ Deno.serve(async (req) => {
               body.preheader,
               { url: personalize(body.cta_url, r), label: body.cta_label },
             );
-            const r1 = await sendOne({
+            const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
               to: [{ email: r.email, name: r.display_name || undefined }],
               replyTo: replyTo ? { email: replyTo } : undefined,
@@ -370,14 +390,17 @@ Deno.serve(async (req) => {
                 status: "sent",
                 brevo_message_id: r1.body?.messageId ?? null,
                 sent_at: new Date().toISOString(),
+                error_message: null,
               }).eq("broadcast_id", bc.id).eq("email", r.email);
             } else {
               failed++;
+              const errBody = typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body);
               await admin.from("broadcast_recipients").update({
                 status: "failed",
-                error_message: typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body),
+                error_message: `[HTTP ${r1.status} · ${r1.attempts} intento(s)] ${errBody}`.slice(0, 1000),
               }).eq("broadcast_id", bc.id).eq("email", r.email);
             }
+
           }));
           // Progreso parcial
           await admin.from("broadcasts").update({
@@ -421,6 +444,96 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (body.mode === "retry_failed") {
+      if (!body.broadcast_id) {
+        return new Response(JSON.stringify({ error: "Falta broadcast_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: bc, error: bcErr } = await admin
+        .from("broadcasts").select("*").eq("id", body.broadcast_id).maybeSingle();
+      if (bcErr || !bc) {
+        return new Response(JSON.stringify({ error: "Broadcast no encontrado" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: failedRows } = await admin
+        .from("broadcast_recipients").select("*")
+        .eq("broadcast_id", bc.id).eq("status", "failed");
+      const rows = (failedRows as any[]) || [];
+      if (!rows.length) {
+        return new Response(JSON.stringify({ ok: true, retried: 0, message: "No hay destinatarios fallidos" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Marcar como pending mientras reintenta
+      await admin.from("broadcast_recipients").update({ status: "pending", error_message: null })
+        .eq("broadcast_id", bc.id).eq("status", "failed");
+      await admin.from("broadcasts").update({ status: "sending" }).eq("id", bc.id);
+
+      const retryProcess = async () => {
+        let sent = 0, failed = 0;
+        const BATCH_SIZE = 8;
+        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+          const batch = rows.slice(i, i + BATCH_SIZE);
+          await Promise.all(batch.map(async (r: any) => {
+            const recipient = { email: r.email, display_name: r.name, nombre: r.name };
+            const html = htmlWrap(
+              personalize(bc.content_html, recipient) || "",
+              bc.preheader,
+              { url: personalize((bc.segment_filters as any)?.cta_url, recipient), label: (bc.segment_filters as any)?.cta_label },
+            );
+            const r1 = await sendWithRetries({
+              sender: { name: bc.sender_name, email: bc.sender_email },
+              to: [{ email: r.email, name: r.name || undefined }],
+              replyTo: bc.reply_to ? { email: bc.reply_to } : undefined,
+              subject: bc.subject,
+              htmlContent: html,
+              tags: ["broadcast", bc.id, "retry"],
+            });
+            if (r1.ok) {
+              sent++;
+              await admin.from("broadcast_recipients").update({
+                status: "sent",
+                brevo_message_id: r1.body?.messageId ?? null,
+                sent_at: new Date().toISOString(),
+                error_message: null,
+              }).eq("id", r.id);
+            } else {
+              failed++;
+              const errBody = typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body);
+              await admin.from("broadcast_recipients").update({
+                status: "failed",
+                error_message: `[reintento · HTTP ${r1.status} · ${r1.attempts} intento(s)] ${errBody}`.slice(0, 1000),
+              }).eq("id", r.id);
+            }
+          }));
+        }
+        // Recalcular totales del broadcast
+        const { data: agg } = await admin.from("broadcast_recipients")
+          .select("status").eq("broadcast_id", bc.id);
+        const s = (agg as any[] || []).filter(x => x.status === "sent").length;
+        const f = (agg as any[] || []).filter(x => x.status === "failed").length;
+        await admin.from("broadcasts").update({
+          status: f === (bc.total_recipients || 0) ? "failed" : "sent",
+          sent_count: s,
+          failed_count: f,
+        }).eq("id", bc.id);
+        console.log(`[retry_failed] broadcast ${bc.id} → sent=${sent} failed=${failed}`);
+      };
+
+      // @ts-ignore
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(retryProcess().catch((e) => console.error("retry_failed error", e)));
+      } else {
+        retryProcess().catch((e) => console.error("retry_failed error", e));
+      }
+      return new Response(JSON.stringify({ ok: true, broadcast_id: bc.id, retried: rows.length, status: "sending" }), {
+        status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ error: "modo inválido" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

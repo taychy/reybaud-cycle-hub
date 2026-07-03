@@ -264,9 +264,10 @@ export default function AdminBroadcasts() {
         },
       });
       if (error) throw error;
+      const total = data?.total ?? data?.queued ?? 0;
       toast({
-        title: "Envío completado",
-        description: `${data.sent}/${data.total} enviados. ${data.failed} fallidos.`,
+        title: "Envío en curso",
+        description: `${total} destinatarios encolados. El progreso se actualiza en el historial.`,
       });
       setComposer(emptyComposer);
       setPreviewCount(null);
@@ -280,6 +281,48 @@ export default function AdminBroadcasts() {
       setSending(false);
     }
   };
+
+  const retryFailed = async (b: Broadcast) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-broadcast", {
+        body: { mode: "retry_failed", broadcast_id: b.id },
+      });
+      if (error) throw error;
+      toast({
+        title: "Reintento en curso",
+        description: `${data?.retried ?? 0} destinatario(s) reencolados.`,
+      });
+      setShowDetail(null);
+      loadAll();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const duplicateBroadcast = (b: Broadcast & { content_html?: string; preheader?: string }) => {
+    const seg = (b.segment_filters as any) || {};
+    setComposer({
+      ...emptyComposer,
+      subject: b.subject,
+      preheader: (b as any).preheader || "",
+      content_html: (b as any).content_html || "",
+      cta_url: seg.cta_url || "",
+      cta_label: seg.cta_label || "",
+      audience: seg.audience || ["students"],
+      estados: seg.estados || ["activo"],
+      grupos: seg.grupos || [],
+      sede_ids: seg.sede_ids || [],
+      alumno_ids: seg.alumno_ids || [],
+      coach_ids: seg.coach_ids || [],
+      marketing_tipos: seg.marketing_tipos || [],
+      marketing_tags: seg.marketing_tags || [],
+      marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
+    });
+    setShowDetail(null);
+    setTab("composer");
+    toast({ title: "Campaña duplicada", description: "Podés editar y enviar de nuevo." });
+  };
+
 
   const saveSender = async () => {
     const payload = {
@@ -763,8 +806,25 @@ export default function AdminBroadcasts() {
               </div>
             ))}
           </div>
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => showDetail && duplicateBroadcast(showDetail as any)}
+            >
+              Duplicar campaña
+            </Button>
+            {showDetail && showDetail.failed_count > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => showDetail && retryFailed(showDetail)}
+              >
+                Reintentar {showDetail.failed_count} fallidos
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* RECIPIENTS LIST EDITOR */}
       <Dialog open={recipientsDialogOpen} onOpenChange={setRecipientsDialogOpen}>
