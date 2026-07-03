@@ -222,6 +222,26 @@ async function sendOne(payload: any) {
   return { ok, status: resp.status, body: json ?? text };
 }
 
+// Envío con reintentos + backoff exponencial. Se reintenta en 429/5xx/red.
+async function sendWithRetries(payload: any, maxAttempts = 3) {
+  let last: Awaited<ReturnType<typeof sendOne>> | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      last = await sendOne(payload);
+    } catch (e) {
+      last = { ok: false, status: 0, body: `network_error: ${(e as Error).message}` } as any;
+    }
+    if (last!.ok) return { ...last!, attempts: attempt };
+    const retriable = last!.status === 0 || last!.status === 429 || last!.status >= 500;
+    if (!retriable || attempt === maxAttempts) return { ...last!, attempts: attempt };
+    const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 8000) + Math.floor(Math.random() * 250);
+    console.log(`[brevo] retry ${attempt}/${maxAttempts - 1} in ${backoffMs}ms (status ${last!.status})`);
+    await new Promise((res) => setTimeout(res, backoffMs));
+  }
+  return { ...(last as any), attempts: maxAttempts };
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!LOVABLE_API_KEY || !BREVO_API_KEY) {
