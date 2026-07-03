@@ -341,59 +341,86 @@ Deno.serve(async (req) => {
         }))
       );
 
-      let sent = 0, failed = 0;
-      const marketingSentEmails: string[] = [];
-      for (const r of recipients) {
-        const html = htmlWrap(
-          personalize(body.content_html, r) || "",
-          body.preheader,
-          { url: personalize(body.cta_url, r), label: body.cta_label },
-        );
-        const r1 = await sendOne({
-          sender: { name: senderName, email: senderEmail },
-          to: [{ email: r.email, name: r.display_name || undefined }],
-          replyTo: replyTo ? { email: replyTo } : undefined,
-          subject: body.subject,
-          htmlContent: html,
-          tags: ["broadcast", bc.id],
-        });
-        if (r1.ok) {
-          sent++;
-          if (r.contact_type === "marketing") marketingSentEmails.push(r.email.toLowerCase());
-          await admin.from("broadcast_recipients").update({
-            status: "sent",
-            brevo_message_id: r1.body?.messageId ?? null,
-            sent_at: new Date().toISOString(),
-          }).eq("broadcast_id", bc.id).eq("email", r.email);
-        } else {
-          failed++;
-          await admin.from("broadcast_recipients").update({
-            status: "failed",
-            error_message: typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body),
-          }).eq("broadcast_id", bc.id).eq("email", r.email);
+      // Ejecutar el envío en background para evitar el timeout de 150s.
+      const processBroadcast = async () => {
+        let sent = 0, failed = 0;
+        const marketingSentEmails: string[] = [];
+        const BATCH_SIZE = 8;
+
+        for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+          const batch = recipients.slice(i, i + BATCH_SIZE);
+          await Promise.all(batch.map(async (r: any) => {
+            const html = htmlWrap(
+              personalize(body.content_html, r) || "",
+              body.preheader,
+              { url: personalize(body.cta_url, r), label: body.cta_label },
+            );
+            const r1 = await sendOne({
+              sender: { name: senderName, email: senderEmail },
+              to: [{ email: r.email, name: r.display_name || undefined }],
+              replyTo: replyTo ? { email: replyTo } : undefined,
+              subject: body.subject!,
+              htmlContent: html,
+              tags: ["broadcast", bc.id],
+            });
+            if (r1.ok) {
+              sent++;
+              if (r.contact_type === "marketing") marketingSentEmails.push(r.email.toLowerCase());
+              await admin.from("broadcast_recipients").update({
+                status: "sent",
+                brevo_message_id: r1.body?.messageId ?? null,
+                sent_at: new Date().toISOString(),
+              }).eq("broadcast_id", bc.id).eq("email", r.email);
+            } else {
+              failed++;
+              await admin.from("broadcast_recipients").update({
+                status: "failed",
+                error_message: typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body),
+              }).eq("broadcast_id", bc.id).eq("email", r.email);
+            }
+          }));
+          // Progreso parcial
+          await admin.from("broadcasts").update({
+            sent_count: sent,
+            failed_count: failed,
+          }).eq("id", bc.id);
         }
-        await new Promise((res) => setTimeout(res, 50));
+
+        if (marketingSentEmails.length) {
+          await admin
+            .from("marketing_contacts")
+            .update({ last_campaign_sent_at: new Date().toISOString() })
+            .in("email", marketingSentEmails);
+        }
+
+        await admin.from("broadcasts").update({
+          status: failed === recipients.length ? "failed" : "sent",
+          sent_count: sent,
+          failed_count: failed,
+          sent_at: new Date().toISOString(),
+        }).eq("id", bc.id);
+      };
+
+      // @ts-ignore EdgeRuntime existe en Supabase Edge Functions
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(processBroadcast().catch((e) => console.error("processBroadcast error", e)));
+      } else {
+        processBroadcast().catch((e) => console.error("processBroadcast error", e));
       }
 
-      // actualizar last_campaign_sent_at de marketing_contacts enviados
-      if (marketingSentEmails.length) {
-        await admin
-          .from("marketing_contacts")
-          .update({ last_campaign_sent_at: new Date().toISOString() })
-          .in("email", marketingSentEmails);
-      }
-
-      await admin.from("broadcasts").update({
-        status: failed === recipients.length ? "failed" : "sent",
-        sent_count: sent,
-        failed_count: failed,
-        sent_at: new Date().toISOString(),
-      }).eq("id", bc.id);
-
-      return new Response(JSON.stringify({ ok: true, broadcast_id: bc.id, sent, failed, total: recipients.length }), {
+      return new Response(JSON.stringify({
+        ok: true,
+        broadcast_id: bc.id,
+        queued: recipients.length,
+        total: recipients.length,
+        status: "sending",
+      }), {
+        status: 202,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     return new Response(JSON.stringify({ error: "modo inválido" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
