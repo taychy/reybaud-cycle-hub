@@ -806,8 +806,25 @@ export default function AdminBroadcasts() {
               </div>
             ))}
           </div>
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => showDetail && duplicateBroadcast(showDetail as any)}
+            >
+              Duplicar campaña
+            </Button>
+            {showDetail && showDetail.failed_count > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => showDetail && retryFailed(showDetail)}
+              >
+                Reintentar {showDetail.failed_count} fallidos
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* RECIPIENTS LIST EDITOR */}
       <Dialog open={recipientsDialogOpen} onOpenChange={setRecipientsDialogOpen}>
