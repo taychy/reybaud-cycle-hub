@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { getEarlyRenewal } from "@/lib/earlyRenewal";
-import { tryReuseExistingSubscription, clearReuseSubId, expireStaleSubs } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, clearReuseSubId, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
 
 type DeclaredManualMethod =
   | "efectivo"
