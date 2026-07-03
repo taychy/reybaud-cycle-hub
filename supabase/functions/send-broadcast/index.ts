@@ -29,7 +29,7 @@ interface SegmentFilters {
 }
 
 interface SendBody {
-  mode: "test" | "send" | "preview_count";
+  mode: "test" | "send" | "preview_count" | "retry_failed";
   test_email?: string;
   broadcast_id?: string;
   subject?: string;
