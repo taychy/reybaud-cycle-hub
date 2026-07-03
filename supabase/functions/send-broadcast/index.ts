@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
               body.preheader,
               { url: personalize(body.cta_url, r), label: body.cta_label },
             );
-            const r1 = await sendOne({
+            const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
               to: [{ email: r.email, name: r.display_name || undefined }],
               replyTo: replyTo ? { email: replyTo } : undefined,
@@ -390,14 +390,17 @@ Deno.serve(async (req) => {
                 status: "sent",
                 brevo_message_id: r1.body?.messageId ?? null,
                 sent_at: new Date().toISOString(),
+                error_message: null,
               }).eq("broadcast_id", bc.id).eq("email", r.email);
             } else {
               failed++;
+              const errBody = typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body);
               await admin.from("broadcast_recipients").update({
                 status: "failed",
-                error_message: typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body),
+                error_message: `[HTTP ${r1.status} · ${r1.attempts} intento(s)] ${errBody}`.slice(0, 1000),
               }).eq("broadcast_id", bc.id).eq("email", r.email);
             }
+
           }));
           // Progreso parcial
           await admin.from("broadcasts").update({
