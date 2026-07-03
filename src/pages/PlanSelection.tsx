@@ -493,6 +493,10 @@ const PlanSelection = () => {
         subId = sub.id;
       }
 
+      // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
+      if (subId) await closeOrphanPendingSubs(alumnoId, plan.id, subId);
+
+
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
       const response = await fetch(functionUrl, {
         method: "POST",
