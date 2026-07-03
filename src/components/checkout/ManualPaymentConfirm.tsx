@@ -145,6 +145,10 @@ const ManualPaymentConfirm = ({
       subId = sub.id;
     }
 
+    // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
+    await closeOrphanPendingSubs(alumnoId, planId, subId);
+
+
     try {
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cash-payment`;
       fetch(functionUrl, {
