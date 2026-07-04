@@ -288,7 +288,17 @@ async function authenticateWSAA(
     const respText = await resp.text();
 
     if (!resp.ok) {
-      return { error: `HTTP ${resp.status}: ${respText.substring(0, 200)}` };
+      // Extraer el faultstring del SOAP fault (más útil que el XML crudo)
+      const faultMatch = respText.match(/<faultstring[^>]*>([^]*?)<\/faultstring>/i);
+      const detail = faultMatch ? faultMatch[1].trim() : respText.substring(0, 500);
+      console.error(`[WSAA] HTTP ${resp.status}: ${respText.substring(0, 2000)}`);
+      return { error: `HTTP ${resp.status}: ${detail}` };
+    }
+    // Algunas fallas WSAA vienen con HTTP 200 pero SOAP fault
+    const faultCheck = respText.match(/<faultstring[^>]*>([^]*?)<\/faultstring>/i);
+    if (faultCheck) {
+      console.error(`[WSAA] SOAP fault: ${respText.substring(0, 2000)}`);
+      return { error: `SOAP fault: ${faultCheck[1].trim()}` };
     }
 
     // Parse response - extract token and sign
