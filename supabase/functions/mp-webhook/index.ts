@@ -862,8 +862,9 @@ Deno.serve(async (req) => {
     };
 
     if (payment.status === "approved") {
-      // Preserve existing future-dated period (early renewals) to avoid overlap
-      // with the still-active current sub — would trigger DUPLICATE_GRUPAL_CATEGORY.
+      // Preserve any existing period already loaded on the sub (renovación cron,
+      // early-renewal, cambio de plan programado, etc). Sólo calculamos fechas
+      // nuevas si la sub NO tiene período cargado (caso raro: alta directa vía webhook).
       const { data: currentSub } = await supabaseAdmin
         .from("suscripciones")
         .select("fecha_inicio, fecha_fin")
@@ -873,7 +874,8 @@ Deno.serve(async (req) => {
       const existingInicio = currentSub?.fecha_inicio as string | null | undefined;
       const existingFin = currentSub?.fecha_fin as string | null | undefined;
 
-      if (existingInicio && existingFin && existingInicio > today) {
+      if (existingInicio && existingFin) {
+        // Respetar el período ya definido (01→último día del mes que le corresponda)
         updateData.fecha_inicio = existingInicio;
         updateData.fecha_fin = existingFin;
       } else {
@@ -881,6 +883,7 @@ Deno.serve(async (req) => {
         updateData.fecha_fin = fechaFin;
       }
     }
+
 
     const { error: updateError } = await supabaseAdmin
       .from("suscripciones")
