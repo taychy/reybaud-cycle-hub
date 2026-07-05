@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import {
   AlertTriangle, CheckCircle2, Clock, CreditCard, Loader2,
@@ -99,6 +103,7 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
   const [methods, setMethods] = useState<Record<string, string>>({});
   const [paying, setPaying] = useState<Record<string, boolean>>({});
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
+  const [confirmPartial, setConfirmPartial] = useState<null | { e: AgendaEjecucion; rec: AgendaRecurrente; monto: number; forma_pago: string; falta: number }>(null);
 
   const rows = useMemo(() => {
     const recMap = new Map(recurrentes.map(r => [r.id, r]));
@@ -142,30 +147,30 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
     methods[e.id] ?? normalizeGastoPaymentMethod(e.forma_pago ?? rec.forma_pago_default);
 
 
-  const handlePay = async (e: AgendaEjecucion, rec: AgendaRecurrente) => {
-    const monto = Number(getAmount(e, rec));
-    if (!monto || monto <= 0) {
-      toast({ title: "Monto inválido", description: "Ingresá un monto válido antes de pagar.", variant: "destructive" });
-      return;
-    }
-    const forma_pago = getMethod(e, rec);
+  const doPay = async (
+    e: AgendaEjecucion,
+    rec: AgendaRecurrente,
+    monto: number,
+    forma_pago: string,
+    modo: "total" | "parcial" | "exacto",
+  ) => {
     setPaying(p => ({ ...p, [e.id]: true }));
 
-    const previstoOriginal = e.monto_previsto || 0;
-    const edited = monto !== previstoOriginal;
+    // "total" → ajusta previsto al monto pagado (queda saldada, sincroniza catálogo)
+    // "parcial" → no toca previsto (queda parcial y arrastra al próximo mes)
+    // "exacto" → monto == previsto, sin ajustes
+    const ajustarPrevisto = modo === "total";
 
     const { error } = await supabase.rpc("register_gasto_pago_v2" as any, {
       p_ejec_id: e.id,
       p_monto: monto,
       p_fecha: new Date().toISOString().split("T")[0],
       p_forma_pago: forma_pago,
-      p_notas: null,
+      p_notas: modo === "parcial" ? "Pago parcial" : null,
       p_es_excedente: false,
       p_motivo_excedente: null,
-      // Si el usuario editó el monto, ajusta previsto y sincroniza catálogo
-      // para que el próximo mes venga precargado con este valor ("último pago").
-      p_nuevo_previsto: edited ? monto : null,
-      p_sync_catalogo: edited,
+      p_nuevo_previsto: ajustarPrevisto ? monto : null,
+      p_sync_catalogo: ajustarPrevisto,
     });
 
     if (error) {
@@ -174,14 +179,34 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
       return;
     }
 
-    toast({ title: "Pago registrado", description: rec.concepto });
-    // Fade-out y luego refetch
+    toast({
+      title: modo === "parcial" ? "Pago parcial registrado" : "Pago registrado",
+      description: rec.concepto,
+    });
     setFadingOut(prev => new Set(prev).add(e.id));
     setTimeout(() => {
       setPaying(p => { const n = { ...p }; delete n[e.id]; return n; });
       onChanged();
       setFadingOut(prev => { const n = new Set(prev); n.delete(e.id); return n; });
     }, 320);
+  };
+
+  const handlePay = async (e: AgendaEjecucion, rec: AgendaRecurrente) => {
+    const monto = Number(getAmount(e, rec));
+    if (!monto || monto <= 0) {
+      toast({ title: "Monto inválido", description: "Ingresá un monto válido antes de pagar.", variant: "destructive" });
+      return;
+    }
+    const forma_pago = getMethod(e, rec);
+    const previsto = e.monto_previsto || 0;
+
+    // Si paga menos que lo previsto → preguntar total vs parcial
+    if (previsto > 0 && monto < previsto) {
+      setConfirmPartial({ e, rec, monto, forma_pago, falta: previsto - monto });
+      return;
+    }
+    // Monto == previsto o mayor → pago directo
+    await doPay(e, rec, monto, forma_pago, "exacto");
   };
 
   const counts = useMemo(() => {
@@ -195,6 +220,7 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
   }, [rows]);
 
   return (
+    <>
     <Card className="p-4 space-y-4">
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
@@ -376,6 +402,61 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
         </div>
       )}
     </Card>
+    <AlertDialog open={!!confirmPartial} onOpenChange={(o) => !o && setConfirmPartial(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Es pago total o parcial?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Previsto: </span>
+                <span className="font-medium text-foreground">
+                  {confirmPartial ? fmt(confirmPartial.e.monto_previsto || 0, confirmPartial.e.moneda) : ""}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Vas a pagar: </span>
+                <span className="font-medium text-foreground">
+                  {confirmPartial ? fmt(confirmPartial.monto, confirmPartial.e.moneda) : ""}
+                </span>
+              </div>
+              <div className="text-yellow-500">
+                Faltarían: {confirmPartial ? fmt(confirmPartial.falta, confirmPartial.e.moneda) : ""}
+              </div>
+              <div className="pt-2 text-xs text-muted-foreground">
+                <b className="text-foreground">Parcial:</b> queda en la agenda y el saldo se suma al próximo mes.<br />
+                <b className="text-foreground">Total:</b> se salda con este monto y ajusta el previsto del catálogo.
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-yellow-500 text-black hover:bg-yellow-500/90"
+            onClick={() => {
+              if (!confirmPartial) return;
+              const c = confirmPartial;
+              setConfirmPartial(null);
+              doPay(c.e, c.rec, c.monto, c.forma_pago, "parcial");
+            }}
+          >
+            Pago parcial
+          </AlertDialogAction>
+          <AlertDialogAction
+            onClick={() => {
+              if (!confirmPartial) return;
+              const c = confirmPartial;
+              setConfirmPartial(null);
+              doPay(c.e, c.rec, c.monto, c.forma_pago, "total");
+            }}
+          >
+            Pago total
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
