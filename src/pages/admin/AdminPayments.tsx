@@ -203,7 +203,13 @@ const getMethodDisplay = (sub: Suscripcion) => {
 
 const formatDate = (d: string | null) => {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Fechas planas "YYYY-MM-DD" se parsean sin drift de zona horaria.
+  // Timestamps ISO con "T" se formatean en TZ Argentina.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [y, m, day] = d.split("-").map(Number);
+    return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+  return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
 };
 
 const AdminPayments = () => {
@@ -1073,7 +1079,9 @@ const AdminPayments = () => {
                                   tone = "bg-yellow-500/10 text-yellow-200 border-yellow-500/30";
                                 } else if (wasPaid) {
                                   title = "Pago acreditado";
-                                  detail = `Cobrado el ${formatDate(sub.fecha_inicio)}${sub.mp_payment_id ? ` (MP #${sub.mp_payment_id})` : ""}. Vigente hasta ${formatDate(sub.fecha_fin)}.`;
+                                  // Para MP usamos el timestamp real del cobro (updated_at); para otros métodos, fecha_inicio.
+                                  const fechaCobro = sub.mp_payment_id ? formatDate((sub as any).updated_at || sub.fecha_inicio) : formatDate(sub.fecha_inicio);
+                                  detail = `Cobrado el ${fechaCobro}${sub.mp_payment_id ? ` (MP #${sub.mp_payment_id})` : ""}. Vigente hasta ${formatDate(sub.fecha_fin)}.`;
                                   tone = "bg-emerald-500/10 text-emerald-200 border-emerald-500/30";
                                 }
                                 return title ? (

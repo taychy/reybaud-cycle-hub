@@ -300,7 +300,15 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
             const isManualSinCae = f.estado === "emitida" && !f.cae;
             const facturable = isFacturable(f);
             const isChecked = selected.has(f.id);
-            const fecha = new Date(f.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+            const fecha = (() => {
+              const d = f.created_at;
+              if (!d) return "—";
+              if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                const [y, m, day] = d.split("-").map(Number);
+                return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+              }
+              return new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
+            })();
 
             return (
               <div key={f.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">

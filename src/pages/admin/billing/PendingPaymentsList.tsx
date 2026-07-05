@@ -608,9 +608,14 @@ export function PendingPaymentsList() {
         <div className="space-y-2 pb-20">
           {filtered.map((r) => {
             const facturada = r.factura_estado === "emitida" && !!r.factura_cae;
-            const fecha = r.fecha
-              ? new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })
-              : "—";
+            const fecha = (() => {
+              if (!r.fecha) return "—";
+              if (/^\d{4}-\d{2}-\d{2}$/.test(r.fecha)) {
+                const [y, m, day] = r.fecha.split("-").map(Number);
+                return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+              }
+              return new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
+            })();
             const isSelected = selected.has(r.key);
 
             return (
