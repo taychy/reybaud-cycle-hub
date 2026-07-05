@@ -401,6 +401,61 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
         </div>
       )}
     </Card>
+    <AlertDialog open={!!confirmPartial} onOpenChange={(o) => !o && setConfirmPartial(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Es pago total o parcial?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Previsto: </span>
+                <span className="font-medium text-foreground">
+                  {confirmPartial ? fmt(confirmPartial.e.monto_previsto || 0, confirmPartial.e.moneda) : ""}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Vas a pagar: </span>
+                <span className="font-medium text-foreground">
+                  {confirmPartial ? fmt(confirmPartial.monto, confirmPartial.e.moneda) : ""}
+                </span>
+              </div>
+              <div className="text-yellow-500">
+                Faltarían: {confirmPartial ? fmt(confirmPartial.falta, confirmPartial.e.moneda) : ""}
+              </div>
+              <div className="pt-2 text-xs text-muted-foreground">
+                <b className="text-foreground">Parcial:</b> queda en la agenda y el saldo se suma al próximo mes.<br />
+                <b className="text-foreground">Total:</b> se salda con este monto y ajusta el previsto del catálogo.
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-yellow-500 text-black hover:bg-yellow-500/90"
+            onClick={() => {
+              if (!confirmPartial) return;
+              const c = confirmPartial;
+              setConfirmPartial(null);
+              doPay(c.e, c.rec, c.monto, c.forma_pago, "parcial");
+            }}
+          >
+            Pago parcial
+          </AlertDialogAction>
+          <AlertDialogAction
+            onClick={() => {
+              if (!confirmPartial) return;
+              const c = confirmPartial;
+              setConfirmPartial(null);
+              doPay(c.e, c.rec, c.monto, c.forma_pago, "total");
+            }}
+          >
+            Pago total
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
