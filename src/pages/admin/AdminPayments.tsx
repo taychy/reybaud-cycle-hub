@@ -203,7 +203,13 @@ const getMethodDisplay = (sub: Suscripcion) => {
 
 const formatDate = (d: string | null) => {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Fechas planas "YYYY-MM-DD" se parsean sin drift de zona horaria.
+  // Timestamps ISO con "T" se formatean en TZ Argentina.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [y, m, day] = d.split("-").map(Number);
+    return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+  return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
 };
 
 const AdminPayments = () => {
