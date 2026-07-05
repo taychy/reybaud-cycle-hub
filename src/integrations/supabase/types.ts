@@ -8854,6 +8854,7 @@ export type Database = {
         | "Sin grupo"
         | "Principiante"
         | "Personalizado"
+        | "Aspirantes"
       installment_reminder_channel: "email" | "whatsapp_manual" | "admin_alert"
       installment_reminder_recipient: "alumno" | "admin"
       installment_reminder_status: "pending" | "sent" | "failed" | "skipped"
@@ -9066,6 +9067,7 @@ export const Constants = {
         "Sin grupo",
         "Principiante",
         "Personalizado",
+        "Aspirantes",
       ],
       installment_reminder_channel: ["email", "whatsapp_manual", "admin_alert"],
       installment_reminder_recipient: ["alumno", "admin"],
