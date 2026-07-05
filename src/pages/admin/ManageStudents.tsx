@@ -1455,8 +1455,20 @@ const ManageStudents = () => {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Email</Label>
+                            <Label className="text-xs">Email principal (login)</Label>
                             <Input value={detailForm.email} onChange={(e) => setDetailForm({ ...detailForm, email: e.target.value })} className="bg-secondary border-border text-sm h-8" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Emails adicionales (copia de comunicaciones)</Label>
+                            <Input
+                              value={detailForm.emails_adicionales}
+                              onChange={(e) => setDetailForm({ ...detailForm, emails_adicionales: e.target.value })}
+                              className="bg-secondary border-border text-sm h-8"
+                              placeholder="Ej: mama@mail.com, contador@estudio.com"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Reciben en copia los mails automáticos (habilitación, grupo, cambios de plan). Separar con coma. No se usan para login.
+                            </p>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
