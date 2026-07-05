@@ -1,0 +1,2 @@
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS emails_adicionales text[] NOT NULL DEFAULT '{}'::text[];
+COMMENT ON COLUMN public.alumnos.emails_adicionales IS 'Emails adicionales que reciben en copia las comunicaciones automáticas (padres, pareja, contador, etc.)';

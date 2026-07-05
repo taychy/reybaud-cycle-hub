@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
     const { data: alumno } = await supabaseAdmin
       .from("alumnos")
-      .select("nombre, email")
+      .select("nombre, email, emails_adicionales")
       .eq("id", alumno_id)
       .single();
 
@@ -255,6 +255,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    const mainEmail = String(alumno.email || "").trim().toLowerCase();
+    const extras = Array.isArray((alumno as any).emails_adicionales)
+      ? ((alumno as any).emails_adicionales as string[])
+          .map((e) => String(e || "").trim().toLowerCase())
+          .filter((e) => e && e.includes("@") && e !== mainEmail)
+      : [];
+    const recipients = [mainEmail, ...Array.from(new Set(extras))].filter(Boolean);
+
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -263,7 +271,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Ciclismo Reybaud <no-reply@ciclismoreybaud.com>",
-        to: [alumno.email],
+        to: recipients,
         subject,
         html: emailHtml,
       }),

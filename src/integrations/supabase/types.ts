@@ -313,6 +313,7 @@ export type Database = {
           documento: string | null
           domicilio_fiscal: string | null
           email: string
+          emails_adicionales: string[]
           estado: string
           fecha_baja: string | null
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -373,6 +374,7 @@ export type Database = {
           documento?: string | null
           domicilio_fiscal?: string | null
           email: string
+          emails_adicionales?: string[]
           estado?: string
           fecha_baja?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -433,6 +435,7 @@ export type Database = {
           documento?: string | null
           domicilio_fiscal?: string | null
           email?: string
+          emails_adicionales?: string[]
           estado?: string
           fecha_baja?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]

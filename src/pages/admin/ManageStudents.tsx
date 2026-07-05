@@ -133,7 +133,7 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "", notas: "", nombres_bancarios: "" });
+  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", notas: "", nombres_bancarios: "" });
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
@@ -572,6 +572,7 @@ const ManageStudents = () => {
       nombre: alumno.nombre,
       apellido: getApellido(alumno),
       email: alumno.email,
+      emails_adicionales: (((alumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
       notas: alumno.notas || "",
@@ -587,10 +588,19 @@ const ManageStudents = () => {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const mainEmailLower = detailForm.email.trim().toLowerCase();
+    const emailsAdicionalesArr = Array.from(new Set(
+      detailForm.emails_adicionales
+        .split(/[,\n;\s]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s && s.includes("@") && s !== mainEmailLower)
+    ));
+
     const payload = {
       nombre: detailForm.nombre.trim(),
       apellido: detailForm.apellido.trim() || null,
-      email: detailForm.email.trim().toLowerCase(),
+      email: mainEmailLower,
+      emails_adicionales: emailsAdicionalesArr,
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
       notas: detailForm.notas.trim() || null,
@@ -620,6 +630,7 @@ const ManageStudents = () => {
       nombre: updatedAlumno.nombre,
       apellido: getApellido(updatedAlumno),
       email: updatedAlumno.email,
+      emails_adicionales: (((updatedAlumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
       notas: updatedAlumno.notas || "",
@@ -1444,8 +1455,20 @@ const ManageStudents = () => {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Email</Label>
+                            <Label className="text-xs">Email principal (login)</Label>
                             <Input value={detailForm.email} onChange={(e) => setDetailForm({ ...detailForm, email: e.target.value })} className="bg-secondary border-border text-sm h-8" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Emails adicionales (copia de comunicaciones)</Label>
+                            <Input
+                              value={detailForm.emails_adicionales}
+                              onChange={(e) => setDetailForm({ ...detailForm, emails_adicionales: e.target.value })}
+                              className="bg-secondary border-border text-sm h-8"
+                              placeholder="Ej: mama@mail.com, contador@estudio.com"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Reciben en copia los mails automáticos (habilitación, grupo, cambios de plan). Separar con coma. No se usan para login.
+                            </p>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
@@ -1479,6 +1502,13 @@ const ManageStudents = () => {
                           <DetailRow label="Nombre" value={drawerAlumno.nombre} />
                           <DetailRow label="Apellido" value={getApellido(drawerAlumno) || "—"} />
                           <DetailRow label="Email" value={drawerAlumno.email} mono />
+                          {(((drawerAlumno as any).emails_adicionales as string[]) || []).length > 0 && (
+                            <DetailRow
+                              label="Emails en copia"
+                              value={(((drawerAlumno as any).emails_adicionales as string[]) || []).join(", ")}
+                              mono
+                            />
+                          )}
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
                           {(((drawerAlumno as any).nombres_bancarios as string[]) || []).length > 0 && (
