@@ -588,10 +588,19 @@ const ManageStudents = () => {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const mainEmailLower = detailForm.email.trim().toLowerCase();
+    const emailsAdicionalesArr = Array.from(new Set(
+      detailForm.emails_adicionales
+        .split(/[,\n;\s]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s && s.includes("@") && s !== mainEmailLower)
+    ));
+
     const payload = {
       nombre: detailForm.nombre.trim(),
       apellido: detailForm.apellido.trim() || null,
-      email: detailForm.email.trim().toLowerCase(),
+      email: mainEmailLower,
+      emails_adicionales: emailsAdicionalesArr,
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
       notas: detailForm.notas.trim() || null,
@@ -621,6 +630,7 @@ const ManageStudents = () => {
       nombre: updatedAlumno.nombre,
       apellido: getApellido(updatedAlumno),
       email: updatedAlumno.email,
+      emails_adicionales: (((updatedAlumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
       notas: updatedAlumno.notas || "",
