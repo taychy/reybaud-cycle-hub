@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
     const { data: alumno } = await supabaseAdmin
       .from("alumnos")
-      .select("nombre, email")
+      .select("nombre, email, emails_adicionales")
       .eq("id", alumno_id)
       .single();
 
