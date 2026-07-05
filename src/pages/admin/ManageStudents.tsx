@@ -1502,6 +1502,13 @@ const ManageStudents = () => {
                           <DetailRow label="Nombre" value={drawerAlumno.nombre} />
                           <DetailRow label="Apellido" value={getApellido(drawerAlumno) || "—"} />
                           <DetailRow label="Email" value={drawerAlumno.email} mono />
+                          {(((drawerAlumno as any).emails_adicionales as string[]) || []).length > 0 && (
+                            <DetailRow
+                              label="Emails en copia"
+                              value={(((drawerAlumno as any).emails_adicionales as string[]) || []).join(", ")}
+                              mono
+                            />
+                          )}
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
                           {(((drawerAlumno as any).nombres_bancarios as string[]) || []).length > 0 && (
