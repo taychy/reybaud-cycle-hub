@@ -147,30 +147,30 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
     methods[e.id] ?? normalizeGastoPaymentMethod(e.forma_pago ?? rec.forma_pago_default);
 
 
-  const handlePay = async (e: AgendaEjecucion, rec: AgendaRecurrente) => {
-    const monto = Number(getAmount(e, rec));
-    if (!monto || monto <= 0) {
-      toast({ title: "Monto inválido", description: "Ingresá un monto válido antes de pagar.", variant: "destructive" });
-      return;
-    }
-    const forma_pago = getMethod(e, rec);
+  const doPay = async (
+    e: AgendaEjecucion,
+    rec: AgendaRecurrente,
+    monto: number,
+    forma_pago: string,
+    modo: "total" | "parcial" | "exacto",
+  ) => {
     setPaying(p => ({ ...p, [e.id]: true }));
 
-    const previstoOriginal = e.monto_previsto || 0;
-    const edited = monto !== previstoOriginal;
+    // "total" → ajusta previsto al monto pagado (queda saldada, sincroniza catálogo)
+    // "parcial" → no toca previsto (queda parcial y arrastra al próximo mes)
+    // "exacto" → monto == previsto, sin ajustes
+    const ajustarPrevisto = modo === "total";
 
     const { error } = await supabase.rpc("register_gasto_pago_v2" as any, {
       p_ejec_id: e.id,
       p_monto: monto,
       p_fecha: new Date().toISOString().split("T")[0],
       p_forma_pago: forma_pago,
-      p_notas: null,
+      p_notas: modo === "parcial" ? "Pago parcial" : null,
       p_es_excedente: false,
       p_motivo_excedente: null,
-      // Si el usuario editó el monto, ajusta previsto y sincroniza catálogo
-      // para que el próximo mes venga precargado con este valor ("último pago").
-      p_nuevo_previsto: edited ? monto : null,
-      p_sync_catalogo: edited,
+      p_nuevo_previsto: ajustarPrevisto ? monto : null,
+      p_sync_catalogo: ajustarPrevisto,
     });
 
     if (error) {
@@ -179,14 +179,34 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
       return;
     }
 
-    toast({ title: "Pago registrado", description: rec.concepto });
-    // Fade-out y luego refetch
+    toast({
+      title: modo === "parcial" ? "Pago parcial registrado" : "Pago registrado",
+      description: rec.concepto,
+    });
     setFadingOut(prev => new Set(prev).add(e.id));
     setTimeout(() => {
       setPaying(p => { const n = { ...p }; delete n[e.id]; return n; });
       onChanged();
       setFadingOut(prev => { const n = new Set(prev); n.delete(e.id); return n; });
     }, 320);
+  };
+
+  const handlePay = async (e: AgendaEjecucion, rec: AgendaRecurrente) => {
+    const monto = Number(getAmount(e, rec));
+    if (!monto || monto <= 0) {
+      toast({ title: "Monto inválido", description: "Ingresá un monto válido antes de pagar.", variant: "destructive" });
+      return;
+    }
+    const forma_pago = getMethod(e, rec);
+    const previsto = e.monto_previsto || 0;
+
+    // Si paga menos que lo previsto → preguntar total vs parcial
+    if (previsto > 0 && monto < previsto) {
+      setConfirmPartial({ e, rec, monto, forma_pago, falta: previsto - monto });
+      return;
+    }
+    // Monto == previsto o mayor → pago directo
+    await doPay(e, rec, monto, forma_pago, "exacto");
   };
 
   const counts = useMemo(() => {
