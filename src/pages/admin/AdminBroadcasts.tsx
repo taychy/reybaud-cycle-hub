@@ -21,7 +21,7 @@ import { Send, Eye, Settings, Mail, History, Users, AlertTriangle, Loader2, Sear
 import MarketingContactsManager from "@/components/admin/MarketingContactsManager";
 
 const ESTADOS = ["activo", "inactivo", "vacaciones"];
-const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Sin grupo"];
+const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Aspirantes", "Sin grupo"];
 const MARKETING_TIPOS = [
   { value: "lead", label: "Leads" },
   { value: "ex_alumno", label: "Ex alumnos" },

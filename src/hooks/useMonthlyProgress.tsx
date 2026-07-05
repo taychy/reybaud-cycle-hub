@@ -49,7 +49,7 @@ export function useMonthlyProgress(alumnoId: string | null, grupo: string | null
         .gte("fecha", fromDate)
         .lte("fecha", toDate);
 
-      if (grupo === "Personalizado") {
+      if (grupo === "Personalizado" || grupo === "Aspirantes") {
         query = query.eq("alumno_id", alumnoId);
       } else {
         query = query.eq("grupo", grupo as any).is("alumno_id", null);

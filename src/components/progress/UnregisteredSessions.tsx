@@ -38,7 +38,7 @@ export function UnregisteredSessions({ alumnoId, grupo, onUpdate }: Props) {
       .lte("fecha", todayStr)
       .order("fecha", { ascending: false });
 
-    if (grupo === "Personalizado") {
+    if (grupo === "Personalizado" || grupo === "Aspirantes") {
       trainingsQuery = trainingsQuery.eq("alumno_id", alumnoId);
     } else {
       trainingsQuery = trainingsQuery.eq("grupo", grupo as any).is("alumno_id", null);

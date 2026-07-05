@@ -51,7 +51,7 @@ interface SuscripcionConPlan {
   planes: { id: string; nombre: string; precio: number; moneda: string } | null;
 }
 
-const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Sin grupo"] as const;
+const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Aspirantes", "Sin grupo"] as const;
 
 const VALID_TRANSITIONS_ADMIN: Record<string, string[]> = {
   pendiente: ["activo", "inactivo"],

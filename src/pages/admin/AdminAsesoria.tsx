@@ -55,7 +55,7 @@ const AdminAsesoria = () => {
         .select("id, alumno_id, coach_id, activa, fecha_inicio, fecha_fin, notas, alumnos(id, nombre, apellido, email, grupo), coaches(id, nombre, email)")
         .order("created_at", { ascending: false }),
       supabase.from("coaches").select("id, nombre, email").eq("estado", "activo"),
-      supabase.from("alumnos").select("id, nombre, apellido, email, grupo").eq("grupo", "Personalizado" as any).eq("estado", "activo"),
+      supabase.from("alumnos").select("id, nombre, apellido, email, grupo").in("grupo", ["Personalizado", "Aspirantes"] as any).eq("estado", "activo"),
     ]);
 
     setAsignaciones((asigRes.data as any) || []);
@@ -123,7 +123,7 @@ const AdminAsesoria = () => {
             <Users className="w-8 h-8 text-primary" />
             <div>
               <p className="text-2xl font-bold">{alumnosPersonalizado.length}</p>
-              <p className="text-xs text-muted-foreground">Alumnos personalizados</p>
+              <p className="text-xs text-muted-foreground">Alumnos asignables</p>
             </div>
           </CardContent>
         </Card>
@@ -152,7 +152,7 @@ const AdminAsesoria = () => {
         <div className="text-center py-12 text-muted-foreground">
           <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>No hay asignaciones aún</p>
-          <p className="text-xs mt-1">Asigná un alumno del grupo "Personalizado" a un coach</p>
+          <p className="text-xs mt-1">Asigná un alumno del grupo "Personalizado" o "Aspirantes" a un coach</p>
         </div>
       ) : (
         <div className="rounded-md border">
@@ -206,7 +206,7 @@ const AdminAsesoria = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Alumno *</label>
               {availableAlumnos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay alumnos del grupo "Personalizado" sin coach asignado. Cambiá el grupo de un alumno a "Personalizado" primero.</p>
+                <p className="text-sm text-muted-foreground">No hay alumnos del grupo "Personalizado" o "Aspirantes" sin coach asignado. Cambiá el grupo de un alumno primero.</p>
               ) : (
                 <Select value={form.alumno_id} onValueChange={(v) => setForm((p) => ({ ...p, alumno_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>

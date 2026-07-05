@@ -188,7 +188,7 @@ const StudentDashboard = () => {
         .eq("visible", true)
         .order("fecha", { ascending: true });
 
-      if (alumnoData.grupo === "Personalizado") {
+      if (alumnoData.grupo === "Personalizado" || alumnoData.grupo === "Aspirantes") {
         trainingsQuery = trainingsQuery.eq("alumno_id", alumnoData.id);
       } else {
         trainingsQuery = trainingsQuery.eq("grupo", alumnoData.grupo).is("alumno_id", null);

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 import { toast } from "sonner";
 
-const GRUPOS = ["G1", "G2", "G3", "G4", "Sin grupo"] as const;
+const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Personalizado", "Aspirantes", "Sin grupo"] as const;
 
 interface ParsedStudent {
   nombre: string;
