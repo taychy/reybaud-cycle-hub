@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
     let replyTo = body.reply_to;
     if (!senderEmail || !senderName) {
       const { data: cfg } = await admin.from("broadcast_sender_config").select("*").limit(1).maybeSingle();
-      senderEmail = senderEmail || cfg?.sender_email || "news@notify.reybaud-app.com";
+      senderEmail = senderEmail || cfg?.sender_email || "news@reybaud-app.com";
       senderName = senderName || cfg?.sender_name || "Reybaud";
       replyTo = replyTo || cfg?.reply_to || undefined;
     }
