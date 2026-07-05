@@ -103,6 +103,7 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
   const [methods, setMethods] = useState<Record<string, string>>({});
   const [paying, setPaying] = useState<Record<string, boolean>>({});
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
+  const [confirmPartial, setConfirmPartial] = useState<null | { e: AgendaEjecucion; rec: AgendaRecurrente; monto: number; forma_pago: string; falta: number }>(null);
 
   const rows = useMemo(() => {
     const recMap = new Map(recurrentes.map(r => [r.id, r]));
