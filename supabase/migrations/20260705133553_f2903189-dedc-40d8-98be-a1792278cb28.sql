@@ -1,0 +1,1 @@
+UPDATE public.broadcast_sender_config SET sender_email = 'news@notify.reybaud-app.com' WHERE sender_email = 'news@reybaud-app.com';
