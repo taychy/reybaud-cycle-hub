@@ -220,6 +220,7 @@ const AgendaMes = ({ ejecuciones, recurrentes, deudaSaldos, onChanged, onOpenDeu
   }, [rows]);
 
   return (
+    <>
     <Card className="p-4 space-y-4">
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
