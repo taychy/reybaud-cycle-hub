@@ -572,6 +572,7 @@ const ManageStudents = () => {
       nombre: alumno.nombre,
       apellido: getApellido(alumno),
       email: alumno.email,
+      emails_adicionales: (((alumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
       notas: alumno.notas || "",
