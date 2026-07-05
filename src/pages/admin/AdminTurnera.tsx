@@ -35,6 +35,27 @@ const AdminTurnera = () => {
   const [dispForm, setDispForm] = useState({ coach_id: "", servicio_id: "", dia_semana: "1", hora_inicio: "08:00", hora_fin: "12:00", sede_id: "" });
   const [configServ, setConfigServ] = useState<any | null>(null);
 
+  // Reserva manual (admin)
+  const [showReservaForm, setShowReservaForm] = useState(false);
+  const [alumnos, setAlumnos] = useState<any[]>([]);
+  const [reservaForm, setReservaForm] = useState({
+    servicio_id: "",
+    coach_id: "",
+    alumno_id: "",
+    fecha: "",
+    hora_inicio: "",
+    hora_fin: "",
+    sede_id: "",
+    nombre: "",
+    apellido: "",
+    email: "",
+    celular: "",
+    documento: "",
+    nota: "",
+    precio: "",
+    estado_economico: "pagado",
+  });
+
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
@@ -52,6 +73,111 @@ const AdminTurnera = () => {
     setCoaches((cRes.data as any[]) || []);
     setSedes((seRes.data as any[]) || []);
     setLoading(false);
+  };
+
+  const fetchAlumnosForReserva = async () => {
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, nombre, apellido, email, documento, celular")
+      .eq("estado", "activo")
+      .order("apellido");
+    setAlumnos((data as any[]) || []);
+  };
+
+  const resetReservaForm = () => {
+    setReservaForm({
+      servicio_id: "",
+      coach_id: "",
+      alumno_id: "",
+      fecha: "",
+      hora_inicio: "",
+      hora_fin: "",
+      sede_id: "",
+      nombre: "",
+      apellido: "",
+      email: "",
+      celular: "",
+      documento: "",
+      nota: "",
+      precio: "",
+      estado_economico: "pagado",
+    });
+  };
+
+  const computeHoraFin = (horaInicio: string, duracionMin: number) => {
+    if (!horaInicio || !duracionMin) return "";
+    const [h, m] = horaInicio.split(":").map(Number);
+    const total = h * 60 + m + duracionMin;
+    const hh = Math.floor(total / 60).toString().padStart(2, "0");
+    const mm = (total % 60).toString().padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
+  const onReservaServicioChange = (servicioId: string) => {
+    const serv = servicios.find((s) => s.id === servicioId);
+    const horaFin = serv?.duracion_minutos && reservaForm.hora_inicio
+      ? computeHoraFin(reservaForm.hora_inicio, Number(serv.duracion_minutos))
+      : reservaForm.hora_fin;
+    setReservaForm((p) => ({ ...p, servicio_id: servicioId, hora_fin: horaFin }));
+  };
+
+  const onReservaAlumnoChange = (alumnoId: string) => {
+    const alum = alumnos.find((a) => a.id === alumnoId);
+    setReservaForm((p) => ({
+      ...p,
+      alumno_id: alumnoId,
+      nombre: alum?.nombre || p.nombre,
+      apellido: alum?.apellido || p.apellido,
+      email: alum?.email || p.email,
+      documento: alum?.documento || p.documento,
+      celular: alum?.celular || p.celular,
+    }));
+  };
+
+  const addReserva = async () => {
+    const { servicio_id, coach_id, fecha, hora_inicio, hora_fin, nombre, apellido, email } = reservaForm;
+    if (!servicio_id || !coach_id || !fecha || !hora_inicio || !hora_fin || !nombre.trim() || !apellido.trim() || !email.trim()) {
+      toast({ title: "Faltan datos obligatorios", description: "Completá servicio, coach, fecha, horario, nombre, apellido y email.", variant: "destructive" });
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast({ title: "Email inválido", description: "Revisá el formato del email.", variant: "destructive" });
+      return;
+    }
+    const precio = reservaForm.precio ? Number(reservaForm.precio) : null;
+    const insert: any = {
+      servicio_id,
+      coach_id,
+      alumno_id: reservaForm.alumno_id || null,
+      fecha,
+      hora_inicio,
+      hora_fin,
+      sede_id: reservaForm.sede_id || null,
+      nombre: nombre.trim(),
+      apellido: apellido.trim(),
+      email: email.trim(),
+      celular: reservaForm.celular?.trim() || null,
+      documento: reservaForm.documento?.trim() || null,
+      nota: reservaForm.nota?.trim() || null,
+      precio_snapshot: precio,
+      moneda_snapshot: "ARS",
+      estado_operativo: "reservada",
+      estado_economico: reservaForm.estado_economico,
+      pago_monto: reservaForm.estado_economico === "pagado" ? precio : null,
+      origen_link: "admin",
+      acepto_politica: true,
+      form_responses: {},
+    };
+    const { error } = await supabase.from("reservas_turnera").insert(insert);
+    if (error) {
+      toast({ title: "Error al crear reserva", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Reserva creada" });
+    setShowReservaForm(false);
+    resetReservaForm();
+    loadAll();
   };
 
   const addServicio = async () => {
@@ -232,7 +358,20 @@ const AdminTurnera = () => {
           <DisponibilidadAjustadaManager coaches={coaches} />
         </TabsContent>
 
-        <TabsContent value="reservas" className="mt-4">
+        <TabsContent value="reservas" className="mt-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">Reservas externas y manuales.</p>
+            <Button
+              size="sm"
+              onClick={() => {
+                fetchAlumnosForReserva();
+                setShowReservaForm(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Nueva reserva
+            </Button>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -287,6 +426,106 @@ const AdminTurnera = () => {
               )}
             </TableBody>
           </Table>
+
+          <Dialog open={showReservaForm} onOpenChange={(o) => { if (!o) { setShowReservaForm(false); resetReservaForm(); } }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Nueva reserva</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Servicio *</label>
+                    <Select value={reservaForm.servicio_id} onValueChange={onReservaServicioChange}>
+                      <SelectTrigger><SelectValue placeholder="Elegí servicio" /></SelectTrigger>
+                      <SelectContent>{servicios.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Coach *</label>
+                    <Select value={reservaForm.coach_id} onValueChange={(v) => setReservaForm(p => ({ ...p, coach_id: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Elegí coach" /></SelectTrigger>
+                      <SelectContent>{coaches.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Fecha *</label>
+                    <Input type="date" value={reservaForm.fecha} onChange={e => setReservaForm(p => ({ ...p, fecha: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Inicio *</label>
+                    <Input type="time" value={reservaForm.hora_inicio} onChange={e => {
+                      const hi = e.target.value;
+                      const serv = servicios.find(s => s.id === reservaForm.servicio_id);
+                      const hf = serv?.duracion_minutos ? computeHoraFin(hi, Number(serv.duracion_minutos)) : reservaForm.hora_fin;
+                      setReservaForm(p => ({ ...p, hora_inicio: hi, hora_fin: hf }));
+                    }} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Fin *</label>
+                    <Input type="time" value={reservaForm.hora_fin} onChange={e => setReservaForm(p => ({ ...p, hora_fin: e.target.value }))} />
+                  </div>
+                </div>
+
+                {sedes.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Sede</label>
+                    <Select value={reservaForm.sede_id || "__none__"} onValueChange={(v) => setReservaForm(p => ({ ...p, sede_id: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Elegí sede (opcional)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sin sede</SelectItem>
+                        {sedes.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Vincular a alumno existente</label>
+                  <Select value={reservaForm.alumno_id || "__none__"} onValueChange={(v) => onReservaAlumnoChange(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Opcional: buscar alumno" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Ninguno / invitado</SelectItem>
+                      {alumnos.map(a => <SelectItem key={a.id} value={a.id}>{a.apellido}, {a.nombre} ({a.email || a.documento || "sin contacto"})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="Nombre *" value={reservaForm.nombre} onChange={e => setReservaForm(p => ({ ...p, nombre: e.target.value }))} />
+                  <Input placeholder="Apellido *" value={reservaForm.apellido} onChange={e => setReservaForm(p => ({ ...p, apellido: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="Email *" type="email" value={reservaForm.email} onChange={e => setReservaForm(p => ({ ...p, email: e.target.value }))} />
+                  <Input placeholder="Celular" value={reservaForm.celular} onChange={e => setReservaForm(p => ({ ...p, celular: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="DNI / CUIT" value={reservaForm.documento} onChange={e => setReservaForm(p => ({ ...p, documento: e.target.value }))} />
+                  <Input placeholder="Precio ($)" type="number" value={reservaForm.precio} onChange={e => setReservaForm(p => ({ ...p, precio: e.target.value }))} />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Estado de pago</label>
+                  <Select value={reservaForm.estado_economico} onValueChange={(v) => setReservaForm(p => ({ ...p, estado_economico: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pagado">Pagado</SelectItem>
+                      <SelectItem value="pendiente_revision">Pendiente de revisión</SelectItem>
+                      <SelectItem value="pendiente_pago">Pendiente de pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Textarea placeholder="Nota (opcional)" value={reservaForm.nota} onChange={e => setReservaForm(p => ({ ...p, nota: e.target.value }))} />
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => { setShowReservaForm(false); resetReservaForm(); }}>Cancelar</Button>
+                  <Button onClick={addReserva}>Guardar reserva</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 
