@@ -481,7 +481,29 @@ const PlanSelection = () => {
           } else if (msg.includes("PAUSA_TOO_LONG")) {
             setError("La pausa no puede durar más de 2 meses.");
           } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
-            setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez. Si creés que es un error, escribinos por WhatsApp a administración y lo resolvemos.");
+            // Diferenciar: ¿es el MISMO plan que ya tiene activo/pagado?
+            const today = new Date().toISOString().split("T")[0];
+            const { data: sameActive } = await supabase
+              .from("suscripciones")
+              .select("id, fecha_fin, estado, planes(nombre)")
+              .eq("alumno_id", alumnoId)
+              .eq("plan_id", plan.id)
+              .in("estado", ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente"])
+              .is("cancelada_at", null)
+              .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
+              .order("fecha_fin", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (sameActive) {
+              const finTxt = sameActive.fecha_fin
+                ? new Date(sameActive.fecha_fin + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" })
+                : "el fin del período";
+              setError(
+                `Ya tenés este plan activo hasta el ${finTxt}. No hace falta que lo pagues de nuevo. Cuando termine el período vas a poder renovarlo.`
+              );
+            } else {
+              setError("Ya tenés un plan grupal activo. Solo podés tener un plan grupal a la vez. Si creés que es un error, escribinos por WhatsApp a administración y lo resolvemos.");
+            }
           } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
             setError("Ya tenés este mismo plan activo para este período. Si querés renovarlo antes de tiempo o creés que es un error, contactá a administración.");
           } else {

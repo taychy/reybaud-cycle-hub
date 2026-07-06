@@ -71,7 +71,30 @@ export async function tryReuseExistingSubscription(
   planId: string,
   update: ReuseUpdate,
 ): Promise<{ id: string } | null> {
-  const existingId = getReuseSubId();
+  let existingId = getReuseSubId();
+
+  // Fallback: si no hay id en localStorage (el alumno entró a /planes desde un
+  // enlace genérico y no desde "Pagar este plan"), buscar automáticamente una
+  // sub pendiente del mismo alumno+plan cuyo período siga vigente para evitar
+  // que el trigger `DUPLICATE_GRUPAL_CATEGORY` bloquee un INSERT redundante.
+  if (!existingId) {
+    const today = new Date().toISOString().split("T")[0];
+    const { data: candidate } = await supabase
+      .from("suscripciones")
+      .select("id")
+      .eq("alumno_id", alumnoId)
+      .eq("plan_id", planId)
+      .in("estado", ["pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"])
+      .is("cancelada_at", null)
+      .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (candidate?.id) {
+      existingId = candidate.id;
+    }
+  }
+
   if (!existingId) return null;
 
   const { data, error } = await supabase.rpc("reuse_pending_subscription" as any, {
