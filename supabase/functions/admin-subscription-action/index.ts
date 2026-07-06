@@ -108,12 +108,14 @@ Deno.serve(async (req) => {
 
     if (action === "approve") {
       const today = nowIso.split("T")[0];
-      // Preserve existing fecha_fin; if missing, add 1 month from today.
+      // Preserve existing fecha_fin; if missing, calcular fin del mes calendario
+      // de la fecha_inicio (o de hoy si tampoco hay inicio). Nunca +30 días rolling.
       let fechaFin = sub.fecha_fin;
       if (!fechaFin) {
-        const ff = new Date();
-        ff.setMonth(ff.getMonth() + 1);
-        fechaFin = ff.toISOString().split("T")[0];
+        const baseIso = (sub.fecha_inicio || today).substring(0, 10);
+        const [by, bm] = baseIso.split("-").map(Number);
+        const eom = new Date(Date.UTC(by, bm, 0));
+        fechaFin = eom.toISOString().split("T")[0];
       }
       const { error: upErr } = await admin.from("suscripciones").update({
         estado: "activa",

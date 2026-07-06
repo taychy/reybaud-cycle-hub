@@ -159,8 +159,13 @@ Deno.serve(async (req) => {
   const targetMonthStart = `${ty}-${String(tm).padStart(2, "0")}-01`;
 
   for (const old of eligible) {
-    const naturalNext = addDaysISO(old.fecha_fin, 1);
-    const newFechaIni = naturalNext > targetMonthStart ? naturalNext : targetMonthStart;
+    // Regla: nueva sub arranca SIEMPRE el día 1 del mes siguiente al mes de la vieja
+    // (nunca `fecha_fin + 1`, que si la vieja se había extendido caería mitad de mes).
+    // Si el mes siguiente ya pasó (backfill), usamos el mes de `target`.
+    const [oy, om] = old.fecha_fin.split("-").map(Number);
+    const nextMonthDate = new Date(Date.UTC(oy, om, 1)); // mes siguiente, día 1
+    const nextMonthStart = nextMonthDate.toISOString().slice(0, 10);
+    const newFechaIni = nextMonthStart > targetMonthStart ? nextMonthStart : targetMonthStart;
     const newFechaFin = endOfMonthISO(newFechaIni);
 
     const { data: existing } = await supabase

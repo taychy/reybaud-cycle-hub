@@ -129,8 +129,8 @@ Deno.serve(async (req) => {
 
       if (!existingSub) {
         const now = new Date();
-        const fin = new Date(now);
-        fin.setDate(fin.getDate() + 30);
+        // Fin del mes calendario (regla del negocio: nunca +30 días rolling).
+        const fin = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         const fmt = (d: Date) => d.toISOString().split("T")[0];
 
         await supabaseAdmin.from("suscripciones").insert({
