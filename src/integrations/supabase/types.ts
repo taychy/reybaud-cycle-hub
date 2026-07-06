@@ -1620,6 +1620,7 @@ export type Database = {
           fecha_inicio: string
           id: string
           nota: string | null
+          origen: string
           updated_at: string
         }
         Insert: {
@@ -1632,6 +1633,7 @@ export type Database = {
           fecha_inicio?: string
           id?: string
           nota?: string | null
+          origen?: string
           updated_at?: string
         }
         Update: {
@@ -1644,6 +1646,7 @@ export type Database = {
           fecha_inicio?: string
           id?: string
           nota?: string | null
+          origen?: string
           updated_at?: string
         }
         Relationships: [
@@ -8766,10 +8769,6 @@ export type Database = {
       }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
-      sync_segunda_actividad_discount: {
-        Args: { _alumno_id: string }
-        Returns: undefined
-      }
       transition_cambio_estado: {
         Args: {
           p_id: string

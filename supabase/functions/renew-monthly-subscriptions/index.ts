@@ -14,8 +14,15 @@
 //       estado       = 'pendiente'
 //       origen_registro = 'renovacion_pendiente'
 //       auto_renovacion = old.auto_renovacion (heredado)
-//       descuento_id / precio_final = copiamos descuento de la vieja SÓLO si el descuento sigue vigente
-//                                     (respetando fecha_vencimiento si tiene).
+//       precio_base   = precio VIGENTE del plan (nunca copia el precio_final anterior).
+//       descuento_id / precio_final = heredamos el MISMO descuento sólo si sigue vigente
+//                                     globalmente, sigue activo en descuentos_alumno para
+//                                     ese alumno, y cubre el nuevo período COMPLETO
+//                                     (vigencia_hasta >= newFechaFin). Si no, precio_final
+//                                     se recalcula igual a precio_base (sin descuento).
+//                                     precio_final SIEMPRE se recalcula sobre el nuevo
+//                                     precio_base, nunca se copia literal. Cada decisión
+//                                     queda registrada en audit_log.
 //  - Idempotencia: si ya existe una sub del mismo alumno_id+plan_id con fecha_inicio
 //    correspondiente al mes siguiente, no duplicamos.
 //
@@ -91,7 +98,7 @@ Deno.serve(async (req) => {
   //    'vencida' = ya marcada como finalizada. Ambas pueden necesitar renovación.
   const { data: candidates, error: candErr } = await supabase
     .from("suscripciones")
-    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, vigencia_hasta, activo)")
+    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, categoria, vigencia_hasta, activo)")
     .in("estado", ["activa", "vencida"])
     .lt("fecha_fin", target)
     .gte("fecha_fin", cutoffISO)
@@ -181,15 +188,47 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Descuento heredado sólo si sigue vigente (activo + no expirado)
+    // Regla de descuentos en renovación (política manual-por-admin):
+    //  - Precio base SIEMPRE = precio vigente del plan (no se copia el precio_final anterior).
+    //  - Se hereda EL MISMO descuento_id de la sub anterior SÓLO si:
+    //      a) el descuento sigue globalmente activo,
+    //      b) el alumno lo tiene asignado y activo en descuentos_alumno,
+    //      c) cubre el nuevo período completo (vigencia_hasta >= newFechaFin) — o no tiene vencimiento.
+    //  - Si no cubre todo el período, no se aplica en esta renovación (evitamos prorrateo).
+    //  - `precio_final` se RECALCULA sobre el nuevo precio_base, nunca se copia literal.
+    const newPrecioBase = old.planes?.precio ?? old.precio_base ?? null;
     let inheritDesc: string | null = null;
-    let inheritPrecio: number | null = null;
-    const d = old.descuentos;
-    if (old.descuento_id && d?.activo) {
-      const notExpired = !d.vigencia_hasta || d.vigencia_hasta >= newFechaIni;
-      if (notExpired) {
-        inheritDesc = old.descuento_id;
-        inheritPrecio = old.precio_final ?? null;
+    let inheritPrecio: number | null = newPrecioBase;
+    let discountDecision: "kept_recalculated" | "dropped_expired" | "dropped_inactive_on_student" | "dropped_inactive_global" | "no_previous_discount" | "dropped_no_base_price" = "no_previous_discount";
+
+    if (old.descuento_id) {
+      const d = old.descuentos as any;
+      if (!d?.activo) {
+        discountDecision = "dropped_inactive_global";
+      } else if (d.vigencia_hasta && d.vigencia_hasta < newFechaFin) {
+        // No cubre el período completo → no se aplica
+        discountDecision = "dropped_expired";
+      } else {
+        // Verificar que el alumno lo tenga asignado y ACTIVO
+        const { data: da } = await supabase
+          .from("descuentos_alumno")
+          .select("id, activo")
+          .eq("alumno_id", old.alumno_id)
+          .eq("descuento_id", old.descuento_id)
+          .maybeSingle();
+        if (!da || !(da as any).activo) {
+          discountDecision = "dropped_inactive_on_student";
+        } else if (newPrecioBase == null) {
+          discountDecision = "dropped_no_base_price";
+        } else {
+          // Recalcular precio_final sobre el nuevo precio_base
+          const recalc = d.tipo === "fijo"
+            ? Math.max(0, Number(newPrecioBase) - Number(d.valor))
+            : Math.round(Number(newPrecioBase) * (1 - Number(d.valor) / 100));
+          inheritDesc = old.descuento_id;
+          inheritPrecio = recalc;
+          discountDecision = "kept_recalculated";
+        }
       }
     }
 
@@ -203,9 +242,14 @@ Deno.serve(async (req) => {
       origen_registro: "renovacion_pendiente",
       auto_renovacion: old.auto_renovacion,
       descuento_id: inheritDesc,
-      precio_base: old.planes?.precio ?? old.precio_base ?? null,
-      precio_final: inheritPrecio ?? old.planes?.precio ?? old.precio_base ?? null,
+      precio_base: newPrecioBase,
+      precio_final: inheritPrecio ?? newPrecioBase,
       metodo_pago: "efectivo",
+      _audit: {
+        prev_descuento_id: old.descuento_id,
+        prev_precio_final: old.precio_final,
+        decision: discountDecision,
+      },
     });
   }
 
@@ -278,6 +322,29 @@ Deno.serve(async (req) => {
       console.error("[renew-monthly-subs] insert error", { old: r.old_sub_id, err: insErr });
       results.push({ old_sub_id: r.old_sub_id, ok: false, error: insErr.message });
       continue;
+    }
+
+    // Auditoría del tratamiento del descuento en la renovación
+    try {
+      await supabase.from("audit_log").insert({
+        action: "subscription_renewal_discount",
+        entity_type: "suscripciones",
+        entity_id: newSub.id,
+        metadata: {
+          old_sub_id: r.old_sub_id,
+          alumno_id: r.alumno_id,
+          plan_id: r.plan_id,
+          new_period: { fecha_inicio: r.fecha_inicio, fecha_fin: r.fecha_fin },
+          prev_descuento_id: r._audit?.prev_descuento_id ?? null,
+          prev_precio_final: r._audit?.prev_precio_final ?? null,
+          new_descuento_id: r.descuento_id,
+          new_precio_base: r.precio_base,
+          new_precio_final: r.precio_final,
+          decision: r._audit?.decision ?? "unknown",
+        },
+      });
+    } catch (e) {
+      console.warn("[renew-monthly-subs] audit_log insert failed", e);
     }
 
     // marcar vieja como vencida (finalizada)
