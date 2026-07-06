@@ -185,16 +185,22 @@ const EventDetail = () => {
         if (data) setEvent(data as unknown as Event);
         setLoading(false);
       });
-    supabase
-      .from("event_packages")
-      .select("precio")
-      .eq("event_id", id)
-      .eq("activo", true)
-      .then(({ data }) => {
-        const prices = (data || []).map((p: any) => Number(p.precio)).filter((n) => n > 0);
-        setPackagesCount(prices.length);
-        setPackagesMinPrice(prices.length ? Math.min(...prices) : null);
-      });
+    (async () => {
+      const { data } = await supabase
+        .from("event_packages")
+        .select("id, precio, currency")
+        .eq("event_id", id)
+        .eq("activo", true);
+      const rows = (data as any[]) || [];
+      const { fetchPriceStages, resolveActivePrice } = await import("@/lib/priceStages");
+      const stagesMap = await fetchPriceStages(rows.map((p) => p.id));
+      const prices = rows
+        .map((p) => resolveActivePrice(Number(p.precio) || 0, p.currency || "ARS", stagesMap[p.id]).precio)
+        .filter((n) => n > 0);
+      setPackagesCount(prices.length);
+      setPackagesMinPrice(prices.length ? Math.min(...prices) : null);
+    })();
+
   }, [id]);
 
   useEffect(() => {
