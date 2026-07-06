@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
   //    'vencida' = ya marcada como finalizada. Ambas pueden necesitar renovación.
   const { data: candidates, error: candErr } = await supabase
     .from("suscripciones")
-    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, vigencia_hasta, activo)")
+    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, categoria, vigencia_hasta, activo)")
     .in("estado", ["activa", "vencida"])
     .lt("fecha_fin", target)
     .gte("fecha_fin", cutoffISO)
