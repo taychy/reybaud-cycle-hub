@@ -14,8 +14,15 @@
 //       estado       = 'pendiente'
 //       origen_registro = 'renovacion_pendiente'
 //       auto_renovacion = old.auto_renovacion (heredado)
-//       descuento_id / precio_final = copiamos descuento de la vieja SÓLO si el descuento sigue vigente
-//                                     (respetando fecha_vencimiento si tiene).
+//       precio_base   = precio VIGENTE del plan (nunca copia el precio_final anterior).
+//       descuento_id / precio_final = heredamos el MISMO descuento sólo si sigue vigente
+//                                     globalmente, sigue activo en descuentos_alumno para
+//                                     ese alumno, y cubre el nuevo período COMPLETO
+//                                     (vigencia_hasta >= newFechaFin). Si no, precio_final
+//                                     se recalcula igual a precio_base (sin descuento).
+//                                     precio_final SIEMPRE se recalcula sobre el nuevo
+//                                     precio_base, nunca se copia literal. Cada decisión
+//                                     queda registrada en audit_log.
 //  - Idempotencia: si ya existe una sub del mismo alumno_id+plan_id con fecha_inicio
 //    correspondiente al mes siguiente, no duplicamos.
 //
