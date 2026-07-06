@@ -317,6 +317,29 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    // Auditoría del tratamiento del descuento en la renovación
+    try {
+      await supabase.from("audit_log").insert({
+        action: "subscription_renewal_discount",
+        entity_type: "suscripciones",
+        entity_id: newSub.id,
+        metadata: {
+          old_sub_id: r.old_sub_id,
+          alumno_id: r.alumno_id,
+          plan_id: r.plan_id,
+          new_period: { fecha_inicio: r.fecha_inicio, fecha_fin: r.fecha_fin },
+          prev_descuento_id: r._audit?.prev_descuento_id ?? null,
+          prev_precio_final: r._audit?.prev_precio_final ?? null,
+          new_descuento_id: r.descuento_id,
+          new_precio_base: r.precio_base,
+          new_precio_final: r.precio_final,
+          decision: r._audit?.decision ?? "unknown",
+        },
+      });
+    } catch (e) {
+      console.warn("[renew-monthly-subs] audit_log insert failed", e);
+    }
+
     // marcar vieja como vencida (finalizada)
     const { error: updErr } = await supabase
       .from("suscripciones")
