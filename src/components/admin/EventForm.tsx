@@ -574,17 +574,18 @@ const EventForm = ({
 
             {form.payment_mode === "cuotas" && (
               eventId ? (
-                <EventInstallmentsEditor
+                <LegacyInstallmentsGate
                   eventId={eventId}
                   eventCurrency={meta.currency || "ARS"}
                   eventPrice={meta.price ? parseFloat(meta.price) : null}
                 />
               ) : (
                 <p className="text-xs text-muted-foreground italic">
-                  Guardá el evento primero para configurar el plan de cuotas.
+                  Para eventos nuevos, configurá el plan de cuotas dentro de cada paquete (Planes de pago por paquete). Este evento aún no fue guardado.
                 </p>
               )
             )}
+
 
             {selectedCategory === "camp_viaje" && (
               <div className="pt-2 border-t border-border/30">
