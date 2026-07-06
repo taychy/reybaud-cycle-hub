@@ -1219,6 +1219,61 @@ const AdminEventReservations = ({
         )}
       </div>
 
+      {/* ─── Precios vigentes ─── */}
+      {!isPaymentFree && eventPackages.length > 0 && (
+        <div className="rounded-lg border border-border/60 bg-muted/10">
+          <button
+            type="button"
+            onClick={() => setShowPricesTable((s) => !s)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium hover:bg-muted/20 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              Precios vigentes
+              <Badge variant="outline" className="text-[10px]">{eventPackages.length}</Badge>
+            </span>
+            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showPricesTable ? "rotate-90" : ""}`} />
+          </button>
+          {showPricesTable && (
+            <div className="px-4 pb-3 pt-1 space-y-1.5 border-t border-border/40">
+              {eventPackages.map((p) => {
+                const stages = priceStagesByPkg[p.id];
+                const active = resolveActivePrice(p.precio, p.currency, stages);
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-3 py-1.5 text-sm border-b border-border/20 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{p.nombre}</div>
+                      {active.activeStage && (
+                        <div className="text-[11px] text-emerald-500">
+                          Etapa vigente: {active.activeStage.nombre}
+                          {active.nextStage && (
+                            <span className="text-muted-foreground"> · próxima: {active.nextStage.nombre} ({formatCountdown(active.nextStage.vigente_desde)})</span>
+                          )}
+                        </div>
+                      )}
+                      {!active.activeStage && active.nextStage && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Próxima etapa: {active.nextStage.nombre} ({formatCountdown(active.nextStage.vigente_desde)})
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-primary">{formatPrice(active.precio, active.currency as any)}</div>
+                      {active.activeStage && Number(active.activeStage.precio) !== Number(p.precio) && (
+                        <div className="text-[10px] text-muted-foreground line-through">{formatPrice(p.precio, p.currency as any)}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-[10px] text-muted-foreground pt-1">
+                Precio actual según etapas configuradas. Se aplica automáticamente a nuevas reservas.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── Quick Filter Chips ─── */}
       <div className="flex flex-wrap items-center gap-2">
         {quickFilters.map(f => (
