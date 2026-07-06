@@ -403,6 +403,29 @@ const AdminEventReservations = ({
 
   useEffect(() => { loadReservations(); }, [eventId]);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("event_packages" as any)
+        .select("id, nombre, precio, currency, activo, sort_order")
+        .eq("event_id", eventId)
+        .eq("activo", true)
+        .order("sort_order", { ascending: true });
+      const pkgs = ((data as any[]) || []).map((p) => ({
+        id: p.id, nombre: p.nombre, precio: Number(p.precio), currency: p.currency || eventCurrency,
+        activo: !!p.activo, sort_order: p.sort_order ?? 0,
+      }));
+      setEventPackages(pkgs);
+      if (pkgs.length > 0) {
+        const stagesMap = await fetchPriceStages(pkgs.map((p) => p.id));
+        setPriceStagesByPkg(stagesMap);
+      } else {
+        setPriceStagesByPkg({});
+      }
+    })();
+  }, [eventId, eventCurrency]);
+
+
   const loadPayments = async (reservationId: string) => {
     const { data } = await supabase
       .from("reservation_payments" as any)
