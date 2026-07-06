@@ -370,6 +370,12 @@ const AdminEventReservations = ({
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
+  // Precios vigentes (packages + stages)
+  const [eventPackages, setEventPackages] = useState<Array<{ id: string; nombre: string; precio: number; currency: string; activo: boolean; sort_order: number | null; }>>([]);
+  const [priceStagesByPkg, setPriceStagesByPkg] = useState<Record<string, PriceStage[]>>({});
+  const [showPricesTable, setShowPricesTable] = useState(false);
+
+
   /* ─── Participant helper ─── */
   const getParticipant = (r: EventReservation) => {
     if (r.alumno) return { nombre: r.alumno.nombre, apellido: r.alumno.apellido, email: r.alumno.email, telefono: r.alumno.telefono, isExternal: false };
