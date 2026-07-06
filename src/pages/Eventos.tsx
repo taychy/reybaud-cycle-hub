@@ -351,19 +351,24 @@ export const EventosContent = () => {
         .order("date", { ascending: true });
       if (!data || data.length === 0) { setEvents([]); setLoading(false); return; }
 
-      // Traer precio mínimo de paquetes activos por evento
+      // Traer precio mínimo de paquetes activos por evento (resolviendo etapa vigente)
       const eventIds = data.map((e: any) => e.id);
       const { data: pkgs } = await supabase
         .from("event_packages" as any)
-        .select("event_id, precio, activo")
+        .select("id, event_id, precio, currency, activo")
         .in("event_id", eventIds)
         .eq("activo", true);
+      const pkgList = (pkgs as any[]) || [];
+      const { fetchPriceStages, resolveActivePrice } = await import("@/lib/priceStages");
+      const stagesMap = await fetchPriceStages(pkgList.map((p) => p.id));
       const minByEvent: Record<string, number> = {};
-      ((pkgs as any[]) || []).forEach((p) => {
+      pkgList.forEach((p) => {
+        const resolved = resolveActivePrice(Number(p.precio) || 0, p.currency || "ARS", stagesMap[p.id]);
+        const price = resolved.precio;
         const cur = minByEvent[p.event_id];
-        const price = Number(p.precio) || 0;
         if (price > 0 && (cur == null || price < cur)) minByEvent[p.event_id] = price;
       });
+
 
       const enriched = data.map((e: any) => ({ ...e, packages_min_price: minByEvent[e.id] ?? null }));
       setEvents(enriched as unknown as Event[]);
