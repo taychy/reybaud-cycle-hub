@@ -201,6 +201,26 @@ const PlanSelection = () => {
     let cancel = false;
     (async () => {
       const today = new Date().toISOString().split("T")[0];
+
+      // Auto-purga del REUSE_SUB_KEY: si el id guardado no corresponde a este
+      // alumno o ya no está en un estado reutilizable/vigente, lo limpiamos
+      // para evitar que arrastre datos sucios entre sesiones o dispositivos.
+      const staleReuseId = getReuseSubId();
+      if (staleReuseId) {
+        const { data: staleSub } = await supabase
+          .from("suscripciones")
+          .select("id, alumno_id, estado, fecha_fin, cancelada_at")
+          .eq("id", staleReuseId)
+          .maybeSingle();
+        const stillValid =
+          staleSub &&
+          (staleSub as any).alumno_id === alumnoId &&
+          !(staleSub as any).cancelada_at &&
+          ["pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"].includes((staleSub as any).estado) &&
+          (!(staleSub as any).fecha_fin || (staleSub as any).fecha_fin >= today);
+        if (!stillValid) clearReuseSubId();
+      }
+
       const { data } = await supabase
         .from("suscripciones")
         .select("plan_id, fecha_fin, estado, planes(nombre, categoria)")
@@ -221,6 +241,7 @@ const PlanSelection = () => {
     })();
     return () => { cancel = true; };
   }, [alumnoId, upgradeFromSubId]);
+
 
 
   // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
@@ -329,6 +350,28 @@ const PlanSelection = () => {
         `Ya tenés un plan grupal activo (${activeGrupalPlan.planName}). Solo podés tener un plan grupal a la vez. Si querés cambiarlo, cancelá el actual o esperá a que finalice el período.`
       );
       return;
+    }
+
+    // Bloqueo temprano: si el alumno YA tiene ESTE MISMO plan activo/pendiente
+    // para el período vigente, mostrar mensaje amable en vez de dejarlo pagar
+    // y que el trigger DB devuelva DUPLICATE_GRUPAL_CATEGORY.
+    if (
+      plan?.categoria === "grupal" &&
+      activeGrupalPlan &&
+      activeGrupalPlan.planId === planId &&
+      !isEarlyRenewal &&
+      !isUpgradeFlow
+    ) {
+      const reuseId = getReuseSubId();
+      // Sólo bloqueamos si NO viene desde "Pagar este plan" (donde sí queremos
+      // reutilizar la pendiente). Si tiene REUSE_SUB_KEY, lo dejamos seguir.
+      if (!reuseId) {
+        setSelected(null);
+        setError(
+          `Ya tenés ${activeGrupalPlan.planName} activo para este período. No hace falta que lo pagues de nuevo. Si querés renovarlo antes de tiempo, hacelo desde "Mis pagos".`
+        );
+        return;
+      }
     }
     // Pausa: abrir diálogo de confirmación con fecha de regreso
     if (plan?.categoria === "pausa") {
