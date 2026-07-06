@@ -163,18 +163,35 @@ Deno.serve(async (req) => {
     ).toISOString().split("T")[0];
 
     if (mpData.status === "approved") {
+      // Preservar el período (fecha_inicio/fecha_fin) si la sub ya lo tiene
+      // definido (renovación pendiente del cron, período pre-cargado, etc.).
+      // Sólo cuando no hay período cargado usamos hoy→fin del mes calendario.
+      // Nunca extender un plan al mes siguiente por pagar tarde en el mes.
+      const { data: currentSub } = await supabaseAdmin
+        .from("suscripciones")
+        .select("fecha_inicio, fecha_fin")
+        .eq("id", suscripcion_id)
+        .maybeSingle();
+
+      const updatePayload: Record<string, unknown> = {
+        estado: "activa",
+        mp_payment_id: String(mpData.id),
+        mp_status: mpData.status,
+        metodo_pago: "mercadopago",
+        origen_registro: "automatico",
+        cuenta_mp_id: cuenta.cuenta_id,
+      };
+      if (currentSub?.fecha_inicio && currentSub?.fecha_fin) {
+        updatePayload.fecha_inicio = currentSub.fecha_inicio;
+        updatePayload.fecha_fin = currentSub.fecha_fin;
+      } else {
+        updatePayload.fecha_inicio = now;
+        updatePayload.fecha_fin = endOfMonth;
+      }
+
       const { error: updateErr } = await supabaseAdmin
         .from("suscripciones")
-        .update({
-          estado: "activa",
-          mp_payment_id: String(mpData.id),
-          mp_status: mpData.status,
-          metodo_pago: "mercadopago",
-          origen_registro: "automatico",
-          fecha_inicio: now,
-          fecha_fin: endOfMonth,
-          cuenta_mp_id: cuenta.cuenta_id,
-        })
+        .update(updatePayload)
         .eq("id", suscripcion_id);
 
       if (updateErr) {
