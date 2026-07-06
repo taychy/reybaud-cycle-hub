@@ -181,15 +181,47 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Descuento heredado sólo si sigue vigente (activo + no expirado)
+    // Regla de descuentos en renovación (política manual-por-admin):
+    //  - Precio base SIEMPRE = precio vigente del plan (no se copia el precio_final anterior).
+    //  - Se hereda EL MISMO descuento_id de la sub anterior SÓLO si:
+    //      a) el descuento sigue globalmente activo,
+    //      b) el alumno lo tiene asignado y activo en descuentos_alumno,
+    //      c) cubre el nuevo período completo (vigencia_hasta >= newFechaFin) — o no tiene vencimiento.
+    //  - Si no cubre todo el período, no se aplica en esta renovación (evitamos prorrateo).
+    //  - `precio_final` se RECALCULA sobre el nuevo precio_base, nunca se copia literal.
+    const newPrecioBase = old.planes?.precio ?? old.precio_base ?? null;
     let inheritDesc: string | null = null;
-    let inheritPrecio: number | null = null;
-    const d = old.descuentos;
-    if (old.descuento_id && d?.activo) {
-      const notExpired = !d.vigencia_hasta || d.vigencia_hasta >= newFechaIni;
-      if (notExpired) {
-        inheritDesc = old.descuento_id;
-        inheritPrecio = old.precio_final ?? null;
+    let inheritPrecio: number | null = newPrecioBase;
+    let discountDecision: "kept_recalculated" | "dropped_expired" | "dropped_inactive_on_student" | "dropped_inactive_global" | "no_previous_discount" | "dropped_no_base_price" = "no_previous_discount";
+
+    if (old.descuento_id) {
+      const d = old.descuentos as any;
+      if (!d?.activo) {
+        discountDecision = "dropped_inactive_global";
+      } else if (d.vigencia_hasta && d.vigencia_hasta < newFechaFin) {
+        // No cubre el período completo → no se aplica
+        discountDecision = "dropped_expired";
+      } else {
+        // Verificar que el alumno lo tenga asignado y ACTIVO
+        const { data: da } = await supabase
+          .from("descuentos_alumno")
+          .select("id, activo")
+          .eq("alumno_id", old.alumno_id)
+          .eq("descuento_id", old.descuento_id)
+          .maybeSingle();
+        if (!da || !(da as any).activo) {
+          discountDecision = "dropped_inactive_on_student";
+        } else if (newPrecioBase == null) {
+          discountDecision = "dropped_no_base_price";
+        } else {
+          // Recalcular precio_final sobre el nuevo precio_base
+          const recalc = d.tipo === "fijo"
+            ? Math.max(0, Number(newPrecioBase) - Number(d.valor))
+            : Math.round(Number(newPrecioBase) * (1 - Number(d.valor) / 100));
+          inheritDesc = old.descuento_id;
+          inheritPrecio = recalc;
+          discountDecision = "kept_recalculated";
+        }
       }
     }
 
@@ -203,9 +235,14 @@ Deno.serve(async (req) => {
       origen_registro: "renovacion_pendiente",
       auto_renovacion: old.auto_renovacion,
       descuento_id: inheritDesc,
-      precio_base: old.planes?.precio ?? old.precio_base ?? null,
-      precio_final: inheritPrecio ?? old.planes?.precio ?? old.precio_base ?? null,
+      precio_base: newPrecioBase,
+      precio_final: inheritPrecio ?? newPrecioBase,
       metodo_pago: "efectivo",
+      _audit: {
+        prev_descuento_id: old.descuento_id,
+        prev_precio_final: old.precio_final,
+        decision: discountDecision,
+      },
     });
   }
 
