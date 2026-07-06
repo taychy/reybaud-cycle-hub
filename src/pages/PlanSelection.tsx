@@ -201,6 +201,26 @@ const PlanSelection = () => {
     let cancel = false;
     (async () => {
       const today = new Date().toISOString().split("T")[0];
+
+      // Auto-purga del REUSE_SUB_KEY: si el id guardado no corresponde a este
+      // alumno o ya no está en un estado reutilizable/vigente, lo limpiamos
+      // para evitar que arrastre datos sucios entre sesiones o dispositivos.
+      const staleReuseId = getReuseSubId();
+      if (staleReuseId) {
+        const { data: staleSub } = await supabase
+          .from("suscripciones")
+          .select("id, alumno_id, estado, fecha_fin, cancelada_at")
+          .eq("id", staleReuseId)
+          .maybeSingle();
+        const stillValid =
+          staleSub &&
+          (staleSub as any).alumno_id === alumnoId &&
+          !(staleSub as any).cancelada_at &&
+          ["pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"].includes((staleSub as any).estado) &&
+          (!(staleSub as any).fecha_fin || (staleSub as any).fecha_fin >= today);
+        if (!stillValid) clearReuseSubId();
+      }
+
       const { data } = await supabase
         .from("suscripciones")
         .select("plan_id, fecha_fin, estado, planes(nombre, categoria)")
@@ -221,6 +241,7 @@ const PlanSelection = () => {
     })();
     return () => { cancel = true; };
   }, [alumnoId, upgradeFromSubId]);
+
 
 
   // Si viene del flujo de upgrade, preseleccionar el plan automáticamente
