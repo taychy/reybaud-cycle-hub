@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -369,6 +370,12 @@ const AdminEventReservations = ({
 
   const installments = eventMetadata?.installments_enabled ? (eventMetadata?.installments || []) : [];
 
+  // Precios vigentes (packages + stages)
+  const [eventPackages, setEventPackages] = useState<Array<{ id: string; nombre: string; precio: number; currency: string; activo: boolean; sort_order: number | null; }>>([]);
+  const [priceStagesByPkg, setPriceStagesByPkg] = useState<Record<string, PriceStage[]>>({});
+  const [showPricesTable, setShowPricesTable] = useState(false);
+
+
   /* ─── Participant helper ─── */
   const getParticipant = (r: EventReservation) => {
     if (r.alumno) return { nombre: r.alumno.nombre, apellido: r.alumno.apellido, email: r.alumno.email, telefono: r.alumno.telefono, isExternal: false };
@@ -395,6 +402,29 @@ const AdminEventReservations = ({
   };
 
   useEffect(() => { loadReservations(); }, [eventId]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("event_packages" as any)
+        .select("id, nombre, precio, currency, activo, sort_order")
+        .eq("event_id", eventId)
+        .eq("activo", true)
+        .order("sort_order", { ascending: true });
+      const pkgs = ((data as any[]) || []).map((p) => ({
+        id: p.id, nombre: p.nombre, precio: Number(p.precio), currency: p.currency || eventCurrency,
+        activo: !!p.activo, sort_order: p.sort_order ?? 0,
+      }));
+      setEventPackages(pkgs);
+      if (pkgs.length > 0) {
+        const stagesMap = await fetchPriceStages(pkgs.map((p) => p.id));
+        setPriceStagesByPkg(stagesMap);
+      } else {
+        setPriceStagesByPkg({});
+      }
+    })();
+  }, [eventId, eventCurrency]);
+
 
   const loadPayments = async (reservationId: string) => {
     const { data } = await supabase
@@ -1188,6 +1218,61 @@ const AdminEventReservations = ({
           </>
         )}
       </div>
+
+      {/* ─── Precios vigentes ─── */}
+      {!isPaymentFree && eventPackages.length > 0 && (
+        <div className="rounded-lg border border-border/60 bg-muted/10">
+          <button
+            type="button"
+            onClick={() => setShowPricesTable((s) => !s)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium hover:bg-muted/20 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              Precios vigentes
+              <Badge variant="outline" className="text-[10px]">{eventPackages.length}</Badge>
+            </span>
+            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showPricesTable ? "rotate-90" : ""}`} />
+          </button>
+          {showPricesTable && (
+            <div className="px-4 pb-3 pt-1 space-y-1.5 border-t border-border/40">
+              {eventPackages.map((p) => {
+                const stages = priceStagesByPkg[p.id];
+                const active = resolveActivePrice(p.precio, p.currency, stages);
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-3 py-1.5 text-sm border-b border-border/20 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{p.nombre}</div>
+                      {active.activeStage && (
+                        <div className="text-[11px] text-emerald-500">
+                          Etapa vigente: {active.activeStage.nombre}
+                          {active.nextStage && (
+                            <span className="text-muted-foreground"> · próxima: {active.nextStage.nombre} ({formatCountdown(active.nextStage.vigente_desde)})</span>
+                          )}
+                        </div>
+                      )}
+                      {!active.activeStage && active.nextStage && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Próxima etapa: {active.nextStage.nombre} ({formatCountdown(active.nextStage.vigente_desde)})
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-primary">{formatPrice(active.precio, active.currency as any)}</div>
+                      {active.activeStage && Number(active.activeStage.precio) !== Number(p.precio) && (
+                        <div className="text-[10px] text-muted-foreground line-through">{formatPrice(p.precio, p.currency as any)}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-[10px] text-muted-foreground pt-1">
+                Precio actual según etapas configuradas. Se aplica automáticamente a nuevas reservas.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── Quick Filter Chips ─── */}
       <div className="flex flex-wrap items-center gap-2">
