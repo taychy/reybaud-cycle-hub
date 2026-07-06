@@ -138,49 +138,63 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
         <Wallet className="w-4 h-4 text-primary" />
         <h3 className="font-heading font-semibold text-sm text-foreground">Paquetes y plan de pagos</h3>
       </div>
-      <div className="space-y-2">
+      <div className="divide-y divide-border/40">
         {packages.map((pkg) => {
           const sena = pkg.plan ? computeAmount(pkg.plan.sena_tipo, pkg.plan.sena_valor, pkg.precio) : 0;
           const cuotas = pkg.plan?.installments ?? [];
-          const minCuota = cuotas.length
-            ? Math.min(...cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena)))
-            : 0;
+          const cuotaMontos = cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena));
+          const minCuota = cuotaMontos.length ? Math.min(...cuotaMontos) : 0;
+          const maxCuota = cuotaMontos.length ? Math.max(...cuotaMontos) : 0;
+          const cuotasIguales = cuotaMontos.length > 0 && minCuota === maxCuota;
           const open = !!openIds[pkg.id];
           return (
-            <div key={pkg.id} className="border border-border/50 rounded-lg overflow-hidden">
+            <div key={pkg.id}>
               <button
                 type="button"
+                aria-expanded={open}
+                aria-controls={`pkg-detail-${pkg.id}`}
                 onClick={() => setOpenIds((s) => ({ ...s, [pkg.id]: !s[pkg.id] }))}
-                className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-muted/30 transition-colors"
+                className="w-full px-1 py-3 flex items-start gap-3 text-left hover:bg-muted/20 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
+                {/* Izquierda: título + subtítulo */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{pkg.nombre}</p>
+                  <p className="text-sm font-semibold text-foreground">{pkg.nombre}</p>
                   {pkg.plan ? (
-                    <p className="text-xs text-muted-foreground">
-                      Seña <span className="text-primary font-semibold">{formatPrice(sena, pkg.currency)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Por persona · seña {formatPrice(sena, pkg.currency)}
                       {cuotas.length > 0 && (
-                        <> + {cuotas.length} cuota{cuotas.length > 1 ? "s" : ""} desde <span className="text-foreground font-medium">{formatPrice(minCuota, pkg.currency)}</span></>
+                        <>
+                          {" "}+ {cuotas.length} cuota{cuotas.length > 1 ? "s" : ""}{" "}
+                          {cuotasIguales ? "de " : "desde "}
+                          {formatPrice(minCuota, pkg.currency)}
+                        </>
                       )}
                     </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Total <span className="text-primary font-semibold">{formatPrice(pkg.precio, pkg.currency)}</span>
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pago único</p>
                   )}
                 </div>
-                {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
-              </button>
-              {pkg.nextStage && (
-                <div className="px-3 pb-2 flex items-center gap-1.5 text-[10px] text-amber-300">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>
-                    Sube a <strong>{formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}</strong> {formatCountdown(pkg.nextStage.vigente_desde)}
-                    {pkg.nextStage.incremento_pct != null && <> (+{pkg.nextStage.incremento_pct}%)</>}
+
+                {/* Derecha: precio total + próxima etapa */}
+                <div className="shrink-0 flex flex-col items-end justify-center">
+                  <span className="text-base sm:text-lg font-bold text-foreground tabular-nums">
+                    {formatPrice(pkg.precio, pkg.currency)}
                   </span>
+                  {pkg.nextStage && (
+                    <span className="mt-0.5 flex items-center gap-1 text-[11px] text-primary tabular-nums">
+                      <TrendingUp className="w-3 h-3" />
+                      {formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}{" "}
+                      {formatCountdown(pkg.nextStage.vigente_desde)}
+                    </span>
+                  )}
                 </div>
-              )}
+              </button>
+
               {open && (
-                <div className="px-3 py-2.5 border-t border-border/40 bg-muted/20 space-y-2 text-xs">
+                <div
+                  id={`pkg-detail-${pkg.id}`}
+                  className="px-3 pb-3 pt-1 space-y-2 text-xs"
+                >
                   {pkg.descripcion && (
                     <div className="space-y-1">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Incluye</p>
@@ -192,24 +206,31 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Plan de pagos</p>
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Seña al reservar</span>
-                        <span className="font-semibold text-primary">{formatPrice(sena, pkg.currency)}</span>
+                        <span className="font-semibold text-primary tabular-nums">{formatPrice(sena, pkg.currency)}</span>
                       </div>
-                      {cuotas.map((c) => (
+                      {cuotas.map((c, idx) => (
                         <div key={c.numero} className="flex items-center justify-between">
                           <span className="text-muted-foreground flex items-center gap-1.5">
                             <CalendarDays className="w-3 h-3" />
                             {c.descripcion || `Cuota ${c.numero}`}
                             {c.fecha_vencimiento && <span className="text-[10px] opacity-70">· vence {fmtDate(c.fecha_vencimiento)}</span>}
                           </span>
-                          <span className="text-foreground font-medium">{formatPrice(computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena), pkg.currency)}</span>
+                          <span className="text-foreground font-medium tabular-nums">{formatPrice(cuotaMontos[idx], pkg.currency)}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   <div className="pt-1.5 border-t border-border/40 flex items-center justify-between font-semibold">
                     <span>Total</span>
-                    <span>{formatPrice(pkg.precio, pkg.currency)}</span>
+                    <span className="tabular-nums">{formatPrice(pkg.precio, pkg.currency)}</span>
                   </div>
+                  {pkg.nextStage && (
+                    <p className="text-[11px] text-primary/90 flex items-center gap-1 pt-1">
+                      <TrendingUp className="w-3 h-3" />
+                      Sube a <strong className="tabular-nums">{formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}</strong> {formatCountdown(pkg.nextStage.vigente_desde)}
+                      {pkg.nextStage.incremento_pct != null && <> (+{pkg.nextStage.incremento_pct}%)</>}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
