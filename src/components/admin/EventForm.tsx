@@ -24,6 +24,58 @@ import {
 } from "lucide-react";
 import { getPublicEventLink, getStudentEventLink, copyToClipboard } from "@/lib/eventLinks";
 import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
+import { useEffect as useEffectLegacy, useState as useStateLegacy } from "react";
+import { supabase as supabaseLegacy } from "@/integrations/supabase/client";
+import { AlertTriangle } from "lucide-react";
+
+function LegacyInstallmentsGate({ eventId, eventCurrency, eventPrice }: { eventId: string; eventCurrency: string; eventPrice: number | null }) {
+  const [state, setState] = useStateLegacy<"loading" | "none" | "legacy">("loading");
+  const [show, setShow] = useStateLegacy(false);
+  useEffectLegacy(() => {
+    let cancel = false;
+    (async () => {
+      const { count } = await supabaseLegacy
+        .from("event_installments")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", eventId);
+      if (cancel) return;
+      setState((count ?? 0) > 0 ? "legacy" : "none");
+    })();
+    return () => { cancel = true; };
+  }, [eventId]);
+
+  if (state === "loading") return <p className="text-xs text-muted-foreground">Verificando plan de cuotas…</p>;
+
+  if (state === "none" && !show) {
+    return (
+      <div className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-2 text-xs">
+        <p className="text-muted-foreground">
+          Para eventos nuevos, el plan de cuotas se configura <strong>dentro de cada paquete</strong> (Planes de pago por paquete). El editor genérico de cuotas del evento quedó como <strong>legacy</strong>.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShow(true)}
+          className="text-[11px] text-muted-foreground/70 underline hover:text-muted-foreground"
+        >
+          Mostrar editor legacy de todas formas
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>
+          <strong>Legacy — no usar para eventos nuevos.</strong> Este editor sólo debería tocarse en viajes históricos creados con la lógica anterior. Los eventos nuevos usan planes de pago por paquete.
+        </span>
+      </div>
+      <EventInstallmentsEditor eventId={eventId} eventCurrency={eventCurrency} eventPrice={eventPrice} />
+    </div>
+  );
+}
+
 import { EventAddonsEditor } from "./EventAddonsEditor";
 import { EventPackagesEditor } from "./EventPackagesEditor";
 import { REGLAMENTO_DEFAULTS_CAMP_VIAJE, isCampOrViajeType } from "@/lib/eventReglamentoDefaults";
@@ -574,17 +626,18 @@ const EventForm = ({
 
             {form.payment_mode === "cuotas" && (
               eventId ? (
-                <EventInstallmentsEditor
+                <LegacyInstallmentsGate
                   eventId={eventId}
                   eventCurrency={meta.currency || "ARS"}
                   eventPrice={meta.price ? parseFloat(meta.price) : null}
                 />
               ) : (
                 <p className="text-xs text-muted-foreground italic">
-                  Guardá el evento primero para configurar el plan de cuotas.
+                  Para eventos nuevos, configurá el plan de cuotas dentro de cada paquete (Planes de pago por paquete). Este evento aún no fue guardado.
                 </p>
               )
             )}
+
 
             {selectedCategory === "camp_viaje" && (
               <div className="pt-2 border-t border-border/30">
