@@ -351,6 +351,28 @@ const PlanSelection = () => {
       );
       return;
     }
+
+    // Bloqueo temprano: si el alumno YA tiene ESTE MISMO plan activo/pendiente
+    // para el período vigente, mostrar mensaje amable en vez de dejarlo pagar
+    // y que el trigger DB devuelva DUPLICATE_GRUPAL_CATEGORY.
+    if (
+      plan?.categoria === "grupal" &&
+      activeGrupalPlan &&
+      activeGrupalPlan.planId === planId &&
+      !isEarlyRenewal &&
+      !isUpgradeFlow
+    ) {
+      const reuseId = getReuseSubId();
+      // Sólo bloqueamos si NO viene desde "Pagar este plan" (donde sí queremos
+      // reutilizar la pendiente). Si tiene REUSE_SUB_KEY, lo dejamos seguir.
+      if (!reuseId) {
+        setSelected(null);
+        setError(
+          `Ya tenés ${activeGrupalPlan.planName} activo para este período. No hace falta que lo pagues de nuevo. Si querés renovarlo antes de tiempo, hacelo desde "Mis pagos".`
+        );
+        return;
+      }
+    }
     // Pausa: abrir diálogo de confirmación con fecha de regreso
     if (plan?.categoria === "pausa") {
       setPausaDialogPlanId(planId);
