@@ -1,91 +1,98 @@
-# Resumen del viaje — vista unificada por participante
+# Plan final — Facturación por pagos confirmados
 
-Un único componente `TripSummary` que consolida toda la información de un participante en un viaje, reutilizable en 3 contextos (admin, alumno, externo), más dos reportes agregados a nivel evento (distribución de habitaciones y lista para seguro).
+## Principio rector
+**Un pago confirmado = un ítem facturable.**
+El estado de la suscripción (activa / vencida / cancelada) **nunca** decide si un cobro aparece en Facturación. Solo aporta contexto (a qué plan corresponde).
 
-## 1. Datos que faltan capturar
-
-Hoy no se recolectan de forma estructurada. Se agrega un nuevo `step_key` en `reservation_checklist_data` para cada bloque, con drawers propios:
-
-- **Alimentación**: dieta (omnívoro / vegetariano / vegano / sin gluten / sin lactosa / otro) + restricciones libres + alergias
-- **Habitación**: género para asignación, tipo preferido (single / doble / triple / compartir), compañero solicitado (texto libre o link a otro participante)
-- **Arribos / partidas**: fecha-hora llegada, fecha-hora salida, medio (vuelo/auto/micro), número de vuelo, aeropuerto, requiere traslado sí/no
-- **Salud + emergencia**: obra social, grupo sanguíneo, medicación, condiciones a informar, contacto emergencia (nombre, vínculo, teléfono) — reusa `alumno_familiares` cuando el participante es alumno
-- **Peticiones especiales**: texto libre
-
-Los datos ya existentes (bici, pedales, pasaje, seguro, extras) se muestran tal cual desde `reservation_checklist_data`.
-
-## 2. Componente `TripSummary`
-
-Nuevo archivo `src/components/reservation/TripSummary.tsx`. Recibe `reservationId` y `mode: "admin" | "student" | "external"` (+ `token` para external). Hace un único fetch consolidado (o un hook `useTripSummary`) que trae:
-
-- reserva + evento + participante
-- addons contratados (`reservation_addons`)
-- ajustes (`reservation_financial_adjustments`)
-- cuotas + pagos (`reservation_installments`, `reservation_payments`)
-- checklist completo (`reservation_checklist_data`)
-- roommates (`reservation_roommates`)
-- notificaciones (`reservation_notifications`) — sólo admin/alumno
-- historial de estados (`reservation_status_history`) — sólo admin
-
-Layout en secciones colapsables (Collapsible ya está en el proyecto):
+Flujo correcto:
 
 ```text
-┌─ RESUMEN DEL VIAJE ─────────────────────┐
-│ Evento · Fecha · Sede · Participante    │
-├─ COMPRA ────────────────────────────────┤
-│ Paquete + precio, addons con cantidad,  │
-│ ajustes, TOTAL / ABONADO / SALDO         │
-├─ PAGOS ─────────────────────────────────┤
-│ Plan de cuotas (estado) + pagos hechos  │
-├─ CONFIGURACIÓN DEL VIAJE ───────────────┤
-│ Bici · Pedales · Pasaje · Seguro        │
-│ Habitación (género/tipo/compañeros)     │
-│ Alimentación · Arribo/partida           │
-│ Salud + emergencia · Peticiones         │
-├─ COMUNICACIÓN ──────────────────────────┤
-│ Notificaciones enviadas (colapsable)    │
-│ Cambios de estado (solo admin)          │
-├─ ACCIONES ──────────────────────────────┤
-│ Imprimir PDF · Enviar por email ·        │
-│ Copiar link externo (solo admin)         │
-└─────────────────────────────────────────┘
+Pago real confirmado ──► pagado_at + evidencia ──► aparece en Facturación del mes correspondiente
+Factura emitida ─────► cambia el estado de facturación del pago
+Suscripción ─────────► solo contexto (plan, alumno, período)
 ```
 
-Cada bloque de "Configuración" es clickeable si falta cargarlo → abre el drawer correspondiente (nuevo o existente).
+---
 
-## 3. Integración en las 3 vistas
+## Fase 1 — Corregir `PendingPaymentsList` (sin migración)
 
-- **Admin** — en `AdminEventReservations.tsx` (Sheet de la reserva): nueva sección arriba, colapsada por defecto, con toda la info + acciones admin (editar, PDF, reenviar mail).
-- **Alumno** — en `ReservationStatusCard`: nuevo botón "Ver resumen completo" que abre un `Sheet` con `TripSummary mode="student"`.
-- **Externo** — en `ExternalTripView.tsx`: reemplaza los bloques actuales (status + resumen pago + checklist) por `TripSummary mode="external"` para mantener paridad.
+Reescribir `fetchConfirmedPayments` (o su equivalente) siguiendo estas reglas:
 
-## 4. Reportes a nivel evento (admin)
+### 1. Fuentes de "pago confirmado"
+Unir en una sola lista de items facturables:
 
-Nueva pestaña "Reportes" dentro del panel de reservas del evento (`AdminEventReservations`):
+- **Mercado Pago (automático):**
+  `mp_status = 'approved'` **y** `mp_payment_id IS NOT NULL`.
+- **Pago manual / informado por alumno:**
+  requiere evidencia explícita — método de pago confirmado + comprobante validado o movimiento en cuenta corriente asociado. **No** basta con "estado = activa".
+- **Cargado por admin:**
+  requiere marca explícita de cobrado (método de pago + comprobante o movimiento). Se elimina la regla `origen_registro='cargado_admin' AND estado IN ('activa','vencida')` — asumía que todo lo cargado por admin estaba cobrado y no es cierto.
+- **Reservas de eventos/viajes:** filas de `reservation_payments` con estado aprobado.
+- **Tienda:** pagos de `store_orders` / `store_preorders` con estado aprobado.
 
-- **Distribución de habitaciones**: agrupa participantes por `habitacion.tipo` y compañero solicitado, marca inconsistencias (ej. pidió doble y no tiene par). Exportable a CSV.
-- **Lista para seguro**: tabla con Nombre completo · DNI · Fecha de nacimiento · Teléfono emergencia. Filtro por estado de reserva. Exportable a CSV/PDF.
+### 2. `pagado_at` — fecha real del cobro
+Prioridad de resolución (primer valor no nulo gana):
 
-## 5. Detalles técnicos
+1. `mp_date_approved` / `payment_date` del webhook de MP.
+2. `created_at` del registro de pago (`reservation_payments`, movimiento, comprobante).
+3. `updated_at` **solo como último recurso**.
 
-- **Migración DB**: agregar `step_key` válidos (`alimentacion`, `habitacion`, `arribo_partida`, `salud_emergencia`, `peticiones`) — no requiere columnas nuevas, `reservation_checklist_data.data` es JSONB.
-- **Fetch consolidado**: nuevo hook `useTripSummary(reservationId, token?)` que en `external` usa `tripTokenApi` (server-side por token) y en admin/alumno usa supabase-js directo. Devuelve un shape estable así el componente no rama por modo.
-- **PDF**: reutilizar la técnica de impresión ya usada en el evento QR (window.print con CSS `@media print`). Ruta oculta `/admin/eventos/:id/reservas/:rid/print`.
-- **Nuevos drawers**: `TripMealDrawer`, `TripRoomDrawer`, `TripArrivalDrawer`, `TripHealthDrawer`, `TripSpecialRequestsDrawer` siguiendo el patrón de `TripBikeDrawer`. Guardan en `reservation_checklist_data` con `completed:true` y refrescan la vista.
-- **Roommates**: se sigue usando `reservation_roommates`; el drawer de habitación permite proponer compañero por nombre/email y crea la fila con estado pendiente.
-- **RLS**: los nuevos `step_key` heredan políticas existentes de `reservation_checklist_data` (ya soporta acceso por alumno, admin y token externo).
+### 3. Período mensual en zona AR
+Todos los filtros de mes calculan `pagado_at AT TIME ZONE 'America/Argentina/Buenos_Aires'`. Evita que un pago del 31 a la noche se corra a otro mes por UTC.
 
-## 6. Orden de implementación
+### 4. Deduplicación por pago
+Antes de mostrar la lista, deduplicar por clave estable de la fuente:
 
-1. Migración de referencia + hook `useTripSummary`
-2. Componente `TripSummary` con secciones de sólo lectura (usando datos existentes)
-3. Drawers nuevos (alimentación, habitación, arribo, salud, peticiones)
-4. Integración en las 3 vistas (admin, alumno, external) — reemplaza bloques duplicados en `ExternalTripView`
-5. Reportes de evento (habitaciones + seguro) con export CSV
-6. PDF imprimible + botón "Enviar resumen por email"
+- MP → `mp_payment_id`
+- Manual → id del movimiento o comprobante
+- Reservas → `reservation_payment.id`
+- Tienda → id del pago / orden
 
-## 7. Preguntas antes de implementar
+Si dos suscripciones apuntan al mismo `mp_payment_id` (caso Gastón), se muestra **un solo** ítem facturable.
 
-- ¿La lista para seguro necesita también nacionalidad / pasaporte, o alcanza con DNI + fecha de nacimiento?
-- Para "compañero de habitación", ¿querés que el participante elija de una lista de otros inscriptos, o texto libre y luego admin cruza?
-- El "Enviar resumen por email" ¿lo mandamos al participante, al admin, o ambos?
+### 5. Ignorar el estado de la suscripción
+Se remueve todo `sub.estado = 'activa'`. Una sub vencida con pago aprobado sigue siendo facturable.
+
+### Resultado esperado (caso Gastón Laya)
+- Pagos de junio con MP aprobado aparecen en Facturación aunque las suscripciones ya estén vencidas.
+- Si esos pagos comparten `mp_payment_id`, aparece uno solo.
+- La renovación de julio pendiente **no** aparece hasta tener pago confirmado.
+
+---
+
+## Fase 2 — Cola de facturación persistente (`facturacion_cola`)
+
+Migración con nueva tabla:
+
+- Campos de dominio: `pago_id` (FK al registro real de pago), `referencia_tipo`, `referencia_id`, `monto`, `moneda`, `emisor_id`, `pagado_at`, `periodo_pago` (mes real), `periodo_operativo` (mes donde se factura), `motivo_arrastre` (nullable), `estado` (`pendiente` / `facturada` / `excluida` / `anulada`), `factura_id` (nullable).
+- Unicidad: **`UNIQUE (referencia_tipo, referencia_id, pago_id)`** — no `(referencia_tipo, referencia_id)` a secas, porque una reserva/pedido/suscripción puede tener cuotas, pagos parciales, saldo, devoluciones y múltiples cobros.
+- Se puebla desde pagos confirmados (no desde suscripciones).
+- GRANTs + RLS estándar.
+
+### Arrastre por cierre contable
+Si un pago confirmado cae en un mes ya cerrado, se puede arrastrar al siguiente mes operativo, **conservando siempre**:
+
+- `pagado_at` original
+- `periodo_pago` original
+- `periodo_operativo` (mes de facturación efectivo)
+- `motivo_arrastre`
+
+Nunca se reescribe la fecha real del cobro.
+
+---
+
+## Detalles técnicos
+
+- **Archivos Fase 1:** `src/pages/admin/billing/PendingPaymentsList.tsx` y helpers de fetch en `src/pages/admin/billing/`.
+- **Fase 1 no toca DB** — solo corrige el query/agregación en el front + tipado.
+- **Fase 2:** migración `facturacion_cola` + backfill desde los pagos confirmados actuales + refactor de `PendingPaymentsList` para leer de la cola.
+- Sin cambios en checkout, reservas ni admin de suscripciones.
+
+---
+
+## Qué NO se hace ahora
+- No se toca el flujo de emisión AFIP.
+- No se cambia el modelo de suscripciones.
+- No se decide política contable de cierre — solo se deja el campo `motivo_arrastre` listo para cuando se defina.
+
+Confirmame si aprobás Fase 1 sola para arrancar, o Fase 1 + Fase 2 en la misma tanda.
