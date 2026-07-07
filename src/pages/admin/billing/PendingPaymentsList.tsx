@@ -205,7 +205,7 @@ export function PendingPaymentsList() {
     concepto: r.concepto,
     monto: r.monto,
     moneda: r.moneda,
-    referencia_tipo: r.referencia_tipo,
+    referencia_tipo: r.referencia_tipo as InvoiceSource["referencia_tipo"],
     referencia_id: r.referencia_id,
     segmento: (r.segmento as any) || "escuela",
     metodo_pago: r.metodo_pago ?? undefined,
