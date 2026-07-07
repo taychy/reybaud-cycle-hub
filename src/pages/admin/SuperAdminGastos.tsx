@@ -626,6 +626,15 @@ const SuperAdminGastos = () => {
       toast({ title: "Concepto agregado" });
     }
     setCatDialogOpen(false); setEditingRec(null); resetRecForm();
+    // Si el concepto quedó activo, regenerar el mes visible para que aparezca
+    // la ejecución recién habilitada (respeta la frecuencia configurada gracias
+    // al RPC + ON CONFLICT DO NOTHING para no duplicar existentes).
+    if (payload.activo) {
+      const { error: genErr } = await supabase.rpc("generate_gastos_ejecuciones_month", { p_mes: mes });
+      if (genErr) {
+        toast({ title: "Concepto guardado", description: `No se pudo regenerar ${monthLabel(mes)}: ${genErr.message}`, variant: "destructive" });
+      }
+    }
     loadData();
   };
 
@@ -1543,9 +1552,16 @@ const SuperAdminGastos = () => {
               <Label className="text-xs">Notas</Label>
               <Textarea rows={2} value={recForm.notas} onChange={(e) => setRecForm(f => ({ ...f, notas: e.target.value }))} />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <Switch checked={recForm.activo} onCheckedChange={(v) => setRecForm(f => ({ ...f, activo: v }))} />
-              <Label className="text-xs">Activo (genera ejecuciones cada mes)</Label>
+              <div className="space-y-0.5">
+                <Label className="text-xs">Activo</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Genera ejecuciones automáticamente según la frecuencia configurada
+                  ({recForm.frecuencia === "variable" ? "todos los meses en que corresponda" : recForm.frecuencia}).
+                  Si lo apagás, deja de generar nuevas ejecuciones pero conserva el historial.
+                </p>
+              </div>
             </div>
             <Button onClick={saveRec} className="w-full" variant="gold">{editingRec ? "Guardar" : "Crear concepto"}</Button>
           </div>
