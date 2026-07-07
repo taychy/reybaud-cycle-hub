@@ -3439,6 +3439,109 @@ export type Database = {
         }
         Relationships: []
       }
+      facturacion_cola: {
+        Row: {
+          alumno_id: string | null
+          cliente_cuit: string | null
+          cliente_nombre: string | null
+          concepto: string
+          created_at: string
+          emisor_id: string | null
+          estado: string
+          factura_id: string | null
+          id: string
+          metodo_pago: string | null
+          moneda: string
+          monto: number
+          motivo_arrastre: string | null
+          notas: string | null
+          origen_registro: string | null
+          pagado_at: string
+          pago_id: string
+          periodo_operativo: string
+          periodo_pago: string
+          referencia_id: string
+          referencia_tipo: string
+          segmento: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          cliente_cuit?: string | null
+          cliente_nombre?: string | null
+          concepto: string
+          created_at?: string
+          emisor_id?: string | null
+          estado?: string
+          factura_id?: string | null
+          id?: string
+          metodo_pago?: string | null
+          moneda?: string
+          monto: number
+          motivo_arrastre?: string | null
+          notas?: string | null
+          origen_registro?: string | null
+          pagado_at: string
+          pago_id: string
+          periodo_operativo: string
+          periodo_pago: string
+          referencia_id: string
+          referencia_tipo: string
+          segmento?: string | null
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          cliente_cuit?: string | null
+          cliente_nombre?: string | null
+          concepto?: string
+          created_at?: string
+          emisor_id?: string | null
+          estado?: string
+          factura_id?: string | null
+          id?: string
+          metodo_pago?: string | null
+          moneda?: string
+          monto?: number
+          motivo_arrastre?: string | null
+          notas?: string | null
+          origen_registro?: string | null
+          pagado_at?: string
+          pago_id?: string
+          periodo_operativo?: string
+          periodo_pago?: string
+          referencia_id?: string
+          referencia_tipo?: string
+          segmento?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturacion_cola_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "facturacion_cola_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturacion_cola_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       facturas: {
         Row: {
           alumno_id: string | null
@@ -8617,6 +8720,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      rebuild_facturacion_cola: { Args: { p_since?: string }; Returns: Json }
       recalc_gasto_ejecucion: {
         Args: { p_ejec_id: string }
         Returns: undefined
