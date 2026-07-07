@@ -5,74 +5,73 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { Search, RefreshCw, FileText, Loader2, Database } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 
 /**
- * Sólo mostramos pagos confirmados desde esta fecha en adelante.
- * Pagos previos no entran al listado (por pedido del usuario).
+ * Lee directamente de `facturacion_cola` — cola de pagos confirmados.
+ * Regla: un pago confirmado = un ítem facturable. El estado de la suscripción
+ * (activa/vencida/cancelada) es sólo contexto y NO decide visibilidad.
  */
-const CUTOFF_DATE = "2026-05-28";
+type SourceKind = "suscripcion" | "reservation_payment" | "store_order" | "store_preorder";
 
-type Source = "suscripcion" | "evento" | "tienda";
+const SOURCE_UI: Record<SourceKind, { label: string; color: string; group: "suscripcion" | "evento" | "tienda" }> = {
+  suscripcion: {
+    label: "Suscripción",
+    color: "bg-blue-500/10 text-blue-500 border-blue-500/30",
+    group: "suscripcion",
+  },
+  reservation_payment: {
+    label: "Evento / Viaje",
+    color: "bg-purple-500/10 text-purple-500 border-purple-500/30",
+    group: "evento",
+  },
+  store_order: {
+    label: "Tienda",
+    color: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+    group: "tienda",
+  },
+  store_preorder: {
+    label: "Preventa",
+    color: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+    group: "tienda",
+  },
+};
 
-interface PendingPayment {
-  key: string;
-  source: Source;
-  alumno_id: string;
+interface ColaRow {
+  id: string;
+  source: SourceKind;
+  pago_id: string;
+  referencia_tipo: string;
+  referencia_id: string;
+  alumno_id: string | null;
   cliente_nombre: string;
   cliente_cuit: string | null;
   concepto: string;
   monto: number;
   moneda: string;
-  fecha: string; // ISO
+  segmento: string | null;
   metodo_pago: string | null;
   origen_registro: string | null;
-  invoiceSource: InvoiceSource;
+  pagado_at: string;
+  periodo_pago: string;
+  periodo_operativo: string;
+  motivo_arrastre: string | null;
+  estado: "pendiente" | "facturada" | "excluida" | "anulada";
+  factura_id: string | null;
   factura_estado: string | null;
   factura_cae: string | null;
-  factura_id: string | null;
-}
-
-const SOURCE_LABEL: Record<Source, string> = {
-  suscripcion: "Suscripción",
-  evento: "Evento / Viaje",
-  tienda: "Tienda",
-};
-
-const SOURCE_COLOR: Record<Source, string> = {
-  suscripcion: "bg-blue-500/10 text-blue-500 border-blue-500/30",
-  evento: "bg-purple-500/10 text-purple-500 border-purple-500/30",
-  tienda: "bg-amber-500/10 text-amber-500 border-amber-500/30",
-};
-
-/** Métodos de pago que NO se facturan (sólo comprobante interno por mail). */
-function isEfectivo(metodo: string | null | undefined): boolean {
-  if (!metodo) return false;
-  const m = metodo.toLowerCase().trim();
-  return m === "efectivo" || m === "cash" || m.includes("efectivo");
-}
-
-/** Pagos no confirmados: sin método o marcados como pendientes de verificación. */
-function isPagoPendiente(metodo: string | null | undefined): boolean {
-  if (!metodo) return true;
-  const m = metodo.toLowerCase().trim();
-  return (
-    m === "pendiente" ||
-    m === "pendiente_verificacion" ||
-    m.includes("pendiente") ||
-    m.includes("verificac")
-  );
 }
 
 export function PendingPaymentsList() {
-  const [rows, setRows] = useState<PendingPayment[]>([]);
+  const [rows, setRows] = useState<ColaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rebuilding, setRebuilding] = useState(false);
   const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"todos" | Source>("todos");
+  const [sourceFilter, setSourceFilter] = useState<"todos" | "suscripcion" | "evento" | "tienda">("todos");
   const [showFacturadas, setShowFacturadas] = useState(false);
   const [montoMin, setMontoMin] = useState<string>("");
   const [montoMax, setMontoMax] = useState<string>("");
@@ -86,287 +85,76 @@ export function PendingPaymentsList() {
     setLoading(true);
     setSelected(new Set());
 
-    // 1) Suscripciones confirmadas (activa) desde cutoff
-    const subsPromise = supabase
-      .from("suscripciones")
-      .select(`
-        id, alumno_id, plan_id, estado, fecha_inicio, updated_at, metodo_pago, origen_registro,
-        precio_final, precio_base,
-        alumnos:alumno_id (id, nombre, apellido, documento),
-        planes:plan_id (id, nombre, precio, moneda)
-      `)
-      .eq("estado", "activa")
-      .gte("updated_at", CUTOFF_DATE)
-      .order("updated_at", { ascending: false })
-      .limit(500);
-
-    // 2) Reservas de eventos con pago al menos parcial confirmado desde cutoff
-    const reservasPromise = supabase
-      .from("event_reservations")
-      .select(`
-        id, event_id, alumno_id, payment_status, amount_paid, amount_total, moneda, currency_snapshot, updated_at, metodo_pago,
-        alumnos:alumno_id (id, nombre, apellido, documento),
-        events:event_id (id, name, title)
-      `)
-      .in("payment_status", ["pago_validado", "parcial"])
-      .gt("amount_paid", 0)
-      .gte("updated_at", CUTOFF_DATE)
-      .order("updated_at", { ascending: false })
-      .limit(500);
-
-    // 3) Preventas con seña confirmada desde cutoff
-    const preordersPromise = supabase
-      .from("store_preorders")
-      .select(`
-        id, alumno_id, product_id, producto_nombre, precio_total, sena_monto, moneda,
-        estado, estado_pago_sena, forma_pago_sena, updated_at, entregada_at
-      `)
-      .eq("estado_pago_sena", "confirmada")
-      .not("estado", "in", "(cancelada,vencida)")
-      .gte("updated_at", CUTOFF_DATE)
-      .order("updated_at", { ascending: false })
-      .limit(500);
-
-    // 4) Pedidos de tienda pagados desde cutoff
-    const ordersPromise = supabase
-      .from("store_orders")
-      .select(`
-        id, order_number, alumno_id, customer_name, total, currency, status,
-        metodo_pago, origen_registro, pagado_at, updated_at,
-        alumnos:alumno_id (id, nombre, apellido, documento),
-        store_order_items (product_name, quantity)
-      `)
-      .eq("status", "pagado")
-      .gte("updated_at", CUTOFF_DATE)
-      .order("updated_at", { ascending: false })
-      .limit(500);
-
-    // Emisores (para el modal bulk)
-    const emisoresPromise = supabase
-      .from("emisores_fiscales")
-      .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
-      .order("created_at", { ascending: true });
-
-
-    const [subs, reservas, preorders, orders, emisoresRes] = await Promise.all([
-      subsPromise, reservasPromise, preordersPromise, ordersPromise, emisoresPromise,
+    const [cola, emisoresRes] = await Promise.all([
+      supabase
+        .from("facturacion_cola" as any)
+        .select("*")
+        .neq("estado", "anulada")
+        .neq("estado", "excluida")
+        .order("pagado_at", { ascending: false })
+        .limit(2000),
+      supabase
+        .from("emisores_fiscales")
+        .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
+        .order("created_at", { ascending: true }),
     ]);
 
     setEmisores((emisoresRes.data as any[]) || []);
 
-    // Fetch alumnos para preorders (sin FK declarada → no podemos embeber)
-    const preorderAlumnoIds = Array.from(
-      new Set((preorders.data || []).map((p: any) => p.alumno_id).filter(Boolean))
-    );
-    const alumnosMap = new Map<string, any>();
-    if (preorderAlumnoIds.length > 0) {
-      const { data: alumnosData } = await supabase
-        .from("alumnos")
-        .select("id, nombre, apellido, documento")
-        .in("id", preorderAlumnoIds);
-      (alumnosData || []).forEach((a: any) => alumnosMap.set(a.id, a));
-    }
+    const colaRows = (cola.data as any[]) || [];
 
-    const subRows: PendingPayment[] = (subs.data || []).map((s: any) => {
-      const alumno = s.alumnos;
-      const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
-      const monto = Number(s.precio_final ?? s.precio_base ?? s.planes?.precio ?? 0);
-      return {
-        key: `sub:${s.id}`,
-        source: "suscripcion",
-        alumno_id: s.alumno_id,
-        cliente_nombre: nombre,
-        cliente_cuit: alumno?.documento || null,
-        concepto: `Suscripción ${s.planes?.nombre || ""}`.trim(),
-        monto,
-        moneda: s.planes?.moneda || "ARS",
-        fecha: s.fecha_inicio || s.updated_at,
-        metodo_pago: s.metodo_pago || null,
-        origen_registro: s.origen_registro || null,
-        invoiceSource: {
-          alumno_id: s.alumno_id,
-          cliente_nombre: nombre,
-          cliente_cuit: alumno?.documento || null,
-          concepto: `Suscripción ${s.planes?.nombre || ""}`.trim(),
-          monto,
-          moneda: s.planes?.moneda || "ARS",
-          referencia_tipo: "suscripcion",
-          referencia_id: s.id,
-          segmento: "escuela",
-          metodo_pago: s.metodo_pago || null,
-          origen_registro: s.origen_registro || null,
-        },
-        factura_estado: null,
-        factura_cae: null,
-        factura_id: null,
-      };
-    });
-
-    const evRows: PendingPayment[] = (reservas.data || []).map((r: any) => {
-      const alumno = r.alumnos;
-      const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
-      const eventoName = r.events?.name || r.events?.title || "Evento";
-      const monto = Number(r.amount_paid || 0);
-      return {
-        key: `ev:${r.id}`,
-        source: "evento",
-        alumno_id: r.alumno_id,
-        cliente_nombre: nombre,
-        cliente_cuit: alumno?.documento || null,
-        concepto: `Reserva ${eventoName}`,
-        monto,
-        moneda: r.currency_snapshot || r.moneda || "ARS",
-        fecha: r.updated_at,
-        metodo_pago: r.metodo_pago || null,
-        origen_registro: null,
-        invoiceSource: {
-          alumno_id: r.alumno_id,
-          cliente_nombre: nombre,
-          cliente_cuit: alumno?.documento || null,
-          concepto: `Reserva ${eventoName}`,
-          monto,
-          moneda: r.currency_snapshot || r.moneda || "ARS",
-          referencia_tipo: "evento",
-          referencia_id: r.id,
-          segmento: "viajes",
-          metodo_pago: r.metodo_pago || null,
-        },
-        factura_estado: null,
-        factura_cae: null,
-        factura_id: null,
-      };
-    });
-
-    const tiendaRows: PendingPayment[] = (preorders.data || []).map((p: any) => {
-      const alumno = alumnosMap.get(p.alumno_id);
-      const nombre = `${alumno?.nombre || ""} ${alumno?.apellido || ""}`.trim() || "—";
-      const monto = p.estado === "entregada" ? Number(p.precio_total) : Number(p.sena_monto);
-      const conceptoBase = `${p.producto_nombre}${p.estado === "entregada" ? "" : " (seña)"}`;
-      return {
-        key: `tie:${p.id}`,
-        source: "tienda",
-        alumno_id: p.alumno_id,
-        cliente_nombre: nombre,
-        cliente_cuit: alumno?.documento || null,
-        concepto: conceptoBase,
-        monto,
-        moneda: p.moneda || "ARS",
-        fecha: p.entregada_at || p.updated_at,
-        metodo_pago: p.forma_pago_sena || null,
-        origen_registro: null,
-        invoiceSource: {
-          alumno_id: p.alumno_id,
-          cliente_nombre: nombre,
-          cliente_cuit: alumno?.documento || null,
-          concepto: conceptoBase,
-          monto,
-          moneda: p.moneda || "ARS",
-          referencia_tipo: "pedido",
-          referencia_id: p.id,
-          segmento: "tienda",
-          metodo_pago: p.forma_pago_sena || null,
-        },
-        factura_estado: null,
-        factura_cae: null,
-        factura_id: null,
-      };
-    });
-
-    const orderRows: PendingPayment[] = (orders.data || []).map((o: any) => {
-      const alumno = o.alumnos;
-      const nombre = alumno
-        ? `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() || o.customer_name || "—"
-        : (o.customer_name || "—");
-      const items = (o.store_order_items || []) as Array<{ product_name: string; quantity: number }>;
-      const resumen = items.length === 0
-        ? `Pedido #${o.order_number}`
-        : items.length === 1
-          ? `${items[0].product_name}${items[0].quantity > 1 ? ` x${items[0].quantity}` : ""}`
-          : `Pedido #${o.order_number} (${items.length} ítems)`;
-      const concepto = `Pedido tienda #${o.order_number} — ${resumen}`;
-      return {
-        key: `ord:${o.id}`,
-        source: "tienda",
-        alumno_id: o.alumno_id,
-        cliente_nombre: nombre,
-        cliente_cuit: alumno?.documento || null,
-        concepto,
-        monto: Number(o.total || 0),
-        moneda: o.currency || "ARS",
-        fecha: o.pagado_at || o.updated_at,
-        metodo_pago: o.metodo_pago || null,
-        origen_registro: o.origen_registro || null,
-        invoiceSource: {
-          alumno_id: o.alumno_id,
-          cliente_nombre: nombre,
-          cliente_cuit: alumno?.documento || null,
-          concepto,
-          monto: Number(o.total || 0),
-          moneda: o.currency || "ARS",
-          referencia_tipo: "pedido_tienda",
-          referencia_id: o.id,
-          segmento: "tienda",
-          metodo_pago: o.metodo_pago || null,
-          origen_registro: o.origen_registro || null,
-        },
-        factura_estado: null,
-        factura_cae: null,
-        factura_id: null,
-      };
-    });
-
-    // ⚠️ Excluir efectivo (no se factura en AFIP) y pagos pendientes de verificación.
-    const allRows = [...subRows, ...evRows, ...tiendaRows, ...orderRows].filter(
-      (r) => !isEfectivo(r.metodo_pago) && !isPagoPendiente(r.metodo_pago) && r.monto > 0,
-    );
-
-    // 4) Cruce con facturas existentes
-    const refsByType: Record<string, string[]> = {};
-    allRows.forEach((r) => {
-      const t = r.invoiceSource.referencia_tipo;
-      if (!refsByType[t]) refsByType[t] = [];
-      refsByType[t].push(r.invoiceSource.referencia_id);
-    });
-
-    const facturasMap = new Map<string, { id: string; estado: string; cae: string | null }>();
-    for (const [tipo, ids] of Object.entries(refsByType)) {
-      if (ids.length === 0) continue;
-      const { data } = await supabase
+    // Cruce con facturas emitidas para mostrar CAE / error
+    const facturaIds = Array.from(new Set(colaRows.map((r) => r.factura_id).filter(Boolean)));
+    const facMap = new Map<string, { estado: string; cae: string | null }>();
+    if (facturaIds.length > 0) {
+      const { data: facs } = await supabase
         .from("facturas")
-        .select("id, referencia_tipo, referencia_id, estado, cae")
-        .eq("referencia_tipo", tipo)
-        .in("referencia_id", ids);
-      (data || []).forEach((f: any) => {
-        facturasMap.set(`${f.referencia_tipo}:${f.referencia_id}`, {
-          id: f.id, estado: f.estado, cae: f.cae,
-        });
-      });
+        .select("id, estado, cae")
+        .in("id", facturaIds);
+      (facs || []).forEach((f: any) => facMap.set(f.id, { estado: f.estado, cae: f.cae }));
     }
 
-    const enriched = allRows.map((r) => {
-      const f = facturasMap.get(`${r.invoiceSource.referencia_tipo}:${r.invoiceSource.referencia_id}`);
+    const enriched: ColaRow[] = colaRows.map((r) => {
+      const f = r.factura_id ? facMap.get(r.factura_id) : null;
       return {
         ...r,
-        factura_estado: f?.estado || null,
+        monto: Number(r.monto || 0),
+        factura_estado: f?.estado || (r.estado === "facturada" ? "emitida" : null),
         factura_cae: f?.cae || null,
-        factura_id: f?.id || null,
       };
     });
 
-    enriched.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
     setRows(enriched);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
+  const handleRebuild = async () => {
+    setRebuilding(true);
+    try {
+      const { data, error } = await supabase.rpc("rebuild_facturacion_cola" as any, {});
+      if (error) throw error;
+      const res: any = data;
+      toast({
+        title: "Cola actualizada",
+        description: `Se agregaron ${res?.inserted ?? 0} nuevos pagos confirmados.`,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error al refrescar la cola", description: e.message, variant: "destructive" });
+    } finally {
+      setRebuilding(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const min = montoMin.trim() === "" ? null : Number(montoMin);
     const max = montoMax.trim() === "" ? null : Number(montoMax);
     return rows.filter((r) => {
-      const facturada = r.factura_estado === "emitida" && !!r.factura_cae;
+      const facturada = r.estado === "facturada" || (r.factura_estado === "emitida" && !!r.factura_cae);
       if (!showFacturadas && facturada) return false;
-      if (sourceFilter !== "todos" && r.source !== sourceFilter) return false;
+      if (sourceFilter !== "todos" && SOURCE_UI[r.source].group !== sourceFilter) return false;
       if (min !== null && !isNaN(min) && r.monto < min) return false;
       if (max !== null && !isNaN(max) && r.monto > max) return false;
       if (search) {
@@ -381,38 +169,51 @@ export function PendingPaymentsList() {
   }, [rows, sourceFilter, search, showFacturadas, montoMin, montoMax]);
 
   const selectableFiltered = useMemo(
-    () => filtered.filter((r) => !(r.factura_estado === "emitida" && !!r.factura_cae)),
+    () => filtered.filter((r) => !(r.estado === "facturada" || (r.factura_estado === "emitida" && !!r.factura_cae))),
     [filtered],
   );
 
   const counts = useMemo(() => ({
     total: rows.length,
-    sin_facturar: rows.filter((r) => !(r.factura_estado === "emitida" && !!r.factura_cae)).length,
-    suscripcion: rows.filter((r) => r.source === "suscripcion").length,
-    evento: rows.filter((r) => r.source === "evento").length,
-    tienda: rows.filter((r) => r.source === "tienda").length,
+    sin_facturar: rows.filter((r) => r.estado !== "facturada").length,
+    suscripcion: rows.filter((r) => SOURCE_UI[r.source].group === "suscripcion").length,
+    evento: rows.filter((r) => SOURCE_UI[r.source].group === "evento").length,
+    tienda: rows.filter((r) => SOURCE_UI[r.source].group === "tienda").length,
   }), [rows]);
 
-  const allSelected = selectableFiltered.length > 0 && selectableFiltered.every((r) => selected.has(r.key));
+  const allSelected = selectableFiltered.length > 0 && selectableFiltered.every((r) => selected.has(r.id));
   const someSelected = selected.size > 0 && !allSelected;
 
   const toggleAll = () => {
     if (allSelected) setSelected(new Set());
-    else setSelected(new Set(selectableFiltered.map((r) => r.key)));
+    else setSelected(new Set(selectableFiltered.map((r) => r.id)));
   };
 
-  const toggleOne = (key: string) => {
+  const toggleOne = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  /** Prepara facturas (crea registros si no existen) y abre BulkInvoiceModal. */
+  const toInvoiceSource = (r: ColaRow): InvoiceSource => ({
+    alumno_id: r.alumno_id!,
+    cliente_nombre: r.cliente_nombre,
+    cliente_cuit: r.cliente_cuit,
+    concepto: r.concepto,
+    monto: r.monto,
+    moneda: r.moneda,
+    referencia_tipo: r.referencia_tipo,
+    referencia_id: r.referencia_id,
+    segmento: (r.segmento as any) || "escuela",
+    metodo_pago: r.metodo_pago ?? undefined,
+    origen_registro: r.origen_registro ?? undefined,
+  });
+
   const handleBulkInvoice = async () => {
-    const targets = rows.filter((r) => selected.has(r.key));
+    const targets = rows.filter((r) => selected.has(r.id));
     if (targets.length === 0) return;
     setPreparing(true);
     try {
@@ -421,8 +222,7 @@ export function PendingPaymentsList() {
       let alreadyEmittedCount = 0;
 
       for (const r of targets) {
-        // Ya facturada con CAE → omitir
-        if (r.factura_estado === "emitida" && r.factura_cae) {
+        if (r.estado === "facturada" || (r.factura_estado === "emitida" && r.factura_cae)) {
           alreadyEmittedCount++;
           continue;
         }
@@ -431,34 +231,33 @@ export function PendingPaymentsList() {
         let condicionFiscal = "consumidor_final";
 
         if (!facturaId) {
-          // Crear registro vía auto-facturar (puede o no emitir según config)
+          const src = toInvoiceSource(r);
           const { data, error } = await supabase.functions.invoke("auto-facturar", {
             body: {
-              alumno_id: r.invoiceSource.alumno_id,
-              concepto: r.invoiceSource.concepto,
-              monto: r.invoiceSource.monto,
-              moneda: r.invoiceSource.moneda ?? "ARS",
-              referencia_tipo: r.invoiceSource.referencia_tipo,
-              referencia_id: r.invoiceSource.referencia_id,
-              segmento: r.invoiceSource.segmento,
-              metodo_pago: r.invoiceSource.metodo_pago ?? undefined,
-              origen_registro: r.invoiceSource.origen_registro ?? undefined,
+              alumno_id: src.alumno_id,
+              concepto: src.concepto,
+              monto: src.monto,
+              moneda: src.moneda ?? "ARS",
+              referencia_tipo: src.referencia_tipo,
+              referencia_id: src.referencia_id,
+              segmento: src.segmento,
+              metodo_pago: src.metodo_pago ?? undefined,
+              origen_registro: src.origen_registro ?? undefined,
             },
           });
-          if (error || data?.error) {
-            console.warn("auto-facturar falló para", r.key, error || data?.error);
+          if (error || (data as any)?.error) {
+            console.warn("auto-facturar falló para", r.id, error || (data as any)?.error);
             continue;
           }
-          if (data?.emitted) {
+          if ((data as any)?.emitted) {
             alreadyEmittedCount++;
             continue;
           }
-          // Releer factura recién creada
           const { data: nueva } = await supabase
             .from("facturas")
             .select("id, condicion_fiscal")
-            .eq("referencia_tipo", r.invoiceSource.referencia_tipo)
-            .eq("referencia_id", r.invoiceSource.referencia_id)
+            .eq("referencia_tipo", src.referencia_tipo)
+            .eq("referencia_id", src.referencia_id)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -474,9 +273,9 @@ export function PendingPaymentsList() {
           cliente_nombre: r.cliente_nombre,
           cliente_cuit: r.cliente_cuit,
           condicion_fiscal: condicionFiscal,
-          concepto: r.invoiceSource.concepto,
-          monto: r.invoiceSource.monto,
-          referencia_tipo: r.invoiceSource.referencia_tipo,
+          concepto: r.concepto,
+          monto: r.monto,
+          referencia_tipo: r.referencia_tipo,
           kind: "sin_factura",
         });
       }
@@ -526,30 +325,11 @@ export function PendingPaymentsList() {
           </SelectContent>
         </Select>
         <div className="flex items-center gap-1">
-          <Input
-            type="number"
-            inputMode="decimal"
-            placeholder="Monto mín."
-            value={montoMin}
-            onChange={(e) => setMontoMin(e.target.value)}
-            className="w-28"
-          />
+          <Input type="number" inputMode="decimal" placeholder="Monto mín." value={montoMin} onChange={(e) => setMontoMin(e.target.value)} className="w-28" />
           <span className="text-muted-foreground text-xs">—</span>
-          <Input
-            type="number"
-            inputMode="decimal"
-            placeholder="Monto máx."
-            value={montoMax}
-            onChange={(e) => setMontoMax(e.target.value)}
-            className="w-28"
-          />
+          <Input type="number" inputMode="decimal" placeholder="Monto máx." value={montoMax} onChange={(e) => setMontoMax(e.target.value)} className="w-28" />
           {(montoMin || montoMax) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              onClick={() => { setMontoMin(""); setMontoMax(""); }}
-            >
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => { setMontoMin(""); setMontoMax(""); }}>
               Limpiar
             </Button>
           )}
@@ -561,9 +341,12 @@ export function PendingPaymentsList() {
           <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
           Actualizar
         </Button>
+        <Button variant="secondary" size="sm" onClick={handleRebuild} disabled={rebuilding}>
+          {rebuilding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Database className="w-4 h-4 mr-1" />}
+          Refrescar cola
+        </Button>
       </div>
 
-      {/* Barra de acción masiva */}
       {selectableFiltered.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
           <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -577,25 +360,19 @@ export function PendingPaymentsList() {
                 : `Seleccionar todos (${selectableFiltered.length})`}
             </span>
           </label>
-          <Button
-            size="sm"
-            onClick={handleBulkInvoice}
-            disabled={selected.size === 0 || preparing}
-          >
-            {preparing ? (
-              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-1" />
-            )}
+          <Button size="sm" onClick={handleBulkInvoice} disabled={selected.size === 0 || preparing}>
+            {preparing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
             Facturar seleccionados {selected.size > 0 && `(${selected.size})`}
           </Button>
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Mostrando pagos confirmados desde el {new Date(CUTOFF_DATE).toLocaleDateString("es-AR")}.
-        {" "}{counts.sin_facturar} sin factura emitida.
-        {" "}<span className="italic">Los pagos en efectivo y los pagos pendientes de verificación no aparecen acá.</span>
+        Cola de pagos confirmados. {counts.sin_facturar} sin factura emitida.{" "}
+        <span className="italic">
+          Un pago confirmado = un ítem facturable. Efectivo y pagos pendientes de verificación no entran.
+          Si falta algún pago reciente, tocá "Refrescar cola".
+        </span>
       </p>
 
       {loading ? (
@@ -607,37 +384,29 @@ export function PendingPaymentsList() {
       ) : (
         <div className="space-y-2 pb-20">
           {filtered.map((r) => {
-            const facturada = r.factura_estado === "emitida" && !!r.factura_cae;
-            const fecha = (() => {
-              if (!r.fecha) return "—";
-              if (/^\d{4}-\d{2}-\d{2}$/.test(r.fecha)) {
-                const [y, m, day] = r.fecha.split("-").map(Number);
-                return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
-              }
-              return new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
-            })();
-            const isSelected = selected.has(r.key);
+            const facturada = r.estado === "facturada" || (r.factura_estado === "emitida" && !!r.factura_cae);
+            const fecha = new Date(r.pagado_at).toLocaleDateString("es-AR", {
+              day: "numeric", month: "short", year: "numeric",
+              timeZone: "America/Argentina/Buenos_Aires",
+            });
+            const isSelected = selected.has(r.id);
+            const ui = SOURCE_UI[r.source];
 
             return (
-              <div
-                key={r.key}
-                className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-              >
+              <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                 {!facturada && (
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={() => toggleOne(r.key)}
+                    onCheckedChange={() => toggleOne(r.id)}
                     className="mt-1 sm:mt-0 shrink-0"
                   />
                 )}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-foreground">{r.cliente_nombre}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${SOURCE_COLOR[r.source]}`}>
-                      {SOURCE_LABEL[r.source]}
-                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${ui.color}`}>{ui.label}</span>
                     {facturada ? (
-                      <Badge variant="default" className="text-[10px]" title={`CAE ${r.factura_cae}`}>
+                      <Badge variant="default" className="text-[10px]" title={r.factura_cae ? `CAE ${r.factura_cae}` : undefined}>
                         Facturada AFIP
                       </Badge>
                     ) : r.factura_estado === "error" ? (
@@ -652,17 +421,22 @@ export function PendingPaymentsList() {
                         {r.metodo_pago}
                       </span>
                     )}
+                    {r.motivo_arrastre && (
+                      <span className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded" title={r.motivo_arrastre}>
+                        Arrastre
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">{r.concepto}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
-                    <span className="font-semibold text-foreground">{formatPrice(r.monto, r.moneda)}</span>
+                    <span className="font-semibold text-foreground">{formatPrice(r.monto, r.moneda as any)}</span>
                     {r.cliente_cuit && <span>DNI/CUIT {r.cliente_cuit}</span>}
                   </div>
                 </div>
                 <div className="shrink-0">
                   <BillingInvoiceLauncher
-                    source={r.invoiceSource}
+                    source={toInvoiceSource(r)}
                     variant="default"
                     onEmitted={load}
                   />
