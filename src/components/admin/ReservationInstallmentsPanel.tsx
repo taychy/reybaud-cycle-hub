@@ -92,12 +92,16 @@ const ReservationInstallmentsPanel = ({
   reservationAmountTotal,
   reservationAmountPaid,
   hasEventInstallments,
+  reservationPackageId,
+  reservationHasPaymentPlan,
   onChanged,
 }: Props) => {
   const [items, setItems] = useState<Installment[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [assignPlanOpen, setAssignPlanOpen] = useState(false);
+  const [reassignPayment, setReassignPayment] = useState<PaymentRow | null>(null);
 
   const [condoneOpen, setCondoneOpen] = useState<Installment | null>(null);
   const [condoneAmount, setCondoneAmount] = useState("");
