@@ -432,10 +432,28 @@ const ReservationInstallmentsPanel = ({
                 </div>
               </div>
 
-              {validatedLinkedCount > 0 && (
-                <p className="text-[11px] text-muted-foreground">
-                  {validatedLinkedCount} pago(s) imputado(s) a esta cuota
-                </p>
+              {linkedPays.length > 0 && (
+                <div className="space-y-1 pt-1 border-t border-border/40">
+                  <p className="text-[10px] text-muted-foreground uppercase">Pagos imputados</p>
+                  {linkedPays.map((pay) => (
+                    <div key={pay.id} className="flex items-center justify-between text-[11px]">
+                      <div>
+                        <span className={pay.status === "validado" ? "font-medium" : "text-muted-foreground line-through"}>
+                          {formatPrice(Number(pay.amount), reservationCurrency)}
+                        </span>
+                        <span className="text-muted-foreground ml-1">· {pay.payment_method} · {pay.payment_date}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5 text-[10px]"
+                        onClick={() => setReassignPayment(pay)}
+                      >
+                        <ArrowRightLeft className="w-3 h-3 mr-1" /> Mover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {it.status_reason && (
