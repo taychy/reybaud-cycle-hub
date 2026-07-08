@@ -3729,6 +3729,7 @@ export type Database = {
           created_at: string
           descripcion: string
           estado_conciliacion: string
+          event_id: string | null
           fecha: string
           forma_pago: string
           frecuencia: string | null
@@ -3752,6 +3753,7 @@ export type Database = {
           created_at?: string
           descripcion: string
           estado_conciliacion?: string
+          event_id?: string | null
           fecha?: string
           forma_pago?: string
           frecuencia?: string | null
@@ -3775,6 +3777,7 @@ export type Database = {
           created_at?: string
           descripcion?: string
           estado_conciliacion?: string
+          event_id?: string | null
           fecha?: string
           forma_pago?: string
           frecuencia?: string | null
@@ -3794,6 +3797,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gastos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gastos_liquidacion_id_fkey"
             columns: ["liquidacion_id"]
@@ -3940,6 +3950,7 @@ export type Database = {
         Row: {
           created_at: string
           estado: Database["public"]["Enums"]["gasto_ejecucion_estado"]
+          event_id: string | null
           fecha_pago: string | null
           fecha_vencimiento: string | null
           forma_pago: string | null
@@ -3957,6 +3968,7 @@ export type Database = {
         Insert: {
           created_at?: string
           estado?: Database["public"]["Enums"]["gasto_ejecucion_estado"]
+          event_id?: string | null
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
           forma_pago?: string | null
@@ -3974,6 +3986,7 @@ export type Database = {
         Update: {
           created_at?: string
           estado?: Database["public"]["Enums"]["gasto_ejecucion_estado"]
+          event_id?: string | null
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
           forma_pago?: string | null
@@ -3989,6 +4002,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gastos_ejecuciones_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gastos_ejecuciones_gasto_id_fkey"
             columns: ["gasto_id"]
@@ -4060,6 +4080,7 @@ export type Database = {
           concepto: string
           created_at: string
           dia_vencimiento: number | null
+          event_id: string | null
           forma_pago_default: string | null
           frecuencia: Database["public"]["Enums"]["gasto_frecuencia"]
           id: string
@@ -4082,6 +4103,7 @@ export type Database = {
           concepto: string
           created_at?: string
           dia_vencimiento?: number | null
+          event_id?: string | null
           forma_pago_default?: string | null
           frecuencia?: Database["public"]["Enums"]["gasto_frecuencia"]
           id?: string
@@ -4104,6 +4126,7 @@ export type Database = {
           concepto?: string
           created_at?: string
           dia_vencimiento?: number | null
+          event_id?: string | null
           forma_pago_default?: string | null
           frecuencia?: Database["public"]["Enums"]["gasto_frecuencia"]
           id?: string
@@ -4117,7 +4140,15 @@ export type Database = {
           tipo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gastos_recurrentes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       grupo_familiar: {
         Row: {
@@ -6060,19 +6091,25 @@ export type Database = {
           anulado_at: string | null
           anulado_motivo: string | null
           anulado_por: string | null
+          comision_mp: number | null
           created_at: string
           cuenta_mp_id: string | null
           currency: string
           equivalent_amount_event_currency: number | null
           event_currency: string | null
           exchange_rate_to_event_currency: number | null
+          fees_synced_at: string | null
           id: string
+          iibb: number | null
           installment_id: string | null
           installment_number: number | null
           manual_override: boolean
+          mp_payment_id: string | null
+          neto_recibido: number | null
           notes: string | null
           original_amount: number | null
           original_currency: string | null
+          otros_fees: number | null
           payment_date: string
           payment_method: string
           payment_reference: string | null
@@ -6090,19 +6127,25 @@ export type Database = {
           anulado_at?: string | null
           anulado_motivo?: string | null
           anulado_por?: string | null
+          comision_mp?: number | null
           created_at?: string
           cuenta_mp_id?: string | null
           currency?: string
           equivalent_amount_event_currency?: number | null
           event_currency?: string | null
           exchange_rate_to_event_currency?: number | null
+          fees_synced_at?: string | null
           id?: string
+          iibb?: number | null
           installment_id?: string | null
           installment_number?: number | null
           manual_override?: boolean
+          mp_payment_id?: string | null
+          neto_recibido?: number | null
           notes?: string | null
           original_amount?: number | null
           original_currency?: string | null
+          otros_fees?: number | null
           payment_date?: string
           payment_method?: string
           payment_reference?: string | null
@@ -6120,19 +6163,25 @@ export type Database = {
           anulado_at?: string | null
           anulado_motivo?: string | null
           anulado_por?: string | null
+          comision_mp?: number | null
           created_at?: string
           cuenta_mp_id?: string | null
           currency?: string
           equivalent_amount_event_currency?: number | null
           event_currency?: string | null
           exchange_rate_to_event_currency?: number | null
+          fees_synced_at?: string | null
           id?: string
+          iibb?: number | null
           installment_id?: string | null
           installment_number?: number | null
           manual_override?: boolean
+          mp_payment_id?: string | null
+          neto_recibido?: number | null
           notes?: string | null
           original_amount?: number | null
           original_currency?: string | null
+          otros_fees?: number | null
           payment_date?: string
           payment_method?: string
           payment_reference?: string | null
@@ -6939,6 +6988,7 @@ export type Database = {
           alumno_id: string | null
           cancel_reason: string | null
           cancelled_at: string | null
+          comision_mp: number | null
           created_at: string
           cuenta_mp_id: string | null
           currency: string
@@ -6951,15 +7001,19 @@ export type Database = {
           envio_direccion: string | null
           envio_estado: string | null
           envio_notas: string | null
+          fees_synced_at: string | null
           id: string
+          iibb: number | null
           metodo_pago: string | null
           mp_external_reference: string | null
           mp_payment_id: string | null
           mp_preference_id: string | null
           mp_status: string | null
+          neto_recibido: number | null
           notes: string | null
           order_number: number
           origen_registro: string | null
+          otros_fees: number | null
           pagado_at: string | null
           sede_retiro_id: string | null
           shipping_tracking: string | null
@@ -6973,6 +7027,7 @@ export type Database = {
           alumno_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          comision_mp?: number | null
           created_at?: string
           cuenta_mp_id?: string | null
           currency?: string
@@ -6985,15 +7040,19 @@ export type Database = {
           envio_direccion?: string | null
           envio_estado?: string | null
           envio_notas?: string | null
+          fees_synced_at?: string | null
           id?: string
+          iibb?: number | null
           metodo_pago?: string | null
           mp_external_reference?: string | null
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          neto_recibido?: number | null
           notes?: string | null
           order_number?: number
           origen_registro?: string | null
+          otros_fees?: number | null
           pagado_at?: string | null
           sede_retiro_id?: string | null
           shipping_tracking?: string | null
@@ -7007,6 +7066,7 @@ export type Database = {
           alumno_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          comision_mp?: number | null
           created_at?: string
           cuenta_mp_id?: string | null
           currency?: string
@@ -7019,15 +7079,19 @@ export type Database = {
           envio_direccion?: string | null
           envio_estado?: string | null
           envio_notas?: string | null
+          fees_synced_at?: string | null
           id?: string
+          iibb?: number | null
           metodo_pago?: string | null
           mp_external_reference?: string | null
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          neto_recibido?: number | null
           notes?: string | null
           order_number?: number
           origen_registro?: string | null
+          otros_fees?: number | null
           pagado_at?: string | null
           sede_retiro_id?: string | null
           shipping_tracking?: string | null
@@ -7601,13 +7665,16 @@ export type Database = {
           clases_consumidas: number
           clases_totales: number | null
           clases_vencimiento: string | null
+          comision_mp: number | null
           created_at: string
           cuenta_mp_id: string | null
           descuento_id: string | null
           estado: string
           fecha_fin: string | null
           fecha_inicio: string | null
+          fees_synced_at: string | null
           id: string
+          iibb: number | null
           intentos_cobro_fallidos: number
           metodo_pago: string
           mp_payment_id: string | null
@@ -7615,8 +7682,10 @@ export type Database = {
           mp_preapproval_status: string | null
           mp_preference_id: string | null
           mp_status: string | null
+          neto_recibido: number | null
           notas: string | null
           origen_registro: string
+          otros_fees: number | null
           plan_id: string
           precio_base: number | null
           precio_final: number | null
@@ -7639,13 +7708,16 @@ export type Database = {
           clases_consumidas?: number
           clases_totales?: number | null
           clases_vencimiento?: string | null
+          comision_mp?: number | null
           created_at?: string
           cuenta_mp_id?: string | null
           descuento_id?: string | null
           estado?: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
+          fees_synced_at?: string | null
           id?: string
+          iibb?: number | null
           intentos_cobro_fallidos?: number
           metodo_pago?: string
           mp_payment_id?: string | null
@@ -7653,8 +7725,10 @@ export type Database = {
           mp_preapproval_status?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          neto_recibido?: number | null
           notas?: string | null
           origen_registro?: string
+          otros_fees?: number | null
           plan_id: string
           precio_base?: number | null
           precio_final?: number | null
@@ -7677,13 +7751,16 @@ export type Database = {
           clases_consumidas?: number
           clases_totales?: number | null
           clases_vencimiento?: string | null
+          comision_mp?: number | null
           created_at?: string
           cuenta_mp_id?: string | null
           descuento_id?: string | null
           estado?: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
+          fees_synced_at?: string | null
           id?: string
+          iibb?: number | null
           intentos_cobro_fallidos?: number
           metodo_pago?: string
           mp_payment_id?: string | null
@@ -7691,8 +7768,10 @@ export type Database = {
           mp_preapproval_status?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          neto_recibido?: number | null
           notas?: string | null
           origen_registro?: string
+          otros_fees?: number | null
           plan_id?: string
           precio_base?: number | null
           precio_final?: number | null
@@ -8149,6 +8228,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_ingresos_netos: {
+        Row: {
+          alumno_id: string | null
+          bruto: number | null
+          comision_total: number | null
+          estado: string | null
+          event_id: string | null
+          fecha: string | null
+          fees_synced_at: string | null
+          metodo: string | null
+          moneda: string | null
+          mp_payment_id: string | null
+          neto: number | null
+          origen: string | null
+          ref_padre_id: string | null
+          referencia_id: string | null
+        }
+        Relationships: []
       }
       v_reservation_account: {
         Row: {
