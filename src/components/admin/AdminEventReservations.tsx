@@ -1859,6 +1859,8 @@ const AdminEventReservations = ({
                   reservationAmountTotal={selectedRes.amount_total || 0}
                   reservationAmountPaid={selectedRes.amount_paid || 0}
                   hasEventInstallments={installments.length > 0}
+                  reservationPackageId={(selectedRes as any).package_id ?? null}
+                  reservationHasPaymentPlan={!!(selectedRes as any).payment_plan_id}
                   onChanged={() => {
                     loadReservations();
                     loadPayments(selectedRes.id);
