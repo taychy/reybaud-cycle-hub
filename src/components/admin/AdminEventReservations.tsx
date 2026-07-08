@@ -356,6 +356,7 @@ const AdminEventReservations = ({
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [viewNotif, setViewNotif] = useState<Notification | null>(null);
   const [showNotifyDialog, setShowNotifyDialog] = useState(false);
   const [notifyTemplate, setNotifyTemplate] = useState<NotifTemplateKey>("novedad");
   const [notifySubject, setNotifySubject] = useState("");
@@ -2257,16 +2258,24 @@ const AdminEventReservations = ({
                 ) : (
                   <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
                     {notifications.map((n) => (
-                      <div key={n.id} className="rounded-lg border border-border p-2.5 space-y-1">
+                      <button
+                        type="button"
+                        key={n.id}
+                        onClick={() => setViewNotif(n)}
+                        className="w-full text-left rounded-lg border border-border p-2.5 space-y-1 hover:bg-secondary/40 transition-colors"
+                      >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            {n.canal === "email" ? <Mail className="w-3 h-3 text-muted-foreground" /> : <MessageCircle className="w-3 h-3 text-muted-foreground" />}
-                            <span className="text-xs font-medium">{n.asunto}</span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {n.canal === "email" ? <Mail className="w-3 h-3 text-muted-foreground shrink-0" /> : <MessageCircle className="w-3 h-3 text-muted-foreground shrink-0" />}
+                            <span className="text-xs font-medium truncate">{n.asunto}</span>
                             {n.metadata?.email_sent === false && (
                               <Badge variant="outline" className="text-[9px] border-destructive/30 text-destructive">No enviado</Badge>
                             )}
                           </div>
-                          <Badge variant="outline" className="text-[9px]">{n.tipo.replace(/_/g, " ")}</Badge>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge variant="outline" className="text-[9px]">{n.tipo.replace(/_/g, " ")}</Badge>
+                            <Eye className="w-3 h-3 text-muted-foreground" />
+                          </div>
                         </div>
                         <p className="text-[10px] text-muted-foreground">
                           {new Date(n.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
@@ -2276,11 +2285,50 @@ const AdminEventReservations = ({
                         {n.metadata?.email_error && (
                           <p className="text-[10px] text-destructive">{n.metadata.email_error}</p>
                         )}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* Ver contenido de la comunicación */}
+              <Dialog open={!!viewNotif} onOpenChange={(o) => !o && setViewNotif(null)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">{viewNotif?.asunto || "Comunicación"}</DialogTitle>
+                    <DialogDescription className="text-xs">
+                      {viewNotif && (
+                        <>
+                          {new Date(viewNotif.created_at).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })}
+                          {" · "}{viewNotif.canal}
+                          {viewNotif.enviado_por_email && ` · por ${viewNotif.enviado_por_email}`}
+                          {" · "}<span className="uppercase">{viewNotif.tipo.replace(/_/g, " ")}</span>
+                        </>
+                      )}
+                    </DialogDescription>
+                  </DialogHeader>
+                  {viewNotif && (
+                    <div className="space-y-3">
+                      {viewNotif.metadata?.email_error && (
+                        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                          Error de envío: {String(viewNotif.metadata.email_error)}
+                        </div>
+                      )}
+                      {viewNotif.metadata?.html || (viewNotif.contenido && /<[a-z][\s\S]*>/i.test(viewNotif.contenido)) ? (
+                        <div
+                          className="rounded-md border border-border bg-white text-black p-4 text-sm overflow-x-auto"
+                          dangerouslySetInnerHTML={{ __html: (viewNotif.metadata?.html as string) || viewNotif.contenido || "" }}
+                        />
+                      ) : (
+                        <pre className="rounded-md border border-border bg-secondary/30 p-3 text-xs whitespace-pre-wrap font-sans">
+                          {viewNotif.contenido || "(sin contenido guardado)"}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
+
 
               {/* Send notification dialog */}
               {showNotifyDialog && (
