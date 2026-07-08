@@ -9,6 +9,7 @@ import { PendingPaymentsList } from "./PendingPaymentsList";
 import { BillingEmisorSummary } from "./BillingEmisorSummary";
 import { InvoiceModal } from "./InvoiceModal";
 import { ManualInvoiceButton } from "./ManualInvoiceButton";
+import { SyncMpFeesButton } from "./SyncMpFeesButton";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 
 interface Emisor {
