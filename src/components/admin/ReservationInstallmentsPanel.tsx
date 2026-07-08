@@ -126,7 +126,7 @@ const ReservationInstallmentsPanel = ({
         .order("installment_number", { ascending: true }),
       supabase
         .from("reservation_payments")
-        .select("id,installment_id,amount,equivalent_amount_event_currency,status,payment_date,payment_method")
+        .select("id,installment_id,installment_number,amount,equivalent_amount_event_currency,status,payment_date,payment_method")
         .eq("reservation_id", reservationId),
     ]);
     setItems((ins as any) || []);
