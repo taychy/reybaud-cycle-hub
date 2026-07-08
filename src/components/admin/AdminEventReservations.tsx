@@ -356,6 +356,7 @@ const AdminEventReservations = ({
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [viewNotif, setViewNotif] = useState<Notification | null>(null);
   const [showNotifyDialog, setShowNotifyDialog] = useState(false);
   const [notifyTemplate, setNotifyTemplate] = useState<NotifTemplateKey>("novedad");
   const [notifySubject, setNotifySubject] = useState("");
