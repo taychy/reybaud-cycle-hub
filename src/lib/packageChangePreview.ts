@@ -42,11 +42,13 @@ export async function previewPackageChange(
   reservationId: string,
   packageNuevoId: string,
   roommatePropuestoId?: string | null,
+  priceOverride?: number | null,
 ): Promise<PackageChangePreview> {
   const { data, error } = await supabase.rpc("preview_package_change" as any, {
     p_reservation_id: reservationId,
     p_package_nuevo_id: packageNuevoId,
     p_roommate_propuesto_id: roommatePropuestoId ?? null,
+    p_price_override: priceOverride ?? null,
   });
   if (error) throw error;
   return data as PackageChangePreview;
@@ -59,6 +61,7 @@ export interface ApplyPackageChangeArgs {
   requestId?: string | null;
   overridePlazaLibre?: boolean;
   adminNote?: string | null;
+  priceOverride?: number | null;
 }
 
 export async function applyPackageChange(args: ApplyPackageChangeArgs) {
@@ -69,6 +72,7 @@ export async function applyPackageChange(args: ApplyPackageChangeArgs) {
     p_request_id: args.requestId ?? null,
     p_override_plaza_libre: !!args.overridePlazaLibre,
     p_admin_note: args.adminNote ?? null,
+    p_price_override: args.priceOverride ?? null,
   });
   if (error) throw error;
   return data as { ok: boolean; adjustment_id?: string; credit_created?: number; debit_created?: number };

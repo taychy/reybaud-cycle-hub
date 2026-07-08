@@ -11,9 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertCircle, CalendarClock, CheckCircle2, Clock, Loader2,
-  PiggyBank, RefreshCw, History, Sparkles, Ban,
+  PiggyBank, RefreshCw, History, Sparkles, Ban, ArrowRightLeft,
 } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import AssignPaymentPlanDialog from "./AssignPaymentPlanDialog";
+import ReassignPaymentDialog from "./ReassignPaymentDialog";
 
 interface Installment {
   id: string;
@@ -40,6 +42,7 @@ interface Installment {
 interface PaymentRow {
   id: string;
   installment_id: string | null;
+  installment_number: number | null;
   amount: number;
   equivalent_amount_event_currency: number | null;
   status: string;
@@ -64,6 +67,8 @@ interface Props {
   reservationAmountTotal: number;
   reservationAmountPaid: number;
   hasEventInstallments: boolean;
+  reservationPackageId?: string | null;
+  reservationHasPaymentPlan?: boolean;
   onChanged?: () => void;
 }
 
@@ -87,12 +92,16 @@ const ReservationInstallmentsPanel = ({
   reservationAmountTotal,
   reservationAmountPaid,
   hasEventInstallments,
+  reservationPackageId,
+  reservationHasPaymentPlan,
   onChanged,
 }: Props) => {
   const [items, setItems] = useState<Installment[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [assignPlanOpen, setAssignPlanOpen] = useState(false);
+  const [reassignPayment, setReassignPayment] = useState<PaymentRow | null>(null);
 
   const [condoneOpen, setCondoneOpen] = useState<Installment | null>(null);
   const [condoneAmount, setCondoneAmount] = useState("");
@@ -117,7 +126,7 @@ const ReservationInstallmentsPanel = ({
         .order("installment_number", { ascending: true }),
       supabase
         .from("reservation_payments")
-        .select("id,installment_id,amount,equivalent_amount_event_currency,status,payment_date,payment_method")
+        .select("id,installment_id,installment_number,amount,equivalent_amount_event_currency,status,payment_date,payment_method")
         .eq("reservation_id", reservationId),
     ]);
     setItems((ins as any) || []);
@@ -240,6 +249,7 @@ const ReservationInstallmentsPanel = ({
 
   // Empty state
   if (items.length === 0) {
+    const orphanValidated = payments.filter((p) => p.status === "validado" && !p.installment_id);
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -247,26 +257,56 @@ const ReservationInstallmentsPanel = ({
         </div>
         <div className="rounded-xl border border-dashed border-border p-4 text-center space-y-3">
           <p className="text-xs text-muted-foreground">
-            {hasEventInstallments
-              ? "Esta reserva todavía no tiene cuotas materializadas."
-              : "El evento no tiene plan de cuotas activo. Esta reserva se cobra como pago único."}
+            Esta reserva no tiene plan de pagos asignado, por lo que no hay cuotas generadas.
           </p>
-          {hasEventInstallments && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMaterialize}
-              disabled={acting === "materialize"}
-            >
-              {acting === "materialize" ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 mr-1" />
-              )}
-              Generar plan de cuotas para esta reserva
-            </Button>
+          {orphanValidated.length > 0 && (
+            <p className="text-[11px] text-amber-500">
+              Hay {orphanValidated.length} pago(s) validado(s) sin cuota. Al asignar un plan se imputan automáticamente en orden (primero la seña).
+            </p>
           )}
+          <div className="flex flex-wrap gap-2 justify-center">
+            {reservationPackageId && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setAssignPlanOpen(true)}
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1" />
+                Asignar plan de pagos
+              </Button>
+            )}
+            {!reservationPackageId && (
+              <p className="text-[11px] text-muted-foreground italic">
+                Esta reserva aún no tiene paquete. Asigná uno desde <b>Cambiar paquete</b> para poder generar las cuotas.
+              </p>
+            )}
+            {hasEventInstallments && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMaterialize}
+                disabled={acting === "materialize"}
+              >
+                {acting === "materialize" ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                )}
+                Materializar plan del evento
+              </Button>
+            )}
+          </div>
         </div>
+
+        <AssignPaymentPlanDialog
+          open={assignPlanOpen}
+          onOpenChange={setAssignPlanOpen}
+          reservationId={reservationId}
+          packageId={reservationPackageId ?? null}
+          precioFinal={reservationAmountTotal}
+          currency={reservationCurrency}
+          onAssigned={() => { load(); onChanged?.(); }}
+        />
       </div>
     );
   }
@@ -392,10 +432,28 @@ const ReservationInstallmentsPanel = ({
                 </div>
               </div>
 
-              {validatedLinkedCount > 0 && (
-                <p className="text-[11px] text-muted-foreground">
-                  {validatedLinkedCount} pago(s) imputado(s) a esta cuota
-                </p>
+              {linkedPays.length > 0 && (
+                <div className="space-y-1 pt-1 border-t border-border/40">
+                  <p className="text-[10px] text-muted-foreground uppercase">Pagos imputados</p>
+                  {linkedPays.map((pay) => (
+                    <div key={pay.id} className="flex items-center justify-between text-[11px]">
+                      <div>
+                        <span className={pay.status === "validado" ? "font-medium" : "text-muted-foreground line-through"}>
+                          {formatPrice(Number(pay.amount), reservationCurrency)}
+                        </span>
+                        <span className="text-muted-foreground ml-1">· {pay.payment_method} · {pay.payment_date}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5 text-[10px]"
+                        onClick={() => setReassignPayment(pay)}
+                      >
+                        <ArrowRightLeft className="w-3 h-3 mr-1" /> Mover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {it.status_reason && (
@@ -449,9 +507,54 @@ const ReservationInstallmentsPanel = ({
         })}
       </div>
 
+      {/* Pagos huérfanos (sin cuota asignada) */}
+      {(() => {
+        const orphans = payments.filter((p) => p.status === "validado" && !p.installment_id);
+        if (orphans.length === 0) return null;
+        return (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+            <p className="text-xs font-semibold text-amber-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" /> Pagos sin cuota asignada
+            </p>
+            {orphans.map((p) => (
+              <div key={p.id} className="flex items-center justify-between text-[11px]">
+                <span>
+                  {formatPrice(Number(p.amount), reservationCurrency)} · {p.payment_method} · {p.payment_date}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px]"
+                  onClick={() => setReassignPayment(p)}
+                >
+                  <ArrowRightLeft className="w-3 h-3 mr-1" /> Asignar a cuota
+                </Button>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       <p className="text-[10px] text-muted-foreground italic">
         El crédito otorgado no modifica el precio total de la reserva. Saldo = Total − Pagado − Crédito.
       </p>
+
+      <ReassignPaymentDialog
+        open={!!reassignPayment}
+        onOpenChange={(v) => !v && setReassignPayment(null)}
+        payment={reassignPayment}
+        installments={items.map((it) => ({
+          id: it.id,
+          installment_number: it.installment_number,
+          label: it.label,
+          amount: Number(it.amount),
+          currency: it.currency,
+          balance_due: Number(it.balance_due || 0),
+          status: it.status,
+        }))}
+        onReassigned={() => { load(); onChanged?.(); }}
+      />
+
 
       {/* Dialog: Condonar */}
       <Dialog open={!!condoneOpen} onOpenChange={(o) => !o && setCondoneOpen(null)}>

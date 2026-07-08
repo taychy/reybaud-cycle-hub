@@ -8357,6 +8357,7 @@ export type Database = {
           p_admin_note?: string
           p_override_plaza_libre?: boolean
           p_package_nuevo_id: string
+          p_price_override?: number
           p_request_id?: string
           p_reservation_id: string
           p_revalidation_token: string
@@ -8657,6 +8658,10 @@ export type Database = {
         Args: { _reservation_id: string }
         Returns: Json
       }
+      impute_validated_payments_to_installments: {
+        Args: { p_reservation_id: string }
+        Returns: Json
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       lookup_alumno_by_email: {
         Args: { p_email: string }
@@ -8705,6 +8710,7 @@ export type Database = {
       preview_package_change: {
         Args: {
           p_package_nuevo_id: string
+          p_price_override?: number
           p_reservation_id: string
           p_roommate_propuesto_id?: string
         }
@@ -8719,6 +8725,14 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reassign_payment_to_installment: {
+        Args: {
+          p_admin_note?: string
+          p_payment_id: string
+          p_target_installment_id: string
+        }
+        Returns: Json
       }
       rebuild_facturacion_cola: { Args: { p_since?: string }; Returns: Json }
       recalc_gasto_ejecucion: {
