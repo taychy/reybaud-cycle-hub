@@ -18,7 +18,10 @@ import {
   Users,
   Link2,
   Trophy,
+  Wallet,
 } from "lucide-react";
+
+
 import { useNavigate } from "react-router-dom";
 import { getPublicEventLink, copyToClipboard } from "@/lib/eventLinks";
 import {
@@ -55,6 +58,7 @@ import EventForm, {
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
+import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
@@ -140,6 +144,7 @@ const EventsList = () => {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [saving, setSaving] = useState(false);
   const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
+  const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
@@ -421,6 +426,9 @@ const EventsList = () => {
                   <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
                     <Users className="w-4 h-4" />
                   </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setFinanceEvent(ev)} title="Finanzas del evento">
+                    <Wallet className="w-4 h-4" />
+                  </Button>
                   {ev.type === "record_hora" && (
                     <Button
                       variant="ghost"
@@ -535,6 +543,23 @@ const EventsList = () => {
               <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />
               </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Finance Sheet */}
+      <Sheet open={!!financeEvent} onOpenChange={(open) => !open && setFinanceEvent(null)}>
+        <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider text-xl">
+              Finanzas — {financeEvent?.title}
+            </SheetTitle>
+            <SheetDescription className="sr-only">P&L y gastos del evento</SheetDescription>
+          </SheetHeader>
+          {financeEvent && (
+            <div className="pb-8">
+              <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
             </div>
           )}
         </SheetContent>
