@@ -173,13 +173,18 @@ export function PendingPaymentsList() {
     [filtered],
   );
 
-  const counts = useMemo(() => ({
-    total: rows.length,
-    sin_facturar: rows.filter((r) => r.estado !== "facturada").length,
-    suscripcion: rows.filter((r) => SOURCE_UI[r.source].group === "suscripcion").length,
-    evento: rows.filter((r) => SOURCE_UI[r.source].group === "evento").length,
-    tienda: rows.filter((r) => SOURCE_UI[r.source].group === "tienda").length,
-  }), [rows]);
+  const counts = useMemo(() => {
+    const base = showFacturadas
+      ? rows
+      : rows.filter((r) => !(r.estado === "facturada" || (r.factura_estado === "emitida" && !!r.factura_cae)));
+    return {
+      total: rows.length,
+      sin_facturar: rows.filter((r) => r.estado !== "facturada").length,
+      suscripcion: base.filter((r) => SOURCE_UI[r.source].group === "suscripcion").length,
+      evento: base.filter((r) => SOURCE_UI[r.source].group === "evento").length,
+      tienda: base.filter((r) => SOURCE_UI[r.source].group === "tienda").length,
+    };
+  }, [rows, showFacturadas]);
 
   const allSelected = selectableFiltered.length > 0 && selectableFiltered.every((r) => selected.has(r.id));
   const someSelected = selected.size > 0 && !allSelected;
