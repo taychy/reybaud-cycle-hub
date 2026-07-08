@@ -42,6 +42,7 @@ interface Installment {
 interface PaymentRow {
   id: string;
   installment_id: string | null;
+  installment_number: number | null;
   amount: number;
   equivalent_amount_event_currency: number | null;
   status: string;
