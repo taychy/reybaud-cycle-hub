@@ -144,6 +144,7 @@ const EventsList = () => {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [saving, setSaving] = useState(false);
   const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
+  const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
