@@ -61,10 +61,10 @@ export default function AssignPaymentPlanDialog({
     });
     setSaving(false);
     if (!res.ok) {
-      toast.error("No se pudo asignar el plan", { description: res.error });
+      toast.error("No se pudo asignar el plan", { description: (res as any).error });
       return;
     }
-    toast.success(`Plan asignado: se generaron ${res.installments} cuotas y se imputaron los pagos existentes.`);
+    toast.success(`Plan asignado: se generaron ${(res as any).installments} cuotas y se imputaron los pagos existentes.`);
     onAssigned?.();
     onOpenChange(false);
   };
