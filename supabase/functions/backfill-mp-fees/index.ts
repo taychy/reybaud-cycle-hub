@@ -67,6 +67,50 @@ Deno.serve(async (req) => {
     return t;
   }
 
+  // Cargamos todas las cuentas MP activas al inicio para probar cada token
+  // cuando el pago no está asociado a una cuenta (cuenta_mp_id null) y el
+  // token default responde 404 (el pago pudo haberse cobrado con otra cuenta).
+  const { data: cuentasData } = await supabase
+    .from("cuentas_mp")
+    .select("id, slug, secret_name_token")
+    .eq("activa", true);
+  const allAccounts: { id: string; slug: string; token: string }[] = [];
+  for (const c of cuentasData ?? []) {
+    const tok = Deno.env.get((c as any).secret_name_token);
+    if (tok) allAccounts.push({ id: (c as any).id, slug: (c as any).slug, token: tok });
+  }
+
+  async function fetchMpPaymentAcrossAccounts(
+    mpId: string,
+    primaryToken: string,
+    cuentaIdKnown: string | null | undefined,
+  ): Promise<{ payment: any; cuenta_id: string | null }> {
+    // 1) intentar con el token conocido/default
+    if (primaryToken) {
+      try {
+        const p = await fetchMpPayment(mpId, primaryToken);
+        return { payment: p, cuenta_id: cuentaIdKnown ?? null };
+      } catch (e) {
+        const msg = String((e as Error).message ?? e);
+        if (!msg.includes("404") || cuentaIdKnown) throw e;
+      }
+    }
+    // 2) probar el resto de cuentas activas
+    let lastErr: any = null;
+    for (const acc of allAccounts) {
+      if (acc.token === primaryToken) continue;
+      try {
+        const p = await fetchMpPayment(mpId, acc.token);
+        return { payment: p, cuenta_id: acc.id };
+      } catch (e) {
+        lastErr = e;
+        const msg = String((e as Error).message ?? e);
+        if (!msg.includes("404")) throw e;
+      }
+    }
+    throw lastErr ?? new Error("payment_not_found_in_any_account");
+  }
+
   async function processOne(
     table: "reservation_payments" | "suscripciones" | "store_orders",
     row: { id: string; mp_payment_id: string | null; cuenta_mp_id?: string | null; payment_reference?: string | null; payment_method?: string | null },
@@ -79,8 +123,8 @@ Deno.serve(async (req) => {
     }
     if (!mpId) return;
     const accessToken = await getToken(row.cuenta_mp_id);
-    if (!accessToken) throw new Error("no_access_token");
-    const payment = await fetchMpPayment(mpId, accessToken);
+    if (!accessToken && allAccounts.length === 0) throw new Error("no_access_token");
+    const { payment, cuenta_id } = await fetchMpPaymentAcrossAccounts(mpId, accessToken, row.cuenta_mp_id);
     const fees = parseMpFees(payment);
     const patch: any = {
       comision_mp: fees.comision_mp,
@@ -90,6 +134,7 @@ Deno.serve(async (req) => {
       fees_synced_at: new Date().toISOString(),
     };
     if (table === "reservation_payments") patch.mp_payment_id = mpId;
+    if (!row.cuenta_mp_id && cuenta_id) patch.cuenta_mp_id = cuenta_id;
     const { error } = await supabase.from(table).update(patch).eq("id", row.id);
     if (error) throw error;
   }
