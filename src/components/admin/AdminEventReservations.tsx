@@ -2470,6 +2470,7 @@ const AdminEventReservations = ({
           reservationId={changePackageFor.id}
           eventId={changePackageFor.event_id}
           currentPackageId={changePackageFor.package_id || null}
+          reservationHasPaymentPlan={!!(changePackageFor as any).payment_plan_id}
           onDone={() => { setChangePackageFor(null); loadReservations(); }}
         />
       )}
