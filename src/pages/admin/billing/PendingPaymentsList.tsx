@@ -375,8 +375,8 @@ export function PendingPaymentsList() {
       <p className="text-xs text-muted-foreground">
         Cola de pagos confirmados. {counts.sin_facturar} sin factura emitida.{" "}
         <span className="italic">
-          Un pago confirmado = un ítem facturable. Efectivo y pagos pendientes de verificación no entran.
-          Si falta algún pago reciente, tocá "Refrescar cola".
+          Un pago confirmado = un ítem facturable. Incluye efectivo, transferencias y MP.
+          Pagos pendientes de verificación no entran. Si falta algún pago reciente, tocá "Refrescar cola".
         </span>
       </p>
 
