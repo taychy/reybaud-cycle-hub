@@ -11,9 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertCircle, CalendarClock, CheckCircle2, Clock, Loader2,
-  PiggyBank, RefreshCw, History, Sparkles, Ban,
+  PiggyBank, RefreshCw, History, Sparkles, Ban, ArrowRightLeft,
 } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import AssignPaymentPlanDialog from "./AssignPaymentPlanDialog";
+import ReassignPaymentDialog from "./ReassignPaymentDialog";
 
 interface Installment {
   id: string;
