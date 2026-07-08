@@ -547,6 +547,23 @@ const EventsList = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Finance Sheet */}
+      <Sheet open={!!financeEvent} onOpenChange={(open) => !open && setFinanceEvent(null)}>
+        <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider text-xl">
+              Finanzas — {financeEvent?.title}
+            </SheetTitle>
+            <SheetDescription className="sr-only">P&L y gastos del evento</SheetDescription>
+          </SheetHeader>
+          {financeEvent && (
+            <div className="pb-8">
+              <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
