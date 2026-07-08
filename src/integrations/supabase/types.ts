@@ -8660,6 +8660,20 @@ export type Database = {
           tipo: string
         }[]
       }
+      get_event_pnl: {
+        Args: { p_event_id: string }
+        Returns: {
+          comision_mp_total: number
+          gastos_directos: number
+          honorarios_coaches: number
+          ingresos_brutos: number
+          ingresos_netos: number
+          moneda: string
+          pagos_count: number
+          pagos_sin_fees: number
+          resultado: number
+        }[]
+      }
       get_gasto_recurrente_saldo_deuda: {
         Args: { p_rec_id: string }
         Returns: {
