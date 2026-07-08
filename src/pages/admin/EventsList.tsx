@@ -58,6 +58,7 @@ import EventForm, {
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
+import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
