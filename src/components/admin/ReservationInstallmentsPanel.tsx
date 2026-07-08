@@ -249,6 +249,7 @@ const ReservationInstallmentsPanel = ({
 
   // Empty state
   if (items.length === 0) {
+    const orphanValidated = payments.filter((p) => p.status === "validado" && !p.installment_id);
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -256,26 +257,56 @@ const ReservationInstallmentsPanel = ({
         </div>
         <div className="rounded-xl border border-dashed border-border p-4 text-center space-y-3">
           <p className="text-xs text-muted-foreground">
-            {hasEventInstallments
-              ? "Esta reserva todavía no tiene cuotas materializadas."
-              : "El evento no tiene plan de cuotas activo. Esta reserva se cobra como pago único."}
+            Esta reserva no tiene plan de pagos asignado, por lo que no hay cuotas generadas.
           </p>
-          {hasEventInstallments && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMaterialize}
-              disabled={acting === "materialize"}
-            >
-              {acting === "materialize" ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 mr-1" />
-              )}
-              Generar plan de cuotas para esta reserva
-            </Button>
+          {orphanValidated.length > 0 && (
+            <p className="text-[11px] text-amber-500">
+              Hay {orphanValidated.length} pago(s) validado(s) sin cuota. Al asignar un plan se imputan automáticamente en orden (primero la seña).
+            </p>
           )}
+          <div className="flex flex-wrap gap-2 justify-center">
+            {reservationPackageId && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setAssignPlanOpen(true)}
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1" />
+                Asignar plan de pagos
+              </Button>
+            )}
+            {!reservationPackageId && (
+              <p className="text-[11px] text-muted-foreground italic">
+                Esta reserva aún no tiene paquete. Asigná uno desde <b>Cambiar paquete</b> para poder generar las cuotas.
+              </p>
+            )}
+            {hasEventInstallments && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMaterialize}
+                disabled={acting === "materialize"}
+              >
+                {acting === "materialize" ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                )}
+                Materializar plan del evento
+              </Button>
+            )}
+          </div>
         </div>
+
+        <AssignPaymentPlanDialog
+          open={assignPlanOpen}
+          onOpenChange={setAssignPlanOpen}
+          reservationId={reservationId}
+          packageId={reservationPackageId ?? null}
+          precioFinal={reservationAmountTotal}
+          currency={reservationCurrency}
+          onAssigned={() => { load(); onChanged?.(); }}
+        />
       </div>
     );
   }
