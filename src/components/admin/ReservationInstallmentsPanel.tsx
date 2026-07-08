@@ -507,9 +507,54 @@ const ReservationInstallmentsPanel = ({
         })}
       </div>
 
+      {/* Pagos huérfanos (sin cuota asignada) */}
+      {(() => {
+        const orphans = payments.filter((p) => p.status === "validado" && !p.installment_id);
+        if (orphans.length === 0) return null;
+        return (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+            <p className="text-xs font-semibold text-amber-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" /> Pagos sin cuota asignada
+            </p>
+            {orphans.map((p) => (
+              <div key={p.id} className="flex items-center justify-between text-[11px]">
+                <span>
+                  {formatPrice(Number(p.amount), reservationCurrency)} · {p.payment_method} · {p.payment_date}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px]"
+                  onClick={() => setReassignPayment(p)}
+                >
+                  <ArrowRightLeft className="w-3 h-3 mr-1" /> Asignar a cuota
+                </Button>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       <p className="text-[10px] text-muted-foreground italic">
         El crédito otorgado no modifica el precio total de la reserva. Saldo = Total − Pagado − Crédito.
       </p>
+
+      <ReassignPaymentDialog
+        open={!!reassignPayment}
+        onOpenChange={(v) => !v && setReassignPayment(null)}
+        payment={reassignPayment}
+        installments={items.map((it) => ({
+          id: it.id,
+          installment_number: it.installment_number,
+          label: it.label,
+          amount: Number(it.amount),
+          currency: it.currency,
+          balance_due: Number(it.balance_due || 0),
+          status: it.status,
+        }))}
+        onReassigned={() => { load(); onChanged?.(); }}
+      />
+
 
       {/* Dialog: Condonar */}
       <Dialog open={!!condoneOpen} onOpenChange={(o) => !o && setCondoneOpen(null)}>
