@@ -2318,7 +2318,7 @@ const AdminEventReservations = ({
                       const key = v as NotifTemplateKey;
                       let extra: Record<string, any> = {};
                       const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
-                      if ((key === "cuota_pendiente" || key === "cuota_proxima") && installments.length > 0) {
+                      if (key === "cuota_pago_mp" && installments.length > 0) {
                         const accPaid = selectedRes.amount_paid || 0;
                         let acc = 0;
                         const nextInst: any = installments.find((inst: any) => {
