@@ -663,6 +663,7 @@ const ManageAssignDialog = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFechaInicio, setEditFechaInicio] = useState("");
   const [editFechaFin, setEditFechaFin] = useState("");
+  const [showInactivos, setShowInactivos] = useState(false);
 
   useEffect(() => {
     if (open) {
