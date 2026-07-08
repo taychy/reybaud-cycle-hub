@@ -1,81 +1,87 @@
+# Rentabilidad por evento — Plan
 
-# Plan: reservas de viajes — herramientas admin para corregir casos incompletos
+Objetivo: saber cuánto queda **neto real** por cada evento (y por suscripciones/tienda), descontando comisiones MP, gastos directos, honorarios y prorrateos.
 
-Tres cambios que atacan los tres problemas que trajiste (Suanni, Tamara, Daniel Pozo). Todos suman herramientas al admin **sin tocar el flujo público de reserva** y sin bloquear nada existente.
+## 1. Capturar comisiones MP en cada pago
 
----
+Hoy guardamos el total cobrado, no el neto. MP devuelve el desglose en `fee_details` de cada payment.
 
-## 1. Reasignar pago a otra cuota (caso Suanni)
+**Cambios de esquema** (una sola migración):
+- `reservation_payments`: `+ comision_mp numeric, + iibb numeric, + otros_fees numeric, + neto_recibido numeric, + fees_synced_at timestamptz`
+- `suscripciones`: mismas 5 columnas
+- `store_orders`: mismas 5 columnas
+- Vista `v_ingresos_netos` que unifica las 3 fuentes con `origen, referencia_id, event_id, bruto, comision, neto, fecha`.
 
-**Dónde**: `ReservationInstallmentsPanel` y la lista de pagos de la reserva. En cada pago validado aparece un botón **"Reasignar a otra cuota"**.
+**Captura automática** (nuevos pagos):
+- En `process-card-payment` y en el webhook de MP para reservas/tienda, después de aprobar, hacer `GET /v1/payments/{id}` y volcar `fee_details` a las columnas.
+- Función utilitaria `_shared/parse-mp-fees.ts` para no duplicar lógica.
 
-**Cómo funciona**:
-- Abre un pequeño diálogo con la lista de cuotas de la reserva (Seña + Cuota 1, 2, 3…) mostrando saldo pendiente de cada una.
-- Admin elige la cuota destino y confirma.
-- Nueva RPC `reassign_payment_to_installment(payment_id, target_installment_id, admin_note)` que en una sola transacción:
-  1. Resta el monto del pago de la cuota origen (recalcula `paid_amount`, `saldo_pendiente`, `balance_due`, `status`, limpia `condoned_*` si fue condonación fantasma como el caso Suanni).
-  2. Suma el monto a la cuota destino y recalcula lo mismo.
-  3. Actualiza `installment_id` e `installment_number` del pago.
-  4. Escribe dos entradas en `reservation_installment_history` (`payment_removed` y `payment_reassigned`) con `admin_note`.
-- Sólo lo pueden invocar admin/super_admin (RLS + `SECURITY DEFINER`).
+**Backfill acotado** (últimos 3 meses):
+- Edge function `backfill-mp-fees` (batch, paginada, con throttle 5 req/s).
+- Recorre las 3 tablas donde `mp_payment_id is not null AND created_at >= now() - 90 days AND fees_synced_at is null`.
+- Botón "Sincronizar comisiones MP" en `/admin/facturacion` con progreso.
 
-**Cómo quedan comprobados los pagos**: exactamente igual que hoy — el pago no se recrea, solo se reapunta. Sigue teniendo su `payment_reference`, `proof_url`, `status='validated'`, `reviewed_by`, `reviewed_at`. En el historial de la cuota queda registrado quién y cuándo lo movió.
+## 2. Vincular gastos a eventos
 
-*Nota:* No tocamos el matcher automático de MP en esta iteración (vos elegiste solo UI). El botón queda como red de seguridad para cuando el matcher se equivoque.
+**Esquema:**
+- `gastos`: `+ event_id uuid references events(id) on delete set null` (nullable, indexado)
+- `gastos_recurrentes`: idem
+- `gastos_ejecuciones`: hereda `event_id` del recurrente al ejecutarse.
 
----
+**UI carga (dos caminos, mismos datos):**
+- **Módulo Gastos existente** (`SuperAdminGastos`): agregar selector "Evento asociado (opcional)" con buscador de eventos.
+- **Tab nuevo "Finanzas" dentro del evento** (`EventManagement`): lista los gastos del evento + botón "Registrar gasto" que abre el mismo formulario preseteando `event_id`.
 
-## 2. Asignar plan de pagos a reserva existente (caso Tamara)
+## 3. Panel de rentabilidad por evento
 
-**Dónde**: `ReservationInstallmentsPanel`. Cuando la reserva **no tiene** `payment_plan_id`, en vez del listado vacío se muestra un card **"Esta reserva no tiene plan de pagos asignado"** con botón **"Asignar plan de pagos"**.
+Dentro del tab "Finanzas" del evento, un card **P&L** con:
 
-**Cómo funciona**:
-- El botón abre un diálogo que lista los planes de pago del paquete de la reserva (`event_package_payment_plans` activos del `package_id`). Si la reserva tampoco tiene paquete, el diálogo le dice al admin que primero use "Cambiar paquete" (ver punto 3, que ya lo permite).
-- Admin elige un plan y confirma.
-- Nueva RPC `assign_payment_plan_to_reservation(reservation_id, payment_plan_id, admin_note)`:
-  1. Setea `payment_plan_id` y snapshots (`payment_plan_name_snapshot`, `payment_plan_snapshot`).
-  2. Reusa la lógica de `materialize_reservation_installments` para generar Seña + cuotas con fechas y montos según el plan.
-  3. Si ya había pagos validados en la reserva, **los imputa en orden**: primero completa la Seña, después cuota 1, etc. (así el caso Tamara aplica sus $100k a la Seña automáticamente).
-  4. Recalcula `amount_total`, `amount_paid`, `balance_due`, `payment_status` de la reserva.
-  5. Log en `reservation_installment_history` con tipo `plan_assigned` + `admin_note`.
+```text
+Ingresos brutos            $ ---
+− Comisión MP + IIBB       $ ---
+= Ingresos netos           $ ---
+− Gastos directos          $ ---
+− Honorarios coaches       $ ---   (desde movimientos_liquidacion.evento_id)
+− Prorrateo generales      $ ---   (opcional, ver abajo)
+─────────────────────────
+= Resultado del evento     $ ---
+```
 
----
+**Fuentes:**
+- Ingresos: `v_ingresos_netos` filtrada por `event_id` (join a `reservation_payments → event_reservations`).
+- Gastos directos: `gastos.event_id = X`.
+- Honorarios: `movimientos_liquidacion` que ya tienen relación al evento.
+- Prorrateo: gastos generales del período del evento, distribuidos por peso (participantes o ingresos brutos). Configurable con toggle "Incluir prorrateo".
 
-## 3. Cambio de paquete admin: etapa + plan + precio libre (caso Daniel Pozo)
+**Vista global** en `/admin/eventos` (columna nueva "Resultado") + orden por rentabilidad.
 
-**Dónde**: `AdminChangePackageDialog` (el que ya existe, solo se extiende — no se toca el drawer del alumno).
-
-**UI nueva bajo el selector de paquete destino**:
-- **Etapa de precio** (dropdown): lista `event_package_price_stages` del paquete elegido con fecha y monto de cada etapa. Por defecto queda "Etapa vigente (actual)".
-- **Plan de pagos** (dropdown): lista `event_package_payment_plans` del paquete elegido. Obligatorio si la reserva no tenía plan; opcional (mantener el actual) si ya tenía uno.
-- **Precio manual** (input numérico + checkbox "Usar precio manual"): si se activa, sobreescribe la etapa. Se registra explícitamente en `admin_note` y en el historial como `manual_price_override`.
-
-**Backend**: se extienden `preview_package_change` y `apply_package_change` para aceptar tres parámetros opcionales nuevos: `p_price_stage_id`, `p_payment_plan_id`, `p_manual_price`.
-- Preview: usa el precio elegido (manual > stage > vigente) para recalcular diferencia, crédito/débito y plazas.
-- Apply: además de lo actual, si viene `payment_plan_id` (o la reserva no tenía uno), materializa cuotas nuevas reusando la RPC del punto 2. Si venía plan viejo con pagos hechos, los re-imputa en el nuevo plan (Seña primero).
-
-Con esto: Daniel Pozo hoy tiene paquete pero cero cuotas → volvés a "Cambiar paquete", elegís el mismo paquete + una etapa (o precio libre) + un plan, y en un click quedan las cuotas generadas con los $100k ya imputados a la Seña.
-
----
+## 4. Fuera de alcance de esta iteración
+- Multi-moneda para gastos por evento (usamos el mismo estándar `currency.ts`).
+- Presupuesto vs. real (queda para una segunda etapa).
+- Exportación PDF del P&L (después).
 
 ## Detalles técnicos
 
-**Migración SQL** (un solo archivo):
-- `CREATE OR REPLACE FUNCTION public.reassign_payment_to_installment(...)` — `SECURITY DEFINER`, chequea `has_role(auth.uid(),'admin')` o super_admin.
-- `CREATE OR REPLACE FUNCTION public.assign_payment_plan_to_reservation(...)` — idem. Extrae la lógica de materialización de cuotas de `materialize_reservation_installments` en un helper interno reusable, o la llama directamente.
-- `CREATE OR REPLACE FUNCTION public.preview_package_change(...)` — agrega params `p_price_stage_id uuid default null`, `p_payment_plan_id uuid default null`, `p_manual_price numeric default null`. Mantiene compatibilidad con las llamadas actuales.
-- `CREATE OR REPLACE FUNCTION public.apply_package_change(...)` — mismos params nuevos. Si la reserva no tiene plan y viene uno nuevo, materializa cuotas y re-imputa pagos existentes en orden (Seña → Cuota 1 → …).
-- Nuevo tipo de evento en `reservation_installment_history`: valores `plan_assigned`, `payment_reassigned` (ya existe), `manual_price_override`.
+**Migraciones** (2 archivos):
+1. Columnas MP fees en `reservation_payments`, `suscripciones`, `store_orders` + vista `v_ingresos_netos` + índices por `event_id`.
+2. Columna `event_id` en `gastos`, `gastos_recurrentes`, `gastos_ejecuciones` + trigger que propaga de recurrente a ejecución + GRANT y policies existentes se mantienen.
 
-**Frontend** (archivos):
-- `src/lib/packageChangePreview.ts` — extender tipos `ApplyPackageChangeArgs` y `previewPackageChange` con los 3 nuevos params.
-- `src/components/admin/AdminChangePackageDialog.tsx` — sumar los 3 controles (stage, plan, precio manual) y pasarlos a preview/apply.
-- `src/components/admin/ReservationInstallmentsPanel.tsx` — empty state con botón "Asignar plan de pagos" + botón "Reasignar" en cada fila de pago.
-- Nuevos componentes chicos: `AssignPaymentPlanDialog.tsx` y `ReassignPaymentDialog.tsx`.
+**Edge functions:**
+- `backfill-mp-fees` (nueva, admin-only, batch de 50).
+- Modificar `process-card-payment`, `mp-webhook` (reservas), `mp-store-webhook` para llamar a `parse-mp-fees` y persistir.
 
-**Compatibilidad**: nada que ya funciona hoy se rompe. Los flujos del alumno (drawer público, checkout) no se tocan. Solo se agregan opciones al admin.
+**Frontend:**
+- `src/lib/mpFees.ts` — helpers de cálculo/formato.
+- `EventFinanceTab.tsx` — nuevo tab en `EventManagement`.
+- `GastoForm` — agregar selector de evento.
+- `SuperAdminGastos` — filtro "por evento".
+- Card "Sincronizar comisiones MP" en `/admin/facturacion`.
 
-**Fuera de alcance** (para pactar en una segunda vuelta si lo querés):
-- Arreglar el matcher automático de MP para que priorice Seña.
-- Bloquear reservas sin paquete/plan en el flujo público.
-- Reversión de reservas incompletas históricas en masa (por ahora se corrigen una a una con las herramientas nuevas).
+**Orden de ejecución:**
+1. Migración 1 (fees) + captura automática en las 3 edge functions.
+2. Backfill edge function + botón en facturación → correr una vez.
+3. Migración 2 (event_id en gastos) + selector en form de gasto.
+4. Tab "Finanzas" del evento con P&L.
+5. Columna "Resultado" en listado de eventos.
+
+¿Arranco por el paso 1 o preferís que revisemos algo antes?
