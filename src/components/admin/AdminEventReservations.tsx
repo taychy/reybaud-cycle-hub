@@ -1548,20 +1548,9 @@ const AdminEventReservations = ({
                               </a>
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { prepareTemplate("novedad", r); setShowNotifyDialog(true); }, 150); }}>
+                          <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => { document.getElementById("comunicaciones-section")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 250); }}>
                               <Mail className="w-3.5 h-3.5 mr-2" /> Enviar email
                           </DropdownMenuItem>
-                          {r.reservation_status === "reserva_confirmada" && (
-                            <DropdownMenuItem onClick={() => resendConfirmationEmail(r.id)}>
-                              <Send className="w-3.5 h-3.5 mr-2" /> Reenviar email de confirmación
-                            </DropdownMenuItem>
-                          )}
-                          {Number(r.balance_due ?? r.amount_total ?? 0) > 0 &&
-                            ["no_informado", "parcial", "pago_pendiente", "pago_rechazado"].includes(r.payment_status || "") && (
-                            <DropdownMenuItem onClick={() => resendConfirmationEmail(r.id)}>
-                              <Banknote className="w-3.5 h-3.5 mr-2" /> Cobrar seña / recordar pago
-                            </DropdownMenuItem>
-                          )}
                           {isTripLike && r.access_token && (
                             <>
                               <DropdownMenuSeparator />
