@@ -675,6 +675,8 @@ const ManageAssignDialog = ({
   }, [open]);
 
   const activeAsignados = asignados.filter(a => a.activo);
+  const inactiveCount = asignados.length - activeAsignados.length;
+  const visibleAsignados = showInactivos ? asignados : activeAsignados;
   const assignedAlumnoIds = new Set(asignados.filter(a => a.activo).map(a => a.alumno_id));
   const alumnosDisponibles = alumnos.filter(a => {
     if (assignedAlumnoIds.has(a.id)) return false;
