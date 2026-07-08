@@ -2204,7 +2204,7 @@ const AdminEventReservations = ({
               </div>
               )}
               {/* Notifications section */}
-              <div className="space-y-3">
+              <div className="space-y-3" id="comunicaciones-section">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Bell className="w-3.5 h-3.5" /> Comunicaciones
