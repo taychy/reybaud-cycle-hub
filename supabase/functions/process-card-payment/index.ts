@@ -174,6 +174,22 @@ Deno.serve(async (req) => {
         .eq("id", suscripcion_id)
         .maybeSingle();
 
+      // Capturamos comisiones MP para calcular el neto real.
+      let feesPatch: Record<string, unknown> = {};
+      try {
+        const detailed = await fetchMpPayment(String(mpData.id), cuenta.access_token);
+        const fees = parseMpFees(detailed);
+        feesPatch = {
+          comision_mp: fees.comision_mp,
+          iibb: fees.iibb,
+          otros_fees: fees.otros_fees,
+          neto_recibido: fees.neto_recibido,
+          fees_synced_at: new Date().toISOString(),
+        };
+      } catch (e) {
+        console.warn("[process-card-payment] no se pudo capturar fees MP:", (e as Error).message);
+      }
+
       const updatePayload: Record<string, unknown> = {
         estado: "activa",
         mp_payment_id: String(mpData.id),
@@ -181,6 +197,7 @@ Deno.serve(async (req) => {
         metodo_pago: "mercadopago",
         origen_registro: "automatico",
         cuenta_mp_id: cuenta.cuenta_id,
+        ...feesPatch,
       };
       if (currentSub?.fecha_inicio && currentSub?.fecha_fin) {
         updatePayload.fecha_inicio = currentSub.fecha_inicio;
