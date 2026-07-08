@@ -67,6 +67,8 @@ interface Props {
   reservationAmountTotal: number;
   reservationAmountPaid: number;
   hasEventInstallments: boolean;
+  reservationPackageId?: string | null;
+  reservationHasPaymentPlan?: boolean;
   onChanged?: () => void;
 }
 
