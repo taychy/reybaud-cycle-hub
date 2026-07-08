@@ -278,6 +278,11 @@ const EventManagement = () => {
           </div>
         </div>
       </div>
+      {/* Finanzas del evento */}
+      {eventInfo?.id && (
+        <EventFinancePanel eventId={eventInfo.id} eventTitle={eventInfo.title} />
+      )}
+
 
       {/* Search */}
       <div className="relative">
