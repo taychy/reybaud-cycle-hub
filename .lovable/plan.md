@@ -1,98 +1,81 @@
-# Plan final — Facturación por pagos confirmados
 
-## Principio rector
-**Un pago confirmado = un ítem facturable.**
-El estado de la suscripción (activa / vencida / cancelada) **nunca** decide si un cobro aparece en Facturación. Solo aporta contexto (a qué plan corresponde).
+# Plan: reservas de viajes — herramientas admin para corregir casos incompletos
 
-Flujo correcto:
-
-```text
-Pago real confirmado ──► pagado_at + evidencia ──► aparece en Facturación del mes correspondiente
-Factura emitida ─────► cambia el estado de facturación del pago
-Suscripción ─────────► solo contexto (plan, alumno, período)
-```
+Tres cambios que atacan los tres problemas que trajiste (Suanni, Tamara, Daniel Pozo). Todos suman herramientas al admin **sin tocar el flujo público de reserva** y sin bloquear nada existente.
 
 ---
 
-## Fase 1 — Corregir `PendingPaymentsList` (sin migración)
+## 1. Reasignar pago a otra cuota (caso Suanni)
 
-Reescribir `fetchConfirmedPayments` (o su equivalente) siguiendo estas reglas:
+**Dónde**: `ReservationInstallmentsPanel` y la lista de pagos de la reserva. En cada pago validado aparece un botón **"Reasignar a otra cuota"**.
 
-### 1. Fuentes de "pago confirmado"
-Unir en una sola lista de items facturables:
+**Cómo funciona**:
+- Abre un pequeño diálogo con la lista de cuotas de la reserva (Seña + Cuota 1, 2, 3…) mostrando saldo pendiente de cada una.
+- Admin elige la cuota destino y confirma.
+- Nueva RPC `reassign_payment_to_installment(payment_id, target_installment_id, admin_note)` que en una sola transacción:
+  1. Resta el monto del pago de la cuota origen (recalcula `paid_amount`, `saldo_pendiente`, `balance_due`, `status`, limpia `condoned_*` si fue condonación fantasma como el caso Suanni).
+  2. Suma el monto a la cuota destino y recalcula lo mismo.
+  3. Actualiza `installment_id` e `installment_number` del pago.
+  4. Escribe dos entradas en `reservation_installment_history` (`payment_removed` y `payment_reassigned`) con `admin_note`.
+- Sólo lo pueden invocar admin/super_admin (RLS + `SECURITY DEFINER`).
 
-- **Mercado Pago (automático):**
-  `mp_status = 'approved'` **y** `mp_payment_id IS NOT NULL`.
-- **Pago manual / informado por alumno:**
-  requiere evidencia explícita — método de pago confirmado + comprobante validado o movimiento en cuenta corriente asociado. **No** basta con "estado = activa".
-- **Cargado por admin:**
-  requiere marca explícita de cobrado (método de pago + comprobante o movimiento). Se elimina la regla `origen_registro='cargado_admin' AND estado IN ('activa','vencida')` — asumía que todo lo cargado por admin estaba cobrado y no es cierto.
-- **Reservas de eventos/viajes:** filas de `reservation_payments` con estado aprobado.
-- **Tienda:** pagos de `store_orders` / `store_preorders` con estado aprobado.
+**Cómo quedan comprobados los pagos**: exactamente igual que hoy — el pago no se recrea, solo se reapunta. Sigue teniendo su `payment_reference`, `proof_url`, `status='validated'`, `reviewed_by`, `reviewed_at`. En el historial de la cuota queda registrado quién y cuándo lo movió.
 
-### 2. `pagado_at` — fecha real del cobro
-Prioridad de resolución (primer valor no nulo gana):
-
-1. `mp_date_approved` / `payment_date` del webhook de MP.
-2. `created_at` del registro de pago (`reservation_payments`, movimiento, comprobante).
-3. `updated_at` **solo como último recurso**.
-
-### 3. Período mensual en zona AR
-Todos los filtros de mes calculan `pagado_at AT TIME ZONE 'America/Argentina/Buenos_Aires'`. Evita que un pago del 31 a la noche se corra a otro mes por UTC.
-
-### 4. Deduplicación por pago
-Antes de mostrar la lista, deduplicar por clave estable de la fuente:
-
-- MP → `mp_payment_id`
-- Manual → id del movimiento o comprobante
-- Reservas → `reservation_payment.id`
-- Tienda → id del pago / orden
-
-Si dos suscripciones apuntan al mismo `mp_payment_id` (caso Gastón), se muestra **un solo** ítem facturable.
-
-### 5. Ignorar el estado de la suscripción
-Se remueve todo `sub.estado = 'activa'`. Una sub vencida con pago aprobado sigue siendo facturable.
-
-### Resultado esperado (caso Gastón Laya)
-- Pagos de junio con MP aprobado aparecen en Facturación aunque las suscripciones ya estén vencidas.
-- Si esos pagos comparten `mp_payment_id`, aparece uno solo.
-- La renovación de julio pendiente **no** aparece hasta tener pago confirmado.
+*Nota:* No tocamos el matcher automático de MP en esta iteración (vos elegiste solo UI). El botón queda como red de seguridad para cuando el matcher se equivoque.
 
 ---
 
-## Fase 2 — Cola de facturación persistente (`facturacion_cola`)
+## 2. Asignar plan de pagos a reserva existente (caso Tamara)
 
-Migración con nueva tabla:
+**Dónde**: `ReservationInstallmentsPanel`. Cuando la reserva **no tiene** `payment_plan_id`, en vez del listado vacío se muestra un card **"Esta reserva no tiene plan de pagos asignado"** con botón **"Asignar plan de pagos"**.
 
-- Campos de dominio: `pago_id` (FK al registro real de pago), `referencia_tipo`, `referencia_id`, `monto`, `moneda`, `emisor_id`, `pagado_at`, `periodo_pago` (mes real), `periodo_operativo` (mes donde se factura), `motivo_arrastre` (nullable), `estado` (`pendiente` / `facturada` / `excluida` / `anulada`), `factura_id` (nullable).
-- Unicidad: **`UNIQUE (referencia_tipo, referencia_id, pago_id)`** — no `(referencia_tipo, referencia_id)` a secas, porque una reserva/pedido/suscripción puede tener cuotas, pagos parciales, saldo, devoluciones y múltiples cobros.
-- Se puebla desde pagos confirmados (no desde suscripciones).
-- GRANTs + RLS estándar.
+**Cómo funciona**:
+- El botón abre un diálogo que lista los planes de pago del paquete de la reserva (`event_package_payment_plans` activos del `package_id`). Si la reserva tampoco tiene paquete, el diálogo le dice al admin que primero use "Cambiar paquete" (ver punto 3, que ya lo permite).
+- Admin elige un plan y confirma.
+- Nueva RPC `assign_payment_plan_to_reservation(reservation_id, payment_plan_id, admin_note)`:
+  1. Setea `payment_plan_id` y snapshots (`payment_plan_name_snapshot`, `payment_plan_snapshot`).
+  2. Reusa la lógica de `materialize_reservation_installments` para generar Seña + cuotas con fechas y montos según el plan.
+  3. Si ya había pagos validados en la reserva, **los imputa en orden**: primero completa la Seña, después cuota 1, etc. (así el caso Tamara aplica sus $100k a la Seña automáticamente).
+  4. Recalcula `amount_total`, `amount_paid`, `balance_due`, `payment_status` de la reserva.
+  5. Log en `reservation_installment_history` con tipo `plan_assigned` + `admin_note`.
 
-### Arrastre por cierre contable
-Si un pago confirmado cae en un mes ya cerrado, se puede arrastrar al siguiente mes operativo, **conservando siempre**:
+---
 
-- `pagado_at` original
-- `periodo_pago` original
-- `periodo_operativo` (mes de facturación efectivo)
-- `motivo_arrastre`
+## 3. Cambio de paquete admin: etapa + plan + precio libre (caso Daniel Pozo)
 
-Nunca se reescribe la fecha real del cobro.
+**Dónde**: `AdminChangePackageDialog` (el que ya existe, solo se extiende — no se toca el drawer del alumno).
+
+**UI nueva bajo el selector de paquete destino**:
+- **Etapa de precio** (dropdown): lista `event_package_price_stages` del paquete elegido con fecha y monto de cada etapa. Por defecto queda "Etapa vigente (actual)".
+- **Plan de pagos** (dropdown): lista `event_package_payment_plans` del paquete elegido. Obligatorio si la reserva no tenía plan; opcional (mantener el actual) si ya tenía uno.
+- **Precio manual** (input numérico + checkbox "Usar precio manual"): si se activa, sobreescribe la etapa. Se registra explícitamente en `admin_note` y en el historial como `manual_price_override`.
+
+**Backend**: se extienden `preview_package_change` y `apply_package_change` para aceptar tres parámetros opcionales nuevos: `p_price_stage_id`, `p_payment_plan_id`, `p_manual_price`.
+- Preview: usa el precio elegido (manual > stage > vigente) para recalcular diferencia, crédito/débito y plazas.
+- Apply: además de lo actual, si viene `payment_plan_id` (o la reserva no tenía uno), materializa cuotas nuevas reusando la RPC del punto 2. Si venía plan viejo con pagos hechos, los re-imputa en el nuevo plan (Seña primero).
+
+Con esto: Daniel Pozo hoy tiene paquete pero cero cuotas → volvés a "Cambiar paquete", elegís el mismo paquete + una etapa (o precio libre) + un plan, y en un click quedan las cuotas generadas con los $100k ya imputados a la Seña.
 
 ---
 
 ## Detalles técnicos
 
-- **Archivos Fase 1:** `src/pages/admin/billing/PendingPaymentsList.tsx` y helpers de fetch en `src/pages/admin/billing/`.
-- **Fase 1 no toca DB** — solo corrige el query/agregación en el front + tipado.
-- **Fase 2:** migración `facturacion_cola` + backfill desde los pagos confirmados actuales + refactor de `PendingPaymentsList` para leer de la cola.
-- Sin cambios en checkout, reservas ni admin de suscripciones.
+**Migración SQL** (un solo archivo):
+- `CREATE OR REPLACE FUNCTION public.reassign_payment_to_installment(...)` — `SECURITY DEFINER`, chequea `has_role(auth.uid(),'admin')` o super_admin.
+- `CREATE OR REPLACE FUNCTION public.assign_payment_plan_to_reservation(...)` — idem. Extrae la lógica de materialización de cuotas de `materialize_reservation_installments` en un helper interno reusable, o la llama directamente.
+- `CREATE OR REPLACE FUNCTION public.preview_package_change(...)` — agrega params `p_price_stage_id uuid default null`, `p_payment_plan_id uuid default null`, `p_manual_price numeric default null`. Mantiene compatibilidad con las llamadas actuales.
+- `CREATE OR REPLACE FUNCTION public.apply_package_change(...)` — mismos params nuevos. Si la reserva no tiene plan y viene uno nuevo, materializa cuotas y re-imputa pagos existentes en orden (Seña → Cuota 1 → …).
+- Nuevo tipo de evento en `reservation_installment_history`: valores `plan_assigned`, `payment_reassigned` (ya existe), `manual_price_override`.
 
----
+**Frontend** (archivos):
+- `src/lib/packageChangePreview.ts` — extender tipos `ApplyPackageChangeArgs` y `previewPackageChange` con los 3 nuevos params.
+- `src/components/admin/AdminChangePackageDialog.tsx` — sumar los 3 controles (stage, plan, precio manual) y pasarlos a preview/apply.
+- `src/components/admin/ReservationInstallmentsPanel.tsx` — empty state con botón "Asignar plan de pagos" + botón "Reasignar" en cada fila de pago.
+- Nuevos componentes chicos: `AssignPaymentPlanDialog.tsx` y `ReassignPaymentDialog.tsx`.
 
-## Qué NO se hace ahora
-- No se toca el flujo de emisión AFIP.
-- No se cambia el modelo de suscripciones.
-- No se decide política contable de cierre — solo se deja el campo `motivo_arrastre` listo para cuando se defina.
+**Compatibilidad**: nada que ya funciona hoy se rompe. Los flujos del alumno (drawer público, checkout) no se tocan. Solo se agregan opciones al admin.
 
-Confirmame si aprobás Fase 1 sola para arrancar, o Fase 1 + Fase 2 en la misma tanda.
+**Fuera de alcance** (para pactar en una segunda vuelta si lo querés):
+- Arreglar el matcher automático de MP para que priorice Seña.
+- Bloquear reservas sin paquete/plan en el flujo público.
+- Reversión de reservas incompletas históricas en masa (por ahora se corrigen una a una con las herramientas nuevas).
