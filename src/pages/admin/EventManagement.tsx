@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicEventLink } from "@/lib/eventLinks";
 import { Search, Save, Copy, ExternalLink, Users, Trophy, Pencil, Check, X, Download, Trash2, Ruler } from "lucide-react";
+import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import {
   AlertDialog,
   AlertDialogAction,
