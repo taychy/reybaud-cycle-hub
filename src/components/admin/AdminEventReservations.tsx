@@ -2209,7 +2209,7 @@ const AdminEventReservations = ({
                         const isOverdue = nextInst.due_date && new Date(nextInst.due_date) < new Date();
                         return (
                           <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => {
-                            prepareTemplate(isOverdue ? "cuota_pendiente" : "cuota_proxima", selectedRes, {
+                            prepareTemplate("cuota_pago_mp", selectedRes, {
                               monto_cuota: parseFloat(nextInst.amount || "0"),
                               vencimiento: nextInst.due_date ? new Date(nextInst.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "N/A",
                             });
