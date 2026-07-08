@@ -116,7 +116,10 @@ export default function AdminBilling() {
           <h1 className="text-xl font-heading font-bold text-foreground">Facturación</h1>
           <p className="text-sm text-muted-foreground">Gestión de facturas y emisores fiscales</p>
         </div>
-        <ManualInvoiceButton emisores={emisores} onCreated={loadData} />
+        <div className="flex items-center gap-2">
+          <SyncMpFeesButton />
+          <ManualInvoiceButton emisores={emisores} onCreated={loadData} />
+        </div>
       </div>
 
       <BillingKPIs facturas={facturas} emisores={emisores} />
