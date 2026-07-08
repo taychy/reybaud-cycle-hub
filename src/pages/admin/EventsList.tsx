@@ -18,7 +18,8 @@ import {
   Users,
   Link2,
   Trophy,
-} from "lucide-react";
+  Wallet,
+
 import { useNavigate } from "react-router-dom";
 import { getPublicEventLink, copyToClipboard } from "@/lib/eventLinks";
 import {
