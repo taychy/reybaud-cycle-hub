@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
+import { fetchMpPayment, parseMpFees } from "../_shared/parse-mp-fees.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
