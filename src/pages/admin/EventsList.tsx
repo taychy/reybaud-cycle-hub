@@ -19,6 +19,8 @@ import {
   Link2,
   Trophy,
   Wallet,
+} from "lucide-react";
+
 
 import { useNavigate } from "react-router-dom";
 import { getPublicEventLink, copyToClipboard } from "@/lib/eventLinks";
