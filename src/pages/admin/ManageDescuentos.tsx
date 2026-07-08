@@ -753,15 +753,29 @@ const ManageAssignDialog = ({
         <div className="overflow-y-auto flex-1 space-y-5 pr-1">
           {/* Asignados */}
           <section>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <h3 className="text-sm font-semibold text-foreground">Alumnos asignados</h3>
-              <Badge variant="outline" className="text-xs">{activeAsignados.length} activos</Badge>
+              <div className="flex items-center gap-2">
+                {inactiveCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[11px] px-2"
+                    onClick={() => setShowInactivos(v => !v)}
+                  >
+                    {showInactivos ? `Ocultar inactivos (${inactiveCount})` : `Mostrar inactivos (${inactiveCount})`}
+                  </Button>
+                )}
+                <Badge variant="outline" className="text-xs">{activeAsignados.length} activos</Badge>
+              </div>
             </div>
-            {asignados.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Aún no hay alumnos asignados</p>
+            {visibleAsignados.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">
+                {asignados.length === 0 ? "Aún no hay alumnos asignados" : "No hay alumnos vigentes"}
+              </p>
             ) : (
               <div className="space-y-1.5">
-                {asignados.map(asig => {
+                {visibleAsignados.map(asig => {
                   const a = alumnoMap.get(asig.alumno_id);
                   const vigente = isVigente(asig.fecha_inicio, asig.fecha_fin, asig.activo);
                   const isEditing = editingId === asig.id;
