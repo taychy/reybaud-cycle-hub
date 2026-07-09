@@ -23,6 +23,7 @@ const mainItems: NavItem[] = [
 
 const finanzasItems: NavItem[] = [
   { to: "/admin/pagos", label: "Pagos", icon: Receipt },
+  { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet },
   { to: "/admin/cuenta-corriente", label: "Cuenta corriente", icon: Wallet },
   { to: "/admin/planes", label: "Planes", icon: Package },
   { to: "/admin/descuentos", label: "Descuentos", icon: Tag },
