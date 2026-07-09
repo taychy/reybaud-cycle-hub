@@ -720,12 +720,23 @@ const AdminPayments = () => {
       <Tabs defaultValue="suscripciones" className="space-y-6">
         <TabsList>
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
+          <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
+          <TabsTrigger value="mp">Cuentas MP</TabsTrigger>
           <TabsTrigger value="todas">Todas las operaciones</TabsTrigger>
         </TabsList>
 
         <TabsContent value="todas" className="space-y-6">
           <AllOperationsTab />
         </TabsContent>
+
+        <TabsContent value="eventos" className="space-y-6">
+          <EventPaymentsTab />
+        </TabsContent>
+
+        <TabsContent value="mp" className="space-y-6">
+          <MpMovementsTab />
+        </TabsContent>
+
 
         <TabsContent value="suscripciones" className="space-y-6">
 
