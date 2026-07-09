@@ -68,14 +68,18 @@ export default function AdminCierreCaja() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [tRes, cRes, hRes] = await Promise.all([
+      const [tRes, kRes, cRes, hRes] = await Promise.all([
         supabase.rpc("get_efectivo_del_dia", { p_fecha: fecha }),
+        supabase.rpc("get_conciliacion_del_dia", { p_fecha: fecha }),
         supabase.from("cierres_caja_diarios").select("*").eq("fecha", fecha).maybeSingle(),
         supabase.from("cierres_caja_diarios").select("*").order("fecha", { ascending: false }).limit(30),
       ]);
       if (tRes.error) throw tRes.error;
       const t = (tRes.data as any)?.[0] || tRes.data;
       setTotales(t || { escuela: 0, viajes: 0, tienda: 0, escuela_count: 0, viajes_count: 0, tienda_count: 0 });
+      if (kRes.error) throw kRes.error;
+      const k = (kRes.data as any)?.[0] || kRes.data;
+      setConc(k || null);
 
       if (cRes.error && cRes.error.code !== "PGRST116") throw cRes.error;
       const c = cRes.data as Cierre | null;
