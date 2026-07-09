@@ -45,12 +45,16 @@ interface Conciliacion {
   mp_banco_total: number; mp_banco_count: number;
   transfer_app_total: number; transfer_app_count: number;
   huerfanos_count: number; huerfanos_monto: number;
+  egresos_app_total?: number; egresos_app_count?: number;
+  egresos_banco_total?: number; egresos_banco_count?: number;
 }
 interface ConciliacionCuenta {
   cuenta_id: string | null;
   cuenta_nombre: string;
   mp_app_total: number; mp_app_count: number;
   mp_banco_total: number; mp_banco_count: number;
+  egresos_app_total: number; egresos_app_count: number;
+  egresos_banco_total: number; egresos_banco_count: number;
   diferencia: number;
 }
 
