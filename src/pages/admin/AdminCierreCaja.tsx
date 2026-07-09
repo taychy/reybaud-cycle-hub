@@ -302,6 +302,63 @@ export default function AdminCierreCaja() {
           </Card>
 
           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Landmark className="w-4 h-4" /> Conciliación bancaria (MP + Transferencias)
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={syncMP} disabled={syncing || cerrado}>
+                <RefreshCw className={`w-3 h-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
+                Sincronizar MP
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">MP registrado en app</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.mp_app_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.mp_app_count ?? 0} pagos</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">MP acreditado (banco)</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.mp_banco_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.mp_banco_count ?? 0} movimientos</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Diferencia</div>
+                  <div className={`font-mono text-lg font-semibold ${Math.abs(mpDiff) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                    {mpDiff > 0 ? "+" : ""}{formatPrice(mpDiff, "ARS")}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {Math.abs(mpDiff) < 1 ? "Coincide" : "Revisar"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Transferencias registradas</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.transfer_app_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.transfer_app_count ?? 0} pagos · verificá el ingreso en las cuentas</div>
+                </div>
+                <div className={`rounded-lg border p-3 ${(conc?.huerfanos_count ?? 0) > 0 ? "border-amber-500 bg-amber-500/5" : ""}`}>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    {(conc?.huerfanos_count ?? 0) > 0 && <AlertTriangle className="w-3 h-3 text-amber-600" />}
+                    Movimientos huérfanos
+                  </div>
+                  <div className="font-mono text-lg font-semibold">
+                    {conc?.huerfanos_count ?? 0} · {formatPrice(conc?.huerfanos_monto ?? 0, "ARS")}
+                  </div>
+                  {(conc?.huerfanos_count ?? 0) > 0 && (
+                    <Link to="/admin/pagos" className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1">
+                      Asignar en Pagos → Cuentas MP <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader><CardTitle className="text-base">Notas del cierre</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Textarea
