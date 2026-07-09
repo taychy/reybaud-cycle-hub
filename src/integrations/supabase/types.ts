@@ -1049,6 +1049,69 @@ export type Database = {
           },
         ]
       }
+      cierres_caja_diarios: {
+        Row: {
+          cerrado_at: string | null
+          cerrado_por: string | null
+          created_at: string
+          diferencia_escuela: number | null
+          diferencia_tienda: number | null
+          diferencia_total: number | null
+          diferencia_viajes: number | null
+          efectivo_escuela_contado: number | null
+          efectivo_escuela_sistema: number
+          efectivo_tienda_contado: number | null
+          efectivo_tienda_sistema: number
+          efectivo_viajes_contado: number | null
+          efectivo_viajes_sistema: number
+          estado: string
+          fecha: string
+          id: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          cerrado_at?: string | null
+          cerrado_por?: string | null
+          created_at?: string
+          diferencia_escuela?: number | null
+          diferencia_tienda?: number | null
+          diferencia_total?: number | null
+          diferencia_viajes?: number | null
+          efectivo_escuela_contado?: number | null
+          efectivo_escuela_sistema?: number
+          efectivo_tienda_contado?: number | null
+          efectivo_tienda_sistema?: number
+          efectivo_viajes_contado?: number | null
+          efectivo_viajes_sistema?: number
+          estado?: string
+          fecha: string
+          id?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cerrado_at?: string | null
+          cerrado_por?: string | null
+          created_at?: string
+          diferencia_escuela?: number | null
+          diferencia_tienda?: number | null
+          diferencia_total?: number | null
+          diferencia_viajes?: number | null
+          efectivo_escuela_contado?: number | null
+          efectivo_escuela_sistema?: number
+          efectivo_tienda_contado?: number | null
+          efectivo_tienda_sistema?: number
+          efectivo_viajes_contado?: number | null
+          efectivo_viajes_sistema?: number
+          estado?: string
+          fecha?: string
+          id?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clases_consumidas: {
         Row: {
           alumno_id: string
@@ -8780,6 +8843,28 @@ export type Database = {
           hora_inicio: string
           id: string
           tipo: string
+        }[]
+      }
+      get_efectivo_del_dia: {
+        Args: { p_fecha: string }
+        Returns: {
+          escuela: number
+          escuela_count: number
+          tienda: number
+          tienda_count: number
+          viajes: number
+          viajes_count: number
+        }[]
+      }
+      get_efectivo_detalle_del_dia: {
+        Args: { p_fecha: string; p_unidad: string }
+        Returns: {
+          alumno_nombre: string
+          descripcion: string
+          hora: string
+          moneda: string
+          monto: number
+          ref_id: string
         }[]
       }
       get_event_pnl: {
