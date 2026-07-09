@@ -544,6 +544,9 @@ const EventsList = () => {
               <div className="border-t border-border pt-6">
                 <EventAnnouncementsManager eventId={reservationsEvent.id} />
               </div>
+              <div className="border-t border-border pt-6">
+                <EventSurveyManager eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+              </div>
             </div>
           )}
         </SheetContent>
