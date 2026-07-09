@@ -43,6 +43,7 @@ import NotFound from "./pages/NotFound";
 import AuditLog from "./pages/admin/AuditLog";
 import SolicitudesCambioPlan from "./pages/admin/SolicitudesCambioPlan";
 import AdminPayments from "./pages/admin/AdminPayments";
+import AdminCierreCaja from "./pages/admin/AdminCierreCaja";
 import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
 import AdminBilling from "./pages/admin/billing/AdminBilling";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
