@@ -80,6 +80,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
 import EventInterest from "./pages/EventInterest";
+import EventSurvey from "./pages/EventSurvey";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
 import PublicCuentaCorriente from "./pages/PublicCuentaCorriente";
@@ -124,6 +125,7 @@ const App = () => (
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/interes/:eventId" element={<EventInterest />} />
+          <Route path="/encuesta/:token" element={<EventSurvey />} />
           <Route path="/alumno" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/dashboard" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/inicio" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
