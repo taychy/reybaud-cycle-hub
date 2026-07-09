@@ -3382,6 +3382,173 @@ export type Database = {
           },
         ]
       }
+      event_survey_responses: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          event_id: string
+          external_participant_id: string | null
+          id: string
+          nps: number | null
+          respondent_email: string | null
+          respondent_name: string | null
+          respuestas: Json
+          survey_id: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          event_id: string
+          external_participant_id?: string | null
+          id?: string
+          nps?: number | null
+          respondent_email?: string | null
+          respondent_name?: string | null
+          respuestas?: Json
+          survey_id: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          event_id?: string
+          external_participant_id?: string | null
+          id?: string
+          nps?: number | null
+          respondent_email?: string | null
+          respondent_name?: string | null
+          respuestas?: Json
+          survey_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_survey_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "event_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_survey_tokens: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          event_id: string
+          external_participant_id: string | null
+          id: string
+          recipient_email: string
+          recipient_name: string | null
+          survey_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          event_id: string
+          external_participant_id?: string | null
+          id?: string
+          recipient_email: string
+          recipient_name?: string | null
+          survey_id: string
+          token?: string
+          used_at?: string | null
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          event_id?: string
+          external_participant_id?: string | null
+          id?: string
+          recipient_email?: string
+          recipient_name?: string | null
+          survey_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_survey_tokens_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_survey_tokens_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "event_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_surveys: {
+        Row: {
+          activa: boolean
+          anonima: boolean
+          created_at: string
+          descripcion: string | null
+          enviada_at: string | null
+          enviada_por: string | null
+          event_id: string
+          fecha_envio_programada: string | null
+          id: string
+          preguntas: Json
+          recipients_count: number | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          anonima?: boolean
+          created_at?: string
+          descripcion?: string | null
+          enviada_at?: string | null
+          enviada_por?: string | null
+          event_id: string
+          fecha_envio_programada?: string | null
+          id?: string
+          preguntas?: Json
+          recipients_count?: number | null
+          titulo?: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          anonima?: boolean
+          created_at?: string
+          descripcion?: string | null
+          enviada_at?: string | null
+          enviada_por?: string | null
+          event_id?: string
+          fecha_envio_programada?: string | null
+          id?: string
+          preguntas?: Json
+          recipients_count?: number | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_surveys_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           admin_alert_emails: string[]
