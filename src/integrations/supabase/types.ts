@@ -8849,7 +8849,7 @@ export type Database = {
         Args: { p_fecha: string }
         Returns: {
           huerfanos_count: number
-          huerfanos_monto: number
+          huerfanos_total: number
           mp_app_count: number
           mp_app_total: number
           mp_banco_count: number
