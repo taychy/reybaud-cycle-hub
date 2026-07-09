@@ -76,9 +76,10 @@ export default function AdminCierreCaja() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [tRes, kRes, cRes, hRes] = await Promise.all([
+      const [tRes, kRes, kcRes, cRes, hRes] = await Promise.all([
         supabase.rpc("get_efectivo_del_dia", { p_fecha: fecha }),
         supabase.rpc("get_conciliacion_del_dia", { p_fecha: fecha }),
+        supabase.rpc("get_conciliacion_por_cuenta_del_dia" as any, { p_fecha: fecha }),
         supabase.from("cierres_caja_diarios").select("*").eq("fecha", fecha).maybeSingle(),
         supabase.from("cierres_caja_diarios").select("*").order("fecha", { ascending: false }).limit(30),
       ]);
