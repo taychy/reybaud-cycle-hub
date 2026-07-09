@@ -4607,6 +4607,128 @@ export type Database = {
           },
         ]
       }
+      mp_account_movements: {
+        Row: {
+          alumno_id: string | null
+          amount: number
+          assign_notes: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_manually: boolean
+          created_at: string
+          cuenta_mp_id: string
+          currency: string
+          description: string | null
+          external_reference: string | null
+          fecha_movimiento: string
+          fee_amount: number | null
+          id: string
+          mp_payment_id: string
+          net_received: number | null
+          payer_document: string | null
+          payer_email: string | null
+          payer_name: string | null
+          payment_method: string | null
+          payment_type: string | null
+          raw: Json | null
+          reservation_payment_id: string | null
+          status: string | null
+          status_detail: string | null
+          suscripcion_id: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          amount: number
+          assign_notes?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_manually?: boolean
+          created_at?: string
+          cuenta_mp_id: string
+          currency?: string
+          description?: string | null
+          external_reference?: string | null
+          fecha_movimiento: string
+          fee_amount?: number | null
+          id?: string
+          mp_payment_id: string
+          net_received?: number | null
+          payer_document?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payment_method?: string | null
+          payment_type?: string | null
+          raw?: Json | null
+          reservation_payment_id?: string | null
+          status?: string | null
+          status_detail?: string | null
+          suscripcion_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          amount?: number
+          assign_notes?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_manually?: boolean
+          created_at?: string
+          cuenta_mp_id?: string
+          currency?: string
+          description?: string | null
+          external_reference?: string | null
+          fecha_movimiento?: string
+          fee_amount?: number | null
+          id?: string
+          mp_payment_id?: string
+          net_received?: number | null
+          payer_document?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payment_method?: string | null
+          payment_type?: string | null
+          raw?: Json | null
+          reservation_payment_id?: string | null
+          status?: string | null
+          status_detail?: string | null
+          suscripcion_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_reservation_payment_id_fkey"
+            columns: ["reservation_payment_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       objetivos_alumno: {
         Row: {
           activo: boolean
