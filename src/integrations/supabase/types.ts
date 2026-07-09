@@ -8848,6 +8848,10 @@ export type Database = {
       get_conciliacion_del_dia: {
         Args: { p_fecha: string }
         Returns: {
+          egresos_app_count: number
+          egresos_app_total: number
+          egresos_banco_count: number
+          egresos_banco_total: number
           huerfanos_count: number
           huerfanos_total: number
           mp_app_count: number
@@ -8864,6 +8868,10 @@ export type Database = {
           cuenta_id: string
           cuenta_nombre: string
           diferencia: number
+          egresos_app_count: number
+          egresos_app_total: number
+          egresos_banco_count: number
+          egresos_banco_total: number
           mp_app_count: number
           mp_app_total: number
           mp_banco_count: number
