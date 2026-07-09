@@ -205,6 +205,67 @@ Deno.serve(async (req) => {
           if (error) results.errors.push({ cuenta: c.slug, mp: mpId, error: error.message });
           else inserted++;
         }
+
+        // Procesar refunds asociados a este pago (si existen)
+        const refunds = Array.isArray(p?.refunds) ? p.refunds : [];
+        for (const rf of refunds) {
+          const refundId = String(rf?.id ?? "");
+          if (!refundId) continue;
+          const refundKey = `${mpId}:refund:${refundId}`;
+          const refundAmount = -Math.abs(Number(rf?.amount ?? 0));
+          const refundDate = rf?.date_created ?? p?.date_last_updated ?? new Date().toISOString();
+          const refundStatus = String(rf?.status ?? "approved");
+
+          const refundRow = {
+            cuenta_mp_id: c.id,
+            mp_payment_id: refundKey,
+            tipo: "refund",
+            status: refundStatus,
+            status_detail: rf?.status ?? null,
+            payment_method: p?.payment_method_id ?? null,
+            payment_type: p?.payment_type_id ?? null,
+            amount: refundAmount,
+            net_received: refundAmount,
+            fee_amount: null,
+            currency: p?.currency_id ?? "ARS",
+            description: `Refund de pago ${mpId}${p?.description ? ` — ${p.description}` : ""}`,
+            payer_email: p?.payer?.email ?? null,
+            payer_name: [p?.payer?.first_name, p?.payer?.last_name].filter(Boolean).join(" ") || null,
+            payer_document: p?.payer?.identification?.number ?? null,
+            external_reference: p?.external_reference ?? null,
+            fecha_movimiento: refundDate,
+            raw: rf,
+            alumno_id: alumnoId,
+            reservation_payment_id: resPayId,
+            suscripcion_id: subId,
+          };
+
+          const { data: existingRf } = await supabase
+            .from("mp_account_movements")
+            .select("id, assigned_manually")
+            .eq("cuenta_mp_id", c.id)
+            .eq("mp_payment_id", refundKey)
+            .maybeSingle();
+
+          if (existingRf) {
+            const patch: any = { ...refundRow };
+            if (existingRf.assigned_manually) {
+              delete patch.alumno_id;
+              delete patch.reservation_payment_id;
+              delete patch.suscripcion_id;
+            }
+            const { error } = await supabase
+              .from("mp_account_movements")
+              .update(patch)
+              .eq("id", existingRf.id);
+            if (error) results.errors.push({ cuenta: c.slug, mp: refundKey, error: error.message });
+            else updated++;
+          } else {
+            const { error } = await supabase.from("mp_account_movements").insert(refundRow);
+            if (error) results.errors.push({ cuenta: c.slug, mp: refundKey, error: error.message });
+            else inserted++;
+          }
+        }
       }
 
       offset += items.length;
