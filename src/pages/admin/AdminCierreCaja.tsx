@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, GraduationCap, Plane, ShoppingBag, Wallet, Lock, Unlock, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, GraduationCap, Plane, ShoppingBag, Wallet, Lock, Unlock, RefreshCw, ChevronDown, ChevronUp, Landmark, AlertTriangle, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatPrice } from "@/lib/currency";
@@ -39,14 +40,23 @@ interface Cierre {
   cerrado_at: string | null;
 }
 
+interface Conciliacion {
+  mp_app_total: number; mp_app_count: number;
+  mp_banco_total: number; mp_banco_count: number;
+  transfer_app_total: number; transfer_app_count: number;
+  huerfanos_count: number; huerfanos_monto: number;
+}
+
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
 export default function AdminCierreCaja() {
   const [fecha, setFecha] = useState(todayStr());
   const [totales, setTotales] = useState<Totales | null>(null);
+  const [conc, setConc] = useState<Conciliacion | null>(null);
   const [cierre, setCierre] = useState<Cierre | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [contado, setContado] = useState<Record<Unidad, string>>({ escuela: "", viajes: "", tienda: "" });
   const [notas, setNotas] = useState("");
   const [expanded, setExpanded] = useState<Record<Unidad, boolean>>({ escuela: false, viajes: false, tienda: false });
@@ -58,14 +68,18 @@ export default function AdminCierreCaja() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [tRes, cRes, hRes] = await Promise.all([
+      const [tRes, kRes, cRes, hRes] = await Promise.all([
         supabase.rpc("get_efectivo_del_dia", { p_fecha: fecha }),
+        supabase.rpc("get_conciliacion_del_dia", { p_fecha: fecha }),
         supabase.from("cierres_caja_diarios").select("*").eq("fecha", fecha).maybeSingle(),
         supabase.from("cierres_caja_diarios").select("*").order("fecha", { ascending: false }).limit(30),
       ]);
       if (tRes.error) throw tRes.error;
       const t = (tRes.data as any)?.[0] || tRes.data;
       setTotales(t || { escuela: 0, viajes: 0, tienda: 0, escuela_count: 0, viajes_count: 0, tienda_count: 0 });
+      if (kRes.error) throw kRes.error;
+      const k = (kRes.data as any)?.[0] || kRes.data;
+      setConc(k || null);
 
       if (cRes.error && cRes.error.code !== "PGRST116") throw cRes.error;
       const c = cRes.data as Cierre | null;
@@ -121,6 +135,11 @@ export default function AdminCierreCaja() {
         diferencia_viajes: diffViajes,
         diferencia_tienda: diffTienda,
         diferencia_total: (diffEscuela ?? 0) + (diffViajes ?? 0) + (diffTienda ?? 0),
+        mp_app_total: conc?.mp_app_total ?? null,
+        mp_banco_total: conc?.mp_banco_total ?? null,
+        transfer_app_total: conc?.transfer_app_total ?? null,
+        huerfanos_count: conc?.huerfanos_count ?? null,
+        huerfanos_monto: conc?.huerfanos_monto ?? null,
         notas: notas || null,
       };
       if (cerrar) {
@@ -159,6 +178,22 @@ export default function AdminCierreCaja() {
     { key: "viajes", label: "Viajes / Eventos", icon: Plane, sistema: totales?.viajes ?? 0, count: totales?.viajes_count ?? 0, diff: diffViajes },
     { key: "tienda", label: "Tienda", icon: ShoppingBag, sistema: totales?.tienda ?? 0, count: totales?.tienda_count ?? 0, diff: diffTienda },
   ];
+
+  async function syncMP() {
+    setSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke("sync-mp-account-movements", { body: { days: 2 } });
+      if (error) throw error;
+      toast.success("Sincronización con MP completada");
+      loadAll();
+    } catch (e: any) {
+      toast.error("Error sincronizando", { description: e.message });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const mpDiff = (conc?.mp_banco_total ?? 0) - (conc?.mp_app_total ?? 0);
 
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
@@ -261,6 +296,63 @@ export default function AdminCierreCaja() {
                 <div className="text-muted-foreground">Diferencia</div>
                 <div className={`font-mono text-lg font-bold ${diferenciaTotal === 0 ? "text-green-600" : diferenciaTotal > 0 ? "text-amber-600" : "text-red-600"}`}>
                   {diferenciaTotal > 0 ? "+" : ""}{formatPrice(diferenciaTotal, "ARS")}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Landmark className="w-4 h-4" /> Conciliación bancaria (MP + Transferencias)
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={syncMP} disabled={syncing || cerrado}>
+                <RefreshCw className={`w-3 h-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
+                Sincronizar MP
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">MP registrado en app</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.mp_app_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.mp_app_count ?? 0} pagos</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">MP acreditado (banco)</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.mp_banco_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.mp_banco_count ?? 0} movimientos</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Diferencia</div>
+                  <div className={`font-mono text-lg font-semibold ${Math.abs(mpDiff) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                    {mpDiff > 0 ? "+" : ""}{formatPrice(mpDiff, "ARS")}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {Math.abs(mpDiff) < 1 ? "Coincide" : "Revisar"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Transferencias registradas</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.transfer_app_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.transfer_app_count ?? 0} pagos · verificá el ingreso en las cuentas</div>
+                </div>
+                <div className={`rounded-lg border p-3 ${(conc?.huerfanos_count ?? 0) > 0 ? "border-amber-500 bg-amber-500/5" : ""}`}>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    {(conc?.huerfanos_count ?? 0) > 0 && <AlertTriangle className="w-3 h-3 text-amber-600" />}
+                    Movimientos huérfanos
+                  </div>
+                  <div className="font-mono text-lg font-semibold">
+                    {conc?.huerfanos_count ?? 0} · {formatPrice(conc?.huerfanos_monto ?? 0, "ARS")}
+                  </div>
+                  {(conc?.huerfanos_count ?? 0) > 0 && (
+                    <Link to="/admin/pagos" className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1">
+                      Asignar en Pagos → Cuentas MP <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </CardContent>

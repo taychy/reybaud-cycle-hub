@@ -1066,8 +1066,13 @@ export type Database = {
           efectivo_viajes_sistema: number
           estado: string
           fecha: string
+          huerfanos_count: number | null
+          huerfanos_monto: number | null
           id: string
+          mp_app_total: number | null
+          mp_banco_total: number | null
           notas: string | null
+          transfer_app_total: number | null
           updated_at: string
         }
         Insert: {
@@ -1086,8 +1091,13 @@ export type Database = {
           efectivo_viajes_sistema?: number
           estado?: string
           fecha: string
+          huerfanos_count?: number | null
+          huerfanos_monto?: number | null
           id?: string
+          mp_app_total?: number | null
+          mp_banco_total?: number | null
           notas?: string | null
+          transfer_app_total?: number | null
           updated_at?: string
         }
         Update: {
@@ -1106,8 +1116,13 @@ export type Database = {
           efectivo_viajes_sistema?: number
           estado?: string
           fecha?: string
+          huerfanos_count?: number | null
+          huerfanos_monto?: number | null
           id?: string
+          mp_app_total?: number | null
+          mp_banco_total?: number | null
           notas?: string | null
+          transfer_app_total?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -8829,6 +8844,19 @@ export type Database = {
       get_combo_available_stock: {
         Args: { p_combo_id: string; p_selection?: Json }
         Returns: number
+      }
+      get_conciliacion_del_dia: {
+        Args: { p_fecha: string }
+        Returns: {
+          huerfanos_count: number
+          huerfanos_monto: number
+          mp_app_count: number
+          mp_app_total: number
+          mp_banco_count: number
+          mp_banco_total: number
+          transfer_app_count: number
+          transfer_app_total: number
+        }[]
       }
       get_cuenta_publica: {
         Args: { p_ip?: string; p_token: string; p_user_agent?: string }
