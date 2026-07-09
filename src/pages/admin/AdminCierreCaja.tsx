@@ -179,6 +179,22 @@ export default function AdminCierreCaja() {
     { key: "tienda", label: "Tienda", icon: ShoppingBag, sistema: totales?.tienda ?? 0, count: totales?.tienda_count ?? 0, diff: diffTienda },
   ];
 
+  async function syncMP() {
+    setSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke("sync-mp-account-movements", { body: { days: 2 } });
+      if (error) throw error;
+      toast.success("Sincronización con MP completada");
+      loadAll();
+    } catch (e: any) {
+      toast.error("Error sincronizando", { description: e.message });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const mpDiff = (conc?.mp_banco_total ?? 0) - (conc?.mp_app_total ?? 0);
+
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
