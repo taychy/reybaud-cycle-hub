@@ -40,14 +40,23 @@ interface Cierre {
   cerrado_at: string | null;
 }
 
+interface Conciliacion {
+  mp_app_total: number; mp_app_count: number;
+  mp_banco_total: number; mp_banco_count: number;
+  transfer_app_total: number; transfer_app_count: number;
+  huerfanos_count: number; huerfanos_monto: number;
+}
+
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
 export default function AdminCierreCaja() {
   const [fecha, setFecha] = useState(todayStr());
   const [totales, setTotales] = useState<Totales | null>(null);
+  const [conc, setConc] = useState<Conciliacion | null>(null);
   const [cierre, setCierre] = useState<Cierre | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [contado, setContado] = useState<Record<Unidad, string>>({ escuela: "", viajes: "", tienda: "" });
   const [notas, setNotas] = useState("");
   const [expanded, setExpanded] = useState<Record<Unidad, boolean>>({ escuela: false, viajes: false, tienda: false });
