@@ -89,6 +89,7 @@ export default function AdminCierreCaja() {
       if (kRes.error) throw kRes.error;
       const k = (kRes.data as any)?.[0] || kRes.data;
       setConc(k || null);
+      if (!kcRes.error) setConcCuentas(((kcRes.data as any) || []) as ConciliacionCuenta[]);
 
       if (cRes.error && cRes.error.code !== "PGRST116") throw cRes.error;
       const c = cRes.data as Cierre | null;
