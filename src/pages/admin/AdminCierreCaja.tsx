@@ -350,6 +350,19 @@ export default function AdminCierreCaja() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Egresos MP registrados en app</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.egresos_app_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.egresos_app_count ?? 0} gastos pagados con MP</div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Egresos MP vistos en banco</div>
+                  <div className="font-mono text-lg font-semibold">{formatPrice(conc?.egresos_banco_total ?? 0, "ARS")}</div>
+                  <div className="text-xs text-muted-foreground">{conc?.egresos_banco_count ?? 0} mov. (refunds/retiros)</div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border p-3">
                   <div className="text-xs text-muted-foreground">Transferencias registradas</div>
                   <div className="font-mono text-lg font-semibold">{formatPrice(conc?.transfer_app_total ?? 0, "ARS")}</div>
                   <div className="text-xs text-muted-foreground">{conc?.transfer_app_count ?? 0} pagos · verificá el ingreso en las cuentas</div>
@@ -372,21 +385,23 @@ export default function AdminCierreCaja() {
 
               <div className="rounded-lg border">
                 <div className="px-3 py-2 border-b bg-muted/30 text-xs font-medium">
-                  Desglose por cuenta MP
+                  Desglose por cuenta MP (neto = ingresos − egresos)
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="text-xs text-muted-foreground border-b">
                       <tr>
                         <th className="text-left py-2 px-3">Cuenta</th>
-                        <th className="text-right px-3">App</th>
-                        <th className="text-right px-3">Banco (MP)</th>
-                        <th className="text-right px-3">Diferencia</th>
+                        <th className="text-right px-3">Ingresos app</th>
+                        <th className="text-right px-3">Ingresos banco</th>
+                        <th className="text-right px-3">Egresos app</th>
+                        <th className="text-right px-3">Egresos banco</th>
+                        <th className="text-right px-3">Diferencia neta</th>
                       </tr>
                     </thead>
                     <tbody>
                       {concCuentas.length === 0 ? (
-                        <tr><td colSpan={4} className="text-center py-3 text-muted-foreground text-xs">Sin movimientos MP en el día</td></tr>
+                        <tr><td colSpan={6} className="text-center py-3 text-muted-foreground text-xs">Sin movimientos MP en el día</td></tr>
                       ) : concCuentas.map((r) => (
                         <tr key={r.cuenta_id ?? "sin"} className="border-b last:border-0">
                           <td className="py-2 px-3">
@@ -401,6 +416,14 @@ export default function AdminCierreCaja() {
                             {formatPrice(r.mp_banco_total, "ARS")}
                             <div className="text-[10px] text-muted-foreground">{r.mp_banco_count} mov.</div>
                           </td>
+                          <td className="text-right font-mono px-3 text-red-600">
+                            −{formatPrice(r.egresos_app_total, "ARS")}
+                            <div className="text-[10px] text-muted-foreground">{r.egresos_app_count} gastos</div>
+                          </td>
+                          <td className="text-right font-mono px-3 text-red-600">
+                            −{formatPrice(r.egresos_banco_total, "ARS")}
+                            <div className="text-[10px] text-muted-foreground">{r.egresos_banco_count} mov.</div>
+                          </td>
                           <td className={`text-right font-mono px-3 ${Math.abs(r.diferencia) < 1 ? "text-green-600" : "text-amber-600"}`}>
                             {r.diferencia > 0 ? "+" : ""}{formatPrice(r.diferencia, "ARS")}
                           </td>
@@ -410,6 +433,7 @@ export default function AdminCierreCaja() {
                   </table>
                 </div>
               </div>
+
             </CardContent>
           </Card>
 
