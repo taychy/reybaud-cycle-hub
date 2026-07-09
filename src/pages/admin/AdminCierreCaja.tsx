@@ -365,6 +365,47 @@ export default function AdminCierreCaja() {
                   )}
                 </div>
               </div>
+
+              <div className="rounded-lg border">
+                <div className="px-3 py-2 border-b bg-muted/30 text-xs font-medium">
+                  Desglose por cuenta MP
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-muted-foreground border-b">
+                      <tr>
+                        <th className="text-left py-2 px-3">Cuenta</th>
+                        <th className="text-right px-3">App</th>
+                        <th className="text-right px-3">Banco (MP)</th>
+                        <th className="text-right px-3">Diferencia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {concCuentas.length === 0 ? (
+                        <tr><td colSpan={4} className="text-center py-3 text-muted-foreground text-xs">Sin movimientos MP en el día</td></tr>
+                      ) : concCuentas.map((r) => (
+                        <tr key={r.cuenta_id ?? "sin"} className="border-b last:border-0">
+                          <td className="py-2 px-3">
+                            {r.cuenta_nombre}
+                            {!r.cuenta_id && <span className="ml-1 text-xs text-amber-600">(huérfano)</span>}
+                          </td>
+                          <td className="text-right font-mono px-3">
+                            {formatPrice(r.mp_app_total, "ARS")}
+                            <div className="text-[10px] text-muted-foreground">{r.mp_app_count} pagos</div>
+                          </td>
+                          <td className="text-right font-mono px-3">
+                            {formatPrice(r.mp_banco_total, "ARS")}
+                            <div className="text-[10px] text-muted-foreground">{r.mp_banco_count} mov.</div>
+                          </td>
+                          <td className={`text-right font-mono px-3 ${Math.abs(r.diferencia) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                            {r.diferencia > 0 ? "+" : ""}{formatPrice(r.diferencia, "ARS")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
