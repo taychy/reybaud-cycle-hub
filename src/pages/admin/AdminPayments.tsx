@@ -26,6 +26,8 @@ import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllOperationsTab from "@/components/admin/AllOperationsTab";
+import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
+import MpMovementsTab from "@/components/admin/MpMovementsTab";
 
 type Suscripcion = {
   id: string;
