@@ -60,6 +60,7 @@ export default function AdminCierreCaja() {
   const [fecha, setFecha] = useState(todayStr());
   const [totales, setTotales] = useState<Totales | null>(null);
   const [conc, setConc] = useState<Conciliacion | null>(null);
+  const [concCuentas, setConcCuentas] = useState<ConciliacionCuenta[]>([]);
   const [cierre, setCierre] = useState<Cierre | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
