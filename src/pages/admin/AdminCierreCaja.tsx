@@ -135,6 +135,11 @@ export default function AdminCierreCaja() {
         diferencia_viajes: diffViajes,
         diferencia_tienda: diffTienda,
         diferencia_total: (diffEscuela ?? 0) + (diffViajes ?? 0) + (diffTienda ?? 0),
+        mp_app_total: conc?.mp_app_total ?? null,
+        mp_banco_total: conc?.mp_banco_total ?? null,
+        transfer_app_total: conc?.transfer_app_total ?? null,
+        huerfanos_count: conc?.huerfanos_count ?? null,
+        huerfanos_monto: conc?.huerfanos_monto ?? null,
         notas: notas || null,
       };
       if (cerrar) {
