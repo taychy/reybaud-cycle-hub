@@ -46,6 +46,13 @@ interface Conciliacion {
   transfer_app_total: number; transfer_app_count: number;
   huerfanos_count: number; huerfanos_monto: number;
 }
+interface ConciliacionCuenta {
+  cuenta_id: string | null;
+  cuenta_nombre: string;
+  mp_app_total: number; mp_app_count: number;
+  mp_banco_total: number; mp_banco_count: number;
+  diferencia: number;
+}
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
@@ -53,6 +60,7 @@ export default function AdminCierreCaja() {
   const [fecha, setFecha] = useState(todayStr());
   const [totales, setTotales] = useState<Totales | null>(null);
   const [conc, setConc] = useState<Conciliacion | null>(null);
+  const [concCuentas, setConcCuentas] = useState<ConciliacionCuenta[]>([]);
   const [cierre, setCierre] = useState<Cierre | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,9 +76,10 @@ export default function AdminCierreCaja() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [tRes, kRes, cRes, hRes] = await Promise.all([
+      const [tRes, kRes, kcRes, cRes, hRes] = await Promise.all([
         supabase.rpc("get_efectivo_del_dia", { p_fecha: fecha }),
         supabase.rpc("get_conciliacion_del_dia", { p_fecha: fecha }),
+        supabase.rpc("get_conciliacion_por_cuenta_del_dia" as any, { p_fecha: fecha }),
         supabase.from("cierres_caja_diarios").select("*").eq("fecha", fecha).maybeSingle(),
         supabase.from("cierres_caja_diarios").select("*").order("fecha", { ascending: false }).limit(30),
       ]);
@@ -80,6 +89,7 @@ export default function AdminCierreCaja() {
       if (kRes.error) throw kRes.error;
       const k = (kRes.data as any)?.[0] || kRes.data;
       setConc(k || null);
+      if (!kcRes.error) setConcCuentas(((kcRes.data as any) || []) as ConciliacionCuenta[]);
 
       if (cRes.error && cRes.error.code !== "PGRST116") throw cRes.error;
       const c = cRes.data as Cierre | null;
@@ -353,6 +363,47 @@ export default function AdminCierreCaja() {
                       Asignar en Pagos → Cuentas MP <ExternalLink className="w-3 h-3" />
                     </Link>
                   )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border">
+                <div className="px-3 py-2 border-b bg-muted/30 text-xs font-medium">
+                  Desglose por cuenta MP
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-muted-foreground border-b">
+                      <tr>
+                        <th className="text-left py-2 px-3">Cuenta</th>
+                        <th className="text-right px-3">App</th>
+                        <th className="text-right px-3">Banco (MP)</th>
+                        <th className="text-right px-3">Diferencia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {concCuentas.length === 0 ? (
+                        <tr><td colSpan={4} className="text-center py-3 text-muted-foreground text-xs">Sin movimientos MP en el día</td></tr>
+                      ) : concCuentas.map((r) => (
+                        <tr key={r.cuenta_id ?? "sin"} className="border-b last:border-0">
+                          <td className="py-2 px-3">
+                            {r.cuenta_nombre}
+                            {!r.cuenta_id && <span className="ml-1 text-xs text-amber-600">(huérfano)</span>}
+                          </td>
+                          <td className="text-right font-mono px-3">
+                            {formatPrice(r.mp_app_total, "ARS")}
+                            <div className="text-[10px] text-muted-foreground">{r.mp_app_count} pagos</div>
+                          </td>
+                          <td className="text-right font-mono px-3">
+                            {formatPrice(r.mp_banco_total, "ARS")}
+                            <div className="text-[10px] text-muted-foreground">{r.mp_banco_count} mov.</div>
+                          </td>
+                          <td className={`text-right font-mono px-3 ${Math.abs(r.diferencia) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                            {r.diferencia > 0 ? "+" : ""}{formatPrice(r.diferencia, "ARS")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </CardContent>

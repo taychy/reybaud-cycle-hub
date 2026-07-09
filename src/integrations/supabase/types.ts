@@ -8858,6 +8858,18 @@ export type Database = {
           transfer_app_total: number
         }[]
       }
+      get_conciliacion_por_cuenta_del_dia: {
+        Args: { p_fecha: string }
+        Returns: {
+          cuenta_id: string
+          cuenta_nombre: string
+          diferencia: number
+          mp_app_count: number
+          mp_app_total: number
+          mp_banco_count: number
+          mp_banco_total: number
+        }[]
+      }
       get_cuenta_publica: {
         Args: { p_ip?: string; p_token: string; p_user_agent?: string }
         Returns: Json
