@@ -57,6 +57,7 @@ import EventForm, {
 } from "@/components/admin/EventForm";
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
+import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 
