@@ -1,4 +1,4 @@
-// Sincroniza movimientos (cobros) de cada cuenta MP activa hacia
+// Sincroniza movimientos (cobros) de cada cuenta MP activa (v2)
 // public.mp_account_movements. Intenta auto-linkear con reservation_payments,
 // suscripciones y alumnos por mp_payment_id y payer.email.
 //
