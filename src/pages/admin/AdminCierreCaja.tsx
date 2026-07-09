@@ -46,6 +46,13 @@ interface Conciliacion {
   transfer_app_total: number; transfer_app_count: number;
   huerfanos_count: number; huerfanos_monto: number;
 }
+interface ConciliacionCuenta {
+  cuenta_id: string | null;
+  cuenta_nombre: string;
+  mp_app_total: number; mp_app_count: number;
+  mp_banco_total: number; mp_banco_count: number;
+  diferencia: number;
+}
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
