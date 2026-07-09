@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Loader2, GraduationCap, Plane, ShoppingBag, Wallet, Lock, Unlock, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 
 type Unidad = "escuela" | "viajes" | "tienda";
 
@@ -199,7 +199,7 @@ export default function AdminCierreCaja() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Sistema ({count})</span>
-                    <span className="font-mono font-semibold">{formatCurrency(sistema, "ARS")}</span>
+                    <span className="font-mono font-semibold">{formatPrice(sistema, "ARS")}</span>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Contado físico</Label>
@@ -217,7 +217,7 @@ export default function AdminCierreCaja() {
                   <div className="flex justify-between items-center text-sm border-t pt-2">
                     <span className="text-muted-foreground">Diferencia</span>
                     <span className={`font-mono font-semibold ${diff == null ? "text-muted-foreground" : diff === 0 ? "text-green-600" : diff > 0 ? "text-amber-600" : "text-red-600"}`}>
-                      {diff == null ? "—" : `${diff > 0 ? "+" : ""}${formatCurrency(diff, "ARS")}`}
+                      {diff == null ? "—" : `${diff > 0 ? "+" : ""}${formatPrice(diff, "ARS")}`}
                     </span>
                   </div>
                   <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => toggleDetalle(key)}>
@@ -235,7 +235,7 @@ export default function AdminCierreCaja() {
                               <div className="truncate">{r.alumno_nombre}</div>
                               <div className="text-muted-foreground truncate">{r.descripcion} · {format(new Date(r.hora), "HH:mm")}</div>
                             </div>
-                            <div className="font-mono">{formatCurrency(r.monto, r.moneda as any)}</div>
+                            <div className="font-mono">{formatPrice(r.monto, r.moneda as any)}</div>
                           </div>
                         ))
                       )}
@@ -251,16 +251,16 @@ export default function AdminCierreCaja() {
             <CardContent className="grid gap-2 sm:grid-cols-3 text-sm">
               <div>
                 <div className="text-muted-foreground">Sistema</div>
-                <div className="font-mono text-lg font-bold">{formatCurrency(totalSistema, "ARS")}</div>
+                <div className="font-mono text-lg font-bold">{formatPrice(totalSistema, "ARS")}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Contado</div>
-                <div className="font-mono text-lg font-bold">{formatCurrency(totalContado, "ARS")}</div>
+                <div className="font-mono text-lg font-bold">{formatPrice(totalContado, "ARS")}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Diferencia</div>
                 <div className={`font-mono text-lg font-bold ${diferenciaTotal === 0 ? "text-green-600" : diferenciaTotal > 0 ? "text-amber-600" : "text-red-600"}`}>
-                  {diferenciaTotal > 0 ? "+" : ""}{formatCurrency(diferenciaTotal, "ARS")}
+                  {diferenciaTotal > 0 ? "+" : ""}{formatPrice(diferenciaTotal, "ARS")}
                 </div>
               </div>
             </CardContent>
@@ -316,14 +316,14 @@ export default function AdminCierreCaja() {
                     ) : historial.map((h) => (
                       <tr key={h.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setFecha(h.fecha)}>
                         <td className="py-2">{format(new Date(h.fecha + "T12:00:00"), "dd MMM yyyy", { locale: es })}</td>
-                        <td className="text-right font-mono">{formatCurrency(h.efectivo_escuela_sistema, "ARS")}</td>
-                        <td className="text-right font-mono">{formatCurrency(h.efectivo_viajes_sistema, "ARS")}</td>
-                        <td className="text-right font-mono">{formatCurrency(h.efectivo_tienda_sistema, "ARS")}</td>
+                        <td className="text-right font-mono">{formatPrice(h.efectivo_escuela_sistema, "ARS")}</td>
+                        <td className="text-right font-mono">{formatPrice(h.efectivo_viajes_sistema, "ARS")}</td>
+                        <td className="text-right font-mono">{formatPrice(h.efectivo_tienda_sistema, "ARS")}</td>
                         <td className="text-right font-mono font-semibold">
-                          {formatCurrency((h.efectivo_escuela_sistema || 0) + (h.efectivo_viajes_sistema || 0) + (h.efectivo_tienda_sistema || 0), "ARS")}
+                          {formatPrice((h.efectivo_escuela_sistema || 0) + (h.efectivo_viajes_sistema || 0) + (h.efectivo_tienda_sistema || 0), "ARS")}
                         </td>
                         <td className={`text-right font-mono ${h.diferencia_total == null ? "text-muted-foreground" : h.diferencia_total === 0 ? "text-green-600" : "text-red-600"}`}>
-                          {h.diferencia_total == null ? "—" : `${h.diferencia_total > 0 ? "+" : ""}${formatCurrency(h.diferencia_total, "ARS")}`}
+                          {h.diferencia_total == null ? "—" : `${h.diferencia_total > 0 ? "+" : ""}${formatPrice(h.diferencia_total, "ARS")}`}
                         </td>
                         <td className="text-center">
                           {h.estado === "cerrado"
