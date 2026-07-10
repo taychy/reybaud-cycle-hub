@@ -15,7 +15,17 @@ const SENDER_DOMAIN = "notify.reybaud-app.com";
 const FROM_NAME = "Reybaud Ciclismo";
 const APP_DOMAIN = "https://reybaud-app.com";
 
-type Tipo = "confirmacion" | "recordatorio" | "cancelacion" | "coach_aviso";
+type Tipo =
+  | "confirmacion"
+  | "recordatorio"
+  | "cancelacion"
+  | "coach_aviso"
+  | "transferencia_instrucciones"
+  | "transferencia_recordatorio_15min"
+  | "transferencia_expirada"
+  | "transferencia_aprobada"
+  | "transferencia_rechazada"
+  | "admin_nuevo_comprobante";
 
 const normalizeEmail = (e: string) => e.trim().toLowerCase();
 
