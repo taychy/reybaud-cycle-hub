@@ -300,8 +300,8 @@ export default function MpMovementsTab() {
                       <TableCell className="text-xs">{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</TableCell>
                       <TableCell><Badge variant="outline">{m.cuentas_mp?.nombre ?? "—"}</Badge></TableCell>
                       <TableCell className="text-xs">
-                        <div>{m.payer_name || "—"}</div>
-                        {m.payer_email && <div className="text-muted-foreground">{m.payer_email}</div>}
+                        <div>{m.payer_name || m.payer_email || "—"}</div>
+                        {m.payer_name && m.payer_email && <div className="text-muted-foreground">{m.payer_email}</div>}
                       </TableCell>
                       <TableCell className="font-mono font-semibold">{formatPrice(Number(m.amount), m.currency)}</TableCell>
                       <TableCell>
