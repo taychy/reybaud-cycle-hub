@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollText, Shield } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollText, Shield, Eye } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AuditEntry {
@@ -19,6 +20,8 @@ interface AuditEntry {
 
 const actionLabels: Record<string, string> = {
   marcar_pagado: "Marcó pago como cobrado",
+  pago_chequeado: "Chequeó un pago",
+  registrar_pago: "Registró un pago",
   crear_plan: "Creó un plan",
   editar_plan: "Editó un plan",
   eliminar_alumno: "Eliminó un alumno",
@@ -28,6 +31,10 @@ const actionLabels: Record<string, string> = {
   publicar_plan: "Publicó plan mensual",
   registrar_asistencia: "Registró asistencia",
   enviar_feedback: "Envió feedback",
+  gestionar_suscripcion_cambiar_plan: "Cambió plan de suscripción",
+  gestionar_suscripcion_cancelar: "Canceló suscripción",
+  gestionar_suscripcion_pausar: "Pausó suscripción",
+  gestionar_suscripcion_reactivar: "Reactivó suscripción",
 };
 
 const roleColors: Record<string, string> = {
@@ -36,11 +43,38 @@ const roleColors: Record<string, string> = {
   super_admin: "bg-destructive/20 text-destructive",
 };
 
+const fieldLabels: Record<string, string> = {
+  accion: "Acción",
+  alumno: "Alumno",
+  alumno_id: "ID Alumno",
+  alumno_nombre: "Alumno",
+  plan: "Plan",
+  plan_anterior: "Plan anterior",
+  plan_nuevo: "Plan nuevo",
+  precio_anterior: "Precio anterior",
+  precio_nuevo: "Precio nuevo",
+  monto: "Monto",
+  moneda: "Moneda",
+  metodo_pago: "Método de pago",
+  motivo: "Motivo",
+  notas: "Notas",
+  suscripcion_id: "ID Suscripción",
+  diferencia: "Diferencia",
+  saldo_aplicado: "Saldo aplicado",
+  credito_calculado: "Crédito calculado",
+  dias_restantes: "Días restantes",
+  fecha_inicio: "Fecha inicio",
+  fecha_fin: "Fecha fin",
+};
+
 const AuditLog = () => {
   const isMobile = useIsMobile();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [selected, setSelected] = useState<AuditEntry | null>(null);
+  const [entityInfo, setEntityInfo] = useState<{ alumno?: string; email?: string; plan?: string } | null>(null);
+  const [loadingEntity, setLoadingEntity] = useState(false);
 
   useEffect(() => {
     checkAccessAndLoad();
@@ -50,7 +84,6 @@ const AuditLog = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    // Check if super_admin
     const { data: profile } = await supabase
       .from("admin_profiles")
       .select("role")
@@ -77,16 +110,70 @@ const AuditLog = () => {
     setLoading(false);
   };
 
+  const openDetails = async (e: AuditEntry) => {
+    setSelected(e);
+    setEntityInfo(null);
+    if (!e.entity_id) return;
+
+    setLoadingEntity(true);
+    try {
+      if (e.entity_type === "suscripcion") {
+        const { data: sub } = await supabase
+          .from("suscripciones")
+          .select("id, alumno_id, plan_id, planes(nombre), alumnos(nombre, apellido, email)")
+          .eq("id", e.entity_id)
+          .maybeSingle();
+        if (sub) {
+          const a: any = (sub as any).alumnos;
+          const p: any = (sub as any).planes;
+          setEntityInfo({
+            alumno: a ? `${a.nombre ?? ""} ${a.apellido ?? ""}`.trim() : undefined,
+            email: a?.email,
+            plan: p?.nombre,
+          });
+        }
+      } else if (e.entity_type === "alumno") {
+        const { data: al } = await supabase
+          .from("alumnos")
+          .select("nombre, apellido, email")
+          .eq("id", e.entity_id)
+          .maybeSingle();
+        if (al) {
+          setEntityInfo({
+            alumno: `${al.nombre ?? ""} ${al.apellido ?? ""}`.trim(),
+            email: al.email as any,
+          });
+        }
+      }
+    } finally {
+      setLoadingEntity(false);
+    }
+  };
+
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
+  const formatFullDate = (d: string) =>
+    new Date(d).toLocaleString("es-AR", {
+      day: "2-digit", month: "long", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+
   const getActionLabel = (action: string) => actionLabels[action] || action;
+
+  const formatValue = (v: any): string => {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "boolean") return v ? "Sí" : "No";
+    if (typeof v === "number") return v.toLocaleString("es-AR");
+    if (typeof v === "object") return JSON.stringify(v, null, 2);
+    return String(v);
+  };
 
   const getDetailsText = (details: Record<string, any> | null) => {
     if (!details) return "—";
     return Object.entries(details)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(", ");
+      .map(([k, v]) => `${fieldLabels[k] || k}: ${formatValue(v)}`)
+      .join(" · ");
   };
 
   if (loading) {
@@ -106,7 +193,9 @@ const AuditLog = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Historial de actividad</h1>
-        <p className="text-sm text-muted-foreground">Últimos 30 días de acciones realizadas por admins y coaches</p>
+        <p className="text-sm text-muted-foreground">
+          Últimos 30 días. Tocá cualquier fila para ver el detalle completo de la acción.
+        </p>
       </div>
 
       {entries.length === 0 ? (
@@ -119,7 +208,11 @@ const AuditLog = () => {
       ) : isMobile ? (
         <div className="space-y-2">
           {entries.map((e) => (
-            <Card key={e.id}>
+            <Card
+              key={e.id}
+              className="cursor-pointer hover:bg-accent/5 transition-colors"
+              onClick={() => openDetails(e)}
+            >
               <CardContent className="p-3 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{e.user_email || "—"}</span>
@@ -144,11 +237,16 @@ const AuditLog = () => {
                   <TableHead>Acción</TableHead>
                   <TableHead>Entidad</TableHead>
                   <TableHead>Detalles</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.map((e) => (
-                  <TableRow key={e.id}>
+                  <TableRow
+                    key={e.id}
+                    className="cursor-pointer hover:bg-accent/5"
+                    onClick={() => openDetails(e)}
+                  >
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(e.created_at)}</TableCell>
                     <TableCell className="text-sm">{e.user_email || "—"}</TableCell>
                     <TableCell>
@@ -156,7 +254,8 @@ const AuditLog = () => {
                     </TableCell>
                     <TableCell className="text-sm font-medium">{getActionLabel(e.action)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{e.entity_type}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{getDetailsText(e.details)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate">{getDetailsText(e.details)}</TableCell>
+                    <TableCell><Eye className="w-4 h-4 text-muted-foreground" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -164,6 +263,70 @@ const AuditLog = () => {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEntityInfo(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ScrollText className="w-5 h-5 text-primary" />
+                  {getActionLabel(selected.action)}
+                </DialogTitle>
+                <DialogDescription>{formatFullDate(selected.created_at)}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-2">
+                {/* Actor */}
+                <section className="rounded-lg border p-3 space-y-1">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Realizado por</div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{selected.user_email || "—"}</span>
+                    <Badge className={`text-[10px] ${roleColors[selected.user_role] || ""}`}>{selected.user_role}</Badge>
+                  </div>
+                </section>
+
+                {/* Entity */}
+                <section className="rounded-lg border p-3 space-y-2">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Entidad afectada</div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Tipo: </span>
+                    <span className="font-medium">{selected.entity_type}</span>
+                  </div>
+                  {selected.entity_id && (
+                    <div className="text-xs text-muted-foreground font-mono break-all">ID: {selected.entity_id}</div>
+                  )}
+                  {loadingEntity && <div className="text-xs text-muted-foreground">Cargando datos del alumno…</div>}
+                  {entityInfo?.alumno && (
+                    <div className="text-sm pt-1 border-t">
+                      <div><span className="text-muted-foreground">Alumno: </span><span className="font-medium">{entityInfo.alumno}</span></div>
+                      {entityInfo.email && <div className="text-xs text-muted-foreground">{entityInfo.email}</div>}
+                      {entityInfo.plan && <div className="text-sm mt-1"><span className="text-muted-foreground">Plan actual: </span>{entityInfo.plan}</div>}
+                    </div>
+                  )}
+                </section>
+
+                {/* Details */}
+                <section className="rounded-lg border p-3 space-y-2">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Detalles de la acción</div>
+                  {!selected.details || Object.keys(selected.details).length === 0 ? (
+                    <div className="text-sm text-muted-foreground">Sin detalles adicionales.</div>
+                  ) : (
+                    <dl className="divide-y">
+                      {Object.entries(selected.details).map(([k, v]) => (
+                        <div key={k} className="grid grid-cols-[140px_1fr] gap-2 py-1.5 text-sm">
+                          <dt className="text-muted-foreground">{fieldLabels[k] || k}</dt>
+                          <dd className="font-medium break-words whitespace-pre-wrap">{formatValue(v)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </section>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
