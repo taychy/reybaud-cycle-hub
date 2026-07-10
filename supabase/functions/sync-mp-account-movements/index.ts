@@ -110,6 +110,16 @@ Deno.serve(async (req) => {
       const total = payload?.paging?.total ?? items.length;
       if (items.length === 0) break;
 
+      const extractPayerName = (p: any): string | null => {
+        const parts = [p?.payer?.first_name, p?.payer?.last_name].filter(Boolean).join(" ").trim();
+        if (parts) return parts;
+        const ai = [p?.additional_info?.payer?.first_name, p?.additional_info?.payer?.last_name].filter(Boolean).join(" ").trim();
+        if (ai) return ai;
+        const ch = p?.card?.cardholder?.name;
+        if (ch) return String(ch);
+        return null;
+      };
+
       for (const p of items) {
         const mpId = String(p.id);
         // Intentar auto-linkear
