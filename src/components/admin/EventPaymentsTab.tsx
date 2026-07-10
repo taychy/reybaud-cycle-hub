@@ -29,7 +29,7 @@ type Payment = {
   event_reservations?: {
     id: string;
     event_id: string;
-    events?: { nombre: string } | null;
+    events?: { title: string } | null;
   } | null;
 };
 
