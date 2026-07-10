@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
 
     const { data: r, error: errR } = await supabase
       .from("reservas_turnera")
-      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota")
+      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota, pago_monto, moneda_snapshot, upload_token, hold_expira_at")
       .eq("id", reservation_id)
       .maybeSingle();
     if (errR || !r) return new Response(JSON.stringify({ error: "reservation_not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -148,6 +148,19 @@ Deno.serve(async (req) => {
       .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, email_coach_enabled, ics_adjunto, sedes:sede_id(nombre)")
       .eq("id", r.servicio_id)
       .maybeSingle();
+
+    // ─── TIPOS DE TRANSFERENCIA / ADMIN — handler separado, HTML propio ───
+    const TRANSFER_TIPOS = new Set([
+      "transferencia_instrucciones",
+      "transferencia_recordatorio_15min",
+      "transferencia_expirada",
+      "transferencia_aprobada",
+      "transferencia_rechazada",
+      "admin_nuevo_comprobante",
+    ]);
+    if (TRANSFER_TIPOS.has(tipo)) {
+      return await handleTransferenciaEmail(supabase, tipo, r, s, (await (async () => { try { return await req.clone().json(); } catch { return {}; } })()));
+    }
 
     // Respect per-service toggles
     if (tipo === "confirmacion" && s && s.email_confirmacion_enabled === false) {
