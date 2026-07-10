@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +17,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ServicioConfigDialog } from "@/components/admin/ServicioConfigDialog";
 import { DisponibilidadAjustadaManager } from "@/components/admin/DisponibilidadAjustadaManager";
+import TurneraTransferenciasTab from "@/components/admin/TurneraTransferenciasTab";
+import TurneraBancariosConfig from "@/components/admin/TurneraBancariosConfig";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 const AdminTurnera = () => {
-  const [tab, setTab] = useState("servicios");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "servicios";
+  const [tab, setTab] = useState(initialTab);
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && t !== tab) setTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [servicios, setServicios] = useState<any[]>([]);
   const [disponibilidades, setDisponibilidades] = useState<any[]>([]);
   const [reservas, setReservas] = useState<any[]>([]);
@@ -260,12 +270,14 @@ const AdminTurnera = () => {
         <p className="text-sm text-muted-foreground">Servicios, disponibilidad y reservas externas</p>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+      <Tabs value={tab} onValueChange={(v) => { setTab(v); setSearchParams({ tab: v }); }}>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="servicios">Servicios</TabsTrigger>
           <TabsTrigger value="disponibilidad">Disponibilidad</TabsTrigger>
           <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
+          <TabsTrigger value="transferencias">Transferencias</TabsTrigger>
+          <TabsTrigger value="config-pagos">Config. pagos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="servicios" className="space-y-4 mt-4">
@@ -526,6 +538,14 @@ const AdminTurnera = () => {
               </div>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="transferencias" className="mt-4 space-y-4">
+          <TurneraTransferenciasTab />
+        </TabsContent>
+
+        <TabsContent value="config-pagos" className="mt-4 space-y-4">
+          <TurneraBancariosConfig />
         </TabsContent>
       </Tabs>
 

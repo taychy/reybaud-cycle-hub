@@ -445,7 +445,7 @@ const BookingFlow = () => {
   };
 
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (metodoPago?: "mp" | "transferencia") => {
     if (!servicio || !selectedDate || !selectedSlot) return;
     const err = validForm();
     if (err) { toast({ title: err, variant: "destructive" }); return; }
@@ -503,7 +503,6 @@ const BookingFlow = () => {
       return;
     }
 
-
     const requierePagoOnline = servicio.pago_modo && servicio.pago_modo !== "ninguno";
 
     // Movimiento de liquidación siempre (queda como pendiente_revision)
@@ -520,9 +519,21 @@ const BookingFlow = () => {
       estado_economico: "pendiente_revision",
     } as any);
 
+    // Flujo con pago online
     if (requierePagoOnline && reservationId) {
-      // No mandamos email aún: el webhook MP lo dispara recién al aprobar
+      const metodo = metodoPago || "mp";
       try {
+        if (metodo === "transferencia") {
+          const { data, error: tErr } = await supabase.functions.invoke("create-turnera-transferencia", {
+            body: { reservation_id: reservationId },
+          });
+          if (tErr || !data?.upload_token) {
+            throw new Error(tErr?.message || "No se pudo iniciar el flujo de transferencia");
+          }
+          window.location.href = `/reservar/${reservationId}/transferencia?token=${data.upload_token}`;
+          return;
+        }
+        // MP (default)
         const { data: mp, error: mpErr } = await supabase.functions.invoke("create-turnera-mp-preference", {
           body: { reservation_id: reservationId },
         });
@@ -533,11 +544,10 @@ const BookingFlow = () => {
         return;
       } catch (e: any) {
         toast({
-          title: "Reserva creada, pero falló el pago online",
-          description: `${e.message || "Intentá nuevamente desde el link de pago."}`,
+          title: "No pudimos iniciar el pago",
+          description: `${e.message || "Intentá nuevamente."}`,
           variant: "destructive",
         });
-        setStep(6);
         setSubmitting(false);
         return;
       }
@@ -965,9 +975,49 @@ const BookingFlow = () => {
                 </div>
               </CardContent>
             </Card>
-            <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Reservando..." : "Confirmar reserva"}
-            </Button>
+            {(() => {
+              const requierePago = !!servicio.pago_modo && servicio.pago_modo !== "ninguno";
+              if (!requierePago) {
+                return (
+                  <Button className="w-full" onClick={() => handleSubmit()} disabled={submitting}>
+                    {submitting ? "Reservando..." : "Confirmar reserva"}
+                  </Button>
+                );
+              }
+              return (
+                <div className="space-y-3">
+                  <Card className="bg-primary/5 border-primary/30">
+                    <CardContent className="p-3 space-y-1">
+                      <p className="text-xs font-medium text-foreground">Tu reserva se confirma con el pago</p>
+                      <p className="text-xs text-muted-foreground">
+                        Elegí cómo pagar. Si no completás el pago, el turno se libera automáticamente.
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Button
+                    className="w-full h-12"
+                    onClick={() => handleSubmit("mp")}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Procesando..." : "Pagar con tarjeta o Mercado Pago"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground -mt-1 text-center">
+                    Podés pagar con tarjeta de crédito o débito sin tener cuenta de Mercado Pago.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full h-12"
+                    onClick={() => handleSubmit("transferencia")}
+                    disabled={submitting}
+                  >
+                    Transferencia bancaria
+                  </Button>
+                  <p className="text-xs text-muted-foreground -mt-1 text-center">
+                    Tenés 2 horas para transferir y subir el comprobante.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
 
