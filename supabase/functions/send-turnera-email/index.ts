@@ -289,3 +289,186 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
+
+// ─── Transferencia email helper ───────────────────────────────────────
+const fmtMoney = (amount: number, currency: string) => {
+  const symbol = currency === "USD" ? "US$" : currency === "EUR" ? "€" : "$";
+  return `${symbol}${Number(amount || 0).toLocaleString("es-AR")}`;
+};
+
+const fmtHoraCorta = (t: string | null | undefined) => (t || "").substring(0, 5);
+
+async function handleTransferenciaEmail(
+  supabase: any,
+  tipo: Tipo,
+  r: any,
+  s: any,
+  extra: any,
+) {
+  // Cargar datos bancarios desde app_config
+  const { data: cfg } = await supabase
+    .from("app_config")
+    .select("key, value")
+    .in("key", ["turnera_cbu", "turnera_alias", "turnera_titular", "turnera_cuit", "admin_notification_email"]);
+  const cfgMap: Record<string, string> = {};
+  for (const row of (cfg || [])) {
+    const v = row.value;
+    cfgMap[row.key] = typeof v === "string" ? v : (v ?? "");
+  }
+  const cbu = cfgMap.turnera_cbu || "";
+  const alias = cfgMap.turnera_alias || "";
+  const titular = cfgMap.turnera_titular || "";
+  const cuit = cfgMap.turnera_cuit || "";
+
+  const servicioNombre = s?.nombre || "Reserva";
+  const fechaTxt = fmtDateAR(r.fecha);
+  const horaTxt = `${fmtHoraCorta(r.hora_inicio)} – ${fmtHoraCorta(r.hora_fin)}`;
+  const monto = Number(r.pago_monto || 0);
+  const currency = String(r.moneda_snapshot || "ARS").toUpperCase();
+  const montoTxt = fmtMoney(monto, currency);
+  const concepto = `RESERVA-${String(r.id).slice(0, 8).toUpperCase()}`;
+  const uploadUrl = `${APP_DOMAIN}/reservar/${r.id}/transferencia?token=${r.upload_token || ""}`;
+  const holdMin = r.hold_expira_at
+    ? Math.max(0, Math.round((new Date(r.hold_expira_at).getTime() - Date.now()) / 60000))
+    : 120;
+
+  // Determinar destinatario y contenido
+  let recipient = r.email as string;
+  let recipientName = r.nombre as string;
+  let subject = "";
+  let title = "";
+  let intro = "";
+  let bodyHtml = "";
+  let cta: { label: string; url: string } | null = null;
+  let label = `turnera_${tipo}`;
+  let idempotencyKey = `turnera-${tipo}-${r.id}`;
+
+  const datosBancarios = `
+    <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px;margin:18px 0;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Datos para transferir</div>
+      <div style="font-size:14px;color:#0f1115;line-height:1.7;">
+        <strong>Titular:</strong> ${escapeHtml(titular || "—")}<br/>
+        <strong>CUIT:</strong> ${escapeHtml(cuit || "—")}<br/>
+        <strong>CBU:</strong> ${escapeHtml(cbu || "—")}<br/>
+        <strong>Alias:</strong> ${escapeHtml(alias || "—")}<br/>
+        <strong>Monto:</strong> ${escapeHtml(montoTxt)} ${escapeHtml(currency)}<br/>
+        <strong>Concepto:</strong> ${escapeHtml(concepto)}
+      </div>
+    </div>`;
+
+  const detalleReserva = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;margin:16px 0;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:6px;">Servicio</div>
+      <div style="font-size:15px;color:#0f1115;font-weight:600;margin-bottom:10px;">${escapeHtml(servicioNombre)}</div>
+      <div style="font-size:13px;color:#555;">${escapeHtml(fechaTxt)} · ${escapeHtml(horaTxt)} hs</div>
+    </div>`;
+
+  switch (tipo) {
+    case "transferencia_instrucciones":
+      subject = `Transferencia pendiente · ${servicioNombre} · ${fechaTxt}`;
+      title = "💸 Completá tu reserva con la transferencia";
+      intro = `Recibimos tu reserva. Tenés <strong>${holdMin} minutos</strong> para hacer la transferencia y subir el comprobante. Si no lo hacés a tiempo, el turno vuelve a estar disponible para otros alumnos.`;
+      bodyHtml = detalleReserva + datosBancarios + `
+        <p style="font-size:14px;color:#333;">Después de hacer la transferencia, tocá el botón para subir el comprobante:</p>`;
+      cta = { label: "Subir comprobante", url: uploadUrl };
+      break;
+    case "transferencia_recordatorio_15min":
+      subject = `⏰ Te quedan 15 min · ${servicioNombre}`;
+      title = "⏰ Quedan 15 minutos";
+      intro = `Si no subís el comprobante en los próximos <strong>15 minutos</strong>, el turno se libera automáticamente.`;
+      bodyHtml = detalleReserva + datosBancarios;
+      cta = { label: "Subir comprobante ahora", url: uploadUrl };
+      break;
+    case "transferencia_expirada":
+      subject = `Reserva liberada · ${servicioNombre}`;
+      title = "El turno se liberó";
+      intro = `No recibimos el comprobante a tiempo y liberamos el turno. Podés reservar nuevamente cuando quieras.`;
+      bodyHtml = detalleReserva;
+      cta = { label: "Volver a reservar", url: `${APP_DOMAIN}` };
+      break;
+    case "transferencia_aprobada":
+      subject = `✅ Reserva confirmada · ${servicioNombre} · ${fechaTxt}`;
+      title = "✅ Tu reserva está confirmada";
+      intro = `Aprobamos el pago por transferencia. ¡Nos vemos!`;
+      bodyHtml = detalleReserva;
+      break;
+    case "transferencia_rechazada":
+      subject = `Comprobante no aprobado · ${servicioNombre}`;
+      title = "No pudimos aprobar el comprobante";
+      intro = extra?.motivo
+        ? `Motivo: <em>${escapeHtml(extra.motivo)}</em>. Si fue un error, escribinos y lo revisamos.`
+        : `Si creés que fue un error, escribinos y lo revisamos.`;
+      bodyHtml = detalleReserva;
+      cta = { label: "Volver a reservar", url: `${APP_DOMAIN}` };
+      break;
+    case "admin_nuevo_comprobante": {
+      recipient = cfgMap.admin_notification_email || "natalia@ciclismoreybaud.com";
+      recipientName = "equipo Reybaud";
+      subject = `📋 Nuevo comprobante para validar · ${servicioNombre}`;
+      title = "📋 Nuevo comprobante de transferencia";
+      intro = `Un alumno subió un comprobante y espera validación:`;
+      bodyHtml = `
+        <div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;margin:16px 0;">
+          <div style="font-size:14px;color:#0f1115;line-height:1.7;">
+            <strong>Alumno:</strong> ${escapeHtml(`${r.nombre} ${r.apellido || ""}`.trim())}<br/>
+            ${r.email ? `<strong>Email:</strong> ${escapeHtml(r.email)}<br/>` : ""}
+            ${r.celular ? `<strong>Celular:</strong> ${escapeHtml(r.celular)}<br/>` : ""}
+            <strong>Servicio:</strong> ${escapeHtml(servicioNombre)}<br/>
+            <strong>Fecha:</strong> ${escapeHtml(fechaTxt)} · ${escapeHtml(horaTxt)}<br/>
+            <strong>Monto:</strong> ${escapeHtml(montoTxt)} ${escapeHtml(currency)}
+          </div>
+        </div>`;
+      cta = { label: "Abrir panel de validación", url: `${APP_DOMAIN}/admin/turnera?tab=transferencias` };
+      idempotencyKey = `turnera-admin-comprobante-${r.id}-${Date.now()}`;
+      break;
+    }
+  }
+
+  if (!recipient) {
+    return new Response(JSON.stringify({ skipped: true, reason: "no_recipient" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
+  const ctaHtml = cta ? `<div style="margin:20px 0;">
+    <a href="${cta.url}" style="background:#ea6a1a;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;display:inline-block;">${cta.label}</a>
+  </div>` : "";
+
+  const html = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+    <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <span style="font-size:11px;letter-spacing:3px;color:#888;text-transform:uppercase;">Reybaud Ciclismo</span>
+      </div>
+      <h1 style="font-size:22px;color:#0f1115;margin:0 0 12px;">${title}</h1>
+      <p style="font-size:15px;color:#333;margin:0 0 16px;line-height:1.55;">Hola ${escapeHtml(recipientName)}, ${intro}</p>
+      ${bodyHtml}
+      ${ctaHtml}
+      <p style="font-size:12px;color:#999;margin-top:32px;text-align:center;">Reybaud Ciclismo · <a href="${APP_DOMAIN}" style="color:#999;">reybaud-app.com</a></p>
+    </div></body></html>`;
+
+  const messageId = crypto.randomUUID();
+  const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipient);
+
+  const { error: qErr } = await supabase.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload: {
+      message_id: messageId,
+      to: recipient,
+      from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject,
+      html,
+      text: `${subject}\n\n${fechaTxt} ${horaTxt}\n\n${APP_DOMAIN}`,
+      purpose: "transactional",
+      label,
+      idempotency_key: idempotencyKey,
+      unsubscribe_token: unsubscribeToken,
+      queued_at: new Date().toISOString(),
+    },
+  });
+
+  if (qErr) {
+    return new Response(JSON.stringify({ error: "queue_failed", detail: qErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+  return new Response(JSON.stringify({ success: true, tipo, recipient }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
