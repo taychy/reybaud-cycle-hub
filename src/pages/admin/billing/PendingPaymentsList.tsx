@@ -67,7 +67,7 @@ interface ColaRow {
   factura_cae: string | null;
 }
 
-export function PendingPaymentsList() {
+export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boolean } = {}) {
   const [rows, setRows] = useState<ColaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [rebuilding, setRebuilding] = useState(false);
