@@ -101,7 +101,7 @@ const REF_LABELS: Record<string, string> = {
   manual: "Manual",
 };
 
-export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGenerarFactura, onBulkRequest }: Props) {
+export function BillingList({ facturas, emisores, filterEstado, enableBulk, groupByAge, onGenerarFactura, onBulkRequest }: Props) {
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState(filterEstado || "todos");
   const [emisorFilter, setEmisorFilter] = useState("todos");
