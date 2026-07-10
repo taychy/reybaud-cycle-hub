@@ -352,7 +352,7 @@ export default function MpMovementsTab() {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium">Alumno</label>
-              <Command className="border rounded-md">
+              <Command className="border rounded-md" shouldFilter={false}>
                 <CommandInput placeholder="Buscar por nombre, email o DNI..." onValueChange={loadAlumnosQuery} />
                 <CommandList>
                   <CommandEmpty>Escribí al menos 2 caracteres...</CommandEmpty>
