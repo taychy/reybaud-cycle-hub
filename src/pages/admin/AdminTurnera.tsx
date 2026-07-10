@@ -539,6 +539,14 @@ const AdminTurnera = () => {
             </DialogContent>
           </Dialog>
         </TabsContent>
+
+        <TabsContent value="transferencias" className="mt-4 space-y-4">
+          <TurneraTransferenciasTab />
+        </TabsContent>
+
+        <TabsContent value="config-pagos" className="mt-4 space-y-4">
+          <TurneraBancariosConfig />
+        </TabsContent>
       </Tabs>
 
       {configServ && (
