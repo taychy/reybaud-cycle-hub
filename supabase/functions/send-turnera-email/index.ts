@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
       "admin_nuevo_comprobante",
     ]);
     if (TRANSFER_TIPOS.has(tipo)) {
-      return await handleTransferenciaEmail(supabase, tipo, r, s, (await (async () => { try { return await req.clone().json(); } catch { return {}; } })()));
+      return await handleTransferenciaEmail(supabase, tipo, r, s, body);
     }
 
     // Respect per-service toggles
