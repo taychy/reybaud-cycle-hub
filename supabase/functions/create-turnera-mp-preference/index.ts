@@ -128,10 +128,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Hold de 15 minutos para pago MP
+    const holdExpira = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabase.from("reservas_turnera").update({
       pago_mp_preference_id: mpData.id,
       pago_monto: amount,
-      pago_estado: "pendiente",
+      pago_estado: "pendiente_mp",
+      metodo_pago: "mp",
+      hold_expira_at: holdExpira,
     } as any).eq("id", reservation_id);
 
     return new Response(JSON.stringify({
