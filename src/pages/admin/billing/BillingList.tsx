@@ -64,6 +64,7 @@ interface Props {
   emisores: Emisor[];
   filterEstado?: string;
   enableBulk?: boolean;
+  groupByAge?: boolean;
   onGenerarFactura: (factura: FacturaRow) => void;
   onBulkRequest?: (rows: FacturaRow[]) => void;
 }
