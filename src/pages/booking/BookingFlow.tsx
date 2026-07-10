@@ -975,9 +975,49 @@ const BookingFlow = () => {
                 </div>
               </CardContent>
             </Card>
-            <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Reservando..." : "Confirmar reserva"}
-            </Button>
+            {(() => {
+              const requierePago = !!servicio.pago_modo && servicio.pago_modo !== "ninguno";
+              if (!requierePago) {
+                return (
+                  <Button className="w-full" onClick={() => handleSubmit()} disabled={submitting}>
+                    {submitting ? "Reservando..." : "Confirmar reserva"}
+                  </Button>
+                );
+              }
+              return (
+                <div className="space-y-3">
+                  <Card className="bg-primary/5 border-primary/30">
+                    <CardContent className="p-3 space-y-1">
+                      <p className="text-xs font-medium text-foreground">Tu reserva se confirma con el pago</p>
+                      <p className="text-xs text-muted-foreground">
+                        Elegí cómo pagar. Si no completás el pago, el turno se libera automáticamente.
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Button
+                    className="w-full h-12"
+                    onClick={() => handleSubmit("mp")}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Procesando..." : "Pagar con tarjeta o Mercado Pago"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground -mt-1 text-center">
+                    Podés pagar con tarjeta de crédito o débito sin tener cuenta de Mercado Pago.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full h-12"
+                    onClick={() => handleSubmit("transferencia")}
+                    disabled={submitting}
+                  >
+                    Transferencia bancaria
+                  </Button>
+                  <p className="text-xs text-muted-foreground -mt-1 text-center">
+                    Tenés 2 horas para transferir y subir el comprobante.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
 
