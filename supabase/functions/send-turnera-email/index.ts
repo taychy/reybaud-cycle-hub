@@ -129,7 +129,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { reservation_id, tipo } = await req.json() as { reservation_id: string; tipo: Tipo };
+    const body = await req.json();
+    const { reservation_id, tipo } = body as { reservation_id: string; tipo: Tipo };
     if (!reservation_id || !tipo) {
       return new Response(JSON.stringify({ error: "Missing reservation_id or tipo" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
