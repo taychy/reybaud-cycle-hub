@@ -270,12 +270,14 @@ const AdminTurnera = () => {
         <p className="text-sm text-muted-foreground">Servicios, disponibilidad y reservas externas</p>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+      <Tabs value={tab} onValueChange={(v) => { setTab(v); setSearchParams({ tab: v }); }}>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="servicios">Servicios</TabsTrigger>
           <TabsTrigger value="disponibilidad">Disponibilidad</TabsTrigger>
           <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
+          <TabsTrigger value="transferencias">Transferencias</TabsTrigger>
+          <TabsTrigger value="config-pagos">Config. pagos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="servicios" className="space-y-4 mt-4">
