@@ -23,7 +23,14 @@ import TurneraBancariosConfig from "@/components/admin/TurneraBancariosConfig";
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 const AdminTurnera = () => {
-  const [tab, setTab] = useState("servicios");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "servicios";
+  const [tab, setTab] = useState(initialTab);
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && t !== tab) setTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [servicios, setServicios] = useState<any[]>([]);
   const [disponibilidades, setDisponibilidades] = useState<any[]>([]);
   const [reservas, setReservas] = useState<any[]>([]);
