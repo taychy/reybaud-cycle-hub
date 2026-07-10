@@ -8,6 +8,7 @@ import { FileText, Search, Layers, Download, Mail, Loader2 } from "lucide-react"
 import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AgeGroupedList } from "./AgeGroupedList";
 
 interface Emisor {
   id: string;
