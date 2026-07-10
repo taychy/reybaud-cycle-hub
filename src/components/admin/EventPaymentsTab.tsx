@@ -60,7 +60,7 @@ export default function EventPaymentsTab() {
         status, notes, created_at, reviewed_at, anulado_at, mp_payment_id,
         alumnos:alumnos!alumno_id ( nombre, apellido, email ),
         event_reservations:event_reservations!reservation_id (
-          id, event_id, events:events!event_id ( nombre )
+          id, event_id, events:events!event_id ( title )
         )
       `)
       .order("created_at", { ascending: false })
@@ -82,7 +82,7 @@ export default function EventPaymentsTab() {
         const hay = [
           p.mp_payment_id, p.notes,
           p.alumnos?.nombre, p.alumnos?.apellido, p.alumnos?.email,
-          p.event_reservations?.events?.nombre,
+          p.event_reservations?.events?.title,
         ].filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(s)) return false;
       }
@@ -186,7 +186,7 @@ export default function EventPaymentsTab() {
                           </div>
                         ) : "—"}
                       </TableCell>
-                      <TableCell className="text-xs">{p.event_reservations?.events?.nombre ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{p.event_reservations?.events?.title ?? "—"}</TableCell>
                       <TableCell className="font-mono font-semibold">{formatPrice(Number(p.amount), p.currency)}</TableCell>
                       <TableCell className="text-xs capitalize">{p.payment_method}</TableCell>
                       <TableCell>
