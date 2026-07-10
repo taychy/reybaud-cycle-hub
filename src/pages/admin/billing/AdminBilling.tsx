@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BillingKPIs } from "./BillingKPIs";
 import { BillingList } from "./BillingList";
 import { BillingEmisores } from "./BillingEmisores";
@@ -11,6 +10,8 @@ import { InvoiceModal } from "./InvoiceModal";
 import { ManualInvoiceButton } from "./ManualInvoiceButton";
 import { SyncMpFeesButton } from "./SyncMpFeesButton";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
+import { BillingStepper, BillingStep, SecondaryView } from "./BillingStepper";
+import { useBillingCounts } from "./useBillingCounts";
 
 interface Emisor {
   id: string;
@@ -21,7 +22,6 @@ interface Emisor {
   tiene_credenciales?: boolean;
   limite_anual_ars?: number | null;
 }
-
 
 interface FacturaRow {
   id: string;
@@ -49,6 +49,10 @@ export default function AdminBilling() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState<BulkFacturaRow[]>([]);
   const [summaryKey, setSummaryKey] = useState(0);
+  const [step, setStep] = useState<BillingStep>("cobrado");
+  const [secondary, setSecondary] = useState<SecondaryView>(null);
+
+  const counts = useBillingCounts(summaryKey);
 
   const loadData = useCallback(async () => {
     const [facturasRes, emisoresRes] = await Promise.all([
@@ -103,7 +107,6 @@ export default function AdminBilling() {
   const pendientes = facturas.filter((f) => {
     const isPending = f.estado === "sin_factura" || f.estado === "error" || (f.estado === "emitida" && !f.cae);
     if (!isPending) return false;
-    // Ocultar si ya hay otra factura emitida con CAE para el mismo cobro
     if (f.referencia_id && refsConCAE.has(`${f.referencia_tipo}:${f.referencia_id}`)) return false;
     return true;
   });
@@ -111,7 +114,7 @@ export default function AdminBilling() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-heading font-bold text-foreground">Facturación</h1>
           <p className="text-sm text-muted-foreground">Gestión de facturas y emisores fiscales</p>
@@ -126,72 +129,39 @@ export default function AdminBilling() {
 
       <BillingEmisorSummary refreshKey={summaryKey} />
 
-      <Tabs defaultValue="pagos_sin_facturar" className="space-y-4">
-        <TabsList>
-          <TabsTrigger
-            value="pagos_sin_facturar"
-            title="Pagos cobrados que todavía no tienen factura creada en el sistema"
-          >
-            Cobros a facturar
-          </TabsTrigger>
-          <TabsTrigger
-            value="pendientes"
-            title="Facturas ya creadas en el sistema pero aún sin CAE emitido en AFIP"
-          >
-            Sin emitir en AFIP {pendientes.length > 0 && `(${pendientes.length})`}
-          </TabsTrigger>
-          <TabsTrigger
-            value="historial"
-            title="Facturas con CAE ya emitido en AFIP"
-          >
-            Emitidas {historial.length > 0 && `(${historial.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="todos">Todas</TabsTrigger>
-          <TabsTrigger value="emisores">Emisores</TabsTrigger>
-          <TabsTrigger value="cuentas_mp">Cuentas MP</TabsTrigger>
-        </TabsList>
+      <BillingStepper
+        active={step}
+        secondary={secondary}
+        counts={{ cobrado: counts.cobrado, sinCae: counts.sinCae, emitido: counts.emitido }}
+        loading={counts.loading}
+        onChangeStep={setStep}
+        onChangeSecondary={setSecondary}
+      />
 
-        <TabsContent value="pagos_sin_facturar">
-          <PendingPaymentsList />
-        </TabsContent>
-
-        <TabsContent value="pendientes">
-          <BillingList
-            facturas={pendientes}
-            emisores={emisores}
-            enableBulk
-            onGenerarFactura={handleGenerarFactura}
-            onBulkRequest={handleBulkRequest}
-          />
-        </TabsContent>
-
-        <TabsContent value="historial">
-          <BillingList
-            facturas={historial}
-            emisores={emisores}
-            filterEstado="emitida"
-            onGenerarFactura={handleGenerarFactura}
-          />
-        </TabsContent>
-
-        <TabsContent value="todos">
-          <BillingList
-            facturas={facturas}
-            emisores={emisores}
-            enableBulk
-            onGenerarFactura={handleGenerarFactura}
-            onBulkRequest={handleBulkRequest}
-          />
-        </TabsContent>
-
-        <TabsContent value="emisores">
-          <BillingEmisores onDataChange={loadData} />
-        </TabsContent>
-
-        <TabsContent value="cuentas_mp">
-          <BillingCuentasMP />
-        </TabsContent>
-      </Tabs>
+      {secondary === "emisores" ? (
+        <BillingEmisores onDataChange={loadData} />
+      ) : secondary === "cuentas_mp" ? (
+        <BillingCuentasMP />
+      ) : step === "cobrado" ? (
+        <PendingPaymentsList groupByAge />
+      ) : step === "sin_cae" ? (
+        <BillingList
+          facturas={pendientes}
+          emisores={emisores}
+          enableBulk
+          groupByAge
+          onGenerarFactura={handleGenerarFactura}
+          onBulkRequest={handleBulkRequest}
+        />
+      ) : (
+        <BillingList
+          facturas={historial}
+          emisores={emisores}
+          filterEstado="emitida"
+          groupByAge
+          onGenerarFactura={handleGenerarFactura}
+        />
+      )}
 
       <InvoiceModal
         factura={invoiceTarget}

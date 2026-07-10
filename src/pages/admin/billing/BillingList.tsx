@@ -8,6 +8,7 @@ import { FileText, Search, Layers, Download, Mail, Loader2 } from "lucide-react"
 import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AgeGroupedList } from "./AgeGroupedList";
 
 interface Emisor {
   id: string;
@@ -63,6 +64,7 @@ interface Props {
   emisores: Emisor[];
   filterEstado?: string;
   enableBulk?: boolean;
+  groupByAge?: boolean;
   onGenerarFactura: (factura: FacturaRow) => void;
   onBulkRequest?: (rows: FacturaRow[]) => void;
 }
@@ -99,7 +101,7 @@ const REF_LABELS: Record<string, string> = {
   manual: "Manual",
 };
 
-export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGenerarFactura, onBulkRequest }: Props) {
+export function BillingList({ facturas, emisores, filterEstado, enableBulk, groupByAge, onGenerarFactura, onBulkRequest }: Props) {
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState(filterEstado || "todos");
   const [emisorFilter, setEmisorFilter] = useState("todos");
@@ -292,89 +294,102 @@ export function BillingList({ facturas, emisores, filterEstado, enableBulk, onGe
       {/* List */}
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No hay registros</p>
-      ) : (
-        <div className="space-y-2 pb-20">
-          {filtered.map((f) => {
-            const badge = getEstadoBadge(f);
-            const isAfip = f.estado === "emitida" && !!f.cae;
-            const isManualSinCae = f.estado === "emitida" && !f.cae;
-            const facturable = isFacturable(f);
-            const isChecked = selected.has(f.id);
-            const fecha = (() => {
-              const d = f.created_at;
-              if (!d) return "—";
-              if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-                const [y, m, day] = d.split("-").map(Number);
-                return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
-              }
-              return new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
-            })();
+      ) : (() => {
+        const renderRow = (f: FacturaRow) => {
+          const badge = getEstadoBadge(f);
+          const isAfip = f.estado === "emitida" && !!f.cae;
+          const isManualSinCae = f.estado === "emitida" && !f.cae;
+          const facturable = isFacturable(f);
+          const isChecked = selected.has(f.id);
+          const fecha = (() => {
+            const d = f.created_at;
+            if (!d) return "—";
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+              const [y, m, day] = d.split("-").map(Number);
+              return new Date(y, m - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+            }
+            return new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
+          })();
 
-            return (
-              <div key={f.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                {enableBulk && facturable && (
-                  <Checkbox checked={isChecked} onCheckedChange={(v) => toggleOne(f.id, !!v)} className="shrink-0" />
-                )}
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-foreground">{f.cliente_nombre}</p>
-                    <Badge variant={badge.variant} className="text-[10px]" title={badge.title}>{badge.label}</Badge>
-                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                      {REF_LABELS[f.referencia_tipo] || f.referencia_tipo}
+          return (
+            <div key={f.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              {enableBulk && facturable && (
+                <Checkbox checked={isChecked} onCheckedChange={(v) => toggleOne(f.id, !!v)} className="shrink-0" />
+              )}
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-foreground">{f.cliente_nombre}</p>
+                  <Badge variant={badge.variant} className="text-[10px]" title={badge.title}>{badge.label}</Badge>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    {REF_LABELS[f.referencia_tipo] || f.referencia_tipo}
+                  </span>
+                  {f.metodo_pago && (
+                    <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
+                      {METODO_LABELS[f.metodo_pago] || f.metodo_pago}
+                      {f.origen_registro ? ` · ${ORIGEN_LABELS[f.origen_registro] || f.origen_registro}` : ""}
                     </span>
-                    {f.metodo_pago && (
-                      <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
-                        {METODO_LABELS[f.metodo_pago] || f.metodo_pago}
-                        {f.origen_registro ? ` · ${ORIGEN_LABELS[f.origen_registro] || f.origen_registro}` : ""}
-                      </span>
-                    )}
-                    {isManualSinCae && (
-                      <span
-                        className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded"
-                        title="Podría haber sido facturado fuera del sistema. Revisá antes de emitir."
-                      >
-                        ⚠ revisar
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{f.concepto}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                    <span>{fecha}</span>
-                    <span className="font-semibold text-foreground">{formatPrice(Number(f.monto || 0), (f.moneda || "ARS") as any)}</span>
-                    {f.emisor_id && <span className="text-primary">{emisorMap.get(f.emisor_id) || "—"}</span>}
-                    {f.numero_comprobante && <span>Nº {f.numero_comprobante}</span>}
-                    {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
-                  </div>
-                </div>
-                <div className="shrink-0 flex flex-wrap gap-2">
-                  {facturable ? (
-                    <Button size="sm" onClick={() => onGenerarFactura(f)}>
-                      <FileText className="w-4 h-4 mr-1" />
-                      {isManualSinCae ? "Emitir en AFIP" : "Generar factura"}
-                    </Button>
-                  ) : (
-                    <>
-                      <Button size="sm" variant="outline" disabled>
-                        <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
-                      </Button>
-                      {isAfip && (
-                        <>
-                          <Button size="sm" variant="secondary" onClick={() => handleDownload(f.id)} disabled={busyId === f.id + ":pdf"}>
-                            {busyId === f.id + ":pdf" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => handleResend(f.id)} disabled={busyId === f.id + ":mail"}>
-                            {busyId === f.id + ":mail" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                          </Button>
-                        </>
-                      )}
-                    </>
+                  )}
+                  {isManualSinCae && (
+                    <span
+                      className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded"
+                      title="Podría haber sido facturado fuera del sistema. Revisá antes de emitir."
+                    >
+                      ⚠ revisar
+                    </span>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground">{f.concepto}</p>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                  <span>{fecha}</span>
+                  <span className="font-semibold text-foreground">{formatPrice(Number(f.monto || 0), (f.moneda || "ARS") as any)}</span>
+                  {f.emisor_id && <span className="text-primary">{emisorMap.get(f.emisor_id) || "—"}</span>}
+                  {f.numero_comprobante && <span>Nº {f.numero_comprobante}</span>}
+                  {isAfip && f.cae && <span className="text-emerald-500">CAE {f.cae}</span>}
+                </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="shrink-0 flex flex-wrap gap-2">
+                {facturable ? (
+                  <Button size="sm" onClick={() => onGenerarFactura(f)}>
+                    <FileText className="w-4 h-4 mr-1" />
+                    {isManualSinCae ? "Emitir en AFIP" : "Generar factura"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button size="sm" variant="outline" disabled>
+                      <FileText className="w-4 h-4 mr-1" /> Facturada AFIP
+                    </Button>
+                    {isAfip && (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={() => handleDownload(f.id)} disabled={busyId === f.id + ":pdf"}>
+                          {busyId === f.id + ":pdf" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleResend(f.id)} disabled={busyId === f.id + ":mail"}>
+                          {busyId === f.id + ":mail" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        };
+
+        if (groupByAge) {
+          return (
+            <div className="pb-20">
+              <AgeGroupedList
+                items={filtered}
+                getDate={(f) => f.created_at}
+                renderItem={renderRow}
+              />
+            </div>
+          );
+        }
+        return <div className="space-y-2 pb-20">{filtered.map(renderRow)}</div>;
+      })()}
+
+
 
       {/* Barra fija de bulk */}
       {enableBulk && selectedRows.length > 0 && (

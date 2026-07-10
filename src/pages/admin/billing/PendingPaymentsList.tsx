@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
+import { AgeGroupedList } from "./AgeGroupedList";
 
 /**
  * Lee directamente de `facturacion_cola` — cola de pagos confirmados.
@@ -66,7 +67,7 @@ interface ColaRow {
   factura_cae: string | null;
 }
 
-export function PendingPaymentsList() {
+export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boolean } = {}) {
   const [rows, setRows] = useState<ColaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [rebuilding, setRebuilding] = useState(false);
@@ -386,71 +387,83 @@ export function PendingPaymentsList() {
         <p className="text-sm text-muted-foreground text-center py-8">
           No hay pagos {showFacturadas ? "" : "sin facturar "}para mostrar.
         </p>
-      ) : (
-        <div className="space-y-2 pb-20">
-          {filtered.map((r) => {
-            const facturada = r.estado === "facturada" || (r.factura_estado === "emitida" && !!r.factura_cae);
-            const fecha = new Date(r.pagado_at).toLocaleDateString("es-AR", {
-              day: "numeric", month: "short", year: "numeric",
-              timeZone: "America/Argentina/Buenos_Aires",
-            });
-            const isSelected = selected.has(r.id);
-            const ui = SOURCE_UI[r.source];
+      ) : (() => {
+        const renderRow = (r: ColaRow) => {
+          const facturada = r.estado === "facturada" || (r.factura_estado === "emitida" && !!r.factura_cae);
+          const fecha = new Date(r.pagado_at).toLocaleDateString("es-AR", {
+            day: "numeric", month: "short", year: "numeric",
+            timeZone: "America/Argentina/Buenos_Aires",
+          });
+          const isSelected = selected.has(r.id);
+          const ui = SOURCE_UI[r.source];
 
-            return (
-              <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                {!facturada && (
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => toggleOne(r.id)}
-                    className="mt-1 sm:mt-0 shrink-0"
-                  />
-                )}
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-foreground">{r.cliente_nombre}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${ui.color}`}>{ui.label}</span>
-                    {facturada ? (
-                      <Badge variant="default" className="text-[10px]" title={r.factura_cae ? `CAE ${r.factura_cae}` : undefined}>
-                        Facturada AFIP
-                      </Badge>
-                    ) : r.factura_estado === "error" ? (
-                      <Badge variant="destructive" className="text-[10px]">Error AFIP</Badge>
-                    ) : r.factura_estado ? (
-                      <Badge variant="outline" className="text-[10px]">Pendiente</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-[10px]">Sin factura</Badge>
-                    )}
-                    {r.metodo_pago && (
-                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        {r.metodo_pago}
-                      </span>
-                    )}
-                    {r.motivo_arrastre && (
-                      <span className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded" title={r.motivo_arrastre}>
-                        Arrastre
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{r.concepto}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                    <span>{fecha}</span>
-                    <span className="font-semibold text-foreground">{formatPrice(r.monto, r.moneda as any)}</span>
-                    {r.cliente_cuit && <span>DNI/CUIT {r.cliente_cuit}</span>}
-                  </div>
+          return (
+            <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              {!facturada && (
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => toggleOne(r.id)}
+                  className="mt-1 sm:mt-0 shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-foreground">{r.cliente_nombre}</p>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${ui.color}`}>{ui.label}</span>
+                  {facturada ? (
+                    <Badge variant="default" className="text-[10px]" title={r.factura_cae ? `CAE ${r.factura_cae}` : undefined}>
+                      Facturada AFIP
+                    </Badge>
+                  ) : r.factura_estado === "error" ? (
+                    <Badge variant="destructive" className="text-[10px]">Error AFIP</Badge>
+                  ) : r.factura_estado ? (
+                    <Badge variant="outline" className="text-[10px]">Pendiente</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px]">Sin factura</Badge>
+                  )}
+                  {r.metodo_pago && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      {r.metodo_pago}
+                    </span>
+                  )}
+                  {r.motivo_arrastre && (
+                    <span className="text-[10px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded" title={r.motivo_arrastre}>
+                      Arrastre
+                    </span>
+                  )}
                 </div>
-                <div className="shrink-0">
-                  <BillingInvoiceLauncher
-                    source={toInvoiceSource(r)}
-                    variant="default"
-                    onEmitted={load}
-                  />
+                <p className="text-xs text-muted-foreground">{r.concepto}</p>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                  <span>{fecha}</span>
+                  <span className="font-semibold text-foreground">{formatPrice(r.monto, r.moneda as any)}</span>
+                  {r.cliente_cuit && <span>DNI/CUIT {r.cliente_cuit}</span>}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="shrink-0">
+                <BillingInvoiceLauncher
+                  source={toInvoiceSource(r)}
+                  variant="default"
+                  onEmitted={load}
+                />
+              </div>
+            </div>
+          );
+        };
+
+        if (groupByAge) {
+          return (
+            <div className="pb-20">
+              <AgeGroupedList
+                items={filtered}
+                getDate={(r) => r.pagado_at}
+                renderItem={renderRow}
+              />
+            </div>
+          );
+        }
+        return <div className="space-y-2 pb-20">{filtered.map(renderRow)}</div>;
+      })()}
+
 
       <BulkInvoiceModal
         open={bulkOpen}
