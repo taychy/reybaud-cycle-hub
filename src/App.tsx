@@ -94,6 +94,7 @@ import AdminBajas from "./pages/admin/AdminBajas";
 import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
 import TurneraConfirmacion from "./pages/booking/TurneraConfirmacion";
+import TurneraTransferencia from "./pages/booking/TurneraTransferencia";
 import BookingLanding from "./pages/booking/BookingLanding";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
 import AdminNovedades from "./pages/admin/AdminNovedades";
