@@ -567,26 +567,94 @@ const EventRoadbookEditor = ({ eventId, eventTitle }: Props) => {
           Sin hoteles exactos ni links de GPX. Un link nuevo por cada prospecto.
         </p>
 
-        <div className="rounded-lg border p-3 space-y-2 bg-muted/10">
-          <div className="grid grid-cols-2 gap-2">
-            <Input placeholder="Nombre" value={prosNombre} onChange={(e) => setProsNombre(e.target.value)} />
-            <Input placeholder="Apellido" value={prosApellido} onChange={(e) => setProsApellido(e.target.value)} />
+        <div className="rounded-lg border p-3 space-y-3 bg-muted/10">
+          {/* Tabs elegir origen del prospecto */}
+          <div className="flex gap-1 p-1 rounded-lg bg-muted/40 text-xs">
+            <button
+              type="button"
+              onClick={() => { setProsMode("existing"); clearAlumnoPick(); }}
+              className={`flex-1 py-1.5 rounded-md font-medium transition-colors ${
+                prosMode === "existing" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Alumno existente
+            </button>
+            <button
+              type="button"
+              onClick={() => { setProsMode("new"); clearAlumnoPick(); }}
+              className={`flex-1 py-1.5 rounded-md font-medium transition-colors ${
+                prosMode === "new" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Nuevo prospecto
+            </button>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <Input className="col-span-2" placeholder="email@prospecto.com" type="email" value={prosEmail} onChange={(e) => setProsEmail(e.target.value)} />
+
+          {prosMode === "existing" ? (
+            <div className="space-y-2">
+              <div className="relative">
+                <Input
+                  placeholder="Buscar por nombre o email…"
+                  value={alumnoSearch}
+                  onChange={(e) => { setAlumnoSearch(e.target.value); setSelectedAlumnoId(null); }}
+                />
+                {alumnoSearch.length >= 2 && !selectedAlumnoId && (alumnoResults.length > 0 || alumnoSearching) && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg">
+                    {alumnoSearching && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground animate-pulse">Buscando…</div>
+                    )}
+                    {alumnoResults.map((a) => (
+                      <button
+                        type="button"
+                        key={a.id}
+                        onClick={() => pickAlumno(a)}
+                        className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors border-b last:border-0"
+                      >
+                        <div className="text-sm font-medium">{a.nombre} {a.apellido || ""}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">{a.email}</div>
+                      </button>
+                    ))}
+                    {!alumnoSearching && alumnoResults.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">Sin resultados</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {selectedAlumnoId && (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{prosNombre} {prosApellido}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{prosEmail}</div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={clearAlumnoPick}>Cambiar</Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="Nombre" value={prosNombre} onChange={(e) => setProsNombre(e.target.value)} />
+                <Input placeholder="Apellido" value={prosApellido} onChange={(e) => setProsApellido(e.target.value)} />
+              </div>
+              <Input placeholder="email@prospecto.com" type="email" value={prosEmail} onChange={(e) => setProsEmail(e.target.value)} />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
             <Select value={prosExpira} onValueChange={setProsExpira}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="7">7 días</SelectItem>
                 <SelectItem value="15">15 días</SelectItem>
                 <SelectItem value="30">30 días</SelectItem>
               </SelectContent>
             </Select>
+            <Button className="flex-1" onClick={generateLink} disabled={prosSending || !prosNombre || !prosApellido || !prosEmail}>
+              {prosSending ? "Generando…" : "Generar y enviar link"}
+            </Button>
           </div>
-          <Button className="w-full" onClick={generateLink} disabled={prosSending}>
-            {prosSending ? "Generando…" : "Generar y enviar link"}
-          </Button>
         </div>
+
 
         {links.length > 0 && (
           <div className="space-y-2">
