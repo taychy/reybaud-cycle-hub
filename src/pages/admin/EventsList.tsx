@@ -172,22 +172,34 @@ const EventsList = () => {
     fetchEvents();
   }, []);
 
-  /* ─── Filtering ─── */
-  const filtered = events.filter((e) => {
-    if (tab !== "todos" && !tabGroups[tab].includes(e.type)) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (
-        !e.title.toLowerCase().includes(q) &&
-        !(e.location || "").toLowerCase().includes(q)
-      )
-        return false;
-    }
-    if (statusFilter !== "all" && e.status !== statusFilter) return false;
-    if (publishedFilter === "published" && !e.visible_to_students) return false;
-    if (publishedFilter === "unpublished" && e.visible_to_students) return false;
-    return true;
-  });
+  /* ─── Filtering + Sorting ─── */
+  const filtered = events
+    .filter((e) => {
+      if (tab !== "todos" && !tabGroups[tab].includes(e.type)) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !e.title.toLowerCase().includes(q) &&
+          !(e.location || "").toLowerCase().includes(q)
+        )
+          return false;
+      }
+      if (statusFilter !== "all" && e.status !== statusFilter) return false;
+      if (publishedFilter === "published" && !e.visible_to_students) return false;
+      if (publishedFilter === "unpublished" && e.visible_to_students) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const da = new Date(a.date).getTime();
+      const db = new Date(b.date).getTime();
+      return sortOrder === "desc" ? db - da : da - db;
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [tab, search, statusFilter, publishedFilter, sortOrder]);
 
   /* ─── CRUD ─── */
   const openCreate = () => {
