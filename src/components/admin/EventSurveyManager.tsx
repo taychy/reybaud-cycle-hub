@@ -36,6 +36,12 @@ interface Survey {
   fecha_envio_programada: string | null;
   enviada_at: string | null;
   recipients_count: number | null;
+  mostrar_album: boolean;
+  album_titulo: string | null;
+  album_url: string | null;
+  album_cover_image_url: string | null;
+  album_mensaje: string | null;
+  album_cta_label: string | null;
 }
 
 interface Response {
