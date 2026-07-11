@@ -10,8 +10,6 @@ import {
   Pencil,
   Copy,
   Trash2,
-  Eye,
-  EyeOff,
   CalendarDays,
   SlidersHorizontal,
   X,
@@ -19,7 +17,17 @@ import {
   Link2,
   Trophy,
   Wallet,
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 import { useNavigate } from "react-router-dom";
