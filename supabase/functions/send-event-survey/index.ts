@@ -251,7 +251,15 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
       const messageId = crypto.randomUUID();
       const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.email);
       const subject = `${eventName} · ${survey.titulo}`;
-      const html = wrapHtml(eventName, survey.titulo, r.name.split(' ')[0] || '', survey.descripcion || '', link);
+      const albumCfg: AlbumConfig = {
+        mostrar: !!survey.mostrar_album,
+        titulo: survey.album_titulo,
+        url: survey.album_url,
+        cover: survey.album_cover_image_url,
+        mensaje: survey.album_mensaje,
+        ctaLabel: survey.album_cta_label,
+      };
+      const html = wrapHtml(eventName, survey.titulo, r.name.split(' ')[0] || '', survey.descripcion || '', link, albumCfg);
       const text = `Hola ${r.name}, ${survey.descripcion || 'Nos gustaría conocer tu experiencia.'} Responder: ${link}`;
 
       const { error: enqErr } = await supabase.rpc('enqueue_email', {
