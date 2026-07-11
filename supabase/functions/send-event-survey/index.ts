@@ -305,7 +305,15 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
         mensaje: survey.album_mensaje,
         ctaLabel: survey.album_cta_label,
       };
-      const html = wrapHtml(eventName, survey.titulo, r.name.split(' ')[0] || '', survey.descripcion || '', link, albumCfg);
+      const descuentoCfg: DescuentoConfig = {
+        activo: !!survey.descuento_activo,
+        porcentaje: survey.descuento_porcentaje,
+        titulo: survey.descuento_titulo,
+        mensaje: survey.descuento_mensaje,
+        ctaLabel: survey.descuento_cta_label,
+        url: survey.descuento_url,
+      };
+      const html = wrapHtml(eventName, survey.titulo, r.name.split(' ')[0] || '', survey.descripcion || '', link, albumCfg, descuentoCfg, survey.fecha_limite_respuesta);
       const text = `Hola ${r.name}, ${survey.descripcion || 'Nos gustaría conocer tu experiencia.'} Responder: ${link}`;
 
       const { error: enqErr } = await supabase.rpc('enqueue_email', {
