@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Map, MapPin, Clock, MessageCircle, Mail } from "lucide-react";
+import { Map, MapPin, Clock, MessageCircle, Mail, Ticket } from "lucide-react";
+import { getPublicEventLink } from "@/lib/eventLinks";
 import { Button } from "@/components/ui/button";
 import { normalizeRoadbook, Roadbook } from "@/lib/roadbook";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
@@ -168,17 +169,24 @@ const PublicRoadbookTeaser = () => {
         <div className="rounded-xl border p-5 bg-card text-center space-y-3">
           <div className="font-heading text-sm uppercase tracking-wide">¿Te interesa?</div>
           <p className="text-sm text-muted-foreground">
-            Escribinos para reservar tu lugar o resolver cualquier duda.
+            Reservá tu lugar o sacate cualquier duda por WhatsApp.
           </p>
-          <a
-            href={buildWhatsAppUrl(`Hola! Vi el roadbook de ${event.titulo} y me gustaría más info.`)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Button size="lg" className="w-full sm:w-auto">
-              <MessageCircle className="w-4 h-4 mr-2" /> Hablar por WhatsApp
-            </Button>
-          </a>
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-center pt-1">
+            <a href={getPublicEventLink(event.id)} target="_blank" rel="noreferrer">
+              <Button size="lg" className="w-full sm:w-auto">
+                <Ticket className="w-4 h-4 mr-2" /> Reservar mi lugar
+              </Button>
+            </a>
+            <a
+              href={buildWhatsAppUrl(`Hola! Vi el roadbook de ${event.titulo} y tengo una duda.`)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                <MessageCircle className="w-4 h-4 mr-2" /> Dudas por WhatsApp
+              </Button>
+            </a>
+          </div>
         </div>
 
         <div className="text-center text-[11px] text-muted-foreground pt-4">
