@@ -87,18 +87,23 @@ Deno.serve(async (req) => {
       });
     }
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: link } = await supabase
+    const { data: link, error: linkErr } = await supabase
       .from('roadbook_prospect_links')
-      .select('*, events(titulo, roadbook)')
+      .select('*')
       .eq('id', link_id)
       .maybeSingle();
-    if (!link) {
-      return new Response(JSON.stringify({ error: 'Link not found' }), {
+    if (linkErr || !link) {
+      return new Response(JSON.stringify({ error: 'Link not found', details: linkErr?.message }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const rb = ((link as any).events?.roadbook || {}) as any;
-    const eventTitle = (link as any).events?.titulo || 'Camp';
+    const { data: eventRow } = await supabase
+      .from('events')
+      .select('titulo, roadbook')
+      .eq('id', (link as any).event_id)
+      .maybeSingle();
+    const rb = ((eventRow as any)?.roadbook || {}) as any;
+    const eventTitle = (eventRow as any)?.titulo || 'Camp';
     const url = `${PUBLIC_APP_URL}/roadbook/${(link as any).token}`;
     const dias = Array.isArray(rb.dias) ? rb.dias : [];
 
