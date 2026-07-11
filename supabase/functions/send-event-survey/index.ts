@@ -47,14 +47,53 @@ const getOrCreateUnsubscribeToken = async (supabase: any, email: string) => {
   throw error ?? new Error('Could not create unsubscribe token');
 };
 
-const wrapHtml = (eventName: string, title: string, name: string, description: string, link: string) => `
+interface AlbumConfig {
+  mostrar: boolean;
+  titulo?: string | null;
+  url?: string | null;
+  cover?: string | null;
+  mensaje?: string | null;
+  ctaLabel?: string | null;
+}
+
+const wrapHtml = (
+  eventName: string,
+  title: string,
+  name: string,
+  description: string,
+  link: string,
+  album: AlbumConfig,
+  isTest = false,
+) => {
+  const albumBlock = album.mostrar && album.url
+    ? `
+    <div style="background:#0b1220;border-radius:14px;padding:0;overflow:hidden;margin-bottom:22px;">
+      ${album.cover ? `<a href="${album.url}" style="display:block;"><img src="${album.cover}" alt="${album.titulo || 'Álbum del viaje'}" style="display:block;width:100%;height:auto;max-height:280px;object-fit:cover;border:0;"/></a>` : ''}
+      <div style="padding:22px 24px;color:#f5f5f5;">
+        <div style="font-size:11px;letter-spacing:.22em;color:#06b6d4;text-transform:uppercase;margin-bottom:8px;">📸 Álbum de fotos</div>
+        <h2 style="margin:0 0 10px;font-size:20px;color:#fff;font-weight:700;">${album.titulo || 'Las fotos del viaje ya están acá'}</h2>
+        ${album.mensaje ? `<p style="margin:0 0 16px;color:#d4d4d8;font-size:14px;line-height:1.55;">${album.mensaje}</p>` : ''}
+        <div>
+          <a href="${album.url}" style="display:inline-block;background:#06b6d4;color:#0b1220;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">${album.ctaLabel || 'Ver el álbum completo'}</a>
+        </div>
+      </div>
+    </div>`
+    : '';
+
+  const testBanner = isTest
+    ? `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#78350f;padding:10px 14px;border-radius:10px;margin-bottom:16px;font-size:13px;text-align:center;">⚠️ Envío de prueba · Este mail no se registró como enviado a los participantes.</div>`
+    : '';
+
+  return `
 <!doctype html>
 <html><body style="margin:0;padding:0;background:#ffffff;font-family:Inter,Arial,sans-serif;color:#111;">
   <div style="max-width:600px;margin:0 auto;padding:24px;">
+    ${testBanner}
     <div style="border-left:3px solid #f97316;padding-left:14px;margin-bottom:22px;">
       <div style="font-size:12px;letter-spacing:.18em;color:#06b6d4;text-transform:uppercase;">${eventName}</div>
       <h1 style="margin:6px 0 0;font-size:24px;color:#111;font-weight:700;">${title}</h1>
     </div>
+    ${albumBlock}
     <div style="background:#fafafa;border:1px solid #e5e5e5;border-radius:14px;padding:24px;line-height:1.6;color:#222;font-size:15px;">
       <p style="margin:0 0 12px;">Hola ${name || 'ciclista'},</p>
       <p style="margin:0 0 12px;">${description || 'Nos encantaría conocer tu experiencia y qué podemos mejorar para los próximos camps. Tu opinión es clave.'}</p>
@@ -69,6 +108,7 @@ const wrapHtml = (eventName: string, title: string, name: string, description: s
     </div>
   </div>
 </body></html>`;
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
