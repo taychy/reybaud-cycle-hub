@@ -186,6 +186,11 @@ const EventRoadbookEditor = ({ eventId, eventTitle }: Props) => {
   const [prosEmail, setProsEmail] = useState("");
   const [prosExpira, setProsExpira] = useState("15");
   const [prosSending, setProsSending] = useState(false);
+  const [prosMode, setProsMode] = useState<"existing" | "new">("existing");
+  const [alumnoSearch, setAlumnoSearch] = useState("");
+  const [alumnoResults, setAlumnoResults] = useState<Array<{ id: string; nombre: string; apellido: string | null; email: string }>>([]);
+  const [alumnoSearching, setAlumnoSearching] = useState(false);
+  const [selectedAlumnoId, setSelectedAlumnoId] = useState<string | null>(null);
 
   const dirty = useMemo(() => {
     if (!loadedRb) return false;
