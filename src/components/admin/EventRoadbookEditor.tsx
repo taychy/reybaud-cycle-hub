@@ -367,7 +367,7 @@ const EventRoadbookEditor = ({ eventId, eventTitle }: Props) => {
   return (
     <div className="space-y-4">
       {/* ─── Sticky bar ─── */}
-      <div className="sticky top-0 z-10 -mx-3 sm:-mx-4 px-3 sm:px-4 py-3 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 flex-wrap">
+      <div className="-mx-3 sm:-mx-4 px-3 sm:px-4 py-3 bg-background border-b flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <Map className="w-5 h-5 text-primary shrink-0" />
           <h3 className="font-heading font-semibold text-sm uppercase tracking-wide truncate">Roadbook del viaje</h3>
