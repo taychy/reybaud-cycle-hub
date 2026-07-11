@@ -141,6 +141,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Test-send mode: only one recipient, no state mutations
+    if (payload.test_email) {
+      const result = await sendTestSurvey(supabase, payload.survey_id, payload.test_email, payload.test_name);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const result = await processSurvey(supabase, payload.survey_id, !!payload.force);
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
