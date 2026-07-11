@@ -186,6 +186,7 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     if ((data as any)?.error) { toast({ title: "Error", description: (data as any).error, variant: "destructive" }); return; }
     toast({ title: `Email de prueba enviado a ${email}.`, description: "Revisá la bandeja (y spam) en unos segundos." });
+  };
 
   const scheduleAt = async (isoLocal: string) => {
     if (!survey) return;
