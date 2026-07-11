@@ -159,6 +159,34 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
     load();
   };
 
+  const sendTest = async () => {
+    if (!survey) return;
+    const email = testEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "Ingresá un email válido.", variant: "destructive" });
+      return;
+    }
+    // Guardar antes por si el usuario cambió título/descripción/álbum
+    await save({
+      titulo: survey.titulo,
+      descripcion: survey.descripcion,
+      preguntas: survey.preguntas,
+      mostrar_album: survey.mostrar_album,
+      album_titulo: survey.album_titulo,
+      album_url: survey.album_url,
+      album_cover_image_url: survey.album_cover_image_url,
+      album_mensaje: survey.album_mensaje,
+      album_cta_label: survey.album_cta_label,
+    });
+    setSendingTest(true);
+    const { data, error } = await supabase.functions.invoke("send-event-survey", {
+      body: { survey_id: survey.id, test_email: email, test_name: "Prueba" },
+    });
+    setSendingTest(false);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if ((data as any)?.error) { toast({ title: "Error", description: (data as any).error, variant: "destructive" }); return; }
+    toast({ title: `Email de prueba enviado a ${email}.`, description: "Revisá la bandeja (y spam) en unos segundos." });
+
   const scheduleAt = async (isoLocal: string) => {
     if (!survey) return;
     const iso = new Date(isoLocal).toISOString();
