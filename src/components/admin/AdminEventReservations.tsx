@@ -1659,6 +1659,18 @@ const AdminEventReservations = ({
               );
             })}
           </div>
+          {filtered.length > CLIENT_PREVIEW_COUNT && (
+            <button
+              type="button"
+              onClick={() => setShowAllClientes((s) => !s)}
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3 rounded-lg border border-border/60 bg-muted/10 hover:bg-muted/30 transition-colors text-sm font-medium"
+            >
+              {showAllClientes
+                ? `Mostrar solo ${CLIENT_PREVIEW_COUNT}`
+                : `Ver los ${filtered.length} ${isSchoolEvent ? "inscriptos" : "clientes"}`}
+              <ChevronRight className={`w-4 h-4 transition-transform ${showAllClientes ? "-rotate-90" : "rotate-90"}`} />
+            </button>
+          )}
         </div>
       )}
 
