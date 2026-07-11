@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ClipboardList, Send, CalendarClock, BarChart3, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Send, CalendarClock, BarChart3, Plus, Trash2, Image as ImageIcon, TestTube2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
