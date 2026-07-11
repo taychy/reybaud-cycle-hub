@@ -1526,7 +1526,7 @@ const AdminEventReservations = ({
 
           {/* Rows */}
           <div className="divide-y divide-border">
-            {filtered.map((r) => {
+            {(showAllClientes ? filtered : filtered.slice(0, CLIENT_PREVIEW_COUNT)).map((r) => {
               const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
               const c = curr(r);
               const p = getParticipant(r);
