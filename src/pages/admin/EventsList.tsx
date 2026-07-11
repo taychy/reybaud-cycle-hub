@@ -147,6 +147,9 @@ const EventsList = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [publishedFilter, setPublishedFilter] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // Form state
   const [formOpen, setFormOpen] = useState(false);
