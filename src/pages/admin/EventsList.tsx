@@ -329,7 +329,7 @@ const EventsList = () => {
         })}
       </div>
 
-      {/* Search + Secondary Filters */}
+      {/* Search + Sort + Filters toggle */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -340,6 +340,13 @@ const EventsList = () => {
             className="pl-10"
           />
         </div>
+        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "desc" | "asc")}>
+          <SelectTrigger className="w-44 shrink-0"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="desc">Fecha (más reciente)</SelectItem>
+            <SelectItem value="asc">Fecha (más antigua)</SelectItem>
+          </SelectContent>
+        </Select>
         <Button
           variant={activeFilters ? "default" : "outline"}
           size="icon"
