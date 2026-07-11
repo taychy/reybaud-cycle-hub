@@ -17,6 +17,8 @@ interface Payload {
   scheduled?: boolean; // called from cron
   force?: boolean;
   enviado_por?: string | null;
+  test_email?: string; // if set: only sends preview to this address, no state changes
+  test_name?: string;
 }
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
