@@ -409,14 +409,37 @@ const EventsList = () => {
           <p className="text-sm">No hay eventos que coincidan.</p>
         </div>
       ) : (
+        <>
         <div className="space-y-2">
-          {filtered.map((ev) => {
+          {pageItems.map((ev) => {
             const d = new Date(ev.date + "T12:00:00");
             const dateStr = d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
             const endDateStr = ev.end_date && ev.end_date !== ev.date
               ? new Date(ev.end_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
               : null;
-            const st = statusLabels[ev.status] || statusLabels.borrador;
+
+            // Combined status badge
+            let combinedLabel = "";
+            let combinedClass = "";
+            if (ev.status === "publicado") {
+              if (ev.visible_to_students) {
+                combinedLabel = "Publicado y visible";
+                combinedClass = "border-emerald-500/50 text-emerald-400 bg-emerald-500/10";
+              } else {
+                combinedLabel = "Publicado · oculto";
+                combinedClass = "border-emerald-500/40 text-emerald-300/80";
+              }
+            } else if (ev.status === "finalizado") {
+              combinedLabel = `Finalizado · ${ev.visible_to_students ? "visible" : "oculto"}`;
+              combinedClass = "border-muted text-muted-foreground";
+            } else if (ev.status === "cancelado") {
+              combinedLabel = `Cancelado · ${ev.visible_to_students ? "visible" : "oculto"}`;
+              combinedClass = "border-red-500/50 text-red-400";
+            } else {
+              combinedLabel = `Borrador · ${ev.visible_to_students ? "visible" : "oculto"}`;
+              combinedClass = "border-yellow-500/50 text-yellow-400";
+            }
+
             return (
               <div
                 key={ev.id}
@@ -425,96 +448,125 @@ const EventsList = () => {
                 {/* Info */}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-sm truncate">{ev.title}</h3>
+                    <h3 className="font-semibold text-sm">{ev.title}</h3>
                     {typeBadge(ev.type)}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <CalendarDays className="w-3 h-3" /> {dateStr}{endDateStr ? ` → ${endDateStr}` : ""}
                     </span>
-                    {ev.location && <span className="truncate">{ev.location}</span>}
+                    {ev.location && <span>· {ev.location}</span>}
                   </div>
                 </div>
 
-                {/* Status badges */}
+                {/* Combined status */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className={`text-[10px] ${st.color}`}>
-                    {st.label}
+                  <Badge variant="outline" className={`text-[10px] ${combinedClass}`}>
+                    {combinedLabel}
                   </Badge>
-                  {ev.visible_to_students ? (
-                    <Badge variant="outline" className="text-[10px] border-sky-500/50 text-sky-400 gap-1">
-                      <Eye className="w-3 h-3" /> Visible
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px] border-muted text-muted-foreground gap-1">
-                      <EyeOff className="w-3 h-3" /> Oculto
-                    </Badge>
-                  )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => setReservationsEvent(ev)} title="Reservas">
-                    <Users className="w-4 h-4" />
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(ev)}>
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" /> Editar
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setFinanceEvent(ev)} title="Finanzas del evento">
-                    <Wallet className="w-4 h-4" />
-                  </Button>
-                  {ev.type === "record_hora" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`/admin/eventos/participantes?eventId=${ev.id}`)}
-                      title="Participantes y resultados"
-                    >
-                      <Trophy className="w-4 h-4" />
-                    </Button>
-                  )}
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={async () => {
-                      const url = getPublicEventLink(ev.id);
-                      const ok = await copyToClipboard(url);
-                      toast({
-                        title: ok ? "Link copiado" : "No se pudo copiar",
-                        description: ok ? url : "Copialo manualmente desde el detalle del evento.",
-                      });
-                    }}
-                    title="Copiar link público"
+                    onClick={() => window.open(getPublicEventLink(ev.id), "_blank")}
                   >
-                    <Link2 className="w-4 h-4" />
+                    Ver
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(ev)} title="Editar">
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => duplicateEvent(ev)} title="Duplicar">
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" title="Eliminar">
-                        <Trash2 className="w-4 h-4" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" className="h-9 w-9">
+                        <MoreHorizontal className="w-4 h-4" />
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar "{ev.title}"?</AlertDialogTitle>
-                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteEvent(ev.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => setReservationsEvent(ev)}>
+                        <Users className="w-4 h-4 mr-2" /> Gestión
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setFinanceEvent(ev)}>
+                        <Wallet className="w-4 h-4 mr-2" /> Finanzas
+                      </DropdownMenuItem>
+                      {ev.type === "record_hora" && (
+                        <DropdownMenuItem onClick={() => navigate(`/admin/eventos/participantes?eventId=${ev.id}`)}>
+                          <Trophy className="w-4 h-4 mr-2" /> Participantes y resultados
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const url = getPublicEventLink(ev.id);
+                          const ok = await copyToClipboard(url);
+                          toast({
+                            title: ok ? "Link copiado" : "No se pudo copiar",
+                            description: ok ? url : "Copialo manualmente desde el detalle del evento.",
+                          });
+                        }}
+                      >
+                        <Link2 className="w-4 h-4 mr-2" /> Copiar link público
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => duplicateEvent(ev)}>
+                        <Copy className="w-4 h-4 mr-2" /> Duplicar evento
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" /> Eliminar evento
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar "{ev.title}"?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteEvent(ev.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+        </>
       )}
 
       {/* Create / Edit Sheet – wide right-side drawer */}
