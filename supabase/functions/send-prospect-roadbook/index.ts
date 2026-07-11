@@ -99,11 +99,11 @@ Deno.serve(async (req) => {
     }
     const { data: eventRow } = await supabase
       .from('events')
-      .select('titulo, roadbook')
+      .select('title, roadbook')
       .eq('id', (link as any).event_id)
       .maybeSingle();
     const rb = ((eventRow as any)?.roadbook || {}) as any;
-    const eventTitle = (eventRow as any)?.titulo || 'Camp';
+    const eventTitle = (eventRow as any)?.title || 'Camp';
     const url = `${PUBLIC_APP_URL}/roadbook/${(link as any).token}`;
     const dias = Array.isArray(rb.dias) ? rb.dias : [];
 
