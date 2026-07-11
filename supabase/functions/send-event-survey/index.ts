@@ -297,3 +297,78 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
 
   return { sent, failed, total: recipients.length };
 }
+
+async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string, testName?: string) {
+  const { data: survey } = await supabase
+    .from('event_surveys')
+    .select('*, events(title)')
+    .eq('id', surveyId)
+    .maybeSingle();
+  if (!survey) return { error: 'Survey not found' };
+
+  const eventName = survey.events?.title || 'Evento';
+  const email = normalizeEmail(testEmail);
+  const displayName = testName?.trim() || 'Prueba';
+
+  // Reuse-or-create a token so el link funcione realmente en el preview
+  let token = '';
+  const { data: existingToken } = await supabase
+    .from('event_survey_tokens')
+    .select('token')
+    .eq('survey_id', surveyId)
+    .eq('recipient_email', email)
+    .maybeSingle();
+  if (existingToken?.token) {
+    token = existingToken.token;
+  } else {
+    const { data: newTok, error: tokErr } = await supabase
+      .from('event_survey_tokens')
+      .insert({
+        survey_id: surveyId,
+        event_id: survey.event_id,
+        recipient_email: email,
+        recipient_name: displayName,
+      })
+      .select('token')
+      .single();
+    if (tokErr) return { error: 'Token error', details: tokErr.message };
+    token = newTok?.token || '';
+  }
+  if (!token) return { error: 'Could not create token' };
+
+  const link = `${PUBLIC_APP_URL}/encuesta/${token}`;
+  const albumCfg: AlbumConfig = {
+    mostrar: !!survey.mostrar_album,
+    titulo: survey.album_titulo,
+    url: survey.album_url,
+    cover: survey.album_cover_image_url,
+    mensaje: survey.album_mensaje,
+    ctaLabel: survey.album_cta_label,
+  };
+
+  const messageId = crypto.randomUUID();
+  const unsubToken = await getOrCreateUnsubscribeToken(supabase, testEmail);
+  const subject = `[PRUEBA] ${eventName} · ${survey.titulo}`;
+  const html = wrapHtml(eventName, survey.titulo, displayName.split(' ')[0], survey.descripcion || '', link, albumCfg, true);
+  const text = `[PRUEBA] Hola ${displayName}, ${survey.descripcion || ''} Responder: ${link}`;
+
+  const { error: enqErr } = await supabase.rpc('enqueue_email', {
+    queue_name: 'transactional_emails',
+    payload: {
+      message_id: messageId,
+      to: testEmail,
+      from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject,
+      html,
+      text,
+      purpose: 'transactional',
+      label: 'event_survey_test',
+      idempotency_key: `event-survey-test-${surveyId}-${email}-${Date.now()}`,
+      unsubscribe_token: unsubToken,
+      queued_at: new Date().toISOString(),
+    },
+  });
+  if (enqErr) return { error: 'Enqueue failed', details: enqErr.message };
+  return { test: true, sent: 1, to: testEmail };
+}
