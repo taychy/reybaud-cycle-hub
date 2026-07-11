@@ -73,6 +73,8 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [testEmail, setTestEmail] = useState("scarlettbonatto@gmail.com");
+  const [sendingTest, setSendingTest] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
 
   const load = async () => {
