@@ -340,6 +340,7 @@ const EventRoadbookEditor = ({ eventId, eventTitle }: Props) => {
       toast({ title: "Link enviado", description: `${prosEmail} recibirá el mail en breve.` });
     }
     setProsNombre(""); setProsApellido(""); setProsEmail("");
+    setSelectedAlumnoId(null); setAlumnoSearch(""); setAlumnoResults([]);
     loadLinks();
   };
 
