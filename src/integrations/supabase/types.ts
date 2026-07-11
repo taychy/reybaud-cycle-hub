@@ -6785,6 +6785,83 @@ export type Database = {
           },
         ]
       }
+      roadbook_prospect_links: {
+        Row: {
+          apellido: string
+          created_at: string
+          created_by: string | null
+          email: string
+          event_id: string
+          expires_at: string
+          id: string
+          nombre: string
+          open_count: number
+          opened_at: string | null
+          token: string
+        }
+        Insert: {
+          apellido: string
+          created_at?: string
+          created_by?: string | null
+          email: string
+          event_id: string
+          expires_at: string
+          id?: string
+          nombre: string
+          open_count?: number
+          opened_at?: string | null
+          token: string
+        }
+        Update: {
+          apellido?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          event_id?: string
+          expires_at?: string
+          id?: string
+          nombre?: string
+          open_count?: number
+          opened_at?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadbook_prospect_links_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadbook_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          nombre: string
+          roadbook: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre: string
+          roadbook: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre?: string
+          roadbook?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sedes: {
         Row: {
           activa: boolean
@@ -9208,6 +9285,7 @@ export type Database = {
           plan_id: string
         }[]
       }
+      get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
       get_reservas_turnera_ocupadas: {
         Args: { p_desde: string; p_hasta: string; p_servicio_id: string }
         Returns: {
