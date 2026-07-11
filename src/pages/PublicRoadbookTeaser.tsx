@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Map, MapPin, Clock, MessageCircle, Mail } from "lucide-react";
+import { Map, MapPin, Clock, MessageCircle, Mail, Ticket } from "lucide-react";
+import { getPublicEventLink } from "@/lib/eventLinks";
 import { Button } from "@/components/ui/button";
 import { normalizeRoadbook, Roadbook } from "@/lib/roadbook";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
