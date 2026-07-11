@@ -1406,19 +1406,6 @@ const AdminEventReservations = ({
           <RefreshCw className="w-4 h-4" />
         </Button>
         {isTripLike && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10"
-            onClick={sendBulkChecklistReminder}
-            disabled={sendingBulkReminder}
-            title="Enviar recordatorio de preparación del viaje a participantes confirmados"
-          >
-            {sendingBulkReminder ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Bell className="w-4 h-4 mr-1.5" />}
-            Recordar preparación
-          </Button>
-        )}
-        {isTripLike && (
           <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
             <FileText className="w-4 h-4 mr-1.5" /> Reportes
           </Button>
