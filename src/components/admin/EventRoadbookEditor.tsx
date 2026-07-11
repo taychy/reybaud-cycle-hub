@@ -226,6 +226,40 @@ const EventRoadbookEditor = ({ eventId, eventTitle }: Props) => {
 
   useEffect(() => { load(); loadTemplates(); loadLinks(); }, [load, loadTemplates, loadLinks]);
 
+  // Búsqueda de alumnos existentes (debounced)
+  useEffect(() => {
+    const q = alumnoSearch.trim();
+    if (q.length < 2) { setAlumnoResults([]); return; }
+    let cancelled = false;
+    setAlumnoSearching(true);
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("alumnos")
+        .select("id, nombre, apellido, email")
+        .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
+        .limit(8);
+      if (!cancelled) {
+        setAlumnoResults((data as any[]) || []);
+        setAlumnoSearching(false);
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [alumnoSearch]);
+
+  const pickAlumno = (a: { id: string; nombre: string; apellido: string | null; email: string }) => {
+    setSelectedAlumnoId(a.id);
+    setProsNombre(a.nombre || "");
+    setProsApellido(a.apellido || "");
+    setProsEmail(a.email || "");
+    setAlumnoSearch(`${a.nombre} ${a.apellido || ""}`.trim());
+    setAlumnoResults([]);
+  };
+  const clearAlumnoPick = () => {
+    setSelectedAlumnoId(null);
+    setAlumnoSearch("");
+    setProsNombre(""); setProsApellido(""); setProsEmail("");
+  };
+
   const save = async () => {
     setSaving(true);
     const { error } = await supabase.from("events" as any).update({ roadbook: rb as any }).eq("id", eventId);
