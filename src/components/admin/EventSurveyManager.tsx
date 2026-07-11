@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ClipboardList, Send, CalendarClock, BarChart3, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Send, CalendarClock, BarChart3, Plus, Trash2, Image as ImageIcon, TestTube2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -36,6 +36,12 @@ interface Survey {
   fecha_envio_programada: string | null;
   enviada_at: string | null;
   recipients_count: number | null;
+  mostrar_album: boolean;
+  album_titulo: string | null;
+  album_url: string | null;
+  album_cover_image_url: string | null;
+  album_mensaje: string | null;
+  album_cta_label: string | null;
 }
 
 interface Response {
@@ -67,6 +73,8 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [testEmail, setTestEmail] = useState("scarlettbonatto@gmail.com");
+  const [sendingTest, setSendingTest] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
 
   const load = async () => {
@@ -149,6 +157,35 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
     if (error) { toast({ title: "Error al enviar", description: error.message, variant: "destructive" }); return; }
     toast({ title: `Enviada a ${(data as any)?.sent || 0} participantes.` });
     load();
+  };
+
+  const sendTest = async () => {
+    if (!survey) return;
+    const email = testEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "Ingresá un email válido.", variant: "destructive" });
+      return;
+    }
+    // Guardar antes por si el usuario cambió título/descripción/álbum
+    await save({
+      titulo: survey.titulo,
+      descripcion: survey.descripcion,
+      preguntas: survey.preguntas,
+      mostrar_album: survey.mostrar_album,
+      album_titulo: survey.album_titulo,
+      album_url: survey.album_url,
+      album_cover_image_url: survey.album_cover_image_url,
+      album_mensaje: survey.album_mensaje,
+      album_cta_label: survey.album_cta_label,
+    });
+    setSendingTest(true);
+    const { data, error } = await supabase.functions.invoke("send-event-survey", {
+      body: { survey_id: survey.id, test_email: email, test_name: "Prueba" },
+    });
+    setSendingTest(false);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if ((data as any)?.error) { toast({ title: "Error", description: (data as any).error, variant: "destructive" }); return; }
+    toast({ title: `Email de prueba enviado a ${email}.`, description: "Revisá la bandeja (y spam) en unos segundos." });
   };
 
   const scheduleAt = async (isoLocal: string) => {
@@ -264,6 +301,110 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
           </Button>
         </div>
       </div>
+
+      {/* ÁLBUM DE FOTOS (configurable por viaje) */}
+      <div className="rounded-lg border p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-primary" />
+            <p className="text-sm font-medium">Álbum de fotos del viaje</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={survey.mostrar_album}
+              onCheckedChange={(v) => save({ mostrar_album: v })}
+            />
+            <Label className="text-xs">Incluir en el email</Label>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Estos campos son propios de cada viaje y se guardan por evento. Podés reutilizar la estructura en los próximos.
+        </p>
+        <div className={survey.mostrar_album ? "grid gap-3 opacity-100" : "grid gap-3 opacity-50 pointer-events-none"}>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Título del bloque</Label>
+            <Input
+              placeholder="Ej: Las fotos de Girona 2026 ya están acá"
+              value={survey.album_titulo || ""}
+              onChange={(e) => setSurvey({ ...survey, album_titulo: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Link del álbum (Google Photos, Drive, iCloud…)</Label>
+            <Input
+              placeholder="https://photos.app.goo.gl/…"
+              value={survey.album_url || ""}
+              onChange={(e) => setSurvey({ ...survey, album_url: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Imagen de portada (URL pública opcional)</Label>
+            <Input
+              placeholder="https://…/portada.jpg"
+              value={survey.album_cover_image_url || ""}
+              onChange={(e) => setSurvey({ ...survey, album_cover_image_url: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Mensaje corto (aparece bajo el título)</Label>
+            <Textarea
+              rows={2}
+              placeholder="Un vistazo de todo lo que vivimos. Guardala y compartila con los tuyos."
+              value={survey.album_mensaje || ""}
+              onChange={(e) => setSurvey({ ...survey, album_mensaje: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Texto del botón</Label>
+            <Input
+              placeholder="Ver el álbum completo"
+              value={survey.album_cta_label || ""}
+              onChange={(e) => setSurvey({ ...survey, album_cta_label: e.target.value })}
+            />
+          </div>
+          <Button
+            variant="gold"
+            size="sm"
+            onClick={() => save({
+              mostrar_album: survey.mostrar_album,
+              album_titulo: survey.album_titulo,
+              album_url: survey.album_url,
+              album_cover_image_url: survey.album_cover_image_url,
+              album_mensaje: survey.album_mensaje,
+              album_cta_label: survey.album_cta_label,
+            }).then(() => toast({ title: "Álbum guardado." }))}
+            className="justify-self-start"
+          >
+            Guardar álbum
+          </Button>
+        </div>
+      </div>
+
+      {/* ENVÍO DE PRUEBA */}
+      <div className="rounded-lg border border-dashed p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <TestTube2 className="w-4 h-4 text-primary" />
+          <p className="text-sm font-medium">Envío de prueba</p>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Manda una copia del email tal cual lo recibirán los participantes (con álbum + encuesta). No marca la encuesta como enviada.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="tu@email.com"
+            className="flex-1"
+          />
+          <Button variant="outline" size="sm" onClick={sendTest} disabled={sendingTest}>
+            <Send className="w-4 h-4 mr-1" />
+            {sendingTest ? "Enviando…" : "Enviar prueba"}
+          </Button>
+        </div>
+      </div>
+
+
 
       <div className="rounded-lg border p-3 space-y-3">
         <div className="flex items-center gap-2">

@@ -17,6 +17,8 @@ interface Payload {
   scheduled?: boolean; // called from cron
   force?: boolean;
   enviado_por?: string | null;
+  test_email?: string; // if set: only sends preview to this address, no state changes
+  test_name?: string;
 }
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
@@ -45,14 +47,53 @@ const getOrCreateUnsubscribeToken = async (supabase: any, email: string) => {
   throw error ?? new Error('Could not create unsubscribe token');
 };
 
-const wrapHtml = (eventName: string, title: string, name: string, description: string, link: string) => `
+interface AlbumConfig {
+  mostrar: boolean;
+  titulo?: string | null;
+  url?: string | null;
+  cover?: string | null;
+  mensaje?: string | null;
+  ctaLabel?: string | null;
+}
+
+const wrapHtml = (
+  eventName: string,
+  title: string,
+  name: string,
+  description: string,
+  link: string,
+  album: AlbumConfig,
+  isTest = false,
+) => {
+  const albumBlock = album.mostrar && album.url
+    ? `
+    <div style="background:#0b1220;border-radius:14px;padding:0;overflow:hidden;margin-bottom:22px;">
+      ${album.cover ? `<a href="${album.url}" style="display:block;"><img src="${album.cover}" alt="${album.titulo || 'Álbum del viaje'}" style="display:block;width:100%;height:auto;max-height:280px;object-fit:cover;border:0;"/></a>` : ''}
+      <div style="padding:22px 24px;color:#f5f5f5;">
+        <div style="font-size:11px;letter-spacing:.22em;color:#06b6d4;text-transform:uppercase;margin-bottom:8px;">📸 Álbum de fotos</div>
+        <h2 style="margin:0 0 10px;font-size:20px;color:#fff;font-weight:700;">${album.titulo || 'Las fotos del viaje ya están acá'}</h2>
+        ${album.mensaje ? `<p style="margin:0 0 16px;color:#d4d4d8;font-size:14px;line-height:1.55;">${album.mensaje}</p>` : ''}
+        <div>
+          <a href="${album.url}" style="display:inline-block;background:#06b6d4;color:#0b1220;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">${album.ctaLabel || 'Ver el álbum completo'}</a>
+        </div>
+      </div>
+    </div>`
+    : '';
+
+  const testBanner = isTest
+    ? `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#78350f;padding:10px 14px;border-radius:10px;margin-bottom:16px;font-size:13px;text-align:center;">⚠️ Envío de prueba · Este mail no se registró como enviado a los participantes.</div>`
+    : '';
+
+  return `
 <!doctype html>
 <html><body style="margin:0;padding:0;background:#ffffff;font-family:Inter,Arial,sans-serif;color:#111;">
   <div style="max-width:600px;margin:0 auto;padding:24px;">
+    ${testBanner}
     <div style="border-left:3px solid #f97316;padding-left:14px;margin-bottom:22px;">
       <div style="font-size:12px;letter-spacing:.18em;color:#06b6d4;text-transform:uppercase;">${eventName}</div>
       <h1 style="margin:6px 0 0;font-size:24px;color:#111;font-weight:700;">${title}</h1>
     </div>
+    ${albumBlock}
     <div style="background:#fafafa;border:1px solid #e5e5e5;border-radius:14px;padding:24px;line-height:1.6;color:#222;font-size:15px;">
       <p style="margin:0 0 12px;">Hola ${name || 'ciclista'},</p>
       <p style="margin:0 0 12px;">${description || 'Nos encantaría conocer tu experiencia y qué podemos mejorar para los próximos camps. Tu opinión es clave.'}</p>
@@ -67,6 +108,7 @@ const wrapHtml = (eventName: string, title: string, name: string, description: s
     </div>
   </div>
 </body></html>`;
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -96,6 +138,14 @@ Deno.serve(async (req) => {
     if (!payload.survey_id) {
       return new Response(JSON.stringify({ error: 'survey_id required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Test-send mode: only one recipient, no state mutations
+    if (payload.test_email) {
+      const result = await sendTestSurvey(supabase, payload.survey_id, payload.test_email, payload.test_name);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -201,7 +251,15 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
       const messageId = crypto.randomUUID();
       const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.email);
       const subject = `${eventName} · ${survey.titulo}`;
-      const html = wrapHtml(eventName, survey.titulo, r.name.split(' ')[0] || '', survey.descripcion || '', link);
+      const albumCfg: AlbumConfig = {
+        mostrar: !!survey.mostrar_album,
+        titulo: survey.album_titulo,
+        url: survey.album_url,
+        cover: survey.album_cover_image_url,
+        mensaje: survey.album_mensaje,
+        ctaLabel: survey.album_cta_label,
+      };
+      const html = wrapHtml(eventName, survey.titulo, r.name.split(' ')[0] || '', survey.descripcion || '', link, albumCfg);
       const text = `Hola ${r.name}, ${survey.descripcion || 'Nos gustaría conocer tu experiencia.'} Responder: ${link}`;
 
       const { error: enqErr } = await supabase.rpc('enqueue_email', {
@@ -238,4 +296,79 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
     .eq('id', surveyId);
 
   return { sent, failed, total: recipients.length };
+}
+
+async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string, testName?: string) {
+  const { data: survey } = await supabase
+    .from('event_surveys')
+    .select('*, events(title)')
+    .eq('id', surveyId)
+    .maybeSingle();
+  if (!survey) return { error: 'Survey not found' };
+
+  const eventName = survey.events?.title || 'Evento';
+  const email = normalizeEmail(testEmail);
+  const displayName = testName?.trim() || 'Prueba';
+
+  // Reuse-or-create a token so el link funcione realmente en el preview
+  let token = '';
+  const { data: existingToken } = await supabase
+    .from('event_survey_tokens')
+    .select('token')
+    .eq('survey_id', surveyId)
+    .eq('recipient_email', email)
+    .maybeSingle();
+  if (existingToken?.token) {
+    token = existingToken.token;
+  } else {
+    const { data: newTok, error: tokErr } = await supabase
+      .from('event_survey_tokens')
+      .insert({
+        survey_id: surveyId,
+        event_id: survey.event_id,
+        recipient_email: email,
+        recipient_name: displayName,
+      })
+      .select('token')
+      .single();
+    if (tokErr) return { error: 'Token error', details: tokErr.message };
+    token = newTok?.token || '';
+  }
+  if (!token) return { error: 'Could not create token' };
+
+  const link = `${PUBLIC_APP_URL}/encuesta/${token}`;
+  const albumCfg: AlbumConfig = {
+    mostrar: !!survey.mostrar_album,
+    titulo: survey.album_titulo,
+    url: survey.album_url,
+    cover: survey.album_cover_image_url,
+    mensaje: survey.album_mensaje,
+    ctaLabel: survey.album_cta_label,
+  };
+
+  const messageId = crypto.randomUUID();
+  const unsubToken = await getOrCreateUnsubscribeToken(supabase, testEmail);
+  const subject = `[PRUEBA] ${eventName} · ${survey.titulo}`;
+  const html = wrapHtml(eventName, survey.titulo, displayName.split(' ')[0], survey.descripcion || '', link, albumCfg, true);
+  const text = `[PRUEBA] Hola ${displayName}, ${survey.descripcion || ''} Responder: ${link}`;
+
+  const { error: enqErr } = await supabase.rpc('enqueue_email', {
+    queue_name: 'transactional_emails',
+    payload: {
+      message_id: messageId,
+      to: testEmail,
+      from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject,
+      html,
+      text,
+      purpose: 'transactional',
+      label: 'event_survey_test',
+      idempotency_key: `event-survey-test-${surveyId}-${email}-${Date.now()}`,
+      unsubscribe_token: unsubToken,
+      queued_at: new Date().toISOString(),
+    },
+  });
+  if (enqErr) return { error: 'Enqueue failed', details: enqErr.message };
+  return { test: true, sent: 1, to: testEmail };
 }
