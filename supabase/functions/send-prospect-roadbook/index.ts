@@ -66,7 +66,7 @@ const buildHtml = ({ nombre, eventTitle, fechas, recorrido, dias, link }: {
       <a href="${link}" style="display:inline-block;width:100%;box-sizing:border-box;background:${O};color:#fff;padding:16px 24px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;">Ver detalles del viaje ↗</a>
     </div>
     <p style="margin:12px 0 0;font-size:12px;color:${MUTED};text-align:center;">
-      Si el botón no funciona, copiá este link: <a href="${link}" style="color:${C};word-break:break-all;">${link}</a>
+      Si el botón no funciona, cliquea este link: <a href="${link}" style="color:${C};word-break:break-all;">${link}</a>
     </p>
 
     <p style="margin:24px 0 0;font-size:13px;color:${MUTED};text-align:center;line-height:1.55;">
