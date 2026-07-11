@@ -363,6 +363,8 @@ const AdminEventReservations = ({
   const [eventPackages, setEventPackages] = useState<Array<{ id: string; nombre: string; precio: number; currency: string; activo: boolean; sort_order: number | null; }>>([]);
   const [priceStagesByPkg, setPriceStagesByPkg] = useState<Record<string, PriceStage[]>>({});
   const [showPricesTable, setShowPricesTable] = useState(false);
+  const [showAllClientes, setShowAllClientes] = useState(false);
+  const CLIENT_PREVIEW_COUNT = 3;
 
 
   /* ─── Participant helper ─── */
