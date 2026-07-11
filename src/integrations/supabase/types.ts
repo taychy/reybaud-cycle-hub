@@ -3496,6 +3496,11 @@ export type Database = {
       event_surveys: {
         Row: {
           activa: boolean
+          album_cover_image_url: string | null
+          album_cta_label: string | null
+          album_mensaje: string | null
+          album_titulo: string | null
+          album_url: string | null
           anonima: boolean
           created_at: string
           descripcion: string | null
@@ -3504,6 +3509,7 @@ export type Database = {
           event_id: string
           fecha_envio_programada: string | null
           id: string
+          mostrar_album: boolean
           preguntas: Json
           recipients_count: number | null
           titulo: string
@@ -3511,6 +3517,11 @@ export type Database = {
         }
         Insert: {
           activa?: boolean
+          album_cover_image_url?: string | null
+          album_cta_label?: string | null
+          album_mensaje?: string | null
+          album_titulo?: string | null
+          album_url?: string | null
           anonima?: boolean
           created_at?: string
           descripcion?: string | null
@@ -3519,6 +3530,7 @@ export type Database = {
           event_id: string
           fecha_envio_programada?: string | null
           id?: string
+          mostrar_album?: boolean
           preguntas?: Json
           recipients_count?: number | null
           titulo?: string
@@ -3526,6 +3538,11 @@ export type Database = {
         }
         Update: {
           activa?: boolean
+          album_cover_image_url?: string | null
+          album_cta_label?: string | null
+          album_mensaje?: string | null
+          album_titulo?: string | null
+          album_url?: string | null
           anonima?: boolean
           created_at?: string
           descripcion?: string | null
@@ -3534,6 +3551,7 @@ export type Database = {
           event_id?: string
           fecha_envio_programada?: string | null
           id?: string
+          mostrar_album?: boolean
           preguntas?: Json
           recipients_count?: number | null
           titulo?: string
