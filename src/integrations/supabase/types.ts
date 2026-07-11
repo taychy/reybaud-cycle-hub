@@ -3504,10 +3504,17 @@ export type Database = {
           anonima: boolean
           created_at: string
           descripcion: string | null
+          descuento_activo: boolean
+          descuento_cta_label: string | null
+          descuento_mensaje: string | null
+          descuento_porcentaje: number | null
+          descuento_titulo: string | null
+          descuento_url: string | null
           enviada_at: string | null
           enviada_por: string | null
           event_id: string
           fecha_envio_programada: string | null
+          fecha_limite_respuesta: string | null
           id: string
           mostrar_album: boolean
           preguntas: Json
@@ -3525,10 +3532,17 @@ export type Database = {
           anonima?: boolean
           created_at?: string
           descripcion?: string | null
+          descuento_activo?: boolean
+          descuento_cta_label?: string | null
+          descuento_mensaje?: string | null
+          descuento_porcentaje?: number | null
+          descuento_titulo?: string | null
+          descuento_url?: string | null
           enviada_at?: string | null
           enviada_por?: string | null
           event_id: string
           fecha_envio_programada?: string | null
+          fecha_limite_respuesta?: string | null
           id?: string
           mostrar_album?: boolean
           preguntas?: Json
@@ -3546,10 +3560,17 @@ export type Database = {
           anonima?: boolean
           created_at?: string
           descripcion?: string | null
+          descuento_activo?: boolean
+          descuento_cta_label?: string | null
+          descuento_mensaje?: string | null
+          descuento_porcentaje?: number | null
+          descuento_titulo?: string | null
+          descuento_url?: string | null
           enviada_at?: string | null
           enviada_por?: string | null
           event_id?: string
           fecha_envio_programada?: string | null
+          fecha_limite_respuesta?: string | null
           id?: string
           mostrar_album?: boolean
           preguntas?: Json
