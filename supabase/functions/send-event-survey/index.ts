@@ -56,6 +56,24 @@ interface AlbumConfig {
   ctaLabel?: string | null;
 }
 
+interface DescuentoConfig {
+  activo: boolean;
+  porcentaje?: number | null;
+  titulo?: string | null;
+  mensaje?: string | null;
+  ctaLabel?: string | null;
+  url?: string | null;
+}
+
+const formatDeadline = (iso: string | null | undefined) => {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    return `${d.getDate()} de ${meses[d.getMonth()]}`;
+  } catch { return null; }
+};
+
 const wrapHtml = (
   eventName: string,
   title: string,
@@ -63,21 +81,45 @@ const wrapHtml = (
   description: string,
   link: string,
   album: AlbumConfig,
+  descuento: DescuentoConfig,
+  deadlineIso: string | null | undefined,
   isTest = false,
 ) => {
-  const albumBlock = album.mostrar && album.url
-    ? `
-    <div style="background:#0b1220;border-radius:14px;padding:0;overflow:hidden;margin-bottom:22px;">
-      ${album.cover ? `<a href="${album.url}" style="display:block;"><img src="${album.cover}" alt="${album.titulo || 'Álbum del viaje'}" style="display:block;width:100%;height:auto;max-height:280px;object-fit:cover;border:0;"/></a>` : ''}
-      <div style="padding:22px 24px;color:#f5f5f5;">
-        <div style="font-size:11px;letter-spacing:.22em;color:#06b6d4;text-transform:uppercase;margin-bottom:8px;">📸 Álbum de fotos</div>
-        <h2 style="margin:0 0 10px;font-size:20px;color:#fff;font-weight:700;">${album.titulo || 'Las fotos del viaje ya están acá'}</h2>
-        ${album.mensaje ? `<p style="margin:0 0 16px;color:#d4d4d8;font-size:14px;line-height:1.55;">${album.mensaje}</p>` : ''}
-        <div>
-          <a href="${album.url}" style="display:inline-block;background:#06b6d4;color:#0b1220;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">${album.ctaLabel || 'Ver el álbum completo'}</a>
+  const deadlineLabel = formatDeadline(deadlineIso);
+  const deadlineBlock = deadlineLabel
+    ? `<div style="background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:14px 18px;margin:0 0 14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;line-height:1;">🕒</span>
+        <span style="color:#06b6d4;font-size:14px;font-weight:600;letter-spacing:.02em;">Respondé antes del ${deadlineLabel}</span>
+      </div>`
+    : '';
+
+  const descuentoBlock = descuento.activo && descuento.url
+    ? `<div style="background:#fafafa;border:1px solid #e5e5e5;border-radius:14px;padding:22px 24px;margin-top:18px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:20px;line-height:1;">🏷️</span>
+          <h3 style="margin:0;font-size:17px;color:#111;font-weight:700;">${descuento.titulo || `${descuento.porcentaje || 10}% off tu próximo camp`}</h3>
         </div>
-      </div>
-    </div>`
+        <p style="margin:0 0 16px;color:#555;font-size:14px;line-height:1.55;">${descuento.mensaje || 'Anotate ahora y asegurate el lugar con descuento.'}</p>
+        <div>
+          <a href="${descuento.url}" style="display:inline-block;background:#ffffff;border:1px solid #d4d4d8;color:#111;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">${descuento.ctaLabel || 'Anotarme con descuento'} ↗</a>
+        </div>
+      </div>`
+    : '';
+
+  const albumBlock = album.mostrar && album.url
+    ? `<div style="margin-top:28px;">
+        <div style="font-size:11px;letter-spacing:.22em;color:#737373;text-transform:uppercase;margin-bottom:10px;">Álbum de fotos</div>
+        <a href="${album.url}" style="display:block;text-decoration:none;color:inherit;">
+          ${album.cover
+            ? `<img src="${album.cover}" alt="${album.titulo || 'Álbum del viaje'}" style="display:block;width:100%;height:auto;max-height:260px;object-fit:cover;border-radius:12px;border:0;margin-bottom:10px;"/>`
+            : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <p style="margin:0;color:#111;font-size:15px;font-weight:600;">${album.titulo || 'Las fotos del viaje ya están acá'}</p>
+            <span style="color:#06b6d4;font-size:14px;">${album.ctaLabel || 'Ver álbum'} →</span>
+          </div>
+          ${album.mensaje ? `<p style="margin:6px 0 0;color:#737373;font-size:13px;">${album.mensaje}</p>` : ''}
+        </a>
+      </div>`
     : '';
 
   const testBanner = isTest
@@ -89,21 +131,25 @@ const wrapHtml = (
 <html><body style="margin:0;padding:0;background:#ffffff;font-family:Inter,Arial,sans-serif;color:#111;">
   <div style="max-width:600px;margin:0 auto;padding:24px;">
     ${testBanner}
-    <div style="border-left:3px solid #f97316;padding-left:14px;margin-bottom:22px;">
+    <div style="margin-bottom:22px;">
       <div style="font-size:12px;letter-spacing:.18em;color:#06b6d4;text-transform:uppercase;">${eventName}</div>
-      <h1 style="margin:6px 0 0;font-size:24px;color:#111;font-weight:700;">${title}</h1>
+      <h1 style="margin:6px 0 0;font-size:26px;color:#111;font-weight:700;line-height:1.2;">${title}</h1>
     </div>
+
+    <p style="margin:0 0 10px;color:#111;font-size:15px;">Hola ${name || 'ciclista'},</p>
+    <p style="margin:0 0 22px;color:#444;font-size:15px;line-height:1.6;">${description || 'Nos encantaría conocer tu experiencia para mejorar los próximos camps. Son 3-5 minutos, podés responder desde el celu.'}</p>
+
+    ${deadlineBlock}
+
+    <div style="text-align:center;margin:6px 0 8px;">
+      <a href="${link}" style="display:inline-block;width:100%;box-sizing:border-box;background:#f97316;color:#fff;padding:16px 24px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;">Responder encuesta ↗</a>
+    </div>
+    <p style="margin:12px 0 0;font-size:12px;color:#737373;text-align:center;">Si el botón no funciona, copiá este link: <a href="${link}" style="color:#06b6d4;word-break:break-all;">${link}</a></p>
+
+    ${descuentoBlock}
     ${albumBlock}
-    <div style="background:#fafafa;border:1px solid #e5e5e5;border-radius:14px;padding:24px;line-height:1.6;color:#222;font-size:15px;">
-      <p style="margin:0 0 12px;">Hola ${name || 'ciclista'},</p>
-      <p style="margin:0 0 12px;">${description || 'Nos encantaría conocer tu experiencia y qué podemos mejorar para los próximos camps. Tu opinión es clave.'}</p>
-      <p style="margin:0 0 22px;">Son solo 3-5 minutos. Podés responder desde el celu.</p>
-      <div style="text-align:center;margin:28px 0;">
-        <a href="${link}" style="display:inline-block;background:#f97316;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;">Responder encuesta</a>
-      </div>
-      <p style="margin:0;font-size:13px;color:#666;">Si el botón no funciona, copiá y pegá este link: <br/><a href="${link}" style="color:#06b6d4;word-break:break-all;">${link}</a></p>
-    </div>
-    <div style="margin-top:20px;color:#737373;font-size:12px;text-align:center;">
+
+    <div style="margin-top:28px;color:#a3a3a3;font-size:12px;text-align:center;">
       Reybaud Ciclismo &middot; Gracias por ser parte.
     </div>
   </div>
