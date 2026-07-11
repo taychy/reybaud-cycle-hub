@@ -81,6 +81,7 @@ import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
 import EventInterest from "./pages/EventInterest";
 import EventSurvey from "./pages/EventSurvey";
+import PublicRoadbookTeaser from "./pages/PublicRoadbookTeaser";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
 import PublicCuentaCorriente from "./pages/PublicCuentaCorriente";
