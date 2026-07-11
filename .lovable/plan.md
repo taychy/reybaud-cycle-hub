@@ -1,108 +1,100 @@
-# Turnera — Entrega 1 y 3: Pago obligatorio, Transferencia con comprobante y Google Calendar
 
-## Objetivo
-El turno **solo se confirma con el pago**. Cliente elige entre MP (tarjeta/wallet) o Transferencia. Los turnos confirmados se sincronizan al Google Calendar "Clases" de Natalia y se avisa por email al profesor (con .ics de respaldo).
+# Rediseño del Dashboard de Roadbook
 
----
+Convertir `EventRoadbookEditor` (hoy un accordion plano) en un panel completo con: barra sticky de estado, secciones en cards, drag-and-drop en días, sistema de plantillas reutilizables entre eventos, y un módulo de "compartir con prospectos" con links teaser únicos, expiración, tracking de apertura y captura de leads.
 
-## Entrega 1 — Pago obligatorio + Slot Hold + Transferencia
+## 1. Base de datos (nueva migración)
 
-### 1.1 Base de datos (`reservas_turnera`)
-Nuevas columnas:
-- `estado_pago` — `pendiente_mp | pendiente_transferencia | comprobante_subido | aprobado | expirado | rechazado`
-- `metodo_pago` — `mp | transferencia`
-- `hold_expira_at` — 15 min si MP, 2 h si transferencia
-- `comprobante_url`, `comprobante_subido_at`, `verificado_por`, `verificado_at`, `motivo_rechazo`
-- `upload_token uuid` — token único para acceder al flujo desde el email
-- `recordatorio_15min_enviado_at`, `email_expiracion_enviado_at` (idempotencia)
+**`roadbook_templates`** — plantillas reutilizables
+- `id uuid pk`, `nombre text`, `roadbook jsonb`, `created_by uuid`, `created_at`, `updated_at`
+- RLS: admin/super_admin lectura y escritura. GRANT a `authenticated` + `service_role`.
 
-Backfill de reservas existentes: las que tienen `pagado=true` → `aprobado`; el resto → `aprobado` (legacy, no romper histórico).
+**`roadbook_prospect_links`** — links teaser por prospecto
+- `id uuid pk`, `event_id uuid fk events`, `token text unique` (nanoid ~20 chars)
+- `nombre text`, `apellido text`, `email text` (los 3 obligatorios)
+- `expires_at timestamptz`, `opened_at timestamptz null`, `open_count int default 0`
+- `created_by uuid`, `created_at`
+- RLS: admin lee/escribe; `anon` puede SELECT por token vía RPC `get_prospect_roadbook(token)` que devuelve versión teaser (sin hoteles ni gpx) + valida expiración y actualiza `opened_at`.
+- GRANT SELECT/INSERT/UPDATE al `authenticated`, GRANT ALL a `service_role`. Sin GRANT a `anon` (se accede solo por RPC security definer).
 
-### 1.2 Storage
-Bucket **`turnera-comprobantes`** privado. RLS: cliente sube con `upload_token`; admin lee todo.
+## 2. Componente principal — `EventRoadbookEditor.tsx` (rewrite)
 
-### 1.3 Config bancaria (`app_config`)
-Claves nuevas para transferencia: `turnera_cbu`, `turnera_alias`, `turnera_titular`, `turnera_cuit`. Editables desde el panel admin (carga inicial pendiente — te pido los datos al aprobar el plan).
+Layout: barra sticky arriba + cards apiladas.
 
-### 1.4 Flujo cliente — MP
-1. Elige slot → botón **"Pagar con tarjeta o Mercado Pago"** con subtítulo *"Podés pagar con tarjeta de crédito o débito sin tener cuenta de Mercado Pago"*.
-2. Se crea la reserva con `estado_pago='pendiente_mp'`, `hold_expira_at = now + 15min`.
-3. Redirect a MP. Webhook confirma → `aprobado` + dispara sync a Calendar.
-4. Si no paga en 15 min, cron marca `expirado` y libera el slot.
+**Sticky bar**
+- Ícono Map + "Roadbook del viaje" + badge estado dinámico (`Guardado` verde / `Sin guardar` gris / `Publicada` naranja si `roadbook_published_at` existe)
+- Botones derecha: `Plantillas ▾` (DropdownMenu con plantillas guardadas), `Compartir` (scroll a sección compartir), `Guardar` (primario)
+- Estado `dirty` calculado por diff shallow del roadbook cargado vs actual
 
-### 1.5 Flujo cliente — Transferencia
-1. Elige slot → botón **"Transferencia bancaria"**.
-2. Se crea reserva con `estado_pago='pendiente_transferencia'`, `hold_expira_at = now + 2h`, `upload_token` generado.
-3. **Misma pantalla** muestra:
-   - Datos bancarios (CBU/Alias/Titular/CUIT), monto exacto, concepto sugerido (nro. de reserva).
-   - Countdown de 2 h.
-   - **Botón "Cargar comprobante"** (upload directo).
-   - Nota: *"También te enviamos un email con este link por si necesitás terminar el pago desde otro dispositivo"*.
-4. Email automático **`turnera-transferencia-instrucciones`** con los mismos datos + botón CTA a `/reservar/:id/transferencia?token=...` (por si cierra la app).
-5. Cliente sube comprobante → `estado_pago='comprobante_subido'`. Se congela el hold. Se avisa por email al admin.
-6. Cron entre 10-20 min antes de expirar (si aún `pendiente_transferencia`) → email **`turnera-transferencia-recordatorio-15min`** (una sola vez, marca `recordatorio_15min_enviado_at`).
-7. Si expira sin comprobante: `expirado`, libera slot, email **`turnera-transferencia-expirada`** con CTA "Volver a reservar" (una sola vez, marca `email_expiracion_enviado_at`).
+**Card "Información general"**: bajada, fechas, recorrido (idem actual pero en card con título e ícono).
 
-### 1.6 Panel admin — "Turnera / Transferencias por validar"
-Lista de reservas con `estado_pago='comprobante_subido'`:
-- Ver comprobante (signed URL).
-- Botones **Aprobar** / **Rechazar** (con motivo).
-- Aprobar → `aprobado`, email al cliente, dispara sync a Calendar + email al profesor.
-- Rechazar → `rechazado`, email al cliente con motivo y CTA volver a reservar.
+**Card "Itinerario · N días"**
+- Cada día: fila con drag handle (`@dnd-kit/sortable`, ya instalado), número, título inline editable, chevron para expandir
+- Expandido: km, desnivel, hotel, gpx_url, botón eliminar
+- Primer día expandido por defecto; resto colapsado
+- Botón "+ Agregar día" al final
 
-### 1.7 Cron `expire-turnera-holds` (pg_cron cada 5 min)
-En una sola pasada:
-- Marca `expirado` las reservas cuyo `hold_expira_at < now()` y estado en (`pendiente_mp`, `pendiente_transferencia`).
-- Dispara recordatorios 15 min (ventana 10-20 min antes).
-- Dispara emails de expiración (una vez).
+**Cards Alojamientos / Bienvenida / Clima / Día de salida**: accordion colapsado por defecto (títulos con fecha si aplica).
 
-### 1.8 Emails nuevos (React Email)
-- `turnera-transferencia-instrucciones`
-- `turnera-transferencia-recordatorio-15min`
-- `turnera-transferencia-expirada`
-- `turnera-transferencia-aprobada`
-- `turnera-transferencia-rechazada`
-- `turnera-admin-nuevo-comprobante` (a admin)
+**Card "Plantillas guardadas"**
+- Fetch de `roadbook_templates`
+- Cada fila: nombre + "Actualizada hace X" + botón `Usar` (confirma si hay `dirty`, reemplaza estado)
+- Botón dashed "+ Guardar este roadbook como plantilla" → modal con nombre → INSERT
 
----
+**Card "Compartir con clientes potenciales"**
+- Badge outline "Vista teaser" + subtítulo aclaratorio
+- Form: Nombre, Apellido, Email (los 3 required), select expiración (7/15/30 días)
+- Botón "Generar y enviar link": inserta en `roadbook_prospect_links`, invoca edge function `send-prospect-roadbook` que manda el email con el link teaser
+- Lista debajo: prospectos con nombre, email, "vence en X días" / "venció hace X días", badge estado:
+  - Verde "Abrió hace X días" si `opened_at`
+  - Gris "Sin abrir" si null y no expirado
+  - Rojo "Expirado" si vencido
 
-## Entrega 3 — Google Calendar + email profesor
+## 3. Vista pública teaser — `src/pages/PublicRoadbookTeaser.tsx`
 
-### 3.1 Conexión
-Conectar cuenta **natalia@ciclismoreybaud.com** vía connector Google Calendar (OAuth builder-side, un solo usuario). Guardar `google_calendar_clases_id` en `app_config`.
+Ruta `/roadbook/:token` (agregar a `App.tsx`, sin auth).
+- Llama RPC `get_prospect_roadbook(token)`; si válido: renderiza roadbook **teaser** (intro, fechas, recorrido, itinerario con día/título/km/desnivel/fecha, secciones bienvenida/clima/salida) — **sin hoteles exactos por noche ni links GPX**
+- Si expirado o inexistente: pantalla dedicada con ícono Clock, título "Este link venció", texto y 2 botones: primario WhatsApp (usa `contactInfo`), secundario email
+- Trackea apertura la primera vez (RPC hace UPDATE)
 
-### 3.2 Edge function `turnera-calendar-sync`
-Se dispara desde:
-- Webhook MP al aprobar pago.
-- Admin al aprobar comprobante de transferencia.
+## 4. Edge function — `supabase/functions/send-prospect-roadbook/index.ts`
 
-Hace `POST /calendars/{clases_id}/events` con:
-- Título: `{servicio} — {alumno}`
-- Fecha/hora, ubicación (sede), coach como `attendee`.
-- `extendedProperties.private.reserva_id` para idempotencia (upsert por búsqueda previa).
-- Si cancelación/rechazo → `DELETE` del evento.
+Recibe `{ linkId }`, arma email con branding del proyecto (naranja + Oswald), muestra teaser del recorrido, CTA "Ver detalles del viaje" apuntando a `${SITE_URL}/roadbook/:token`. Se despacha vía cola existente (`enqueue_email` con purpose `transactional` + template `prospect-roadbook`). Sin adjuntos.
 
-### 3.3 Email al profesor con .ics
-Reutilizar `turnera-ics` + `send-turnera-email` existentes como respaldo (siempre se envía, aun si Calendar falla).
+Registrar template en `_shared/transactional-email-templates/prospect-roadbook.tsx` + registry.
 
----
+## 5. Integración `EventsList` (donde ya vive el editor)
 
-## Fuera de alcance (queda para v2)
-- Validación semi-automática de transferencia por matcheo de monto/CBU.
-- Notificaciones WhatsApp.
-- Reintentos múltiples del email de expiración.
+- Card "Novedades del evento" y "Encuesta de cierre" quedan **fuera** del rediseño del roadbook (mantienen su lugar actual)
+- El editor se muestra igual, pero ahora ocupa más espacio; ajustar solo si hay overflow
 
----
+## 6. Detalles técnicos
 
-## Detalles técnicos
-- **Idempotencia**: `reserva_id` en `extendedProperties` del evento; timestamps `*_enviado_at` en cada email.
-- **RLS**: `turnera-comprobantes` con policy por `upload_token` para subida pública, lectura admin.
-- **Compatibilidad**: reservas legacy siguen accesibles; solo las nuevas exigen pago.
-- **Timezone**: usar el patrón del proyecto (split de string, no `new Date(...)` directo).
+- `dirty`: `useMemo(() => JSON.stringify(rb) !== JSON.stringify(loadedRb), ...)`
+- Drag & drop: reusar `DndContext` + `SortableContext` con estrategia `verticalListSortingStrategy` (ya usado en `EventSurveyManager`)
+- Email prospecto: idempotency key = `prospect-link-{id}`
+- Filtrado teaser: helper `toTeaserRoadbook(rb)` en `src/lib/roadbook.ts` que devuelve nuevo objeto sin `hotel` en días, sin `gpx_url` y sin array `alojamientos`
+- Timezone: mostrar "vence en X días" con `Math.ceil((expires_at - now) / 86400000)` sin `Date` directo sobre strings
 
----
+## Archivos afectados
 
-## Preguntas antes de ejecutar (necesito respuesta para arrancar)
-1. **Datos bancarios**: ¿me los pasás ahora o los cargás vos desde el admin después de que despliegue?
-2. **Calendar "Clases"**: ¿ya existe en la cuenta de Natalia o lo creo por API la primera vez?
-3. **Backfill**: confirmo que reservas viejas quedan como `aprobado` (no rompe histórico) — ¿ok?
+Nuevos:
+- `supabase/migrations/<ts>_roadbook_templates_and_prospects.sql`
+- `src/pages/PublicRoadbookTeaser.tsx`
+- `supabase/functions/send-prospect-roadbook/index.ts`
+- `supabase/functions/_shared/transactional-email-templates/prospect-roadbook.tsx`
+
+Editados:
+- `src/components/admin/EventRoadbookEditor.tsx` (rewrite)
+- `src/lib/roadbook.ts` (helper teaser + tipos)
+- `src/App.tsx` (ruta pública)
+- `_shared/transactional-email-templates/registry.ts`
+- `src/integrations/supabase/types.ts` (regenerado tras migración)
+
+## Fuera de scope (confirmar)
+
+- Editar la vista del alumno logueado (`EventRoadbook.tsx`) — sigue igual
+- Cambiar cómo se envía el mail del roadbook a participantes ya inscriptos — sigue igual
+- Novedades / Encuesta de cierre — se dejan como están (solo se acomoda el layout circundante si hace falta)
+
+¿Avanzo con todo el plan tal cual, o querés ajustar algo antes (por ej: sacar plantillas por ahora, o dejar links de prospectos sin envío de email automático)?
