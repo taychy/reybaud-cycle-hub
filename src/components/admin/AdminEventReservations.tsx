@@ -363,6 +363,8 @@ const AdminEventReservations = ({
   const [eventPackages, setEventPackages] = useState<Array<{ id: string; nombre: string; precio: number; currency: string; activo: boolean; sort_order: number | null; }>>([]);
   const [priceStagesByPkg, setPriceStagesByPkg] = useState<Record<string, PriceStage[]>>({});
   const [showPricesTable, setShowPricesTable] = useState(false);
+  const [showAllClientes, setShowAllClientes] = useState(false);
+  const CLIENT_PREVIEW_COUNT = 3;
 
 
   /* ─── Participant helper ─── */
@@ -1208,60 +1210,135 @@ const AdminEventReservations = ({
         )}
       </div>
 
-      {/* ─── Precios vigentes ─── */}
-      {!isPaymentFree && eventPackages.length > 0 && (
-        <div className="rounded-lg border border-border/60 bg-muted/10">
-          <button
-            type="button"
-            onClick={() => setShowPricesTable((s) => !s)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium hover:bg-muted/20 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Package className="w-4 h-4 text-primary" />
-              Precios vigentes
-              <Badge variant="outline" className="text-[10px]">{eventPackages.length}</Badge>
-            </span>
-            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showPricesTable ? "rotate-90" : ""}`} />
-          </button>
-          {showPricesTable && (
-            <div className="px-4 pb-3 pt-1 space-y-1.5 border-t border-border/40">
-              {eventPackages.map((p) => {
-                const stages = priceStagesByPkg[p.id];
-                const active = resolveActivePrice(p.precio, p.currency, stages);
-                return (
-                  <div key={p.id} className="flex items-center justify-between gap-3 py-1.5 text-sm border-b border-border/20 last:border-0">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium truncate">{p.nombre}</div>
-                      {active.activeStage && (
-                        <div className="text-[11px] text-emerald-500">
-                          Etapa vigente: {active.activeStage.nombre}
-                          {active.nextStage && (
-                            <span className="text-muted-foreground"> · próxima: {active.nextStage.nombre} ({formatCountdown(active.nextStage.vigente_desde)})</span>
-                          )}
-                        </div>
-                      )}
-                      {!active.activeStage && active.nextStage && (
-                        <div className="text-[11px] text-muted-foreground">
-                          Próxima etapa: {active.nextStage.nombre} ({formatCountdown(active.nextStage.vigente_desde)})
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-primary">{formatPrice(active.precio, active.currency as any)}</div>
-                      {active.activeStage && Number(active.activeStage.precio) !== Number(p.precio) && (
-                        <div className="text-[10px] text-muted-foreground line-through">{formatPrice(p.precio, p.currency as any)}</div>
-                      )}
-                    </div>
+      {/* ─── Precios por etapa (tabla comparativa) ─── */}
+      {!isPaymentFree && eventPackages.length > 0 && (() => {
+        // Build union of stage "columns" across all packages, ordered by vigente_desde.
+        // Cada paquete puede tener sus propias etapas; alineamos por sort_order/nombre.
+        const nowMs = Date.now();
+        // Determinamos el máximo número de etapas para armar columnas
+        const maxStages = eventPackages.reduce((m, p) => {
+          const s = priceStagesByPkg[p.id] || [];
+          return Math.max(m, s.length);
+        }, 0);
+        // Nombres de columnas: tomamos los del paquete con más etapas
+        const refPkg = eventPackages.find((p) => (priceStagesByPkg[p.id]?.length || 0) === maxStages);
+        const refStages = refPkg ? (priceStagesByPkg[refPkg.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order) : [];
+        const columnLabels: string[] = maxStages > 0
+          ? refStages.map((s, i) => s.nombre || `Etapa ${i + 1}`)
+          : [];
+        // Estado por columna: past / current / future
+        const columnStatus: ("past" | "current" | "future")[] = refStages.map((s) => {
+          const desde = new Date(s.vigente_desde).getTime();
+          const hasta = s.vigente_hasta ? new Date(s.vigente_hasta).getTime() : null;
+          if (desde <= nowMs && (hasta == null || hasta > nowMs)) return "current";
+          if (desde > nowMs) return "future";
+          return "past";
+        });
+        const currentIdx = columnStatus.findIndex((s) => s === "current");
+        const nextIdx = columnStatus.findIndex((s) => s === "future");
+        const nextStageMeta = nextIdx >= 0 ? refStages[nextIdx] : null;
+
+        return (
+          <div className="rounded-lg border border-border/60 bg-muted/10">
+            <button
+              type="button"
+              onClick={() => setShowPricesTable((s) => !s)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium hover:bg-muted/20 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" />
+                Precios por etapa
+                {columnLabels.length > 0 && currentIdx >= 0 && nextStageMeta && (
+                  <span className="text-[11px] text-muted-foreground font-normal">
+                    · {columnLabels[currentIdx]} vigente · sube a {columnLabels[nextIdx]} {formatCountdown(nextStageMeta.vigente_desde)}
+                  </span>
+                )}
+                {columnLabels.length > 0 && currentIdx >= 0 && !nextStageMeta && (
+                  <span className="text-[11px] text-muted-foreground font-normal">· {columnLabels[currentIdx]} vigente</span>
+                )}
+              </span>
+              <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showPricesTable ? "rotate-90" : ""}`} />
+            </button>
+            {showPricesTable && (
+              <div className="px-4 pb-3 pt-1 border-t border-border/40 overflow-x-auto">
+                {columnLabels.length === 0 ? (
+                  <div className="py-3 space-y-1.5">
+                    {eventPackages.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/20 last:border-0">
+                        <span className="font-medium">{p.nombre}</span>
+                        <span className="font-semibold text-primary">{formatPrice(p.precio, p.currency as any)}</span>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-muted-foreground pt-1">Sin etapas configuradas — se muestra el precio base.</p>
                   </div>
-                );
-              })}
-              <p className="text-[10px] text-muted-foreground pt-1">
-                Precio actual según etapas configuradas. Se aplica automáticamente a nuevas reservas.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+                ) : (
+                  <table className="w-full text-sm border-collapse mt-2">
+                    <thead>
+                      <tr className="text-[11px] text-muted-foreground">
+                        <th className="text-left font-medium pb-2 pr-3"></th>
+                        {columnLabels.map((label, i) => (
+                          <th
+                            key={i}
+                            className={`text-right font-medium pb-2 px-3 ${
+                              columnStatus[i] === "current" ? "text-primary" : ""
+                            }`}
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {eventPackages.map((p) => {
+                        const stages = (priceStagesByPkg[p.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order);
+                        return (
+                          <tr key={p.id} className="border-t border-border/30">
+                            <td className="py-2.5 pr-3 font-medium">{p.nombre}</td>
+                            {columnLabels.map((_, i) => {
+                              const st = stages[i];
+                              const status = columnStatus[i];
+                              const priceValue = st ? Number(st.precio) : Number(p.precio);
+                              const currency = st?.currency || p.currency;
+                              if (status === "past") {
+                                return (
+                                  <td key={i} className="py-2.5 px-3 text-right text-muted-foreground line-through">
+                                    {formatPrice(priceValue, currency as any)}
+                                  </td>
+                                );
+                              }
+                              if (status === "current") {
+                                return (
+                                  <td key={i} className="py-2.5 px-3 text-right">
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-primary text-primary-foreground font-semibold text-[13px]">
+                                      {formatPrice(priceValue, currency as any)}
+                                    </span>
+                                  </td>
+                                );
+                              }
+                              return (
+                                <td key={i} className="py-2.5 px-3 text-right text-muted-foreground/70">
+                                  {formatPrice(priceValue, currency as any)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+                {columnLabels.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground pt-3">
+                    {currentIdx > 0 && `${columnLabels.slice(0, currentIdx).join(", ")} ya ${currentIdx === 1 ? "cerrada" : "cerradas"} · `}
+                    {currentIdx >= 0 && `${columnLabels[currentIdx]} vigente (resaltada)`}
+                    {nextStageMeta && ` · ${columnLabels[nextIdx]} se activa automáticamente ${formatCountdown(nextStageMeta.vigente_desde)}`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ─── Quick Filter Chips ─── */}
       <div className="flex flex-wrap items-center gap-2">
@@ -1330,19 +1407,6 @@ const AdminEventReservations = ({
         <Button variant="ghost" size="icon" onClick={loadReservations} className="h-10 w-10">
           <RefreshCw className="w-4 h-4" />
         </Button>
-        {isTripLike && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10"
-            onClick={sendBulkChecklistReminder}
-            disabled={sendingBulkReminder}
-            title="Enviar recordatorio de preparación del viaje a participantes confirmados"
-          >
-            {sendingBulkReminder ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Bell className="w-4 h-4 mr-1.5" />}
-            Recordar preparación
-          </Button>
-        )}
         {isTripLike && (
           <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
             <FileText className="w-4 h-4 mr-1.5" /> Reportes
@@ -1462,7 +1526,7 @@ const AdminEventReservations = ({
 
           {/* Rows */}
           <div className="divide-y divide-border">
-            {filtered.map((r) => {
+            {(showAllClientes ? filtered : filtered.slice(0, CLIENT_PREVIEW_COUNT)).map((r) => {
               const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
               const c = curr(r);
               const p = getParticipant(r);
@@ -1595,6 +1659,18 @@ const AdminEventReservations = ({
               );
             })}
           </div>
+          {filtered.length > CLIENT_PREVIEW_COUNT && (
+            <button
+              type="button"
+              onClick={() => setShowAllClientes((s) => !s)}
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3 rounded-lg border border-border/60 bg-muted/10 hover:bg-muted/30 transition-colors text-sm font-medium"
+            >
+              {showAllClientes
+                ? `Mostrar solo ${CLIENT_PREVIEW_COUNT}`
+                : `Ver los ${filtered.length} ${isSchoolEvent ? "inscriptos" : "clientes"}`}
+              <ChevronRight className={`w-4 h-4 transition-transform ${showAllClientes ? "-rotate-90" : "rotate-90"}`} />
+            </button>
+          )}
         </div>
       )}
 
