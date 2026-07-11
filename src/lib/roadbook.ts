@@ -85,6 +85,13 @@ export const DEFAULT_ROADBOOK_TDF26: Roadbook = {
   },
 };
 
+// Devuelve versión "teaser" para prospectos (sin hoteles ni GPX).
+export const toTeaserRoadbook = (rb: Roadbook): Roadbook => ({
+  ...rb,
+  dias: rb.dias.map((d) => ({ ...d, hotel: "", gpx_url: "" })),
+  alojamientos: [],
+});
+
 // Plantilla genérica vacía (para eventos nuevos cuyo destino no es TDF26).
 export const createEmptyRoadbook = (): Roadbook => ({
   version: 1,
