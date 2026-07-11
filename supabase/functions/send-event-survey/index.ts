@@ -399,11 +399,19 @@ async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string
     mensaje: survey.album_mensaje,
     ctaLabel: survey.album_cta_label,
   };
+  const descuentoCfg: DescuentoConfig = {
+    activo: !!survey.descuento_activo,
+    porcentaje: survey.descuento_porcentaje,
+    titulo: survey.descuento_titulo,
+    mensaje: survey.descuento_mensaje,
+    ctaLabel: survey.descuento_cta_label,
+    url: survey.descuento_url,
+  };
 
   const messageId = crypto.randomUUID();
   const unsubToken = await getOrCreateUnsubscribeToken(supabase, testEmail);
   const subject = `[PRUEBA] ${eventName} · ${survey.titulo}`;
-  const html = wrapHtml(eventName, survey.titulo, displayName.split(' ')[0], survey.descripcion || '', link, albumCfg, true);
+  const html = wrapHtml(eventName, survey.titulo, displayName.split(' ')[0], survey.descripcion || '', link, albumCfg, descuentoCfg, survey.fecha_limite_respuesta, true);
   const text = `[PRUEBA] Hola ${displayName}, ${survey.descripcion || ''} Responder: ${link}`;
 
   const { error: enqErr } = await supabase.rpc('enqueue_email', {
