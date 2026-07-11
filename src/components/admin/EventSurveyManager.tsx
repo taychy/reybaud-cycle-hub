@@ -302,6 +302,110 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
         </div>
       </div>
 
+      {/* ÁLBUM DE FOTOS (configurable por viaje) */}
+      <div className="rounded-lg border p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-primary" />
+            <p className="text-sm font-medium">Álbum de fotos del viaje</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={survey.mostrar_album}
+              onCheckedChange={(v) => save({ mostrar_album: v })}
+            />
+            <Label className="text-xs">Incluir en el email</Label>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Estos campos son propios de cada viaje y se guardan por evento. Podés reutilizar la estructura en los próximos.
+        </p>
+        <div className={survey.mostrar_album ? "grid gap-3 opacity-100" : "grid gap-3 opacity-50 pointer-events-none"}>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Título del bloque</Label>
+            <Input
+              placeholder="Ej: Las fotos de Girona 2026 ya están acá"
+              value={survey.album_titulo || ""}
+              onChange={(e) => setSurvey({ ...survey, album_titulo: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Link del álbum (Google Photos, Drive, iCloud…)</Label>
+            <Input
+              placeholder="https://photos.app.goo.gl/…"
+              value={survey.album_url || ""}
+              onChange={(e) => setSurvey({ ...survey, album_url: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Imagen de portada (URL pública opcional)</Label>
+            <Input
+              placeholder="https://…/portada.jpg"
+              value={survey.album_cover_image_url || ""}
+              onChange={(e) => setSurvey({ ...survey, album_cover_image_url: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Mensaje corto (aparece bajo el título)</Label>
+            <Textarea
+              rows={2}
+              placeholder="Un vistazo de todo lo que vivimos. Guardala y compartila con los tuyos."
+              value={survey.album_mensaje || ""}
+              onChange={(e) => setSurvey({ ...survey, album_mensaje: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Texto del botón</Label>
+            <Input
+              placeholder="Ver el álbum completo"
+              value={survey.album_cta_label || ""}
+              onChange={(e) => setSurvey({ ...survey, album_cta_label: e.target.value })}
+            />
+          </div>
+          <Button
+            variant="gold"
+            size="sm"
+            onClick={() => save({
+              mostrar_album: survey.mostrar_album,
+              album_titulo: survey.album_titulo,
+              album_url: survey.album_url,
+              album_cover_image_url: survey.album_cover_image_url,
+              album_mensaje: survey.album_mensaje,
+              album_cta_label: survey.album_cta_label,
+            }).then(() => toast({ title: "Álbum guardado." }))}
+            className="justify-self-start"
+          >
+            Guardar álbum
+          </Button>
+        </div>
+      </div>
+
+      {/* ENVÍO DE PRUEBA */}
+      <div className="rounded-lg border border-dashed p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <TestTube2 className="w-4 h-4 text-primary" />
+          <p className="text-sm font-medium">Envío de prueba</p>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Manda una copia del email tal cual lo recibirán los participantes (con álbum + encuesta). No marca la encuesta como enviada.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="tu@email.com"
+            className="flex-1"
+          />
+          <Button variant="outline" size="sm" onClick={sendTest} disabled={sendingTest}>
+            <Send className="w-4 h-4 mr-1" />
+            {sendingTest ? "Enviando…" : "Enviar prueba"}
+          </Button>
+        </div>
+      </div>
+
+
+
       <div className="rounded-lg border p-3 space-y-3">
         <div className="flex items-center gap-2">
           <CalendarClock className="w-4 h-4 text-primary" />
