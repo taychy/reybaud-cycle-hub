@@ -52,11 +52,8 @@ const EventSurvey = () => {
   useEffect(() => {
     (async () => {
       if (!token) { setError("Link inválido."); setLoading(false); return; }
-      const { data: tk } = await supabase
-        .from("event_survey_tokens" as any)
-        .select("*")
-        .eq("token", token)
-        .maybeSingle();
+      const { data: tkRows } = await supabase.rpc("validate_survey_token" as any, { _token: token });
+      const tk = Array.isArray(tkRows) ? tkRows[0] : tkRows;
       if (!tk) { setError("Este link no es válido o expiró."); setLoading(false); return; }
       setTokenRow(tk as any);
       if ((tk as any).used_at) setSubmitted(true);
