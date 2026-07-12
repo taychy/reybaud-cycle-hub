@@ -49,6 +49,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    const callerUserId = claimsData.claims.sub as string | undefined;
+    // Verify caller has admin role via service-role client (RLS-bypassing check).
+    const roleClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: isAdmin, error: roleErr } = await roleClient.rpc("has_role", {
+      _user_id: callerUserId,
+      _role: "admin",
+    });
+    if (roleErr || !isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body: EmitRequest = await req.json();
     const { factura_id, emisor_id, cliente_cuit, condicion_fiscal } = body;
 
