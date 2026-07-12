@@ -31,6 +31,8 @@ import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
 import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
+import EventPromoBanner from "@/components/event/EventPromoBanner";
+import { useEventPromo } from "@/hooks/useEventPromo";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 
