@@ -52,6 +52,8 @@ interface Survey {
   descuento_mensaje: string | null;
   descuento_cta_label: string | null;
   descuento_url: string | null;
+  descuento_evento_id: string | null;
+  descuento_codigo_id: string | null;
 }
 
 interface Response {
