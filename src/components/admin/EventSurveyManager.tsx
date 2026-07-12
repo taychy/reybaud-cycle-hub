@@ -20,6 +20,7 @@ import { es } from "date-fns/locale";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import PromoCodePicker from "@/components/admin/PromoCodePicker";
 
 interface Question {
   id: string;
