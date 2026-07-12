@@ -7,8 +7,6 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.create-event-mp-preference]
     verify_jwt = false
-  [functions.dev-login]
-    verify_jwt = false
   [functions.get-mp-public-key]
     verify_jwt = false
   [functions.invite-admin]
@@ -32,8 +30,6 @@ project_id = "tgqfakfloonbunwkdoug"
   [functions.process-card-payment]
     verify_jwt = false
   [functions.resend-invite]
-    verify_jwt = false
-  [functions.seed-test-user]
     verify_jwt = false
   [functions.send-event-checkin-email]
     verify_jwt = false

@@ -9043,6 +9043,7 @@ export type Database = {
         }[]
       }
       confirm_reservation: { Args: { _reservation_id: string }; Returns: Json }
+      consume_survey_token: { Args: { _token: string }; Returns: boolean }
       consumir_clase_bono: {
         Args: {
           p_coach_id?: string
@@ -9645,6 +9646,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      validate_survey_token: {
+        Args: { _token: string }
+        Returns: {
+          alumno_id: string
+          event_id: string
+          external_participant_id: string
+          recipient_email: string
+          recipient_name: string
+          survey_id: string
+          used_at: string
+        }[]
       }
     }
     Enums: {
