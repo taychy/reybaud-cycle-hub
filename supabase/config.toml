@@ -31,8 +31,6 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.resend-invite]
     verify_jwt = false
-  [functions.seed-test-user]
-    verify_jwt = false
   [functions.send-event-checkin-email]
     verify_jwt = false
   [functions.send-event-announcement]
