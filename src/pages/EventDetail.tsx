@@ -124,6 +124,18 @@ const EventDetail = () => {
   const { alumno, isImpersonating } = useAlumnoSession();
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
+  const { promo, code: promoCode, redeem: redeemPromo } = useEventPromo(id);
+
+  // Auto-canje una vez por sesión cuando el alumno abre el evento con un código válido.
+  useEffect(() => {
+    if (!alumno?.id || !id || !promo?.ok || !promoCode) return;
+    const flagKey = `promo-redeemed:${id}:${promoCode.toUpperCase()}:${alumno.id}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    (async () => {
+      const res = await redeemPromo(alumno.id);
+      if (res?.ok) sessionStorage.setItem(flagKey, "1");
+    })();
+  }, [alumno?.id, id, promo?.ok, promoCode, redeemPromo]);
 
   const eventUrl = `https://reybaud-app.com/eventos/${id}`;
 
