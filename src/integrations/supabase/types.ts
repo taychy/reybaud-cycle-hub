@@ -1643,6 +1643,7 @@ export type Database = {
           categoria: string
           codigo: string | null
           created_at: string
+          evento_id: string | null
           id: string
           max_usos: number | null
           nombre: string
@@ -1659,6 +1660,7 @@ export type Database = {
           categoria?: string
           codigo?: string | null
           created_at?: string
+          evento_id?: string | null
           id?: string
           max_usos?: number | null
           nombre: string
@@ -1675,6 +1677,7 @@ export type Database = {
           categoria?: string
           codigo?: string | null
           created_at?: string
+          evento_id?: string | null
           id?: string
           max_usos?: number | null
           nombre?: string
@@ -1685,7 +1688,15 @@ export type Database = {
           vigencia_desde?: string | null
           vigencia_hasta?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "descuentos_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       descuentos_alumno: {
         Row: {
@@ -3505,7 +3516,9 @@ export type Database = {
           created_at: string
           descripcion: string | null
           descuento_activo: boolean
+          descuento_codigo_id: string | null
           descuento_cta_label: string | null
+          descuento_evento_id: string | null
           descuento_mensaje: string | null
           descuento_porcentaje: number | null
           descuento_titulo: string | null
@@ -3533,7 +3546,9 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           descuento_activo?: boolean
+          descuento_codigo_id?: string | null
           descuento_cta_label?: string | null
+          descuento_evento_id?: string | null
           descuento_mensaje?: string | null
           descuento_porcentaje?: number | null
           descuento_titulo?: string | null
@@ -3561,7 +3576,9 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           descuento_activo?: boolean
+          descuento_codigo_id?: string | null
           descuento_cta_label?: string | null
+          descuento_evento_id?: string | null
           descuento_mensaje?: string | null
           descuento_porcentaje?: number | null
           descuento_titulo?: string | null
@@ -3579,6 +3596,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "event_surveys_descuento_codigo_id_fkey"
+            columns: ["descuento_codigo_id"]
+            isOneToOne: false
+            referencedRelation: "descuentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_surveys_descuento_evento_id_fkey"
+            columns: ["descuento_evento_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "event_surveys_event_id_fkey"
             columns: ["event_id"]
@@ -9285,6 +9316,10 @@ export type Database = {
           plan_id: string
         }[]
       }
+      get_promo_code: {
+        Args: { _codigo: string; _evento_id: string }
+        Returns: Json
+      }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
       get_reservas_turnera_ocupadas: {
         Args: { p_desde: string; p_hasta: string; p_servicio_id: string }
@@ -9430,6 +9465,10 @@ export type Database = {
       recalculate_reservation_payment_totals: {
         Args: { p_reservation_id: string }
         Returns: undefined
+      }
+      redeem_promo_code: {
+        Args: { _alumno_id: string; _codigo: string; _evento_id: string }
+        Returns: Json
       }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
