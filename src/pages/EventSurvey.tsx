@@ -91,7 +91,7 @@ const EventSurvey = () => {
       toast({ title: "Error al enviar", description: insErr.message, variant: "destructive" });
       return;
     }
-    await supabase.from("event_survey_tokens" as any).update({ used_at: new Date().toISOString() } as any).eq("token", token);
+    await supabase.rpc("consume_survey_token" as any, { _token: token });
     setSubmitted(true);
     setSubmitting(false);
   };
