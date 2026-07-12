@@ -566,26 +566,30 @@ const EventSurveyManager = ({ eventId, eventTitle }: Props) => {
                 <Label className="text-xs">Incluir en el email</Label>
               </div>
             </div>
-            <div className={survey.descuento_activo ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2 opacity-50 pointer-events-none"}>
-              <div className="grid gap-1.5">
-                <Label className="text-xs">% de descuento</Label>
-                <Input type="number" min={1} max={99} value={survey.descuento_porcentaje ?? ""} onChange={(e) => patch({ descuento_porcentaje: e.target.value ? Number(e.target.value) : null })} placeholder="10" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Título</Label>
-                <Input placeholder="10% off tu próximo camp" value={survey.descuento_titulo || ""} onChange={(e) => patch({ descuento_titulo: e.target.value })} />
-              </div>
-              <div className="grid gap-1.5 sm:col-span-2">
-                <Label className="text-xs">Mensaje</Label>
-                <Input placeholder="Anotate ahora y asegurate el lugar con descuento." value={survey.descuento_mensaje || ""} onChange={(e) => patch({ descuento_mensaje: e.target.value })} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Texto del botón</Label>
-                <Input placeholder="Anotarme con descuento" value={survey.descuento_cta_label || ""} onChange={(e) => patch({ descuento_cta_label: e.target.value })} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Link del botón</Label>
-                <Input placeholder="https://…" value={survey.descuento_url || ""} onChange={(e) => patch({ descuento_url: e.target.value })} />
+            <div className={survey.descuento_activo ? "space-y-4" : "space-y-4 opacity-50 pointer-events-none"}>
+              <PromoCodePicker
+                descuentoEventoId={survey.descuento_evento_id}
+                descuentoCodigoId={survey.descuento_codigo_id}
+                onSelect={(sel) => patch({
+                  descuento_evento_id: sel.evento_id,
+                  descuento_codigo_id: sel.codigo_id,
+                  descuento_porcentaje: sel.porcentaje,
+                  descuento_url: sel.url,
+                })}
+              />
+              <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs">Título</Label>
+                  <Input placeholder={`${survey.descuento_porcentaje || 10}% off tu próximo camp`} value={survey.descuento_titulo || ""} onChange={(e) => patch({ descuento_titulo: e.target.value })} />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-xs">Texto del botón</Label>
+                  <Input placeholder="Anotarme con descuento" value={survey.descuento_cta_label || ""} onChange={(e) => patch({ descuento_cta_label: e.target.value })} />
+                </div>
+                <div className="grid gap-1.5 sm:col-span-2">
+                  <Label className="text-xs">Mensaje</Label>
+                  <Input placeholder="Anotate ahora y asegurate el lugar con descuento." value={survey.descuento_mensaje || ""} onChange={(e) => patch({ descuento_mensaje: e.target.value })} />
+                </div>
               </div>
             </div>
           </section>
