@@ -636,6 +636,11 @@ const EventDetail = () => {
           )}
 
 
+          {/* Promo code banner (from ?promo= query) */}
+          {!isActiveReservation && promoCode && (
+            <EventPromoBanner promo={promo} code={promoCode} />
+          )}
+
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* Price & Quick Details — only when NOT reserved             */}
           {/* ═══════════════════════════════════════════════════════════ */}
