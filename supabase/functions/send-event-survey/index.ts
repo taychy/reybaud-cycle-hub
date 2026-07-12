@@ -412,14 +412,23 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
 }
 
 async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string, testName?: string) {
-  const { data: survey } = await supabase
+  const { data: survey, error: surveyError } = await supabase
     .from("event_surveys")
-    .select("*, events(title)")
+    .select("*")
     .eq("id", surveyId)
     .maybeSingle();
-  if (!survey) return { error: "Survey not found" };
 
-  const eventName = survey.events?.title || "Evento";
+  if (surveyError) {
+    return { error: surveyError.message };
+  }
+
+  if (!survey) {
+    return { error: "Survey not found" };
+  }
+
+  const { data: event } = await supabase.from("events").select("title").eq("id", survey.event_id).maybeSingle();
+
+  const eventName = event?.title || "Evento";
   const email = normalizeEmail(testEmail);
   const displayName = testName?.trim() || "Prueba";
 
