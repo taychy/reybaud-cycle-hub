@@ -1,100 +1,59 @@
+## Objetivo
+Reemplazar los campos manuales "% descuento / link" del bloque **Descuento próximo camp** por un sistema real:
+- El admin elige **a qué camp** apunta el descuento y **qué código** usar (elegir existente o crear nuevo).
+- El sistema genera el **link mágico** que se pega solo en el mail: `https://reybaud-app.com/eventos/:eventId?promo=CODIGO`.
+- El link funciona **para todos los destinatarios**, logueados o no.
+- **Cupo global** con contador de usos, no por alumno.
 
-# Rediseño del Dashboard de Roadbook
+## Cambios en base de datos (una migration)
 
-Convertir `EventRoadbookEditor` (hoy un accordion plano) en un panel completo con: barra sticky de estado, secciones en cards, drag-and-drop en días, sistema de plantillas reutilizables entre eventos, y un módulo de "compartir con prospectos" con links teaser únicos, expiración, tracking de apertura y captura de leads.
+1. `descuentos`
+   - `evento_id uuid` nullable, FK a `events(id) on delete set null` (código atado a un camp específico).
+   - Índice `(evento_id) where activo`.
+2. `event_surveys` — para persistir la elección hecha en el bloque:
+   - `descuento_evento_id uuid` nullable (FK a `events`).
+   - `descuento_codigo_id uuid` nullable (FK a `descuentos`).
+   - Los campos actuales (`descuento_porcentaje`, `descuento_url`, títulos) siguen existiendo — se **auto-completan** desde la selección pero pueden overridearse en texto.
+3. Función `redeem_promo_code(codigo text, evento_id uuid, alumno_email text)` (SECURITY DEFINER):
+   - Valida activo + vigencia + `usos_actuales < max_usos` + `evento_id` coincide (o nulo).
+   - Suma 1 a `usos_actuales` atómicamente.
+   - Devuelve `{ ok, descuento_id, porcentaje, valor, tipo, motivo? }`.
+4. Función pública read-only `get_promo_code(codigo text, evento_id uuid)` (SECURITY DEFINER):
+   - Devuelve datos del código para pintar el banner en la landing pública **sin** consumir cupo (sin login).
+   - Retorna `not_found | expired | maxed | scope_mismatch | ok`.
 
-## 1. Base de datos (nueva migración)
+## Cambios en UI admin — `EventSurveyManager.tsx`
 
-**`roadbook_templates`** — plantillas reutilizables
-- `id uuid pk`, `nombre text`, `roadbook jsonb`, `created_by uuid`, `created_at`, `updated_at`
-- RLS: admin/super_admin lectura y escritura. GRANT a `authenticated` + `service_role`.
+Bloque "Descuento próximo camp" pasa a tener:
+- **Selector "Camp destino"** — lista los `events` con `category in ('camp','viaje')` y `date >= hoy`.
+- **Selector "Código promo"** con dos modos:
+  - **Elegir existente:** dropdown de `descuentos` con `aplica_a in ('eventos','todo')` y `evento_id = seleccionado OR null`.
+  - **Crear nuevo:** input código + % + cupo máximo + vigencia hasta → inserta en `descuentos` con `evento_id`, `aplica_a='eventos'`.
+- Muestra en vivo: contador `usos_actuales / max_usos`, código y **link resultante** (con botón copiar).
+- Al guardar, la survey queda con `descuento_url` = link mágico y `descuento_porcentaje` = valor del código.
 
-**`roadbook_prospect_links`** — links teaser por prospecto
-- `id uuid pk`, `event_id uuid fk events`, `token text unique` (nanoid ~20 chars)
-- `nombre text`, `apellido text`, `email text` (los 3 obligatorios)
-- `expires_at timestamptz`, `opened_at timestamptz null`, `open_count int default 0`
-- `created_by uuid`, `created_at`
-- RLS: admin lee/escribe; `anon` puede SELECT por token vía RPC `get_prospect_roadbook(token)` que devuelve versión teaser (sin hoteles ni gpx) + valida expiración y actualiza `opened_at`.
-- GRANT SELECT/INSERT/UPDATE al `authenticated`, GRANT ALL a `service_role`. Sin GRANT a `anon` (se accede solo por RPC security definer).
+Los campos texto (título, mensaje, CTA label) siguen editables. El link ya no se escribe a mano.
 
-## 2. Componente principal — `EventRoadbookEditor.tsx` (rewrite)
+## Cambios en UI pública — landing del evento
 
-Layout: barra sticky arriba + cards apiladas.
+`src/pages/EventDetail.tsx`:
+- Al montar, si hay `?promo=XXX`, llama a `get_promo_code` — si `ok`, muestra un **banner naranja arriba del precio**: "Aplicaste el código **CAMP10** — 10% off".
+- Guarda `promo` en `sessionStorage` para que sobreviva login/redirects.
+- El precio "desde" se muestra tachado con el precio con descuento al lado.
+- En el flujo de reserva (crear `event_reservations`), antes del pago se llama a `redeem_promo_code` con `alumno_email`. Si `ok`, se aplica el descuento y se registra `descuento_id` en la reserva.
+- Si el descuento choca con otros (ej: familiar), respetamos la lógica existente de mejor descuento en `discountConflicts.ts`.
 
-**Sticky bar**
-- Ícono Map + "Roadbook del viaje" + badge estado dinámico (`Guardado` verde / `Sin guardar` gris / `Publicada` naranja si `roadbook_published_at` existe)
-- Botones derecha: `Plantillas ▾` (DropdownMenu con plantillas guardadas), `Compartir` (scroll a sección compartir), `Guardar` (primario)
-- Estado `dirty` calculado por diff shallow del roadbook cargado vs actual
+## Correo (send-survey / send-encuesta)
+Sin cambios estructurales: la función de envío ya lee `descuento_url` y `descuento_porcentaje` de la survey; ahora esos campos vienen auto-completados con el link mágico y el % real del código.
 
-**Card "Información general"**: bajada, fechas, recorrido (idem actual pero en card con título e ícono).
+## Detalles técnicos
+- Todos los `CREATE TABLE` no aplican (sólo `ALTER TABLE ADD COLUMN`).
+- El `redeem` es atómico con `UPDATE ... WHERE usos_actuales < max_usos RETURNING` para evitar overshoot bajo carga.
+- Anon puede ejecutar `get_promo_code` (lectura); `redeem_promo_code` requiere `authenticated` para asociar la redención al email logueado.
+- Si el usuario no está logueado y hace click en el link, el banner se muestra igual, se guarda `promo` en sessionStorage y al loguearse/reservar se aplica.
 
-**Card "Itinerario · N días"**
-- Cada día: fila con drag handle (`@dnd-kit/sortable`, ya instalado), número, título inline editable, chevron para expandir
-- Expandido: km, desnivel, hotel, gpx_url, botón eliminar
-- Primer día expandido por defecto; resto colapsado
-- Botón "+ Agregar día" al final
+## Alcance de esta iteración
+Sí: migration + admin picker + landing con `?promo=` + aplicación en reserva.
+No en esta iteración: dashboard analítico de "cuántos redimieron" (queda `usos_actuales` visible en admin), ni códigos que apliquen a categorías genéricas (solo evento específico).
 
-**Cards Alojamientos / Bienvenida / Clima / Día de salida**: accordion colapsado por defecto (títulos con fecha si aplica).
-
-**Card "Plantillas guardadas"**
-- Fetch de `roadbook_templates`
-- Cada fila: nombre + "Actualizada hace X" + botón `Usar` (confirma si hay `dirty`, reemplaza estado)
-- Botón dashed "+ Guardar este roadbook como plantilla" → modal con nombre → INSERT
-
-**Card "Compartir con clientes potenciales"**
-- Badge outline "Vista teaser" + subtítulo aclaratorio
-- Form: Nombre, Apellido, Email (los 3 required), select expiración (7/15/30 días)
-- Botón "Generar y enviar link": inserta en `roadbook_prospect_links`, invoca edge function `send-prospect-roadbook` que manda el email con el link teaser
-- Lista debajo: prospectos con nombre, email, "vence en X días" / "venció hace X días", badge estado:
-  - Verde "Abrió hace X días" si `opened_at`
-  - Gris "Sin abrir" si null y no expirado
-  - Rojo "Expirado" si vencido
-
-## 3. Vista pública teaser — `src/pages/PublicRoadbookTeaser.tsx`
-
-Ruta `/roadbook/:token` (agregar a `App.tsx`, sin auth).
-- Llama RPC `get_prospect_roadbook(token)`; si válido: renderiza roadbook **teaser** (intro, fechas, recorrido, itinerario con día/título/km/desnivel/fecha, secciones bienvenida/clima/salida) — **sin hoteles exactos por noche ni links GPX**
-- Si expirado o inexistente: pantalla dedicada con ícono Clock, título "Este link venció", texto y 2 botones: primario WhatsApp (usa `contactInfo`), secundario email
-- Trackea apertura la primera vez (RPC hace UPDATE)
-
-## 4. Edge function — `supabase/functions/send-prospect-roadbook/index.ts`
-
-Recibe `{ linkId }`, arma email con branding del proyecto (naranja + Oswald), muestra teaser del recorrido, CTA "Ver detalles del viaje" apuntando a `${SITE_URL}/roadbook/:token`. Se despacha vía cola existente (`enqueue_email` con purpose `transactional` + template `prospect-roadbook`). Sin adjuntos.
-
-Registrar template en `_shared/transactional-email-templates/prospect-roadbook.tsx` + registry.
-
-## 5. Integración `EventsList` (donde ya vive el editor)
-
-- Card "Novedades del evento" y "Encuesta de cierre" quedan **fuera** del rediseño del roadbook (mantienen su lugar actual)
-- El editor se muestra igual, pero ahora ocupa más espacio; ajustar solo si hay overflow
-
-## 6. Detalles técnicos
-
-- `dirty`: `useMemo(() => JSON.stringify(rb) !== JSON.stringify(loadedRb), ...)`
-- Drag & drop: reusar `DndContext` + `SortableContext` con estrategia `verticalListSortingStrategy` (ya usado en `EventSurveyManager`)
-- Email prospecto: idempotency key = `prospect-link-{id}`
-- Filtrado teaser: helper `toTeaserRoadbook(rb)` en `src/lib/roadbook.ts` que devuelve nuevo objeto sin `hotel` en días, sin `gpx_url` y sin array `alojamientos`
-- Timezone: mostrar "vence en X días" con `Math.ceil((expires_at - now) / 86400000)` sin `Date` directo sobre strings
-
-## Archivos afectados
-
-Nuevos:
-- `supabase/migrations/<ts>_roadbook_templates_and_prospects.sql`
-- `src/pages/PublicRoadbookTeaser.tsx`
-- `supabase/functions/send-prospect-roadbook/index.ts`
-- `supabase/functions/_shared/transactional-email-templates/prospect-roadbook.tsx`
-
-Editados:
-- `src/components/admin/EventRoadbookEditor.tsx` (rewrite)
-- `src/lib/roadbook.ts` (helper teaser + tipos)
-- `src/App.tsx` (ruta pública)
-- `_shared/transactional-email-templates/registry.ts`
-- `src/integrations/supabase/types.ts` (regenerado tras migración)
-
-## Fuera de scope (confirmar)
-
-- Editar la vista del alumno logueado (`EventRoadbook.tsx`) — sigue igual
-- Cambiar cómo se envía el mail del roadbook a participantes ya inscriptos — sigue igual
-- Novedades / Encuesta de cierre — se dejan como están (solo se acomoda el layout circundante si hace falta)
-
-¿Avanzo con todo el plan tal cual, o querés ajustar algo antes (por ej: sacar plantillas por ahora, o dejar links de prospectos sin envío de email automático)?
+¿Avanzo con la implementación?

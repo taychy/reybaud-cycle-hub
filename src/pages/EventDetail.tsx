@@ -31,6 +31,8 @@ import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
 import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
+import EventPromoBanner from "@/components/event/EventPromoBanner";
+import { useEventPromo } from "@/hooks/useEventPromo";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 
@@ -122,6 +124,18 @@ const EventDetail = () => {
   const { alumno, isImpersonating } = useAlumnoSession();
   const { isFavorite, toggleFavorite } = useEventFavorites(alumno?.id || null);
   const { applyDiscount } = useStudentDiscounts(alumno?.id || null);
+  const { promo, code: promoCode, redeem: redeemPromo } = useEventPromo(id);
+
+  // Auto-canje una vez por sesión cuando el alumno abre el evento con un código válido.
+  useEffect(() => {
+    if (!alumno?.id || !id || !promo?.ok || !promoCode) return;
+    const flagKey = `promo-redeemed:${id}:${promoCode.toUpperCase()}:${alumno.id}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    (async () => {
+      const res = await redeemPromo(alumno.id);
+      if (res?.ok) sessionStorage.setItem(flagKey, "1");
+    })();
+  }, [alumno?.id, id, promo?.ok, promoCode, redeemPromo]);
 
   const eventUrl = `https://reybaud-app.com/eventos/${id}`;
 
@@ -621,6 +635,11 @@ const EventDetail = () => {
             />
           )}
 
+
+          {/* Promo code banner (from ?promo= query) */}
+          {!isActiveReservation && promoCode && (
+            <EventPromoBanner promo={promo} code={promoCode} />
+          )}
 
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* Price & Quick Details — only when NOT reserved             */}
