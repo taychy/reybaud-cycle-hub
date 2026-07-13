@@ -1119,6 +1119,13 @@ const EventDetail = () => {
           alumno={alumno}
           onReserved={handleReservationCreated}
           eventNature={eventNature}
+          promo={promo?.ok ? {
+            ok: true,
+            descuento_id: promo.descuento_id,
+            codigo: promo.codigo,
+            tipo: promo.tipo,
+            valor: promo.valor,
+          } : null}
         />
       )}
 
