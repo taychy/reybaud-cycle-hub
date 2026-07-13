@@ -168,8 +168,17 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const selectedPackage = packages.find((p) => p.id === selectedPackageId) || null;
 
   // Precio efectivo: del paquete elegido, o del evento
-  const effectivePrice = selectedPackage ? selectedPackage.precio : event.price;
+  const basePrice = selectedPackage ? selectedPackage.precio : event.price;
   const effectiveCurrency = selectedPackage ? selectedPackage.currency : event.currency;
+
+  // Aplicar promo si vino desde el link (?promo=CODE) y está validada
+  const promoDiscountAmount = (() => {
+    if (!promo?.ok || !basePrice || basePrice <= 0) return 0;
+    if (promo.tipo === "porcentaje") return Math.round((basePrice * (promo.valor || 0)) / 100);
+    if (promo.tipo === "fijo") return Math.min(Number(promo.valor || 0), basePrice);
+    return 0;
+  })();
+  const effectivePrice = basePrice ? Math.max(0, basePrice - promoDiscountAmount) : basePrice;
 
   // Detectar si el paquete elegido tiene plan de cuotas activo (para mostrar checkbox)
   useEffect(() => {
