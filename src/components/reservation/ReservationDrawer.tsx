@@ -440,7 +440,12 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       moneda: effectiveCurrency,
       monto: effectivePrice,
       balance_due: isInscriptionOnly ? 0 : effectivePrice,
-      participant_notes: notes.trim() || null,
+      participant_notes: [
+        notes.trim() || null,
+        promo?.ok && promo.codigo
+          ? `Código ${promo.codigo} aplicado (${promo.tipo === "porcentaje" ? `${promo.valor}%` : `-$${promo.valor}`}) · Base ${basePrice} → Total ${effectivePrice}`
+          : null,
+      ].filter(Boolean).join(" · ") || null,
       created_by: "cliente",
       confirmed_at: isInscriptionOnly ? new Date().toISOString() : null,
       cancelled_at: null,
