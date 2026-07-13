@@ -64,6 +64,14 @@ interface PackageRow {
 type RoomGender = "femenina" | "masculina" | "mixta";
 type Vinculo = "pareja" | "amigos";
 
+interface PromoApplied {
+  ok: boolean;
+  descuento_id?: string;
+  codigo?: string;
+  tipo?: "porcentaje" | "fijo";
+  valor?: number;
+}
+
 interface ReservationDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,9 +79,10 @@ interface ReservationDrawerProps {
   alumno: Alumno;
   onReserved: (reservation: any) => void;
   eventNature?: string;
+  promo?: PromoApplied | null;
 }
 
-const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva" }: ReservationDrawerProps) => {
+const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva", promo = null }: ReservationDrawerProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
@@ -159,8 +168,17 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const selectedPackage = packages.find((p) => p.id === selectedPackageId) || null;
 
   // Precio efectivo: del paquete elegido, o del evento
-  const effectivePrice = selectedPackage ? selectedPackage.precio : event.price;
+  const basePrice = selectedPackage ? selectedPackage.precio : event.price;
   const effectiveCurrency = selectedPackage ? selectedPackage.currency : event.currency;
+
+  // Aplicar promo si vino desde el link (?promo=CODE) y está validada
+  const promoDiscountAmount = (() => {
+    if (!promo?.ok || !basePrice || basePrice <= 0) return 0;
+    if (promo.tipo === "porcentaje") return Math.round((basePrice * (promo.valor || 0)) / 100);
+    if (promo.tipo === "fijo") return Math.min(Number(promo.valor || 0), basePrice);
+    return 0;
+  })();
+  const effectivePrice = basePrice ? Math.max(0, basePrice - promoDiscountAmount) : basePrice;
 
   // Detectar si el paquete elegido tiene plan de cuotas activo (para mostrar checkbox)
   useEffect(() => {
@@ -422,7 +440,12 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       moneda: effectiveCurrency,
       monto: effectivePrice,
       balance_due: isInscriptionOnly ? 0 : effectivePrice,
-      participant_notes: notes.trim() || null,
+      participant_notes: [
+        notes.trim() || null,
+        promo?.ok && promo.codigo
+          ? `Código ${promo.codigo} aplicado (${promo.tipo === "porcentaje" ? `${promo.valor}%` : `-$${promo.valor}`}) · Base ${basePrice} → Total ${effectivePrice}`
+          : null,
+      ].filter(Boolean).join(" · ") || null,
       created_by: "cliente",
       confirmed_at: isInscriptionOnly ? new Date().toISOString() : null,
       cancelled_at: null,
@@ -1099,6 +1122,15 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                     })}
                   </div>
 
+                  {promo?.ok && promoDiscountAmount > 0 && (
+                    <div className="flex items-center justify-between pt-2 text-xs">
+                      <span className="text-muted-foreground">
+                        Código <span className="font-mono text-emerald-400">{promo.codigo}</span> (
+                        {promo.tipo === "porcentaje" ? `${promo.valor}% off` : `-${formatPrice(promo.valor || 0, effectiveCurrency)}`})
+                      </span>
+                      <span className="font-mono text-emerald-400">-{formatPrice(promoDiscountAmount, effectiveCurrency)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between pt-2 border-t border-amber-500/20 text-sm">
                     <span className="text-muted-foreground">Total</span>
                     <span className="font-heading font-bold text-amber-400">
