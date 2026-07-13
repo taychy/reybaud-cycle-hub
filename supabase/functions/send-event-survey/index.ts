@@ -412,18 +412,21 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
 }
 
 async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string, testName?: string) {
+  console.log("[sendTestSurvey] surveyId:", surveyId, "email:", testEmail);
   const { data: survey, error: surveyError } = await supabase
     .from("event_surveys")
     .select("*")
     .eq("id", surveyId)
     .maybeSingle();
 
+  console.log("[sendTestSurvey] found:", !!survey, "err:", surveyError?.message);
+
   if (surveyError) {
     return { error: surveyError.message };
   }
 
   if (!survey) {
-    return { error: "Survey not found" };
+    return { error: "Survey not found", surveyId };
   }
 
   const { data: event } = await supabase.from("events").select("title").eq("id", survey.event_id).maybeSingle();
