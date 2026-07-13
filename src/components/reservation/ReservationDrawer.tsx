@@ -1122,6 +1122,15 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                     })}
                   </div>
 
+                  {promo?.ok && promoDiscountAmount > 0 && (
+                    <div className="flex items-center justify-between pt-2 text-xs">
+                      <span className="text-muted-foreground">
+                        Código <span className="font-mono text-emerald-400">{promo.codigo}</span> (
+                        {promo.tipo === "porcentaje" ? `${promo.valor}% off` : `-${formatPrice(promo.valor || 0, effectiveCurrency)}`})
+                      </span>
+                      <span className="font-mono text-emerald-400">-{formatPrice(promoDiscountAmount, effectiveCurrency)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between pt-2 border-t border-amber-500/20 text-sm">
                     <span className="text-muted-foreground">Total</span>
                     <span className="font-heading font-bold text-amber-400">
