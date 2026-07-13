@@ -9367,6 +9367,19 @@ export type Database = {
           ultimo_movimiento: string
         }[]
       }
+      get_survey_by_token: {
+        Args: { _token: string }
+        Returns: {
+          activa: boolean
+          anonima: boolean
+          descripcion: string
+          event_id: string
+          event_title: string
+          id: string
+          preguntas: Json
+          titulo: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
