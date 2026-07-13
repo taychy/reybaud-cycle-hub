@@ -64,6 +64,14 @@ interface PackageRow {
 type RoomGender = "femenina" | "masculina" | "mixta";
 type Vinculo = "pareja" | "amigos";
 
+interface PromoApplied {
+  ok: boolean;
+  descuento_id?: string;
+  codigo?: string;
+  tipo?: "porcentaje" | "fijo";
+  valor?: number;
+}
+
 interface ReservationDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,9 +79,10 @@ interface ReservationDrawerProps {
   alumno: Alumno;
   onReserved: (reservation: any) => void;
   eventNature?: string;
+  promo?: PromoApplied | null;
 }
 
-const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva" }: ReservationDrawerProps) => {
+const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva", promo = null }: ReservationDrawerProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
