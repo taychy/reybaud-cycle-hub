@@ -58,13 +58,10 @@ const EventSurvey = () => {
       setTokenRow(tk as any);
       if ((tk as any).used_at) setSubmitted(true);
 
-      const { data: sv } = await supabase
-        .from("event_surveys" as any)
-        .select("*, events(title)")
-        .eq("id", (tk as any).survey_id)
-        .maybeSingle();
-      if (!sv || !(sv as any).activa) { setError("Esta encuesta ya no está disponible."); setLoading(false); return; }
-      setSurvey({ ...(sv as any), preguntas: (sv as any).preguntas || [], event_title: (sv as any).events?.title });
+      const { data: svRows } = await supabase.rpc("get_survey_by_token" as any, { _token: token });
+      const sv: any = Array.isArray(svRows) ? svRows[0] : svRows;
+      if (!sv || !sv.activa) { setError("Esta encuesta ya no está disponible."); setLoading(false); return; }
+      setSurvey({ ...sv, preguntas: sv.preguntas || [] });
       setLoading(false);
     })();
   }, [token]);
