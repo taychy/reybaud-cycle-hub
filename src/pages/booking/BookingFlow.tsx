@@ -808,8 +808,17 @@ const BookingFlow = () => {
     // Smart back: undo last selection
     if (step === 6) return;
     if (step === 5) { setStep(4); return; }
-    if (step === 4) { setStep(3); return; }
+    if (step === 4) {
+      // En modo "primer turno", al volver limpiamos el slot para mostrar la lista otra vez
+      if (modo === "primer") {
+        setSelectedSlot(null);
+        setSelectedDate(undefined);
+      }
+      setStep(3);
+      return;
+    }
     if (step === 3) {
+      if (modo === "primer") { setStep(2); return; }
       if (selectedSlot) { setSelectedSlot(null); return; }
       if (selectedDate) { setSelectedDate(undefined); return; }
       if (modo === "fecha" && selectedCoach) { setSelectedCoach(null); return; }
