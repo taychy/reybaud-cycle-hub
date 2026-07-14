@@ -9322,6 +9322,15 @@ export type Database = {
         Returns: Json
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
+      get_public_booking_coaches: {
+        Args: { p_coach_ids: string[] }
+        Returns: {
+          estado: string
+          id: string
+          nombre: string
+          sede_id: string
+        }[]
+      }
       get_reservas_turnera_ocupadas: {
         Args: { p_desde: string; p_hasta: string; p_servicio_id: string }
         Returns: {
