@@ -143,9 +143,9 @@ const BookingFlow = () => {
       const sedeIds = Array.from(new Set(list.map(d => d.sede_id).filter(Boolean)));
 
       if (coachIds.length) {
-        const { data: cs } = await supabase
-          .from("coaches_public" as any).select("id, nombre, sede_id, estado")
-          .in("id", coachIds).eq("estado", "activo");
+        const { data: cs } = await supabase.rpc("get_public_booking_coaches" as any, {
+          p_coach_ids: coachIds,
+        });
         const activos = (cs as any[]) || [];
         setCoaches(activos);
         // Re-filtramos disponibilidades para excluir coaches inactivos
