@@ -635,7 +635,68 @@ const BookingFlow = () => {
 
   // Decide what sub-section to render inside step 3 based on modo + selections
   const renderStep3 = () => {
-    // Pick first filter
+    // Primer turno disponible: lista de próximos turnos
+    if (modo === "primer") {
+      const opciones = getPrimerosTurnos(12);
+      if (opciones.length === 0) {
+        return (
+          <div className="space-y-3">
+            <h2 className="text-lg font-heading font-semibold text-foreground">Próximos turnos</h2>
+            <p className="text-sm text-muted-foreground italic">
+              No encontramos turnos disponibles en los próximos 60 días. Probá elegir por sede, fecha o coach.
+            </p>
+            <Button variant="outline" className="w-full" onClick={() => setStep(2)}>
+              Volver a elegir modo
+            </Button>
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-lg font-heading font-semibold text-foreground">Próximos turnos disponibles</h2>
+            <p className="text-sm text-muted-foreground mt-1">Elegí el que más te convenga.</p>
+          </div>
+          <div className="space-y-2">
+            {opciones.map(({ date, slot }) => {
+              const c = coachById.get(slot.coach_id);
+              const sedeNombre = slot.sede_id ? sedeById.get(slot.sede_id)?.nombre : null;
+              const fechaLabel = date.toLocaleDateString("es-AR", {
+                weekday: "long", day: "numeric", month: "long",
+              });
+              return (
+                <button
+                  key={`${date.toISOString().slice(0, 10)}-${slot.coach_id}-${slot.sede_id ?? "nosede"}-${slot.time}`}
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setSelectedSlot(slot);
+                    setStep(4);
+                  }}
+                  className="w-full text-left rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:bg-card/80 transition-colors flex items-center gap-3"
+                >
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-primary/10 text-primary min-w-[56px] py-2">
+                    <span className="text-[10px] uppercase tracking-wider opacity-80">
+                      {date.toLocaleDateString("es-AR", { month: "short" }).replace(".", "")}
+                    </span>
+                    <span className="text-xl font-heading font-bold leading-none">{date.getDate()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground capitalize">{fechaLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-mono">{slot.time}</span>
+                      {c && <> · {c.nombre}</>}
+                      {sedeNombre && <> · {sedeNombre}</>}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+
     if (modo === "sede" && !selectedSede) {
       return (
         <SectionPick title="Elegí la sede">
