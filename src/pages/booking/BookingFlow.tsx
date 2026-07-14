@@ -49,7 +49,7 @@ type Slot = { time: string; coach_id: string; disponibilidad_id: string; sede_id
 type AlumnoLogged = { id: string; nombre: string; apellido: string; email: string; celular?: string; documento?: string };
 type SessionLike = { user?: { id?: string; email?: string } } | null;
 
-type Modo = "sede" | "fecha" | "coach";
+type Modo = "sede" | "fecha" | "coach" | "primer";
 
 const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
