@@ -12,7 +12,7 @@ import { es } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Clock, MapPin, DollarSign, CheckCircle,
-  CalendarDays, User, AlertTriangle,
+  CalendarDays, User, AlertTriangle, Zap,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -595,6 +595,32 @@ const BookingFlow = () => {
     setStep(3);
   };
 
+  // "Primer turno disponible": scan next 60 days and jump straight to datos
+  const pickPrimerTurno = () => {
+    setSelectedSede(null);
+    setSelectedCoach(null);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      if (disabledDay(d)) continue;
+      const s = getAvailableSlots(d);
+      if (s.length > 0) {
+        setModo("fecha");
+        setSelectedDate(d);
+        setSelectedSlot(s[0]);
+        setStep(4);
+        return;
+      }
+    }
+    toast({
+      title: "Sin turnos disponibles",
+      description: "No encontramos turnos en los próximos 60 días.",
+      variant: "destructive",
+    });
+  };
+
   // Helpers for sub-step rendering
   const sedesDisponibles = sedes.filter(s => disponibilidades.some(d => d.sede_id === s.id));
   const coachesDisponibles = coaches.filter(c => disponibilidades.some(d => d.coach_id === c.id));
@@ -794,6 +820,9 @@ const BookingFlow = () => {
               <p className="text-sm text-muted-foreground mt-1">Empezá por lo que más te importa.</p>
             </div>
             <div className="space-y-2">
+              <ModeCard icon={<Zap className="w-5 h-5" />} label="Primer turno disponible"
+                desc="Te asignamos el turno más cercano según la disponibilidad."
+                onClick={pickPrimerTurno} />
               <ModeCard icon={<MapPin className="w-5 h-5" />} label="Por sede"
                 desc="Elijo primero la ubicación, después la fecha y el coach."
                 onClick={() => pickModo("sede")} disabled={sedesDisponibles.length === 0} />
