@@ -8,7 +8,7 @@
  */
 import {
   Bike, Footprints, Plane, ShieldCheck, Utensils, BedDouble,
-  Clock as ClockIcon, HeartPulse, MessageSquare,
+  Clock as ClockIcon, HeartPulse, MessageSquare, Moon, Truck,
 } from "lucide-react";
 
 export type FieldType = "text" | "textarea" | "number" | "select" | "date" | "time" | "toggle";
