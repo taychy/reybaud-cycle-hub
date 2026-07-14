@@ -9402,6 +9402,15 @@ export type Database = {
           titulo: string
         }[]
       }
+      get_turnera_bank_config: {
+        Args: never
+        Returns: {
+          alias: string
+          cbu: string
+          cuit: string
+          titular: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
