@@ -80,20 +80,13 @@ const TurneraTransferencia = () => {
     }
     setReserva(r);
 
-    const { data: cfg } = await supabase
-      .from("app_config")
-      .select("key, value")
-      .in("key", ["turnera_cbu", "turnera_alias", "turnera_titular", "turnera_cuit"]);
-    const map: Record<string, string> = {};
-    for (const row of (cfg || [])) {
-      const v = (row as any).value;
-      map[(row as any).key] = typeof v === "string" ? v : (v ?? "");
-    }
+    const { data: cfg } = await supabase.rpc("get_turnera_bank_config");
+    const row = Array.isArray(cfg) ? cfg[0] : cfg;
     setBank({
-      cbu: map.turnera_cbu || "",
-      alias: map.turnera_alias || "",
-      titular: map.turnera_titular || "",
-      cuit: map.turnera_cuit || "",
+      cbu: row?.cbu || "",
+      alias: row?.alias || "",
+      titular: row?.titular || "",
+      cuit: row?.cuit || "",
     });
     setLoading(false);
   };
