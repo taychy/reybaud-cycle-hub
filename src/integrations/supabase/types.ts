@@ -1351,6 +1351,8 @@ export type Database = {
       cuenta_ajustes: {
         Row: {
           alumno_id: string
+          aplicado_a_fuente_id: string | null
+          aplicado_a_fuente_tabla: string | null
           concepto: string
           created_at: string
           created_by: string | null
@@ -1367,6 +1369,8 @@ export type Database = {
         }
         Insert: {
           alumno_id: string
+          aplicado_a_fuente_id?: string | null
+          aplicado_a_fuente_tabla?: string | null
           concepto: string
           created_at?: string
           created_by?: string | null
@@ -1383,6 +1387,8 @@ export type Database = {
         }
         Update: {
           alumno_id?: string
+          aplicado_a_fuente_id?: string | null
+          aplicado_a_fuente_tabla?: string | null
           concepto?: string
           created_at?: string
           created_by?: string | null
@@ -9065,6 +9071,10 @@ export type Database = {
         }
         Returns: string
       }
+      cuenta_publica_consume_credit: {
+        Args: { p_fuente_id: string; p_fuente_tabla: string; p_token: string }
+        Returns: Json
+      }
       dar_baja_directa: {
         Args: {
           p_alumno_id: string
@@ -9229,6 +9239,13 @@ export type Database = {
       get_cuenta_publica: {
         Args: { p_ip?: string; p_token: string; p_user_agent?: string }
         Returns: Json
+      }
+      get_cuenta_publica_deudas_raw: {
+        Args: { p_alumno_id: string }
+        Returns: {
+          moneda: string
+          por_pagar: number
+        }[]
       }
       get_disponibilidad_ajustada_publica: {
         Args: { p_desde: string; p_hasta: string }
