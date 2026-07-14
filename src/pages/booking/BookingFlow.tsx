@@ -820,6 +820,9 @@ const BookingFlow = () => {
               <p className="text-sm text-muted-foreground mt-1">Empezá por lo que más te importa.</p>
             </div>
             <div className="space-y-2">
+              <ModeCard icon={<Zap className="w-5 h-5" />} label="Primer turno disponible"
+                desc="Te asignamos el turno más cercano según la disponibilidad."
+                onClick={pickPrimerTurno} />
               <ModeCard icon={<MapPin className="w-5 h-5" />} label="Por sede"
                 desc="Elijo primero la ubicación, después la fecha y el coach."
                 onClick={() => pickModo("sede")} disabled={sedesDisponibles.length === 0} />
