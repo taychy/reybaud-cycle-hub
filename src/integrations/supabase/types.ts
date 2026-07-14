@@ -9322,6 +9322,28 @@ export type Database = {
         Returns: Json
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
+      get_reserva_turnera_by_token: {
+        Args: { _id: string; _token: string }
+        Returns: {
+          apellido: string
+          comprobante_url: string
+          email: string
+          fecha: string
+          hold_expira_at: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          metodo_pago: string
+          moneda_snapshot: string
+          motivo_rechazo: string
+          nombre: string
+          pago_estado: string
+          pago_monto: number
+          servicio_id: string
+          servicio_nombre: string
+          upload_token: string
+        }[]
+      }
       get_reservas_turnera_ocupadas: {
         Args: { p_desde: string; p_hasta: string; p_servicio_id: string }
         Returns: {

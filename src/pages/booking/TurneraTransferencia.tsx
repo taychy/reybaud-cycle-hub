@@ -64,12 +64,21 @@ const TurneraTransferencia = () => {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    const { data: r } = await supabase
-      .from("reservas_turnera")
-      .select("id, nombre, apellido, email, fecha, hora_inicio, hora_fin, pago_estado, pago_monto, moneda_snapshot, metodo_pago, hold_expira_at, upload_token, comprobante_url, motivo_rechazo, servicio_id, servicios_turnera:servicio_id(nombre)")
-      .eq("id", id)
-      .maybeSingle();
-    setReserva((r as any) || null);
+    let r: any = null;
+    if (token) {
+      const { data } = await supabase.rpc("get_reserva_turnera_by_token", {
+        _id: id,
+        _token: token,
+      });
+      const row = Array.isArray(data) ? data[0] : null;
+      if (row) {
+        r = {
+          ...row,
+          servicios_turnera: row.servicio_nombre ? { nombre: row.servicio_nombre } : null,
+        };
+      }
+    }
+    setReserva(r);
 
     const { data: cfg } = await supabase
       .from("app_config")
