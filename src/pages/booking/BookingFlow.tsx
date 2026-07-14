@@ -595,31 +595,35 @@ const BookingFlow = () => {
     setStep(3);
   };
 
-  // "Primer turno disponible": scan next 60 days and jump straight to datos
+  // "Primer turno disponible": muestra una lista de los próximos turnos y el
+  // usuario elige. Vamos a step 3 con modo="primer" y ahí renderizamos la lista.
   const pickPrimerTurno = () => {
     setSelectedSede(null);
     setSelectedCoach(null);
+    setSelectedDate(undefined);
+    setSelectedSlot(null);
+    setModo("primer");
+    setStep(3);
+  };
+
+  // Escanea los próximos 60 días y devuelve los primeros N turnos con fecha
+  const getPrimerosTurnos = (max = 12): Array<{ date: Date; slot: Slot }> => {
+    const out: Array<{ date: Date; slot: Slot }> = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 60 && out.length < max; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
       if (disabledDay(d)) continue;
       const s = getAvailableSlots(d);
-      if (s.length > 0) {
-        setModo("fecha");
-        setSelectedDate(d);
-        setSelectedSlot(s[0]);
-        setStep(4);
-        return;
+      for (const slot of s) {
+        out.push({ date: d, slot });
+        if (out.length >= max) break;
       }
     }
-    toast({
-      title: "Sin turnos disponibles",
-      description: "No encontramos turnos en los próximos 60 días.",
-      variant: "destructive",
-    });
+    return out;
   };
+
 
   // Helpers for sub-step rendering
   const sedesDisponibles = sedes.filter(s => disponibilidades.some(d => d.sede_id === s.id));
