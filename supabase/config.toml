@@ -86,3 +86,7 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.event-interest]
     verify_jwt = false
+  [functions.cuenta-publica-resolve]
+    verify_jwt = false
+  [functions.cuenta-publica-pay]
+    verify_jwt = false
