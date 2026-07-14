@@ -149,14 +149,24 @@ const TurneraTransferenciasTab = () => {
             </div>
 
             {signedUrls[r.id] ? (
-              <a
-                href={signedUrls[r.id]}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(signedUrls[r.id]);
+                    if (!res.ok) throw new Error("No se pudo descargar");
+                    const blob = await res.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    window.open(blobUrl, "_blank", "noopener,noreferrer");
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+                  } catch (e: any) {
+                    toast({ title: "Error", description: e.message || "No se pudo abrir el comprobante", variant: "destructive" });
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
                 <ExternalLink className="w-4 h-4" /> Ver comprobante
-              </a>
+              </button>
             ) : (
               <p className="text-xs text-muted-foreground">Sin archivo.</p>
             )}
