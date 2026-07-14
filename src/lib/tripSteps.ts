@@ -8,7 +8,7 @@
  */
 import {
   Bike, Footprints, Plane, ShieldCheck, Utensils, BedDouble,
-  Clock as ClockIcon, HeartPulse, MessageSquare,
+  Clock as ClockIcon, HeartPulse, MessageSquare, Moon, Truck,
 } from "lucide-react";
 
 export type FieldType = "text" | "textarea" | "number" | "select" | "date" | "time" | "toggle";
@@ -152,6 +152,46 @@ export const TRIP_STEPS: TripStepDef[] = [
       { key: "departure_date", label: "Fecha de partida", type: "date" },
       { key: "departure_time", label: "Hora de partida", type: "time" },
       { key: "arrival_notes", label: "Comentarios sobre logística", type: "textarea", colSpan: 2 },
+    ],
+  },
+  {
+    key: "noches_extras",
+    label: "Noches extras",
+    shortLabel: "Noches extras",
+    description: "Llegada anticipada o estadía extendida",
+    icon: Moon,
+    group: "logistica",
+    fields: [
+      { key: "quiere_noches_extras", label: "Quiero sumar noches extras", type: "toggle", colSpan: 2 },
+      { key: "noches_previas", label: "Noches antes del viaje", type: "number", placeholder: "0" },
+      { key: "noches_posteriores", label: "Noches después del viaje", type: "number", placeholder: "0" },
+      { key: "acompanantes", label: "¿Viene con acompañantes?", type: "text", placeholder: "Nombre y cantidad", colSpan: 2 },
+      { key: "notas_noches_extras", label: "Comentarios", type: "textarea", placeholder: "Preferencias de habitación, fecha exacta, etc.", colSpan: 2, help: "El costo lo confirma el equipo por privado según disponibilidad." },
+    ],
+  },
+  {
+    key: "transporte_bici",
+    label: "Transporte de bici",
+    shortLabel: "Bike box",
+    description: "Envío o traslado de tu bicicleta",
+    icon: Truck,
+    group: "logistica",
+    fields: [
+      {
+        key: "modalidad", label: "¿Cómo llega tu bici?", type: "select", colSpan: 2,
+        options: [
+          { value: "propia_avion", label: "La llevo yo en avión (bike box)" },
+          { value: "propia_auto", label: "La llevo yo en auto/micro" },
+          { value: "envio_reybaud", label: "Necesito que Reybaud la traslade" },
+          { value: "alquilo", label: "Voy a alquilar bici allá" },
+          { value: "sin_definir", label: "Todavía no lo decidí" },
+        ],
+      },
+      { key: "necesita_bike_box", label: "Necesito bike box prestada", type: "toggle" },
+      { key: "seguro_bici", label: "Contraté seguro para la bici", type: "toggle" },
+      { key: "fecha_entrega", label: "Fecha estimada de entrega/retiro", type: "date" },
+      { key: "peso_kg", label: "Peso de la bici (kg)", type: "number", placeholder: "Ej: 9" },
+      { key: "notas_bici", label: "Comentarios", type: "textarea", placeholder: "Modelo, medidas, aclaraciones para el traslado…", colSpan: 2 },
     ],
   },
   {

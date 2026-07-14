@@ -9323,6 +9323,10 @@ export type Database = {
         Args: { p_package_id: string }
         Returns: number
       }
+      get_pending_event_promo: {
+        Args: { _alumno_id: string; _evento_id: string }
+        Returns: Json
+      }
       get_preorder_reserved_units: {
         Args: { p_product_id: string }
         Returns: number

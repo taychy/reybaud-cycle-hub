@@ -27,7 +27,37 @@ export function useEventPromo(eventId: string | undefined) {
   const [promo, setPromo] = useState<PromoInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const code = params.get("promo") || (eventId ? sessionStorage.getItem(storageKey(eventId)) || "" : "");
+  const urlCode = params.get("promo") || (eventId ? sessionStorage.getItem(storageKey(eventId)) || "" : "");
+  const [resolvedCode, setResolvedCode] = useState<string>(urlCode);
+  const code = resolvedCode;
+
+  // 1) Si no viene código por URL ni sessionStorage, intentamos recuperarlo desde
+  //    la encuesta que el alumno respondió (persistencia cross-device del "10% off").
+  useEffect(() => {
+    if (!eventId || urlCode) return;
+    let cancelled = false;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) return;
+      const { data: alumno } = await supabase
+        .from("alumnos")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!alumno?.id || cancelled) return;
+      const { data } = await supabase.rpc("get_pending_event_promo" as any, {
+        _alumno_id: alumno.id,
+        _evento_id: eventId,
+      });
+      const info = data as unknown as PromoInfo | null;
+      if (info?.ok && info.codigo && !cancelled) {
+        setResolvedCode(info.codigo);
+        sessionStorage.setItem(storageKey(eventId), info.codigo);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [eventId, urlCode]);
 
   useEffect(() => {
     if (!eventId || !code) {
