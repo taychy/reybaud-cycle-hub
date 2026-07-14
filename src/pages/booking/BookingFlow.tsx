@@ -12,7 +12,7 @@ import { es } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Clock, MapPin, DollarSign, CheckCircle,
-  CalendarDays, User, AlertTriangle,
+  CalendarDays, User, AlertTriangle, Zap,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 
