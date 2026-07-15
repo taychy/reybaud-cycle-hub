@@ -1,5 +1,6 @@
 // Inscripción pública a un programa (cohort_slug + landing_public = true).
-// Crea/encuentra alumno, crea suscripción pendiente y devuelve init_point de MP.
+// Soporta 2 métodos de pago (MP / transferencia) y 2 modalidades (contado / cuotas).
+// Para 2 cuotas: hoy se cobra la cuota 1 y la cuota 2 queda como deuda en cuenta corriente (vence a 30 días).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
 
@@ -17,6 +18,10 @@ interface EnrollPayload {
   email: string;
   telefono?: string;
   modo_pago: "contado" | "cuotas";
+  metodo_pago_inicial: "mp" | "transferencia";
+  comprobante_base64?: string | null;
+  comprobante_filename?: string | null;
+  comprobante_mime?: string | null;
 }
 
 function jsonResp(body: unknown, status = 200) {
@@ -24,6 +29,30 @@ function jsonResp(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function addDaysISO(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+function extFromMime(mime: string | null | undefined, filename?: string | null): string {
+  if (filename && filename.includes(".")) return filename.split(".").pop()!.toLowerCase();
+  switch ((mime ?? "").toLowerCase()) {
+    case "image/jpeg": return "jpg";
+    case "image/png": return "png";
+    case "image/webp": return "webp";
+    case "application/pdf": return "pdf";
+    default: return "bin";
+  }
 }
 
 Deno.serve(async (req) => {
@@ -38,6 +67,7 @@ Deno.serve(async (req) => {
     const telefono = String(raw.telefono ?? "").trim() || null;
     const cohort_slug = String(raw.cohort_slug ?? "").trim();
     const modo_pago = raw.modo_pago === "cuotas" ? "cuotas" : "contado";
+    const metodo_pago_inicial = raw.metodo_pago_inicial === "transferencia" ? "transferencia" : "mp";
 
     if (!nombre || !apellido || !email || !cohort_slug) {
       return jsonResp({ error: "Faltan datos obligatorios" }, 400);
@@ -48,13 +78,16 @@ Deno.serve(async (req) => {
     if (nombre.length > 80 || apellido.length > 80 || email.length > 255) {
       return jsonResp({ error: "Datos demasiado largos" }, 400);
     }
+    if (metodo_pago_inicial === "transferencia" && !raw.comprobante_base64) {
+      return jsonResp({ error: "Adjuntá el comprobante de transferencia" }, 400);
+    }
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // 1) Buscar el plan
+    // 1) Plan
     const { data: plan, error: planErr } = await admin
       .from("planes")
       .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo")
@@ -64,13 +97,10 @@ Deno.serve(async (req) => {
     if (planErr || !plan) return jsonResp({ error: "Programa no encontrado" }, 404);
     if (!plan.activo || !plan.landing_public) return jsonResp({ error: "Programa no disponible" }, 400);
 
-    // Cierre de inscripciones
     const today = new Date().toISOString().slice(0, 10);
     if (plan.fecha_cierre_inscripcion && today > plan.fecha_cierre_inscripcion) {
       return jsonResp({ error: "Las inscripciones a este programa están cerradas." }, 400);
     }
-
-    // Cupos
     if (plan.max_inscripciones != null && (plan.inscripciones_actuales ?? 0) >= plan.max_inscripciones) {
       return jsonResp({ error: "No quedan cupos disponibles" }, 409);
     }
@@ -80,15 +110,20 @@ Deno.serve(async (req) => {
     const currentStage = Array.isArray(stage) ? stage[0] : null;
     if (stageErr || !currentStage) return jsonResp({ error: "No hay un tramo de precio vigente hoy" }, 400);
 
-    const precio_final = modo_pago === "cuotas" && currentStage.precio_cuota
-      ? Number(currentStage.precio_cuota) * Number(currentStage.cuotas_cantidad ?? 1)
-      : Number(currentStage.precio);
-    const unit_price = modo_pago === "cuotas" && currentStage.precio_cuota
-      ? Number(currentStage.precio_cuota)
-      : Number(currentStage.precio);
-    const cuotas = modo_pago === "cuotas" ? Number(currentStage.cuotas_cantidad ?? 1) : 1;
+    const precioContado = Number(currentStage.precio);
+    const precioCuota = currentStage.precio_cuota ? Number(currentStage.precio_cuota) : null;
+    const cuotasCantidad = Number(currentStage.cuotas_cantidad ?? 1);
+    const esCuotas = modo_pago === "cuotas" && precioCuota && cuotasCantidad > 1;
 
-    // 3) Buscar o crear alumno por email
+    // Precio_final = total a cobrar en TODO el programa (no cambia por modalidad).
+    const precio_final = esCuotas ? precioCuota! * cuotasCantidad : precioContado;
+    // Monto a cobrar HOY.
+    const montoHoy = esCuotas ? precioCuota! : precioContado;
+    // Monto que queda como deuda futura.
+    const deudaCuota2 = esCuotas ? precioCuota! : 0;
+    const vencimientoCuota2 = esCuotas ? addDaysISO(30) : null;
+
+    // 3) Alumno
     const { data: existing } = await admin
       .from("alumnos")
       .select("id, nombre, apellido, telefono, origen_cohort")
@@ -98,7 +133,6 @@ Deno.serve(async (req) => {
     let alumnoId: string;
     if (existing) {
       alumnoId = existing.id;
-      // Solo completar campos vacíos + marcar cohort si no tenía
       const patch: Record<string, unknown> = {};
       if (!existing.telefono && telefono) patch.telefono = telefono;
       if (!existing.origen_cohort) {
@@ -112,10 +146,7 @@ Deno.serve(async (req) => {
       const { data: nuevo, error: insErr } = await admin
         .from("alumnos")
         .insert({
-          nombre,
-          apellido,
-          email,
-          telefono,
+          nombre, apellido, email, telefono,
           grupo: "Iniciación",
           estado: "pendiente",
           origen_cohort: cohort_slug,
@@ -130,30 +161,47 @@ Deno.serve(async (req) => {
       alumnoId = nuevo.id;
     }
 
-    // 4) Evitar suscripción activa duplicada al mismo plan
+    // 4) Sub existente o nueva
     const { data: existSub } = await admin
       .from("suscripciones")
       .select("id, estado")
       .eq("alumno_id", alumnoId)
       .eq("plan_id", plan.id)
-      .in("estado", ["activa", "pendiente_pago", "pendiente"])
+      .in("estado", ["activa", "pendiente_pago", "pendiente", "pendiente_verificacion"])
       .maybeSingle();
+
+    const modalidadNota = esCuotas
+      ? ` (${cuotasCantidad} cuotas de $${precioCuota}; hoy cuota 1, cuota 2 vence ${vencimientoCuota2})`
+      : "";
+    const metodoLabel = metodo_pago_inicial === "transferencia" ? "transferencia" : "mercado_pago";
+    const notasSub = `Inscripción landing pública. Tramo: ${currentStage.stage_nombre}. Modo: ${modo_pago}${modalidadNota}. Método: ${metodoLabel}.`;
 
     let suscripcionId: string;
     if (existSub) {
       suscripcionId = existSub.id;
+      await admin
+        .from("suscripciones")
+        .update({
+          estado: metodo_pago_inicial === "transferencia" ? "pendiente_verificacion" : "pendiente_pago",
+          precio_base: precioContado,
+          precio_final,
+          metodo_pago: metodoLabel,
+          origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
+          notas: notasSub,
+        })
+        .eq("id", suscripcionId);
     } else {
       const { data: nuevaSub, error: subErr } = await admin
         .from("suscripciones")
         .insert({
           alumno_id: alumnoId,
           plan_id: plan.id,
-          estado: "pendiente_pago",
-          precio_base: Number(currentStage.precio),
+          estado: metodo_pago_inicial === "transferencia" ? "pendiente_verificacion" : "pendiente_pago",
+          precio_base: precioContado,
           precio_final,
-          metodo_pago: "mercado_pago",
-          origen_registro: "landing_publica",
-          notas: `Inscripción vía landing pública. Tramo: ${currentStage.stage_nombre}. Modo: ${modo_pago}${cuotas > 1 ? ` (${cuotas} cuotas de $${unit_price})` : ""}.`,
+          metodo_pago: metodoLabel,
+          origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
+          notas: notasSub,
         })
         .select("id")
         .single();
@@ -164,17 +212,121 @@ Deno.serve(async (req) => {
       suscripcionId = nuevaSub.id;
     }
 
-    // 5) MP preference
+    // 5) Registrar deuda cuota 2 (idempotente vía referencia_externa).
+    if (esCuotas && deudaCuota2 > 0 && vencimientoCuota2) {
+      const refExterna = `FORMACION_CUOTA2:${suscripcionId}`;
+      const { data: existAjuste } = await admin
+        .from("cuenta_ajustes")
+        .select("id")
+        .eq("referencia_externa", refExterna)
+        .maybeSingle();
+      if (!existAjuste) {
+        const { error: ajErr } = await admin.from("cuenta_ajustes").insert({
+          alumno_id: alumnoId,
+          tipo: "deuda",
+          concepto: `Cuota 2 · ${plan.nombre}`,
+          monto: deudaCuota2,
+          moneda: plan.moneda || "ARS",
+          fecha: vencimientoCuota2,
+          notas: `Vence el ${vencimientoCuota2}. Segunda cuota del programa (inscripción landing).`,
+          referencia_externa: refExterna,
+          aplicado_a_fuente_tabla: "suscripciones",
+          aplicado_a_fuente_id: suscripcionId,
+        });
+        if (ajErr) console.error("[enroll-programa] insert cuenta_ajustes cuota 2", ajErr);
+      }
+    }
+
+    // ─────────── FLUJO TRANSFERENCIA ───────────
+    if (metodo_pago_inicial === "transferencia") {
+      // Subir comprobante al bucket payment-proofs
+      const bytes = base64ToBytes(String(raw.comprobante_base64));
+      const ext = extFromMime(raw.comprobante_mime, raw.comprobante_filename);
+      const path = `formacion-inicial/${suscripcionId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await admin.storage
+        .from("payment-proofs")
+        .upload(path, bytes, {
+          contentType: raw.comprobante_mime || "application/octet-stream",
+          upsert: true,
+        });
+      if (upErr) {
+        console.error("[enroll-programa] upload comprobante", upErr);
+        return jsonResp({ error: "No se pudo subir el comprobante" }, 500);
+      }
+
+      // Registrar la referencia del comprobante en la sub (via notas complementarias)
+      await admin
+        .from("suscripciones")
+        .update({
+          notas: `${notasSub} | Comprobante: ${path}`,
+        })
+        .eq("id", suscripcionId);
+
+      // Notificar admin (email + evento admin_notification_events)
+      try {
+        await admin.from("admin_notification_events").insert({
+          tipo: "programa_transferencia_pendiente",
+          prioridad: "alta",
+          payload: {
+            suscripcion_id: suscripcionId,
+            alumno_id: alumnoId,
+            plan_id: plan.id,
+            plan_nombre: plan.nombre,
+            monto: montoHoy,
+            modo_pago,
+            comprobante_path: path,
+            alumno_nombre: `${nombre} ${apellido}`.trim(),
+            alumno_email: email,
+          },
+          deduplication_key: `programa-transf-${suscripcionId}-${Date.now()}`,
+        });
+      } catch (e) {
+        console.error("[enroll-programa] admin_notification_events", e);
+      }
+
+      // Reusar notify-cash-payment para el email al admin
+      try {
+        const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-cash-payment`;
+        await fetch(fnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+            authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY") ?? ""}`,
+          },
+          body: JSON.stringify({
+            alumno_id: alumnoId,
+            plan_id: plan.id,
+            suscripcion_id: suscripcionId,
+            payment_type: "transferencia",
+          }),
+        });
+      } catch (e) {
+        console.error("[enroll-programa] notify-cash-payment fetch", e);
+      }
+
+      return jsonResp({
+        ok: true,
+        mode: "transfer",
+        suscripcion_id: suscripcionId,
+        alumno_id: alumnoId,
+      });
+    }
+
+    // ─────────── FLUJO MERCADO PAGO ───────────
     const cuenta = await resolveCuentaMP(admin, { unidad_negocio: "suscripcion_escuela" });
     if (!cuenta.access_token) return jsonResp({ error: "Mercado Pago no está configurado" }, 500);
 
     const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
+    const itemTitle = esCuotas
+      ? `${plan.nombre} — ${currentStage.stage_nombre} (Cuota 1 de ${cuotasCantidad})`
+      : `${plan.nombre} — ${currentStage.stage_nombre}`;
     const prefBody: Record<string, unknown> = {
       items: [
         {
-          title: `${plan.nombre} — ${currentStage.stage_nombre}${cuotas > 1 ? ` (${cuotas} cuotas)` : ""}`,
+          title: itemTitle,
           quantity: 1,
-          unit_price: precio_final,
+          unit_price: montoHoy,
           currency_id: plan.moneda || "ARS",
         },
       ],
@@ -189,14 +341,6 @@ Deno.serve(async (req) => {
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
-    if (cuotas > 1) {
-      // Forzar el número de cuotas en el checkout de MP (tarjeta de crédito)
-      prefBody.payment_methods = {
-        installments: cuotas,
-        default_installments: cuotas,
-        excluded_payment_types: [{ id: "ticket" }, { id: "atm" }],
-      };
-    }
 
     const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
@@ -220,6 +364,7 @@ Deno.serve(async (req) => {
 
     return jsonResp({
       ok: true,
+      mode: "mp",
       init_point: pref.init_point || pref.sandbox_init_point,
       preference_id: pref.id,
       suscripcion_id: suscripcionId,
