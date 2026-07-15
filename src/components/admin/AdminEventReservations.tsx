@@ -300,6 +300,7 @@ const AdminEventReservations = ({
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [showTripReports, setShowTripReports] = useState(false);
+  const [showLodging, setShowLodging] = useState(false);
 
 
   // Detail drawer
