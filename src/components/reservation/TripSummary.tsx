@@ -494,6 +494,18 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
         stepKey={formDrawer.stepKey}
         onSaved={load}
       />
+      {reservation?.event_id && (
+        <TripRoommatesDrawer
+          open={roommatesOpen}
+          onOpenChange={setRoommatesOpen}
+          reservationId={reservationId}
+          eventId={reservation.event_id}
+          alumnoId={alumnoId}
+          packageName={reservation?.package_nombre_snapshot}
+          onChanged={load}
+        />
+      )}
+
     </div>
   );
 }
