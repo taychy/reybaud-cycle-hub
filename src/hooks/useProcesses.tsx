@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type EntidadControl = "none" | "store_preorder" | "supplier_order";
-export type AccionFinal = "none" | "send_report";
+export type EntidadControl = "none" | "store_preorder" | "supplier_order" | "cohort_task" | "cohort_kpi";
+export type AccionFinal = "none" | "send_report" | "send_cohort_email";
 export type InstanceEstado = "en_curso" | "completada" | "cancelada";
 export type StageEstado = "pendiente" | "en_curso" | "completada";
 
