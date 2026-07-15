@@ -157,6 +157,28 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
       setAddonsMeta(meta);
     }
 
+    // Invitaciones entrantes (otros participantes invitando a este alumno)
+    const eventId = (resR.data as any)?.event_id;
+    if (mode === "student" && eventId) {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (email) {
+        const { data: inc } = await supabase
+          .from("reservation_roommates")
+          .select("id")
+          .eq("event_id", eventId)
+          .eq("status", "pending")
+          .ilike("email", email)
+          .neq("reservation_id", reservationId);
+        setIncomingInvites(((inc || []) as any[]).map(r => ({ id: r.id })));
+      } else {
+        setIncomingInvites([]);
+      }
+    } else {
+      setIncomingInvites([]);
+    }
+
+
     setLoading(false);
   }, [reservationId, mode]);
 
