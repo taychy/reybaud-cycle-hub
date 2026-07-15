@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { z } from "zod";
-import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone } from "lucide-react";
+import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone, Copy, Upload, CreditCard, Building2 } from "lucide-react";
 import heroAsset from "@/assets/formacion-inicial-hero.png.asset.json";
+import { ESCUELA_TRANSFER_INFO } from "@/lib/contactInfo";
 const heroImg = heroAsset.url;
 
 const COHORT = "formacion_inicial_2026_2";
