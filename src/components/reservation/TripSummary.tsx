@@ -23,6 +23,10 @@ import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import TripFormDrawer from "@/components/reservation/TripFormDrawer";
+import TripRoommatesDrawer from "@/components/reservation/TripRoommatesDrawer";
+import { parseRoomCapacity } from "@/lib/roomCapacity";
+import { BedDouble, Users } from "lucide-react";
+
 
 interface Props {
   reservationId: string;
