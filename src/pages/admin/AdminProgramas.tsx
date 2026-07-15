@@ -168,7 +168,7 @@ const AdminProgramas = () => {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-sm font-heading font-bold">{formatCurrency(r.precio, r.moneda as any)}</span>
+                    <span className="text-sm font-heading font-bold">{formatPrice(r.precio, r.moneda)}</span>
                     <Link to={`/admin/programas/${r.id}`}>
                       <Button size="sm" variant="ghost">
                         Ver detalle <ArrowRight className="w-4 h-4 ml-1" />
