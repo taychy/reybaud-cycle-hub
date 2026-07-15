@@ -621,6 +621,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
             })}
           </div>
         )}
+        <DialogFooter className="pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Volver atrás
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
