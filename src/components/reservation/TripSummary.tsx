@@ -382,19 +382,60 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
               </div>
             );
           })}
-          {roommates.length > 0 && (
-            <div className="rounded-lg border border-border bg-background p-3">
-              <p className="text-[10px] text-muted-foreground uppercase mb-1.5">Compañeros de habitación asignados</p>
-              <div className="space-y-1">
-                {roommates.map(r => (
-                  <div key={r.id} className="flex items-center justify-between text-xs">
-                    <span>{r.nombre || r.email || "—"}</span>
-                    {r.confirmado && <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-500">Confirmado</Badge>}
+          {/* Compañeros de habitación (autogestionado) */}
+          {(() => {
+            const roomInfo = parseRoomCapacity(reservation?.package_nombre_snapshot);
+            if (!roomInfo.requiresLodging) return null;
+            const confirmedCount = roommates.filter(r => r.status === "accepted").length;
+            const pendingCount = roommates.filter(r => r.status === "pending").length;
+            const hasIncoming = incomingInvites.length > 0;
+            const canManage = mode === "student" && !!reservation?.event_id && roomInfo.capacity !== 1;
+            return (
+              <div className={`rounded-lg border p-3 ${hasIncoming ? "border-primary/40 bg-primary/5" : "border-border bg-background"}`}>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BedDouble className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <p className="text-xs font-semibold truncate">Compañeros de habitación</p>
+                    {roomInfo.label && <Badge variant="outline" className="text-[9px]">{roomInfo.label}</Badge>}
+                    {hasIncoming && <Badge className="text-[9px] bg-primary text-white">{incomingInvites.length} nueva{incomingInvites.length > 1 ? "s" : ""}</Badge>}
                   </div>
-                ))}
+                  {canManage && (
+                    <Button size="sm" variant={hasIncoming ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => setRoommatesOpen(true)}>
+                      <Users className="w-3 h-3 mr-1" />
+                      {hasIncoming ? "Responder" : "Gestionar"}
+                    </Button>
+                  )}
+                </div>
+                {roomInfo.capacity === 1 ? (
+                  <p className="text-[11px] text-muted-foreground">Habitación individual: no compartís con nadie.</p>
+                ) : roommates.length === 0 && !hasIncoming ? (
+                  <p className="text-[11px] text-muted-foreground italic">
+                    {canManage
+                      ? "Todavía no invitaste a nadie. Tocá Gestionar para elegir compañero/s."
+                      : "Sin compañeros declarados"}
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {roommates.map(r => (
+                      <div key={r.id} className="flex items-center justify-between text-xs">
+                        <span className={r.status === "rejected" ? "line-through text-muted-foreground" : ""}>
+                          {r.nombre || r.email || "—"}
+                        </span>
+                        {r.status === "accepted" && <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-500">Confirmado</Badge>}
+                        {r.status === "pending" && <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-500">Pendiente</Badge>}
+                        {r.status === "rejected" && <Badge variant="outline" className="text-[9px] text-muted-foreground">Rechazó</Badge>}
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-muted-foreground pt-1">
+                      {confirmedCount} confirmado{confirmedCount === 1 ? "" : "s"}
+                      {pendingCount > 0 && ` · ${pendingCount} pendiente${pendingCount === 1 ? "" : "s"}`}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
+
         </CollapsibleContent>
       </Collapsible>
 
