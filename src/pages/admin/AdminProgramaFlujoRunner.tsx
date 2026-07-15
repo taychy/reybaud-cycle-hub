@@ -59,8 +59,8 @@ const AdminProgramaFlujoRunner = () => {
   // Load email templates (best-effort — usa email_templates si existe)
   useEffect(() => {
     (async () => {
-      const { data } = await sb.from("email_templates").select("template_key, nombre").limit(50);
-      setEmailTemplates((data || []).map((t: any) => ({ key: t.template_key, name: t.nombre || t.template_key })));
+      const { data } = await sb.from("email_templates").select("key, description").eq("is_active", true).limit(100);
+      setEmailTemplates((data || []).map((t: any) => ({ key: t.key, name: t.description || t.key })));
     })();
   }, []);
 
