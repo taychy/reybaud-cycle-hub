@@ -648,8 +648,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         </div>
                         );
                       })}
-
+                    </div>
                   </div>
+
                 </div>
               );
             })}
