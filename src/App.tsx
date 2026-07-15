@@ -50,6 +50,8 @@ import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
 import EventsList from "./pages/admin/EventsList";
+import AdminProgramas from "./pages/admin/AdminProgramas";
+import AdminProgramaDetalle from "./pages/admin/AdminProgramaDetalle";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
