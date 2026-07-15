@@ -430,24 +430,48 @@ const AdminProgramaDetalle = () => {
                 <Workflow className="w-4 h-4" /> Playbook del programa
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>
-                El <b>playbook</b> es la receta escrita del programa: etapas ordenadas (publicar cohorte, cerrar cupo,
-                bienvenida, primera clase, check-in intermedio, graduación, oferta de continuidad, seguimiento post-90d),
-                cada una con responsable, tiempo estimado y salida verificable.
-              </p>
-              <p>
-                Se habilita en el <b>Paso 2</b> del rediseño: se edita desde la plantilla del plan y se ejecuta con el
-                botón <b>Flujo</b> arriba a la derecha. Cada cohorte tendrá su propia instancia del playbook.
-              </p>
-              <p className="pt-2">
-                <Link to="/admin/procesos/plantillas" className="text-primary underline">
-                  Ver plantillas de procesos existentes →
-                </Link>
-              </p>
+            <CardContent className="text-sm space-y-3">
+              {playbook ? (
+                <>
+                  <p className="text-muted-foreground">
+                    Este programa tiene un playbook con <b>{playbook.stages}</b> etapa
+                    {playbook.stages === 1 ? "" : "s"} definidas.
+                  </p>
+                  {activeInstanceId ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="default">Flujo en curso</Badge>
+                      <Button size="sm" onClick={handleFlujo}>
+                        <Play className="w-4 h-4 mr-1" /> Continuar flujo
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" onClick={handleFlujo} disabled={startingFlujo}>
+                      {startingFlujo ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Workflow className="w-4 h-4 mr-1" />}
+                      Iniciar flujo para esta cohorte
+                    </Button>
+                  )}
+                  <div className="pt-2">
+                    <Link to={`/admin/planes/${cohortId}/playbook`} className="text-primary underline text-sm">
+                      Editar etapas del playbook →
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-foreground">
+                    Este programa no tiene playbook todavía. Creá uno con 8 etapas base editables (bienvenida, primera clase, check-in, graduación, oferta de continuidad, seguimiento 90d) o empezá de cero.
+                  </p>
+                  <Link to={`/admin/planes/${cohortId}/playbook`}>
+                    <Button size="sm">
+                      <Workflow className="w-4 h-4 mr-1" /> Configurar playbook
+                    </Button>
+                  </Link>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         <TabsContent value="comunicaciones">
           <Card>
