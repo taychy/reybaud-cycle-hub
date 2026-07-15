@@ -85,6 +85,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [roommates, setRoommates] = useState<RoommateRow[]>([]);
+  const [incomingInvites, setIncomingInvites] = useState<IncomingInvite[]>([]);
+  const [roommatesOpen, setRoommatesOpen] = useState(false);
+
   const [notifications, setNotifications] = useState<NotifRow[]>([]);
 
   // Drawer state
