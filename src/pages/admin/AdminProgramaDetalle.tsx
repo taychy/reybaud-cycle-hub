@@ -90,11 +90,15 @@ const estadoBadge = (estado: string) => {
 
 const AdminProgramaDetalle = () => {
   const { cohortId } = useParams<{ cohortId: string }>();
+  const navigate = useNavigate();
   const [plan, setPlan] = useState<PlanRow | null>(null);
   const [inscriptos, setInscriptos] = useState<Inscripto[]>([]);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [playbook, setPlaybook] = useState<{ id: string; nombre: string; stages: number } | null>(null);
+  const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
+  const [startingFlujo, setStartingFlujo] = useState(false);
 
   useEffect(() => {
     if (!cohortId) return;
