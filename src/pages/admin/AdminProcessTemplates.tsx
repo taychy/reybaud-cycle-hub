@@ -340,6 +340,8 @@ function StageEditDialog({
                 <SelectItem value="none">Ninguna</SelectItem>
                 <SelectItem value="store_preorder">Preventa (store_preorder)</SelectItem>
                 <SelectItem value="supplier_order">Pedido a proveedor (texto libre)</SelectItem>
+                <SelectItem value="cohort_task">Generar tarea para el equipo</SelectItem>
+                <SelectItem value="cohort_kpi">Verificar KPI de cohorte</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -350,6 +352,7 @@ function StageEditDialog({
               <SelectContent>
                 <SelectItem value="none">Ninguna</SelectItem>
                 <SelectItem value="send_report">Enviar reporte por mail</SelectItem>
+                <SelectItem value="send_cohort_email">Enviar mail a toda la cohorte</SelectItem>
               </SelectContent>
             </Select>
           </div>
