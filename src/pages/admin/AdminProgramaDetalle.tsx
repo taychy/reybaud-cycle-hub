@@ -360,7 +360,7 @@ const AdminProgramaDetalle = () => {
                 botón <b>Flujo</b> arriba a la derecha. Cada cohorte tendrá su propia instancia del playbook.
               </p>
               <p className="pt-2">
-                <Link to="/admin/procesos-plantillas" className="text-primary underline">
+                <Link to="/admin/procesos/plantillas" className="text-primary underline">
                   Ver plantillas de procesos existentes →
                 </Link>
               </p>
