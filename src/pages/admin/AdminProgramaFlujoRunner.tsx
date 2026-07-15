@@ -127,40 +127,24 @@ const AdminProgramaFlujoRunner = () => {
       toast({ title: "Elegí una plantilla", description: "Seleccioná el mail a enviar a la cohorte.", variant: "destructive" });
       return false;
     }
-    // Buscar inscriptos activos/pendientes con email
-    const { data: subs } = await sb
-      .from("suscripciones")
-      .select("id, alumno_id, estado")
-      .eq("plan_id", cohortId)
-      .in("estado", ["activa", "pendiente_pago", "pendiente_verificacion"]);
-    const alumnoIds = Array.from(new Set((subs || []).map((s: any) => s.alumno_id)));
-    if (alumnoIds.length === 0) {
-      toast({ title: "Sin destinatarios", description: "No hay inscriptos activos en esta cohorte." });
+    try {
+      const { data, error } = await supabase.functions.invoke("send-cohort-playbook-email", {
+        body: {
+          plan_id: cohortId,
+          template_key: emailTemplateKey,
+          instance_id: instanceId,
+          stage_id: current?.id,
+        },
+      });
+      if (error) throw error;
+      const sent = (data as any)?.sent ?? 0;
+      const total = (data as any)?.total ?? 0;
+      toast({ title: `Emails encolados: ${sent}/${total}` });
       return true;
+    } catch (e: any) {
+      toast({ title: "Error al enviar", description: e.message, variant: "destructive" });
+      return false;
     }
-    const { data: alumnos } = await sb
-      .from("alumnos")
-      .select("nombre, apellido, email")
-      .in("id", alumnoIds);
-    const targets = (alumnos || []).filter((a: any) => a.email);
-    let sent = 0;
-    for (const a of targets) {
-      try {
-        await supabase.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: emailTemplateKey,
-            recipientEmail: a.email,
-            idempotencyKey: `playbook-${instanceId}-${current?.id}-${a.email}`,
-            templateData: { name: `${a.nombre || ""} ${a.apellido || ""}`.trim() },
-          },
-        });
-        sent++;
-      } catch (e) {
-        console.error("send-transactional-email failed", e);
-      }
-    }
-    toast({ title: `Emails encolados: ${sent}/${targets.length}` });
-    return true;
   };
 
   const handleConfirmStage = async () => {
