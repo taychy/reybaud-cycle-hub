@@ -107,8 +107,11 @@ const AdminProgramaFlujoRunner = () => {
         descripcion: `${currentTpl.instrucciones || ""}\n\nGenerada desde el playbook del programa. Instancia: ${instance.id}`,
         estado: "pendiente",
         prioridad: "media",
-        rol_asignado: template?.rol_destino || "admin",
-        creada_por: user?.id || null,
+        rol_destino: template?.rol_destino || "admin",
+        entidad_tipo: "process_instance",
+        entidad_id: instance.id,
+        created_by: user?.id || null,
+        origen: "playbook",
       });
       if (error) throw error;
       toast({ title: "Tarea generada", description: "Asignada al equipo. La verás en 'Tareas'." });
