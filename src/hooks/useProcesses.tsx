@@ -116,6 +116,7 @@ export async function startProcessInstance(params: {
   template_id: string;
   iniciado_por: string;
   destinatario_reporte_email: string | null;
+  plan_id?: string | null;
 }): Promise<string> {
   const { data, error } = await sb
     .from("process_instances")
@@ -124,6 +125,7 @@ export async function startProcessInstance(params: {
       iniciado_por: params.iniciado_por,
       asignado_a: params.iniciado_por,
       destinatario_reporte_email: params.destinatario_reporte_email,
+      plan_id: params.plan_id ?? null,
       estado: "en_curso",
     })
     .select("id")
