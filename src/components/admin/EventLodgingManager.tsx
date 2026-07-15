@@ -92,6 +92,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [roommateGroups, setRoommateGroups] = useState<Record<string, string[]>>({}); // reservation_id -> [names of confirmed mates]
+
 
   // form nueva habitación
   const [newRoomOpen, setNewRoomOpen] = useState<string | null>(null); // package_id o "sin"
@@ -158,8 +160,26 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setReservations(built);
     setRooms(((roomR as any).data || []) as Room[]);
     setAssignments(((asgR as any).data || []) as Assignment[]);
+
+    // Cargar grupos de compañeros confirmados (para pre-agrupar en la UI)
+    if (resIds.length) {
+      const { data: rmData } = await supabase
+        .from("reservation_roommates")
+        .select("reservation_id, nombre, email, status")
+        .in("reservation_id", resIds)
+        .eq("status", "accepted");
+      const groups: Record<string, string[]> = {};
+      (rmData || []).forEach((r: any) => {
+        (groups[r.reservation_id] ??= []).push(r.nombre || r.email || "");
+      });
+      setRoommateGroups(groups);
+    } else {
+      setRoommateGroups({});
+    }
+
     setLoading(false);
   };
+
 
   useEffect(() => {
     if (open) loadAll();
@@ -571,7 +591,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           Todas las reservas asignadas ✓
                         </div>
                       )}
-                      {pkgUnassigned.map((r) => (
+                      {pkgUnassigned.map((r) => {
+                        const mates = roommateGroups[r.id] || [];
+                        return (
                         <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-medium text-xs">{r.nombre} {r.apellido}</span>
@@ -581,7 +603,17 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                 {String(r.habitacion_data.tipo_habitacion).replace(/_/g, " ")}
                               </Badge>
                             )}
+                            {mates.length > 0 && (
+                              <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30" variant="outline">
+                                👥 Grupo ({mates.length + 1})
+                              </Badge>
+                            )}
                           </div>
+                          {mates.length > 0 && (
+                            <p className="text-[10px] text-primary/80">
+                              Comparte con: <strong>{mates.join(", ")}</strong>
+                            </p>
+                          )}
                           {r.habitacion_data?.companero_solicitado && (
                             <p className="text-[10px] text-muted-foreground">
                               Pide compartir con: <strong>{r.habitacion_data.companero_solicitado}</strong>
@@ -590,6 +622,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           {r.habitacion_data?.notas_habitacion && (
                             <p className="text-[10px] text-muted-foreground italic">"{r.habitacion_data.notas_habitacion}"</p>
                           )}
+
                           <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
                             <SelectTrigger className="h-7 text-xs">
                               <SelectValue placeholder="Asignar a habitación..." />
@@ -613,9 +646,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                             </SelectContent>
                           </Select>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
+
                 </div>
               );
             })}

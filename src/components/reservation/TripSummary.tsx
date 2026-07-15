@@ -23,6 +23,10 @@ import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import TripFormDrawer from "@/components/reservation/TripFormDrawer";
+import TripRoommatesDrawer from "@/components/reservation/TripRoommatesDrawer";
+import { parseRoomCapacity } from "@/lib/roomCapacity";
+import { BedDouble, Users } from "lucide-react";
+
 
 interface Props {
   reservationId: string;
@@ -41,14 +45,18 @@ interface AddonMeta { id: string; nombre: string; }
 interface AdjRow { id: string; tipo: string; motivo: string | null; monto_original: number; moneda: string; estado: string; created_at: string; }
 interface InstallmentRow { id: string; installment_number: number; label: string | null; amount: number; currency: string; due_date: string; status: string; paid_amount: number; balance_due: number; }
 interface PaymentRow { id: string; amount: number; currency: string; payment_date: string; payment_method: string; status: string; notes: string | null; installment_number: number | null; }
-interface RoommateRow { id: string; posicion: number; nombre: string | null; email: string | null; telefono: string | null; confirmado: boolean; }
+interface RoommateRow { id: string; posicion: number; nombre: string | null; email: string | null; telefono: string | null; confirmado: boolean; status: string; reservation_id: string; }
+interface IncomingInvite { id: string; }
+
 interface NotifRow { id: string; tipo: string; canal: string; asunto: string | null; created_at: string; }
 interface ReservationInfo {
-  id: string; alumno_id: string | null; package_nombre_snapshot: string | null;
+  id: string; alumno_id: string | null; event_id: string | null;
+  package_nombre_snapshot: string | null;
   package_id: string | null; amount_total: number | null; amount_paid: number;
   balance_due: number | null; price_snapshot: number | null; currency_snapshot: string | null;
   moneda: string; reservation_status: string;
 }
+
 
 const fmt = (n: number, c: string) => formatPrice(n, c);
 
@@ -77,6 +85,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [roommates, setRoommates] = useState<RoommateRow[]>([]);
+  const [incomingInvites, setIncomingInvites] = useState<IncomingInvite[]>([]);
+  const [roommatesOpen, setRoommatesOpen] = useState(false);
+
   const [notifications, setNotifications] = useState<NotifRow[]>([]);
 
   // Drawer state
@@ -100,7 +111,7 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
       resR, clR, adR, adjR, insR, payR, rmR, ntR,
     ] = await Promise.all([
       supabase.from("event_reservations")
-        .select("id, alumno_id, package_nombre_snapshot, package_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, reservation_status")
+        .select("id, alumno_id, event_id, package_nombre_snapshot, package_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, reservation_status")
         .eq("id", reservationId).maybeSingle(),
       supabase.from("reservation_checklist_data")
         .select("id, step_key, completed, needs_advice, data, file_url, updated_at")
@@ -118,8 +129,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
         .select("id, amount, currency, payment_date, payment_method, status, notes, installment_number")
         .eq("reservation_id", reservationId).order("payment_date", { ascending: false }),
       supabase.from("reservation_roommates")
-        .select("id, posicion, nombre, email, telefono, confirmado")
+        .select("id, posicion, nombre, email, telefono, confirmado, status, reservation_id")
         .eq("reservation_id", reservationId).order("posicion"),
+
       mode === "admin"
         ? supabase.from("reservation_notifications")
             .select("id, tipo, canal, asunto, created_at")
@@ -144,6 +156,28 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
       (data || []).forEach((r: any) => { meta[r.id] = r; });
       setAddonsMeta(meta);
     }
+
+    // Invitaciones entrantes (otros participantes invitando a este alumno)
+    const eventId = (resR.data as any)?.event_id;
+    if (mode === "student" && eventId) {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (email) {
+        const { data: inc } = await supabase
+          .from("reservation_roommates")
+          .select("id")
+          .eq("event_id", eventId)
+          .eq("status", "pending")
+          .ilike("email", email)
+          .neq("reservation_id", reservationId);
+        setIncomingInvites(((inc || []) as any[]).map(r => ({ id: r.id })));
+      } else {
+        setIncomingInvites([]);
+      }
+    } else {
+      setIncomingInvites([]);
+    }
+
 
     setLoading(false);
   }, [reservationId, mode]);
@@ -348,19 +382,60 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
               </div>
             );
           })}
-          {roommates.length > 0 && (
-            <div className="rounded-lg border border-border bg-background p-3">
-              <p className="text-[10px] text-muted-foreground uppercase mb-1.5">Compañeros de habitación asignados</p>
-              <div className="space-y-1">
-                {roommates.map(r => (
-                  <div key={r.id} className="flex items-center justify-between text-xs">
-                    <span>{r.nombre || r.email || "—"}</span>
-                    {r.confirmado && <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-500">Confirmado</Badge>}
+          {/* Compañeros de habitación (autogestionado) */}
+          {(() => {
+            const roomInfo = parseRoomCapacity(reservation?.package_nombre_snapshot);
+            if (!roomInfo.requiresLodging) return null;
+            const confirmedCount = roommates.filter(r => r.status === "accepted").length;
+            const pendingCount = roommates.filter(r => r.status === "pending").length;
+            const hasIncoming = incomingInvites.length > 0;
+            const canManage = mode === "student" && !!reservation?.event_id && roomInfo.capacity !== 1;
+            return (
+              <div className={`rounded-lg border p-3 ${hasIncoming ? "border-primary/40 bg-primary/5" : "border-border bg-background"}`}>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BedDouble className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <p className="text-xs font-semibold truncate">Compañeros de habitación</p>
+                    {roomInfo.label && <Badge variant="outline" className="text-[9px]">{roomInfo.label}</Badge>}
+                    {hasIncoming && <Badge className="text-[9px] bg-primary text-white">{incomingInvites.length} nueva{incomingInvites.length > 1 ? "s" : ""}</Badge>}
                   </div>
-                ))}
+                  {canManage && (
+                    <Button size="sm" variant={hasIncoming ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => setRoommatesOpen(true)}>
+                      <Users className="w-3 h-3 mr-1" />
+                      {hasIncoming ? "Responder" : "Gestionar"}
+                    </Button>
+                  )}
+                </div>
+                {roomInfo.capacity === 1 ? (
+                  <p className="text-[11px] text-muted-foreground">Habitación individual: no compartís con nadie.</p>
+                ) : roommates.length === 0 && !hasIncoming ? (
+                  <p className="text-[11px] text-muted-foreground italic">
+                    {canManage
+                      ? "Todavía no invitaste a nadie. Tocá Gestionar para elegir compañero/s."
+                      : "Sin compañeros declarados"}
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {roommates.map(r => (
+                      <div key={r.id} className="flex items-center justify-between text-xs">
+                        <span className={r.status === "rejected" ? "line-through text-muted-foreground" : ""}>
+                          {r.nombre || r.email || "—"}
+                        </span>
+                        {r.status === "accepted" && <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-500">Confirmado</Badge>}
+                        {r.status === "pending" && <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-500">Pendiente</Badge>}
+                        {r.status === "rejected" && <Badge variant="outline" className="text-[9px] text-muted-foreground">Rechazó</Badge>}
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-muted-foreground pt-1">
+                      {confirmedCount} confirmado{confirmedCount === 1 ? "" : "s"}
+                      {pendingCount > 0 && ` · ${pendingCount} pendiente${pendingCount === 1 ? "" : "s"}`}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
+
         </CollapsibleContent>
       </Collapsible>
 
@@ -419,6 +494,18 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
         stepKey={formDrawer.stepKey}
         onSaved={load}
       />
+      {reservation?.event_id && (
+        <TripRoommatesDrawer
+          open={roommatesOpen}
+          onOpenChange={setRoommatesOpen}
+          reservationId={reservationId}
+          eventId={reservation.event_id}
+          alumnoId={alumnoId}
+          packageName={reservation?.package_nombre_snapshot}
+          onChanged={load}
+        />
+      )}
+
     </div>
   );
 }

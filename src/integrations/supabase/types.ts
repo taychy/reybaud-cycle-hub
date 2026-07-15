@@ -6813,10 +6813,13 @@ export type Database = {
           confirmado: boolean
           created_at: string
           email: string | null
+          event_id: string | null
           id: string
+          invited_by_alumno_id: string | null
           nombre: string
           posicion: number
           reservation_id: string
+          status: string
           telefono: string | null
           updated_at: string
         }
@@ -6825,10 +6828,13 @@ export type Database = {
           confirmado?: boolean
           created_at?: string
           email?: string | null
+          event_id?: string | null
           id?: string
+          invited_by_alumno_id?: string | null
           nombre: string
           posicion: number
           reservation_id: string
+          status?: string
           telefono?: string | null
           updated_at?: string
         }
@@ -6837,10 +6843,13 @@ export type Database = {
           confirmado?: boolean
           created_at?: string
           email?: string | null
+          event_id?: string | null
           id?: string
+          invited_by_alumno_id?: string | null
           nombre?: string
           posicion?: number
           reservation_id?: string
+          status?: string
           telefono?: string | null
           updated_at?: string
         }
@@ -6848,6 +6857,20 @@ export type Database = {
           {
             foreignKeyName: "reservation_roommates_alumno_id_fkey"
             columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_roommates_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_roommates_invited_by_alumno_id_fkey"
+            columns: ["invited_by_alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
@@ -9021,6 +9044,10 @@ export type Database = {
         Args: { p_product_id: string; p_variante: Json }
         Returns: string
       }
+      accept_roommate_invitation: {
+        Args: { _roommate_id: string }
+        Returns: Json
+      }
       adjust_ejec_previsto_range:
         | {
             Args: {
@@ -9548,6 +9575,15 @@ export type Database = {
         Returns: Json
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      list_event_participants_for_roommate: {
+        Args: { _event_id: string }
+        Returns: {
+          alumno_id: string
+          email: string
+          nombre: string
+          reservation_id: string
+        }[]
+      }
       lookup_alumno_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -9713,6 +9749,10 @@ export type Database = {
           p_suscripcion_id?: string
         }
         Returns: string
+      }
+      reject_roommate_invitation: {
+        Args: { _roommate_id: string }
+        Returns: Json
       }
       request_baja_alumno: {
         Args: {
