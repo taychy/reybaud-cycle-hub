@@ -262,14 +262,37 @@ const AdminProgramaDetalle = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled title="Disponible en Paso 2 del rediseño">
-            <Workflow className="w-4 h-4 mr-1" /> Flujo (próximo)
-          </Button>
-          <Link to="/admin/planes">
-            <Button size="sm" variant="secondary">Editar plan</Button>
+          {playbook ? (
+            <Button
+              variant={activeInstanceId ? "default" : "outline"}
+              size="sm"
+              onClick={handleFlujo}
+              disabled={startingFlujo}
+            >
+              {startingFlujo ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : activeInstanceId ? (
+                <Play className="w-4 h-4 mr-1" />
+              ) : (
+                <Workflow className="w-4 h-4 mr-1" />
+              )}
+              {activeInstanceId ? "Continuar flujo" : "Iniciar flujo"}
+            </Button>
+          ) : (
+            <Link to={`/admin/planes/${cohortId}/playbook`}>
+              <Button variant="outline" size="sm">
+                <Workflow className="w-4 h-4 mr-1" /> Configurar playbook
+              </Button>
+            </Link>
+          )}
+          <Link to={`/admin/planes/${cohortId}/playbook`}>
+            <Button size="sm" variant="secondary">
+              <Edit3 className="w-4 h-4 mr-1" /> Editar playbook
+            </Button>
           </Link>
         </div>
       </div>
+
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
