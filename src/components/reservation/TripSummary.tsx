@@ -50,11 +50,13 @@ interface IncomingInvite { id: string; }
 
 interface NotifRow { id: string; tipo: string; canal: string; asunto: string | null; created_at: string; }
 interface ReservationInfo {
-  id: string; alumno_id: string | null; package_nombre_snapshot: string | null;
+  id: string; alumno_id: string | null; event_id: string | null;
+  package_nombre_snapshot: string | null;
   package_id: string | null; amount_total: number | null; amount_paid: number;
   balance_due: number | null; price_snapshot: number | null; currency_snapshot: string | null;
   moneda: string; reservation_status: string;
 }
+
 
 const fmt = (n: number, c: string) => formatPrice(n, c);
 
