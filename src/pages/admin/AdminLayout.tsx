@@ -16,6 +16,7 @@ const mainItems: NavItem[] = [
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
   { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+  { to: "/admin/programas", label: "Programas", icon: GraduationCap },
   { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
   { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
   { to: "/admin/whatsapp-conciliador", label: "WhatsApp", icon: MessageCircle },
