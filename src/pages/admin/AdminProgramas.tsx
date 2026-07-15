@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Users, Calendar, ArrowRight, Plus } from "lucide-react";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 
 interface CohortRow {
   id: string;
