@@ -45,7 +45,9 @@ interface AddonMeta { id: string; nombre: string; }
 interface AdjRow { id: string; tipo: string; motivo: string | null; monto_original: number; moneda: string; estado: string; created_at: string; }
 interface InstallmentRow { id: string; installment_number: number; label: string | null; amount: number; currency: string; due_date: string; status: string; paid_amount: number; balance_due: number; }
 interface PaymentRow { id: string; amount: number; currency: string; payment_date: string; payment_method: string; status: string; notes: string | null; installment_number: number | null; }
-interface RoommateRow { id: string; posicion: number; nombre: string | null; email: string | null; telefono: string | null; confirmado: boolean; }
+interface RoommateRow { id: string; posicion: number; nombre: string | null; email: string | null; telefono: string | null; confirmado: boolean; status: string; reservation_id: string; }
+interface IncomingInvite { id: string; }
+
 interface NotifRow { id: string; tipo: string; canal: string; asunto: string | null; created_at: string; }
 interface ReservationInfo {
   id: string; alumno_id: string | null; package_nombre_snapshot: string | null;
