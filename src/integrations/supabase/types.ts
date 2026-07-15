@@ -336,6 +336,8 @@ export type Database = {
           obra_social_nombre: string | null
           obra_social_numero_socio: string | null
           obra_social_plan: string | null
+          origen_cohort: string | null
+          origen_cohort_fecha: string | null
           password_set: boolean
           pause_fecha_estimada_retorno: string | null
           pause_motivo: string | null
@@ -397,6 +399,8 @@ export type Database = {
           obra_social_nombre?: string | null
           obra_social_numero_socio?: string | null
           obra_social_plan?: string | null
+          origen_cohort?: string | null
+          origen_cohort_fecha?: string | null
           password_set?: boolean
           pause_fecha_estimada_retorno?: string | null
           pause_motivo?: string | null
@@ -458,6 +462,8 @@ export type Database = {
           obra_social_nombre?: string | null
           obra_social_numero_socio?: string | null
           obra_social_plan?: string | null
+          origen_cohort?: string | null
+          origen_cohort_fecha?: string | null
           password_set?: boolean
           pause_fecha_estimada_retorno?: string | null
           pause_motivo?: string | null
@@ -5221,6 +5227,59 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_price_stages: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cuotas_cantidad: number | null
+          fecha_desde: string
+          fecha_hasta: string
+          id: string
+          nombre: string
+          orden: number
+          plan_id: string
+          precio: number
+          precio_cuota: number | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cuotas_cantidad?: number | null
+          fecha_desde: string
+          fecha_hasta: string
+          id?: string
+          nombre: string
+          orden?: number
+          plan_id: string
+          precio: number
+          precio_cuota?: number | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cuotas_cantidad?: number | null
+          fecha_desde?: string
+          fecha_hasta?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          plan_id?: string
+          precio?: number
+          precio_cuota?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_price_stages_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planes: {
         Row: {
           acceso_beneficios: boolean
@@ -5231,16 +5290,22 @@ export type Database = {
           categoria: string
           clases_incluidas: number | null
           clases_por_semana: number | null
+          cohort_slug: string | null
           created_at: string
           cuota_valor: number | null
           cuotas_cantidad: number | null
           descripcion: string | null
           descripcion_corta: string | null
+          es_programa_cerrado: boolean
           features: Json
+          fecha_cierre_inscripcion: string | null
+          fecha_fin_programa: string | null
+          fecha_inicio_programa: string | null
           frecuencia: string
           id: string
           imagen_url: string | null
           inscripciones_actuales: number
+          landing_public: boolean
           max_inscripciones: number | null
           moneda: string
           nombre: string
@@ -5264,16 +5329,22 @@ export type Database = {
           categoria?: string
           clases_incluidas?: number | null
           clases_por_semana?: number | null
+          cohort_slug?: string | null
           created_at?: string
           cuota_valor?: number | null
           cuotas_cantidad?: number | null
           descripcion?: string | null
           descripcion_corta?: string | null
+          es_programa_cerrado?: boolean
           features?: Json
+          fecha_cierre_inscripcion?: string | null
+          fecha_fin_programa?: string | null
+          fecha_inicio_programa?: string | null
           frecuencia: string
           id?: string
           imagen_url?: string | null
           inscripciones_actuales?: number
+          landing_public?: boolean
           max_inscripciones?: number | null
           moneda?: string
           nombre: string
@@ -5297,16 +5368,22 @@ export type Database = {
           categoria?: string
           clases_incluidas?: number | null
           clases_por_semana?: number | null
+          cohort_slug?: string | null
           created_at?: string
           cuota_valor?: number | null
           cuotas_cantidad?: number | null
           descripcion?: string | null
           descripcion_corta?: string | null
+          es_programa_cerrado?: boolean
           features?: Json
+          fecha_cierre_inscripcion?: string | null
+          fecha_fin_programa?: string | null
+          fecha_inicio_programa?: string | null
           frecuencia?: string
           id?: string
           imagen_url?: string | null
           inscripciones_actuales?: number
+          landing_public?: boolean
           max_inscripciones?: number | null
           moneda?: string
           nombre?: string
@@ -9454,6 +9531,18 @@ export type Database = {
         Args: { _alumno_id: string; _evento_id: string }
         Returns: Json
       }
+      get_plan_current_price: {
+        Args: { _plan_id: string }
+        Returns: {
+          cuotas_cantidad: number
+          fecha_desde: string
+          fecha_hasta: string
+          precio: number
+          precio_cuota: number
+          stage_id: string
+          stage_nombre: string
+        }[]
+      }
       get_preorder_reserved_units: {
         Args: { p_product_id: string }
         Returns: number
@@ -9470,6 +9559,7 @@ export type Database = {
         Returns: Json
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
+      get_public_program: { Args: { _cohort_slug: string }; Returns: Json }
       get_reserva_turnera_by_token: {
         Args: { _id: string; _token: string }
         Returns: {
