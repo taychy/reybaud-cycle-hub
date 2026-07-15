@@ -90,3 +90,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.cuenta-publica-pay]
     verify_jwt = false
+  [functions.enroll-programa]
+    verify_jwt = false
