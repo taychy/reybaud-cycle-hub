@@ -33,6 +33,7 @@ import {
 
 import TripSummary from "@/components/reservation/TripSummary";
 import EventTripReports from "@/components/admin/EventTripReports";
+import EventLodgingManager from "@/components/admin/EventLodgingManager";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
