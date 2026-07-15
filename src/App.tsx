@@ -50,6 +50,8 @@ import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
 import EventsList from "./pages/admin/EventsList";
+import AdminProgramas from "./pages/admin/AdminProgramas";
+import AdminProgramaDetalle from "./pages/admin/AdminProgramaDetalle";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
@@ -184,6 +186,8 @@ const App = () => (
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
             <Route path="novedades" element={<AdminNovedades />} />
+            <Route path="programas" element={<AdminProgramas />} />
+            <Route path="programas/:cohortId" element={<AdminProgramaDetalle />} />
             <Route path="eventos/record-de-la-hora" element={<Navigate to="/admin/eventos" replace />} />
             <Route path="eventos/record-de-la-hora/participantes" element={<EventManagement />} />
             <Route path="eventos/participantes" element={<EventManagement />} />
