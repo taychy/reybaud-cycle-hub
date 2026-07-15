@@ -139,9 +139,61 @@ const AdminProgramaDetalle = () => {
           .limit(100);
         setEmails(eLog || []);
       }
+
+      // Load playbook template + active instance for this cohort
+      const { data: tpl } = await sb
+        .from("process_templates")
+        .select("id, nombre")
+        .eq("plan_id", cohortId)
+        .maybeSingle();
+      if (tpl) {
+        const { count } = await sb
+          .from("process_template_stages")
+          .select("id", { count: "exact", head: true })
+          .eq("template_id", tpl.id);
+        setPlaybook({ id: tpl.id, nombre: tpl.nombre, stages: count || 0 });
+        const { data: inst } = await sb
+          .from("process_instances")
+          .select("id")
+          .eq("plan_id", cohortId)
+          .eq("estado", "en_curso")
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setActiveInstanceId(inst?.id || null);
+      } else {
+        setPlaybook(null);
+        setActiveInstanceId(null);
+      }
+
       setLoading(false);
     })();
   }, [cohortId]);
+
+  const handleFlujo = async () => {
+    if (!cohortId || !playbook) return;
+    if (activeInstanceId) {
+      navigate(`/admin/programas/${cohortId}/flujo/${activeInstanceId}`);
+      return;
+    }
+    setStartingFlujo(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sin sesión");
+      const id = await startProcessInstance({
+        template_id: playbook.id,
+        iniciado_por: user.id,
+        destinatario_reporte_email: null,
+        plan_id: cohortId,
+      });
+      navigate(`/admin/programas/${cohortId}/flujo/${id}`);
+    } catch (e: any) {
+      toast({ title: "No se pudo iniciar el flujo", description: e.message, variant: "destructive" });
+    } finally {
+      setStartingFlujo(false);
+    }
+  };
+
 
   const kpis = useMemo(() => {
     const total = inscriptos.length;
