@@ -160,8 +160,26 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setReservations(built);
     setRooms(((roomR as any).data || []) as Room[]);
     setAssignments(((asgR as any).data || []) as Assignment[]);
+
+    // Cargar grupos de compañeros confirmados (para pre-agrupar en la UI)
+    if (resIds.length) {
+      const { data: rmData } = await supabase
+        .from("reservation_roommates")
+        .select("reservation_id, nombre, email, status")
+        .in("reservation_id", resIds)
+        .eq("status", "accepted");
+      const groups: Record<string, string[]> = {};
+      (rmData || []).forEach((r: any) => {
+        (groups[r.reservation_id] ??= []).push(r.nombre || r.email || "");
+      });
+      setRoommateGroups(groups);
+    } else {
+      setRoommateGroups({});
+    }
+
     setLoading(false);
   };
+
 
   useEffect(() => {
     if (open) loadAll();
