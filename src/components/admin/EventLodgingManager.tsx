@@ -321,11 +321,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   };
 
   // ─── Totales globales ───
+  const noLodgingPkgIds = new Set(
+    packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id)
+  );
+  const lodgingReservations = reservations.filter((r) => !r.package_id || !noLodgingPkgIds.has(r.package_id));
   const totalPlazas = rooms.reduce((s, r) => s + r.capacidad, 0);
   const totalOcupadas = assignments.length;
   const totalLibres = totalPlazas - totalOcupadas;
-  const totalReservas = reservations.length;
-  const sinAsignar = reservations.length - assignments.length;
+  const totalReservas = lodgingReservations.length;
+  const sinAsignar = lodgingReservations.filter((r) => !assignedReservationIds.has(r.id)).length;
 
   const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = [
     ...packages.map((p) => ({ id: p.id, label: p.nombre, pkg: p })),
