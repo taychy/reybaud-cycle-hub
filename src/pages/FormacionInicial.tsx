@@ -47,7 +47,31 @@ const formSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
   telefono: z.string().trim().max(30).optional().or(z.literal("")),
   modo_pago: z.enum(["contado", "cuotas"]),
+  metodo_pago_inicial: z.enum(["mp", "transferencia"]),
 });
+
+const MAX_COMPROBANTE_MB = 6;
+const COMPROBANTE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const idx = s.indexOf("base64,");
+      resolve(idx >= 0 ? s.slice(idx + 7) : s);
+    };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
