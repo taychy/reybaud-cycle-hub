@@ -52,6 +52,8 @@ import EventManagement from "./pages/admin/EventManagement";
 import EventsList from "./pages/admin/EventsList";
 import AdminProgramas from "./pages/admin/AdminProgramas";
 import AdminProgramaDetalle from "./pages/admin/AdminProgramaDetalle";
+import PlanPlaybookEditor from "./pages/admin/PlanPlaybookEditor";
+import AdminProgramaFlujoRunner from "./pages/admin/AdminProgramaFlujoRunner";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
