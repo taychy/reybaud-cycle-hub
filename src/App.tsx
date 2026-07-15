@@ -186,6 +186,8 @@ const App = () => (
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
             <Route path="novedades" element={<AdminNovedades />} />
+            <Route path="programas" element={<AdminProgramas />} />
+            <Route path="programas/:cohortId" element={<AdminProgramaDetalle />} />
             <Route path="eventos/record-de-la-hora" element={<Navigate to="/admin/eventos" replace />} />
             <Route path="eventos/record-de-la-hora/participantes" element={<EventManagement />} />
             <Route path="eventos/participantes" element={<EventManagement />} />
