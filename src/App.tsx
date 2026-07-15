@@ -54,6 +54,7 @@ import AdminProgramas from "./pages/admin/AdminProgramas";
 import AdminProgramaDetalle from "./pages/admin/AdminProgramaDetalle";
 import PlanPlaybookEditor from "./pages/admin/PlanPlaybookEditor";
 import AdminProgramaFlujoRunner from "./pages/admin/AdminProgramaFlujoRunner";
+import AdminProcesos from "./pages/admin/AdminProcesos";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
@@ -227,6 +228,7 @@ const App = () => (
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
             <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
+            <Route path="procesos" element={<AdminProcesos />} />
             <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
           </Route>
           <Route path="/deposito/login" element={<Navigate to="/admin/login?returnTo=/deposito" replace />} />
