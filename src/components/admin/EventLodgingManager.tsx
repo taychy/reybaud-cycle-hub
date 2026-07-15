@@ -276,6 +276,50 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     loadAll();
   };
 
+  const autoGenerateIndividual = async (pkgId: string | null, pkgReservations: Reservation[]) => {
+    const unassigned = pkgReservations.filter((r) => !assignedReservationIds.has(r.id));
+    if (unassigned.length === 0) {
+      toast.info("No hay reservas sin asignar en este paquete");
+      return;
+    }
+    if (!confirm(`Se crearán ${unassigned.length} habitación(es) individuales y se asignará cada participante automáticamente. ¿Continuar?`)) return;
+
+    const baseOrder = rooms.filter((r) => (r.package_id || null) === pkgId).length;
+    const roomsPayload = unassigned.map((r, idx) => ({
+      event_id: eventId,
+      package_id: pkgId,
+      nombre: `Individual — ${r.nombre} ${r.apellido}`.trim(),
+      capacidad: 1,
+      genero: null,
+      notas: null,
+      sort_order: baseOrder + idx,
+    }));
+
+    const { data: created, error } = await (supabase as any)
+      .from("event_rooms")
+      .insert(roomsPayload)
+      .select("id");
+    if (error) {
+      toast.error("No se pudieron crear: " + error.message);
+      return;
+    }
+
+    const assignPayload = (created || []).map((room: any, idx: number) => ({
+      room_id: room.id,
+      reservation_id: unassigned[idx].id,
+    }));
+    if (assignPayload.length) {
+      const { error: aErr } = await (supabase as any).from("event_room_assignments").insert(assignPayload);
+      if (aErr) {
+        toast.error("Habitaciones creadas, pero falló asignación: " + aErr.message);
+        loadAll();
+        return;
+      }
+    }
+    toast.success(`${unassigned.length} habitación(es) individuales creadas y asignadas`);
+    loadAll();
+  };
+
   // ─── Totales globales ───
   const totalPlazas = rooms.reduce((s, r) => s + r.capacidad, 0);
   const totalOcupadas = assignments.length;
@@ -349,9 +393,21 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         {pkg?.personas_por_habitacion != null && ` · ${pkg.personas_por_habitacion}p/hab`}
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
-                    </Button>
+                    <div className="flex gap-2">
+                      {pkg?.personas_por_habitacion === 1 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => autoGenerateIndividual(pkgId, pkgReservations)}
+                          disabled={pkgUnassigned.length === 0}
+                        >
+                          <UserPlus className="w-3.5 h-3.5 mr-1" /> Auto-generar individuales
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Nueva habitación inline */}
