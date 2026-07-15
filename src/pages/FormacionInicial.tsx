@@ -460,15 +460,14 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {inscripcionesAbiertas && (
+          {inscripcionesAbiertas && !transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-border bg-card">
               <h3 className="font-heading text-2xl mb-2">Completá el formulario y confirmá tu inscripción</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Al confirmar, te llevamos a Mercado Pago para asegurar tu lugar. Una vez acreditado, recibís por email
-                toda la información de inicio.
+                Elegí modalidad y método de pago. Una vez acreditado, recibís por email toda la información de inicio.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="nombre">Nombre *</Label>
@@ -506,7 +505,7 @@ export default function FormacionInicial() {
                 </div>
 
                 <div>
-                  <Label>Modo de pago</Label>
+                  <Label>Modalidad</Label>
                   <div className="grid sm:grid-cols-2 gap-3 mt-2">
                     <button
                       type="button"
@@ -516,7 +515,7 @@ export default function FormacionInicial() {
                       }`}
                     >
                       <p className="font-semibold">Un pago</p>
-                      <p className="text-xl font-heading mt-1">{fmtMoney(Number(stageVigente!.precio))}</p>
+                      <p className="text-xl font-heading mt-1">{fmtMoney(totalAmount)}</p>
                     </button>
                     {stageVigente!.precio_cuota && stageVigente!.cuotas_cantidad && (
                       <button
@@ -528,16 +527,120 @@ export default function FormacionInicial() {
                       >
                         <p className="font-semibold">{stageVigente!.cuotas_cantidad} cuotas</p>
                         <p className="text-xl font-heading mt-1">
-                          {fmtMoney(Number(stageVigente!.precio_cuota))} c/u
+                          {fmtMoney(cuotaAmount)} c/u
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Hoy pagás la cuota 1. La cuota 2 vence el {fmtDate(cuota1Vence)}.
                         </p>
                       </button>
                     )}
                   </div>
                 </div>
 
+                <div>
+                  <Label>Método de pago</Label>
+                  <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setMetodoPago("mp")}
+                      className={`p-4 rounded-xl border text-left transition flex items-start gap-3 ${
+                        metodoPago === "mp" ? "border-primary bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <CreditCard className="w-5 h-5 mt-0.5 text-primary" />
+                      <div>
+                        <p className="font-semibold">Mercado Pago</p>
+                        <p className="text-xs text-muted-foreground mt-1">Tarjeta, débito o dinero en cuenta.</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMetodoPago("transferencia")}
+                      className={`p-4 rounded-xl border text-left transition flex items-start gap-3 ${
+                        metodoPago === "transferencia" ? "border-primary bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <Building2 className="w-5 h-5 mt-0.5 text-primary" />
+                      <div>
+                        <p className="font-semibold">Transferencia bancaria</p>
+                        <p className="text-xs text-muted-foreground mt-1">Con validación por el equipo.</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {metodoPago === "transferencia" && (
+                  <div className="rounded-xl border border-cyan/40 bg-cyan/5 p-4 sm:p-5 space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-cyan mb-2">
+                        Datos para transferir
+                      </p>
+                      <p className="text-lg font-heading mb-1">
+                        Monto a transferir hoy:{" "}
+                        <span className="text-primary">
+                          {fmtMoney(modoPago === "cuotas" ? cuotaAmount : totalAmount)}
+                        </span>
+                      </p>
+                      {modoPago === "cuotas" && (
+                        <p className="text-xs text-muted-foreground mb-3">
+                          La cuota 2 ({fmtMoney(cuotaAmount)}) vence el {fmtDate(cuota1Vence)} y podés pagarla desde tu cuenta corriente.
+                        </p>
+                      )}
+                      <div className="space-y-2 text-sm">
+                        {[
+                          { label: "Titular", value: ESCUELA_TRANSFER_INFO.titular },
+                          { label: "CBU", value: ESCUELA_TRANSFER_INFO.cbu },
+                          { label: "Alias", value: ESCUELA_TRANSFER_INFO.alias },
+                          { label: "Cuenta", value: ESCUELA_TRANSFER_INFO.cuenta },
+                        ].map((row) => (
+                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg bg-background/70 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{row.label}</p>
+                              <p className="font-mono text-sm break-all">{row.value}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copy(row.value, row.label)}
+                              className="shrink-0 p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition"
+                              aria-label={`Copiar ${row.label}`}
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="comprobante">Subí el comprobante *</Label>
+                      <input
+                        ref={fileRef}
+                        id="comprobante"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        className="hidden"
+                        onChange={(e) => pickComprobante(e.target.files?.[0] ?? null)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/60 px-4 py-3 text-sm hover:border-primary hover:text-primary transition"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {comprobante ? comprobante.name : "Seleccionar imagen o PDF"}
+                      </button>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        JPG, PNG, WEBP o PDF · máx {MAX_COMPROBANTE_MB} MB.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <Button type="submit" size="lg" className="w-full" disabled={submitting}>
                   {submitting ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando…</>
+                  ) : metodoPago === "transferencia" ? (
+                    "Enviar comprobante y reservar mi lugar"
                   ) : (
                     "Ir a pagar y asegurar mi lugar"
                   )}
@@ -547,6 +650,21 @@ export default function FormacionInicial() {
                   Al inscribirte aceptás los <Link to="/politica-privacidad" className="underline">términos y política de privacidad</Link>.
                 </p>
               </form>
+            </div>
+          )}
+
+          {transferSent && (
+            <div className="p-6 sm:p-8 rounded-2xl border border-cyan/40 bg-cyan/5 text-center">
+              <CheckCircle2 className="w-12 h-12 text-cyan mx-auto mb-3" />
+              <h3 className="font-heading text-2xl mb-2">¡Recibimos tu comprobante!</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Vamos a validarlo en las próximas horas y te confirmamos por email tu lugar en el programa.
+                {modoPago === "cuotas" && (
+                  <>
+                    {" "}La cuota 2 quedó registrada en tu cuenta corriente con vencimiento el {fmtDate(cuota1Vence)}.
+                  </>
+                )}
+              </p>
             </div>
           )}
         </div>
