@@ -1410,9 +1410,14 @@ const AdminEventReservations = ({
           <RefreshCw className="w-4 h-4" />
         </Button>
         {isTripLike && (
-          <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
-            <FileText className="w-4 h-4 mr-1.5" /> Reportes
-          </Button>
+          <>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowLodging(true)}>
+              <BedDouble className="w-4 h-4 mr-1.5" /> Alojamiento
+            </Button>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
+              <FileText className="w-4 h-4 mr-1.5" /> Reportes
+            </Button>
+          </>
         )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
