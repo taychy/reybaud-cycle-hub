@@ -123,7 +123,7 @@ const AdminProcessTemplates = () => {
 
 // ---------------- Editor ----------------
 
-function TemplateEditor({
+export function TemplateEditor({
   template,
   initialStages,
   onClose,
