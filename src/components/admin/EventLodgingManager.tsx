@@ -591,7 +591,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           Todas las reservas asignadas ✓
                         </div>
                       )}
-                      {pkgUnassigned.map((r) => (
+                      {pkgUnassigned.map((r) => {
+                        const mates = roommateGroups[r.id] || [];
+                        return (
                         <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-medium text-xs">{r.nombre} {r.apellido}</span>
@@ -601,7 +603,17 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                 {String(r.habitacion_data.tipo_habitacion).replace(/_/g, " ")}
                               </Badge>
                             )}
+                            {mates.length > 0 && (
+                              <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30" variant="outline">
+                                👥 Grupo ({mates.length + 1})
+                              </Badge>
+                            )}
                           </div>
+                          {mates.length > 0 && (
+                            <p className="text-[10px] text-primary/80">
+                              Comparte con: <strong>{mates.join(", ")}</strong>
+                            </p>
+                          )}
                           {r.habitacion_data?.companero_solicitado && (
                             <p className="text-[10px] text-muted-foreground">
                               Pide compartir con: <strong>{r.habitacion_data.companero_solicitado}</strong>
@@ -610,6 +622,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           {r.habitacion_data?.notas_habitacion && (
                             <p className="text-[10px] text-muted-foreground italic">"{r.habitacion_data.notas_habitacion}"</p>
                           )}
+
                           <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
                             <SelectTrigger className="h-7 text-xs">
                               <SelectValue placeholder="Asignar a habitación..." />
