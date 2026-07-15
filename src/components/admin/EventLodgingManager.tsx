@@ -595,17 +595,21 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                               <SelectValue placeholder="Asignar a habitación..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {rooms.map((room) => {
-                                const occ = (occupantsByRoom[room.id] || []).length;
-                                const disabled = occ >= room.capacidad;
-                                return (
-                                  <SelectItem key={room.id} value={room.id} disabled={disabled}>
-                                    {room.nombre} ({occ}/{room.capacidad})
-                                    {room.genero ? ` · ${GENERO_LABEL[room.genero]}` : ""}
-                                  </SelectItem>
-                                );
-                              })}
-                              {rooms.length === 0 && <SelectItem value="_none" disabled>Sin habitaciones creadas</SelectItem>}
+                              {(() => {
+                                const availableRooms = rooms.filter((room) => (occupantsByRoom[room.id] || []).length < room.capacidad);
+                                if (availableRooms.length === 0) {
+                                  return <SelectItem value="_none" disabled>{rooms.length === 0 ? "Sin habitaciones creadas" : "No hay habitaciones disponibles"}</SelectItem>;
+                                }
+                                return availableRooms.map((room) => {
+                                  const occ = (occupantsByRoom[room.id] || []).length;
+                                  return (
+                                    <SelectItem key={room.id} value={room.id}>
+                                      {room.nombre} ({occ}/{room.capacidad})
+                                      {room.genero ? ` · ${GENERO_LABEL[room.genero]}` : ""}
+                                    </SelectItem>
+                                  );
+                                });
+                              })()}
                             </SelectContent>
                           </Select>
                         </div>
