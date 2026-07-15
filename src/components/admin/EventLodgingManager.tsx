@@ -321,11 +321,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   };
 
   // ─── Totales globales ───
+  const noLodgingPkgIds = new Set(
+    packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id)
+  );
+  const lodgingReservations = reservations.filter((r) => !r.package_id || !noLodgingPkgIds.has(r.package_id));
   const totalPlazas = rooms.reduce((s, r) => s + r.capacidad, 0);
   const totalOcupadas = assignments.length;
   const totalLibres = totalPlazas - totalOcupadas;
-  const totalReservas = reservations.length;
-  const sinAsignar = reservations.length - assignments.length;
+  const totalReservas = lodgingReservations.length;
+  const sinAsignar = lodgingReservations.filter((r) => !assignedReservationIds.has(r.id)).length;
 
   const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = [
     ...packages.map((p) => ({ id: p.id, label: p.nombre, pkg: p })),
@@ -379,6 +383,24 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
               const pkgCapacity = pkgRooms.reduce((s, r) => s + r.capacidad, 0);
 
               if (pkgReservations.length === 0 && pkgRooms.length === 0) return null;
+              const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
+              if (sinAlojamiento && pkgRooms.length === 0) {
+                return (
+                  <div key={pkgKey} className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {pkgReservations.length} reserva(s) · sin alojamiento a asignar
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">No requiere habitación</Badge>
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <div key={pkgKey} className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
