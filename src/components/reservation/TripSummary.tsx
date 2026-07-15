@@ -111,7 +111,7 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
       resR, clR, adR, adjR, insR, payR, rmR, ntR,
     ] = await Promise.all([
       supabase.from("event_reservations")
-        .select("id, alumno_id, package_nombre_snapshot, package_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, reservation_status")
+        .select("id, alumno_id, event_id, package_nombre_snapshot, package_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, reservation_status")
         .eq("id", reservationId).maybeSingle(),
       supabase.from("reservation_checklist_data")
         .select("id, step_key, completed, needs_advice, data, file_url, updated_at")
@@ -129,8 +129,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
         .select("id, amount, currency, payment_date, payment_method, status, notes, installment_number")
         .eq("reservation_id", reservationId).order("payment_date", { ascending: false }),
       supabase.from("reservation_roommates")
-        .select("id, posicion, nombre, email, telefono, confirmado")
+        .select("id, posicion, nombre, email, telefono, confirmado, status, reservation_id")
         .eq("reservation_id", reservationId).order("posicion"),
+
       mode === "admin"
         ? supabase.from("reservation_notifications")
             .select("id, tipo, canal, asunto, created_at")
