@@ -381,7 +381,6 @@ const AdminProgramaDetalle = () => {
                     <TableRow>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Destinatario</TableHead>
-                      <TableHead>Asunto</TableHead>
                       <TableHead>Plantilla</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
@@ -389,10 +388,9 @@ const AdminProgramaDetalle = () => {
                   <TableBody>
                     {emails.map((e) => (
                       <TableRow key={e.id}>
-                        <TableCell className="text-xs">{fmtDateTime(e.sent_at)}</TableCell>
-                        <TableCell className="text-xs">{e.to_email}</TableCell>
-                        <TableCell className="text-xs">{e.subject}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{e.template_key || "—"}</TableCell>
+                        <TableCell className="text-xs">{fmtDateTime(e.created_at)}</TableCell>
+                        <TableCell className="text-xs">{e.recipient_email}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{e.template_name || "—"}</TableCell>
                         <TableCell>
                           <Badge variant={e.status === "sent" ? "default" : "outline"} className="text-[10px]">
                             {e.status}
