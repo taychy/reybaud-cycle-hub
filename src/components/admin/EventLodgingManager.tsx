@@ -379,6 +379,24 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
               const pkgCapacity = pkgRooms.reduce((s, r) => s + r.capacidad, 0);
 
               if (pkgReservations.length === 0 && pkgRooms.length === 0) return null;
+              const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
+              if (sinAlojamiento && pkgRooms.length === 0) {
+                return (
+                  <div key={pkgKey} className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {pkgReservations.length} reserva(s) · sin alojamiento a asignar
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">No requiere habitación</Badge>
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <div key={pkgKey} className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
