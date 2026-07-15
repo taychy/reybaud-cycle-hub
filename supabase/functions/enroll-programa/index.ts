@@ -169,12 +169,12 @@ Deno.serve(async (req) => {
     if (!cuenta.access_token) return jsonResp({ error: "Mercado Pago no está configurado" }, 500);
 
     const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
-    const prefBody = {
+    const prefBody: Record<string, unknown> = {
       items: [
         {
           title: `${plan.nombre} — ${currentStage.stage_nombre}${cuotas > 1 ? ` (${cuotas} cuotas)` : ""}`,
-          quantity: cuotas,
-          unit_price,
+          quantity: 1,
+          unit_price: precio_final,
           currency_id: plan.moneda || "ARS",
         },
       ],
@@ -189,6 +189,14 @@ Deno.serve(async (req) => {
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
+    if (cuotas > 1) {
+      // Forzar el número de cuotas en el checkout de MP (tarjeta de crédito)
+      prefBody.payment_methods = {
+        installments: cuotas,
+        default_installments: cuotas,
+        excluded_payment_types: [{ id: "ticket" }, { id: "atm" }],
+      };
+    }
 
     const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
