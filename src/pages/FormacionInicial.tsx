@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { z } from "zod";
 import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone } from "lucide-react";
-import heroImg from "@/assets/formacion-inicial-hero.jpg";
+import heroAsset from "@/assets/formacion-inicial-hero.png.asset.json";
+const heroImg = heroAsset.url;
 
 const COHORT = "formacion_inicial_2026_2";
 
