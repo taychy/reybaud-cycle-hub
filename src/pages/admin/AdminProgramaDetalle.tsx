@@ -122,14 +122,14 @@ const AdminProgramaDetalle = () => {
       }
       setInscriptos(list);
 
-      // Load emails linked to these suscripciones (best-effort)
-      const subIds = list.map((s) => s.id);
-      if (subIds.length > 0) {
+      // Load emails linked to these inscriptos by recipient email (best-effort)
+      const emailsList = Array.from(new Set(list.map((s) => s.alumno?.email).filter(Boolean))) as string[];
+      if (emailsList.length > 0) {
         const { data: eLog } = await sb
           .from("email_send_log")
-          .select("id, to_email, subject, status, sent_at, template_key")
-          .in("suscripcion_id", subIds)
-          .order("sent_at", { ascending: false })
+          .select("id, recipient_email, template_name, status, created_at, metadata")
+          .in("recipient_email", emailsList)
+          .order("created_at", { ascending: false })
           .limit(100);
         setEmails(eLog || []);
       }
