@@ -14,7 +14,7 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
-  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package,
+  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package, BedDouble,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,6 +33,7 @@ import {
 
 import TripSummary from "@/components/reservation/TripSummary";
 import EventTripReports from "@/components/admin/EventTripReports";
+import EventLodgingManager from "@/components/admin/EventLodgingManager";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
@@ -299,6 +300,7 @@ const AdminEventReservations = ({
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [showTripReports, setShowTripReports] = useState(false);
+  const [showLodging, setShowLodging] = useState(false);
 
 
   // Detail drawer
@@ -1408,9 +1410,14 @@ const AdminEventReservations = ({
           <RefreshCw className="w-4 h-4" />
         </Button>
         {isTripLike && (
-          <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
-            <FileText className="w-4 h-4 mr-1.5" /> Reportes
-          </Button>
+          <>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowLodging(true)}>
+              <BedDouble className="w-4 h-4 mr-1.5" /> Alojamiento
+            </Button>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
+              <FileText className="w-4 h-4 mr-1.5" /> Reportes
+            </Button>
+          </>
         )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
           <UserPlus className="w-4 h-4 mr-1.5" /> Agregar
@@ -2579,6 +2586,13 @@ const AdminEventReservations = ({
       <EventTripReports
         open={showTripReports}
         onOpenChange={setShowTripReports}
+        eventId={eventId}
+        eventTitle={eventTitle}
+      />
+
+      <EventLodgingManager
+        open={showLodging}
+        onOpenChange={setShowLodging}
         eventId={eventId}
         eventTitle={eventTitle}
       />

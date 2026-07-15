@@ -3399,6 +3399,106 @@ export type Database = {
           },
         ]
       }
+      event_room_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          reservation_id: string
+          room_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reservation_id: string
+          room_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reservation_id?: string
+          room_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_room_assignments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_room_assignments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "event_room_assignments_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "event_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_rooms: {
+        Row: {
+          capacidad: number
+          created_at: string
+          event_id: string
+          genero: string | null
+          id: string
+          nombre: string
+          notas: string | null
+          package_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          capacidad?: number
+          created_at?: string
+          event_id: string
+          genero?: string | null
+          id?: string
+          nombre: string
+          notas?: string | null
+          package_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          capacidad?: number
+          created_at?: string
+          event_id?: string
+          genero?: string | null
+          id?: string
+          nombre?: string
+          notas?: string | null
+          package_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rooms_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rooms_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_survey_responses: {
         Row: {
           alumno_id: string | null
