@@ -1,62 +1,56 @@
-## Objetivo
+# Plan: pagos Formación Inicial (MP + transferencia, 1 pago o 2 cuotas)
 
-Que cada participante autogestione con quién comparte alojamiento desde el Hub del viaje, con invitación recíproca entre inscriptos y confirmación automática por mail. El admin en `EventLodgingManager` solo asigna habitaciones físicas a grupos ya formados.
+## Alcance
+Sumar en la landing `/formacion-inicial` la elección de **método de pago** (Mercado Pago o Transferencia) además de la modalidad (Contado o 2 cuotas). Para 2 cuotas, la cuota 1 se cobra en el momento y la cuota 2 queda como deuda en cuenta corriente con vencimiento a 30 días.
 
-## Flujo del alumno
+## Combinaciones
 
-1. En el Hub del viaje (donde ya vive `TripSummary`) aparece una tarjeta nueva **"Compañeros de habitación"** solo si el paquete requiere alojamiento y es compartido (doble/triple/cuádruple).
-2. Muestra:
-   - Paquete + tipo de habitación elegido (confirmación visual).
-   - Slots vacíos según capacidad (ej: doble = 1 slot para invitar).
-   - Autocomplete con otros participantes del mismo evento (busca en `event_reservations` + `alumnos` por nombre/email).
-3. Al invitar → se crea fila en `reservation_roommates` con `confirmado=false` y se dispara mail al invitado.
-4. El invitado ve en su propio Hub una tarjeta **"Invitación de compañero"** con Aceptar / Rechazar.
-5. Al aceptar → se marca `confirmado=true` en ambos lados (vínculo recíproco) y se envía mail de confirmación a ambos con el resumen (paquete, tipo hab, compañeros).
-6. Si el paquete es individual o sin alojamiento → tarjeta informativa sin acciones.
+| Modalidad | Método | Comportamiento |
+|---|---|---|
+| Contado + MP | MP | Checkout MP por el total. Al aprobar → suscripción `activa`. (Ya funciona) |
+| Contado + Transferencia | Transferencia | Suscripción `pendiente_verificacion`. El alumno ve CBU/alias y sube comprobante. Admin valida. |
+| 2 cuotas + MP | MP | Checkout MP **solo por la cuota 1**. Se crea deuda en cuenta corriente por la cuota 2 (vence a 30 días). |
+| 2 cuotas + Transferencia | Transferencia | Suscripción `pendiente_verificacion` por la cuota 1 (con comprobante). Cuota 2 queda como deuda en cuenta corriente (vence a 30 días). |
 
-## Vista admin (EventLodgingManager)
+## UI Landing (`FormacionInicial.tsx`)
+1. Se mantienen los cards de "Un pago" / "2 cuotas".
+2. Debajo del formulario se agrega un selector **Método de pago**: `Mercado Pago` / `Transferencia`.
+3. Al elegir Transferencia se muestra un bloque con **CBU / Alias / Titular** de la cuenta de la escuela y un input para subir comprobante (imagen o PDF).
+4. Botón final:
+   - MP → "Ir a pagar y asegurar mi lugar" (comportamiento actual)
+   - Transferencia → "Enviar comprobante y reservar mi lugar" → sube archivo + POST a la edge function.
+5. Mensaje claro en 2 cuotas: *"Hoy pagás la cuota 1 ($X). La cuota 2 ($X) queda pendiente y vence el DD/MM. Podés pagarla desde tu cuenta corriente."*
 
-- Agrupar automáticamente reservas con roommates confirmados mutuamente → mostrar como "grupo pre-armado" con badge 👥.
-- Asignar un grupo entero a una habitación en 1 click (respeta capacidad).
-- Si alguien no completó su grupo, aparece individual como hoy.
+## Edge function `enroll-programa`
+Cambios:
+- Nuevo campo en payload: `metodo_pago_inicial: "mp" | "transferencia"`.
+- Nuevo campo opcional: `comprobante_url` (path en Storage) para transferencia.
+- Si `modo_pago = "cuotas"`:
+  - `unit_price` cuota 1 = `precio_cuota`.
+  - Crear un registro en `cuenta_ajustes` (o el mecanismo existente de deuda) por la cuota 2 con `fecha_vencimiento = hoy + 30 días`, vinculado a la suscripción y al plan.
+  - MP preference: `items[].unit_price = precio_cuota` (solo cuota 1). Se remueve la lógica actual de `installments` forzado.
+- Si `metodo_pago_inicial = "transferencia"`:
+  - No se crea preferencia MP.
+  - Sub queda en `estado = "pendiente_verificacion"` con `metodo_pago = "transferencia"`, `comprobante_url` guardado.
+  - Se dispara notificación al admin (reutilizando el patrón de `notify-cash-payment`).
+  - Response devuelve `{ ok: true, mode: "transfer", suscripcion_id }` en lugar de `init_point`.
 
-## Plantilla de comunicaciones
+## Bloqueo por cuota 2 impaga
+- Cuando la deuda de cuota 2 vence sin pago, se marca la sub como `suspendida_impago` (o se usa el mismo flag de acceso restringido que ya usa el resto del sistema).
+- Se genera automáticamente una **notificación en admin** (tabla `admin_notification_events` con `tipo = "cuota_programa_vencida"`) para que el equipo tome acción.
+- El bloqueo se ejecuta desde el cron diario ya existente (`renew-monthly-subscriptions` o similar) sumando un chequeo para deudas de cuota 2 del programa.
 
-Crear plantilla transaccional **"Confirmación de alojamiento"** en el sistema de emails que ya usan los eventos (`send-transactional-email`), disparada por trigger cuando ambos confirman. Contenido:
-- Paquete y tipo de habitación
-- Compañero/s confirmados (nombre)
-- CTA al Hub del viaje para modificar
+## Datos de transferencia
+Se toman de la cuenta de la escuela (misma unidad de negocio `suscripcion_escuela`). Se leen del emisor fiscal vinculado a esa cuenta (`emisores_fiscales.cbu`, `.alias`, `.titular`) o, si no está poblado, se agrega un fallback en `src/lib/contactInfo.ts` similar a `ASESORIA_TRANSFER_INFO` (a confirmar con el usuario si prefiere hardcodear).
 
-## Cambios técnicos
+## Archivos a tocar
+- `src/pages/FormacionInicial.tsx` — selector de método + bloque transferencia + comprobante.
+- `supabase/functions/enroll-programa/index.ts` — soporte transferencia + generación de cuota 2 como deuda.
+- Nueva edge fn o reuso de `notify-cash-payment` para el alerta admin de transferencia.
+- Migration: agregar `tipo = 'cuota_programa_vencida'` a `admin_notification_events` si hace falta, y helper SQL para generar la deuda de cuota 2 (o insert directo desde la edge).
+- Cron/función que vence la cuota 2 y bloquea acceso + genera notificación (extender `renew-monthly-subscriptions` o crear `expire-programa-cuota-2`).
 
-**DB (migración):**
-- Agregar columna `invited_by_alumno_id uuid` en `reservation_roommates` (para saber quién invitó a quién).
-- Agregar columna `status text` con valores `pending|accepted|rejected` (mantener `confirmado` por compatibilidad, derivado de `status='accepted'`).
-- RPC `accept_roommate_invitation(roommate_id uuid)` SECURITY DEFINER que valida que el `auth.email()` coincida con el email invitado y crea el vínculo recíproco (fila espejo en la reserva del invitado).
-- RPC `list_event_participants_for_roommate(event_id uuid)` que devuelve inscriptos del evento (nombre, email, alumno_id) para el autocomplete, excluyendo al usuario actual y a quienes ya tienen grupo cerrado.
-
-**Frontend:**
-- Nuevo componente `TripRoommatesDrawer.tsx` (siguiendo el patrón de `TripBikeDrawer`, `TripPedalsDrawer`).
-- Integrar tarjeta en `TripSummary.tsx` dentro del checklist del viaje (nuevo `step_key: "roommates"` en `TRIP_STEPS`).
-- Detección de capacidad del paquete: parsear el label del paquete (doble=2, triple=3, cuádruple=4, individual=1, "sin alojamiento"=skip). Guardar como campo derivado.
-- En `EventLodgingManager.tsx`: pre-agrupar reservas por grupos de roommates confirmados antes de renderizar.
-
-**Emails (edge function):**
-- Nueva plantilla React Email `roommate-invitation.tsx` (invitación pendiente).
-- Nueva plantilla `lodging-confirmation.tsx` (ambos aceptaron).
-- Registrar en `TEMPLATES` de `_shared/transactional-email-templates/registry.ts`.
-- Disparar desde el frontend con `supabase.functions.invoke('send-transactional-email', ...)` al invitar y al aceptar.
-
-## Orden de implementación
-
-1. Migración DB (columnas + RPCs) — requiere aprobación.
-2. Plantillas de email + registro.
-3. `TripRoommatesDrawer` + integración en `TripSummary`.
-4. Agrupación en `EventLodgingManager`.
-5. Testing con reserva existente.
-
-## Alcance excluido
-
-- No se toca el flujo de compra del paquete (opción C del análisis previo queda para después).
-- No se agrega marketing ni recordatorios masivos.
-- Reservas de participantes externos (invitados sin cuenta) siguen manuales por admin.
+## Preguntas técnicas abiertas (las resuelvo al implementar salvo que corrijas)
+1. **Storage bucket para comprobantes**: reutilizo el bucket existente que ya usan los pagos manuales (si lo hay); si no, creo `comprobantes-programa`.
+2. **Deuda cuota 2**: la registro en `cuenta_ajustes` con `tipo = "deuda"` (o el mecanismo estándar de cuenta corriente del proyecto). Se ligará a la sub y al plan para poder pagarla desde el módulo público de cuenta corriente ya existente.
+3. **Datos transferencia**: si el emisor fiscal de la escuela no tiene CBU/alias cargados, uso valores fallback hardcoded en `contactInfo.ts` con TODO para que los completes.

@@ -45,3 +45,14 @@ export const ASESORIA_TRANSFER_INFO = {
   alias: "ciclismo.reybaud.bg",
   cuenta: "Cuenta Asesoría Personalizada",
 } as const;
+
+/**
+ * Datos bancarios para transferencias de la Escuela (programas de formación, cursos).
+ * TODO: si los datos reales difieren, actualizar acá.
+ */
+export const ESCUELA_TRANSFER_INFO = {
+  titular: "Claudio Gustavo Reybaud",
+  cbu: "0070140831004034472914",
+  alias: "ciclismo.reybaud.esc",
+  cuenta: "Cuenta Escuela Ciclismo Reybaud",
+} as const;

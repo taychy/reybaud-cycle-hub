@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { z } from "zod";
-import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone } from "lucide-react";
+import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone, Copy, Upload, CreditCard, Building2 } from "lucide-react";
 import heroAsset from "@/assets/formacion-inicial-hero.png.asset.json";
+import { ESCUELA_TRANSFER_INFO } from "@/lib/contactInfo";
 const heroImg = heroAsset.url;
 
 const COHORT = "formacion_inicial_2026_2";
@@ -46,7 +47,31 @@ const formSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
   telefono: z.string().trim().max(30).optional().or(z.literal("")),
   modo_pago: z.enum(["contado", "cuotas"]),
+  metodo_pago_inicial: z.enum(["mp", "transferencia"]),
 });
+
+const MAX_COMPROBANTE_MB = 6;
+const COMPROBANTE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const idx = s.indexOf("base64,");
+      resolve(idx >= 0 ? s.slice(idx + 7) : s);
+    };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
@@ -67,7 +92,11 @@ export default function FormacionInicial() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [modoPago, setModoPago] = useState<"contado" | "cuotas">("contado");
+  const [metodoPago, setMetodoPago] = useState<"mp" | "transferencia">("mp");
   const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "" });
+  const [comprobante, setComprobante] = useState<File | null>(null);
+  const [transferSent, setTransferSent] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.title = "Programa de Iniciación 2026/2 — Ciclismo Reybaud";
@@ -93,27 +122,83 @@ export default function FormacionInicial() {
     );
   }, [program, stageVigente]);
 
+  const cuotaAmount = stageVigente?.precio_cuota ? Number(stageVigente.precio_cuota) : 0;
+  const totalAmount = stageVigente ? Number(stageVigente.precio) : 0;
+  const cuota1Vence = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return addDaysISO(today, 30);
+  }, []);
+
+  function copy(text: string, label: string) {
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(`${label} copiado`),
+      () => toast.error("No se pudo copiar"),
+    );
+  }
+
+  function pickComprobante(f: File | null) {
+    if (!f) { setComprobante(null); return; }
+    if (!COMPROBANTE_TYPES.includes(f.type)) {
+      toast.error("Formato inválido. Usá JPG, PNG, WEBP o PDF.");
+      return;
+    }
+    if (f.size > MAX_COMPROBANTE_MB * 1024 * 1024) {
+      toast.error(`El archivo supera los ${MAX_COMPROBANTE_MB} MB.`);
+      return;
+    }
+    setComprobante(f);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting || !program) return;
 
-    const parsed = formSchema.safeParse({ ...form, modo_pago: modoPago });
+    const parsed = formSchema.safeParse({ ...form, modo_pago: modoPago, metodo_pago_inicial: metodoPago });
     if (!parsed.success) {
       toast.error(parsed.error.errors[0]?.message ?? "Datos inválidos");
       return;
     }
 
+    if (metodoPago === "transferencia" && !comprobante) {
+      toast.error("Subí el comprobante de transferencia para continuar.");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      let comprobante_base64: string | null = null;
+      let comprobante_filename: string | null = null;
+      let comprobante_mime: string | null = null;
+      if (metodoPago === "transferencia" && comprobante) {
+        comprobante_base64 = await fileToBase64(comprobante);
+        comprobante_filename = comprobante.name;
+        comprobante_mime = comprobante.type;
+      }
+
       const { data, error } = await supabase.functions.invoke("enroll-programa", {
-        body: { cohort_slug: COHORT, ...parsed.data },
+        body: {
+          cohort_slug: COHORT,
+          ...parsed.data,
+          comprobante_base64,
+          comprobante_filename,
+          comprobante_mime,
+        },
       });
-      if (error || !data?.ok || !data?.init_point) {
-        toast.error(data?.error || error?.message || "No se pudo iniciar el pago");
+      if (error || !data?.ok) {
+        toast.error(data?.error || error?.message || "No se pudo procesar la inscripción");
         return;
       }
-      toast.success("¡Genial! Te llevamos al pago…");
-      window.location.href = data.init_point;
+      if (data.mode === "transfer") {
+        toast.success("¡Gracias! Recibimos tu comprobante.");
+        setTransferSent(true);
+        return;
+      }
+      if (data.init_point) {
+        toast.success("¡Genial! Te llevamos al pago…");
+        window.location.href = data.init_point;
+      } else {
+        toast.error("Respuesta inesperada del servidor.");
+      }
     } catch (err) {
       console.error(err);
       toast.error("Error inesperado. Intentá de nuevo.");
@@ -375,15 +460,14 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {inscripcionesAbiertas && (
+          {inscripcionesAbiertas && !transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-border bg-card">
               <h3 className="font-heading text-2xl mb-2">Completá el formulario y confirmá tu inscripción</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Al confirmar, te llevamos a Mercado Pago para asegurar tu lugar. Una vez acreditado, recibís por email
-                toda la información de inicio.
+                Elegí modalidad y método de pago. Una vez acreditado, recibís por email toda la información de inicio.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="nombre">Nombre *</Label>
@@ -421,7 +505,7 @@ export default function FormacionInicial() {
                 </div>
 
                 <div>
-                  <Label>Modo de pago</Label>
+                  <Label>Modalidad</Label>
                   <div className="grid sm:grid-cols-2 gap-3 mt-2">
                     <button
                       type="button"
@@ -431,7 +515,7 @@ export default function FormacionInicial() {
                       }`}
                     >
                       <p className="font-semibold">Un pago</p>
-                      <p className="text-xl font-heading mt-1">{fmtMoney(Number(stageVigente!.precio))}</p>
+                      <p className="text-xl font-heading mt-1">{fmtMoney(totalAmount)}</p>
                     </button>
                     {stageVigente!.precio_cuota && stageVigente!.cuotas_cantidad && (
                       <button
@@ -443,16 +527,120 @@ export default function FormacionInicial() {
                       >
                         <p className="font-semibold">{stageVigente!.cuotas_cantidad} cuotas</p>
                         <p className="text-xl font-heading mt-1">
-                          {fmtMoney(Number(stageVigente!.precio_cuota))} c/u
+                          {fmtMoney(cuotaAmount)} c/u
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Hoy pagás la cuota 1. La cuota 2 vence el {fmtDate(cuota1Vence)}.
                         </p>
                       </button>
                     )}
                   </div>
                 </div>
 
+                <div>
+                  <Label>Método de pago</Label>
+                  <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setMetodoPago("mp")}
+                      className={`p-4 rounded-xl border text-left transition flex items-start gap-3 ${
+                        metodoPago === "mp" ? "border-primary bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <CreditCard className="w-5 h-5 mt-0.5 text-primary" />
+                      <div>
+                        <p className="font-semibold">Mercado Pago</p>
+                        <p className="text-xs text-muted-foreground mt-1">Tarjeta, débito o dinero en cuenta.</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMetodoPago("transferencia")}
+                      className={`p-4 rounded-xl border text-left transition flex items-start gap-3 ${
+                        metodoPago === "transferencia" ? "border-primary bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <Building2 className="w-5 h-5 mt-0.5 text-primary" />
+                      <div>
+                        <p className="font-semibold">Transferencia bancaria</p>
+                        <p className="text-xs text-muted-foreground mt-1">Con validación por el equipo.</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {metodoPago === "transferencia" && (
+                  <div className="rounded-xl border border-cyan/40 bg-cyan/5 p-4 sm:p-5 space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-cyan mb-2">
+                        Datos para transferir
+                      </p>
+                      <p className="text-lg font-heading mb-1">
+                        Monto a transferir hoy:{" "}
+                        <span className="text-primary">
+                          {fmtMoney(modoPago === "cuotas" ? cuotaAmount : totalAmount)}
+                        </span>
+                      </p>
+                      {modoPago === "cuotas" && (
+                        <p className="text-xs text-muted-foreground mb-3">
+                          La cuota 2 ({fmtMoney(cuotaAmount)}) vence el {fmtDate(cuota1Vence)} y podés pagarla desde tu cuenta corriente.
+                        </p>
+                      )}
+                      <div className="space-y-2 text-sm">
+                        {[
+                          { label: "Titular", value: ESCUELA_TRANSFER_INFO.titular },
+                          { label: "CBU", value: ESCUELA_TRANSFER_INFO.cbu },
+                          { label: "Alias", value: ESCUELA_TRANSFER_INFO.alias },
+                          { label: "Cuenta", value: ESCUELA_TRANSFER_INFO.cuenta },
+                        ].map((row) => (
+                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg bg-background/70 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{row.label}</p>
+                              <p className="font-mono text-sm break-all">{row.value}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copy(row.value, row.label)}
+                              className="shrink-0 p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition"
+                              aria-label={`Copiar ${row.label}`}
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="comprobante">Subí el comprobante *</Label>
+                      <input
+                        ref={fileRef}
+                        id="comprobante"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        className="hidden"
+                        onChange={(e) => pickComprobante(e.target.files?.[0] ?? null)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/60 px-4 py-3 text-sm hover:border-primary hover:text-primary transition"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {comprobante ? comprobante.name : "Seleccionar imagen o PDF"}
+                      </button>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        JPG, PNG, WEBP o PDF · máx {MAX_COMPROBANTE_MB} MB.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <Button type="submit" size="lg" className="w-full" disabled={submitting}>
                   {submitting ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando…</>
+                  ) : metodoPago === "transferencia" ? (
+                    "Enviar comprobante y reservar mi lugar"
                   ) : (
                     "Ir a pagar y asegurar mi lugar"
                   )}
@@ -462,6 +650,21 @@ export default function FormacionInicial() {
                   Al inscribirte aceptás los <Link to="/politica-privacidad" className="underline">términos y política de privacidad</Link>.
                 </p>
               </form>
+            </div>
+          )}
+
+          {transferSent && (
+            <div className="p-6 sm:p-8 rounded-2xl border border-cyan/40 bg-cyan/5 text-center">
+              <CheckCircle2 className="w-12 h-12 text-cyan mx-auto mb-3" />
+              <h3 className="font-heading text-2xl mb-2">¡Recibimos tu comprobante!</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Vamos a validarlo en las próximas horas y te confirmamos por email tu lugar en el programa.
+                {modoPago === "cuotas" && (
+                  <>
+                    {" "}La cuota 2 quedó registrada en tu cuenta corriente con vencimiento el {fmtDate(cuota1Vence)}.
+                  </>
+                )}
+              </p>
             </div>
           )}
         </div>
