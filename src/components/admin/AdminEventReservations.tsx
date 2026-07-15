@@ -2589,6 +2589,13 @@ const AdminEventReservations = ({
         eventId={eventId}
         eventTitle={eventTitle}
       />
+
+      <EventLodgingManager
+        open={showLodging}
+        onOpenChange={setShowLodging}
+        eventId={eventId}
+        eventTitle={eventTitle}
+      />
     </div>
   );
 };
