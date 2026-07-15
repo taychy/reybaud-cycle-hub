@@ -393,9 +393,21 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         {pkg?.personas_por_habitacion != null && ` · ${pkg.personas_por_habitacion}p/hab`}
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
-                    </Button>
+                    <div className="flex gap-2">
+                      {pkg?.personas_por_habitacion === 1 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => autoGenerateIndividual(pkgId, pkgReservations)}
+                          disabled={pkgUnassigned.length === 0}
+                        >
+                          <UserPlus className="w-3.5 h-3.5 mr-1" /> Auto-generar individuales
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Nueva habitación inline */}
