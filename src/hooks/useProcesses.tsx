@@ -14,6 +14,32 @@ export interface ProcessTemplate {
   icono: string | null;
   activo: boolean;
   created_at: string;
+  plan_id: string | null;
+}
+
+export interface ProcessTemplateStage {
+  id: string;
+  template_id: string;
+  orden: number;
+  titulo: string;
+  instrucciones: string | null;
+  requiere_foto: boolean;
+  requiere_nota: boolean;
+  entidad_control: EntidadControl;
+  accion_final: AccionFinal;
+}
+
+export interface ProcessInstance {
+  id: string;
+  template_id: string;
+  iniciado_por: string;
+  asignado_a: string | null;
+  destinatario_reporte_email: string | null;
+  estado: InstanceEstado;
+  started_at: string;
+  completed_at: string | null;
+  metadata: Record<string, any>;
+  plan_id: string | null;
 }
 
 export interface ProcessTemplateStage {
