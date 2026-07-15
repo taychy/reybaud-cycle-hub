@@ -92,6 +92,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [roommateGroups, setRoommateGroups] = useState<Record<string, string[]>>({}); // reservation_id -> [names of confirmed mates]
+
 
   // form nueva habitación
   const [newRoomOpen, setNewRoomOpen] = useState<string | null>(null); // package_id o "sin"
