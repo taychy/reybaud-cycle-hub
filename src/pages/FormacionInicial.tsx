@@ -92,7 +92,11 @@ export default function FormacionInicial() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [modoPago, setModoPago] = useState<"contado" | "cuotas">("contado");
+  const [metodoPago, setMetodoPago] = useState<"mp" | "transferencia">("mp");
   const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "" });
+  const [comprobante, setComprobante] = useState<File | null>(null);
+  const [transferSent, setTransferSent] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.title = "Programa de Iniciación 2026/2 — Ciclismo Reybaud";
@@ -118,27 +122,83 @@ export default function FormacionInicial() {
     );
   }, [program, stageVigente]);
 
+  const cuotaAmount = stageVigente?.precio_cuota ? Number(stageVigente.precio_cuota) : 0;
+  const totalAmount = stageVigente ? Number(stageVigente.precio) : 0;
+  const cuota1Vence = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return addDaysISO(today, 30);
+  }, []);
+
+  function copy(text: string, label: string) {
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(`${label} copiado`),
+      () => toast.error("No se pudo copiar"),
+    );
+  }
+
+  function pickComprobante(f: File | null) {
+    if (!f) { setComprobante(null); return; }
+    if (!COMPROBANTE_TYPES.includes(f.type)) {
+      toast.error("Formato inválido. Usá JPG, PNG, WEBP o PDF.");
+      return;
+    }
+    if (f.size > MAX_COMPROBANTE_MB * 1024 * 1024) {
+      toast.error(`El archivo supera los ${MAX_COMPROBANTE_MB} MB.`);
+      return;
+    }
+    setComprobante(f);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting || !program) return;
 
-    const parsed = formSchema.safeParse({ ...form, modo_pago: modoPago });
+    const parsed = formSchema.safeParse({ ...form, modo_pago: modoPago, metodo_pago_inicial: metodoPago });
     if (!parsed.success) {
       toast.error(parsed.error.errors[0]?.message ?? "Datos inválidos");
       return;
     }
 
+    if (metodoPago === "transferencia" && !comprobante) {
+      toast.error("Subí el comprobante de transferencia para continuar.");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      let comprobante_base64: string | null = null;
+      let comprobante_filename: string | null = null;
+      let comprobante_mime: string | null = null;
+      if (metodoPago === "transferencia" && comprobante) {
+        comprobante_base64 = await fileToBase64(comprobante);
+        comprobante_filename = comprobante.name;
+        comprobante_mime = comprobante.type;
+      }
+
       const { data, error } = await supabase.functions.invoke("enroll-programa", {
-        body: { cohort_slug: COHORT, ...parsed.data },
+        body: {
+          cohort_slug: COHORT,
+          ...parsed.data,
+          comprobante_base64,
+          comprobante_filename,
+          comprobante_mime,
+        },
       });
-      if (error || !data?.ok || !data?.init_point) {
-        toast.error(data?.error || error?.message || "No se pudo iniciar el pago");
+      if (error || !data?.ok) {
+        toast.error(data?.error || error?.message || "No se pudo procesar la inscripción");
         return;
       }
-      toast.success("¡Genial! Te llevamos al pago…");
-      window.location.href = data.init_point;
+      if (data.mode === "transfer") {
+        toast.success("¡Gracias! Recibimos tu comprobante.");
+        setTransferSent(true);
+        return;
+      }
+      if (data.init_point) {
+        toast.success("¡Genial! Te llevamos al pago…");
+        window.location.href = data.init_point;
+      } else {
+        toast.error("Respuesta inesperada del servidor.");
+      }
     } catch (err) {
       console.error(err);
       toast.error("Error inesperado. Intentá de nuevo.");
