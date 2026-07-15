@@ -104,6 +104,7 @@ import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
 import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests";
 import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
+import FormacionInicial from "./pages/FormacionInicial";
 
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -144,6 +145,7 @@ const App = () => (
           <Route path="/politica-privacidad" element={<PrivacyPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/instalar" element={<Install />} />
+          <Route path="/formacion-inicial" element={<FormacionInicial />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachDashboard /></ProtectedRoute>} />
           <Route path="/coach/alumnos" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAlumnos /></ProtectedRoute>} />
