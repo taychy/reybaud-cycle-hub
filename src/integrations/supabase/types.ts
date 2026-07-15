@@ -5589,6 +5589,7 @@ export type Database = {
           id: string
           iniciado_por: string
           metadata: Json
+          plan_id: string | null
           started_at: string
           template_id: string
           updated_at: string
@@ -5602,6 +5603,7 @@ export type Database = {
           id?: string
           iniciado_por: string
           metadata?: Json
+          plan_id?: string | null
           started_at?: string
           template_id: string
           updated_at?: string
@@ -5615,11 +5617,19 @@ export type Database = {
           id?: string
           iniciado_por?: string
           metadata?: Json
+          plan_id?: string | null
           started_at?: string
           template_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "process_instances_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "process_instances_template_id_fkey"
             columns: ["template_id"]
@@ -5688,6 +5698,7 @@ export type Database = {
           icono: string | null
           id: string
           nombre: string
+          plan_id: string | null
           rol_destino: string
           updated_at: string
         }
@@ -5699,6 +5710,7 @@ export type Database = {
           icono?: string | null
           id?: string
           nombre: string
+          plan_id?: string | null
           rol_destino?: string
           updated_at?: string
         }
@@ -5710,10 +5722,19 @@ export type Database = {
           icono?: string | null
           id?: string
           nombre?: string
+          plan_id?: string | null
           rol_destino?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "process_templates_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       redes_sociales_tareas: {
         Row: {

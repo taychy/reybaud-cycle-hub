@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow } from "lucide-react";
+import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3 } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { toast } from "@/hooks/use-toast";
+import { startProcessInstance } from "@/hooks/useProcesses";
 
 const sb: any = supabase;
 
@@ -88,11 +90,15 @@ const estadoBadge = (estado: string) => {
 
 const AdminProgramaDetalle = () => {
   const { cohortId } = useParams<{ cohortId: string }>();
+  const navigate = useNavigate();
   const [plan, setPlan] = useState<PlanRow | null>(null);
   const [inscriptos, setInscriptos] = useState<Inscripto[]>([]);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [playbook, setPlaybook] = useState<{ id: string; nombre: string; stages: number } | null>(null);
+  const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
+  const [startingFlujo, setStartingFlujo] = useState(false);
 
   useEffect(() => {
     if (!cohortId) return;
@@ -133,9 +139,61 @@ const AdminProgramaDetalle = () => {
           .limit(100);
         setEmails(eLog || []);
       }
+
+      // Load playbook template + active instance for this cohort
+      const { data: tpl } = await sb
+        .from("process_templates")
+        .select("id, nombre")
+        .eq("plan_id", cohortId)
+        .maybeSingle();
+      if (tpl) {
+        const { count } = await sb
+          .from("process_template_stages")
+          .select("id", { count: "exact", head: true })
+          .eq("template_id", tpl.id);
+        setPlaybook({ id: tpl.id, nombre: tpl.nombre, stages: count || 0 });
+        const { data: inst } = await sb
+          .from("process_instances")
+          .select("id")
+          .eq("plan_id", cohortId)
+          .eq("estado", "en_curso")
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setActiveInstanceId(inst?.id || null);
+      } else {
+        setPlaybook(null);
+        setActiveInstanceId(null);
+      }
+
       setLoading(false);
     })();
   }, [cohortId]);
+
+  const handleFlujo = async () => {
+    if (!cohortId || !playbook) return;
+    if (activeInstanceId) {
+      navigate(`/admin/programas/${cohortId}/flujo/${activeInstanceId}`);
+      return;
+    }
+    setStartingFlujo(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sin sesión");
+      const id = await startProcessInstance({
+        template_id: playbook.id,
+        iniciado_por: user.id,
+        destinatario_reporte_email: null,
+        plan_id: cohortId,
+      });
+      navigate(`/admin/programas/${cohortId}/flujo/${id}`);
+    } catch (e: any) {
+      toast({ title: "No se pudo iniciar el flujo", description: e.message, variant: "destructive" });
+    } finally {
+      setStartingFlujo(false);
+    }
+  };
+
 
   const kpis = useMemo(() => {
     const total = inscriptos.length;
@@ -204,14 +262,37 @@ const AdminProgramaDetalle = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled title="Disponible en Paso 2 del rediseño">
-            <Workflow className="w-4 h-4 mr-1" /> Flujo (próximo)
-          </Button>
-          <Link to="/admin/planes">
-            <Button size="sm" variant="secondary">Editar plan</Button>
+          {playbook ? (
+            <Button
+              variant={activeInstanceId ? "default" : "outline"}
+              size="sm"
+              onClick={handleFlujo}
+              disabled={startingFlujo}
+            >
+              {startingFlujo ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : activeInstanceId ? (
+                <Play className="w-4 h-4 mr-1" />
+              ) : (
+                <Workflow className="w-4 h-4 mr-1" />
+              )}
+              {activeInstanceId ? "Continuar flujo" : "Iniciar flujo"}
+            </Button>
+          ) : (
+            <Link to={`/admin/planes/${cohortId}/playbook`}>
+              <Button variant="outline" size="sm">
+                <Workflow className="w-4 h-4 mr-1" /> Configurar playbook
+              </Button>
+            </Link>
+          )}
+          <Link to={`/admin/planes/${cohortId}/playbook`}>
+            <Button size="sm" variant="secondary">
+              <Edit3 className="w-4 h-4 mr-1" /> Editar playbook
+            </Button>
           </Link>
         </div>
       </div>
+
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -349,24 +430,48 @@ const AdminProgramaDetalle = () => {
                 <Workflow className="w-4 h-4" /> Playbook del programa
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>
-                El <b>playbook</b> es la receta escrita del programa: etapas ordenadas (publicar cohorte, cerrar cupo,
-                bienvenida, primera clase, check-in intermedio, graduación, oferta de continuidad, seguimiento post-90d),
-                cada una con responsable, tiempo estimado y salida verificable.
-              </p>
-              <p>
-                Se habilita en el <b>Paso 2</b> del rediseño: se edita desde la plantilla del plan y se ejecuta con el
-                botón <b>Flujo</b> arriba a la derecha. Cada cohorte tendrá su propia instancia del playbook.
-              </p>
-              <p className="pt-2">
-                <Link to="/admin/procesos/plantillas" className="text-primary underline">
-                  Ver plantillas de procesos existentes →
-                </Link>
-              </p>
+            <CardContent className="text-sm space-y-3">
+              {playbook ? (
+                <>
+                  <p className="text-muted-foreground">
+                    Este programa tiene un playbook con <b>{playbook.stages}</b> etapa
+                    {playbook.stages === 1 ? "" : "s"} definidas.
+                  </p>
+                  {activeInstanceId ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="default">Flujo en curso</Badge>
+                      <Button size="sm" onClick={handleFlujo}>
+                        <Play className="w-4 h-4 mr-1" /> Continuar flujo
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" onClick={handleFlujo} disabled={startingFlujo}>
+                      {startingFlujo ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Workflow className="w-4 h-4 mr-1" />}
+                      Iniciar flujo para esta cohorte
+                    </Button>
+                  )}
+                  <div className="pt-2">
+                    <Link to={`/admin/planes/${cohortId}/playbook`} className="text-primary underline text-sm">
+                      Editar etapas del playbook →
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-foreground">
+                    Este programa no tiene playbook todavía. Creá uno con 8 etapas base editables (bienvenida, primera clase, check-in, graduación, oferta de continuidad, seguimiento 90d) o empezá de cero.
+                  </p>
+                  <Link to={`/admin/planes/${cohortId}/playbook`}>
+                    <Button size="sm">
+                      <Workflow className="w-4 h-4 mr-1" /> Configurar playbook
+                    </Button>
+                  </Link>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         <TabsContent value="comunicaciones">
           <Card>

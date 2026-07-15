@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type EntidadControl = "none" | "store_preorder" | "supplier_order";
-export type AccionFinal = "none" | "send_report";
+export type EntidadControl = "none" | "store_preorder" | "supplier_order" | "cohort_task" | "cohort_kpi";
+export type AccionFinal = "none" | "send_report" | "send_cohort_email";
 export type InstanceEstado = "en_curso" | "completada" | "cancelada";
 export type StageEstado = "pendiente" | "en_curso" | "completada";
 
@@ -14,6 +14,7 @@ export interface ProcessTemplate {
   icono: string | null;
   activo: boolean;
   created_at: string;
+  plan_id: string | null;
 }
 
 export interface ProcessTemplateStage {
@@ -38,7 +39,9 @@ export interface ProcessInstance {
   started_at: string;
   completed_at: string | null;
   metadata: Record<string, any>;
+  plan_id: string | null;
 }
+
 
 export interface ProcessInstanceStage {
   id: string;
@@ -113,6 +116,7 @@ export async function startProcessInstance(params: {
   template_id: string;
   iniciado_por: string;
   destinatario_reporte_email: string | null;
+  plan_id?: string | null;
 }): Promise<string> {
   const { data, error } = await sb
     .from("process_instances")
@@ -121,6 +125,7 @@ export async function startProcessInstance(params: {
       iniciado_por: params.iniciado_por,
       asignado_a: params.iniciado_por,
       destinatario_reporte_email: params.destinatario_reporte_email,
+      plan_id: params.plan_id ?? null,
       estado: "en_curso",
     })
     .select("id")
