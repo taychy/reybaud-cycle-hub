@@ -646,7 +646,10 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                             </SelectContent>
                           </Select>
                         </div>
-                      ))}
+                        </div>
+                        );
+                      })}
+
                     </div>
                   </div>
                 </div>
