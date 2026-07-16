@@ -409,6 +409,21 @@ const PlanSelection = () => {
     }
   };
 
+  const handleExitPlans = () => {
+    const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+    if (returnTo?.startsWith("/")) {
+      navigate(returnTo);
+      return;
+    }
+
+    if (window.history.state?.idx > 0) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(alumnoId ? "/alumno/pagos" : "/");
+  };
+
 
   const handleSelectModality = (mod: "total" | "cuotas") => {
     setModality(mod);
@@ -637,8 +652,16 @@ const PlanSelection = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Cargando planes...</div>
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <Button variant="ghost" size="sm" onClick={handleExitPlans} className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Volver
+          </Button>
+        </div>
+        <div className="min-h-[70vh] flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Cargando planes...</div>
+        </div>
       </div>
     );
   }
@@ -729,6 +752,13 @@ const PlanSelection = () => {
   return (
     <div className="min-h-screen bg-background px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+        <div className="flex justify-start">
+          <Button variant="ghost" size="sm" onClick={handleExitPlans} className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Volver
+          </Button>
+        </div>
+
         {/* Logo */}
         <div className="text-center">
           <img src={logo} alt="Ciclismo Reybaud" className="w-20 h-20 mx-auto mb-2" />
@@ -1052,9 +1082,9 @@ const PlanSelection = () => {
             )}
 
             <div className="flex flex-col items-center gap-4">
-              <button onClick={() => navigate("/")} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
+              <button onClick={handleExitPlans} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
                 <ArrowLeft className="w-3 h-3" />
-                Volver al inicio
+                Volver
               </button>
             </div>
 

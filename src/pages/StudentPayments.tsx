@@ -316,7 +316,7 @@ const StudentPayments = () => {
     if (action === "baja") {
       setBajaDialogOpen(true);
     } else if (action === "pausa") {
-      navigate("/planes?categoria=pausa");
+      navigate("/planes?categoria=pausa&returnTo=/alumno/pagos");
       return;
     } else if (action === "cambiar-plan") {
       const activeSub = subscriptions.find((s) => {
@@ -508,7 +508,7 @@ const StudentPayments = () => {
       // /planes lo rebotaría a /alumno.
       localStorage.removeItem("alumno_renewal");
     }
-    navigate("/planes");
+    navigate("/planes?returnTo=/alumno/pagos");
   };
 
 
@@ -670,7 +670,7 @@ const StudentPayments = () => {
                         // En "skipPlanPicker" venimos de un estado roto del período actual; en el
                         // resto venimos de renovación anticipada del mismo plan.
                         localStorage.setItem("alumno_pay_pending_skip", "1");
-                        navigate("/planes");
+                        navigate("/planes?returnTo=/alumno/pagos");
                       };
 
                       // Estados rotos: alumno necesita regularizar / pagar este plan
@@ -1059,7 +1059,7 @@ const StudentPayments = () => {
               if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
               // No preseleccionamos plan: el alumno elige cuál
               localStorage.removeItem("alumno_preselect_plan_id");
-              navigate("/planes");
+              navigate("/planes?returnTo=/alumno/pagos");
             }
           }}
         />
