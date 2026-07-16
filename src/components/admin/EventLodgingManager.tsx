@@ -705,6 +705,16 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-medium text-xs">{r.nombre} {r.apellido}</span>
+                            {r.prefiere_asignacion ? (
+                              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
+                            ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo || mates.length > 0) ? (
+                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Comparte con conocido</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">Sin preferencia</Badge>
+                            )}
+                            {r.tipo_vinculo && (
+                              <Badge variant="outline" className="text-[10px] capitalize">{r.tipo_vinculo}</Badge>
+                            )}
                             {r.habitacion_data?.genero_habitacion && generoBadge(r.habitacion_data.genero_habitacion)}
                             {r.habitacion_data?.tipo_habitacion && (
                               <Badge variant="outline" className="text-[10px] capitalize">
