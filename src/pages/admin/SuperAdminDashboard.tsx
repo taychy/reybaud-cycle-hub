@@ -352,6 +352,22 @@ const SuperAdminDashboard = () => {
               </button>
             ))}
           </div>
+          {currencyOptions.length > 1 && (
+            <div className="flex gap-1.5 flex-wrap items-center">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider mr-1">Moneda</span>
+              {(["all", ...currencyOptions] as string[]).map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCurrencyFilter(c)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                    currencyFilter === c ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {c === "all" ? "Todas" : c}
+                </button>
+              ))}
+            </div>
+          )}
           {unitFilter !== "global" && (
             <p className="text-[10px] text-muted-foreground">
               Incluye gastos directos de {UNIT_LABELS[unitFilter].toLowerCase()} + su parte prorrateada de gastos compartidos.
