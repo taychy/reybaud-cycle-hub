@@ -11,10 +11,11 @@ import {
   Banknote, FileText, MessageCircle, CreditCard, Eye, Upload, X,
   ChevronDown, ChevronUp, ChevronRight, Bell, CalendarDays, ArrowRight,
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
-  CircleDot, Loader2,
+  CircleDot, Loader2, Landmark,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
+import PayByTransferDrawer from "./PayByTransferDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
@@ -271,6 +272,8 @@ const ReservationStatusCard = ({
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
   const [preselectedInstallmentId, setPreselectedInstallmentId] = useState<string | null>(null);
   const [paymentMode, setPaymentMode] = useState<"paid" | "cash" | undefined>(undefined);
+  const [paymentMethodInit, setPaymentMethodInit] = useState<string | undefined>(undefined);
+  const [showTransferDrawer, setShowTransferDrawer] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mpLoading, setMpLoading] = useState(false);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
@@ -814,6 +817,17 @@ const ReservationStatusCard = ({
             )}
           </Button>
         )}
+        {/* Pagar por transferencia — visible siempre que haya saldo */}
+        {(reservation.balance_due ?? 0) > 0 && (
+          <Button
+            variant="outline"
+            className="w-full h-12 text-sm"
+            onClick={() => setShowTransferDrawer(true)}
+          >
+            <Landmark className="w-4 h-4 mr-2" />
+            Pagar por transferencia
+          </Button>
+        )}
         {primaryCTA && (
           <Button
             variant={canPayWithMP ? "outline" : "gold"}
@@ -1218,13 +1232,27 @@ const ReservationStatusCard = ({
 
       <ReportPaymentDrawer
         open={showPaymentDrawer}
-        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); } }}
+        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); setPaymentMethodInit(undefined); } }}
         reservation={reservation}
         alumnoId={alumnoId}
         currency={currency}
         onSuccess={onPaymentReported}
         preselectedInstallmentId={preselectedInstallmentId}
         initialMode={paymentMode === "cash" ? "cash_announce" : paymentMode === "paid" ? "paid" : undefined}
+        initialMethod={paymentMethodInit}
+      />
+
+      <PayByTransferDrawer
+        open={showTransferDrawer}
+        onOpenChange={setShowTransferDrawer}
+        reservationId={reservation.id}
+        currency={currency}
+        balanceDue={reservation.balance_due ?? 0}
+        onProceedToUploadProof={() => {
+          setPaymentMode("paid");
+          setPaymentMethodInit("transferencia");
+          setShowPaymentDrawer(true);
+        }}
       />
 
       <CancelReservationDrawer

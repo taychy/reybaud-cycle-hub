@@ -1,73 +1,56 @@
-# Plan: Gestión de Formación Inicial + Playbooks
 
-Tres pasos incrementales, cada uno entregable por separado. Empezamos por el **Paso 1** y validamos antes de seguir.
+## Objetivo
+Permitir al alumno pagar una reserva de evento/viaje por transferencia bancaria con un flujo idéntico al de Turnera: ver datos bancarios, hold de 2 h, email de instrucciones, subida de comprobante, validación admin.
 
----
+## Datos bancarios (Eventos/Viajes)
+- Titular: Scarlett Tayna Barros Silva
+- Alias: `granfondo.tc`
+- CBU/CVU: `0000003100065071427147`
 
-## Paso 1 — Dashboard Programa Formación (equivalente a Viajes)
+Se agregan en `src/lib/contactInfo.ts` como `EVENTOS_TRANSFER_INFO`.
 
-**Ruta:** `/admin/programas` → lista de cohortes / ediciones.
-**Ruta detalle:** `/admin/programas/:cohortId` → panel operativo estilo `EventReservationsOpsPanel`.
+## Cambios
 
-### Qué reutilizamos
-- Estructura visual de `AdminEventReservationsOpsPanel` (tabs, KPIs top, tabla de inscriptos).
-- `EventManagement` como referencia de layout de detalle.
-- La inscripción ya existe hoy vía `enroll-programa` → crea `suscripciones` con `plan_id = plan de Formación Inicial`.
+### 1. Frontend — nuevo drawer `PayByTransferDrawer`
+`src/components/reservation/PayByTransferDrawer.tsx`
 
-### Modelo de "cohorte"
-Sin tabla nueva por ahora. Una **cohorte = un plan** en `planes` con `nombre` tipo *"Formación Inicial – Marzo 2026"*, `fecha_inicio`, `fecha_fin`, `cupo`, `precio`. Los inscriptos son `suscripciones` de ese plan. Si más adelante hace falta metadata específica del cohort (playbook state, checklist config), se agrega tabla `programa_cohort_config` opcional.
+- Muestra monto sugerido (próxima cuota o saldo) en la moneda del evento.
+- Muestra Titular / CBU / Alias con copy-to-clipboard (mismo patrón que `CheckoutMethodStep` transfer-only).
+- Botón "Confirmar — tengo 2 h para transferir" → invoca edge function `create-reservation-transferencia`, que devuelve `upload_token`, `hold_expira_at` y `amount`.
+- Al confirmar, cierra este drawer y abre `ReportPaymentDrawer` en `mode="paid"` con `method="transferencia"` y monto pre-cargado, listo para subir el comprobante.
+- Muestra countdown de 2 h si ya hay hold activo.
 
-### Tabs del detalle
-1. **Overview** — KPIs: inscriptos / cupo, pagados / pendientes, monto recaudado, días para inicio.
-2. **Inscriptos** — Tabla filtrable: nombre, teléfono, estado pago (cuota 1 / cuota 2), fecha inscripción, WhatsApp directo, ver perfil.
-3. **Playbook** *(vacío en Paso 1, se llena en Paso 2)*.
-4. **Comunicaciones** — histórico de emails enviados (lee `email_send_log` filtrado por `suscripcion_id`).
+### 2. Integración con `ReservationDrawer` / tarjeta de reserva
+- Nuevo botón "Pagar por transferencia" junto a "Pagar con MP" y "Ya pagué".
+- Si la reserva ya tiene un intent `pendiente_transferencia` vigente, el botón dice "Continuar transferencia (te quedan XX:XX)".
 
-### Sidebar admin
-Nuevo item **"Programas"** en la categoría *Principal*, al lado de *Eventos*.
+### 3. Edge function `create-reservation-transferencia`
+`supabase/functions/create-reservation-transferencia/index.ts`
 
----
+- Requiere JWT del alumno dueño (verificado contra `event_reservations.alumno_id → alumnos.user_id`).
+- Calcula monto a pagar (RPC existente `importe_a_pagar_ahora`).
+- Inserta / actualiza fila en `reservation_payment_intents` con:
+  - `concepto = 'transferencia'`, `status = 'pendiente_transferencia'`
+  - `amount`, `currency`, `expires_at = now() + 2h`
+  - `payload = { upload_token, tipo: 'transferencia' }`
+- Dispara email `send-reservation-transferencia-instrucciones` (best-effort).
+- Devuelve `{ upload_token, hold_expira_at, amount, currency }`.
 
-## Paso 2 — Playbook embebido + botón "Flujo"
+### 4. Edge function `send-reservation-transferencia-instrucciones`
+Nueva función, modelada sobre `send-turnera-email` tipo `transferencia_instrucciones`. Incluye: nombre del evento, monto, moneda, datos bancarios, deadline (2 h), link directo a la reserva para subir comprobante.
 
-**Ubicación del playbook:** dentro de la plantilla del plan/programa (nueva pestaña en `ManagePlanes` → edición de plan → tab *Playbook*). Reutiliza `process_templates` linkeando por `metadata.plan_id`.
+### 5. Extender `expire-turnera-holds` (o nueva `expire-reservation-holds`)
+Cron diario/horario que marca intents `pendiente_transferencia` vencidos como `expirado` y libera el estado de la reserva (vuelve a `pendiente_pago`).
 
-### Flujo
-- En `ManagePlanes`, al editar el plan de Formación Inicial, aparece tab **Playbook** que embebe el editor de `AdminProcessTemplates` filtrado a la plantilla de ese plan (o crea una si no existe).
-- En el dashboard de la cohorte (Paso 1), botón **"Flujo"** abre/reanuda un `process_instance` de esa plantilla vinculado al `plan_id` (cohort).
-- Se agregan a `process_template_stages` dos nuevos `entidad_control` posibles: `cohort_kpi` (auto-tildable si KPI cumplido, ej. *inscriptos ≥ mínimo*) y `cohort_task` (genera tarea en `tareas` con owner).
-- Steps humanos → auto-crean `tarea` asignada al rol/persona configurada. Al completar la tarea, se completa la etapa.
-- Steps con dato existente (ej. *"Landing publicada"*, *"Cupo cerrado"*) → auto-tildan cuando la condición se cumple.
+### 6. Migración DB
+Sólo asegura que `reservation_payment_intents.status` acepte `'pendiente_transferencia'` y `'expirado'` (columna `text`, no requiere DDL; se documenta). No se cambia estructura.
 
-### Alcance MVP del playbook para Formación Inicial
-10 etapas máximo (nivel cohorte). Steps por alumno quedan para iteración 2 del Paso 2 si hace falta.
+## Fuera de alcance
+- No se cambia el flujo MP existente.
+- No se toca el flujo `ReportPaymentDrawer` (se reutiliza tal cual).
+- Validación admin del comprobante sigue igual (informado → confirmado).
 
----
+## Riesgo
+Bajo: agregamos ruta paralela; los pagos existentes (MP y "ya pagué" manual) siguen funcionando exactamente igual.
 
-## Paso 3 — Vista global "Procesos activos"
-
-Nuevo item en sidebar admin *Principal*: **"Procesos"**. Tabla única con todos los `process_instances` en estado `en_curso`, columnas: plantilla, entidad (cohort/evento/pedido), etapa actual, responsable, iniciado, ETA. Click → abre el runner correspondiente.
-
----
-
-## Decisiones técnicas clave
-
-- **Sin tabla nueva** en Paso 1. Se apoya 100% en `planes` + `suscripciones` + `email_send_log`.
-- **Playbook = `process_templates`** existente, con nuevos tipos de `entidad_control` en Paso 2.
-- **Cohorte = plan**. Si en el futuro hace falta más metadata, agregamos `programa_cohort_config` sin romper.
-- **Continuidad G4→G3→G1**: se maneja como step del playbook ("*Ofrecer G4 con descuento de cohort*") que genera tareas de contacto por alumno. No hay grupo efímero.
-- No se toca el flujo del alumno ni la landing.
-
----
-
-## Entregable de este turno
-
-Solo **Paso 1** (dashboard). Al aprobarlo, seguimos con Paso 2. Al aprobar Paso 2, Paso 3.
-
-Archivos que se crearán / editarán en Paso 1:
-- `src/pages/admin/AdminProgramas.tsx` (lista de cohortes)
-- `src/pages/admin/AdminProgramaDetalle.tsx` (panel operativo)
-- `src/App.tsx` (rutas)
-- Sidebar admin (item "Programas")
-
-¿Arranco con Paso 1?
+¿Avanzo con esta implementación?

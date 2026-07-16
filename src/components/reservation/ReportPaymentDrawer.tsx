@@ -49,6 +49,8 @@ interface ReportPaymentDrawerProps {
   preselectedInstallmentId?: string | null;
   /** If set, force the initial mode when opening */
   initialMode?: "paid" | "cash_announce";
+  /** If set, preselect this payment method when opening (e.g. "transferencia") */
+  initialMethod?: string;
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
@@ -60,7 +62,7 @@ const fmtDate = (d?: string | null) => {
 };
 
 const ReportPaymentDrawer = ({
-  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId, initialMode,
+  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId, initialMode, initialMethod,
 }: ReportPaymentDrawerProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +84,11 @@ const ReportPaymentDrawer = ({
   const [amount, setAmount] = useState(reservation.balance_due?.toString() || "");
   const [paymentCurrency, setPaymentCurrency] = useState(currency);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
-  const [method, setMethod] = useState("efectivo");
+  const [method, setMethod] = useState(initialMethod || "efectivo");
+
+  useEffect(() => {
+    if (open && initialMethod) setMethod(initialMethod);
+  }, [open, initialMethod]);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [proofPath, setProofPath] = useState<string | null>(null);
