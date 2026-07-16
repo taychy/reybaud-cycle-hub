@@ -1,7 +1,9 @@
 /**
- * Reportes agregados a nivel evento:
- *   • Distribución de habitaciones (agrupa por tipo + género, marca incompletos)
- *   • Lista para seguro (nombre, DNI, fecha nacimiento, tel emergencia)
+ * Reportes agregados a nivel evento (sincronizados con el módulo Alojamiento):
+ *   • Distribución de habitaciones: usa event_rooms + event_room_assignments
+ *     como fuente de verdad (mismo dato que ve el admin en Alojamiento).
+ *   • Lista para seguro: nombre, documento, obra social y contactos de
+ *     emergencia leídos directo de `alumnos` (autogestionados por el alumno).
  * Ambos exportables a CSV.
  */
 import { useEffect, useState, useMemo } from "react";
@@ -25,11 +27,20 @@ interface Row {
   apellido: string;
   email: string;
   telefono: string;
-  dni: string | null;
-  fecha_nacimiento: string | null;
+  documento: string | null;
+  obra_social: string | null;
+  contacto_emergencia_nombre: string | null;
+  contacto_emergencia_telefono: string | null;
+  contacto_emergencia_nombre_2: string | null;
+  contacto_emergencia_telefono_2: string | null;
   reservation_status: string;
-  habitacion_data: Record<string, any> | null;
-  salud_data: Record<string, any> | null;
+  is_external: boolean;
+  // Asignación real de habitación (fuente: event_room_assignments / event_rooms)
+  room_id: string | null;
+  room_nombre: string | null;
+  room_genero: string | null;
+  room_capacidad: number | null;
+  package_nombre: string | null;
 }
 
 const csvEscape = (v: any) => {
@@ -54,10 +65,9 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
     if (!open) return;
     setLoading(true);
     (async () => {
-      // reservations activas (no canceladas)
       const { data: reservations } = await supabase
         .from("event_reservations")
-        .select("id, alumno_id, external_participant_id, reservation_status")
+        .select("id, alumno_id, external_participant_id, package_id, reservation_status")
         .eq("event_id", eventId)
         .neq("reservation_status", "cancelada");
 
@@ -65,45 +75,60 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       const resIds = list.map(r => r.id);
       const alumnoIds = list.map(r => r.alumno_id).filter(Boolean) as string[];
       const extIds = list.map(r => r.external_participant_id).filter(Boolean) as string[];
+      const pkgIds = Array.from(new Set(list.map(r => r.package_id).filter(Boolean))) as string[];
 
-      const [aluR, extR, clR] = await Promise.all([
+      const [aluR, extR, pkgR, roomR, asgR] = await Promise.all([
         alumnoIds.length
-          ? supabase.from("alumnos").select("id, nombre, apellido, email, telefono, dni, fecha_nacimiento").in("id", alumnoIds)
+          ? supabase.from("alumnos").select(
+              "id, nombre, apellido, email, telefono, documento, obra_social_nombre, " +
+              "contacto_emergencia_nombre, contacto_emergencia_telefono, " +
+              "contacto_emergencia_nombre_2, contacto_emergencia_telefono_2"
+            ).in("id", alumnoIds)
           : Promise.resolve({ data: [] as any[] }),
         extIds.length
           ? supabase.from("event_external_participants").select("id, nombre, apellido, email, telefono").in("id", extIds)
           : Promise.resolve({ data: [] as any[] }),
+        pkgIds.length
+          ? supabase.from("event_packages").select("id, nombre, personas_por_habitacion").in("id", pkgIds)
+          : Promise.resolve({ data: [] as any[] }),
+        (supabase as any).from("event_rooms").select("id, nombre, genero, capacidad, package_id").eq("event_id", eventId),
         resIds.length
-          ? supabase.from("reservation_checklist_data")
-              .select("reservation_id, step_key, data")
-              .in("reservation_id", resIds)
-              .in("step_key", ["habitacion", "salud_emergencia"])
+          ? (supabase as any).from("event_room_assignments").select("room_id, reservation_id").in("reservation_id", resIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const aluMap = new Map((aluR.data || []).map((a: any) => [a.id, a]));
       const extMap = new Map((extR.data || []).map((e: any) => [e.id, e]));
-      const clByRes: Record<string, Record<string, any>> = {};
-      (clR.data || []).forEach((c: any) => {
-        clByRes[c.reservation_id] ??= {};
-        clByRes[c.reservation_id][c.step_key] = c.data;
-      });
+      const pkgMap = new Map((pkgR.data || []).map((p: any) => [p.id, p]));
+      const roomMap = new Map(((roomR as any).data || []).map((r: any) => [r.id, r]));
+      const asgMap = new Map<string, string>(((asgR as any).data || []).map((a: any) => [a.reservation_id as string, a.room_id as string]));
 
       const built: Row[] = list.map(r => {
-        const a = r.alumno_id ? aluMap.get(r.alumno_id) : null;
-        const e = r.external_participant_id ? extMap.get(r.external_participant_id) : null;
-        const p = a || e || {};
+        const a: any = r.alumno_id ? aluMap.get(r.alumno_id) : null;
+        const e: any = r.external_participant_id ? extMap.get(r.external_participant_id) : null;
+        const p: any = a || e || {};
+        const roomId = asgMap.get(r.id) || null;
+        const room: any = roomId ? roomMap.get(roomId) : null;
+        const pkg: any = r.package_id ? pkgMap.get(r.package_id) : null;
         return {
           reservation_id: r.id,
           nombre: p.nombre || "",
           apellido: p.apellido || "",
           email: p.email || "",
           telefono: p.telefono || "",
-          dni: (a as any)?.dni ?? null,
-          fecha_nacimiento: (a as any)?.fecha_nacimiento ?? null,
+          documento: a?.documento ?? null,
+          obra_social: a?.obra_social_nombre ?? null,
+          contacto_emergencia_nombre: a?.contacto_emergencia_nombre ?? null,
+          contacto_emergencia_telefono: a?.contacto_emergencia_telefono ?? null,
+          contacto_emergencia_nombre_2: a?.contacto_emergencia_nombre_2 ?? null,
+          contacto_emergencia_telefono_2: a?.contacto_emergencia_telefono_2 ?? null,
           reservation_status: r.reservation_status,
-          habitacion_data: clByRes[r.id]?.habitacion ?? null,
-          salud_data: clByRes[r.id]?.salud_emergencia ?? null,
+          is_external: !!e && !a,
+          room_id: roomId,
+          room_nombre: room?.nombre ?? null,
+          room_genero: room?.genero ?? null,
+          room_capacidad: room?.capacidad ?? null,
+          package_nombre: pkg?.nombre ?? null,
         };
       });
 
@@ -112,50 +137,56 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
     })();
   }, [open, eventId]);
 
-  // Agrupación de habitaciones
+  // Agrupación de habitaciones por asignación real
   const habitaciones = useMemo(() => {
-    const grouped: Record<string, Row[]> = {};
+    const grouped: Record<string, { label: string; genero: string; capacidad: number | null; rows: Row[] }> = {};
     rows.forEach(r => {
-      const tipo = r.habitacion_data?.tipo_habitacion || "sin_definir";
-      const genero = r.habitacion_data?.genero_habitacion || "sin_definir";
-      const key = `${tipo}__${genero}`;
-      grouped[key] ??= [];
-      grouped[key].push(r);
+      if (!r.room_id) return;
+      const key = r.room_id;
+      grouped[key] ??= {
+        label: r.room_nombre || "Sin nombre",
+        genero: r.room_genero || "sin_definir",
+        capacidad: r.room_capacidad,
+        rows: [],
+      };
+      grouped[key].rows.push(r);
     });
     return grouped;
   }, [rows]);
 
+  const sinAsignar = useMemo(() => rows.filter(r => !r.room_id), [rows]);
+
   const exportSeguro = () => {
-    const header = ["Nombre", "Apellido", "DNI", "Fecha nacimiento", "Email", "Teléfono", "Contacto emergencia", "Tel emergencia", "Obra social"];
+    const header = ["Nombre", "Apellido", "Documento", "Email", "Teléfono", "Obra social",
+      "Contacto emergencia 1", "Tel emergencia 1", "Contacto emergencia 2", "Tel emergencia 2"];
     const body = rows.map(r => [
-      r.nombre, r.apellido, r.dni ?? "", r.fecha_nacimiento ?? "",
+      r.nombre, r.apellido, r.documento ?? "",
       r.email, r.telefono,
-      r.salud_data?.contacto_emergencia_nombre ?? "",
-      r.salud_data?.contacto_emergencia_telefono ?? "",
-      r.salud_data?.obra_social ?? "",
+      r.obra_social ?? "",
+      r.contacto_emergencia_nombre ?? "", r.contacto_emergencia_telefono ?? "",
+      r.contacto_emergencia_nombre_2 ?? "", r.contacto_emergencia_telefono_2 ?? "",
     ]);
     downloadCSV([header, ...body], `seguro_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
 
   const exportHabitaciones = () => {
-    const header = ["Tipo habitación", "Género", "Nombre", "Apellido", "Compañero solicitado", "Notas"];
+    const header = ["Habitación", "Género", "Capacidad", "Ocupación", "Nombre", "Apellido", "Paquete"];
     const body: string[][] = [];
-    Object.entries(habitaciones).forEach(([key, list]) => {
-      const [tipo, genero] = key.split("__");
-      list.forEach(r => {
+    Object.values(habitaciones).forEach(g => {
+      g.rows.forEach(r => {
         body.push([
-          tipo, genero,
-          r.nombre, r.apellido,
-          r.habitacion_data?.companero_solicitado ?? "",
-          r.habitacion_data?.notas_habitacion ?? "",
+          g.label, g.genero, String(g.capacidad ?? ""), `${g.rows.length}/${g.capacidad ?? "?"}`,
+          r.nombre, r.apellido, r.package_nombre ?? "",
         ]);
       });
+    });
+    sinAsignar.forEach(r => {
+      body.push(["(sin asignar)", "", "", "", r.nombre, r.apellido, r.package_nombre ?? ""]);
     });
     downloadCSV([header, ...body], `habitaciones_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
 
-  const missingSeguro = rows.filter(r => !r.dni || !r.fecha_nacimiento);
-  const missingHab = rows.filter(r => !r.habitacion_data?.tipo_habitacion);
+  const missingSeguro = rows.filter(r => !r.is_external && (!r.documento || !r.contacto_emergencia_telefono));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,41 +208,52 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
             <TabsContent value="habitaciones" className="space-y-3 mt-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  {rows.length} participante(s) · {Object.keys(habitaciones).length} agrupamiento(s)
+                  {rows.length} participante(s) · {Object.keys(habitaciones).length} habitación(es) asignada(s)
                 </p>
                 <Button size="sm" variant="outline" onClick={exportHabitaciones}>
                   <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
                 </Button>
               </div>
-              {missingHab.length > 0 && (
+              {sinAsignar.length > 0 && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs flex items-start gap-2">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <span>{missingHab.length} participante(s) sin habitación asignada.</span>
+                  <span>{sinAsignar.length} participante(s) sin habitación asignada. Gestioná desde el módulo Alojamiento.</span>
                 </div>
               )}
               <div className="space-y-3">
-                {Object.entries(habitaciones).map(([key, list]) => {
-                  const [tipo, genero] = key.split("__");
-                  return (
-                    <div key={key} className="rounded-lg border border-border p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className="text-[10px] capitalize">{tipo.replace(/_/g, " ")}</Badge>
-                        <Badge variant="outline" className="text-[10px] capitalize">{genero.replace(/_/g, " ")}</Badge>
-                        <span className="text-xs text-muted-foreground">{list.length} persona(s)</span>
-                      </div>
-                      <div className="space-y-1">
-                        {list.map(r => (
-                          <div key={r.reservation_id} className="flex items-center justify-between text-xs">
-                            <span className="font-medium">{r.nombre} {r.apellido}</span>
-                            {r.habitacion_data?.companero_solicitado && (
-                              <span className="text-[10px] text-muted-foreground">→ pide: {r.habitacion_data.companero_solicitado}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                {Object.entries(habitaciones).map(([roomId, g]) => (
+                  <div key={roomId} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="font-medium text-sm">{g.label}</span>
+                      <Badge variant="outline" className="text-[10px] capitalize">{g.genero.replace(/_/g, " ")}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{g.rows.length}/{g.capacidad ?? "?"}</Badge>
                     </div>
-                  );
-                })}
+                    <div className="space-y-1">
+                      {g.rows.map(r => (
+                        <div key={r.reservation_id} className="flex items-center justify-between text-xs">
+                          <span className="font-medium">{r.nombre} {r.apellido}</span>
+                          {r.package_nombre && <span className="text-[10px] text-muted-foreground">{r.package_nombre}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {sinAsignar.length > 0 && (
+                  <div className="rounded-lg border border-dashed border-border p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-sm text-muted-foreground">Sin asignar</span>
+                      <Badge variant="outline" className="text-[10px]">{sinAsignar.length}</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {sinAsignar.map(r => (
+                        <div key={r.reservation_id} className="flex items-center justify-between text-xs">
+                          <span>{r.nombre} {r.apellido}</span>
+                          {r.package_nombre && <span className="text-[10px] text-muted-foreground">{r.package_nombre}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -225,7 +267,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
               {missingSeguro.length > 0 && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs flex items-start gap-2">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <span>{missingSeguro.length} participante(s) sin DNI o fecha de nacimiento cargados.</span>
+                  <span>{missingSeguro.length} participante(s) sin documento o contacto de emergencia.</span>
                 </div>
               )}
               <div className="overflow-x-auto">
@@ -233,18 +275,21 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-1.5 px-2">Nombre</th>
-                      <th className="text-left py-1.5 px-2">DNI</th>
-                      <th className="text-left py-1.5 px-2">F. nacimiento</th>
+                      <th className="text-left py-1.5 px-2">Documento</th>
+                      <th className="text-left py-1.5 px-2">Obra social</th>
                       <th className="text-left py-1.5 px-2">Tel. emergencia</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map(r => (
                       <tr key={r.reservation_id} className="border-b border-border/50">
-                        <td className="py-1.5 px-2 font-medium">{r.nombre} {r.apellido}</td>
-                        <td className="py-1.5 px-2">{r.dni || <span className="text-amber-500">falta</span>}</td>
-                        <td className="py-1.5 px-2">{r.fecha_nacimiento || <span className="text-amber-500">falta</span>}</td>
-                        <td className="py-1.5 px-2">{r.salud_data?.contacto_emergencia_telefono || <span className="text-muted-foreground italic">—</span>}</td>
+                        <td className="py-1.5 px-2 font-medium">
+                          {r.nombre} {r.apellido}
+                          {r.is_external && <Badge variant="outline" className="ml-1 text-[9px]">externo</Badge>}
+                        </td>
+                        <td className="py-1.5 px-2">{r.documento || <span className="text-amber-500">falta</span>}</td>
+                        <td className="py-1.5 px-2">{r.obra_social || <span className="text-muted-foreground italic">—</span>}</td>
+                        <td className="py-1.5 px-2">{r.contacto_emergencia_telefono || <span className="text-amber-500">falta</span>}</td>
                       </tr>
                     ))}
                   </tbody>
