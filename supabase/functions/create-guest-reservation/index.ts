@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
           payload: {
             reservation_id: reservationId,
             participant_id: participantId,
-            event_id, event_nombre: eventRow.nombre,
+            event_id, event_nombre: eventRow.title,
             package_nombre: pkg.nombre,
             monto: amount_total,
             email, nombre, apellido, telefono, documento,
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const prefBody: Record<string, unknown> = {
       items: [{
-        title: `${eventRow.nombre} · ${pkg.nombre}`,
+        title: `${eventRow.title} · ${pkg.nombre}`,
         quantity: 1,
         unit_price: amount_total,
         currency_id: currency,
