@@ -172,6 +172,20 @@ Deno.serve(async (req) => {
     }
     const reservationId = reservation.id;
 
+    // 3.5) Enviar email de bienvenida/confirmación con resumen + link a /mi-reserva/:token
+    try {
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-confirmation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ reservation_id: reservationId }),
+      });
+    } catch (e) {
+      console.error("[create-guest-reservation] welcome email failed:", e);
+    }
+
     // 4) Transferencia: subir comprobante + notificar admin
     if (metodo_pago === "transferencia") {
       const bytes = base64ToBytes(String(raw.comprobante_base64));
