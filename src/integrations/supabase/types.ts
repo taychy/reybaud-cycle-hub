@@ -9944,6 +9944,10 @@ export type Database = {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
         Returns: Json
       }
+      submit_survey_response: {
+        Args: { _nps?: number; _respuestas: Json; _token: string }
+        Returns: string
+      }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
       transition_cambio_estado: {

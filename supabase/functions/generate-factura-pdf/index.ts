@@ -24,19 +24,49 @@ interface Body {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // Auth: allow service-role internal callers, otherwise require owner alumno or admin JWT
+    const authHeader = req.headers.get("Authorization") || "";
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const isInternal = bearer && bearer === SERVICE_KEY;
+
+    if (!bearer) return json({ error: "Unauthorized" }, 401);
+
     const { factura_id, force }: Body = await req.json();
     if (!factura_id) {
       return json({ error: "factura_id requerido" }, 400);
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const { data: factura } = await supabase
       .from("facturas").select("*").eq("id", factura_id).single();
     if (!factura) return json({ error: "Factura no encontrada" }, 404);
+
+    if (!isInternal) {
+      const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(bearer);
+      const uid = claimsData?.claims?.sub;
+      if (claimsErr || !uid) return json({ error: "Unauthorized" }, 401);
+
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: uid, _role: "admin" });
+      if (!isAdmin) {
+        if (!factura.alumno_id) return json({ error: "Forbidden" }, 403);
+        const { data: alumnoOwner } = await supabase
+          .from("alumnos")
+          .select("user_id")
+          .eq("id", factura.alumno_id)
+          .maybeSingle();
+        if (!alumnoOwner?.user_id || alumnoOwner.user_id !== uid) {
+          return json({ error: "Forbidden" }, 403);
+        }
+      }
+    }
 
     if (factura.pdf_path && !force) {
       const { data: signed } = await supabase.storage.from(BUCKET)

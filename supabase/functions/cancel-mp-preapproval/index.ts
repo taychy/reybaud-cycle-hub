@@ -13,6 +13,30 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Authn: require JWT
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(jwt);
+    const uid = claimsData?.claims?.sub;
+    if (claimsErr || !uid) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { suscripcion_id } = await req.json();
 
     if (!suscripcion_id) {
@@ -23,9 +47,26 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Authz: caller must own the subscription (via alumnos.user_id) or be admin
+    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: uid, _role: "admin" });
+    if (!isAdmin) {
+      const { data: subOwner } = await supabaseAdmin
+        .from("suscripciones")
+        .select("alumno_id, alumnos:alumno_id(user_id)")
+        .eq("id", suscripcion_id)
+        .maybeSingle();
+      const ownerUserId = (subOwner as any)?.alumnos?.user_id;
+      if (!ownerUserId || ownerUserId !== uid) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     const { data: sub, error: subErr } = await supabaseAdmin
       .from("suscripciones")

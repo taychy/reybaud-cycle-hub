@@ -289,13 +289,17 @@ const RecordDelAhora = () => {
       body: { email, event_id: activeEvent.id },
     });
 
-    if (error || !data?.found) {
-      setLoginError("No se encontró un registro con ese email. Registrate primero.");
+    if (error) {
+      setLoginError("No pudimos procesar tu solicitud. Intentá nuevamente.");
       setLoading(false);
       return;
     }
 
-    navigate(`/eventos/record-de-la-hora/mi-resultados?token=${data.token}`);
+    setLoading(false);
+    toast({
+      title: "Revisá tu correo",
+      description: "Si tenés un registro, te enviamos el link de acceso a tu email.",
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
