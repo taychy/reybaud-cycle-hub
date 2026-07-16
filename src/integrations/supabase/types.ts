@@ -2562,11 +2562,15 @@ export type Database = {
       }
       event_external_participants: {
         Row: {
+          access_token: string
           apellido: string | null
+          contacto_emergencia_nombre: string | null
+          contacto_emergencia_telefono: string | null
           created_at: string
           documento: string | null
           email: string
           estado: string
+          fecha_nacimiento: string | null
           id: string
           nombre: string
           notas: string | null
@@ -2574,11 +2578,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_token?: string
           apellido?: string | null
+          contacto_emergencia_nombre?: string | null
+          contacto_emergencia_telefono?: string | null
           created_at?: string
           documento?: string | null
           email: string
           estado?: string
+          fecha_nacimiento?: string | null
           id?: string
           nombre: string
           notas?: string | null
@@ -2586,11 +2594,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_token?: string
           apellido?: string | null
+          contacto_emergencia_nombre?: string | null
+          contacto_emergencia_telefono?: string | null
           created_at?: string
           documento?: string | null
           email?: string
           estado?: string
+          fecha_nacimiento?: string | null
           id?: string
           nombre?: string
           notas?: string | null
@@ -9744,6 +9756,10 @@ export type Database = {
           recurrente_id: string
           saldo_total: number
         }[]
+      }
+      get_guest_reservation_by_token: {
+        Args: { _token: string }
+        Returns: Json
       }
       get_my_reservation: {
         Args: { _external_token?: string; _reservation_id: string }
