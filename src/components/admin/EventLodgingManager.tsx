@@ -680,6 +680,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                   <Input type="number" min={1} value={erCapacidad} onChange={(e) => setErCapacidad(parseInt(e.target.value) || 1)} className="h-8" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
+                                  <Select value={erTipo || "auto"} onValueChange={(v) => setErTipo(v === "auto" ? "" : (v as RoomTipo))}>
+                                    <SelectTrigger className="h-8"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="auto">Tipo — Auto</SelectItem>
+                                      {TIPO_OPTIONS.map((o) => (
+                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                   <Select value={erGenero || "any"} onValueChange={(v) => setErGenero(v === "any" ? "" : v)}>
                                     <SelectTrigger className="h-8"><SelectValue placeholder="Género" /></SelectTrigger>
                                     <SelectContent>
@@ -689,7 +698,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                       <SelectItem value="mixto">Mixto</SelectItem>
                                     </SelectContent>
                                   </Select>
-                                  <Input value={erNotas} onChange={(e) => setErNotas(e.target.value)} placeholder="Notas" className="h-8" />
+                                </div>
+                                <Input value={erNotas} onChange={(e) => setErNotas(e.target.value)} placeholder="Notas" className="h-8" />
+
                                 </div>
                                 <div className="flex gap-2 justify-end">
                                   <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>Cancelar</Button>
