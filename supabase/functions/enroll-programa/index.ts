@@ -177,8 +177,9 @@ async function enqueueEnrollmentEmail(admin: any, params: {
   }
 }
 
-
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
   if (req.method !== "POST") return jsonResp({ error: "Method not allowed" }, 405);
 
   try {
