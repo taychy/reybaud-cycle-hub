@@ -410,6 +410,12 @@ const PlanSelection = () => {
   };
 
   const handleExitPlans = () => {
+    const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+    if (returnTo?.startsWith("/")) {
+      navigate(returnTo);
+      return;
+    }
+
     if (window.history.state?.idx > 0) {
       navigate(-1);
       return;
