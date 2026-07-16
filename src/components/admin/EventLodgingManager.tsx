@@ -421,8 +421,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       existingByGenero[k] = (existingByGenero[k] || 0) + r.capacidad;
     });
 
-    // Etiqueta según capacidad (solo estética)
-    const roomLabel = cap === 1 ? "Individual" : cap === 2 ? "Doble" : cap === 3 ? "Triple" : cap === 4 ? "Cuádruple" : `${cap}p`;
+    // Tipo derivado de la capacidad del paquete (fuente de verdad para el nombre)
+    const autoTipo = inferTipoFromCapacidad(cap);
+    const roomLabel = tipoLabel(autoTipo);
 
     type NewRoom = { genero: "mujeres" | "varones" | "mixto" | null; label: string };
     const toCreate: NewRoom[] = [];
@@ -468,10 +469,12 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         nombre: `${roomLabel}${suffix} ${counters[k]}`.trim(),
         capacidad: cap,
         genero: r.genero,
+        tipo: autoTipo,
         notas: null,
         sort_order: baseOrder + idx,
       };
     });
+
 
     const { error } = await (supabase as any).from("event_rooms").insert(payload);
     if (error) {
