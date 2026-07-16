@@ -3501,6 +3501,7 @@ export type Database = {
           notas: string | null
           package_id: string | null
           sort_order: number
+          tipo: string | null
           updated_at: string
         }
         Insert: {
@@ -3513,6 +3514,7 @@ export type Database = {
           notas?: string | null
           package_id?: string | null
           sort_order?: number
+          tipo?: string | null
           updated_at?: string
         }
         Update: {
@@ -3525,6 +3527,7 @@ export type Database = {
           notas?: string | null
           package_id?: string | null
           sort_order?: number
+          tipo?: string | null
           updated_at?: string
         }
         Relationships: [
