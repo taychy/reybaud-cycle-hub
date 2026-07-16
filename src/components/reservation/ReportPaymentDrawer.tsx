@@ -62,7 +62,7 @@ const fmtDate = (d?: string | null) => {
 };
 
 const ReportPaymentDrawer = ({
-  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId, initialMode,
+  open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId, initialMode, initialMethod,
 }: ReportPaymentDrawerProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
