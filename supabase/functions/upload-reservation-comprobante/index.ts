@@ -92,8 +92,13 @@ Deno.serve(async (req) => {
     }
 
     // Registrar pago informado (pendiente de verificación)
-    const amount = Number(reservation.balance_due || 0);
+    const balance = Number(reservation.balance_due || 0);
+    let amount = amountInput != null ? amountInput : balance;
+    if (amount > balance + 0.01) {
+      return json(400, { error: "El monto supera el saldo pendiente" });
+    }
     const currency = String(reservation.currency_snapshot || "ARS").toUpperCase();
+    const isPartial = amount < balance - 0.01;
 
     const { error: payErr } = await supabase.from("reservation_payments").insert({
       reservation_id: reservationId,
@@ -102,7 +107,9 @@ Deno.serve(async (req) => {
       payment_method: "transferencia",
       status: "informado",
       proof_url: path,
-      notes: "Comprobante subido por el participante (link público).",
+      notes: isPartial
+        ? `Comprobante subido por el participante (link público). Pago parcial informado: ${amount} ${currency} / saldo ${balance} ${currency}.`
+        : "Comprobante subido por el participante (link público).",
     });
 
     if (payErr) {
