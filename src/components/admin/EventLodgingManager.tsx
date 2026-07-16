@@ -359,9 +359,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       nombre: `Individual — ${r.nombre} ${r.apellido}`.trim(),
       capacidad: 1,
       genero: null,
+      tipo: "individual",
       notas: null,
       sort_order: baseOrder + idx,
     }));
+
 
     const { data: created, error } = await (supabase as any)
       .from("event_rooms")
