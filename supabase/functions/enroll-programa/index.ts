@@ -55,7 +55,129 @@ function extFromMime(mime: string | null | undefined, filename?: string | null):
   }
 }
 
-Deno.serve(async (req) => {
+const SENDER_DOMAIN = "notify.reybaud-app.com";
+const FROM_NAME = "Reybaud Ciclismo";
+const APP_DOMAIN = "https://reybaud-app.com";
+
+const escapeHtml = (s: string) =>
+  String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+async function getOrCreateUnsubscribeToken(admin: any, email: string): Promise<string> {
+  const normalized = email.trim().toLowerCase();
+  const { data: existing } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  if (existing?.token) return existing.token;
+  const newToken = crypto.randomUUID();
+  const { data: inserted } = await admin
+    .from("email_unsubscribe_tokens")
+    .insert({ email: normalized, token: newToken })
+    .select("token")
+    .maybeSingle();
+  return inserted?.token || newToken;
+}
+
+async function generateMagicLink(admin: any, email: string): Promise<string | null> {
+  try {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo: `${APP_DOMAIN}/alumno` },
+    });
+    if (error) { console.error("[enroll-programa] magiclink", error); return null; }
+    return (data?.properties?.action_link as string) || null;
+  } catch (e) {
+    console.error("[enroll-programa] magiclink ex", e);
+    return null;
+  }
+}
+
+async function enqueueEnrollmentEmail(admin: any, params: {
+  toEmail: string;
+  alumnoNombre: string;
+  planNombre: string;
+  fechaInicio: string | null;
+  monto: number;
+  moneda: string;
+  metodo: "transferencia" | "mp";
+  pagoConfirmado: boolean;
+  addedAsSecondary: boolean;
+  primaryEmail: string;
+  suscripcionId: string;
+}): Promise<void> {
+  try {
+    const magic = await generateMagicLink(admin, params.toEmail);
+    const unsub = await getOrCreateUnsubscribeToken(admin, params.toEmail);
+    const messageId = crypto.randomUUID();
+    const monedaSym = params.moneda === "USD" ? "USD " : params.moneda === "EUR" ? "EUR " : "$";
+    const montoFmt = `${monedaSym}${Number(params.monto || 0).toLocaleString("es-AR")}`;
+    const estadoTxt = params.pagoConfirmado
+      ? "Tu inscripción quedó confirmada."
+      : params.metodo === "transferencia"
+      ? "Recibimos tu comprobante de transferencia. En las próximas horas lo validamos y te confirmamos por email."
+      : "Estamos procesando tu pago con Mercado Pago. Te confirmamos cuando se acredite.";
+    const inicioTxt = params.fechaInicio ? `Inicio: <strong>${escapeHtml(params.fechaInicio)}</strong><br/>` : "";
+    const secondaryNotice = params.addedAsSecondary
+      ? `<div style="background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:12px;margin:16px 0;font-size:13px;color:#873800;">
+          Detectamos que ya tenías una ficha con <strong>${escapeHtml(params.primaryEmail)}</strong>. Vinculamos esta inscripción a esa ficha para que no se dupliquen tus datos. Podés iniciar sesión con cualquiera de los dos emails.
+        </div>`
+      : "";
+    const magicBtn = magic
+      ? `<div style="margin:24px 0;text-align:center;">
+          <a href="${escapeHtml(magic)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;">Ingresar a la app</a>
+          <div style="font-size:11px;color:#888;margin-top:8px;">El enlace vence en 1 hora. Si expiró, iniciá sesión desde la app con tu email.</div>
+        </div>`
+      : "";
+
+    const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+      <div style="max-width:600px;margin:0 auto;background:#fff;padding:32px 28px;">
+        <h1 style="color:#f97316;margin:0 0 16px;font-size:24px;">¡Bienvenido/a al programa!</h1>
+        <p style="font-size:15px;color:#333;line-height:1.5;">Hola ${escapeHtml(params.alumnoNombre)},</p>
+        <p style="font-size:15px;color:#333;line-height:1.5;">${estadoTxt}</p>
+        ${secondaryNotice}
+        <div style="border:1px solid #eee;border-radius:10px;padding:16px 18px;margin:16px 0;background:#fafafa;">
+          <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Programa</div>
+          <div style="font-size:16px;font-weight:700;color:#121212;margin-bottom:12px;">${escapeHtml(params.planNombre)}</div>
+          ${inicioTxt}
+          Método de pago: <strong>${params.metodo === "transferencia" ? "Transferencia" : "Mercado Pago"}</strong><br/>
+          Monto: <strong>${escapeHtml(montoFmt)}</strong>
+        </div>
+        ${magicBtn}
+        <p style="font-size:13px;color:#666;line-height:1.5;">Cualquier duda respondé este email.</p>
+        <p style="font-size:13px;color:#666;line-height:1.5;">— Equipo Reybaud</p>
+      </div>
+    </body></html>`;
+
+    const text = `Hola ${params.alumnoNombre},\n\n${estadoTxt}\n\nPrograma: ${params.planNombre}\nMétodo: ${params.metodo}\nMonto: ${montoFmt}\n\n${magic ? `Ingresar a la app: ${magic}\n` : ""}— Equipo Reybaud`;
+    const subject = params.pagoConfirmado
+      ? `Inscripción confirmada · ${params.planNombre}`
+      : `Recibimos tu inscripción · ${params.planNombre}`;
+
+    await admin.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      payload: {
+        message_id: messageId,
+        to: params.toEmail,
+        from: `${FROM_NAME} <programas@${SENDER_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN,
+        subject,
+        html,
+        text,
+        purpose: "transactional",
+        label: "programa_inscripcion",
+        idempotency_key: `programa-inscripcion-${params.suscripcionId}`,
+        unsubscribe_token: unsub,
+        queued_at: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    console.error("[enroll-programa] enqueue email", e);
+  }
+}
+
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResp({ error: "Method not allowed" }, 405);
 
