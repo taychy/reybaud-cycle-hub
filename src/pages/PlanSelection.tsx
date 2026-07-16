@@ -231,7 +231,9 @@ const PlanSelection = () => {
       if (cancel) return;
       const subs = (data as any[] | null) || [];
       const grupal = subs.find((s) => s.planes?.categoria === "grupal");
-      const pausa = subs.find((s) => s.planes?.categoria === "pausa");
+      // Sólo bloquea si la pausa está efectivamente ACTIVA (paga y vigente).
+      // Una pausa en "pendiente" (sin pagar) no debería impedir contratar otro plan.
+      const pausa = subs.find((s) => s.planes?.categoria === "pausa" && s.estado === "activa");
       if (grupal && !upgradeFromSubId) {
         setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
       }
