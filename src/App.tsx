@@ -167,6 +167,7 @@ const App = () => (
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/mis-reservas/:id" element={<MisReservas />} />
+          <Route path="/mi-reserva/:token" element={<GuestReservationView />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
