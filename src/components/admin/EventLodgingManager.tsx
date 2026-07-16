@@ -352,11 +352,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
 
     // Buckets objetivo por género
     const buckets: { genero: "mujeres" | "varones" | "mixto" | null; label: string; plazas: number }[] = hasGenero
-      ? [
-          { genero: "mujeres", label: "Mujeres", plazas: cm },
-          { genero: "varones", label: "Varones", plazas: cv },
-          { genero: "mixto", label: "Mixto", plazas: cx },
-        ].filter((b) => b.plazas > 0)
+      ? ([
+          { genero: "mujeres" as const, label: "Mujeres", plazas: cm },
+          { genero: "varones" as const, label: "Varones", plazas: cv },
+          { genero: "mixto" as const, label: "Mixto", plazas: cx },
+        ].filter((b) => b.plazas > 0))
       : [{ genero: null, label: "", plazas: totalCupo }];
 
     if (buckets.every((b) => b.plazas <= 0)) {
