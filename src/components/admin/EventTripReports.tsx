@@ -95,7 +95,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         pkgIds.length
           ? supabase.from("event_packages").select("id, nombre, personas_por_habitacion").in("id", pkgIds)
           : Promise.resolve({ data: [] as any[] }),
-        (supabase as any).from("event_rooms").select("id, nombre, genero, capacidad, package_id").eq("event_id", eventId),
+        (supabase as any).from("event_rooms").select("id, nombre, genero, capacidad, tipo, package_id").eq("event_id", eventId),
         resIds.length
           ? (supabase as any).from("event_room_assignments").select("room_id, reservation_id").in("reservation_id", resIds)
           : Promise.resolve({ data: [] as any[] }),
