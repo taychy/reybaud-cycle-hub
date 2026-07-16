@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
         .from("alumnos")
         .insert({
           nombre, apellido, email, telefono,
-          grupo: "Iniciación",
+          grupo: "Aspirantes",
           estado: "pendiente",
           origen_cohort: cohort_slug,
           origen_cohort_fecha: new Date().toISOString(),
