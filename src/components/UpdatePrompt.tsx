@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { RefreshCw, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { clearBrowserCaches, getCacheBustedUrl, unregisterServiceWorkers } from "@/lib/appUpdate";
 
