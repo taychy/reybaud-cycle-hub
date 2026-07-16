@@ -28,6 +28,7 @@ interface GuestData {
     package_nombre_snapshot: string;
     next_due_date: string | null;
     created_at: string;
+    last_proof_uploaded_at: string | null;
     event: {
       id: string;
       title: string;
