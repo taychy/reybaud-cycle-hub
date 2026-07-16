@@ -29,11 +29,11 @@ interface GuestData {
     created_at: string;
     event: {
       id: string;
-      nombre: string;
-      fecha_inicio: string | null;
-      fecha_fin: string | null;
-      imagen_url: string | null;
-      ubicacion: string | null;
+      title: string;
+      date: string | null;
+      end_date: string | null;
+      image_url: string | null;
+      location: string | null;
       short_description: string | null;
     } | null;
     installments: Array<{
