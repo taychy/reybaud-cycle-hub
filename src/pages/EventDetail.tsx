@@ -1156,6 +1156,18 @@ const EventDetail = () => {
         />
       )}
 
+      {/* Guest checkout drawer (usuarios sin cuenta de alumno) */}
+      {event && allowsParticipation && (
+        <GuestReservationDrawer
+          open={showGuestDrawer}
+          onOpenChange={setShowGuestDrawer}
+          eventId={event.id}
+          eventName={event.nombre}
+        />
+      )}
+
+
+
     </div>
   );
 };
