@@ -4173,6 +4173,7 @@ export type Database = {
           recurrente: boolean
           registrado_por: string | null
           subcategoria: string | null
+          unidad_negocio: string
           updated_at: string
         }
         Insert: {
@@ -4197,6 +4198,7 @@ export type Database = {
           recurrente?: boolean
           registrado_por?: string | null
           subcategoria?: string | null
+          unidad_negocio?: string
           updated_at?: string
         }
         Update: {
@@ -4221,6 +4223,7 @@ export type Database = {
           recurrente?: boolean
           registrado_por?: string | null
           subcategoria?: string | null
+          unidad_negocio?: string
           updated_at?: string
         }
         Relationships: [
@@ -4390,6 +4393,7 @@ export type Database = {
           notas: string | null
           pagado_por: string | null
           recurrente_id: string | null
+          unidad_negocio: string | null
           updated_at: string
         }
         Insert: {
@@ -4408,6 +4412,7 @@ export type Database = {
           notas?: string | null
           pagado_por?: string | null
           recurrente_id?: string | null
+          unidad_negocio?: string | null
           updated_at?: string
         }
         Update: {
@@ -4426,6 +4431,7 @@ export type Database = {
           notas?: string | null
           pagado_por?: string | null
           recurrente_id?: string | null
+          unidad_negocio?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4519,6 +4525,7 @@ export type Database = {
           proveedor: string | null
           responsable: string | null
           tipo: string
+          unidad_negocio: string
           updated_at: string
         }
         Insert: {
@@ -4542,6 +4549,7 @@ export type Database = {
           proveedor?: string | null
           responsable?: string | null
           tipo?: string
+          unidad_negocio?: string
           updated_at?: string
         }
         Update: {
@@ -4565,6 +4573,7 @@ export type Database = {
           proveedor?: string | null
           responsable?: string | null
           tipo?: string
+          unidad_negocio?: string
           updated_at?: string
         }
         Relationships: [
@@ -9738,6 +9747,16 @@ export type Database = {
           p_notas?: string
         }
         Returns: string
+      }
+      pay_liquidacion_coach: {
+        Args: {
+          p_coach_id: string
+          p_liquidacion_id: string
+          p_mes: string
+          p_moneda?: string
+          p_monto: number
+        }
+        Returns: undefined
       }
       preview_package_change: {
         Args: {
