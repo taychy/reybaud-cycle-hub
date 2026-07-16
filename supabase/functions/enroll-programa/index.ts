@@ -514,6 +514,20 @@ Deno.serve(async (req) => {
       .update({ mp_preference_id: pref.id })
       .eq("id", suscripcionId);
 
+    await enqueueEnrollmentEmail(admin, {
+      toEmail: email,
+      alumnoNombre: `${nombre} ${apellido}`.trim(),
+      planNombre: plan.nombre,
+      fechaInicio: (plan as any).fecha_inicio_programa || null,
+      monto: montoHoy,
+      moneda: plan.moneda || "ARS",
+      metodo: "mp",
+      pagoConfirmado: false,
+      addedAsSecondary,
+      primaryEmail: alumnoPrimaryEmail,
+      suscripcionId,
+    });
+
     return jsonResp({
       ok: true,
       mode: "mp",
