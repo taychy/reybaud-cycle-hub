@@ -140,9 +140,35 @@ const AdminLiquidaciones = () => {
     loadData();
   };
 
-  const updateEstadoLiq = async (liqId: string, nuevoEstado: string) => {
+  const updateEstadoLiq = async (liqId: string, nuevoEstado: string, coach?: { id: string; nombre: string; confirmado: number }) => {
+    // Pagar una liquidación además tiene que generar el gasto real en "gastos" (unidad_negocio = 'escuela'),
+    // así que ese caso pasa por un RPC que hace ambas cosas de forma atómica y evita duplicados.
+    if (nuevoEstado === "pagada") {
+      if (!coach) {
+        toast({ title: "Falta información del coach para generar el gasto", variant: "destructive" });
+        return;
+      }
+      if (coach.confirmado <= 0) {
+        toast({ title: "No hay monto confirmado para liquidar", description: "Revisá los movimientos del coach antes de marcar como pagada.", variant: "destructive" });
+        return;
+      }
+      const { error } = await supabase.rpc("pay_liquidacion_coach" as any, {
+        p_liquidacion_id: liqId,
+        p_coach_id: coach.id,
+        p_mes: mes,
+        p_monto: coach.confirmado,
+        p_moneda: "ARS",
+      });
+      if (error) {
+        toast({ title: "Error al marcar como pagada", description: error.message, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Liquidación pagada", description: `Se generó el gasto de ${coach.nombre} por $${coach.confirmado.toLocaleString("es-AR")} en Escuela.` });
+      loadData();
+      return;
+    }
+
     const updates: any = { estado: nuevoEstado };
-    if (nuevoEstado === "pagada") updates.fecha_pago = new Date().toISOString();
     await supabase.from("liquidaciones_mensuales").update(updates).eq("id", liqId);
     toast({ title: `Liquidación marcada como ${nuevoEstado}` });
     loadData();
@@ -232,7 +258,7 @@ const AdminLiquidaciones = () => {
                       </div>
                       <div className="flex gap-2">
                         {c.liq && c.liq.estado !== "pagada" && (
-                          <Select onValueChange={(v) => updateEstadoLiq(c.liq.id, v)}>
+                          <Select onValueChange={(v) => updateEstadoLiq(c.liq.id, v, { id: c.id, nombre: c.nombre, confirmado: c.confirmado })}>
                             <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Cambiar estado" /></SelectTrigger>
                             <SelectContent>
                               {ESTADO_LIQ.map(e => <SelectItem key={e} value={e} className="text-xs capitalize">{e.replace("_", " ")}</SelectItem>)}

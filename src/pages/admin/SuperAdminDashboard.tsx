@@ -24,13 +24,37 @@ interface PlanPerformance {
   porcentaje: number; // share of total revenue
 }
 
+type BusinessUnit = "escuela" | "tienda" | "viajes";
+type UnitFilter = "global" | BusinessUnit;
+type CurrencyTotals = Record<string, number>; // "ARS" | "USD" | "EUR" -> monto
+
+interface MonthlyBreakdown {
+  month: string;
+  units: Record<BusinessUnit, { ingresos: CurrencyTotals; gastos: CurrencyTotals }>;
+  global: { ingresos: CurrencyTotals; gastos: CurrencyTotals };
+}
+
+const UNITS: BusinessUnit[] = ["escuela", "tienda", "viajes"];
+const UNIT_LABELS: Record<UnitFilter, string> = { global: "Global", escuela: "Escuela", tienda: "Tienda", viajes: "Viajes" };
+
+const emptyCurrencyTotals = (): CurrencyTotals => ({});
+const addTo = (bucket: CurrencyTotals, currency: string, amount: number) => {
+  bucket[currency || "ARS"] = (bucket[currency || "ARS"] || 0) + amount;
+};
+
+const fmtCur = (n: number, currency: string) => {
+  const symbol = currency === "USD" ? "US$" : currency === "EUR" ? "€" : "$";
+  return `${symbol}${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+};
+
 const fmt = (n: number) => `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 
 const SuperAdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KPI[]>([]);
-  const [monthlyData, setMonthlyData] = useState<{ month: string; ingresos: number; gastos: number }[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyBreakdown[]>([]);
   const [planPerformance, setPlanPerformance] = useState<PlanPerformance[]>([]);
+  const [unitFilter, setUnitFilter] = useState<UnitFilter>("global");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -43,12 +67,18 @@ const SuperAdminDashboard = () => {
       const startOfLastMonth = `${lastMonthStr}-01`;
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
 
-      const [alumnosRes, subsRes, planesRes, gastosRes, storeOrdersRes] = await Promise.all([
+      const [alumnosRes, subsRes, planesRes, gastosRes, storeOrdersRes, reservationPaymentsRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, created_at"),
         supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, mp_status, created_at"),
-        supabase.from("planes").select("id, nombre, precio"),
-        supabase.from("gastos").select("id, monto, fecha").order("fecha", { ascending: false }).limit(500),
+        // BUG (fix): faltaba "moneda" -> plan.moneda siempre daba undefined y todo se trataba como ARS por accidente
+        supabase.from("planes").select("id, nombre, precio, moneda"),
+        // BUG (fix): faltaba "moneda" en el select -> mismo problema en gastos. Se agrega unidad_negocio para el prorrateo.
+        supabase.from("gastos").select("id, monto, fecha, moneda, unidad_negocio").order("fecha", { ascending: false }).limit(1000),
         supabase.from("store_orders").select("id, total, status, created_at"),
+        // BUG (fix): no se consultaban los pagos de eventos/viajes. Solo cuentan los validados por un admin.
+        supabase.from("reservation_payments" as any)
+          .select("id, amount, currency, event_currency, equivalent_amount_event_currency, status, payment_date")
+          .eq("status", "validado"),
       ]);
 
       const alumnos = alumnosRes.data || [];
@@ -56,9 +86,14 @@ const SuperAdminDashboard = () => {
       const planes = planesRes.data || [];
       const gastosData = gastosRes.data || [];
       const orders = (storeOrdersRes.data || []).filter((o: any) => o.status !== "cancelado");
+      const reservationPayments = (reservationPaymentsRes.data || []) as any[];
 
       const planesMap = new Map(planes.map(p => [p.id, p]));
 
+      // BUG (fix): "activa" descartaba las suscripciones ya vencidas que sí se cobraron
+      // (pasan a "finalizada" cuando termina el período). Se cuentan como cobradas
+      // activa | finalizada | conciliado.
+      const ESTADOS_COBRADOS = ["activa", "finalizada", "conciliado"];
       const subsActivas = subs.filter(s => s.estado === "activa");
       const mrr = subsActivas.reduce((sum, s) => sum + (planesMap.get(s.plan_id)?.precio || 0), 0);
 
@@ -70,14 +105,14 @@ const SuperAdminDashboard = () => {
       const mrrChange = mrrLastMonth > 0 ? ((mrr - mrrLastMonth) / mrrLastMonth * 100).toFixed(1) : "—";
 
       const cobradoEsteMes = subs
-        .filter(s => s.estado === "activa" && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
+        .filter(s => ESTADOS_COBRADOS.includes(s.estado) && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
         .reduce((sum, s) => sum + (planesMap.get(s.plan_id)?.precio || 0), 0);
 
       const cobradoMesAnterior = subs
         .filter(s => {
           if (!s.fecha_inicio) return false;
           return s.fecha_inicio >= startOfLastMonth && s.fecha_inicio <= endOfLastMonth &&
-            (s.estado === "activa" || s.estado === "conciliado");
+            ESTADOS_COBRADOS.includes(s.estado);
         })
         .reduce((sum, s) => sum + (planesMap.get(s.plan_id)?.precio || 0), 0);
 
@@ -132,24 +167,105 @@ const SuperAdminDashboard = () => {
         .sort((a, b) => b.facturacion - a.facturacion);
       setPlanPerformance(perfArr);
 
-      // Monthly trends (last 6 months)
-      const monthly: { month: string; ingresos: number; gastos: number }[] = [];
+      // Monthly trends (last 6 months), por unidad de negocio y por moneda.
+      const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+      // Paso 1: ingresos directos por unidad+moneda y gastos directos por unidad+moneda,
+      // más el pool de gastos "compartido" por moneda, para cada uno de los 6 meses.
+      const rawMonths: {
+        month: string;
+        ingresos: Record<BusinessUnit, CurrencyTotals>;
+        gastosDirectos: Record<BusinessUnit, CurrencyTotals>;
+        gastosCompartidos: CurrencyTotals;
+      }[] = [];
+
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const mStart = `${mStr}-01`;
         const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
-        const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
-        const ing = subs
-          .filter(s => s.fecha_inicio && s.fecha_inicio >= mStart && s.fecha_inicio <= mEnd && (s.estado === "activa" || s.estado === "conciliado"))
-          .reduce((sum, s) => sum + (planesMap.get(s.plan_id)?.precio || 0), 0)
-          + orders.filter((o: any) => o.created_at >= mStart && o.created_at <= mEnd + "T23:59:59")
-            .reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+        const ingresos: Record<BusinessUnit, CurrencyTotals> = { escuela: emptyCurrencyTotals(), tienda: emptyCurrencyTotals(), viajes: emptyCurrencyTotals() };
+        const gastosDirectos: Record<BusinessUnit, CurrencyTotals> = { escuela: emptyCurrencyTotals(), tienda: emptyCurrencyTotals(), viajes: emptyCurrencyTotals() };
+        const gastosCompartidos: CurrencyTotals = emptyCurrencyTotals();
 
-        const gast = gastosData.filter((g: any) => g.fecha >= mStart && g.fecha <= mEnd).reduce((sum: number, g: any) => sum + g.monto, 0);
-        monthly.push({ month: monthNames[d.getMonth()], ingresos: ing, gastos: gast });
+        // Escuela: suscripciones cuyo período arrancó ese mes y están cobradas
+        subs
+          .filter(s => s.fecha_inicio && s.fecha_inicio >= mStart && s.fecha_inicio <= mEnd && ESTADOS_COBRADOS.includes(s.estado))
+          .forEach(s => {
+            const plan = planesMap.get(s.plan_id);
+            addTo(ingresos.escuela, plan?.moneda || "ARS", plan?.precio || 0);
+          });
+
+        // Tienda: ventas pagadas ese mes (asumido ARS -- no se detectó columna de moneda en store_orders)
+        orders
+          .filter((o: any) => o.status === "pagado" && o.created_at >= mStart && o.created_at <= mEnd + "T23:59:59")
+          .forEach((o: any) => addTo(ingresos.tienda, "ARS", o.total || 0));
+
+        // Viajes: reservation_payments validados con payment_date en el mes, agrupados por
+        // la moneda del evento (equivalent_amount_event_currency si el pago fue en otra moneda)
+        reservationPayments
+          .filter((p: any) => p.payment_date && p.payment_date >= mStart && p.payment_date <= mEnd)
+          .forEach((p: any) => {
+            const currency = p.event_currency || p.currency || "ARS";
+            const amount = p.equivalent_amount_event_currency ?? p.amount ?? 0;
+            addTo(ingresos.viajes, currency, amount);
+          });
+
+        // Gastos: directos por unidad, o al pool de compartidos si no está clasificado
+        gastosData
+          .filter((g: any) => g.fecha >= mStart && g.fecha <= mEnd)
+          .forEach((g: any) => {
+            const moneda = g.moneda || "ARS";
+            if (g.unidad_negocio === "escuela" || g.unidad_negocio === "tienda" || g.unidad_negocio === "viajes") {
+              addTo(gastosDirectos[g.unidad_negocio as BusinessUnit], moneda, g.monto || 0);
+            } else {
+              addTo(gastosCompartidos, moneda, g.monto || 0);
+            }
+          });
+
+        rawMonths.push({ month: monthNames[d.getMonth()], ingresos, gastosDirectos, gastosCompartidos });
       }
+
+      // Paso 2: prorratear los gastos compartidos por unidad, usando el % de ingresos ARS
+      // de cada unidad en una ventana móvil de 3 meses (mes actual + 2 anteriores dentro
+      // de la ventana de 6 meses cargada). Simplificación: el peso se calcula solo con
+      // ingresos ARS (para no depender de un tipo de cambio); el monto prorrateado se
+      // aplica tal cual esté el gasto compartido, en su propia moneda.
+      const ingresosArsPorMes = rawMonths.map(m => ({
+        escuela: m.ingresos.escuela["ARS"] || 0,
+        tienda: m.ingresos.tienda["ARS"] || 0,
+        viajes: m.ingresos.viajes["ARS"] || 0,
+      }));
+
+      const monthly: MonthlyBreakdown[] = rawMonths.map((m, idx) => {
+        const windowStart = Math.max(0, idx - 2);
+        const windowSlice = ingresosArsPorMes.slice(windowStart, idx + 1);
+        const avg: Record<BusinessUnit, number> = { escuela: 0, tienda: 0, viajes: 0 };
+        UNITS.forEach(u => { avg[u] = windowSlice.reduce((s, w) => s + w[u], 0) / windowSlice.length; });
+        const totalAvg = avg.escuela + avg.tienda + avg.viajes;
+        const weight: Record<BusinessUnit, number> = totalAvg > 0
+          ? { escuela: avg.escuela / totalAvg, tienda: avg.tienda / totalAvg, viajes: avg.viajes / totalAvg }
+          : { escuela: 1 / 3, tienda: 1 / 3, viajes: 1 / 3 }; // sin ingresos en la ventana -> reparto parejo
+
+        const units = {} as Record<BusinessUnit, { ingresos: CurrencyTotals; gastos: CurrencyTotals }>;
+        UNITS.forEach(u => {
+          const gastos: CurrencyTotals = { ...m.gastosDirectos[u] };
+          Object.entries(m.gastosCompartidos).forEach(([currency, amount]) => {
+            addTo(gastos, currency, amount * weight[u]);
+          });
+          units[u] = { ingresos: m.ingresos[u], gastos };
+        });
+
+        const global = { ingresos: emptyCurrencyTotals(), gastos: emptyCurrencyTotals() };
+        UNITS.forEach(u => {
+          Object.entries(units[u].ingresos).forEach(([c, v]) => addTo(global.ingresos, c, v));
+          Object.entries(units[u].gastos).forEach(([c, v]) => addTo(global.gastos, c, v));
+        });
+
+        return { month: m.month, units, global };
+      });
+
       setMonthlyData(monthly);
     } catch (err) {
       console.error("Error loading super admin dashboard:", err);
@@ -162,7 +278,16 @@ const SuperAdminDashboard = () => {
 
   if (loading) return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando métricas...</div>;
 
-  const maxMonthly = Math.max(...monthlyData.map(m => Math.max(m.ingresos, m.gastos)), 1);
+  // Un máximo por moneda (ARS y USD/EUR tienen escalas muy distintas, no se pueden
+  // graficar con la misma barra sin que una quede invisible).
+  const dataForUnit = (m: MonthlyBreakdown) => (unitFilter === "global" ? m.global : m.units[unitFilter]);
+  const maxByCurrency: CurrencyTotals = {};
+  monthlyData.forEach(m => {
+    const d = dataForUnit(m);
+    [...Object.entries(d.ingresos), ...Object.entries(d.gastos)].forEach(([c, v]) => {
+      maxByCurrency[c] = Math.max(maxByCurrency[c] || 1, v);
+    });
+  });
 
   const TrendIcon = ({ direction }: { direction: "up" | "down" | "flat" }) => {
     if (direction === "up") return <ArrowUpRight className="w-3 h-3 text-green-500" />;
@@ -203,29 +328,69 @@ const SuperAdminDashboard = () => {
 
       {/* Revenue vs Expenses trend */}
       <Card className="border-border">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 space-y-3">
           <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-primary" />
             Ingresos vs Gastos (6 meses)
           </CardTitle>
+          <div className="flex gap-1.5 flex-wrap">
+            {(["global", "escuela", "tienda", "viajes"] as UnitFilter[]).map(u => (
+              <button
+                key={u}
+                onClick={() => setUnitFilter(u)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                  unitFilter === u ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {UNIT_LABELS[u]}
+              </button>
+            ))}
+          </div>
+          {unitFilter !== "global" && (
+            <p className="text-[10px] text-muted-foreground">
+              Incluye gastos directos de {UNIT_LABELS[unitFilter].toLowerCase()} + su parte prorrateada de gastos compartidos.
+            </p>
+          )}
         </CardHeader>
-        <CardContent className="space-y-3">
-          {monthlyData.map((m) => (
-            <div key={m.month} className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground font-medium">{m.month}</span>
-                <span className="font-heading">
-                  <span className="text-green-500">{fmt(m.ingresos)}</span>
-                  {" / "}
-                  <span className="text-red-400">{fmt(m.gastos)}</span>
-                </span>
+        <CardContent className="space-y-4">
+          {monthlyData.map((m) => {
+            const d = dataForUnit(m);
+            const currencies = Array.from(new Set([...Object.keys(d.ingresos), ...Object.keys(d.gastos)]));
+            if (currencies.length === 0) {
+              return (
+                <div key={m.month} className="flex justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">{m.month}</span>
+                  <span className="text-muted-foreground">{fmtCur(0, "ARS")} / {fmtCur(0, "ARS")}</span>
+                </div>
+              );
+            }
+            return (
+              <div key={m.month} className="space-y-1.5">
+                <span className="text-xs text-muted-foreground font-medium">{m.month}</span>
+                {currencies.sort((a, b) => (a === "ARS" ? -1 : b === "ARS" ? 1 : a.localeCompare(b))).map(c => {
+                  const ing = d.ingresos[c] || 0;
+                  const gas = d.gastos[c] || 0;
+                  const max = maxByCurrency[c] || 1;
+                  return (
+                    <div key={c} className="space-y-1">
+                      <div className="flex justify-between text-xs pl-2">
+                        <span className="text-muted-foreground/70 text-[10px] font-mono">{c}</span>
+                        <span className="font-heading">
+                          <span className="text-green-500">{fmtCur(ing, c)}</span>
+                          {" / "}
+                          <span className="text-red-400">{fmtCur(gas, c)}</span>
+                        </span>
+                      </div>
+                      <div className="flex gap-1 h-3 pl-2">
+                        <div className="bg-green-500/80 rounded-full transition-all" style={{ width: `${(ing / max) * 100}%` }} />
+                        <div className="bg-red-400/60 rounded-full transition-all" style={{ width: `${(gas / max) * 100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex gap-1 h-3">
-                <div className="bg-green-500/80 rounded-full transition-all" style={{ width: `${(m.ingresos / maxMonthly) * 100}%` }} />
-                <div className="bg-red-400/60 rounded-full transition-all" style={{ width: `${(m.gastos / maxMonthly) * 100}%` }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <div className="flex gap-4 text-[10px] text-muted-foreground pt-1">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500/80" /> Ingresos</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400/60" /> Gastos</span>

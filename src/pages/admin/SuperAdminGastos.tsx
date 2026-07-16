@@ -25,6 +25,16 @@ type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual"
 type TipoGasto = "fijo" | "variable";
 type EstadoEjec = "pendiente" | "pagado" | "vencido" | "omitido" | "parcial";
 
+// Unidad de negocio para poder ver el global y también Escuela/Tienda/Viajes por separado.
+// "compartido" es el default: cae en el prorrateo automático en vez de asignarse mal por accidente.
+type UnidadNegocio = "escuela" | "tienda" | "viajes" | "compartido";
+const UNIDADES_NEGOCIO: { value: UnidadNegocio; label: string }[] = [
+  { value: "compartido", label: "Compartido (se prorratea)" },
+  { value: "escuela", label: "Escuela" },
+  { value: "tienda", label: "Tienda" },
+  { value: "viajes", label: "Viajes / Eventos" },
+];
+
 type ModalidadPago = "anticipado" | "vencido";
 
 interface Recurrente {
@@ -45,6 +55,7 @@ interface Recurrente {
   modalidad_pago: ModalidadPago;
   archivado_at?: string | null;
   archivado_por?: string | null;
+  unidad_negocio: UnidadNegocio;
 }
 
 interface Ejecucion {
@@ -80,6 +91,7 @@ interface GastoRow {
   mp_external_reference?: string | null;
   origen_registro?: string | null;
   estado_conciliacion?: string | null;
+  unidad_negocio?: UnidadNegocio | null;
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
@@ -155,6 +167,7 @@ const SuperAdminGastos = () => {
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
     tipo: "fijo" as TipoGasto,
     modalidad_pago: "anticipado" as ModalidadPago,
+    unidad_negocio: "compartido" as UnidadNegocio,
   });
   const [catalogoTipoTab, setCatalogoTipoTab] = useState<TipoGasto>("fijo");
   const [showArchivados, setShowArchivados] = useState(false);
@@ -457,6 +470,17 @@ const SuperAdminGastos = () => {
     loadData();
   };
 
+  // Reclasificar la unidad de negocio de un gasto ya cargado (default queda en "compartido"
+  // hasta que alguien lo tag; esto permite corregirlo sin tener que borrar y recargar).
+  const updateUnidadNegocio = async (g: GastoRow, unidad: UnidadNegocio) => {
+    const { error } = await supabase.from("gastos")
+      .update({ unidad_negocio: unidad } as any)
+      .eq("id", g.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Unidad de negocio actualizada" });
+    loadData();
+  };
+
 
   const deletePago = async (id: string) => {
     if (!confirm("¿Eliminar este pago? El estado de la cuota se va a recalcular.")) return;
@@ -581,6 +605,7 @@ const SuperAdminGastos = () => {
     forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true,
     tipo: catalogoTipoTab,
     modalidad_pago: "anticipado",
+    unidad_negocio: "compartido",
   });
 
   const openEditRec = (r: Recurrente) => {
@@ -594,6 +619,7 @@ const SuperAdminGastos = () => {
       proveedor: r.proveedor || "", notas: r.notas || "", activo: r.activo,
       tipo: r.tipo || "fijo",
       modalidad_pago: r.modalidad_pago || "anticipado",
+      unidad_negocio: r.unidad_negocio || "compartido",
     });
     setCatDialogOpen(true);
   };
@@ -615,6 +641,7 @@ const SuperAdminGastos = () => {
       activo: recForm.activo,
       tipo: recForm.tipo,
       modalidad_pago: recForm.modalidad_pago,
+      unidad_negocio: recForm.unidad_negocio,
     };
     if (editingRec) {
       const { error } = await supabase.from("gastos_recurrentes").update(payload as any).eq("id", editingRec.id);
@@ -1036,7 +1063,7 @@ const SuperAdminGastos = () => {
                   {showArchivados ? <EyeOff className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
                   {showArchivados ? "Ocultar archivados" : `Archivados (${recurrentes.filter(r => !!r.archivado_at).length})`}
                 </Button>
-                <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); setRecForm(f => ({ ...f, concepto: "", categoria: "Otros", ambito: "emprendimiento", responsable: "Tay", monto_estimado: "", moneda: "ARS", frecuencia: catalogoTipoTab === "variable" ? "variable" : "mensual", dia_vencimiento: "10", forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true, tipo: catalogoTipoTab })); setCatDialogOpen(true); }}>
+                <Button size="sm" variant="gold" className="gap-1" onClick={() => { setEditingRec(null); setRecForm(f => ({ ...f, concepto: "", categoria: "Otros", ambito: "emprendimiento", responsable: "Tay", monto_estimado: "", moneda: "ARS", frecuencia: catalogoTipoTab === "variable" ? "variable" : "mensual", dia_vencimiento: "10", forma_pago_default: "transferencia", proveedor: "", notas: "", activo: true, tipo: catalogoTipoTab, unidad_negocio: "compartido" })); setCatDialogOpen(true); }}>
                   <Plus className="w-4 h-4" /> Nuevo
                 </Button>
               </div>
@@ -1238,6 +1265,7 @@ const SuperAdminGastos = () => {
                               <TableHead>Categoría</TableHead>
                               <TableHead>Descripción</TableHead>
                               <TableHead>Forma de pago</TableHead>
+                              <TableHead>Unidad de negocio</TableHead>
                               <TableHead className="text-right">Monto</TableHead>
                               <TableHead className="w-20">Acción</TableHead>
                             </TableRow>
@@ -1259,6 +1287,14 @@ const SuperAdminGastos = () => {
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
+                                <TableCell>
+                                  <Select value={g.unidad_negocio || "compartido"} onValueChange={(v) => updateUnidadNegocio(g, v as UnidadNegocio)}>
+                                    <SelectTrigger className="h-7 text-xs w-[170px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {UNIDADES_NEGOCIO.map(u => <SelectItem key={u.value} value={u.value} className="text-xs">{u.label}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
                                 <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
                                 <TableCell>
                                   <div className="flex gap-1">
@@ -1459,7 +1495,7 @@ const SuperAdminGastos = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Categoría</Label>
                 <Select value={recForm.categoria} onValueChange={(v) => setRecForm(f => ({ ...f, categoria: v }))}>
@@ -1475,6 +1511,15 @@ const SuperAdminGastos = () => {
                     <SelectItem value="emprendimiento">Emprendimiento</SelectItem>
                     <SelectItem value="personal">Personal</SelectItem>
                     <SelectItem value="mixto">Mixto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Unidad de negocio</Label>
+                <Select value={recForm.unidad_negocio} onValueChange={(v) => setRecForm(f => ({ ...f, unidad_negocio: v as UnidadNegocio }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {UNIDADES_NEGOCIO.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
