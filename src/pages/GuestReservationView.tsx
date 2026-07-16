@@ -84,22 +84,56 @@ export default function GuestReservationView() {
   const [data, setData] = useState<GuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     document.title = "Mi reserva · Reybaud";
   }, []);
 
-  useEffect(() => {
+  const load = async () => {
     if (!token) return;
-    (async () => {
-      setLoading(true);
-      const { data: res, error: err } = await supabase.rpc("get_guest_reservation_by_token", { _token: token });
-      if (err) { setError("No pudimos cargar tu reserva."); setLoading(false); return; }
-      if (!res) { setError("El enlace no es válido o expiró."); setLoading(false); return; }
-      setData(res as unknown as GuestData);
-      setLoading(false);
-    })();
-  }, [token]);
+    setLoading(true);
+    const { data: res, error: err } = await supabase.rpc("get_guest_reservation_by_token", { _token: token });
+    if (err) { setError("No pudimos cargar tu reserva."); setLoading(false); return; }
+    if (!res) { setError("El enlace no es válido o expiró."); setLoading(false); return; }
+    setData(res as unknown as GuestData);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [token]);
+
+  const onUpload = async (reservationId: string) => {
+    const input = fileRefs.current[reservationId];
+    const file = input?.files?.[0];
+    if (!file || !token) {
+      toast({ title: "Seleccioná un archivo primero", variant: "destructive" });
+      return;
+    }
+    setUploadingId(reservationId);
+    try {
+      const fd = new FormData();
+      fd.append("reservation_id", reservationId);
+      fd.append("token", token);
+      fd.append("file", file);
+      const url = `${(supabase as any).supabaseUrl || (import.meta.env.VITE_SUPABASE_URL as string)}/functions/v1/upload-reservation-comprobante`;
+      const anonKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || "";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+        body: fd,
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.ok) throw new Error(j?.error || "No se pudo subir el comprobante");
+      toast({ title: "Comprobante enviado", description: "Te avisamos por email cuando lo validemos." });
+      if (input) input.value = "";
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "Falló la subida", variant: "destructive" });
+    } finally {
+      setUploadingId(null);
+    }
+  };
 
   if (loading) {
     return (
