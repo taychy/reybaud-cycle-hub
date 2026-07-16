@@ -235,9 +235,15 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                   <div key={roomId} className="rounded-lg border border-border p-3">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="font-medium text-sm">{g.label}</span>
+                      {g.tipo && (
+                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                          {tipoLabel(g.tipo)}
+                        </Badge>
+                      )}
                       <Badge variant="outline" className="text-[10px] capitalize">{g.genero.replace(/_/g, " ")}</Badge>
                       <Badge variant="outline" className="text-[10px]">{g.rows.length}/{g.capacidad ?? "?"}</Badge>
                     </div>
+
                     <div className="space-y-1">
                       {g.rows.map(r => (
                         <div key={r.reservation_id} className="flex items-center justify-between text-xs">
