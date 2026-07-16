@@ -246,3 +246,19 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
     </Sheet>
   );
 }
+
+function BankRow({ label, value, onCopy, strong }: { label: string; value: string; onCopy?: () => void; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={`text-sm text-foreground break-all ${strong ? "font-bold" : ""}`}>{value}</div>
+      </div>
+      {onCopy && (
+        <Button size="icon" variant="ghost" onClick={onCopy} className="shrink-0" type="button">
+          <Copy className="w-4 h-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
