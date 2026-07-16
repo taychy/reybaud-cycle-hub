@@ -660,8 +660,13 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                 <div className="space-y-1">
                                   {occ.map((r) => (
                                     <div key={r.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
-                                      <span className="truncate">
-                                        {r.nombre} {r.apellido}
+                                      <span className="truncate flex items-center gap-1 flex-wrap">
+                                        <span>{r.nombre} {r.apellido}</span>
+                                        {r.prefiere_asignacion ? (
+                                          <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
+                                        ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo) ? (
+                                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Comparte conocido</Badge>
+                                        ) : null}
                                         {r.habitacion_data?.companero_solicitado && (
                                           <span className="text-[10px] text-muted-foreground ml-1">→ {r.habitacion_data.companero_solicitado}</span>
                                         )}
