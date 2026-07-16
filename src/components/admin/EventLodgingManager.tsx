@@ -155,6 +155,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         apellido: p.apellido || "(sin datos)",
         telefono: p.telefono || "",
         habitacion_data: clMap.get(r.id) || null,
+        prefiere_asignacion: r.prefiere_asignacion ?? null,
+        tipo_vinculo: r.tipo_vinculo ?? null,
       };
     });
 
