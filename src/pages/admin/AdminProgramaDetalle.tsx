@@ -407,7 +407,7 @@ const AdminProgramaDetalle = () => {
                                     </Button>
                                   </a>
                                 )}
-                                <Link to={`/admin/alumnos?q=${encodeURIComponent(i.alumno?.email || nombre)}`}>
+                                <Link to={`/admin/alumnos?alumno=${i.alumno_id}`}>
                                   <Button size="sm" variant="ghost" className="h-7 text-xs">Ver</Button>
                                 </Link>
                               </div>
