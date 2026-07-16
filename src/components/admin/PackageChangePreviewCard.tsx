@@ -68,7 +68,11 @@ export default function PackageChangePreviewCard({ preview, loading }: Props) {
               <p className="font-medium">{formatPrice(preview.amount_paid || 0, currency as any)}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Diferencia</p>
+              <p className="text-muted-foreground">Precio nuevo</p>
+              <p className="font-medium">{formatPrice(pn.precio_aplicable || 0, currency as any)}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-muted-foreground">Diferencia (lista)</p>
               <p className={
                 (preview.difference ?? 0) > 0 ? "text-amber-400 font-medium" :
                 (preview.difference ?? 0) < 0 ? "text-emerald-400 font-medium" :
@@ -78,14 +82,22 @@ export default function PackageChangePreviewCard({ preview, loading }: Props) {
                 {formatPrice(preview.difference || 0, currency as any)}
               </p>
             </div>
-            {(preview.credit_to_create ?? 0) > 0 && (
-              <div className="col-span-2">
-                <p className="text-muted-foreground">Crédito a generar</p>
-                <p className="text-emerald-400 font-medium">
-                  {formatPrice(preview.credit_to_create!, currency as any)}
+            <div className="col-span-2 rounded-md bg-muted/30 p-2">
+              <p className="text-muted-foreground text-[11px]">Crédito resultante</p>
+              <p className={(preview.credit_to_create ?? 0) > 0 ? "text-emerald-400 font-semibold" : "font-semibold"}>
+                {formatPrice(preview.credit_to_create || 0, currency as any)}
+              </p>
+              {preview.credit_reason && (
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  {preview.credit_reason}
                 </p>
-              </div>
-            )}
+              )}
+              {(preview.credit_to_create ?? 0) === 0 && (preview.difference ?? 0) < 0 && !preview.credit_reason && (
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Sin crédito: lo pagado no supera el precio del paquete nuevo. Se recalculan las cuotas pendientes al nuevo total.
+                </p>
+              )}
+            </div>
             {(preview.debit_to_create ?? 0) > 0 && (
               <div className="col-span-2">
                 <p className="text-muted-foreground">Débito a cobrar</p>
@@ -95,6 +107,7 @@ export default function PackageChangePreviewCard({ preview, loading }: Props) {
               </div>
             )}
           </div>
+
 
           {preview.room_impact && (
             <div className="pt-2 border-t border-border text-xs space-y-1">
