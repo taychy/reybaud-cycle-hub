@@ -56,13 +56,36 @@ serve(async (req) => {
 
     const { data: p } = await supabase
       .from("event_participants")
-      .select("public_access_token")
+      .select("public_access_token, first_name, email, event_reservation_id")
       .eq("event_id", eventId)
       .ilike("email", e)
       .maybeSingle();
 
-    if (!p) return json({ found: false }, 200);
-    return json({ found: true, token: p.public_access_token, event_id: eventId });
+    if (!p) {
+      // Do not disclose whether email exists
+      return json({ ok: true, sent: true }, 200);
+    }
+
+    // Send the access link by email instead of returning the token in the response
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-event-checkin-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+        body: JSON.stringify({
+          email: p.email,
+          first_name: p.first_name,
+          token: p.public_access_token,
+          reservation_id: p.event_reservation_id,
+        }),
+      });
+    } catch (mailErr) {
+      console.warn("lookup-record-participant: mail send failed", mailErr);
+    }
+
+    return json({ ok: true, sent: true }, 200);
   } catch (e: any) {
     console.error("lookup-record-participant error", e);
     return json({ error: "unexpected", detail: e?.message }, 500);
