@@ -25,6 +25,7 @@ export interface PackageChangePreview {
   difference?: number;
   credit_to_create?: number;
   debit_to_create?: number;
+  credit_reason?: string | null;
   room_impact?: {
     status: PackageChangeStatus;
     habitacion_origen?: { tipo?: string; personas?: number; companeros_asignados?: number };
