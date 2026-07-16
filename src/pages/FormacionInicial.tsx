@@ -591,7 +591,6 @@ export default function FormacionInicial() {
                           { label: "Titular", value: ESCUELA_TRANSFER_INFO.titular },
                           { label: "CBU", value: ESCUELA_TRANSFER_INFO.cbu },
                           { label: "Alias", value: ESCUELA_TRANSFER_INFO.alias },
-                          { label: "Cuenta", value: ESCUELA_TRANSFER_INFO.cuenta },
                         ].map((row) => (
                           <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg bg-background/70 px-3 py-2">
                             <div className="min-w-0">
