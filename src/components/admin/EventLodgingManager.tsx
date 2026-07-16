@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  BedDouble, Plus, Trash2, Users, Loader2, Home, UserPlus, X, AlertCircle, Edit2, Save,
+  BedDouble, Plus, Trash2, Users, Loader2, Home, UserPlus, X, AlertCircle, Edit2, Save, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -340,7 +340,97 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     loadAll();
   };
 
-  // ─── Totales globales ───
+  // Auto-generar habitaciones/cabañas según la configuración del paquete
+  // Usa personas_por_habitacion como capacidad, y cupo_mujeres/varones/mixto (o cupo total) para decidir cantidad y género.
+  const autoGenerateRooms = async (pkg: Pkg) => {
+    const cap = Math.max(1, pkg.personas_por_habitacion || 2);
+    const totalCupo = pkg.cupo || 0;
+    const cm = pkg.cupo_mujeres || 0;
+    const cv = pkg.cupo_varones || 0;
+    const cx = pkg.cupo_mixto || 0;
+    const hasGenero = cm + cv + cx > 0;
+
+    // Buckets objetivo por género
+    const buckets: { genero: "mujeres" | "varones" | "mixto" | null; label: string; plazas: number }[] = hasGenero
+      ? ([
+          { genero: "mujeres" as const, label: "Mujeres", plazas: cm },
+          { genero: "varones" as const, label: "Varones", plazas: cv },
+          { genero: "mixto" as const, label: "Mixto", plazas: cx },
+        ].filter((b) => b.plazas > 0))
+      : [{ genero: null, label: "", plazas: totalCupo }];
+
+    if (buckets.every((b) => b.plazas <= 0)) {
+      toast.error("El paquete no tiene cupos configurados. Definí 'personas por habitación' y cupos (total o por género).");
+      return;
+    }
+
+    // Descontar plazas ya existentes por género
+    const existingByGenero: Record<string, number> = {};
+    (roomsByPackage[pkg.id] || []).forEach((r) => {
+      const k = r.genero || "_none";
+      existingByGenero[k] = (existingByGenero[k] || 0) + r.capacidad;
+    });
+
+    // Etiqueta según capacidad (solo estética)
+    const roomLabel = cap === 1 ? "Individual" : cap === 2 ? "Doble" : cap === 3 ? "Triple" : cap === 4 ? "Cuádruple" : `${cap}p`;
+
+    type NewRoom = { genero: "mujeres" | "varones" | "mixto" | null; label: string };
+    const toCreate: NewRoom[] = [];
+    buckets.forEach((b) => {
+      const key = b.genero || "_none";
+      const remaining = Math.max(0, b.plazas - (existingByGenero[key] || 0));
+      const count = Math.ceil(remaining / cap);
+      for (let i = 0; i < count; i++) toCreate.push({ genero: b.genero, label: b.label });
+    });
+
+    if (toCreate.length === 0) {
+      toast.info("Ya hay habitaciones suficientes para el cupo configurado.");
+      return;
+    }
+
+    const detalle = buckets
+      .map((b) => {
+        const key = b.genero || "_none";
+        const remaining = Math.max(0, b.plazas - (existingByGenero[key] || 0));
+        const count = Math.ceil(remaining / cap);
+        return count > 0 ? `${count} ${roomLabel.toLowerCase()}${b.label ? ` (${b.label.toLowerCase()})` : ""}` : null;
+      })
+      .filter(Boolean)
+      .join(", ");
+
+    if (!confirm(`Se crearán: ${detalle}. ¿Continuar?`)) return;
+
+    const baseOrder = (roomsByPackage[pkg.id] || []).length;
+    // Numeración por género para nombres limpios
+    const counters: Record<string, number> = {};
+    (roomsByPackage[pkg.id] || []).forEach((r) => {
+      const k = r.genero || "_none";
+      counters[k] = (counters[k] || 0) + 1;
+    });
+
+    const payload = toCreate.map((r, idx) => {
+      const k = r.genero || "_none";
+      counters[k] = (counters[k] || 0) + 1;
+      const suffix = r.label ? ` ${r.label}` : "";
+      return {
+        event_id: eventId,
+        package_id: pkg.id,
+        nombre: `${roomLabel}${suffix} ${counters[k]}`.trim(),
+        capacidad: cap,
+        genero: r.genero,
+        notas: null,
+        sort_order: baseOrder + idx,
+      };
+    });
+
+    const { error } = await (supabase as any).from("event_rooms").insert(payload);
+    if (error) {
+      toast.error("No se pudieron crear: " + error.message);
+      return;
+    }
+    toast.success(`${toCreate.length} habitación(es) creada(s)`);
+    loadAll();
+  };
   const noLodgingPkgIds = new Set(
     packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id)
   );
@@ -444,6 +534,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           disabled={pkgUnassigned.length === 0}
                         >
                           <UserPlus className="w-3.5 h-3.5 mr-1" /> Auto-generar individuales
+                        </Button>
+                      )}
+                      {pkg && (pkg.personas_por_habitacion || 0) > 1 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => autoGenerateRooms(pkg)}
+                        >
+                          <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-generar habitaciones
                         </Button>
                       )}
                       <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
