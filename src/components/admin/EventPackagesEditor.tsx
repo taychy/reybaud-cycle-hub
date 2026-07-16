@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown, AlertTriangle, Info } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
 import { PackagePriceStagesEditor } from "./PackagePriceStagesEditor";
@@ -33,6 +33,13 @@ interface PackageRow {
   permite_mixto: boolean;
 }
 
+interface RoomRow {
+  id: string;
+  package_id: string | null;
+  capacidad: number;
+  genero: "mujeres" | "varones" | "mixto" | null;
+}
+
 interface Props {
   eventId: string;
   eventCurrency: string;
@@ -45,17 +52,16 @@ const emptyDraft = (currency: string) => ({
   sena: "",
   currency,
   personas_por_habitacion: "2",
-  cupo_mujeres: "",
-  cupo_varones: "",
-  cupo_mixto: "",
   permite_mixto: false,
 });
 
 type GenderCounts = { mujeres: number; varones: number; mixto: number };
+type RoomCapacity = { mujeres: number; varones: number; mixto: number; total: number; roomCount: number };
 
 export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
   const [items, setItems] = useState<PackageRow[]>([]);
   const [counts, setCounts] = useState<Record<string, GenderCounts>>({});
+  const [roomCapacity, setRoomCapacity] = useState<Record<string, RoomCapacity>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(emptyDraft(eventCurrency));
@@ -75,9 +81,6 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
       sena: p.sena != null ? String(p.sena) : "",
       currency: p.currency,
       personas_por_habitacion: String(p.personas_por_habitacion ?? 2),
-      cupo_mujeres: p.cupo_mujeres != null ? String(p.cupo_mujeres) : "",
-      cupo_varones: p.cupo_varones != null ? String(p.cupo_varones) : "",
-      cupo_mixto: p.cupo_mixto != null ? String(p.cupo_mixto) : "",
       permite_mixto: !!p.permite_mixto,
     });
   };
@@ -92,17 +95,6 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
     const personas = parseInt(editDraft.personas_por_habitacion || "2", 10);
     if (isNaN(personas) || personas < 1) { toast.error("Personas por habitación inválido"); return; }
-    const parseCupo = (v: string) => (v.trim() === "" ? null : parseInt(v, 10));
-    const cm = parseCupo(editDraft.cupo_mujeres);
-    const cv = parseCupo(editDraft.cupo_varones);
-    const cx = parseCupo(editDraft.cupo_mixto);
-    for (const c of [cm, cv, cx]) {
-      if (c != null && (isNaN(c) || c < 0)) { toast.error("Cupo inválido"); return; }
-    }
-    const cupoTotal =
-      cm == null && cv == null && cx == null
-        ? null
-        : (cm || 0) + (cv || 0) + (cx || 0);
 
     setSaving(true);
     const { error } = await supabase.from("event_packages" as any).update({
@@ -111,11 +103,12 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
       precio,
       sena,
       currency: editDraft.currency,
-      cupo: cupoTotal,
+      // cupo se calcula desde event_rooms — dejamos null en los campos manuales
+      cupo: null,
+      cupo_mujeres: null,
+      cupo_varones: null,
+      cupo_mixto: null,
       personas_por_habitacion: personas,
-      cupo_mujeres: cm,
-      cupo_varones: cv,
-      cupo_mixto: editDraft.permite_mixto ? cx : null,
       permite_mixto: editDraft.permite_mixto,
     }).eq("id", p.id);
     setSaving(false);
@@ -136,6 +129,24 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     if (error) toast.error("Error al cargar paquetes");
     const rows = (data as unknown as PackageRow[]) || [];
     setItems(rows);
+
+    // Habitaciones cargadas en Alojamiento para este evento
+    const { data: roomsData } = await supabase
+      .from("event_rooms" as any)
+      .select("id, package_id, capacidad, genero")
+      .eq("event_id", eventId);
+    const roomsMap: Record<string, RoomCapacity> = {};
+    ((roomsData as unknown as RoomRow[]) || []).forEach((r) => {
+      if (!r.package_id) return;
+      if (!roomsMap[r.package_id]) roomsMap[r.package_id] = { mujeres: 0, varones: 0, mixto: 0, total: 0, roomCount: 0 };
+      const cap = r.capacidad || 0;
+      roomsMap[r.package_id].total += cap;
+      roomsMap[r.package_id].roomCount += 1;
+      if (r.genero === "mujeres") roomsMap[r.package_id].mujeres += cap;
+      else if (r.genero === "varones") roomsMap[r.package_id].varones += cap;
+      else if (r.genero === "mixto") roomsMap[r.package_id].mixto += cap;
+    });
+    setRoomCapacity(roomsMap);
 
     if (rows.length > 0) {
       const { data: reservas } = await supabase
@@ -169,17 +180,6 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
     const personas = parseInt(draft.personas_por_habitacion || "2", 10);
     if (isNaN(personas) || personas < 1) { toast.error("Personas por habitación inválido"); return; }
-    const parseCupo = (v: string) => (v.trim() === "" ? null : parseInt(v, 10));
-    const cm = parseCupo(draft.cupo_mujeres);
-    const cv = parseCupo(draft.cupo_varones);
-    const cx = parseCupo(draft.cupo_mixto);
-    for (const c of [cm, cv, cx]) {
-      if (c != null && (isNaN(c) || c < 0)) { toast.error("Cupo inválido"); return; }
-    }
-    const cupoTotal =
-      cm == null && cv == null && cx == null
-        ? null
-        : (cm || 0) + (cv || 0) + (cx || 0);
 
     setSaving(true);
     const { error } = await supabase.from("event_packages" as any).insert({
@@ -189,18 +189,18 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
       precio,
       sena,
       currency: draft.currency,
-      cupo: cupoTotal,
+      cupo: null,
+      cupo_mujeres: null,
+      cupo_varones: null,
+      cupo_mixto: null,
       sort_order: items.length,
       activo: true,
       personas_por_habitacion: personas,
-      cupo_mujeres: cm,
-      cupo_varones: cv,
-      cupo_mixto: draft.permite_mixto ? cx : null,
       permite_mixto: draft.permite_mixto,
     });
     setSaving(false);
     if (error) { toast.error("Error: " + error.message); return; }
-    toast.success("Paquete agregado");
+    toast.success("Paquete agregado. Ahora cargá sus habitaciones desde el módulo Alojamiento.");
     setDraft(emptyDraft(eventCurrency));
     load();
   };
@@ -225,14 +225,14 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     load();
   };
 
-  const renderCupoLine = (
+  const renderCapacityLine = (
     label: string,
     used: number,
-    cupo: number | null,
+    cap: number,
     tone: "rose" | "sky" | "violet",
   ) => {
-    if (cupo == null) return null;
-    const full = used >= cupo;
+    if (cap <= 0) return null;
+    const full = used >= cap;
     const tones = {
       rose: "bg-rose-500/15 text-rose-300 border-rose-500/30",
       sky: "bg-sky-500/15 text-sky-300 border-sky-500/30",
@@ -240,7 +240,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     };
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${full ? "bg-destructive/15 text-destructive border-destructive/30" : tones[tone]}`}>
-        {label}: {used}/{cupo}
+        {label}: {used}/{cap}
       </span>
     );
   };
@@ -252,8 +252,8 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
         <h4 className="text-sm font-heading uppercase tracking-wider">Paquetes / Tipos de habitación</h4>
       </div>
       <p className="text-xs text-muted-foreground">
-        Configurá tipos de habitación con su precio y cupos separados por género
-        (femenina, masculina, mixta). Si no creás ninguno, se usa el precio general del evento.
+        Configurá tipos de habitación con su precio. El <strong>cupo se calcula automáticamente</strong> a
+        partir de las habitaciones cargadas en el módulo <strong>Alojamiento</strong> del panel de reservas.
       </p>
 
       {loading ? (
@@ -264,6 +264,9 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
         <div className="space-y-2">
           {items.map((p) => {
             const c = counts[p.id] || { mujeres: 0, varones: 0, mixto: 0 };
+            const cap = roomCapacity[p.id];
+            const hasRooms = !!cap && cap.total > 0;
+            const totalUsed = c.mujeres + c.varones + c.mixto;
             if (editingId === p.id) {
               return (
                 <div key={p.id} className="rounded-lg border border-primary/50 p-3 space-y-2 bg-muted/20">
@@ -300,27 +303,9 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                       <Label className="text-xs">Personas / habitación</Label>
                       <Input type="number" min="1" value={editDraft.personas_por_habitacion} onChange={(e) => setEditDraft({ ...editDraft, personas_por_habitacion: e.target.value })} />
                     </div>
-                  </div>
-                  <div className="pt-2 border-t border-border/40 space-y-2">
-                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Cupos por género</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-rose-300">Cupo mujeres</Label>
-                        <Input type="number" value={editDraft.cupo_mujeres} onChange={(e) => setEditDraft({ ...editDraft, cupo_mujeres: e.target.value })} placeholder="Sin límite" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-sky-300">Cupo varones</Label>
-                        <Input type="number" value={editDraft.cupo_varones} onChange={(e) => setEditDraft({ ...editDraft, cupo_varones: e.target.value })} placeholder="Sin límite" />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={editDraft.permite_mixto} onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })} />
-                        <Label className="text-xs text-violet-300">Permitir mixta</Label>
-                      </div>
-                      {editDraft.permite_mixto && (
-                        <Input type="number" value={editDraft.cupo_mixto} onChange={(e) => setEditDraft({ ...editDraft, cupo_mixto: e.target.value })} placeholder="Cupo mixta" className="w-32" />
-                      )}
+                    <div className="col-span-2 flex items-center gap-2 pt-1">
+                      <Switch checked={editDraft.permite_mixto} onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })} />
+                      <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -337,7 +322,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
             }
             const isOpen = !!expanded[p.id];
             return (
-              <div key={p.id} className={`rounded-lg border border-border/50 ${p.activo ? "" : "opacity-50"}`}>
+              <div key={p.id} className={`rounded-lg border ${hasRooms ? "border-border/50" : "border-amber-500/40"} ${p.activo ? "" : "opacity-50"}`}>
                 <div className="flex items-start gap-2 p-2">
                   <button
                     type="button"
@@ -357,11 +342,20 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap pl-5">
-                      {renderCupoLine("Mujeres", c.mujeres, p.cupo_mujeres, "rose")}
-                      {renderCupoLine("Varones", c.varones, p.cupo_varones, "sky")}
-                      {p.permite_mixto && renderCupoLine("Mixta", c.mixto, p.cupo_mixto, "violet")}
-                      {p.cupo_mujeres == null && p.cupo_varones == null && p.cupo_mixto == null && (
-                        <span className="text-[10px] text-muted-foreground italic">Sin cupos definidos</span>
+                      {hasRooms ? (
+                        <>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30">
+                            Cupo total: {totalUsed}/{cap!.total} · {cap!.roomCount} {cap!.roomCount === 1 ? "hab." : "habs."}
+                          </span>
+                          {renderCapacityLine("Mujeres", c.mujeres, cap!.mujeres, "rose")}
+                          {renderCapacityLine("Varones", c.varones, cap!.varones, "sky")}
+                          {renderCapacityLine("Mixta", c.mixto, cap!.mixto, "violet")}
+                        </>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-500/15 text-amber-300 border-amber-500/40 inline-flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Sin alojamiento cargado — no se puede vender
+                        </span>
                       )}
                     </div>
                   </button>
@@ -376,6 +370,28 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                 {isOpen && (
                   <div className="px-2 pb-2 pl-7 space-y-2 animate-fade-in">
                     {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
+                    <div className="rounded-md border border-border/40 bg-muted/10 p-2 text-[11px] space-y-1">
+                      <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                        <Info className="w-3 h-3" /> Cupo según habitaciones cargadas en Alojamiento
+                      </div>
+                      {hasRooms ? (
+                        <>
+                          <div>Capacidad total: <strong>{cap!.total}</strong> plazas en {cap!.roomCount} {cap!.roomCount === 1 ? "habitación" : "habitaciones"}.</div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
+                            {cap!.mujeres > 0 && <span>Mujeres: <strong className="text-rose-300">{cap!.mujeres}</strong></span>}
+                            {cap!.varones > 0 && <span>Varones: <strong className="text-sky-300">{cap!.varones}</strong></span>}
+                            {cap!.mixto > 0 && <span>Mixta: <strong className="text-violet-300">{cap!.mixto}</strong></span>}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-amber-300">
+                          Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones vinculadas a este paquete.
+                        </div>
+                      )}
+                      <p className="text-muted-foreground/70 italic">
+                        Cargá o editá habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento.
+                      </p>
+                    </div>
                     <PackagePriceStagesEditor
                       packageId={p.id}
                       packageBasePrice={p.precio}
@@ -432,40 +448,23 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
             <Label className="text-xs">Personas / habitación</Label>
             <Input type="number" min="1" value={draft.personas_por_habitacion} onChange={(e) => setDraft({ ...draft, personas_por_habitacion: e.target.value })} />
           </div>
-        </div>
-
-        <div className="pt-2 border-t border-border/40 space-y-2">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Cupos por género</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs text-rose-300">Cupo mujeres</Label>
-              <Input type="number" value={draft.cupo_mujeres} onChange={(e) => setDraft({ ...draft, cupo_mujeres: e.target.value })} placeholder="Sin límite" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-sky-300">Cupo varones</Label>
-              <Input type="number" value={draft.cupo_varones} onChange={(e) => setDraft({ ...draft, cupo_varones: e.target.value })} placeholder="Sin límite" />
-            </div>
-          </div>
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-2">
-              <Switch checked={draft.permite_mixto} onCheckedChange={(v) => setDraft({ ...draft, permite_mixto: v })} />
-              <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
-            </div>
-            {draft.permite_mixto && (
-              <Input
-                type="number"
-                value={draft.cupo_mixto}
-                onChange={(e) => setDraft({ ...draft, cupo_mixto: e.target.value })}
-                placeholder="Cupo mixta"
-                className="w-32"
-              />
-            )}
+          <div className="col-span-2 flex items-center gap-2 pt-1">
+            <Switch checked={draft.permite_mixto} onCheckedChange={(v) => setDraft({ ...draft, permite_mixto: v })} />
+            <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
           </div>
           {draft.permite_mixto && (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="col-span-2 text-[10px] text-muted-foreground">
               Quien elija mixta deberá declarar el nombre de sus compañeros/as (grupo cerrado).
             </p>
           )}
+        </div>
+
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] text-muted-foreground flex gap-1.5">
+          <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+          <span>
+            El cupo de cada paquete se define cargando habitaciones desde el módulo <strong>Alojamiento</strong> del
+            panel de reservas del evento y vinculándolas a este paquete.
+          </span>
         </div>
 
         <Button size="sm" onClick={addPackage} disabled={saving} className="gap-1 w-full">
