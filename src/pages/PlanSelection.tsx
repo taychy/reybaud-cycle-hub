@@ -652,8 +652,16 @@ const PlanSelection = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Cargando planes...</div>
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <Button variant="ghost" size="sm" onClick={handleExitPlans} className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Volver
+          </Button>
+        </div>
+        <div className="min-h-[70vh] flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Cargando planes...</div>
+        </div>
       </div>
     );
   }

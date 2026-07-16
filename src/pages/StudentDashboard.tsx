@@ -381,7 +381,7 @@ const StudentDashboard = () => {
         </div>
         <div className="flex gap-2">
           {isSinPlan ? (
-            <Button variant="gold" size="sm" onClick={() => navigate("/planes")} className="flex-1">
+            <Button variant="gold" size="sm" onClick={() => navigate("/planes?returnTo=/alumno")} className="flex-1">
               Elegir plan
             </Button>
           ) : (
