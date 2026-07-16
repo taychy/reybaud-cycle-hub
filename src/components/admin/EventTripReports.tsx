@@ -42,8 +42,10 @@ interface Row {
   room_nombre: string | null;
   room_genero: string | null;
   room_capacidad: number | null;
+  room_tipo: string | null;
   package_nombre: string | null;
 }
+
 
 const csvEscape = (v: any) => {
   const s = v === null || v === undefined ? "" : String(v);
