@@ -49,6 +49,8 @@ interface ReportPaymentDrawerProps {
   preselectedInstallmentId?: string | null;
   /** If set, force the initial mode when opening */
   initialMode?: "paid" | "cash_announce";
+  /** If set, preselect this payment method when opening (e.g. "transferencia") */
+  initialMethod?: string;
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
