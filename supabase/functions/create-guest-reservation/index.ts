@@ -172,6 +172,20 @@ Deno.serve(async (req) => {
     }
     const reservationId = reservation.id;
 
+    // 3.5) Enviar email de bienvenida/confirmación con resumen + link a /mi-reserva/:token
+    try {
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-confirmation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ reservation_id: reservationId }),
+      });
+    } catch (e) {
+      console.error("[create-guest-reservation] welcome email failed:", e);
+    }
+
     // 4) Transferencia: subir comprobante + notificar admin
     if (metodo_pago === "transferencia") {
       const bytes = base64ToBytes(String(raw.comprobante_base64));
@@ -235,7 +249,7 @@ Deno.serve(async (req) => {
         pending: `${origin}/mi-reserva/${accessToken}?status=pending`,
       },
       auto_return: "approved",
-      external_reference: `guest_reservation:${reservationId}`,
+      external_reference: `event:${reservationId}`,
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
