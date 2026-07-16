@@ -817,6 +817,17 @@ const ReservationStatusCard = ({
             )}
           </Button>
         )}
+        {/* Pagar por transferencia — visible siempre que haya saldo */}
+        {(reservation.balance_due ?? 0) > 0 && (
+          <Button
+            variant="outline"
+            className="w-full h-12 text-sm"
+            onClick={() => setShowTransferDrawer(true)}
+          >
+            <Landmark className="w-4 h-4 mr-2" />
+            Pagar por transferencia
+          </Button>
+        )}
         {primaryCTA && (
           <Button
             variant={canPayWithMP ? "outline" : "gold"}
