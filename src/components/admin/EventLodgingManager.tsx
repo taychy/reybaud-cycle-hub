@@ -536,6 +536,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           <UserPlus className="w-3.5 h-3.5 mr-1" /> Auto-generar individuales
                         </Button>
                       )}
+                      {pkg && (pkg.personas_por_habitacion || 0) > 1 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => autoGenerateRooms(pkg)}
+                        >
+                          <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-generar habitaciones
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
                         <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
                       </Button>
