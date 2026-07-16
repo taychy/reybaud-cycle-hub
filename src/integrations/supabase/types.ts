@@ -10041,8 +10041,13 @@ export type Database = {
         | "reprogramar_a_hoy"
         | "mantener_fechas_fijas"
       payment_plan_sena_tipo: "monto_fijo" | "porcentaje_paquete"
-      process_accion_final: "none" | "send_report"
-      process_entidad_control: "none" | "store_preorder" | "supplier_order"
+      process_accion_final: "none" | "send_report" | "send_cohort_email"
+      process_entidad_control:
+        | "none"
+        | "store_preorder"
+        | "supplier_order"
+        | "cohort_task"
+        | "cohort_kpi"
       process_instance_estado: "en_curso" | "completada" | "cancelada"
       process_stage_estado: "pendiente" | "en_curso" | "completada"
       tarea_estado: "pendiente" | "en_curso" | "hecha" | "pospuesta"
@@ -10257,8 +10262,14 @@ export const Constants = {
         "mantener_fechas_fijas",
       ],
       payment_plan_sena_tipo: ["monto_fijo", "porcentaje_paquete"],
-      process_accion_final: ["none", "send_report"],
-      process_entidad_control: ["none", "store_preorder", "supplier_order"],
+      process_accion_final: ["none", "send_report", "send_cohort_email"],
+      process_entidad_control: [
+        "none",
+        "store_preorder",
+        "supplier_order",
+        "cohort_task",
+        "cohort_kpi",
+      ],
       process_instance_estado: ["en_curso", "completada", "cancelada"],
       process_stage_estado: ["pendiente", "en_curso", "completada"],
       tarea_estado: ["pendiente", "en_curso", "hecha", "pospuesta"],
