@@ -1232,13 +1232,27 @@ const ReservationStatusCard = ({
 
       <ReportPaymentDrawer
         open={showPaymentDrawer}
-        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); } }}
+        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); setPaymentMethodInit(undefined); } }}
         reservation={reservation}
         alumnoId={alumnoId}
         currency={currency}
         onSuccess={onPaymentReported}
         preselectedInstallmentId={preselectedInstallmentId}
         initialMode={paymentMode === "cash" ? "cash_announce" : paymentMode === "paid" ? "paid" : undefined}
+        initialMethod={paymentMethodInit}
+      />
+
+      <PayByTransferDrawer
+        open={showTransferDrawer}
+        onOpenChange={setShowTransferDrawer}
+        reservationId={reservation.id}
+        currency={currency}
+        balanceDue={reservation.balance_due ?? 0}
+        onProceedToUploadProof={() => {
+          setPaymentMode("paid");
+          setPaymentMethodInit("transferencia");
+          setShowPaymentDrawer(true);
+        }}
       />
 
       <CancelReservationDrawer
