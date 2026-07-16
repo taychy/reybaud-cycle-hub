@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, Calendar, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface GuestData {
   participant: {
@@ -27,6 +28,7 @@ interface GuestData {
     package_nombre_snapshot: string;
     next_due_date: string | null;
     created_at: string;
+    last_proof_uploaded_at: string | null;
     event: {
       id: string;
       title: string;
@@ -82,22 +84,56 @@ export default function GuestReservationView() {
   const [data, setData] = useState<GuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     document.title = "Mi reserva · Reybaud";
   }, []);
 
-  useEffect(() => {
+  const load = async () => {
     if (!token) return;
-    (async () => {
-      setLoading(true);
-      const { data: res, error: err } = await supabase.rpc("get_guest_reservation_by_token", { _token: token });
-      if (err) { setError("No pudimos cargar tu reserva."); setLoading(false); return; }
-      if (!res) { setError("El enlace no es válido o expiró."); setLoading(false); return; }
-      setData(res as unknown as GuestData);
-      setLoading(false);
-    })();
-  }, [token]);
+    setLoading(true);
+    const { data: res, error: err } = await supabase.rpc("get_guest_reservation_by_token", { _token: token });
+    if (err) { setError("No pudimos cargar tu reserva."); setLoading(false); return; }
+    if (!res) { setError("El enlace no es válido o expiró."); setLoading(false); return; }
+    setData(res as unknown as GuestData);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [token]);
+
+  const onUpload = async (reservationId: string) => {
+    const input = fileRefs.current[reservationId];
+    const file = input?.files?.[0];
+    if (!file || !token) {
+      toast({ title: "Seleccioná un archivo primero", variant: "destructive" });
+      return;
+    }
+    setUploadingId(reservationId);
+    try {
+      const fd = new FormData();
+      fd.append("reservation_id", reservationId);
+      fd.append("token", token);
+      fd.append("file", file);
+      const url = `${(supabase as any).supabaseUrl || (import.meta.env.VITE_SUPABASE_URL as string)}/functions/v1/upload-reservation-comprobante`;
+      const anonKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || "";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+        body: fd,
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.ok) throw new Error(j?.error || "No se pudo subir el comprobante");
+      toast({ title: "Comprobante enviado", description: "Te avisamos por email cuando lo validemos." });
+      if (input) input.value = "";
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "Falló la subida", variant: "destructive" });
+    } finally {
+      setUploadingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -210,6 +246,44 @@ export default function GuestReservationView() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {r.payment_status !== "pagado" && r.reservation_status !== "cancelada" && (
+                <div className="pt-3 border-t space-y-2">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Comprobante de transferencia
+                  </div>
+                  {r.last_proof_uploaded_at ? (
+                    <div className="flex items-start gap-2 p-3 rounded-md bg-primary/5 border border-primary/20">
+                      <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="text-xs">
+                        <p className="font-medium text-foreground">Comprobante recibido</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          Enviado el {fmtDate(r.last_proof_uploaded_at)}. Lo estamos revisando; te avisamos por email cuando lo validemos.
+                        </p>
+                        <p className="text-muted-foreground mt-1">¿Necesitás reenviarlo? Adjuntá uno nuevo abajo.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Subí tu comprobante para que verifiquemos el pago (JPG, PNG, WEBP o PDF, máx. 8MB).
+                    </p>
+                  )}
+                  <input
+                    ref={(el) => { fileRefs.current[r.id] = el; }}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
+                  />
+                  <Button
+                    className="w-full"
+                    onClick={() => onUpload(r.id)}
+                    disabled={uploadingId === r.id}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadingId === r.id ? "Subiendo..." : "Enviar comprobante"}
+                  </Button>
                 </div>
               )}
             </CardContent>
