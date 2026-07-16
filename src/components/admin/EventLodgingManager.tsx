@@ -57,6 +57,7 @@ interface Room {
   nombre: string;
   capacidad: number;
   genero: "mujeres" | "varones" | "mixto" | null;
+  tipo: RoomTipo | null;
   notas: string | null;
   sort_order: number;
 }
@@ -66,6 +67,32 @@ interface Assignment {
   room_id: string;
   reservation_id: string;
 }
+
+type RoomTipo = "individual" | "doble" | "triple" | "cuadruple" | "cabana" | "dormitorio";
+
+const TIPO_OPTIONS: { value: RoomTipo; label: string }[] = [
+  { value: "individual", label: "Individual" },
+  { value: "doble", label: "Doble" },
+  { value: "triple", label: "Triple" },
+  { value: "cuadruple", label: "Cuádruple" },
+  { value: "cabana", label: "Cabaña" },
+  { value: "dormitorio", label: "Dormitorio" },
+];
+
+export const tipoLabel = (t: RoomTipo | string | null | undefined): string => {
+  if (!t) return "";
+  const found = TIPO_OPTIONS.find((o) => o.value === t);
+  return found?.label || String(t);
+};
+
+// Fallback cuando la habitación no tiene tipo cargado (retrocompatibilidad)
+export const inferTipoFromCapacidad = (cap: number): RoomTipo => {
+  if (cap <= 1) return "individual";
+  if (cap === 2) return "doble";
+  if (cap === 3) return "triple";
+  if (cap === 4) return "cuadruple";
+  return "dormitorio";
+};
 
 const GENERO_LABEL: Record<string, string> = {
   mujeres: "Mujeres",
@@ -88,6 +115,16 @@ const generoBadge = (g: string | null) => {
   );
 };
 
+const tipoBadge = (room: Pick<Room, "tipo" | "capacidad">) => {
+  const t = room.tipo || inferTipoFromCapacidad(room.capacidad);
+  return (
+    <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+      {tipoLabel(t)}
+    </Badge>
+  );
+};
+
+
 const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -102,13 +139,16 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [nrNombre, setNrNombre] = useState("");
   const [nrCapacidad, setNrCapacidad] = useState<number>(2);
   const [nrGenero, setNrGenero] = useState<string>("");
+  const [nrTipo, setNrTipo] = useState<RoomTipo | "">("");
   const [nrNotas, setNrNotas] = useState("");
 
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [erNombre, setErNombre] = useState("");
   const [erCapacidad, setErCapacidad] = useState<number>(2);
   const [erGenero, setErGenero] = useState<string>("");
+  const [erTipo, setErTipo] = useState<RoomTipo | "">("");
   const [erNotas, setErNotas] = useState("");
+
 
   const loadAll = async () => {
     setLoading(true);
@@ -236,6 +276,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       nombre: nrNombre.trim(),
       capacidad: nrCapacidad,
       genero: nrGenero || null,
+      tipo: nrTipo || inferTipoFromCapacidad(nrCapacidad),
       notas: nrNotas.trim() || null,
       sort_order: rooms.filter((r) => (r.package_id || null) === pkgId).length,
     });
@@ -245,7 +286,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     }
     toast.success("Habitación creada");
     setNewRoomOpen(null);
-    setNrNombre(""); setNrCapacidad(2); setNrGenero(""); setNrNotas("");
+    setNrNombre(""); setNrCapacidad(2); setNrGenero(""); setNrTipo(""); setNrNotas("");
     loadAll();
   };
 
@@ -262,6 +303,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setErNombre(r.nombre);
     setErCapacidad(r.capacidad);
     setErGenero(r.genero || "");
+    setErTipo(r.tipo || "");
     setErNotas(r.notas || "");
   };
 
@@ -271,6 +313,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       nombre: erNombre.trim(),
       capacidad: erCapacidad,
       genero: erGenero || null,
+      tipo: erTipo || inferTipoFromCapacidad(erCapacidad),
       notas: erNotas.trim() || null,
     }).eq("id", editingRoom);
     if (error) return toast.error(error.message);
@@ -278,6 +321,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setEditingRoom(null);
     loadAll();
   };
+
 
   const assignReservation = async (reservationId: string, roomId: string) => {
     // upsert manual
@@ -315,9 +359,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       nombre: `Individual — ${r.nombre} ${r.apellido}`.trim(),
       capacidad: 1,
       genero: null,
+      tipo: "individual",
       notas: null,
       sort_order: baseOrder + idx,
     }));
+
 
     const { data: created, error } = await (supabase as any)
       .from("event_rooms")
@@ -375,8 +421,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       existingByGenero[k] = (existingByGenero[k] || 0) + r.capacidad;
     });
 
-    // Etiqueta según capacidad (solo estética)
-    const roomLabel = cap === 1 ? "Individual" : cap === 2 ? "Doble" : cap === 3 ? "Triple" : cap === 4 ? "Cuádruple" : `${cap}p`;
+    // Tipo derivado de la capacidad del paquete (fuente de verdad para el nombre)
+    const autoTipo = inferTipoFromCapacidad(cap);
+    const roomLabel = tipoLabel(autoTipo);
 
     type NewRoom = { genero: "mujeres" | "varones" | "mixto" | null; label: string };
     const toCreate: NewRoom[] = [];
@@ -422,10 +469,12 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         nombre: `${roomLabel}${suffix} ${counters[k]}`.trim(),
         capacidad: cap,
         genero: r.genero,
+        tipo: autoTipo,
         notas: null,
         sort_order: baseOrder + idx,
       };
     });
+
 
     const { error } = await (supabase as any).from("event_rooms").insert(payload);
     if (error) {
@@ -558,10 +607,22 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                   {/* Nueva habitación inline */}
                   {newRoomOpen === pkgKey && (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                         <div>
                           <Label className="text-[10px]">Nombre</Label>
                           <Input value={nrNombre} onChange={(e) => setNrNombre(e.target.value)} placeholder="Cabaña 1" className="h-8" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Tipo</Label>
+                          <Select value={nrTipo || "auto"} onValueChange={(v) => setNrTipo(v === "auto" ? "" : (v as RoomTipo))}>
+                            <SelectTrigger className="h-8"><SelectValue placeholder="Auto" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">Auto (según capacidad)</SelectItem>
+                              {TIPO_OPTIONS.map((o) => (
+                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label className="text-[10px]">Capacidad</Label>
@@ -584,6 +645,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           <Input value={nrNotas} onChange={(e) => setNrNotas(e.target.value)} placeholder="opcional" className="h-8" />
                         </div>
                       </div>
+
                       <div className="flex gap-2 justify-end">
                         <Button size="sm" variant="ghost" onClick={() => setNewRoomOpen(null)}>Cancelar</Button>
                         <Button size="sm" onClick={() => createRoom(pkgId)}>Crear</Button>
@@ -618,6 +680,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                   <Input type="number" min={1} value={erCapacidad} onChange={(e) => setErCapacidad(parseInt(e.target.value) || 1)} className="h-8" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
+                                  <Select value={erTipo || "auto"} onValueChange={(v) => setErTipo(v === "auto" ? "" : (v as RoomTipo))}>
+                                    <SelectTrigger className="h-8"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="auto">Tipo — Auto</SelectItem>
+                                      {TIPO_OPTIONS.map((o) => (
+                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                   <Select value={erGenero || "any"} onValueChange={(v) => setErGenero(v === "any" ? "" : v)}>
                                     <SelectTrigger className="h-8"><SelectValue placeholder="Género" /></SelectTrigger>
                                     <SelectContent>
@@ -627,8 +698,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                       <SelectItem value="mixto">Mixto</SelectItem>
                                     </SelectContent>
                                   </Select>
-                                  <Input value={erNotas} onChange={(e) => setErNotas(e.target.value)} placeholder="Notas" className="h-8" />
                                 </div>
+                                <Input value={erNotas} onChange={(e) => setErNotas(e.target.value)} placeholder="Notas" className="h-8" />
+
                                 <div className="flex gap-2 justify-end">
                                   <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>Cancelar</Button>
                                   <Button size="sm" onClick={saveEditRoom}><Save className="w-3 h-3 mr-1" />Guardar</Button>
@@ -640,6 +712,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="font-semibold text-sm">{room.nombre}</span>
+                                      {tipoBadge(room)}
+
                                       {generoBadge(room.genero)}
                                       <Badge variant="outline" className="text-[10px]">
                                         {occ.length}/{room.capacidad}

@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle } from "lucide-react";
+import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
+
 
 interface Props {
   open: boolean;
@@ -40,8 +42,10 @@ interface Row {
   room_nombre: string | null;
   room_genero: string | null;
   room_capacidad: number | null;
+  room_tipo: string | null;
   package_nombre: string | null;
 }
+
 
 const csvEscape = (v: any) => {
   const s = v === null || v === undefined ? "" : String(v);
@@ -91,7 +95,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         pkgIds.length
           ? supabase.from("event_packages").select("id, nombre, personas_por_habitacion").in("id", pkgIds)
           : Promise.resolve({ data: [] as any[] }),
-        (supabase as any).from("event_rooms").select("id, nombre, genero, capacidad, package_id").eq("event_id", eventId),
+        (supabase as any).from("event_rooms").select("id, nombre, genero, capacidad, tipo, package_id").eq("event_id", eventId),
         resIds.length
           ? (supabase as any).from("event_room_assignments").select("room_id, reservation_id").in("reservation_id", resIds)
           : Promise.resolve({ data: [] as any[] }),
@@ -128,8 +132,10 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           room_nombre: room?.nombre ?? null,
           room_genero: room?.genero ?? null,
           room_capacidad: room?.capacidad ?? null,
+          room_tipo: room?.tipo ?? null,
           package_nombre: pkg?.nombre ?? null,
         };
+
       });
 
       setRows(built);
@@ -139,20 +145,23 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
   // Agrupación de habitaciones por asignación real
   const habitaciones = useMemo(() => {
-    const grouped: Record<string, { label: string; genero: string; capacidad: number | null; rows: Row[] }> = {};
+    const grouped: Record<string, { label: string; genero: string; capacidad: number | null; tipo: string; rows: Row[] }> = {};
     rows.forEach(r => {
       if (!r.room_id) return;
       const key = r.room_id;
+      const inferred = r.room_tipo || (r.room_capacidad != null ? inferTipoFromCapacidad(r.room_capacidad) : "");
       grouped[key] ??= {
         label: r.room_nombre || "Sin nombre",
         genero: r.room_genero || "sin_definir",
         capacidad: r.room_capacidad,
+        tipo: inferred,
         rows: [],
       };
       grouped[key].rows.push(r);
     });
     return grouped;
   }, [rows]);
+
 
   const sinAsignar = useMemo(() => rows.filter(r => !r.room_id), [rows]);
 
@@ -170,21 +179,22 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   };
 
   const exportHabitaciones = () => {
-    const header = ["Habitación", "Género", "Capacidad", "Ocupación", "Nombre", "Apellido", "Paquete"];
+    const header = ["Habitación", "Tipo", "Género", "Capacidad", "Ocupación", "Nombre", "Apellido", "Paquete"];
     const body: string[][] = [];
     Object.values(habitaciones).forEach(g => {
       g.rows.forEach(r => {
         body.push([
-          g.label, g.genero, String(g.capacidad ?? ""), `${g.rows.length}/${g.capacidad ?? "?"}`,
+          g.label, tipoLabel(g.tipo), g.genero, String(g.capacidad ?? ""), `${g.rows.length}/${g.capacidad ?? "?"}`,
           r.nombre, r.apellido, r.package_nombre ?? "",
         ]);
       });
     });
     sinAsignar.forEach(r => {
-      body.push(["(sin asignar)", "", "", "", r.nombre, r.apellido, r.package_nombre ?? ""]);
+      body.push(["(sin asignar)", "", "", "", "", r.nombre, r.apellido, r.package_nombre ?? ""]);
     });
     downloadCSV([header, ...body], `habitaciones_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
+
 
   const missingSeguro = rows.filter(r => !r.is_external && (!r.documento || !r.contacto_emergencia_telefono));
 
@@ -225,9 +235,15 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                   <div key={roomId} className="rounded-lg border border-border p-3">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="font-medium text-sm">{g.label}</span>
+                      {g.tipo && (
+                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                          {tipoLabel(g.tipo)}
+                        </Badge>
+                      )}
                       <Badge variant="outline" className="text-[10px] capitalize">{g.genero.replace(/_/g, " ")}</Badge>
                       <Badge variant="outline" className="text-[10px]">{g.rows.length}/{g.capacidad ?? "?"}</Badge>
                     </div>
+
                     <div className="space-y-1">
                       {g.rows.map(r => (
                         <div key={r.reservation_id} className="flex items-center justify-between text-xs">
