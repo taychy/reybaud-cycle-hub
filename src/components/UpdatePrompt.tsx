@@ -297,6 +297,20 @@ const UpdatePrompt = () => {
     });
   };
 
+  // Auto-forzar actualización: cuando detectamos una versión nueva, damos
+  // 5 segundos para que el usuario vea el aviso y luego disparamos el
+  // update por su cuenta. Muchos alumnos (caso Mercedes Carlés) veían el
+  // cartel pero no tocaban "Actualizar ahora" y quedaban con el bundle
+  // viejo mostrando "No hay entrenamiento cargado" aunque la data existía.
+  useEffect(() => {
+    if (!needRefresh || isUpdating) return;
+    const t = setTimeout(() => {
+      if (!isReloadingRef.current) handleUpdate();
+    }, 5000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needRefresh, isUpdating]);
+
   if (!needRefresh && !isUpdating) return null;
 
   // Full-screen blocking overlay while the update sequence is running.
