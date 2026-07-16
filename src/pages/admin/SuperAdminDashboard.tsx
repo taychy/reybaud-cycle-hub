@@ -55,6 +55,7 @@ const SuperAdminDashboard = () => {
   const [monthlyData, setMonthlyData] = useState<MonthlyBreakdown[]>([]);
   const [planPerformance, setPlanPerformance] = useState<PlanPerformance[]>([]);
   const [unitFilter, setUnitFilter] = useState<UnitFilter>("global");
+  const [currencyFilter, setCurrencyFilter] = useState<string>("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -282,12 +283,17 @@ const SuperAdminDashboard = () => {
   // graficar con la misma barra sin que una quede invisible).
   const dataForUnit = (m: MonthlyBreakdown) => (unitFilter === "global" ? m.global : m.units[unitFilter]);
   const maxByCurrency: CurrencyTotals = {};
+  const availableCurrencies = new Set<string>();
   monthlyData.forEach(m => {
     const d = dataForUnit(m);
     [...Object.entries(d.ingresos), ...Object.entries(d.gastos)].forEach(([c, v]) => {
       maxByCurrency[c] = Math.max(maxByCurrency[c] || 1, v);
+      if (v > 0) availableCurrencies.add(c);
     });
   });
+  const currencyOptions = Array.from(availableCurrencies).sort((a, b) =>
+    a === "ARS" ? -1 : b === "ARS" ? 1 : a.localeCompare(b)
+  );
 
   const TrendIcon = ({ direction }: { direction: "up" | "down" | "flat" }) => {
     if (direction === "up") return <ArrowUpRight className="w-3 h-3 text-green-500" />;
@@ -346,6 +352,22 @@ const SuperAdminDashboard = () => {
               </button>
             ))}
           </div>
+          {currencyOptions.length > 1 && (
+            <div className="flex gap-1.5 flex-wrap items-center">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider mr-1">Moneda</span>
+              {(["all", ...currencyOptions] as string[]).map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCurrencyFilter(c)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                    currencyFilter === c ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {c === "all" ? "Todas" : c}
+                </button>
+              ))}
+            </div>
+          )}
           {unitFilter !== "global" && (
             <p className="text-[10px] text-muted-foreground">
               Incluye gastos directos de {UNIT_LABELS[unitFilter].toLowerCase()} + su parte prorrateada de gastos compartidos.
@@ -355,7 +377,8 @@ const SuperAdminDashboard = () => {
         <CardContent className="space-y-4">
           {monthlyData.map((m) => {
             const d = dataForUnit(m);
-            const currencies = Array.from(new Set([...Object.keys(d.ingresos), ...Object.keys(d.gastos)]));
+            const allCurrencies = Array.from(new Set([...Object.keys(d.ingresos), ...Object.keys(d.gastos)]));
+            const currencies = currencyFilter === "all" ? allCurrencies : allCurrencies.filter(c => c === currencyFilter);
             if (currencies.length === 0) {
               return (
                 <div key={m.month} className="flex justify-between text-xs">
