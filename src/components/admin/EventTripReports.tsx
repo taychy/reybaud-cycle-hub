@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle } from "lucide-react";
+import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
+
 
 interface Props {
   open: boolean;
