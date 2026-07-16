@@ -9,7 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
+
+const BANK_INFO = {
+  titular: "Scarlett Tayna Barros Silva",
+  cvu: "0000003100065071427147",
+  alias: "granfondo.tc",
+};
 
 interface Pkg {
   id: string;
