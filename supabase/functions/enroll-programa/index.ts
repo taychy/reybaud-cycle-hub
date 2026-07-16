@@ -443,6 +443,20 @@ Deno.serve(async (req) => {
         console.error("[enroll-programa] notify-cash-payment fetch", e);
       }
 
+      await enqueueEnrollmentEmail(admin, {
+        toEmail: email,
+        alumnoNombre: `${nombre} ${apellido}`.trim(),
+        planNombre: plan.nombre,
+        fechaInicio: (plan as any).fecha_inicio_programa || null,
+        monto: montoHoy,
+        moneda: plan.moneda || "ARS",
+        metodo: "transferencia",
+        pagoConfirmado: false,
+        addedAsSecondary,
+        primaryEmail: alumnoPrimaryEmail,
+        suscripcionId,
+      });
+
       return jsonResp({
         ok: true,
         mode: "transfer",
