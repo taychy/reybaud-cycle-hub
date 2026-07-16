@@ -104,11 +104,21 @@ export default function GuestReservationView() {
 
   useEffect(() => { load(); }, [token]);
 
-  const onUpload = async (reservationId: string) => {
+  const onUpload = async (reservationId: string, balanceDue: number) => {
     const input = fileRefs.current[reservationId];
     const file = input?.files?.[0];
     if (!file || !token) {
       toast({ title: "Seleccioná un archivo primero", variant: "destructive" });
+      return;
+    }
+    const rawAmount = amounts[reservationId];
+    const amount = Number(rawAmount);
+    if (!rawAmount || !Number.isFinite(amount) || amount <= 0) {
+      toast({ title: "Ingresá el monto transferido", variant: "destructive" });
+      return;
+    }
+    if (amount > balanceDue + 0.01) {
+      toast({ title: "El monto supera el saldo pendiente", variant: "destructive" });
       return;
     }
     setUploadingId(reservationId);
@@ -117,6 +127,7 @@ export default function GuestReservationView() {
       fd.append("reservation_id", reservationId);
       fd.append("token", token);
       fd.append("file", file);
+      fd.append("amount", String(amount));
       const url = `${(supabase as any).supabaseUrl || (import.meta.env.VITE_SUPABASE_URL as string)}/functions/v1/upload-reservation-comprobante`;
       const anonKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || "";
       const res = await fetch(url, {
@@ -128,6 +139,7 @@ export default function GuestReservationView() {
       if (!res.ok || !j?.ok) throw new Error(j?.error || "No se pudo subir el comprobante");
       toast({ title: "Comprobante enviado", description: "Te avisamos por email cuando lo validemos." });
       if (input) input.value = "";
+      setAmounts((prev) => ({ ...prev, [reservationId]: "" }));
       await load();
     } catch (e: any) {
       toast({ title: "Error", description: e.message || "Falló la subida", variant: "destructive" });
