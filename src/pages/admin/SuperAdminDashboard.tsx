@@ -283,12 +283,17 @@ const SuperAdminDashboard = () => {
   // graficar con la misma barra sin que una quede invisible).
   const dataForUnit = (m: MonthlyBreakdown) => (unitFilter === "global" ? m.global : m.units[unitFilter]);
   const maxByCurrency: CurrencyTotals = {};
+  const availableCurrencies = new Set<string>();
   monthlyData.forEach(m => {
     const d = dataForUnit(m);
     [...Object.entries(d.ingresos), ...Object.entries(d.gastos)].forEach(([c, v]) => {
       maxByCurrency[c] = Math.max(maxByCurrency[c] || 1, v);
+      if (v > 0) availableCurrencies.add(c);
     });
   });
+  const currencyOptions = Array.from(availableCurrencies).sort((a, b) =>
+    a === "ARS" ? -1 : b === "ARS" ? 1 : a.localeCompare(b)
+  );
 
   const TrendIcon = ({ direction }: { direction: "up" | "down" | "flat" }) => {
     if (direction === "up") return <ArrowUpRight className="w-3 h-3 text-green-500" />;
