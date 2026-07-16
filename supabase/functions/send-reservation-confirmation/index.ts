@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
 
     let recipientEmail = "";
     let recipientName = "";
+    let guestAccessToken: string | null = null;
     if (reservation.alumno_id) {
       const { data: alumno } = await supabase
         .from("alumnos")
@@ -136,12 +137,13 @@ Deno.serve(async (req) => {
     if (!recipientEmail && (reservation as any).external_participant_id) {
       const { data: ext } = await supabase
         .from("event_external_participants")
-        .select("email, nombre, apellido")
+        .select("email, nombre, apellido, access_token")
         .eq("id", (reservation as any).external_participant_id)
         .maybeSingle();
       if (ext?.email) {
         recipientEmail = ext.email;
         recipientName = `${ext.nombre} ${ext.apellido || ""}`.trim();
+        guestAccessToken = (ext as any).access_token || null;
       }
     }
     if (!recipientEmail || !event) {
@@ -165,7 +167,9 @@ Deno.serve(async (req) => {
     const balance = (reservation as any).balance_due ?? Math.max(0, total - paid);
     const currency = (reservation as any).currency_snapshot || (reservation as any).moneda || "ARS";
 
-    const eventLink = `${APP_DOMAIN}/eventos/${event.id}`;
+    const eventLink = guestAccessToken
+      ? `${APP_DOMAIN}/mi-reserva/${guestAccessToken}`
+      : `${APP_DOMAIN}/eventos/${event.id}`;
 
     // ─── Resumen del paquete ───
     const resumenRows: string[] = [];
