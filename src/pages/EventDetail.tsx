@@ -22,6 +22,7 @@ import { useAlumnoSession } from "@/hooks/useAlumnoSession";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useEventFavorites } from "@/hooks/useEventFavorites";
 import ReservationDrawer from "@/components/reservation/ReservationDrawer";
+import { GuestReservationDrawer } from "@/components/reservation/GuestReservationDrawer";
 import ReservationStatusCard from "@/components/reservation/ReservationStatusCard";
 import StudentChangePackageDrawer from "@/components/reservation/StudentChangePackageDrawer";
 import ReservationHelpFooter from "@/components/reservation/ReservationHelpFooter";
