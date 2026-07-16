@@ -59,8 +59,8 @@ export default defineConfig(({ mode }) => ({
         // NO usar clientsClaim/skipWaiting con registerType: "prompt".
         // Esa combinación dispara controllerchange apenas se instala el SW
         // nuevo, lo que provoca un loop de recarga ("titilando") en la app.
-        // El usuario activa la nueva versión manualmente desde UpdatePrompt
-        // (que llama a updateServiceWorker(true) → postMessage SKIP_WAITING).
+        // UpdatePrompt detecta la nueva versión y ejecuta una limpieza +
+        // recarga automática sin pedir múltiples taps al alumno.
         clientsClaim: false,
         skipWaiting: false,
         cleanupOutdatedCaches: true,
