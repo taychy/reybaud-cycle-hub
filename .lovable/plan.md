@@ -1,56 +1,66 @@
+Vamos a resolver los 4 puntos en un solo pase, respetando que ambos emails queden persistidos en la ficha y en la base de mails masivos.
 
-## Objetivo
-Permitir al alumno pagar una reserva de evento/viaje por transferencia bancaria con un flujo idéntico al de Turnera: ver datos bancarios, hold de 2 h, email de instrucciones, subida de comprobante, validación admin.
+## 1. Contador de inscriptos siempre real
 
-## Datos bancarios (Eventos/Viajes)
-- Titular: Scarlett Tayna Barros Silva
-- Alias: `granfondo.tc`
-- CBU/CVU: `0000003100065071427147`
+- La landing y el card de admin hoy leen `planes.inscripciones_actuales`, una columna cacheada que quedó en 0 aunque haya 2 suscripciones reales (caso Programa Iniciación 2026/2).
+- Cambio: crear una vista `planes_con_inscriptos` que calcula el count real desde `suscripciones` (estados `activa`, `pendiente_pago`, `pendiente_verificacion`) y adaptar `FormacionInicial.tsx`, `AdminProgramas.tsx` y `AdminProgramaDetalle.tsx` para leer de ahí.
+- Además, agregar un trigger sobre `suscripciones` que mantenga `planes.inscripciones_actuales` sincronizado ante insert/update/delete, y correr una migración de "seed" que recalcule los valores existentes.
 
-Se agregan en `src/lib/contactInfo.ts` como `EVENTOS_TRANSFER_INFO`.
+## 2. Email de confirmación al inscribirse
 
-## Cambios
+- La edge `enroll-programa` hoy crea la ficha + suscripción, pero **no encola ningún email** al alumno.
+- Cambio: al confirmarse el pago (o al quedar `pendiente_verificacion` para transferencia), llamar a `send-transactional-email` con una nueva plantilla `programa-inscripcion-confirmada` que incluya nombre del programa, fecha de inicio, monto, método de pago y próximos pasos.
+- Agregar la plantilla en `supabase/functions/_shared/transactional-email-templates/`, registrarla en `registry.ts`, y desplegar.
 
-### 1. Frontend — nuevo drawer `PayByTransferDrawer`
-`src/components/reservation/PayByTransferDrawer.tsx`
+## 3. Login automático en la app
 
-- Muestra monto sugerido (próxima cuota o saldo) en la moneda del evento.
-- Muestra Titular / CBU / Alias con copy-to-clipboard (mismo patrón que `CheckoutMethodStep` transfer-only).
-- Botón "Confirmar — tengo 2 h para transferir" → invoca edge function `create-reservation-transferencia`, que devuelve `upload_token`, `hold_expira_at` y `amount`.
-- Al confirmar, cierra este drawer y abre `ReportPaymentDrawer` en `mode="paid"` con `method="transferencia"` y monto pre-cargado, listo para subir el comprobante.
-- Muestra countdown de 2 h si ya hay hold activo.
+- Hoy `enroll-programa` inserta en `alumnos` pero no crea el usuario en `auth.users` — por eso Hernán quedó con ficha sin acceso.
+- Cambio: cuando la inscripción queda pagada, la edge invita al alumno vía `supabase.auth.admin.inviteUserByEmail` (o genera magic-link OTP) usando el mismo email de la ficha, y guarda `alumnos.user_id` cuando el usuario acepta.
+- Si el alumno ya tiene `auth.users` con ese email, saltamos la invitación y solo linkeamos `user_id`.
+- Se agrega un botón "Reenviar invitación" en `AdminProgramaDetalle` para los casos históricos (Hernán, y cualquier otro que ya tenga ficha sin login).
 
-### 2. Integración con `ReservationDrawer` / tarjeta de reserva
-- Nuevo botón "Pagar por transferencia" junto a "Pagar con MP" y "Ya pagué".
-- Si la reserva ya tiene un intent `pendiente_transferencia` vigente, el botón dice "Continuar transferencia (te quedan XX:XX)".
+## 4. Alumno con dos emails distintos — regla combinada
 
-### 3. Edge function `create-reservation-transferencia`
-`supabase/functions/create-reservation-transferencia/index.ts`
+Guardamos siempre ambos emails para que ninguno se pierda ni de la ficha ni de la base de marketing.
 
-- Requiere JWT del alumno dueño (verificado contra `event_reservations.alumno_id → alumnos.user_id`).
-- Calcula monto a pagar (RPC existente `importe_a_pagar_ahora`).
-- Inserta / actualiza fila en `reservation_payment_intents` con:
-  - `concepto = 'transferencia'`, `status = 'pendiente_transferencia'`
-  - `amount`, `currency`, `expires_at = now() + 2h`
-  - `payload = { upload_token, tipo: 'transferencia' }`
-- Dispara email `send-reservation-transferencia-instrucciones` (best-effort).
-- Devuelve `{ upload_token, hold_expira_at, amount, currency }`.
+**a) Detección al inscribirse (bloqueo por documento):**
+- Antes de crear la ficha, `enroll-programa` busca coincidencia por `documento` (y como fallback por `telefono` + `nombre_apellido` normalizados).
+- Si ya existe una ficha con ese documento pero **distinto email**:
+  - No se crea una segunda ficha.
+  - La suscripción y el pago se vinculan a la ficha existente.
+  - El email nuevo se agrega a `alumnos.emails_adicionales` (columna que ya existe).
+  - Se sincroniza `marketing_contacts` para que el email nuevo también quede como contacto (linkeado al mismo `alumno_id`, con flag `es_email_secundario=true`).
+  - Se muestra al alumno un mensaje: "Detectamos que ya estás registrado con `xxx@yyy.com`. Vinculamos esta inscripción a tu ficha y te enviamos el acceso a ese email."
 
-### 4. Edge function `send-reservation-transferencia-instrucciones`
-Nueva función, modelada sobre `send-turnera-email` tipo `transferencia_instrucciones`. Incluye: nombre del evento, monto, moneda, datos bancarios, deadline (2 h), link directo a la reserva para subir comprobante.
+**b) Merge asistido en admin (para casos que ya se filtraron, tipo Hernán):**
+- Nueva RPC `merge_alumnos(alumno_ganador uuid, alumno_perdedor uuid)` que dentro de una transacción:
+  - Mueve `suscripciones`, `pagos`, `student_activity_log`, `cuenta_ajustes`, `objetivos_alumno`, `entrenamientos_realizados`, `reservation_*`, `event_participants`, `event_reservations`, `feedback_coach`, `alumno_familiares`, `alumno_notas` y todas las relaciones que apuntan a `alumno_id` de la ficha perdedora hacia la ganadora.
+  - Agrega el email de la perdedora a `emails_adicionales` de la ganadora (si no está).
+  - Sincroniza `marketing_contacts`: reasigna filas al alumno ganador y marca el email secundario.
+  - Si la ficha perdedora tenía `user_id` y la ganadora no, transfiere el `user_id`.
+  - Marca la ficha perdedora como `estado='fusionada'` + `fusionada_en=alumno_ganador` (soft delete) para preservar auditoría, no se borra físicamente.
+- Nueva UI en el detalle del alumno: botón "Fusionar con otra ficha" que abre un buscador, muestra un diff (nombre, documento, teléfono, emails, suscripciones, pagos totales) y pide doble confirmación con `AlertDialog`. Solo Super Admin y Admin pueden ejecutarlo.
+- Bonus: en el listado de alumnos, un badge "Posible duplicado" cuando otro alumno comparte documento o teléfono, con link directo al merge.
 
-### 5. Extender `expire-turnera-holds` (o nueva `expire-reservation-holds`)
-Cron diario/horario que marca intents `pendiente_transferencia` vencidos como `expirado` y libera el estado de la reserva (vuelve a `pendiente_pago`).
+**c) Persistencia de ambos emails en la base masiva:**
+- `emails_adicionales` en `alumnos` guarda todos los emails secundarios (ya existe la columna, la aprovechamos).
+- En `marketing_contacts` agregamos las columnas `alumno_id` (fk) y `es_email_secundario` si no existen, y sincronizamos con un trigger:
+  - Insert/update en `alumnos.email` → upsert primario en `marketing_contacts`.
+  - Insert/update en `alumnos.emails_adicionales` → upsert cada email como secundario del mismo `alumno_id`.
+  - Al fusionar fichas, los emails secundarios de la perdedora se reasignan a la ganadora.
 
-### 6. Migración DB
-Sólo asegura que `reservation_payment_intents.status` acepte `'pendiente_transferencia'` y `'expirado'` (columna `text`, no requiere DDL; se documenta). No se cambia estructura.
+## Detalles técnicos
 
-## Fuera de alcance
-- No se cambia el flujo MP existente.
-- No se toca el flujo `ReportPaymentDrawer` (se reutiliza tal cual).
-- Validación admin del comprobante sigue igual (informado → confirmado).
+**Archivos que se van a tocar:**
+- `supabase/migrations/…_planes_inscriptos_view_trigger.sql` — vista, trigger de contador, seed.
+- `supabase/migrations/…_marketing_contacts_link_alumno.sql` — columnas `alumno_id`, `es_email_secundario`, trigger de sync desde `alumnos`.
+- `supabase/migrations/…_merge_alumnos_rpc.sql` — RPC `merge_alumnos` (SECURITY DEFINER, solo admins), campo `estado='fusionada'` + `fusionada_en`.
+- `supabase/functions/enroll-programa/index.ts` — detección por documento, upsert en ficha existente, invitación de login, envío del email de confirmación.
+- `supabase/functions/_shared/transactional-email-templates/programa-inscripcion-confirmada.tsx` + `registry.ts` — plantilla nueva.
+- `src/pages/FormacionInicial.tsx`, `src/pages/admin/AdminProgramas.tsx`, `src/pages/admin/AdminProgramaDetalle.tsx` — leer contador desde vista.
+- `src/components/admin/AlumnoMergeDialog.tsx` (nuevo) + integración en la vista de detalle del alumno — buscador + diff + confirmación.
+- `src/pages/admin/AdminProgramaDetalle.tsx` — botón "Reenviar invitación de login".
 
-## Riesgo
-Bajo: agregamos ruta paralela; los pagos existentes (MP y "ya pagué" manual) siguen funcionando exactamente igual.
+**Endpoint de deploy:** al terminar, redeployamos `enroll-programa` y `send-transactional-email`.
 
-¿Avanzo con esta implementación?
+**Caso Hernán como validación:** apenas mergee `7d5f8d1a…` (yahoo, con login) hacia `192f3879…` (nokia, con la suscripción) — o al revés según prefieras — queda una sola ficha con ambos emails, la suscripción del programa activa y el login funcionando. Confirmame antes cuál es el email que va a usar como primario.
