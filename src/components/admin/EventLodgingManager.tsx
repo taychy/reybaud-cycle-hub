@@ -139,13 +139,16 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [nrNombre, setNrNombre] = useState("");
   const [nrCapacidad, setNrCapacidad] = useState<number>(2);
   const [nrGenero, setNrGenero] = useState<string>("");
+  const [nrTipo, setNrTipo] = useState<RoomTipo | "">("");
   const [nrNotas, setNrNotas] = useState("");
 
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [erNombre, setErNombre] = useState("");
   const [erCapacidad, setErCapacidad] = useState<number>(2);
   const [erGenero, setErGenero] = useState<string>("");
+  const [erTipo, setErTipo] = useState<RoomTipo | "">("");
   const [erNotas, setErNotas] = useState("");
+
 
   const loadAll = async () => {
     setLoading(true);
