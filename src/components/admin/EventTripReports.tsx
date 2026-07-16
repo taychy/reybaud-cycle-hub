@@ -132,8 +132,10 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           room_nombre: room?.nombre ?? null,
           room_genero: room?.genero ?? null,
           room_capacidad: room?.capacidad ?? null,
+          room_tipo: room?.tipo ?? null,
           package_nombre: pkg?.nombre ?? null,
         };
+
       });
 
       setRows(built);
