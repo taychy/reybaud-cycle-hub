@@ -377,7 +377,8 @@ const SuperAdminDashboard = () => {
         <CardContent className="space-y-4">
           {monthlyData.map((m) => {
             const d = dataForUnit(m);
-            const currencies = Array.from(new Set([...Object.keys(d.ingresos), ...Object.keys(d.gastos)]));
+            const allCurrencies = Array.from(new Set([...Object.keys(d.ingresos), ...Object.keys(d.gastos)]));
+            const currencies = currencyFilter === "all" ? allCurrencies : allCurrencies.filter(c => c === currencyFilter);
             if (currencies.length === 0) {
               return (
                 <div key={m.month} className="flex justify-between text-xs">
