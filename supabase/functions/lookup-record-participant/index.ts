@@ -83,7 +83,12 @@ serve(async (req) => {
       return json({ ok: true, sent: true }, 200);
     }
 
-    // Send the access link by email instead of returning the token in the response
+    // If caller's JWT proves ownership of the email, return token directly (OAuth flow)
+    if (authedEmail && authedEmail === e) {
+      return json({ ok: true, found: true, token: p.public_access_token, event_id: eventId }, 200);
+    }
+
+    // Otherwise send the access link by email — never return the token in the response
     try {
       await fetch(`${SUPABASE_URL}/functions/v1/send-event-checkin-email`, {
         method: "POST",
