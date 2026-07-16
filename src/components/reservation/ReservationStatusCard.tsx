@@ -11,10 +11,11 @@ import {
   Banknote, FileText, MessageCircle, CreditCard, Eye, Upload, X,
   ChevronDown, ChevronUp, ChevronRight, Bell, CalendarDays, ArrowRight,
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
-  CircleDot, Loader2,
+  CircleDot, Loader2, Landmark,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
+import PayByTransferDrawer from "./PayByTransferDrawer";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
