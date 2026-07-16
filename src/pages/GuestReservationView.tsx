@@ -155,25 +155,25 @@ export default function GuestReservationView() {
 
         {reservations.map((r) => (
           <Card key={r.id} className="overflow-hidden">
-            {r.event?.imagen_url && (
-              <img src={r.event.imagen_url} alt={r.event.nombre} className="w-full h-40 object-cover" />
+            {r.event?.image_url && (
+              <img src={r.event.image_url} alt={r.event.title} className="w-full h-40 object-cover" />
             )}
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-lg">{r.event?.nombre}</CardTitle>
+                <CardTitle className="text-lg">{r.event?.title}</CardTitle>
                 {statusBadge(r)}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {r.event?.fecha_inicio && (
+              {r.event?.date && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="w-4 h-4" />
-                  <span>{fmtDate(r.event.fecha_inicio)}{r.event.fecha_fin ? ` → ${fmtDate(r.event.fecha_fin)}` : ""}</span>
+                  <span>{fmtDate(r.event.date)}{r.event.end_date ? ` → ${fmtDate(r.event.end_date)}` : ""}</span>
                 </div>
               )}
-              {r.event?.ubicacion && (
+              {r.event?.location && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4" /><span>{r.event.ubicacion}</span>
+                  <MapPin className="w-4 h-4" /><span>{r.event.location}</span>
                 </div>
               )}
               <div className="pt-3 border-t space-y-1">
