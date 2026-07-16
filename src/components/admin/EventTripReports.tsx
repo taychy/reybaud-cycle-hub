@@ -179,21 +179,22 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   };
 
   const exportHabitaciones = () => {
-    const header = ["Habitación", "Género", "Capacidad", "Ocupación", "Nombre", "Apellido", "Paquete"];
+    const header = ["Habitación", "Tipo", "Género", "Capacidad", "Ocupación", "Nombre", "Apellido", "Paquete"];
     const body: string[][] = [];
     Object.values(habitaciones).forEach(g => {
       g.rows.forEach(r => {
         body.push([
-          g.label, g.genero, String(g.capacidad ?? ""), `${g.rows.length}/${g.capacidad ?? "?"}`,
+          g.label, tipoLabel(g.tipo), g.genero, String(g.capacidad ?? ""), `${g.rows.length}/${g.capacidad ?? "?"}`,
           r.nombre, r.apellido, r.package_nombre ?? "",
         ]);
       });
     });
     sinAsignar.forEach(r => {
-      body.push(["(sin asignar)", "", "", "", r.nombre, r.apellido, r.package_nombre ?? ""]);
+      body.push(["(sin asignar)", "", "", "", "", r.nombre, r.apellido, r.package_nombre ?? ""]);
     });
     downloadCSV([header, ...body], `habitaciones_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
+
 
   const missingSeguro = rows.filter(r => !r.is_external && (!r.documento || !r.contacto_emergencia_telefono));
 
