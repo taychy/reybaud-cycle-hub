@@ -46,6 +46,8 @@ interface Reservation {
   apellido: string;
   telefono: string;
   habitacion_data: any;
+  prefiere_asignacion: boolean | null;
+  tipo_vinculo: string | null;
 }
 
 interface Room {
