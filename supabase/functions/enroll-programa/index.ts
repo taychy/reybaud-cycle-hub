@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
     // 1) Plan
     const { data: plan, error: planErr } = await admin
       .from("planes")
-      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo")
+      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, fecha_inicio_programa")
       .eq("cohort_slug", cohort_slug)
       .maybeSingle();
 
