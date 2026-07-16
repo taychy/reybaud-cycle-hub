@@ -114,7 +114,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setLoading(true);
     const [pkgR, resR, roomR, alumnosPreR] = await Promise.all([
       supabase.from("event_packages").select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto").eq("event_id", eventId).order("sort_order"),
-      supabase.from("event_reservations").select("id, package_id, reservation_status, alumno_id, external_participant_id").eq("event_id", eventId).neq("reservation_status", "cancelada"),
+      supabase.from("event_reservations").select("id, package_id, reservation_status, alumno_id, external_participant_id, prefiere_asignacion, tipo_vinculo").eq("event_id", eventId).neq("reservation_status", "cancelada"),
       (supabase as any).from("event_rooms").select("*").eq("event_id", eventId).order("sort_order").order("nombre"),
       Promise.resolve(null),
     ]);
