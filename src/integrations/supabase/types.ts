@@ -316,6 +316,8 @@ export type Database = {
           emails_adicionales: string[]
           estado: string
           fecha_baja: string | null
+          fusionada_at: string | null
+          fusionada_en: string | null
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido: string | null
           id: string
@@ -379,6 +381,8 @@ export type Database = {
           emails_adicionales?: string[]
           estado?: string
           fecha_baja?: string | null
+          fusionada_at?: string | null
+          fusionada_en?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
@@ -442,6 +446,8 @@ export type Database = {
           emails_adicionales?: string[]
           estado?: string
           fecha_baja?: string | null
+          fusionada_at?: string | null
+          fusionada_en?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
           grupo_preferido?: string | null
           id?: string
@@ -487,6 +493,13 @@ export type Database = {
             columns: ["baja_solicitud_id"]
             isOneToOne: false
             referencedRelation: "bajas_solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumnos_fusionada_en_fkey"
+            columns: ["fusionada_en"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
             referencedColumns: ["id"]
           },
           {
@@ -1033,10 +1046,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cambios_plan_plan_anterior_id_fkey"
+            columns: ["plan_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cambios_plan_plan_nuevo_id_fkey"
             columns: ["plan_nuevo_id"]
             isOneToOne: false
             referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_plan_nuevo_id_fkey"
+            columns: ["plan_nuevo_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
             referencedColumns: ["id"]
           },
           {
@@ -4809,10 +4836,12 @@ export type Database = {
       }
       marketing_contacts: {
         Row: {
+          alumno_id: string | null
           apellido: string | null
           created_at: string
           created_by: string | null
           email: string
+          es_email_secundario: boolean
           id: string
           last_campaign_sent_at: string | null
           nombre: string | null
@@ -4829,10 +4858,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          alumno_id?: string | null
           apellido?: string | null
           created_at?: string
           created_by?: string | null
           email: string
+          es_email_secundario?: boolean
           id?: string
           last_campaign_sent_at?: string | null
           nombre?: string | null
@@ -4849,10 +4880,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          alumno_id?: string | null
           apellido?: string | null
           created_at?: string
           created_by?: string | null
           email?: string
+          es_email_secundario?: boolean
           id?: string
           last_campaign_sent_at?: string | null
           nombre?: string | null
@@ -4869,6 +4902,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketing_contacts_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "marketing_contacts_source_alumno_id_fkey"
             columns: ["source_alumno_id"]
@@ -5287,6 +5327,13 @@ export type Database = {
             referencedRelation: "planes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "plan_price_stages_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       planes: {
@@ -5434,6 +5481,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "planes_sedes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "planes_sedes_sede_id_fkey"
             columns: ["sede_id"]
             isOneToOne: false
@@ -5521,6 +5575,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "precio_historial_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
             referencedColumns: ["id"]
           },
         ]
@@ -5640,6 +5701,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "process_instances_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "process_instances_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -5741,6 +5809,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "process_templates_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
             referencedColumns: ["id"]
           },
         ]
@@ -8590,6 +8665,13 @@ export type Database = {
             referencedRelation: "planes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "suscripciones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tareas: {
@@ -9011,6 +9093,129 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      planes_con_inscriptos: {
+        Row: {
+          acceso_beneficios: boolean | null
+          acceso_entrenamientos: boolean | null
+          acceso_eventos: boolean | null
+          acceso_whatsapp: boolean | null
+          activo: boolean | null
+          categoria: string | null
+          clases_incluidas: number | null
+          clases_por_semana: number | null
+          cohort_slug: string | null
+          created_at: string | null
+          cuota_valor: number | null
+          cuotas_cantidad: number | null
+          descripcion: string | null
+          descripcion_corta: string | null
+          es_programa_cerrado: boolean | null
+          features: Json | null
+          fecha_cierre_inscripcion: string | null
+          fecha_fin_programa: string | null
+          fecha_inicio_programa: string | null
+          frecuencia: string | null
+          id: string | null
+          imagen_url: string | null
+          inscripciones_actuales: number | null
+          inscriptos_reales: number | null
+          landing_public: boolean | null
+          max_inscripciones: number | null
+          moneda: string | null
+          nombre: string | null
+          permite_auto_cobro: boolean | null
+          precio: number | null
+          precio_promocional: number | null
+          renovacion_auto_permitida: boolean | null
+          tipo: string | null
+          tipo_consumo: string | null
+          updated_at: string | null
+          vigencia_dias: number | null
+          visibilidad: string | null
+          whatsapp_url: string | null
+        }
+        Insert: {
+          acceso_beneficios?: boolean | null
+          acceso_entrenamientos?: boolean | null
+          acceso_eventos?: boolean | null
+          acceso_whatsapp?: boolean | null
+          activo?: boolean | null
+          categoria?: string | null
+          clases_incluidas?: number | null
+          clases_por_semana?: number | null
+          cohort_slug?: string | null
+          created_at?: string | null
+          cuota_valor?: number | null
+          cuotas_cantidad?: number | null
+          descripcion?: string | null
+          descripcion_corta?: string | null
+          es_programa_cerrado?: boolean | null
+          features?: Json | null
+          fecha_cierre_inscripcion?: string | null
+          fecha_fin_programa?: string | null
+          fecha_inicio_programa?: string | null
+          frecuencia?: string | null
+          id?: string | null
+          imagen_url?: string | null
+          inscripciones_actuales?: number | null
+          inscriptos_reales?: never
+          landing_public?: boolean | null
+          max_inscripciones?: number | null
+          moneda?: string | null
+          nombre?: string | null
+          permite_auto_cobro?: boolean | null
+          precio?: number | null
+          precio_promocional?: number | null
+          renovacion_auto_permitida?: boolean | null
+          tipo?: string | null
+          tipo_consumo?: string | null
+          updated_at?: string | null
+          vigencia_dias?: number | null
+          visibilidad?: string | null
+          whatsapp_url?: string | null
+        }
+        Update: {
+          acceso_beneficios?: boolean | null
+          acceso_entrenamientos?: boolean | null
+          acceso_eventos?: boolean | null
+          acceso_whatsapp?: boolean | null
+          activo?: boolean | null
+          categoria?: string | null
+          clases_incluidas?: number | null
+          clases_por_semana?: number | null
+          cohort_slug?: string | null
+          created_at?: string | null
+          cuota_valor?: number | null
+          cuotas_cantidad?: number | null
+          descripcion?: string | null
+          descripcion_corta?: string | null
+          es_programa_cerrado?: boolean | null
+          features?: Json | null
+          fecha_cierre_inscripcion?: string | null
+          fecha_fin_programa?: string | null
+          fecha_inicio_programa?: string | null
+          frecuencia?: string | null
+          id?: string | null
+          imagen_url?: string | null
+          inscripciones_actuales?: number | null
+          inscriptos_reales?: never
+          landing_public?: boolean | null
+          max_inscripciones?: number | null
+          moneda?: string | null
+          nombre?: string | null
+          permite_auto_cobro?: boolean | null
+          precio?: number | null
+          precio_promocional?: number | null
+          renovacion_auto_permitida?: boolean | null
+          tipo?: string | null
+          tipo_consumo?: string | null
+          updated_at?: string | null
+          vigencia_dias?: number | null
+          visibilidad?: string | null
+          whatsapp_url?: string | null
+        }
+        Relationships: []
       }
       v_ingresos_netos: {
         Row: {
@@ -9728,6 +9933,10 @@ export type Database = {
       materialize_reservation_installments: {
         Args: { p_reservation_id: string }
         Returns: number
+      }
+      merge_alumnos: {
+        Args: { _ganador: string; _perdedor: string }
+        Returns: Json
       }
       move_to_dlq: {
         Args: {
