@@ -57,6 +57,7 @@ interface Room {
   nombre: string;
   capacidad: number;
   genero: "mujeres" | "varones" | "mixto" | null;
+  tipo: RoomTipo | null;
   notas: string | null;
   sort_order: number;
 }
@@ -66,6 +67,32 @@ interface Assignment {
   room_id: string;
   reservation_id: string;
 }
+
+type RoomTipo = "individual" | "doble" | "triple" | "cuadruple" | "cabana" | "dormitorio";
+
+const TIPO_OPTIONS: { value: RoomTipo; label: string }[] = [
+  { value: "individual", label: "Individual" },
+  { value: "doble", label: "Doble" },
+  { value: "triple", label: "Triple" },
+  { value: "cuadruple", label: "Cuádruple" },
+  { value: "cabana", label: "Cabaña" },
+  { value: "dormitorio", label: "Dormitorio" },
+];
+
+export const tipoLabel = (t: RoomTipo | string | null | undefined): string => {
+  if (!t) return "";
+  const found = TIPO_OPTIONS.find((o) => o.value === t);
+  return found?.label || String(t);
+};
+
+// Fallback cuando la habitación no tiene tipo cargado (retrocompatibilidad)
+export const inferTipoFromCapacidad = (cap: number): RoomTipo => {
+  if (cap <= 1) return "individual";
+  if (cap === 2) return "doble";
+  if (cap === 3) return "triple";
+  if (cap === 4) return "cuadruple";
+  return "dormitorio";
+};
 
 const GENERO_LABEL: Record<string, string> = {
   mujeres: "Mujeres",
@@ -87,6 +114,16 @@ const generoBadge = (g: string | null) => {
     </Badge>
   );
 };
+
+const tipoBadge = (room: Pick<Room, "tipo" | "capacidad">) => {
+  const t = room.tipo || inferTipoFromCapacidad(room.capacidad);
+  return (
+    <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+      {tipoLabel(t)}
+    </Badge>
+  );
+};
+
 
 const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
