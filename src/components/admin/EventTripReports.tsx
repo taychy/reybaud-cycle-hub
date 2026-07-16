@@ -101,7 +101,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       const extMap = new Map((extR.data || []).map((e: any) => [e.id, e]));
       const pkgMap = new Map((pkgR.data || []).map((p: any) => [p.id, p]));
       const roomMap = new Map(((roomR as any).data || []).map((r: any) => [r.id, r]));
-      const asgMap = new Map(((asgR as any).data || []).map((a: any) => [a.reservation_id, a.room_id]));
+      const asgMap = new Map<string, string>(((asgR as any).data || []).map((a: any) => [a.reservation_id as string, a.room_id as string]));
 
       const built: Row[] = list.map(r => {
         const a: any = r.alumno_id ? aluMap.get(r.alumno_id) : null;
