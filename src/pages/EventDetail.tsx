@@ -757,12 +757,37 @@ const EventDetail = () => {
             </div>
           )}
 
-          {!alumno && allowsParticipation && !eventPast && (
-            <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in text-center">
-              <p className="text-sm text-muted-foreground">
-                {isInscriptionOnly ? "Iniciá sesión para inscribirte." : "Iniciá sesión para reservar tu lugar."}
+          {!alumno && allowsParticipation && !eventPast && spotsLeft !== 0 && (
+            <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
+              <div className="text-center space-y-1">
+                <h3 className="font-heading font-semibold text-foreground">
+                  {isInscriptionOnly ? "¿Querés inscribirte?" : "¿Querés reservar tu lugar?"}
+                </h3>
+                <p className="text-xs text-muted-foreground">Elegí cómo continuar</p>
+              </div>
+              <Button
+                variant="gold"
+                className="w-full h-12 text-sm"
+                onClick={() => setShowGuestDrawer(true)}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                {isInscriptionOnly ? "Anotarme como invitado" : "Reservar como invitado"}
+              </Button>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex-1 border-t border-border/50" />
+                <span>o</span>
+                <span className="flex-1 border-t border-border/50" />
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate(`/?returnTo=${encodeURIComponent(window.location.pathname)}`)}
+              >
+                Ya soy alumno · Iniciar sesión
+              </Button>
+              <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+                Como invitado no necesitás cuenta. Te enviamos un enlace privado por email para gestionar tu reserva.
               </p>
-              <Button variant="gold" onClick={() => navigate(`/?returnTo=${encodeURIComponent(window.location.pathname)}`)}>Iniciar sesión</Button>
             </div>
           )}
 
