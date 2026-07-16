@@ -218,7 +218,7 @@ export default function GuestReservationView() {
 
         <Card>
           <CardContent className="p-4 text-xs text-muted-foreground space-y-1">
-            <p>¿Necesitás ayuda con tu reserva? Escribinos a <a className="text-primary" href="mailto:hola@reybaud-app.com">hola@reybaud-app.com</a>.</p>
+            <p>¿Necesitás ayuda con tu reserva? Escribinos a <a className="text-primary" href="mailto:natalia@ciclismoreybaud.com">natalia@ciclismoreybaud.com</a>.</p>
             <p>Guardá este enlace: te da acceso a tu reserva sin usuario ni contraseña.</p>
           </CardContent>
         </Card>
