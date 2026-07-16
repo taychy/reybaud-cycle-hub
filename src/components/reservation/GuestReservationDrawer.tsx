@@ -9,7 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
+
+const BANK_INFO = {
+  titular: "Scarlett Tayna Barros Silva",
+  cvu: "0000003100065071427147",
+  alias: "granfondo.tc",
+};
 
 interface Pkg {
   id: string;
@@ -191,9 +197,25 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
                 </RadioGroup>
               </div>
               {metodo === "transferencia" && (
-                <div>
-                  <Label>Comprobante</Label>
-                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} />
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border bg-muted/30 space-y-3">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Datos para transferir</p>
+                    <BankRow label="Titular" value={BANK_INFO.titular} />
+                    <BankRow label="CVU" value={BANK_INFO.cvu} onCopy={() => { navigator.clipboard.writeText(BANK_INFO.cvu); toast.success("CVU copiado"); }} />
+                    <BankRow label="Alias" value={BANK_INFO.alias} onCopy={() => { navigator.clipboard.writeText(BANK_INFO.alias); toast.success("Alias copiado"); }} />
+                    <BankRow
+                      label="Monto"
+                      value={(() => { const pr = priceFor(selectedPkg); return fmtMoney(pr.precio, pr.currency); })()}
+                      strong
+                    />
+                    <p className="text-[11px] text-muted-foreground pt-1 border-t">
+                      Transferí el monto exacto y adjuntá el comprobante abajo. Te confirmamos por email cuando lo validemos.
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Comprobante *</Label>
+                    <Input type="file" accept="image/*,application/pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} />
+                  </div>
                 </div>
               )}
               <label className="flex items-start gap-2 text-sm">
@@ -222,5 +244,21 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function BankRow({ label, value, onCopy, strong }: { label: string; value: string; onCopy?: () => void; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={`text-sm text-foreground break-all ${strong ? "font-bold" : ""}`}>{value}</div>
+      </div>
+      {onCopy && (
+        <Button size="icon" variant="ghost" onClick={onCopy} className="shrink-0" type="button">
+          <Copy className="w-4 h-4" />
+        </Button>
+      )}
+    </div>
   );
 }
