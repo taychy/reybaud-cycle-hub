@@ -32,6 +32,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<Pkg[]>([]);
+  const [stagesByPkg, setStagesByPkg] = useState<Record<string, PriceStage[]>>({});
   const [pkgId, setPkgId] = useState<string>("");
   // Datos personales
   const [form, setForm] = useState({
@@ -52,9 +53,20 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
         .eq("event_id", eventId)
         .eq("activo", true)
         .order("sort_order", { ascending: true });
-      setPackages((data as Pkg[]) || []);
+      const list = (data as Pkg[]) || [];
+      setPackages(list);
+      if (list.length > 0) {
+        const stages = await fetchPriceStages(list.map((p) => p.id));
+        setStagesByPkg(stages);
+      } else {
+        setStagesByPkg({});
+      }
     })();
   }, [open, eventId]);
+
+  const priceFor = useMemo(() => {
+    return (p: Pkg) => resolveActivePrice(Number(p.precio || 0), p.currency || "ARS", stagesByPkg[p.id]);
+  }, [stagesByPkg]);
 
   const selectedPkg = packages.find((p) => p.id === pkgId);
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
