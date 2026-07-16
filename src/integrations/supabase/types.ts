@@ -10010,6 +10010,10 @@ export type Database = {
         }
         Returns: Json
       }
+      rebalance_reservation_installments: {
+        Args: { p_reservation_id: string }
+        Returns: number
+      }
       rebuild_facturacion_cola: { Args: { p_since?: string }; Returns: Json }
       recalc_gasto_ejecucion: {
         Args: { p_ejec_id: string }
