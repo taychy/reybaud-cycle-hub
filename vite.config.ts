@@ -47,7 +47,8 @@ export default defineConfig(({ mode }) => ({
     appVersionEndpoint(),
     VitePWA({
       registerType: "prompt",
-      injectRegister: "auto",
+      injectRegister: null,
+      devOptions: { enabled: false },
       includeAssets: ["favicon.png", "favicon.ico"],
       workbox: {
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
