@@ -248,6 +248,44 @@ export default function GuestReservationView() {
                   ))}
                 </div>
               )}
+
+              {r.payment_status !== "pagado" && r.reservation_status !== "cancelada" && (
+                <div className="pt-3 border-t space-y-2">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Comprobante de transferencia
+                  </div>
+                  {r.last_proof_uploaded_at ? (
+                    <div className="flex items-start gap-2 p-3 rounded-md bg-primary/5 border border-primary/20">
+                      <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="text-xs">
+                        <p className="font-medium text-foreground">Comprobante recibido</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          Enviado el {fmtDate(r.last_proof_uploaded_at)}. Lo estamos revisando; te avisamos por email cuando lo validemos.
+                        </p>
+                        <p className="text-muted-foreground mt-1">¿Necesitás reenviarlo? Adjuntá uno nuevo abajo.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Subí tu comprobante para que verifiquemos el pago (JPG, PNG, WEBP o PDF, máx. 8MB).
+                    </p>
+                  )}
+                  <input
+                    ref={(el) => { fileRefs.current[r.id] = el; }}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
+                  />
+                  <Button
+                    className="w-full"
+                    onClick={() => onUpload(r.id)}
+                    disabled={uploadingId === r.id}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadingId === r.id ? "Subiendo..." : "Enviar comprobante"}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
