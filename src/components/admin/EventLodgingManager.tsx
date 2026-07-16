@@ -712,6 +712,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="font-semibold text-sm">{room.nombre}</span>
+                                      {tipoBadge(room)}
+
                                       {generoBadge(room.genero)}
                                       <Badge variant="outline" className="text-[10px]">
                                         {occ.length}/{room.capacidad}
