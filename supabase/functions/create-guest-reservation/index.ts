@@ -96,8 +96,28 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!pkg || !pkg.activo) return jsonResp({ error: "Paquete no disponible" }, 400);
 
-    const amount_total = Number(pkg.precio || 0);
-    const currency = pkg.currency || "ARS";
+    // Resolver precio del stage vigente (nunca confiar en cliente).
+    const { data: stages } = await admin
+      .from("event_package_price_stages")
+      .select("precio, currency, vigente_desde, vigente_hasta, activo")
+      .eq("package_id", pkg.id)
+      .eq("activo", true);
+    let activePrecio = Number(pkg.precio || 0);
+    let activeCurrency = pkg.currency || "ARS";
+    const nowMs = Date.now();
+    let bestDesdeMs = -Infinity;
+    for (const s of (stages || []) as any[]) {
+      const desdeMs = new Date(s.vigente_desde).getTime();
+      const hastaMs = s.vigente_hasta ? new Date(s.vigente_hasta).getTime() : null;
+      if (desdeMs <= nowMs && (hastaMs == null || hastaMs > nowMs) && desdeMs > bestDesdeMs) {
+        bestDesdeMs = desdeMs;
+        activePrecio = Number(s.precio || 0);
+        activeCurrency = s.currency || activeCurrency;
+      }
+    }
+
+    const amount_total = activePrecio;
+    const currency = activeCurrency;
 
     // 2) Upsert del participante externo
     const { data: existingList } = await admin
