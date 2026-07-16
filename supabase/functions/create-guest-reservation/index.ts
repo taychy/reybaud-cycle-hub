@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     // 1) Validar evento y paquete
     const { data: eventRow } = await admin
       .from("events")
-      .select("id, nombre, fecha_inicio, activo")
+      .select("id, title, date, is_active")
       .eq("id", event_id)
       .maybeSingle();
     if (!eventRow) return jsonResp({ error: "Evento no encontrado" }, 404);
