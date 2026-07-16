@@ -816,6 +816,26 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("[mp-webhook] payment-recorded email failed:", e);
         }
+
+        // If the reservation just got fully paid, also send the "reserva confirmada + pagada" email
+        const wasNotConfirmed = reservation.reservation_status !== "reserva_confirmada";
+        const totalNow = Number(reservation.amount_total || 0);
+        const paidNow = Number(reservation.amount_paid || 0) + paidAmount;
+        const fullyPaidNow = totalNow > 0 && paidNow >= totalNow;
+        if (wasNotConfirmed && fullyPaidNow) {
+          try {
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-confirmed-with-payment`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({ reservation_id: reservationId }),
+            });
+          } catch (e) {
+            console.error("[mp-webhook] confirmed-with-payment email failed:", e);
+          }
+        }
       }
 
       console.log("Event reservation updated:", { reservationId, mpStatus: payment.status });
