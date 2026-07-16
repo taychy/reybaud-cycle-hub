@@ -86,6 +86,7 @@ export default function GuestReservationView() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     document.title = "Mi reserva · Reybaud";
