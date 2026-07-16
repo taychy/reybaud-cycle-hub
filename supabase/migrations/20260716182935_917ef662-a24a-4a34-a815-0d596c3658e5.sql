@@ -1,0 +1,1 @@
+ALTER VIEW public.planes_con_inscriptos SET (security_invoker = on);
