@@ -701,7 +701,6 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                 </div>
                                 <Input value={erNotas} onChange={(e) => setErNotas(e.target.value)} placeholder="Notas" className="h-8" />
 
-                                </div>
                                 <div className="flex gap-2 justify-end">
                                   <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>Cancelar</Button>
                                   <Button size="sm" onClick={saveEditRoom}><Save className="w-3 h-3 mr-1" />Guardar</Button>
