@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPriceStages, resolveActivePrice, type PriceStage } from "@/lib/priceStages";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<Pkg[]>([]);
+  const [stagesByPkg, setStagesByPkg] = useState<Record<string, PriceStage[]>>({});
   const [pkgId, setPkgId] = useState<string>("");
   // Datos personales
   const [form, setForm] = useState({
@@ -51,9 +53,20 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
         .eq("event_id", eventId)
         .eq("activo", true)
         .order("sort_order", { ascending: true });
-      setPackages((data as Pkg[]) || []);
+      const list = (data as Pkg[]) || [];
+      setPackages(list);
+      if (list.length > 0) {
+        const stages = await fetchPriceStages(list.map((p) => p.id));
+        setStagesByPkg(stages);
+      } else {
+        setStagesByPkg({});
+      }
     })();
   }, [open, eventId]);
+
+  const priceFor = useMemo(() => {
+    return (p: Pkg) => resolveActivePrice(Number(p.precio || 0), p.currency || "ARS", stagesByPkg[p.id]);
+  }, [stagesByPkg]);
 
   const selectedPkg = packages.find((p) => p.id === pkgId);
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
@@ -137,18 +150,24 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
             <div className="space-y-2">
               {packages.length === 0 && <p className="text-sm text-muted-foreground">No hay paquetes disponibles.</p>}
               <RadioGroup value={pkgId} onValueChange={setPkgId}>
-                {packages.map((p) => (
-                  <label key={p.id} className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition ${pkgId === p.id ? "border-primary bg-primary/5" : "border-border"}`}>
-                    <RadioGroupItem value={p.id} className="mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{p.nombre}</span>
-                        <span className="font-bold text-primary">{fmtMoney(p.precio, p.currency || "ARS")}</span>
+                {packages.map((p) => {
+                  const pr = priceFor(p);
+                  return (
+                    <label key={p.id} className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition ${pkgId === p.id ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <RadioGroupItem value={p.id} className="mt-1" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">{p.nombre}</span>
+                          <span className="font-bold text-primary">{fmtMoney(pr.precio, pr.currency)}</span>
+                        </div>
+                        {pr.activeStage && (
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{pr.activeStage.nombre}</div>
+                        )}
+                        {p.descripcion && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">{p.descripcion}</p>}
                       </div>
-                      {p.descripcion && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">{p.descripcion}</p>}
-                    </div>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </RadioGroup>
             </div>
           )}
@@ -157,7 +176,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
             <div className="space-y-4">
               <div className="p-4 rounded-xl border bg-muted/30">
                 <div className="text-xs text-muted-foreground mb-1">Vas a pagar</div>
-                <div className="text-2xl font-bold text-primary">{fmtMoney(selectedPkg.precio, selectedPkg.currency || "ARS")}</div>
+                <div className="text-2xl font-bold text-primary">{(() => { const pr = priceFor(selectedPkg); return fmtMoney(pr.precio, pr.currency); })()}</div>
                 <div className="text-sm mt-1">{selectedPkg.nombre}</div>
               </div>
               <div>
