@@ -289,9 +289,27 @@ export default function GuestReservationView() {
                     accept="image/jpeg,image/png,image/webp,application/pdf"
                     className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
                   />
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">
+                      Monto transferido ({r.currency_snapshot}) · saldo pendiente {fmtMoney(r.balance_due, r.currency_snapshot)}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder={String(r.balance_due)}
+                      value={amounts[r.id] ?? ""}
+                      onChange={(e) => setAmounts((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-md bg-muted/30 border border-border text-sm text-foreground"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Si estás pagando una cuota o un pago parcial, ingresá solo ese monto.
+                    </p>
+                  </div>
                   <Button
                     className="w-full"
-                    onClick={() => onUpload(r.id)}
+                    onClick={() => onUpload(r.id, r.balance_due)}
                     disabled={uploadingId === r.id}
                   >
                     <Upload className="w-4 h-4 mr-2" />
