@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, Calendar, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface GuestData {
   participant: {
