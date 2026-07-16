@@ -46,6 +46,8 @@ interface Reservation {
   apellido: string;
   telefono: string;
   habitacion_data: any;
+  prefiere_asignacion: boolean | null;
+  tipo_vinculo: string | null;
 }
 
 interface Room {
@@ -112,7 +114,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setLoading(true);
     const [pkgR, resR, roomR, alumnosPreR] = await Promise.all([
       supabase.from("event_packages").select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto").eq("event_id", eventId).order("sort_order"),
-      supabase.from("event_reservations").select("id, package_id, reservation_status, alumno_id, external_participant_id").eq("event_id", eventId).neq("reservation_status", "cancelada"),
+      supabase.from("event_reservations").select("id, package_id, reservation_status, alumno_id, external_participant_id, prefiere_asignacion, tipo_vinculo").eq("event_id", eventId).neq("reservation_status", "cancelada"),
       (supabase as any).from("event_rooms").select("*").eq("event_id", eventId).order("sort_order").order("nombre"),
       Promise.resolve(null),
     ]);
@@ -153,6 +155,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         apellido: p.apellido || "(sin datos)",
         telefono: p.telefono || "",
         habitacion_data: clMap.get(r.id) || null,
+        prefiere_asignacion: r.prefiere_asignacion ?? null,
+        tipo_vinculo: r.tipo_vinculo ?? null,
       };
     });
 
@@ -656,8 +660,13 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                 <div className="space-y-1">
                                   {occ.map((r) => (
                                     <div key={r.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
-                                      <span className="truncate">
-                                        {r.nombre} {r.apellido}
+                                      <span className="truncate flex items-center gap-1 flex-wrap">
+                                        <span>{r.nombre} {r.apellido}</span>
+                                        {r.prefiere_asignacion ? (
+                                          <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
+                                        ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo) ? (
+                                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Comparte conocido</Badge>
+                                        ) : null}
                                         {r.habitacion_data?.companero_solicitado && (
                                           <span className="text-[10px] text-muted-foreground ml-1">→ {r.habitacion_data.companero_solicitado}</span>
                                         )}
@@ -696,6 +705,16 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-medium text-xs">{r.nombre} {r.apellido}</span>
+                            {r.prefiere_asignacion ? (
+                              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
+                            ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo || mates.length > 0) ? (
+                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Comparte con conocido</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">Sin preferencia</Badge>
+                            )}
+                            {r.tipo_vinculo && (
+                              <Badge variant="outline" className="text-[10px] capitalize">{r.tipo_vinculo}</Badge>
+                            )}
                             {r.habitacion_data?.genero_habitacion && generoBadge(r.habitacion_data.genero_habitacion)}
                             {r.habitacion_data?.tipo_habitacion && (
                               <Badge variant="outline" className="text-[10px] capitalize">
