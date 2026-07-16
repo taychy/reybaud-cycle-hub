@@ -8,6 +8,7 @@ import { clearBrowserCaches, getCacheBustedUrl, unregisterServiceWorkers } from 
 const POLL_INTERVAL_MS = 60 * 1000; // 60s
 const HTML_CHECK_INTERVAL_MS = 60 * 1000; // 60s
 const FOREGROUND_DEBOUNCE_MS = 3 * 1000; // evitar tormenta de checks
+const AUTO_UPDATE_DELAY_MS = 800; // no pedirle al alumno que toque varias veces
 const UPDATE_CHANNEL_NAME = "app-update-sync";
 const UPDATE_BROADCAST_MSG = "perform-hard-reload";
 
@@ -43,7 +44,6 @@ const UpdatePrompt = () => {
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     immediate: true,
     onRegisteredSW(swUrl, registration) {
@@ -202,6 +202,7 @@ const UpdatePrompt = () => {
   const isUpdating = stage !== "idle";
   const channelRef = useRef<BroadcastChannel | null>(null);
   const isReloadingRef = useRef(false);
+  const autoUpdateStartedRef = useRef(false);
 
   // Set up a BroadcastChannel so when one tab confirms the update, every other
   // open tab on the same origin receives the order and reloads in sync.
@@ -222,23 +223,6 @@ const UpdatePrompt = () => {
       channelRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // When a brand-new service worker takes control (skipWaiting + clientsClaim),
-  // do a soft reload so this tab picks up the freshest assets without the user
-  // having to interact with the prompt. Guarded against double-reload loops.
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    let reloaded = false;
-    const onControllerChange = () => {
-      if (reloaded || isReloadingRef.current) return;
-      reloaded = true;
-      window.location.replace(getCacheBustedUrl());
-    };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-    return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-    };
   }, []);
 
   const hardReload = async () => {
@@ -282,9 +266,9 @@ const UpdatePrompt = () => {
 
     setStage("activating");
     try {
-      await updateServiceWorker(true);
+      await swRegistrationRef.current?.update();
     } catch (err) {
-      console.warn("updateServiceWorker failed, forcing reload anyway", err);
+      console.warn("SW update check failed, forcing reload anyway", err);
     }
 
     await hardReload();
@@ -297,16 +281,16 @@ const UpdatePrompt = () => {
     });
   };
 
-  // Auto-forzar actualización: cuando detectamos una versión nueva, damos
-  // 5 segundos para que el usuario vea el aviso y luego disparamos el
-  // update por su cuenta. Muchos alumnos (caso Mercedes Carlés) veían el
-  // cartel pero no tocaban "Actualizar ahora" y quedaban con el bundle
-  // viejo mostrando "No hay entrenamiento cargado" aunque la data existía.
+  // Auto-forzar actualización: cuando detectamos una versión nueva, no le
+  // pedimos al alumno que toque el botón. Disparamos una única secuencia
+  // bloqueante de limpieza + recarga para evitar la sensación de tener que
+  // apretar "Actualizar" muchas veces (caso Mercedes Carlés).
   useEffect(() => {
-    if (!needRefresh || isUpdating) return;
+    if (!needRefresh || isUpdating || autoUpdateStartedRef.current) return;
+    autoUpdateStartedRef.current = true;
     const t = setTimeout(() => {
       if (!isReloadingRef.current) handleUpdate();
-    }, 5000);
+    }, AUTO_UPDATE_DELAY_MS);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needRefresh, isUpdating]);
@@ -349,30 +333,23 @@ const UpdatePrompt = () => {
 
   return (
     <div
-      className="fixed top-0 inset-x-0 z-[150] pointer-events-none"
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 backdrop-blur-sm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-busy="true"
+      aria-label="Preparando actualización"
+      onClickCapture={(e) => e.stopPropagation()}
+      onKeyDownCapture={(e) => e.stopPropagation()}
     >
-      <div className="pointer-events-auto bg-primary text-primary-foreground shadow-lg border-b border-primary/40">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <RefreshCw className="w-5 h-5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-tight">
-              Hay una nueva versión disponible
-            </p>
-            <p className="text-xs opacity-90 leading-snug">
-              Para evitar errores de carga, actualizá la app.
-            </p>
-          </div>
-          <Button
-            onClick={handleUpdate}
-            size="sm"
-            variant="secondary"
-            className="shrink-0 font-semibold"
-            disabled={isUpdating}
-          >
-            Actualizar ahora
-          </Button>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-[90%] flex flex-col items-center gap-4">
+        <RefreshCw className="w-10 h-10 text-primary animate-spin" />
+        <div className="text-center space-y-1">
+          <p className="text-base font-semibold text-foreground">Actualizando app</p>
+          <p className="text-sm text-muted-foreground">
+            Estamos cargando la última versión automáticamente.
+          </p>
         </div>
+        <Progress value={20} className="w-full" />
       </div>
     </div>
   );
