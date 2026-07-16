@@ -55,3 +55,12 @@ export const ESCUELA_TRANSFER_INFO = {
   cbu: "0000003100090906839567",
   alias: "reypago1",
 } as const;
+
+/**
+ * Datos bancarios para transferencias de Eventos y Viajes.
+ */
+export const EVENTOS_TRANSFER_INFO = {
+  titular: "Scarlett Tayna Barros Silva",
+  cbu: "0000003100065071427147",
+  alias: "granfondo.tc",
+} as const;
