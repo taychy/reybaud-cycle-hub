@@ -73,22 +73,16 @@ const EventSurvey = () => {
     setSubmitting(true);
     const npsValue = npsPreguntaId ? (answers[npsPreguntaId] ?? null) : nps;
 
-    const { error: insErr } = await supabase.from("event_survey_responses" as any).insert({
-      survey_id: survey.id,
-      event_id: survey.event_id,
-      alumno_id: tokenRow.alumno_id,
-      external_participant_id: tokenRow.external_participant_id,
-      respondent_name: survey.anonima ? null : tokenRow.recipient_name,
-      respondent_email: survey.anonima ? null : tokenRow.recipient_email,
-      respuestas: answers,
-      nps: typeof npsValue === "number" ? npsValue : null,
-    } as any);
+    const { error: insErr } = await supabase.rpc("submit_survey_response" as any, {
+      _token: token,
+      _respuestas: answers,
+      _nps: typeof npsValue === "number" ? npsValue : null,
+    });
     if (insErr) {
       setSubmitting(false);
       toast({ title: "Error al enviar", description: insErr.message, variant: "destructive" });
       return;
     }
-    await supabase.rpc("consume_survey_token" as any, { _token: token });
     setSubmitted(true);
     setSubmitting(false);
   };
