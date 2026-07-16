@@ -145,20 +145,23 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
   // Agrupación de habitaciones por asignación real
   const habitaciones = useMemo(() => {
-    const grouped: Record<string, { label: string; genero: string; capacidad: number | null; rows: Row[] }> = {};
+    const grouped: Record<string, { label: string; genero: string; capacidad: number | null; tipo: string; rows: Row[] }> = {};
     rows.forEach(r => {
       if (!r.room_id) return;
       const key = r.room_id;
+      const inferred = r.room_tipo || (r.room_capacidad != null ? inferTipoFromCapacidad(r.room_capacidad) : "");
       grouped[key] ??= {
         label: r.room_nombre || "Sin nombre",
         genero: r.room_genero || "sin_definir",
         capacidad: r.room_capacidad,
+        tipo: inferred,
         rows: [],
       };
       grouped[key].rows.push(r);
     });
     return grouped;
   }, [rows]);
+
 
   const sinAsignar = useMemo(() => rows.filter(r => !r.room_id), [rows]);
 
