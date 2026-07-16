@@ -607,10 +607,22 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                   {/* Nueva habitación inline */}
                   {newRoomOpen === pkgKey && (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                         <div>
                           <Label className="text-[10px]">Nombre</Label>
                           <Input value={nrNombre} onChange={(e) => setNrNombre(e.target.value)} placeholder="Cabaña 1" className="h-8" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Tipo</Label>
+                          <Select value={nrTipo || "auto"} onValueChange={(v) => setNrTipo(v === "auto" ? "" : (v as RoomTipo))}>
+                            <SelectTrigger className="h-8"><SelectValue placeholder="Auto" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">Auto (según capacidad)</SelectItem>
+                              {TIPO_OPTIONS.map((o) => (
+                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label className="text-[10px]">Capacidad</Label>
@@ -633,6 +645,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           <Input value={nrNotas} onChange={(e) => setNrNotas(e.target.value)} placeholder="opcional" className="h-8" />
                         </div>
                       </div>
+
                       <div className="flex gap-2 justify-end">
                         <Button size="sm" variant="ghost" onClick={() => setNewRoomOpen(null)}>Cancelar</Button>
                         <Button size="sm" onClick={() => createRoom(pkgId)}>Crear</Button>
