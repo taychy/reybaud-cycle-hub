@@ -26,9 +26,14 @@ Deno.serve(async (req) => {
     const reservationId = String(form.get("reservation_id") || "");
     const token = String(form.get("token") || "");
     const file = form.get("file") as File | null;
+    const amountRaw = form.get("amount");
+    const amountInput = amountRaw != null && String(amountRaw).trim() !== "" ? Number(amountRaw) : null;
 
     if (!reservationId || !token || !file) {
       return json(400, { error: "Faltan datos (reservation_id, token, file)" });
+    }
+    if (amountInput != null && (!Number.isFinite(amountInput) || amountInput <= 0)) {
+      return json(400, { error: "Monto inválido" });
     }
     if (!ALLOWED.includes(file.type)) {
       return json(400, { error: "Formato no permitido. Usá JPG, PNG, WEBP o PDF." });
