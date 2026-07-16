@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
         pending: `${origin}/mi-reserva/${accessToken}?status=pending`,
       },
       auto_return: "approved",
-      external_reference: `guest_reservation:${reservationId}`,
+      external_reference: `event:${reservationId}`,
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
       statement_descriptor: "CICLISMO REYBAUD",
     };
