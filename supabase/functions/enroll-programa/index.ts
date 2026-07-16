@@ -123,21 +123,35 @@ Deno.serve(async (req) => {
     const deudaCuota2 = esCuotas ? precioCuota! : 0;
     const vencimientoCuota2 = esCuotas ? addDaysISO(30) : null;
 
-    // 3) Alumno
-    const { data: existing } = await admin
+    // 3) Alumno — matchear por email primario o emails_adicionales
+    const emailLower = email.toLowerCase();
+    const { data: existingList } = await admin
       .from("alumnos")
-      .select("id, nombre, apellido, telefono, origen_cohort")
-      .eq("email", email)
-      .maybeSingle();
+      .select("id, nombre, apellido, telefono, origen_cohort, email, emails_adicionales, estado")
+      .or(`email.eq.${emailLower},emails_adicionales.cs.{${emailLower}}`)
+      .neq("estado", "fusionada")
+      .limit(1);
+    const existing = existingList?.[0] ?? null;
 
     let alumnoId: string;
+    let alumnoPrimaryEmail = email;
+    let addedAsSecondary = false;
     if (existing) {
       alumnoId = existing.id;
+      alumnoPrimaryEmail = existing.email || email;
       const patch: Record<string, unknown> = {};
       if (!existing.telefono && telefono) patch.telefono = telefono;
       if (!existing.origen_cohort) {
         patch.origen_cohort = cohort_slug;
         patch.origen_cohort_fecha = new Date().toISOString();
+      }
+      // Si se inscribió con un email distinto al primario y no está en secundarios, agregarlo
+      const extras: string[] = Array.isArray(existing.emails_adicionales) ? existing.emails_adicionales : [];
+      const alreadyKnown = existing.email?.toLowerCase() === emailLower
+        || extras.some((e) => e?.toLowerCase() === emailLower);
+      if (!alreadyKnown) {
+        patch.emails_adicionales = [...extras, email];
+        addedAsSecondary = true;
       }
       if (Object.keys(patch).length > 0) {
         await admin.from("alumnos").update(patch).eq("id", alumnoId);
@@ -160,6 +174,7 @@ Deno.serve(async (req) => {
       }
       alumnoId = nuevo.id;
     }
+
 
     // 4) Sub existente o nueva
     const { data: existSub } = await admin
