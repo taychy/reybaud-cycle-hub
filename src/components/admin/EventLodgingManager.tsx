@@ -276,6 +276,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       nombre: nrNombre.trim(),
       capacidad: nrCapacidad,
       genero: nrGenero || null,
+      tipo: nrTipo || inferTipoFromCapacidad(nrCapacidad),
       notas: nrNotas.trim() || null,
       sort_order: rooms.filter((r) => (r.package_id || null) === pkgId).length,
     });
@@ -285,7 +286,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     }
     toast.success("Habitación creada");
     setNewRoomOpen(null);
-    setNrNombre(""); setNrCapacidad(2); setNrGenero(""); setNrNotas("");
+    setNrNombre(""); setNrCapacidad(2); setNrGenero(""); setNrTipo(""); setNrNotas("");
     loadAll();
   };
 
@@ -302,6 +303,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setErNombre(r.nombre);
     setErCapacidad(r.capacidad);
     setErGenero(r.genero || "");
+    setErTipo(r.tipo || "");
     setErNotas(r.notas || "");
   };
 
@@ -311,6 +313,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       nombre: erNombre.trim(),
       capacidad: erCapacidad,
       genero: erGenero || null,
+      tipo: erTipo || inferTipoFromCapacidad(erCapacidad),
       notas: erNotas.trim() || null,
     }).eq("id", editingRoom);
     if (error) return toast.error(error.message);
@@ -318,6 +321,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setEditingRoom(null);
     loadAll();
   };
+
 
   const assignReservation = async (reservationId: string, roomId: string) => {
     // upsert manual
