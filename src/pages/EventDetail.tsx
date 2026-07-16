@@ -1162,7 +1162,7 @@ const EventDetail = () => {
           open={showGuestDrawer}
           onOpenChange={setShowGuestDrawer}
           eventId={event.id}
-          eventName={event.nombre}
+          eventName={event.title}
         />
       )}
 
