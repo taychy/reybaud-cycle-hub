@@ -58,6 +58,7 @@ import AdminProcesos from "./pages/admin/AdminProcesos";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
+import GuestReservationView from "./pages/GuestReservationView";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
 import StoreDashboard from "./pages/admin/store/StoreDashboard";
