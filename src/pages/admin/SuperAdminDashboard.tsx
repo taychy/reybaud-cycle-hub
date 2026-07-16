@@ -55,6 +55,7 @@ const SuperAdminDashboard = () => {
   const [monthlyData, setMonthlyData] = useState<MonthlyBreakdown[]>([]);
   const [planPerformance, setPlanPerformance] = useState<PlanPerformance[]>([]);
   const [unitFilter, setUnitFilter] = useState<UnitFilter>("global");
+  const [currencyFilter, setCurrencyFilter] = useState<string>("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
