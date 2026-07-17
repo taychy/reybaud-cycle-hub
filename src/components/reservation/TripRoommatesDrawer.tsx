@@ -350,8 +350,22 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
                 </section>
               )}
 
+              {/* No cupo disponible for this gender/tipo */}
+              {slotsRemaining !== null && slotsRemaining > 0 && roomGender && genderAvailable <= 0 && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  No hay cupo disponible para agregar más personas a este tipo de habitación.
+                  {genderRows.length > 0 && (
+                    <ul className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                      {genderRows.map((r, i) => (
+                        <li key={i}>· {formatAvailabilityRow(r)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               {/* Invite */}
-              {slotsRemaining !== null && slotsRemaining > 0 && (
+              {slotsRemaining !== null && slotsRemaining > 0 && (!roomGender || genderAvailable > 0) && (
                 <section className="space-y-2">
                   <p className="text-xs uppercase tracking-wider font-semibold text-foreground">
                     Invitar compañero{slotsRemaining > 1 ? "s" : ""} <span className="text-muted-foreground normal-case font-normal">· {slotsRemaining} lugar{slotsRemaining > 1 ? "es" : ""} libre{slotsRemaining > 1 ? "s" : ""}</span>
