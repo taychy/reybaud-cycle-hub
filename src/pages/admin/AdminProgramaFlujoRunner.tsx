@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Camera, CheckCircle, Loader2, Mail, ListTodo } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import {
   fetchInstanceWithStages,
@@ -253,8 +254,57 @@ const AdminProgramaFlujoRunner = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {currentTpl.instrucciones && (
-              <p className="text-sm whitespace-pre-wrap">{currentTpl.instrucciones}</p>
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{currentTpl.instrucciones}</p>
             )}
+
+            {/* Sub-tareas / checklist */}
+            {Array.isArray(currentTpl.subtasks) && currentTpl.subtasks.length > 0 && (() => {
+              const state = (current.subtasks_state || {}) as Record<string, { done: boolean }>;
+              const done = currentTpl.subtasks.filter((s) => state[s.id]?.done).length;
+              const total = currentTpl.subtasks.length;
+              const toggle = async (id: string, checked: boolean) => {
+                const { data: { user } } = await supabase.auth.getUser();
+                const next = {
+                  ...(state || {}),
+                  [id]: checked
+                    ? { done: true, at: new Date().toISOString(), by: user?.id || null }
+                    : { done: false },
+                };
+                // Optimistic update
+                setInstStages((prev) => prev.map((s) => s.id === current.id ? { ...s, subtasks_state: next } : s));
+                const { error } = await sb
+                  .from("process_instance_stages")
+                  .update({ subtasks_state: next })
+                  .eq("id", current.id);
+                if (error) {
+                  toast({ title: "No se pudo guardar", description: error.message, variant: "destructive" });
+                  await load();
+                }
+              };
+              return (
+                <div className="rounded-md border border-border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Checklist</span>
+                    <Badge variant="outline" className="text-[10px]">{done}/{total}</Badge>
+                  </div>
+                  <div className="space-y-1.5">
+                    {currentTpl.subtasks.map((st) => {
+                      const isDone = !!state[st.id]?.done;
+                      return (
+                        <label key={st.id} className="flex items-start gap-2 text-sm cursor-pointer hover:bg-muted/40 rounded px-1 py-0.5">
+                          <Checkbox
+                            checked={isDone}
+                            onCheckedChange={(v) => toggle(st.id, !!v)}
+                            className="mt-0.5"
+                          />
+                          <span className={isDone ? "line-through text-muted-foreground" : ""}>{st.titulo}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {currentTpl.entidad_control === "cohort_task" && (
               <div className="bg-muted/40 rounded p-3 space-y-2">

@@ -5791,6 +5791,7 @@ export type Database = {
           instance_id: string
           nota: string | null
           orden: number
+          subtasks_state: Json
           template_stage_id: string
           updated_at: string
         }
@@ -5806,6 +5807,7 @@ export type Database = {
           instance_id: string
           nota?: string | null
           orden: number
+          subtasks_state?: Json
           template_stage_id: string
           updated_at?: string
         }
@@ -5821,6 +5823,7 @@ export type Database = {
           instance_id?: string
           nota?: string | null
           orden?: number
+          subtasks_state?: Json
           template_stage_id?: string
           updated_at?: string
         }
@@ -5918,6 +5921,7 @@ export type Database = {
           orden: number
           requiere_foto: boolean
           requiere_nota: boolean
+          subtasks: Json
           template_id: string
           titulo: string
           updated_at: string
@@ -5931,6 +5935,7 @@ export type Database = {
           orden: number
           requiere_foto?: boolean
           requiere_nota?: boolean
+          subtasks?: Json
           template_id: string
           titulo: string
           updated_at?: string
@@ -5944,6 +5949,7 @@ export type Database = {
           orden?: number
           requiere_foto?: boolean
           requiere_nota?: boolean
+          subtasks?: Json
           template_id?: string
           titulo?: string
           updated_at?: string

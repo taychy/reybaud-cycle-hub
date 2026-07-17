@@ -18,6 +18,7 @@ import {
   ProcessTemplateStage,
   EntidadControl,
   AccionFinal,
+  ProcessSubtask,
 } from "@/hooks/useProcesses";
 
 const sb: any = supabase;
@@ -85,6 +86,7 @@ const AdminProcessTemplates = () => {
         requiere_nota: s.requiere_nota,
         entidad_control: s.entidad_control,
         accion_final: s.accion_final,
+        subtasks: s.subtasks ?? [],
       }));
       const { error: stErr } = await sb.from("process_template_stages").insert(rows);
       if (stErr) {
@@ -295,7 +297,10 @@ export function TemplateEditor({
               <div className="flex-1">
                 <p className="font-medium text-sm">{s.titulo}</p>
                 <p className="text-xs text-muted-foreground line-clamp-2">{s.instrucciones || "Sin instrucciones"}</p>
-                <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground">
+                <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground flex-wrap">
+                  {Array.isArray(s.subtasks) && s.subtasks.length > 0 && (
+                    <Badge variant="outline" className="text-[10px]">✓ {s.subtasks.length} sub-tarea{s.subtasks.length === 1 ? "" : "s"}</Badge>
+                  )}
                   {s.requiere_foto && <Badge variant="outline" className="text-[10px]">📷 foto</Badge>}
                   {s.requiere_nota && <Badge variant="outline" className="text-[10px]">📝 nota</Badge>}
                   {s.entidad_control !== "none" && <Badge variant="outline" className="text-[10px]">{s.entidad_control}</Badge>}
@@ -338,6 +343,7 @@ function StageEditDialog({
   const [requiereNota, setRequiereNota] = useState(false);
   const [entidadControl, setEntidadControl] = useState<EntidadControl>("none");
   const [accionFinal, setAccionFinal] = useState<AccionFinal>("none");
+  const [subtasks, setSubtasks] = useState<ProcessSubtask[]>([]);
 
   useEffect(() => {
     if (stage) {
@@ -347,30 +353,49 @@ function StageEditDialog({
       setRequiereNota(stage.requiere_nota);
       setEntidadControl(stage.entidad_control);
       setAccionFinal(stage.accion_final);
+      setSubtasks(Array.isArray(stage.subtasks) ? stage.subtasks : []);
     }
   }, [stage?.id]);
 
+  const addSubtask = () => {
+    const id = `st-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setSubtasks([...subtasks, { id, titulo: "" }]);
+  };
+  const updateSubtask = (id: string, titulo: string) => {
+    setSubtasks(subtasks.map((s) => (s.id === id ? { ...s, titulo } : s)));
+  };
+  const removeSubtask = (id: string) => setSubtasks(subtasks.filter((s) => s.id !== id));
+  const moveSubtask = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= subtasks.length) return;
+    const next = [...subtasks];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setSubtasks(next);
+  };
 
   const save = async () => {
     if (!stage) return;
-    const patch = {
+    const cleaned = subtasks
+      .map((s) => ({ ...s, titulo: s.titulo.trim() }))
+      .filter((s) => s.titulo.length > 0);
+    const patch: any = {
       titulo,
       instrucciones: instrucciones || null,
       requiere_foto: requiereFoto,
       requiere_nota: requiereNota,
       entidad_control: entidadControl,
       accion_final: accionFinal,
+      subtasks: cleaned,
     };
     const { error } = await sb.from("process_template_stages").update(patch).eq("id", stage.id);
     if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
     onSaved({ ...stage, ...patch });
-    // reset for next open
-    setTitulo(""); setInstrucciones("");
+    setTitulo(""); setInstrucciones(""); setSubtasks([]);
   };
 
   return (
-    <Dialog open={!!stage} onOpenChange={(o) => { if (!o) { setTitulo(""); setInstrucciones(""); onClose(); } }}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={!!stage} onOpenChange={(o) => { if (!o) { setTitulo(""); setInstrucciones(""); setSubtasks([]); onClose(); } }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Editar etapa</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div><Label>Título</Label><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} /></div>
@@ -405,9 +430,44 @@ function StageEditDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center justify-between mb-2">
+              <Label>Sub-tareas (checklist)</Label>
+              <Button size="sm" variant="outline" onClick={addSubtask}>
+                <Plus className="w-3 h-3 mr-1" /> Agregar
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Items concretos que el equipo tildará durante la ejecución de esta etapa.
+            </p>
+            {subtasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Sin sub-tareas.</p>
+            ) : (
+              <div className="space-y-2">
+                {subtasks.map((st, idx) => (
+                  <div key={st.id} className="flex items-center gap-1">
+                    <div className="flex flex-col">
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => moveSubtask(idx, -1)}><ChevronUp className="w-3 h-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => moveSubtask(idx, 1)}><ChevronDown className="w-3 h-3" /></Button>
+                    </div>
+                    <Input
+                      value={st.titulo}
+                      onChange={(e) => updateSubtask(st.id, e.target.value)}
+                      placeholder="Ej: Reservar hotel"
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeSubtask(st.id)}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { setTitulo(""); setInstrucciones(""); onClose(); }}>Cancelar</Button>
+          <Button variant="ghost" onClick={() => { setTitulo(""); setInstrucciones(""); setSubtasks([]); onClose(); }}>Cancelar</Button>
           <Button onClick={save}>Guardar etapa</Button>
         </DialogFooter>
       </DialogContent>

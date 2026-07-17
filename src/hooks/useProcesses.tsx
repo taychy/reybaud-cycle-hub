@@ -17,6 +17,11 @@ export interface ProcessTemplate {
   plan_id: string | null;
 }
 
+export interface ProcessSubtask {
+  id: string;
+  titulo: string;
+}
+
 export interface ProcessTemplateStage {
   id: string;
   template_id: string;
@@ -27,6 +32,7 @@ export interface ProcessTemplateStage {
   requiere_nota: boolean;
   entidad_control: EntidadControl;
   accion_final: AccionFinal;
+  subtasks?: ProcessSubtask[];
 }
 
 export interface ProcessInstance {
@@ -55,7 +61,9 @@ export interface ProcessInstanceStage {
   entidad_ref_texto: string | null;
   completed_by: string | null;
   completed_at: string | null;
+  subtasks_state?: Record<string, { done: boolean; at?: string; by?: string }>;
 }
+
 
 const sb: any = supabase;
 
