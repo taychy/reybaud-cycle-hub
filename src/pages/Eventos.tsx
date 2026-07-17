@@ -35,6 +35,8 @@ interface Event {
   spots_taken: number;
   level: string | null;
   metadata: any;
+  estado_publicacion?: string;
+  waitlist_habilitada?: boolean;
   packages_min_price?: number | null;
 }
 
@@ -166,10 +168,15 @@ const EventCard = ({
         </button>
 
         {/* Type badge top-left */}
-        <div className="absolute top-2.5 left-2.5">
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
           <span className={`text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
+          {event.estado_publicacion === "proximamente" && (
+            <span className="text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm bg-primary text-primary-foreground">
+              Próximamente
+            </span>
+          )}
         </div>
 
         {/* Reservation badge bottom-left */}
@@ -251,9 +258,18 @@ const EventCard = ({
             size="sm"
             variant={hasUserLink ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
             className="text-[10px] h-7 px-2.5"
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (event.estado_publicacion === "proximamente" && event.waitlist_habilitada) {
+                window.location.href = `/eventos/${event.id}/lista-espera`;
+                return;
+              }
+              onClick();
+            }}
           >
-            {hasUserLink
+            {event.estado_publicacion === "proximamente" && event.waitlist_habilitada
+              ? "Anotarme"
+              : hasUserLink
               ? (isPast ? "Ver resultado" : "Ver estado")
               : isPast ? "Finalizado"
               : isInformative ? "Ver info"
@@ -348,6 +364,7 @@ export const EventosContent = () => {
         .select("*")
         .eq("is_active", true)
         .eq("visible_to_students", true)
+        .in("estado_publicacion", ["proximamente", "publicado", "cerrado"])
         .order("date", { ascending: true });
       if (!data || data.length === 0) { setEvents([]); setLoading(false); return; }
 
@@ -414,7 +431,7 @@ export const EventosContent = () => {
 
   const today = new Date().toISOString().slice(0, 10);
   // Un evento sigue "vigente" mientras no haya pasado su fecha de fin (o su fecha única si no tiene end_date)
-  const upcoming = events.filter((e) => (e.end_date || e.date) >= today);
+  const upcoming = events.filter((e) => e.estado_publicacion === "proximamente" || (e.end_date || e.date) >= today);
   const reservedEventIds = new Set(Object.keys(reservations));
   // "Mis eventos" = todo evento donde el alumno tiene vínculo real (reserva o participación),
   // sin filtrar por fecha. Aplica a TODOS los tipos: carreras, viajes, camps, Record, etc.

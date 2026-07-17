@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 
 /* ─── Nav sections ─── */
-type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" };
+type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" };
 interface NavSection { label: string; items: NavItem[] }
 
 const mainItems: NavItem[] = [
@@ -17,6 +17,7 @@ const mainItems: NavItem[] = [
   { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
   { to: "/admin/eventos", label: "Eventos", icon: Trophy },
   { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
+  { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" },
   { to: "/admin/programas", label: "Programas", icon: GraduationCap },
   { to: "/admin/procesos", label: "Procesos", icon: Workflow },
   { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
@@ -76,12 +77,19 @@ const AdminLayout = () => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
   });
   const [waitlistPending, setWaitlistPending] = useState(0);
+  const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
 
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const { data } = await supabase.rpc("count_pending_waitlist_requests" as any);
-      if (alive) setWaitlistPending(Number(data ?? 0));
+      const [{ data: pending }, { data: newEntries }] = await Promise.all([
+        supabase.rpc("count_pending_waitlist_requests" as any),
+        supabase.rpc("count_new_waitlist_entries" as any),
+      ]);
+      if (alive) {
+        setWaitlistPending(Number(pending ?? 0));
+        setWaitlistEntriesPending(Number(newEntries ?? 0));
+      }
     };
     load();
     const iv = setInterval(load, 60000);
@@ -169,7 +177,10 @@ const AdminLayout = () => {
   const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2.5";
-    const badgeCount = item.badgeKey === "waitlist" ? waitlistPending : 0;
+    const badgeCount =
+      item.badgeKey === "waitlist" ? waitlistPending :
+      item.badgeKey === "waitlist_entries" ? waitlistEntriesPending :
+      0;
 
     if (collapsed && !mobile) {
       return (

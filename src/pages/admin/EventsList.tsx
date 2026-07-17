@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -496,6 +497,9 @@ const EventsList = () => {
                           <Trophy className="w-4 h-4 mr-2" /> Participantes y resultados
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => navigate(`/admin/eventos/${ev.id}/lista-espera`)}>
+                        <ClipboardList className="w-4 h-4 mr-2" /> Lista de espera
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={async () => {
                           const url = getPublicEventLink(ev.id);

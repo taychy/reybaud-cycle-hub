@@ -109,6 +109,9 @@ import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
 import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests";
 import AdminWaitlistRequests from "./pages/admin/AdminWaitlistRequests";
+import AdminWaitlistTemplates from "./pages/admin/AdminWaitlistTemplates";
+import AdminEventWaitlist from "./pages/admin/AdminEventWaitlist";
+import EventWaitlistPage from "./pages/EventWaitlistPage";
 import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 import FormacionInicial from "./pages/FormacionInicial";
@@ -166,6 +169,7 @@ const App = () => (
           {/* Landing pública email-only del Record (uso vía QR). Auto-detecta el evento record_hora activo. */}
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
+          <Route path="/eventos/:id/lista-espera" element={<EventWaitlistPage />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/mis-reservas/:id" element={<MisReservas />} />
           <Route path="/mi-reserva/:token" element={<GuestReservationView />} />
@@ -207,6 +211,8 @@ const App = () => (
             <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
             <Route path="cambios-paquete" element={<AdminPackageChangeRequests />} />
             <Route path="solicitudes-alojamiento" element={<AdminWaitlistRequests />} />
+            <Route path="waitlist-plantillas" element={<AdminWaitlistTemplates />} />
+            <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
