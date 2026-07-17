@@ -388,9 +388,11 @@ const PlanSelection = () => {
     setError(null);
   };
 
-  const handleConfirmPausa = (fechaRegreso: string) => {
+  const handleConfirmPausa = (data: { fechaRegreso: string; tipo: "lesion" | "vacaciones"; motivo: string }) => {
     if (!pausaDialogPlanId) return;
-    setPausaFechaRegreso(fechaRegreso);
+    setPausaFechaRegreso(data.fechaRegreso);
+    setPausaTipo(data.tipo);
+    setPausaMotivo(data.motivo);
     setSelected(pausaDialogPlanId);
     setModality("total");
     setPaymentMethod(null);
