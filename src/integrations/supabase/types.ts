@@ -3866,6 +3866,78 @@ export type Database = {
           },
         ]
       }
+      event_waitlist_entries: {
+        Row: {
+          admin_notas: string | null
+          alumno_id: string | null
+          contactado_at: string | null
+          contactado_por: string | null
+          created_at: string
+          dni: string | null
+          email: string
+          estado: string
+          event_id: string
+          id: string
+          nombre: string
+          origen: string | null
+          respuestas: Json
+          telefono: string | null
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_notas?: string | null
+          alumno_id?: string | null
+          contactado_at?: string | null
+          contactado_por?: string | null
+          created_at?: string
+          dni?: string | null
+          email: string
+          estado?: string
+          event_id: string
+          id?: string
+          nombre: string
+          origen?: string | null
+          respuestas?: Json
+          telefono?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_notas?: string | null
+          alumno_id?: string | null
+          contactado_at?: string | null
+          contactado_por?: string | null
+          created_at?: string
+          dni?: string | null
+          email?: string
+          estado?: string
+          event_id?: string
+          id?: string
+          nombre?: string
+          origen?: string | null
+          respuestas?: Json
+          telefono?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_waitlist_entries_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_waitlist_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           admin_alert_emails: string[]
@@ -3880,6 +3952,7 @@ export type Database = {
           duration_nights: number | null
           end_date: string | null
           end_time: string | null
+          estado_publicacion: string
           id: string
           image_url: string | null
           incluye: string[]
@@ -3910,6 +3983,9 @@ export type Database = {
           type: Database["public"]["Enums"]["event_type"]
           updated_at: string
           visible_to_students: boolean
+          waitlist_habilitada: boolean
+          waitlist_mensaje: string | null
+          waitlist_questions: Json
         }
         Insert: {
           admin_alert_emails?: string[]
@@ -3924,6 +4000,7 @@ export type Database = {
           duration_nights?: number | null
           end_date?: string | null
           end_time?: string | null
+          estado_publicacion?: string
           id?: string
           image_url?: string | null
           incluye?: string[]
@@ -3954,6 +4031,9 @@ export type Database = {
           type?: Database["public"]["Enums"]["event_type"]
           updated_at?: string
           visible_to_students?: boolean
+          waitlist_habilitada?: boolean
+          waitlist_mensaje?: string | null
+          waitlist_questions?: Json
         }
         Update: {
           admin_alert_emails?: string[]
@@ -3968,6 +4048,7 @@ export type Database = {
           duration_nights?: number | null
           end_date?: string | null
           end_time?: string | null
+          estado_publicacion?: string
           id?: string
           image_url?: string | null
           incluye?: string[]
@@ -3998,6 +4079,9 @@ export type Database = {
           type?: Database["public"]["Enums"]["event_type"]
           updated_at?: string
           visible_to_students?: boolean
+          waitlist_habilitada?: boolean
+          waitlist_mensaje?: string | null
+          waitlist_questions?: Json
         }
         Relationships: []
       }
@@ -8949,6 +9033,36 @@ export type Database = {
         }
         Relationships: []
       }
+      waitlist_question_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          preguntas: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          preguntas?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          preguntas?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_check_extras: {
         Row: {
           alumno_id: string | null
@@ -9618,6 +9732,7 @@ export type Database = {
         }
         Returns: string
       }
+      count_new_waitlist_entries: { Args: never; Returns: number }
       count_pending_waitlist_requests: { Args: never; Returns: number }
       create_gasto_from_mp: {
         Args: {
@@ -9854,6 +9969,7 @@ export type Database = {
           resultado: number
         }[]
       }
+      get_event_waitlist_meta: { Args: { p_event_id: string }; Returns: Json }
       get_gasto_recurrente_saldo_deuda: {
         Args: { p_rec_id: string }
         Returns: {
@@ -10295,6 +10411,19 @@ export type Database = {
       submit_survey_response: {
         Args: { _nps?: number; _respuestas: Json; _token: string }
         Returns: string
+      }
+      submit_waitlist_entry: {
+        Args: {
+          p_alumno_id?: string
+          p_dni?: string
+          p_email: string
+          p_event_id: string
+          p_nombre: string
+          p_respuestas?: Json
+          p_telefono?: string
+          p_user_agent?: string
+        }
+        Returns: Json
       }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
