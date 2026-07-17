@@ -101,9 +101,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
   const [formDrawer, setFormDrawer] = useState<{ open: boolean; stepKey: string }>({ open: false, stepKey: "" });
 
   // Section open state
-  const [openCompra, setOpenCompra] = useState(true);
-  const [openPagos, setOpenPagos] = useState(true);
-  const [openConfig, setOpenConfig] = useState(true);
+  const [openCompra, setOpenCompra] = useState(false);
+  const [openPagos, setOpenPagos] = useState(false);
+  const [openConfig, setOpenConfig] = useState(false);
   const [openComm, setOpenComm] = useState(false);
 
   const load = useCallback(async () => {

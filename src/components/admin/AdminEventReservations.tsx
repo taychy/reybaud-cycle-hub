@@ -1912,6 +1912,32 @@ const AdminEventReservations = ({
                 />
               )}
 
+              {/* CTA destacado: registrar pago — arriba del plan de cuotas */}
+              {!isPaymentFree && (
+                <Button
+                  size="lg"
+                  className="w-full h-12 text-sm font-semibold shadow-lg shadow-primary/20 gap-2"
+                  onClick={() => {
+                    const toggling = !showAdminPayment;
+                    setShowAdminPayment(toggling);
+                    if (toggling && selectedRes) {
+                      const evCurr = curr(selectedRes);
+                      setAdminPayCurrency(evCurr);
+                      setAdminPayRate("1");
+                      setAdminPayEquivalent("");
+                      setAdminPayOverride(false);
+                      setAdminPayOverrideReason("");
+                      setAdminPayInstallmentId(null);
+                      setAdminPayGeneralReason("");
+                      setAdminPayAmount(selectedRes.balance_due?.toString() || "");
+                      loadMatInstallments(selectedRes.id);
+                    }
+                  }}
+                >
+                  <Banknote className="w-4 h-4" /> {showAdminPayment ? "Cerrar registro de pago" : "Registrar pago manual validado"}
+                </Button>
+              )}
+
               {/* Installments — solo en modo cuotas y con pago requerido */}
               {!isPaymentFree && !isSimplePayment && (
                 <ReservationInstallmentsPanel
@@ -1940,29 +1966,6 @@ const AdminEventReservations = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pagos registrados</h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => {
-                      const toggling = !showAdminPayment;
-                      setShowAdminPayment(toggling);
-                      if (toggling && selectedRes) {
-                        const evCurr = curr(selectedRes);
-                        setAdminPayCurrency(evCurr);
-                        setAdminPayRate("1");
-                        setAdminPayEquivalent("");
-                        setAdminPayOverride(false);
-                        setAdminPayOverrideReason("");
-                        setAdminPayInstallmentId(null);
-                        setAdminPayGeneralReason("");
-                        setAdminPayAmount(selectedRes.balance_due?.toString() || "");
-                        loadMatInstallments(selectedRes.id);
-                      }
-                    }}
-                  >
-                    <Banknote className="w-3.5 h-3.5 mr-1" /> Registrar pago manual validado
-                  </Button>
                 </div>
 
                 {/* Admin payment form */}
