@@ -55,6 +55,7 @@ interface ReservationInfo {
   package_id: string | null; amount_total: number | null; amount_paid: number;
   balance_due: number | null; price_snapshot: number | null; currency_snapshot: string | null;
   moneda: string; reservation_status: string;
+  genero_habitacion: string | null;
 }
 
 
