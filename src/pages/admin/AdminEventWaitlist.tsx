@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Save, Users, Copy, Download, MessageCircle, Eye } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Users, Copy, Download, MessageCircle, Eye, Link2 } from "lucide-react";
 import WaitlistQuestionsEditor from "@/components/waitlist/WaitlistQuestionsEditor";
 import {
   WaitlistQuestion,
@@ -21,6 +21,7 @@ import {
   STATE_COLORS,
   WAITLIST_ENTRY_STATES,
 } from "@/lib/waitlistTypes";
+import { getShareOrigin, copyToClipboard } from "@/lib/eventLinks";
 
 interface EventRow {
   id: string;
