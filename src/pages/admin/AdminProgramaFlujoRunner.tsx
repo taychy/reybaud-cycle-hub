@@ -42,7 +42,7 @@ const AdminProgramaFlujoRunner = () => {
   const [emailTemplates, setEmailTemplates] = useState<Array<{ key: string; name: string }>>([]);
   const [taskCreating, setTaskCreating] = useState(false);
 
-  const backTo = `/admin/programas/${cohortId}`;
+  const backTo = cohortId ? `/admin/programas/${cohortId}` : `/admin/procesos`;
 
   const load = async () => {
     if (!instanceId) return;
@@ -99,7 +99,7 @@ const AdminProgramaFlujoRunner = () => {
   };
 
   const generateTask = async () => {
-    if (!currentTpl || !cohortId || !instance) return;
+    if (!currentTpl || !instance) return;
     setTaskCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -205,7 +205,7 @@ const AdminProgramaFlujoRunner = () => {
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
-          <ArrowLeft className="w-4 h-4 mr-1" /> Volver al programa
+          <ArrowLeft className="w-4 h-4 mr-1" /> {cohortId ? "Volver al programa" : "Volver a Procesos activos"}
         </Button>
       </div>
 

@@ -240,6 +240,7 @@ const App = () => (
             <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
             <Route path="procesos" element={<AdminProcesos />} />
             <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
+            <Route path="procesos/runner/:instanceId" element={<AdminProgramaFlujoRunner />} />
           </Route>
           <Route path="/deposito/login" element={<Navigate to="/admin/login?returnTo=/deposito" replace />} />
           <Route path="/deposito" element={<ProtectedRoute allowedRoles={["deposito"]} loginPath="/admin/login?returnTo=/deposito"><DepositoLayout /></ProtectedRoute>}>

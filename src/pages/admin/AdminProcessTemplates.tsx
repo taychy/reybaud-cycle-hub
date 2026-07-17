@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Save, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Save, Copy, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useProcessTemplates,
+  startProcessInstance,
   ProcessTemplate,
   ProcessTemplateStage,
   EntidadControl,
@@ -24,9 +25,31 @@ import {
 const sb: any = supabase;
 
 const AdminProcessTemplates = () => {
+  const navigate = useNavigate();
   const { templates, stages, loading, reload } = useProcessTemplates(true);
   const [editing, setEditing] = useState<ProcessTemplate | null>(null);
   const [creating, setCreating] = useState(false);
+  const [starting, setStarting] = useState<string | null>(null);
+
+  const startFromTemplate = async (t: ProcessTemplate) => {
+    setStarting(t.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sin sesión");
+      const instanceId = await startProcessInstance({
+        template_id: t.id,
+        iniciado_por: user.id,
+        destinatario_reporte_email: user.email ?? null,
+        plan_id: null,
+      });
+      toast({ title: "Proceso iniciado", description: `${t.nombre} — abriendo el checklist…` });
+      navigate(`/admin/procesos/runner/${instanceId}`);
+    } catch (e: any) {
+      toast({ title: "No se pudo iniciar", description: e?.message || "Error desconocido", variant: "destructive" });
+    } finally {
+      setStarting(null);
+    }
+  };
 
   const createTemplate = async () => {
     const { data, error } = await sb
@@ -112,14 +135,14 @@ const AdminProcessTemplates = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/admin/resumen">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Volver a Resumen</Button>
+        <Link to="/admin/procesos">
+          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Volver a Procesos activos</Button>
         </Link>
       </div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Plantillas de Procesos</h1>
-          <p className="text-sm text-muted-foreground">Definí los procesos guiados que ejecutan los usuarios (depósito, coach, admin).</p>
+          <p className="text-sm text-muted-foreground">Definí los procesos guiados y lanzalos como instancias activas cuando toque ejecutarlos.</p>
         </div>
         <Button onClick={createTemplate}><Plus className="w-4 h-4 mr-1" /> Nueva plantilla</Button>
       </div>
@@ -147,7 +170,25 @@ const AdminProcessTemplates = () => {
                   <div className="text-xs text-muted-foreground">
                     {tStages.length} etapa{tStages.length === 1 ? "" : "s"} · rol: <span className="font-medium">{t.rol_destino}</span>
                   </div>
-                  <div className="flex gap-2 flex-wrap items-center">
+
+                  {/* CTA principal — Iniciar proceso */}
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => startFromTemplate(t)}
+                    disabled={!t.activo || tStages.length === 0 || starting === t.id}
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />
+                    {starting === t.id ? "Iniciando…" : "Iniciar proceso"}
+                  </Button>
+                  {!t.activo && (
+                    <p className="text-[10px] text-muted-foreground text-center">Archivada — reactivala para poder iniciarla.</p>
+                  )}
+                  {tStages.length === 0 && t.activo && (
+                    <p className="text-[10px] text-muted-foreground text-center">Agregá al menos una etapa antes de iniciar.</p>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap items-center pt-1 border-t border-border/50">
                     <Button size="sm" variant="outline" onClick={() => setEditing(t)}>
                       <Pencil className="w-3 h-3 mr-1" /> Editar
                     </Button>
