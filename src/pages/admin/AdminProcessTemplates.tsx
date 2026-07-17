@@ -86,6 +86,7 @@ const AdminProcessTemplates = () => {
         requiere_nota: s.requiere_nota,
         entidad_control: s.entidad_control,
         accion_final: s.accion_final,
+        subtasks: s.subtasks ?? [],
       }));
       const { error: stErr } = await sb.from("process_template_stages").insert(rows);
       if (stErr) {
