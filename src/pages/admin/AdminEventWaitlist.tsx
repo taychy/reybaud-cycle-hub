@@ -224,8 +224,15 @@ export default function AdminEventWaitlist() {
         <Link to="/admin/eventos" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
           <ArrowLeft className="w-3 h-3" /> Volver a eventos
         </Link>
-        <h1 className="text-2xl font-heading font-bold mt-2">Lista de espera</h1>
-        <p className="text-sm text-muted-foreground">{event.title}</p>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mt-2">
+          <div>
+            <h1 className="text-2xl font-heading font-bold">Lista de espera</h1>
+            <p className="text-sm text-muted-foreground">{event.title}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={copyPublicLink} className="gap-1 shrink-0">
+            <Link2 className="w-4 h-4" /> Copiar link público
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="anotados" className="space-y-4">
