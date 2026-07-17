@@ -10414,14 +10414,14 @@ export type Database = {
       }
       submit_waitlist_entry: {
         Args: {
-          p_alumno_id?: string
-          p_dni?: string
+          p_alumno_id: string
+          p_dni: string
           p_email: string
           p_event_id: string
           p_nombre: string
-          p_respuestas?: Json
-          p_telefono?: string
-          p_user_agent?: string
+          p_respuestas: Json
+          p_telefono: string
+          p_user_agent: string
         }
         Returns: Json
       }
