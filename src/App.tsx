@@ -211,6 +211,8 @@ const App = () => (
             <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
             <Route path="cambios-paquete" element={<AdminPackageChangeRequests />} />
             <Route path="solicitudes-alojamiento" element={<AdminWaitlistRequests />} />
+            <Route path="waitlist-plantillas" element={<AdminWaitlistTemplates />} />
+            <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
