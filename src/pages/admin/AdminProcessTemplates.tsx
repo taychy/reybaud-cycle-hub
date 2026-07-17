@@ -297,7 +297,10 @@ export function TemplateEditor({
               <div className="flex-1">
                 <p className="font-medium text-sm">{s.titulo}</p>
                 <p className="text-xs text-muted-foreground line-clamp-2">{s.instrucciones || "Sin instrucciones"}</p>
-                <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground">
+                <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground flex-wrap">
+                  {Array.isArray(s.subtasks) && s.subtasks.length > 0 && (
+                    <Badge variant="outline" className="text-[10px]">✓ {s.subtasks.length} sub-tarea{s.subtasks.length === 1 ? "" : "s"}</Badge>
+                  )}
                   {s.requiere_foto && <Badge variant="outline" className="text-[10px]">📷 foto</Badge>}
                   {s.requiere_nota && <Badge variant="outline" className="text-[10px]">📝 nota</Badge>}
                   {s.entidad_control !== "none" && <Badge variant="outline" className="text-[10px]">{s.entidad_control}</Badge>}
