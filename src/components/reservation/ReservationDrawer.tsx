@@ -20,6 +20,7 @@ import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } fr
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
 import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
+import { WaitlistRequestDialog } from "@/components/event/WaitlistRequestDialog";
 
 
 type Alumno = Tables<"alumnos">;
