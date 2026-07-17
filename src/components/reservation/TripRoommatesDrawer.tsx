@@ -137,6 +137,10 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
         toast.error(`Tu habitación (${label}) sólo admite ${capacity} personas en total`);
         return;
       }
+      if (roomGender && genderAvailable <= 0) {
+        toast.error("No hay cupo disponible para agregar más personas a este tipo de habitación");
+        return;
+      }
       const nextPos = (outgoing[outgoing.length - 1]?.posicion || 0) + 1;
       const { data: inserted, error } = await supabase
         .from("reservation_roommates")
