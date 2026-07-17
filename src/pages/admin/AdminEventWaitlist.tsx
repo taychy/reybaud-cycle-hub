@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Save, Users, Copy, Download, MessageCircle, Eye } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Users, Copy, Download, MessageCircle, Eye, Link2 } from "lucide-react";
 import WaitlistQuestionsEditor from "@/components/waitlist/WaitlistQuestionsEditor";
 import {
   WaitlistQuestion,
@@ -21,6 +21,7 @@ import {
   STATE_COLORS,
   WAITLIST_ENTRY_STATES,
 } from "@/lib/waitlistTypes";
+import { getShareOrigin, copyToClipboard } from "@/lib/eventLinks";
 
 interface EventRow {
   id: string;
@@ -147,6 +148,17 @@ export default function AdminEventWaitlist() {
     setEntries((prev) => prev.map((r) => (r.id === entryId ? { ...r, admin_notas } : r)));
   };
 
+  const copyPublicLink = async () => {
+    if (!event) return;
+    const url = `${getShareOrigin()}/eventos/${event.id}/lista-espera`;
+    const ok = await copyToClipboard(url);
+    toast({
+      title: ok ? "Link copiado" : "No se pudo copiar",
+      description: ok ? url : "Copiá la URL manualmente",
+      variant: ok ? "default" : "destructive",
+    });
+  };
+
   const filtered = useMemo(() => {
     return entries.filter((r) => {
       if (filterEstado !== "todos" && r.estado !== filterEstado) return false;
@@ -212,8 +224,15 @@ export default function AdminEventWaitlist() {
         <Link to="/admin/eventos" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
           <ArrowLeft className="w-3 h-3" /> Volver a eventos
         </Link>
-        <h1 className="text-2xl font-heading font-bold mt-2">Lista de espera</h1>
-        <p className="text-sm text-muted-foreground">{event.title}</p>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mt-2">
+          <div>
+            <h1 className="text-2xl font-heading font-bold">Lista de espera</h1>
+            <p className="text-sm text-muted-foreground">{event.title}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={copyPublicLink} className="gap-1 shrink-0">
+            <Link2 className="w-4 h-4" /> Copiar link público
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="anotados" className="space-y-4">
