@@ -264,8 +264,9 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setShowPauseSubDialog(true);
   };
 
-  const handlePauseSub = async (fechaRegreso: string) => {
+  const handlePauseSub = async (data: { fechaRegreso: string; tipo: "lesion" | "vacaciones"; motivo: string }) => {
     if (!pauseSubTarget) return;
+    const { fechaRegreso, tipo, motivo } = data;
     setShowPauseSubDialog(false);
     // Flujo unificado: usar RPC start_pausa_alumno (cancela todas las subs y crea la pausa).
     const { error } = await supabase.rpc("start_pausa_alumno" as any, {
@@ -281,17 +282,36 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       return;
     }
 
+    // Persistir tipo/motivo en la sub de pausa recién creada (best-effort).
+    try {
+      const { data: pausaSub } = await supabase
+        .from("suscripciones")
+        .select("id, notas, planes!inner(categoria)")
+        .eq("alumno_id", alumno.id)
+        .eq("planes.categoria", "pausa")
+        .is("cancelada_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (pausaSub) {
+        const marker = `PAUSA_TIPO:${tipo}${motivo ? ` PAUSA_MOTIVO:${motivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`;
+        const notas = [(pausaSub as any).notas, marker].filter(Boolean).join(" | ");
+        await supabase.from("suscripciones").update({ notas } as any).eq("id", (pausaSub as any).id);
+      }
+    } catch {}
+
     // Email pausa_activada (fire and forget)
     supabase.functions.invoke("notify-student-update", {
       body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
     }).catch(() => {});
 
+    const tipoLabel = tipo === "lesion" ? "lesión/enfermedad" : "vacaciones";
     toast.success("Alumno pausado correctamente");
     await logStudentActivity({
       alumnoId: alumno.id,
       eventType: "estado_suscripcion",
       title: "Pausa activada",
-      description: `Pausa hasta ${fechaRegreso} (disparada desde "${pauseSubTarget.planNombre}")`,
+      description: `Pausa (${tipoLabel}) hasta ${fechaRegreso} (disparada desde "${pauseSubTarget.planNombre}")${motivo ? ` — ${motivo}` : ""}`,
       actorRole,
     });
     setPauseSubTarget(null);
@@ -395,7 +415,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     setShowPausaDialog(true);
   };
 
-  const handleAssignPausa = async (fechaRegreso: string) => {
+  const handleAssignPausa = async (data: { fechaRegreso: string; tipo: "lesion" | "vacaciones"; motivo: string }) => {
+    const { fechaRegreso, tipo, motivo } = data;
     setAssigningPausa(true);
     setShowPausaDialog(false);
     try {
@@ -412,16 +433,35 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         return;
       }
 
+      // Persistir tipo/motivo en la sub de pausa recién creada (best-effort).
+      try {
+        const { data: pausaSub } = await supabase
+          .from("suscripciones")
+          .select("id, notas, planes!inner(categoria)")
+          .eq("alumno_id", alumno.id)
+          .eq("planes.categoria", "pausa")
+          .is("cancelada_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pausaSub) {
+          const marker = `PAUSA_TIPO:${tipo}${motivo ? ` PAUSA_MOTIVO:${motivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`;
+          const notas = [(pausaSub as any).notas, marker].filter(Boolean).join(" | ");
+          await supabase.from("suscripciones").update({ notas } as any).eq("id", (pausaSub as any).id);
+        }
+      } catch {}
+
       // Email pausa_activada (fire and forget)
       supabase.functions.invoke("notify-student-update", {
         body: { alumno_id: alumno.id, type: "pausa_activada", pausa_fecha_regreso: fechaRegreso },
       }).catch(() => {});
 
+      const tipoLabel = tipo === "lesion" ? "lesión/enfermedad" : "vacaciones";
       await logStudentActivity({
         alumnoId: alumno.id,
         eventType: "estado_suscripcion",
         title: "Pausa asignada",
-        description: `Pausa activada hasta ${fechaRegreso}`,
+        description: `Pausa (${tipoLabel}) activada hasta ${fechaRegreso}${motivo ? ` — ${motivo}` : ""}`,
         actorRole,
       });
 

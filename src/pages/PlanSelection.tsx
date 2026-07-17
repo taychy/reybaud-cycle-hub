@@ -85,6 +85,8 @@ const PlanSelection = () => {
   // Cuando el alumno elige una pausa, almacenamos la fecha de regreso confirmada en el diálogo.
   // Esto fuerza fecha_fin de la suscripción al valor elegido (en vez del fin de mes habitual).
   const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
+  const [pausaTipo, setPausaTipo] = useState<"lesion" | "vacaciones" | null>(null);
+  const [pausaMotivo, setPausaMotivo] = useState<string>("");
   const [pausaDialogPlanId, setPausaDialogPlanId] = useState<string | null>(null);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, isSecondActivityForNew } = useStudentDiscounts(alumnoId);
@@ -388,9 +390,11 @@ const PlanSelection = () => {
     setError(null);
   };
 
-  const handleConfirmPausa = (fechaRegreso: string) => {
+  const handleConfirmPausa = (data: { fechaRegreso: string; tipo: "lesion" | "vacaciones"; motivo: string }) => {
     if (!pausaDialogPlanId) return;
-    setPausaFechaRegreso(fechaRegreso);
+    setPausaFechaRegreso(data.fechaRegreso);
+    setPausaTipo(data.tipo);
+    setPausaMotivo(data.motivo);
     setSelected(pausaDialogPlanId);
     setModality("total");
     setPaymentMethod(null);
@@ -500,7 +504,10 @@ const PlanSelection = () => {
 
       const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
       const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
-      const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
+      const pausaMarker = plan.categoria === "pausa" && pausaTipo
+        ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
+        : null;
+      const notasMarker = [upgradeMarker, earlyMarker, pausaMarker].filter(Boolean).join(" | ") || null;
 
       let subId: string | null = null;
       const reused = !earlyRenewal && !isUpgradeFlow
