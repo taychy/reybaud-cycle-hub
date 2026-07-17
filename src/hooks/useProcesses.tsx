@@ -17,6 +17,11 @@ export interface ProcessTemplate {
   plan_id: string | null;
 }
 
+export interface ProcessSubtask {
+  id: string;
+  titulo: string;
+}
+
 export interface ProcessTemplateStage {
   id: string;
   template_id: string;
@@ -27,6 +32,7 @@ export interface ProcessTemplateStage {
   requiere_nota: boolean;
   entidad_control: EntidadControl;
   accion_final: AccionFinal;
+  subtasks: ProcessSubtask[];
 }
 
 export interface ProcessInstance {
