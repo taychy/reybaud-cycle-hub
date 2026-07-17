@@ -145,13 +145,16 @@ const AdminProcessTemplates = () => {
                   <div className="text-xs text-muted-foreground">
                     {tStages.length} etapa{tStages.length === 1 ? "" : "s"} · rol: <span className="font-medium">{t.rol_destino}</span>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap items-center">
                     <Button size="sm" variant="outline" onClick={() => setEditing(t)}>
                       <Pencil className="w-3 h-3 mr-1" /> Editar
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => duplicateTemplate(t)}>
+                      <Copy className="w-3 h-3 mr-1" /> Duplicar
+                    </Button>
                     <div className="flex items-center gap-2">
                       <Switch checked={t.activo} onCheckedChange={() => toggleActive(t)} />
-                      <span className="text-xs">Activa</span>
+                      <span className="text-xs">{t.activo ? "Activa" : "Archivada"}</span>
                     </div>
                     <Button size="sm" variant="ghost" className="text-destructive ml-auto" onClick={() => deleteTemplate(t.id)}>
                       <Trash2 className="w-3 h-3" />
