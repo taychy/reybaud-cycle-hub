@@ -67,6 +67,8 @@ interface Event {
   precio_aviso_activo?: boolean | null;
   permite_cambio_paquete_alumno?: boolean | null;
   dias_limite_cambio_alumno?: number | null;
+  estado_publicacion?: string | null;
+  waitlist_habilitada?: boolean | null;
 }
 
 interface Reservation {
@@ -449,6 +451,9 @@ const EventDetail = () => {
   const isExternal = eventNature === "externo_informativo";
   const allowsParticipation = isReservable || isInscriptionOnly;
   const isTripLike = event.type === "camp" || event.type === "viaje";
+  const isSoldOut = event.estado_publicacion === "agotado";
+  const isProximamente = event.estado_publicacion === "proximamente";
+  const waitlistEnabled = !!event.waitlist_habilitada;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -721,8 +726,34 @@ const EventDetail = () => {
           )}
 
 
+          {/* ═══ SOLD OUT / PRÓXIMAMENTE ═══ */}
+          {allowsParticipation && !hasReservation && !eventPast && (isSoldOut || isProximamente) && (
+            <div className="glass-card rounded-xl p-5 text-center space-y-3 animate-fade-in border border-primary/30">
+              <Users className="w-8 h-8 text-primary mx-auto" />
+              <div>
+                <h3 className="font-heading font-semibold text-foreground text-lg">
+                  {isSoldOut ? "Agotado" : "Próximamente"}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isSoldOut
+                    ? "No quedan lugares disponibles en este momento."
+                    : "Este evento aún no abrió inscripciones."}
+                </p>
+              </div>
+              {waitlistEnabled && (
+                <Button
+                  variant="gold"
+                  className="w-full h-11 text-sm"
+                  onClick={() => navigate(`/eventos/${event.id}/lista-espera`)}
+                >
+                  Anotarme a la lista de espera
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* ═══ NO RESERVATION CTAs ═══ */}
-          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && (
+          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-2">
                 <h3 className="font-heading font-semibold text-foreground">
@@ -750,14 +781,14 @@ const EventDetail = () => {
             </div>
           )}
 
-          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft === 0 && (
+          {alumno && allowsParticipation && !hasReservation && !eventPast && spotsLeft === 0 && !isSoldOut && !isProximamente && (
             <div className="glass-card rounded-xl p-5 text-center space-y-2 animate-fade-in">
               <Users className="w-8 h-8 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">No hay cupos disponibles en este momento.</p>
             </div>
           )}
 
-          {!alumno && allowsParticipation && !eventPast && spotsLeft !== 0 && (
+          {!alumno && allowsParticipation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-1">
                 <h3 className="font-heading font-semibold text-foreground">
@@ -792,7 +823,7 @@ const EventDetail = () => {
           )}
 
           {/* Cancelled/rejected → re-reserve */}
-          {alumno && allowsParticipation && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && (
+          {alumno && allowsParticipation && hasReservation && !isActiveReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && (
             <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in">
               <p className="text-sm text-muted-foreground text-center">
                 Tu {isInscriptionOnly ? "inscripción" : "reserva"} anterior fue {reservation!.reservation_status === "cancelada" ? "cancelada" : "rechazada"}.
