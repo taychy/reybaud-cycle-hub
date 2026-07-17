@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import logo from "@/assets/logo.png";
 
 /* ─── Nav sections ─── */
-type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" };
+type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" };
 interface NavSection { label: string; items: NavItem[] }
 
 const mainItems: NavItem[] = [
