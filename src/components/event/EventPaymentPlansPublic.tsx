@@ -65,6 +65,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
       if (pkgList.length === 0) { setLoading(false); return; }
 
       const stagesMap = await fetchPriceStages(pkgList.map((p) => p.id));
+      const availMap = await fetchPackagesAvailability(pkgList.map((p) => p.id));
 
       const enriched: Pkg[] = await Promise.all(pkgList.map(async (p: any) => {
         const stages = stagesMap[p.id] || [];
@@ -109,6 +110,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           plan: null,
           activeStage: resolved.activeStage,
           nextStage: resolved.nextStage,
+          availability: availMap[p.id] || [],
         };
         if (!plan) return base;
         const { data: insts } = await supabase
