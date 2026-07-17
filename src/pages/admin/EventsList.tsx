@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import {
   DropdownMenu,
