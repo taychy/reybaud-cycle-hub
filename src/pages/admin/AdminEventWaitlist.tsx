@@ -148,6 +148,17 @@ export default function AdminEventWaitlist() {
     setEntries((prev) => prev.map((r) => (r.id === entryId ? { ...r, admin_notas } : r)));
   };
 
+  const copyPublicLink = async () => {
+    if (!event) return;
+    const url = `${getShareOrigin()}/eventos/${event.id}/lista-espera`;
+    const ok = await copyToClipboard(url);
+    toast({
+      title: ok ? "Link copiado" : "No se pudo copiar",
+      description: ok ? url : "Copiá la URL manualmente",
+      variant: ok ? "default" : "destructive",
+    });
+  };
+
   const filtered = useMemo(() => {
     return entries.filter((r) => {
       if (filterEstado !== "todos" && r.estado !== filterEstado) return false;
