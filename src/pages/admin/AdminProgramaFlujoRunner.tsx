@@ -99,7 +99,7 @@ const AdminProgramaFlujoRunner = () => {
   };
 
   const generateTask = async () => {
-    if (!currentTpl || !cohortId || !instance) return;
+    if (!currentTpl || !instance) return;
     setTaskCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
