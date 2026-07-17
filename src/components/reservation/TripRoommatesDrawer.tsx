@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Check, X, Mail, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { parseRoomCapacity } from "@/lib/roomCapacity";
+import { fetchPackageAvailability, AvailabilityRow, formatAvailabilityRow, generoLabel } from "@/lib/packageAvailability";
 
 interface Props {
   open: boolean;
@@ -24,7 +24,9 @@ interface Props {
   reservationId: string;
   eventId: string;
   alumnoId: string | null;
+  packageId?: string | null;
   packageName?: string | null;
+  roomGender?: string | null;
   onChanged?: () => void;
 }
 
