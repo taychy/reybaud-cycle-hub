@@ -67,6 +67,8 @@ interface Event {
   precio_aviso_activo?: boolean | null;
   permite_cambio_paquete_alumno?: boolean | null;
   dias_limite_cambio_alumno?: number | null;
+  estado_publicacion?: string | null;
+  waitlist_habilitada?: boolean | null;
 }
 
 interface Reservation {
