@@ -105,6 +105,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     sena_monto: number;
     installments: Array<{ numero: number; installment_type: "sena" | "cuota"; descripcion: string; monto: number; due_date: string }>;
   } | null>(null);
+  const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
