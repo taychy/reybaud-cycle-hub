@@ -327,6 +327,7 @@ const AdminEventReservations = ({
 
   // Admin payment
   const [showAdminPayment, setShowAdminPayment] = useState(false);
+  const [installmentsOpen, setInstallmentsOpen] = useState(false);
   const [adminPayAmount, setAdminPayAmount] = useState("");
   const [adminPayDate, setAdminPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [adminPayMethod, setAdminPayMethod] = useState("efectivo");
