@@ -19,6 +19,7 @@ import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
 import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
+import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
 
 
 type Alumno = Tables<"alumnos">;
@@ -59,6 +60,8 @@ interface PackageRow {
   used_mixto?: number;
   // etapa de precio vigente (si aplica)
   active_stage_id?: string | null;
+  // disponibilidad real desde event_rooms
+  availability?: AvailabilityRow[];
 }
 
 type RoomGender = "femenina" | "masculina" | "mixta";
@@ -157,6 +160,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
           p.used_varones = v[p.id] || 0;
           p.used_mixto = x[p.id] || 0;
         });
+      }
+      // Disponibilidad real desde event_rooms
+      if (rows.length > 0) {
+        const availMap = await fetchPackagesAvailability(rows.map((p) => p.id));
+        rows.forEach((p) => { p.availability = availMap[p.id] || []; });
       }
       if (!cancelled) setPackages(rows);
       setLoadingPackages(false);
@@ -316,24 +324,24 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         toastTitle: "¡Solicitud de reserva enviada!",
       };
 
-  // Disponibilidad por género en el paquete seleccionado
+  // Disponibilidad real por género (suma de habitaciones cargadas en Alojamiento)
   const genderAvail = (g: RoomGender): number | null => {
     if (!selectedPackage) return null;
-    const cupo = g === "femenina" ? selectedPackage.cupo_mujeres
-      : g === "masculina" ? selectedPackage.cupo_varones
-      : selectedPackage.cupo_mixto;
-    const used = g === "femenina" ? (selectedPackage.used_mujeres || 0)
-      : g === "masculina" ? (selectedPackage.used_varones || 0)
-      : (selectedPackage.used_mixto || 0);
-    if (cupo == null) return null; // sin límite
-    return Math.max(0, cupo - used);
+    const rows = selectedPackage.availability || [];
+    if (rows.length === 0) return null; // sin alojamiento cargado
+    return rows.filter((r) => r.genero === g).reduce((acc, r) => acc + Math.max(0, r.available), 0);
   };
 
-  const packageHasGenderConfig = !!selectedPackage && (
-    selectedPackage.cupo_mujeres != null ||
-    selectedPackage.cupo_varones != null ||
-    (selectedPackage.permite_mixto && selectedPackage.cupo_mixto != null)
+  const packageHasGenderConfig = !!selectedPackage && (selectedPackage.availability || []).some(
+    (r) => r.genero === "femenina" || r.genero === "masculina"
   );
+
+  // Total disponible del paquete (para deshabilitar sin cupo)
+  const packageTotalAvail = (p: PackageRow): number | null => {
+    const rows = p.availability || [];
+    if (rows.length === 0) return 0;
+    return rows.reduce((acc, r) => acc + Math.max(0, r.available), 0);
+  };
 
   const roomCapacity = selectedPackage?.personas_por_habitacion || 0;
   const matesNeeded = Math.max(0, roomCapacity - 1); // restantes a declarar
@@ -773,19 +781,22 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
               <div className="space-y-2">
                 {packages.map((p) => {
                   const isSelected = p.id === selectedPackageId;
-                  const cupoLeft = p.cupo != null ? Math.max(0, p.cupo - (p.used || 0)) : null;
-                  const sinCupo = cupoLeft === 0;
+                  const totalAvail = packageTotalAvail(p);
+                  const rows = p.availability || [];
+                  const noRooms = rows.length === 0;
+                  const sinCupo = totalAvail != null && totalAvail <= 0;
+                  const disabled = noRooms || sinCupo;
                   return (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => !sinCupo && setSelectedPackageId(p.id)}
-                      disabled={sinCupo}
+                      onClick={() => !disabled && setSelectedPackageId(p.id)}
+                      disabled={disabled}
                       className={`w-full text-left rounded-xl border p-3 transition-all ${
                         isSelected
                           ? "border-primary bg-primary/10"
                           : "border-border/60 bg-card/60 hover:border-primary/40"
-                      } ${sinCupo ? "opacity-50 cursor-not-allowed" : ""}`}
+                      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       <div className="flex items-start gap-2">
                         <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
@@ -809,12 +820,18 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                                 Seña: <span className="text-foreground/80 font-medium">{formatPrice(p.sena, p.currency)}</span>
                               </span>
                             )}
-                            {p.cupo != null && (
-                              <span className={`text-[11px] px-1.5 py-0.5 rounded ${
-                                sinCupo ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"
-                              }`}>
-                                {sinCupo ? "Sin cupo" : `${cupoLeft} ${cupoLeft === 1 ? "lugar" : "lugares"}`}
-                              </span>
+                          </div>
+                          {/* Disponibilidad real por tipo/género */}
+                          <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
+                            {noRooms ? (
+                              <p className="text-[11px] text-destructive">Sin alojamiento cargado — no disponible</p>
+                            ) : (
+                              rows.map((a, i) => (
+                                <div key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                                  <span>{formatAvailabilityRow(a)}</span>
+                                  <span className="tabular-nums opacity-70">{a.taken}/{a.capacity}</span>
+                                </div>
+                              ))
                             )}
                           </div>
                         </div>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Wallet, TrendingUp } from "lucide-react";
+import { CalendarDays, Wallet, TrendingUp, BedDouble } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
+import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
 
 interface PlanInstallment {
   numero: number;
@@ -30,6 +31,7 @@ interface Pkg {
   plan: Plan | null;
   activeStage: PriceStage | null;
   nextStage: PriceStage | null;
+  availability: AvailabilityRow[];
 }
 
 
@@ -63,6 +65,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
       if (pkgList.length === 0) { setLoading(false); return; }
 
       const stagesMap = await fetchPriceStages(pkgList.map((p) => p.id));
+      const availMap = await fetchPackagesAvailability(pkgList.map((p) => p.id));
 
       const enriched: Pkg[] = await Promise.all(pkgList.map(async (p: any) => {
         const stages = stagesMap[p.id] || [];
@@ -107,6 +110,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           plan: null,
           activeStage: resolved.activeStage,
           nextStage: resolved.nextStage,
+          availability: availMap[p.id] || [],
         };
         if (!plan) return base;
         const { data: insts } = await supabase
@@ -201,6 +205,23 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                       <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{pkg.descripcion}</p>
                     </div>
                   )}
+                  <div className="space-y-1 pt-1">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading flex items-center gap-1.5">
+                      <BedDouble className="w-3 h-3" /> Disponibilidad
+                    </p>
+                    {pkg.availability.length === 0 ? (
+                      <p className="text-[11px] text-destructive">Sin alojamiento cargado — este paquete aún no está disponible.</p>
+                    ) : (
+                      <ul className="space-y-0.5">
+                        {pkg.availability.map((a, i) => (
+                          <li key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-foreground/90"}`}>
+                            <span>{formatAvailabilityRow(a)}</span>
+                            <span className="text-muted-foreground tabular-nums">{a.taken}/{a.capacity}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   {pkg.plan && (
                     <div className="space-y-1.5 pt-1">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Plan de pagos</p>

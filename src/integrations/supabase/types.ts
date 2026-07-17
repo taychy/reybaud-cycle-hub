@@ -9777,6 +9777,16 @@ export type Database = {
           stage_nombre: string
         }[]
       }
+      get_package_availability_breakdown: {
+        Args: { p_package_id: string }
+        Returns: {
+          available: number
+          capacity: number
+          genero: string
+          taken: number
+          tipo: string
+        }[]
+      }
       get_package_available_spots: {
         Args: { p_package_id: string }
         Returns: number
