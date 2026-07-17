@@ -206,6 +206,7 @@ const App = () => (
             <Route path="email-masivo" element={<AdminBroadcasts />} />
             <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
             <Route path="cambios-paquete" element={<AdminPackageChangeRequests />} />
+            <Route path="solicitudes-alojamiento" element={<AdminWaitlistRequests />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
             {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
