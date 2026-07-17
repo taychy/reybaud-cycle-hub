@@ -977,64 +977,83 @@ const StudentPayments = () => {
 
 
 
-          {/* ──────── Payment History ──────── */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-              Historial de pagos
-            </h2>
-
-            {historicSubs.length === 0 && activeSubs.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card/80 p-6 text-center">
-                <p className="text-sm text-muted-foreground">No hay pagos registrados.</p>
-              </div>
-            ) : historicSubs.length === 0 ? null : (
-              <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-lg shadow-black/10">
-                {historicSubs.map((sub) => {
-                  const effectiveStatus = getEffectiveStatus(sub);
-                  const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
-                  const monto = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
-                  const factura = facturasBySub[sub.id];
-
-                  return (
-                    <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border ${config.badgeClass}`} title={config.label}>
-                        {config.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-foreground truncate">{sub.plan?.nombre || "Plan"}</span>
-                          <span className="text-xs text-foreground shrink-0">{formatPrice(monto)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-muted-foreground truncate">
-                            {config.label} · {formatDate(sub.created_at)}
-                          </span>
-                          {factura && (
-                            <button
-                              type="button"
-                              disabled={downloadingFacturaId === factura.id}
-                              onClick={() => handleDownloadFactura(factura.id)}
-                              className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 shrink-0"
-                              title={`Descargar factura${factura.numero_comprobante ? ` ${factura.numero_comprobante}` : ""}`}
-                            >
-                              {downloadingFacturaId === factura.id ? (
-                                <RefreshCw className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Download className="w-3 h-3" />
-                              )}
-                              Factura
-                            </button>
-                          )}
+          {/* ──────── Payment History (collapsed by default) ──────── */}
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between gap-2 rounded-xl border border-border bg-card/60 hover:bg-card/80 transition-colors px-4 py-3"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs font-heading font-semibold uppercase tracking-wider text-foreground">
+                    Historial de pagos
+                  </span>
+                  {historicSubs.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground">({historicSubs.length})</span>
+                  )}
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              {historicSubs.length === 0 && activeSubs.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card/80 p-6 text-center">
+                  <p className="text-sm text-muted-foreground">No hay pagos registrados.</p>
+                </div>
+              ) : historicSubs.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card/60 p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Sin pagos anteriores.</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-lg shadow-black/10">
+                  {historicSubs.map((sub) => {
+                    const effectiveStatus = getEffectiveStatus(sub);
+                    const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
+                    const monto = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
+                    const factura = facturasBySub[sub.id];
+                    return (
+                      <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5">
+                        <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border ${config.badgeClass}`} title={config.label}>
+                          {config.icon}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-foreground truncate">{sub.plan?.nombre || "Plan"}</span>
+                            <span className="text-xs text-foreground shrink-0">{formatPrice(monto)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {config.label} · {formatDate(sub.created_at)}
+                            </span>
+                            {factura && (
+                              <button
+                                type="button"
+                                disabled={downloadingFacturaId === factura.id}
+                                onClick={() => handleDownloadFactura(factura.id)}
+                                className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 shrink-0"
+                                title={`Descargar factura${factura.numero_comprobante ? ` ${factura.numero_comprobante}` : ""}`}
+                              >
+                                {downloadingFacturaId === factura.id ? (
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Download className="w-3 h-3" />
+                                )}
+                                Factura
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </main>
+
 
       {/* Change plan drawer */}
       {changePlanSub && alumno && (
