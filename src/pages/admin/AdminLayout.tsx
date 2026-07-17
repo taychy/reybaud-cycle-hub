@@ -177,7 +177,10 @@ const AdminLayout = () => {
   const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2.5";
-    const badgeCount = item.badgeKey === "waitlist" ? waitlistPending : 0;
+    const badgeCount =
+      item.badgeKey === "waitlist" ? waitlistPending :
+      item.badgeKey === "waitlist_entries" ? waitlistEntriesPending :
+      0;
 
     if (collapsed && !mobile) {
       return (
