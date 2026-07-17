@@ -51,6 +51,52 @@ const AdminProcessTemplates = () => {
     reload();
   };
 
+  const duplicateTemplate = async (t: ProcessTemplate) => {
+    const suggested = `${t.nombre} — copia`;
+    const nuevoNombre = window.prompt("Nombre de la nueva plantilla:", suggested);
+    if (!nuevoNombre || !nuevoNombre.trim()) return;
+
+    const { data: newTpl, error: tplErr } = await sb
+      .from("process_templates")
+      .insert({
+        nombre: nuevoNombre.trim(),
+        descripcion: t.descripcion,
+        rol_destino: t.rol_destino,
+        icono: t.icono,
+        activo: true,
+      })
+      .select()
+      .single();
+    if (tplErr || !newTpl) {
+      return toast({ title: "Error al duplicar", description: tplErr?.message, variant: "destructive" });
+    }
+
+    const originStages = stages
+      .filter((s) => s.template_id === t.id)
+      .sort((a, b) => a.orden - b.orden);
+
+    if (originStages.length > 0) {
+      const rows = originStages.map((s) => ({
+        template_id: newTpl.id,
+        orden: s.orden,
+        titulo: s.titulo,
+        instrucciones: s.instrucciones,
+        requiere_foto: s.requiere_foto,
+        requiere_nota: s.requiere_nota,
+        entidad_control: s.entidad_control,
+        accion_final: s.accion_final,
+      }));
+      const { error: stErr } = await sb.from("process_template_stages").insert(rows);
+      if (stErr) {
+        toast({ title: "Plantilla creada, pero fallaron las etapas", description: stErr.message, variant: "destructive" });
+      }
+    }
+
+    toast({ title: "Plantilla duplicada", description: `Se creó "${nuevoNombre.trim()}" con ${originStages.length} etapa(s).` });
+    await reload();
+    setEditing(newTpl as ProcessTemplate);
+  };
+
   if (editing) {
     return (
       <TemplateEditor
