@@ -253,6 +253,7 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
           </SheetTitle>
           <SheetDescription>
             {label && <Badge variant="outline" className="mr-2">{label}</Badge>}
+            {genderLabelStr && <Badge variant="outline" className="mr-2 capitalize">{genderLabelStr}</Badge>}
             {packageName || "Tu paquete"}
           </SheetDescription>
         </SheetHeader>
