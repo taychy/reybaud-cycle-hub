@@ -31,6 +31,7 @@ interface Pkg {
   plan: Plan | null;
   activeStage: PriceStage | null;
   nextStage: PriceStage | null;
+  availability: AvailabilityRow[];
 }
 
 
