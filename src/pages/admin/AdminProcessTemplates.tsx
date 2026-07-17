@@ -427,9 +427,44 @@ function StageEditDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center justify-between mb-2">
+              <Label>Sub-tareas (checklist)</Label>
+              <Button size="sm" variant="outline" onClick={addSubtask}>
+                <Plus className="w-3 h-3 mr-1" /> Agregar
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Items concretos que el equipo tildará durante la ejecución de esta etapa.
+            </p>
+            {subtasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Sin sub-tareas.</p>
+            ) : (
+              <div className="space-y-2">
+                {subtasks.map((st, idx) => (
+                  <div key={st.id} className="flex items-center gap-1">
+                    <div className="flex flex-col">
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => moveSubtask(idx, -1)}><ChevronUp className="w-3 h-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => moveSubtask(idx, 1)}><ChevronDown className="w-3 h-3" /></Button>
+                    </div>
+                    <Input
+                      value={st.titulo}
+                      onChange={(e) => updateSubtask(st.id, e.target.value)}
+                      placeholder="Ej: Reservar hotel"
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeSubtask(st.id)}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { setTitulo(""); setInstrucciones(""); onClose(); }}>Cancelar</Button>
+          <Button variant="ghost" onClick={() => { setTitulo(""); setInstrucciones(""); setSubtasks([]); onClose(); }}>Cancelar</Button>
           <Button onClick={save}>Guardar etapa</Button>
         </DialogFooter>
       </DialogContent>
