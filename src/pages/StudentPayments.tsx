@@ -3,7 +3,8 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
-import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download } from "lucide-react";
+import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download, ChevronDown, Pause } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
 import ChangePlanScopeDialog from "@/components/ChangePlanScopeDialog";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
@@ -165,6 +166,15 @@ const StudentPayments = () => {
   const [scopeDialogSub, setScopeDialogSub] = useState<SubscriptionRecord | null>(null);
   const [bajaDialogOpen, setBajaDialogOpen] = useState(false);
   const [pendingBaja, setPendingBaja] = useState<{ id: string; created_at: string } | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -565,78 +575,52 @@ const StudentPayments = () => {
                   : 0;
 
                 return (
-                  <div key={sub.id} className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
+                  <div key={sub.id} className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-4 space-y-3 shadow-lg shadow-black/20">
+                    {/* ── Compact header ── */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 text-primary min-w-0">
-                        <CheckCircle2 className="w-5 h-5 shrink-0" />
-                        <span className="text-sm font-heading font-semibold uppercase tracking-wider truncate">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-heading font-bold text-foreground leading-tight truncate">
                           {sub.plan?.nombre || "Plan"}
-                        </span>
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-full px-2 py-0.5 border ${config.badgeClass}`}>
+                            {config.icon}
+                            {config.label}
+                          </span>
+                          {sub.fecha_fin && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Vence {formatDate(sub.fecha_fin)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="text-xs text-muted-foreground">
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-xs font-semibold gold-text-gradient">
+                          {formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground mt-0.5">
                           {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
                         </span>
                         {hasRealAutoCharge(sub) && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
-                            <RefreshCw className="w-2.5 h-2.5" />
-                            Auto-renueva
+                          <span className="inline-flex items-center gap-1 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-1.5 py-0.5 mt-1">
+                            <RefreshCw className="w-2 h-2" />
+                            Auto
                           </span>
                         )}
                         {hasPendingAutoChargeAuth(sub) && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-2 py-0.5">
-                            <AlertTriangle className="w-2.5 h-2.5" />
-                            Autorización pendiente
+                          <span className="inline-flex items-center gap-1 text-[9px] font-medium text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-1.5 py-0.5 mt-1">
+                            <AlertTriangle className="w-2 h-2" />
+                            Autoriz.
                           </span>
                         )}
                       </div>
                     </div>
 
-
-                    <div className="space-y-2 text-sm">
-                      {/* Discount breakdown */}
-                      {sub.descuento && sub.precio_base != null ? (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Valor original</span>
-                            <span className="font-mono text-muted-foreground line-through">{formatPrice(sub.precio_base)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-emerald-400 text-xs">
-                              {sub.descuento.nombre} ({sub.descuento.tipo === "fijo" ? `$${sub.descuento.valor}` : `${sub.descuento.valor}%`})
-                            </span>
-                            <span className="text-emerald-400 font-mono text-xs">
-                              -{formatPrice(sub.precio_base - (sub.precio_final ?? sub.precio_base))}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground font-medium">Total</span>
-                            <span className="font-semibold gold-text-gradient">{formatPrice(sub.precio_final ?? sub.precio_base)}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monto</span>
-                          <span className="font-semibold gold-text-gradient">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Vencimiento</span>
-                        <span className="font-medium text-foreground">{formatDate(sub.fecha_fin)}</span>
-                      </div>
-                    </div>
-
-                    {/* (status compacto va como pill en el header; sin banner redundante) */}
-
-
-
-                    {/* Pago / renovación CTA */}
+                    {/* Prominent CTA + renewal shortcut. `renewalWindow` flag is returned to hide the tile-grid Renovar duplicate */}
                     {(() => {
                       const goToCheckout = (skipPlanPicker = false) => {
-                        // Limpiamos contextos anteriores para no mezclar flujos
                         clearEarlyRenewal();
                         clearReuseSubId();
-
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
                         const subEnd = sub.fecha_fin
@@ -646,14 +630,9 @@ const StudentPayments = () => {
                             })()
                           : null;
                         const stillCoversCurrentPeriod = subEnd ? subEnd.getTime() >= today.getTime() : false;
-
                         if (skipPlanPicker && stillCoversCurrentPeriod) {
-                          // Pago de sub pendiente/pago_pendiente/acceso_pausado del período actual:
-                          // reutilizamos esta misma sub (sin crear "renovación anticipada" al mes siguiente).
                           setReuseSubId(sub.id);
                         } else if (!skipPlanPicker && sub.fecha_fin) {
-                          // Renovación anticipada clásica (plan activo cerca del vencimiento):
-                          // mantenemos el mismo plan y saltamos directo al paso de medio de pago.
                           setEarlyRenewal({
                             subId: sub.id,
                             planId: sub.plan_id,
@@ -661,238 +640,282 @@ const StudentPayments = () => {
                             autoRenovacion: hasRealAutoCharge(sub),
                           });
                         }
-                        // Sub vencida de un período pasado → no reusar ni renovación anticipada;
-                        // se generará una sub nueva para el mes actual.
-
                         if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
                         localStorage.setItem("alumno_preselect_plan_id", sub.plan_id);
-                        // Siempre saltamos directo al método: ya hay plan elegido (el actual).
-                        // En "skipPlanPicker" venimos de un estado roto del período actual; en el
-                        // resto venimos de renovación anticipada del mismo plan.
                         localStorage.setItem("alumno_pay_pending_skip", "1");
                         navigate("/planes?returnTo=/alumno/pagos");
                       };
 
-                      // Estados rotos: alumno necesita regularizar / pagar este plan
                       if (
                         effectiveStatus === "pendiente" ||
                         effectiveStatus === "pago_pendiente" ||
                         effectiveStatus === "acceso_pausado" ||
                         effectiveStatus === "vencida"
                       ) {
-                        const msg =
-                          effectiveStatus === "pago_pendiente"
-                            ? "Tu plan venció. Regularizá tu pago para mantener el acceso completo."
-                            : effectiveStatus === "acceso_pausado"
-                              ? "Tu acceso está pausado por falta de pago. Pagá ahora para reactivarlo."
-                              : effectiveStatus === "vencida"
-                                ? "Este plan venció. Renovalo para volver a entrenar."
-                                : "Este plan está pendiente de pago. Completalo para activarlo.";
-                        // Si es "pendiente" puro (nunca se pagó), saltamos directo a elegir medio de pago
                         const skip = effectiveStatus === "pendiente";
                         return (
-                          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-                            <p className="text-xs text-foreground"><strong>{msg}</strong></p>
-                            <Button variant="gold" size="sm" className="w-full" onClick={() => goToCheckout(skip)}>
-                              Pagar este plan
-                            </Button>
-                          </div>
+                          <Button variant="gold" size="lg" className="w-full shadow-lg" onClick={() => goToCheckout(skip)}>
+                            Pagar este plan
+                          </Button>
                         );
                       }
 
-                      // Informativo: pago en verificación
                       if (effectiveStatus === "pendiente_verificacion") {
                         return (
-                          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
-                            <p className="text-xs text-foreground">
-                              <strong>Tu pago está siendo verificado.</strong>{" "}
-                              No necesitás volver a pagar. Te avisamos por email cuando quede acreditado.
+                          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2">
+                            <p className="text-[11px] text-foreground">
+                              <strong>Pago en verificación.</strong> Te avisamos cuando quede acreditado.
                             </p>
                           </div>
                         );
                       }
 
-                      // Renovación anticipada: plan activo con ≤20 días para vencer
-                      // No mostrar si el plan es una pausa (la pausa no se "renueva")
                       if (effectiveStatus !== "activa" || !sub.fecha_fin) return null;
                       if ((sub.plan as any)?.categoria === "pausa") return null;
                       const dLeft = daysUntil(sub.fecha_fin);
                       if (dLeft === null || dLeft < 0 || dLeft > EARLY_RENEWAL_WINDOW_DAYS) return null;
-
                       const startEarlyRenewal = () => goToCheckout(false);
-                      return (
-                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-                          <p className="text-xs text-foreground">
-                            <strong>Tu plan vence en {dLeft === 0 ? "menos de un día" : `${dLeft} día${dLeft !== 1 ? "s" : ""}`}.</strong>
-                            {" "}Podés renovar el próximo período ahora (mismo plan o cambiarlo).
-                          </p>
-                          {hasRealAutoCharge(sub) ? (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="gold" size="sm" className="w-full">Renovar próximo período</Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="bg-card border-border">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Desactivar renovación automática</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tenés la renovación automática activada. Si pagás ahora, vamos a desactivarla
-                                    para evitar un doble cobro. Si querés que vuelva a renovarse sola, podés
-                                    reactivarla más adelante desde acá.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={startEarlyRenewal}>
-                                    Entendido, renovar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          ) : (
-                            <Button variant="gold" size="sm" className="w-full" onClick={startEarlyRenewal}>
-                              Renovar próximo período
+                      return hasRealAutoCharge(sub) ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="gold" size="lg" className="w-full shadow-lg">
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Renovar ahora
                             </Button>
-                          )}
-                        </div>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-card border-border">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Desactivar renovación automática</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tenés la renovación automática activada. Si pagás ahora, vamos a desactivarla
+                                para evitar un doble cobro. Podés reactivarla más adelante desde acá.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={startEarlyRenewal}>Entendido, renovar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <Button variant="gold" size="lg" className="w-full shadow-lg" onClick={startEarlyRenewal}>
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Renovar ahora — vence en {dLeft === 0 ? "<1 día" : `${dLeft} d`}
+                        </Button>
                       );
                     })()}
 
-                    {/* Per-plan actions */}
-                    <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
-                      {(() => {
-                        const autoEligible = !!sub.plan?.permite_auto_cobro && sub.plan?.frecuencia === "mensual";
-                        const subtitleEligible = hasRealAutoCharge(sub)
-                          ? `Próximo cobro ${formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)} el ${formatDate(sub.fecha_fin)}`
-                          : hasPendingAutoChargeAuth(sub)
-                            ? "Falta completar la autorización en Mercado Pago"
-                            : "Activala para que Mercado Pago renueve sola cada período";
-                        const subtitle = autoEligible
-                          ? subtitleEligible
-                          : "Este plan no admite renovación automática";
-                        return (
-                          <div className={`flex items-center justify-between px-4 py-3 border-b border-border/50 ${hasRealAutoCharge(sub) ? "bg-primary/5" : ""}`}>
-                            <div className="flex items-center gap-2 min-w-0">
-                              <RefreshCw className={`w-4 h-4 shrink-0 ${hasRealAutoCharge(sub) ? "text-primary" : "text-muted-foreground"}`} />
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-medium text-foreground">Renovación automática</span>
-                                <span className="text-[10px] text-muted-foreground truncate">{subtitle}</span>
-                              </div>
-                            </div>
-                            {hasRealAutoCharge(sub) ? (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <button
-                                    type="button"
-                                    disabled={togglingId === sub.id || readOnly}
-                                    className="shrink-0"
-                                    aria-label="Desactivar renovación automática"
-                                  >
-                                    <Switch checked onCheckedChange={() => {}} className="pointer-events-none" />
-                                  </button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="bg-card border-border">
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Desactivar la renovación automática?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará solo.
-                                      Vas a tener que pagar manualmente la próxima cuota.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Volver</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleToggleRenovacion(sub)}>
-                                      Sí, desactivar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            ) : (
-                              <Switch
-                                checked={false}
-                                onCheckedChange={() => handleToggleRenovacion(sub)}
-                                disabled={!autoEligible || togglingId === sub.id || readOnly}
-                              />
-                            )}
-                          </div>
-                        );
-                      })()}
-
-
-
-
-                      {/* Change plan — disponible para planes activos o con pago pendiente de validación */}
-                      {(effectiveStatus === "activa" || effectiveStatus === "pendiente_verificacion") && sub.fecha_inicio && sub.fecha_fin && (
+                    {/* ── Más opciones (collapsible) ── */}
+                    <Collapsible open={expandedIds.has(sub.id)} onOpenChange={() => toggleExpanded(sub.id)}>
+                      <CollapsibleTrigger asChild>
                         <button
-                          className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left border-b border-border/50"
-                          onClick={() => setScopeDialogSub(sub)}
+                          type="button"
+                          className="w-full flex items-center justify-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-1"
                         >
-                          <ArrowRightLeft className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-medium text-foreground">Cambiar de plan</span>
+                          {expandedIds.has(sub.id) ? "Ocultar opciones" : "Más opciones"}
+                          <ChevronDown className={`w-3 h-3 transition-transform ${expandedIds.has(sub.id) ? "rotate-180" : ""}`} />
                         </button>
-                      )}
+                      </CollapsibleTrigger>
 
-                      {/* Cancel */}
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button className="w-full flex items-center gap-2 px-4 py-3 hover:bg-accent/30 transition-colors text-left">
-                            <Ban className="w-4 h-4 text-destructive" />
-                            <span className="text-xs font-medium text-destructive">Cancelar este plan</span>
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="bg-card border-border">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="text-foreground">¿Cancelar "{sub.plan?.nombre}"?</AlertDialogTitle>
-                            <AlertDialogDescription asChild>
-                              <div className="space-y-3 text-sm">
-                                <p className="text-foreground">
-                                  Tu acceso a este plan continuará disponible hasta el <span className="font-semibold">{formatDate(sub.fecha_fin)}</span>.
-                                </p>
-                                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
-                                  <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider">Importante</p>
-                                  <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
-                                    <li>El pago realizado no se reintegra ni se acredita como saldo.</li>
-                                    <li>Se desactiva la renovación automática.</li>
-                                    <li>Podés volver a contratar este u otro plan cuando quieras.</li>
-                                  </ul>
-                                </div>
-                                {activeSubs.length > 1 && (
-                                  <p className="text-xs text-muted-foreground">Tus otros planes activos no se verán afectados.</p>
-                                )}
+                      <CollapsibleContent className="space-y-3 pt-1 data-[state=open]:animate-fade-in">
+                        {/* Discount breakdown / monto */}
+                        <div className="space-y-1.5 text-sm rounded-lg bg-muted/20 px-3 py-2.5">
+                          {sub.descuento && sub.precio_base != null ? (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground text-xs">Valor original</span>
+                                <span className="font-mono text-muted-foreground line-through text-xs">{formatPrice(sub.precio_base)}</span>
                               </div>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="border-border">Volver</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleCancelSubscription(sub)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              disabled={cancellingId === sub.id}
+                              <div className="flex justify-between">
+                                <span className="text-emerald-400 text-xs">
+                                  {sub.descuento.nombre} ({sub.descuento.tipo === "fijo" ? `$${sub.descuento.valor}` : `${sub.descuento.valor}%`})
+                                </span>
+                                <span className="text-emerald-400 font-mono text-xs">
+                                  -{formatPrice(sub.precio_base - (sub.precio_final ?? sub.precio_base))}
+                                </span>
+                              </div>
+                              <div className="flex justify-between border-t border-border/50 pt-1.5">
+                                <span className="text-muted-foreground font-medium text-xs">Total</span>
+                                <span className="font-semibold gold-text-gradient text-sm">{formatPrice(sub.precio_final ?? sub.precio_base)}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground text-xs">Monto</span>
+                              <span className="font-semibold gold-text-gradient text-sm">{sub.plan ? formatPrice(sub.plan.precio) : "—"}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Título gestionar */}
+                        <p className="text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground pt-1">
+                          Gestionar plan
+                        </p>
+
+                        {/* Auto-renovación row (compacta, ancho completo) */}
+                        {(() => {
+                          const autoEligible = !!sub.plan?.permite_auto_cobro && sub.plan?.frecuencia === "mensual";
+                          const subtitleEligible = hasRealAutoCharge(sub)
+                            ? `Próximo cobro ${formatPrice(sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0)} · ${formatDate(sub.fecha_fin)}`
+                            : hasPendingAutoChargeAuth(sub)
+                              ? "Falta completar la autorización en Mercado Pago"
+                              : "Activala para que Mercado Pago renueve sola";
+                          const subtitle = autoEligible ? subtitleEligible : "Este plan no admite renovación automática";
+                          return (
+                            <div className={`flex items-center justify-between rounded-lg border px-3 py-2.5 ${hasRealAutoCharge(sub) ? "border-primary/30 bg-primary/5" : "border-border bg-card/50"}`}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <RefreshCw className={`w-4 h-4 shrink-0 ${hasRealAutoCharge(sub) ? "text-primary" : "text-muted-foreground"}`} />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-medium text-foreground">Renovación automática</span>
+                                  <span className="text-[10px] text-muted-foreground truncate">{subtitle}</span>
+                                </div>
+                              </div>
+                              {hasRealAutoCharge(sub) ? (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <button type="button" disabled={togglingId === sub.id || readOnly} className="shrink-0" aria-label="Desactivar renovación automática">
+                                      <Switch checked onCheckedChange={() => {}} className="pointer-events-none" />
+                                    </button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-card border-border">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Desactivar la renovación automática?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tu plan sigue activo hasta el {formatDate(sub.fecha_fin)}, pero no se renovará solo.
+                                        Vas a tener que pagar manualmente la próxima cuota.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Volver</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleToggleRenovacion(sub)}>Sí, desactivar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              ) : (
+                                <Switch
+                                  checked={false}
+                                  onCheckedChange={() => handleToggleRenovacion(sub)}
+                                  disabled={!autoEligible || togglingId === sub.id || readOnly}
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Grid 2x2 de acciones destacadas */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Cambiar de plan */}
+                          {(effectiveStatus === "activa" || effectiveStatus === "pendiente_verificacion") && sub.fecha_inicio && sub.fecha_fin ? (
+                            <button
+                              type="button"
+                              onClick={() => setScopeDialogSub(sub)}
+                              disabled={readOnly}
+                              className="group flex flex-col items-start gap-1 rounded-xl border border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors p-3 text-left disabled:opacity-50"
                             >
-                              {cancellingId === sub.id ? "Cancelando..." : "Sí, cancelar"}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                              <ArrowRightLeft className="w-5 h-5 text-cyan-400" />
+                              <span className="text-sm font-heading font-semibold text-foreground">Cambiar de plan</span>
+                              <span className="text-[10px] text-muted-foreground leading-tight">Otro monto o duración</span>
+                            </button>
+                          ) : (
+                            <div className="flex flex-col items-start gap-1 rounded-xl border border-border/50 bg-muted/10 p-3 opacity-40">
+                              <ArrowRightLeft className="w-5 h-5 text-muted-foreground" />
+                              <span className="text-sm font-heading font-semibold text-muted-foreground">Cambiar de plan</span>
+                              <span className="text-[10px] text-muted-foreground leading-tight">Disponible con plan activo</span>
+                            </div>
+                          )}
 
-                    {facturasBySub[sub.id] && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        disabled={downloadingFacturaId === facturasBySub[sub.id].id}
-                        onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
-                      >
-                        {downloadingFacturaId === facturasBySub[sub.id].id ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Download className="w-3.5 h-3.5" />
+                          {/* Pausar → ofrecer plan reducido */}
+                          {(sub.plan as any)?.categoria !== "pausa" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (readOnly) return;
+                                if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
+                                navigate("/planes?categoria=pausa&returnTo=/alumno/pagos");
+                              }}
+                              disabled={readOnly}
+                              className="group flex flex-col items-start gap-1 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors p-3 text-left disabled:opacity-50"
+                            >
+                              <Pause className="w-5 h-5 text-amber-400" />
+                              <span className="text-sm font-heading font-semibold text-foreground">Pausar</span>
+                              <span className="text-[10px] text-muted-foreground leading-tight">Te ofrecemos un plan reducido</span>
+                            </button>
+                          ) : (
+                            <div className="flex flex-col items-start gap-1 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+                              <Pause className="w-5 h-5 text-amber-400" />
+                              <span className="text-sm font-heading font-semibold text-foreground">En pausa</span>
+                              <span className="text-[10px] text-muted-foreground leading-tight">Volvés cuando termine</span>
+                            </div>
+                          )}
+
+                          {/* Dar de baja */}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button
+                                type="button"
+                                disabled={readOnly}
+                                className="col-span-2 group flex flex-col items-start gap-1 rounded-xl border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors p-3 text-left disabled:opacity-50"
+                              >
+                                <Ban className="w-5 h-5 text-destructive" />
+                                <span className="text-sm font-heading font-semibold text-destructive">Dar de baja este plan</span>
+                                <span className="text-[10px] text-muted-foreground leading-tight">Acceso vigente hasta {formatDate(sub.fecha_fin)}</span>
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-card border-border">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-foreground">¿Cancelar "{sub.plan?.nombre}"?</AlertDialogTitle>
+                                <AlertDialogDescription asChild>
+                                  <div className="space-y-3 text-sm">
+                                    <p className="text-foreground">
+                                      Tu acceso a este plan continuará disponible hasta el <span className="font-semibold">{formatDate(sub.fecha_fin)}</span>.
+                                    </p>
+                                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
+                                      <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider">Importante</p>
+                                      <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                                        <li>El pago realizado no se reintegra ni se acredita como saldo.</li>
+                                        <li>Se desactiva la renovación automática.</li>
+                                        <li>Podés volver a contratar este u otro plan cuando quieras.</li>
+                                      </ul>
+                                    </div>
+                                    {activeSubs.length > 1 && (
+                                      <p className="text-xs text-muted-foreground">Tus otros planes activos no se verán afectados.</p>
+                                    )}
+                                  </div>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="border-border">Volver</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleCancelSubscription(sub)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  disabled={cancellingId === sub.id}
+                                >
+                                  {cancellingId === sub.id ? "Cancelando..." : "Sí, cancelar"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+
+                        {facturasBySub[sub.id] && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            disabled={downloadingFacturaId === facturasBySub[sub.id].id}
+                            onClick={() => handleDownloadFactura(facturasBySub[sub.id].id)}
+                          >
+                            {downloadingFacturaId === facturasBySub[sub.id].id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5 mr-1.5" />
+                            )}
+                            Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
+                          </Button>
                         )}
-                        Descargar factura{facturasBySub[sub.id].numero_comprobante ? ` ${facturasBySub[sub.id].numero_comprobante}` : ""}
-                      </Button>
-                    )}
+                      </CollapsibleContent>
+                    </Collapsible>
                   </div>
-
                 );
               })}
 
@@ -954,64 +977,83 @@ const StudentPayments = () => {
 
 
 
-          {/* ──────── Payment History ──────── */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-              Historial de pagos
-            </h2>
-
-            {historicSubs.length === 0 && activeSubs.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card/80 p-6 text-center">
-                <p className="text-sm text-muted-foreground">No hay pagos registrados.</p>
-              </div>
-            ) : historicSubs.length === 0 ? null : (
-              <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-lg shadow-black/10">
-                {historicSubs.map((sub) => {
-                  const effectiveStatus = getEffectiveStatus(sub);
-                  const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
-                  const monto = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
-                  const factura = facturasBySub[sub.id];
-
-                  return (
-                    <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border ${config.badgeClass}`} title={config.label}>
-                        {config.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-foreground truncate">{sub.plan?.nombre || "Plan"}</span>
-                          <span className="text-xs text-foreground shrink-0">{formatPrice(monto)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-muted-foreground truncate">
-                            {config.label} · {formatDate(sub.created_at)}
-                          </span>
-                          {factura && (
-                            <button
-                              type="button"
-                              disabled={downloadingFacturaId === factura.id}
-                              onClick={() => handleDownloadFactura(factura.id)}
-                              className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 shrink-0"
-                              title={`Descargar factura${factura.numero_comprobante ? ` ${factura.numero_comprobante}` : ""}`}
-                            >
-                              {downloadingFacturaId === factura.id ? (
-                                <RefreshCw className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Download className="w-3 h-3" />
-                              )}
-                              Factura
-                            </button>
-                          )}
+          {/* ──────── Payment History (collapsed by default) ──────── */}
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between gap-2 rounded-xl border border-border bg-card/60 hover:bg-card/80 transition-colors px-4 py-3"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs font-heading font-semibold uppercase tracking-wider text-foreground">
+                    Historial de pagos
+                  </span>
+                  {historicSubs.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground">({historicSubs.length})</span>
+                  )}
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              {historicSubs.length === 0 && activeSubs.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card/80 p-6 text-center">
+                  <p className="text-sm text-muted-foreground">No hay pagos registrados.</p>
+                </div>
+              ) : historicSubs.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card/60 p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Sin pagos anteriores.</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-lg shadow-black/10">
+                  {historicSubs.map((sub) => {
+                    const effectiveStatus = getEffectiveStatus(sub);
+                    const config = statusConfig[effectiveStatus] || statusConfig.pendiente;
+                    const monto = sub.precio_final ?? sub.precio_base ?? sub.plan?.precio ?? 0;
+                    const factura = facturasBySub[sub.id];
+                    return (
+                      <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5">
+                        <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border ${config.badgeClass}`} title={config.label}>
+                          {config.icon}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-foreground truncate">{sub.plan?.nombre || "Plan"}</span>
+                            <span className="text-xs text-foreground shrink-0">{formatPrice(monto)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {config.label} · {formatDate(sub.created_at)}
+                            </span>
+                            {factura && (
+                              <button
+                                type="button"
+                                disabled={downloadingFacturaId === factura.id}
+                                onClick={() => handleDownloadFactura(factura.id)}
+                                className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 shrink-0"
+                                title={`Descargar factura${factura.numero_comprobante ? ` ${factura.numero_comprobante}` : ""}`}
+                              >
+                                {downloadingFacturaId === factura.id ? (
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Download className="w-3 h-3" />
+                                )}
+                                Factura
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </main>
+
 
       {/* Change plan drawer */}
       {changePlanSub && alumno && (
