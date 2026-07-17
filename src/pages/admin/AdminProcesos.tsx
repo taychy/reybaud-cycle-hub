@@ -183,7 +183,7 @@ export default function AdminProcesos() {
                 const pct = r.total_stages ? Math.round((r.done_stages / r.total_stages) * 100) : 0;
                 const detailHref = r.plan_id
                   ? `/admin/programas/${r.plan_id}/flujo/${r.id}`
-                  : `/admin/procesos/plantillas`;
+                  : `/admin/procesos/runner/${r.id}`;
                 return (
                   <Card key={r.id} className="hover:border-primary/50 transition-colors">
                     <CardContent className="py-4">
