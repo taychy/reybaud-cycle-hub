@@ -166,6 +166,15 @@ const StudentPayments = () => {
   const [scopeDialogSub, setScopeDialogSub] = useState<SubscriptionRecord | null>(null);
   const [bajaDialogOpen, setBajaDialogOpen] = useState(false);
   const [pendingBaja, setPendingBaja] = useState<{ id: string; created_at: string } | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
