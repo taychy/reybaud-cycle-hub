@@ -90,12 +90,27 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
       // Load event participants for autocomplete
       const { data: part } = await supabase.rpc("list_event_participants_for_roommate", { _event_id: eventId });
       setParticipants((part || []) as Participant[]);
+
+      // Fetch real room capacity from event_packages.personas_por_habitacion
+      if (packageId) {
+        const { data: pkg } = await supabase
+          .from("event_packages")
+          .select("personas_por_habitacion")
+          .eq("id", packageId)
+          .maybeSingle();
+        setCapacity(pkg?.personas_por_habitacion ?? null);
+        const rows = await fetchPackageAvailability(packageId);
+        setAvailability(rows);
+      } else {
+        setCapacity(null);
+        setAvailability([]);
+      }
     } catch (e: any) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [reservationId, eventId]);
+  }, [reservationId, eventId, packageId]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
