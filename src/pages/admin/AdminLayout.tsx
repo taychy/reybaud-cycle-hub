@@ -77,12 +77,19 @@ const AdminLayout = () => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
   });
   const [waitlistPending, setWaitlistPending] = useState(0);
+  const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
 
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const { data } = await supabase.rpc("count_pending_waitlist_requests" as any);
-      if (alive) setWaitlistPending(Number(data ?? 0));
+      const [{ data: pending }, { data: newEntries }] = await Promise.all([
+        supabase.rpc("count_pending_waitlist_requests" as any),
+        supabase.rpc("count_new_waitlist_entries" as any),
+      ]);
+      if (alive) {
+        setWaitlistPending(Number(pending ?? 0));
+        setWaitlistEntriesPending(Number(newEntries ?? 0));
+      }
     };
     load();
     const iv = setInterval(load, 60000);
