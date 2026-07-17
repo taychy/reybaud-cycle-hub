@@ -56,7 +56,7 @@ export default function EventWaitlistDialog({
       if (!session) return;
       const { data: alumno } = await supabase
         .from("alumnos")
-        .select("id, nombre, apellido, email, telefono, dni")
+        .select("id, nombre, apellido, email, telefono, documento")
         .eq("user_id", session.user.id)
         .maybeSingle();
       if (alumno) {
@@ -64,7 +64,7 @@ export default function EventWaitlistDialog({
         setNombre(`${alumno.nombre || ""} ${alumno.apellido || ""}`.trim());
         setEmail(alumno.email || "");
         setTelefono(alumno.telefono || "");
-        setDni(alumno.dni || "");
+        setDni(alumno.documento || "");
       }
     })();
   }, [open]);
