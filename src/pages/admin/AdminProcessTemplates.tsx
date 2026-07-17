@@ -18,6 +18,7 @@ import {
   ProcessTemplateStage,
   EntidadControl,
   AccionFinal,
+  ProcessSubtask,
 } from "@/hooks/useProcesses";
 
 const sb: any = supabase;
