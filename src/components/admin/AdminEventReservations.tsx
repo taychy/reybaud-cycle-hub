@@ -1683,7 +1683,7 @@ const AdminEventReservations = ({
 
       {/* ─── Detail Drawer ─── */}
       <Sheet open={!!selectedRes} onOpenChange={(open) => { if (!open) { setSelectedRes(null); setShowAdminPayment(false); } }}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader className="pb-4">
             <SheetTitle className="text-lg flex items-center gap-2">
               {selectedRes && (() => { const sp = getParticipant(selectedRes); return <>{sp.nombre} {sp.apellido || ""}{sp.isExternal && <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500">Externo</Badge>}</>; })()}
