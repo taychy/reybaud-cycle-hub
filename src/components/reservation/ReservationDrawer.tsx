@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
   CalendarDays, MapPin, Users, Mountain, Loader2, CheckCircle,
-  CreditCard, ArrowRight, UserCheck, BedDouble, Check, Heart, UserPlus, Sparkles,
+  CreditCard, ArrowRight, UserCheck, BedDouble, Check, Heart, UserPlus, Sparkles, BellRing,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +20,7 @@ import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } fr
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
 import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
+import { WaitlistRequestDialog } from "@/components/event/WaitlistRequestDialog";
 
 
 type Alumno = Tables<"alumnos">;
@@ -104,6 +105,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     sena_monto: number;
     installments: Array<{ numero: number; installment_type: "sena" | "cuota"; descripcion: string; monto: number; due_date: string }>;
   } | null>(null);
+  const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -787,56 +789,69 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   const sinCupo = totalAvail != null && totalAvail <= 0;
                   const disabled = noRooms || sinCupo;
                   return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => !disabled && setSelectedPackageId(p.id)}
-                      disabled={disabled}
-                      className={`w-full text-left rounded-xl border p-3 transition-all ${
-                        isSelected
-                          ? "border-primary bg-primary/10"
-                          : "border-border/60 bg-card/60 hover:border-primary/40"
-                      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                          isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
-                        }`}>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-foreground">{p.nombre}</span>
-                            <span className="text-base font-heading font-bold text-primary">
-                              {formatPrice(p.precio, p.currency)}
-                            </span>
+                    <div key={p.id} className="space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => !disabled && setSelectedPackageId(p.id)}
+                        disabled={disabled}
+                        className={`w-full text-left rounded-xl border p-3 transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary/10"
+                            : "border-border/60 bg-card/60 hover:border-primary/40"
+                        } ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                            isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3" />}
                           </div>
-                          {p.descripcion && (
-                            <p className="text-xs text-muted-foreground mt-1">{p.descripcion}</p>
-                          )}
-                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                            {p.sena != null && (
-                              <span className="text-[11px] text-muted-foreground">
-                                Seña: <span className="text-foreground/80 font-medium">{formatPrice(p.sena, p.currency)}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-foreground">{p.nombre}</span>
+                              <span className="text-base font-heading font-bold text-primary">
+                                {formatPrice(p.precio, p.currency)}
                               </span>
+                            </div>
+                            {p.descripcion && (
+                              <p className="text-xs text-muted-foreground mt-1">{p.descripcion}</p>
                             )}
-                          </div>
-                          {/* Disponibilidad real por tipo/género */}
-                          <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
-                            {noRooms ? (
-                              <p className="text-[11px] text-destructive">Sin alojamiento cargado — no disponible</p>
-                            ) : (
-                              rows.map((a, i) => (
-                                <div key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                                  <span>{formatAvailabilityRow(a)}</span>
-                                  <span className="tabular-nums opacity-70">{a.taken}/{a.capacity}</span>
-                                </div>
-                              ))
-                            )}
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                              {p.sena != null && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  Seña: <span className="text-foreground/80 font-medium">{formatPrice(p.sena, p.currency)}</span>
+                                </span>
+                              )}
+                            </div>
+                            {/* Disponibilidad real por tipo/género */}
+                            <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
+                              {noRooms ? (
+                                <p className="text-[11px] text-destructive">Sin alojamiento cargado — no disponible</p>
+                              ) : (
+                                rows.map((a, i) => (
+                                  <div key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                                    <span>{formatAvailabilityRow(a)}</span>
+                                    <span className="tabular-nums opacity-70">{a.taken}/{a.capacity}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
+                      {disabled && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8 text-xs"
+                          onClick={() => setWaitlistPkg({ id: p.id, nombre: p.nombre })}
+                        >
+                          <BellRing className="w-3.5 h-3.5 mr-1" />
+                          Sin cupo — solicitar igual
+                        </Button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -1214,6 +1229,19 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
           )}
         </div>
       </DrawerContent>
+      {waitlistPkg && (
+        <WaitlistRequestDialog
+          open={!!waitlistPkg}
+          onOpenChange={(o) => { if (!o) setWaitlistPkg(null); }}
+          eventId={event.id}
+          packageId={waitlistPkg.id}
+          packageName={waitlistPkg.nombre}
+          alumnoId={alumno?.id || null}
+          defaultName={alumno ? `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() : ""}
+          defaultEmail={alumno?.email || ""}
+          defaultPhone={alumno?.telefono || ""}
+        />
+      )}
     </Drawer>
   );
 };

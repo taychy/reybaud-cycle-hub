@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Wallet, TrendingUp, BedDouble } from "lucide-react";
+import { CalendarDays, Wallet, TrendingUp, BedDouble, BellRing } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
+import { Button } from "@/components/ui/button";
+import { WaitlistRequestDialog } from "./WaitlistRequestDialog";
 
 interface PlanInstallment {
   numero: number;
@@ -50,6 +52,7 @@ const computeAmount = (tipo: string, valor: number, total: number, sena: number 
 const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
+  const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -222,6 +225,23 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                       </ul>
                     )}
                   </div>
+                  {(() => {
+                    const totalAvail = pkg.availability.reduce((a, r) => a + Math.max(0, r.available), 0);
+                    const cantVender = pkg.availability.length === 0 || totalAvail <= 0;
+                    if (!cantVender) return null;
+                    return (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8 text-xs"
+                        onClick={() => setWaitlistPkg({ id: pkg.id, nombre: pkg.nombre })}
+                      >
+                        <BellRing className="w-3.5 h-3.5 mr-1" />
+                        Sin cupo — solicitar igual
+                      </Button>
+                    );
+                  })()}
                   {pkg.plan && (
                     <div className="space-y-1.5 pt-1">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Plan de pagos</p>
@@ -261,6 +281,15 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
       <p className="text-[11px] text-muted-foreground">
         Podés pagar con Mercado Pago, transferencia o efectivo. La seña confirma tu lugar.
       </p>
+      {waitlistPkg && (
+        <WaitlistRequestDialog
+          open={!!waitlistPkg}
+          onOpenChange={(o) => { if (!o) setWaitlistPkg(null); }}
+          eventId={eventId}
+          packageId={waitlistPkg.id}
+          packageName={waitlistPkg.nombre}
+        />
+      )}
     </div>
   );
 };

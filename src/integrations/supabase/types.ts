@@ -2445,6 +2445,99 @@ export type Database = {
           },
         ]
       }
+      event_accommodation_waitlist_requests: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          estado: string
+          event_id: string
+          genero_preferido: string | null
+          id: string
+          nota_admin: string | null
+          nota_alumno: string | null
+          package_id: string
+          prospect_email: string | null
+          prospect_nombre: string | null
+          prospect_telefono: string | null
+          reservation_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          estado?: string
+          event_id: string
+          genero_preferido?: string | null
+          id?: string
+          nota_admin?: string | null
+          nota_alumno?: string | null
+          package_id: string
+          prospect_email?: string | null
+          prospect_nombre?: string | null
+          prospect_telefono?: string | null
+          reservation_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          estado?: string
+          event_id?: string
+          genero_preferido?: string | null
+          id?: string
+          nota_admin?: string | null
+          nota_alumno?: string | null
+          package_id?: string
+          prospect_email?: string | null
+          prospect_nombre?: string | null
+          prospect_telefono?: string | null
+          reservation_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       event_addons: {
         Row: {
           activo: boolean
@@ -9503,6 +9596,18 @@ export type Database = {
         }[]
       }
       confirm_reservation: { Args: { _reservation_id: string }; Returns: Json }
+      confirm_waitlist_request: {
+        Args: {
+          p_new_room_capacidad: number
+          p_new_room_genero: string
+          p_new_room_nombre: string
+          p_new_room_tipo: string
+          p_nota_admin: string
+          p_request_id: string
+          p_room_id: string
+        }
+        Returns: Json
+      }
       consume_survey_token: { Args: { _token: string }; Returns: boolean }
       consumir_clase_bono: {
         Args: {
@@ -9513,6 +9618,7 @@ export type Database = {
         }
         Returns: string
       }
+      count_pending_waitlist_requests: { Args: never; Returns: number }
       create_gasto_from_mp: {
         Args: {
           p_descripcion: string

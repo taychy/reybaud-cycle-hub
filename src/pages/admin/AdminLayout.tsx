@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 
 /* ─── Nav sections ─── */
-type NavItem = { to: string; label: string; icon: any };
+type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" };
 interface NavSection { label: string; items: NavItem[] }
 
 const mainItems: NavItem[] = [
@@ -16,6 +16,7 @@ const mainItems: NavItem[] = [
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
   { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+  { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
   { to: "/admin/programas", label: "Programas", icon: GraduationCap },
   { to: "/admin/procesos", label: "Procesos", icon: Workflow },
   { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
@@ -74,6 +75,18 @@ const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
   });
+  const [waitlistPending, setWaitlistPending] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const { data } = await supabase.rpc("count_pending_waitlist_requests" as any);
+      if (alive) setWaitlistPending(Number(data ?? 0));
+    };
+    load();
+    const iv = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
 
   const toggleCollapsed = () => {
     const next = !collapsed;
@@ -156,6 +169,7 @@ const AdminLayout = () => {
   const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2.5";
+    const badgeCount = item.badgeKey === "waitlist" ? waitlistPending : 0;
 
     if (collapsed && !mobile) {
       return (
@@ -165,7 +179,7 @@ const AdminLayout = () => {
               to={item.to}
               end={item.to === "/admin/tienda"}
               className={({ isActive }) =>
-                `flex items-center justify-center p-2.5 rounded-md transition-colors ${
+                `relative flex items-center justify-center p-2.5 rounded-md transition-colors ${
                   isActive
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50"
@@ -173,10 +187,15 @@ const AdminLayout = () => {
               }
             >
               <item.icon className={iconSize} />
+              {badgeCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
+                  {badgeCount > 99 ? "99+" : badgeCount}
+                </span>
+              )}
             </NavLink>
           </TooltipTrigger>
           <TooltipContent side="right" className="text-xs">
-            {item.label}
+            {item.label}{badgeCount > 0 ? ` (${badgeCount})` : ""}
           </TooltipContent>
         </Tooltip>
       );
@@ -196,7 +215,12 @@ const AdminLayout = () => {
         }
       >
         <item.icon className={iconSize} />
-        {item.label}
+        <span className="flex-1">{item.label}</span>
+        {badgeCount > 0 && (
+          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+            {badgeCount > 99 ? "99+" : badgeCount}
+          </span>
+        )}
       </NavLink>
     );
   };
