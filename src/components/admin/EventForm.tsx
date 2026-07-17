@@ -232,7 +232,15 @@ export const eventFormToPayload = (form: EventFormData) => {
     end_date: form.same_day ? form.date : form.end_date || null,
     end_time: form.end_time || null,
     status: form.status,
-    is_active: form.status === "publicado",
+    // Mantener sincronizado el estado_publicacion (lo que la app del alumno lee para "Agotado"/"Próximamente" y activar la lista de espera).
+    estado_publicacion:
+      form.status === "publicado" ? "publicado"
+      : form.status === "proximamente" ? "proximamente"
+      : form.status === "agotado" ? "agotado"
+      : form.status === "finalizado" ? "cerrado"
+      : form.status === "cancelado" ? "cerrado"
+      : "borrador",
+    is_active: form.status === "publicado" || form.status === "agotado" || form.status === "proximamente",
     visible_to_students: form.visible_to_students,
     show_public: form.show_public,
     type: form.type,
@@ -486,7 +494,9 @@ const EventForm = ({
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="borrador">Borrador</SelectItem>
+                <SelectItem value="proximamente">Próximamente</SelectItem>
                 <SelectItem value="publicado">Publicado</SelectItem>
+                <SelectItem value="agotado">Agotado (activa lista de espera)</SelectItem>
                 <SelectItem value="finalizado">Finalizado</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
