@@ -55,6 +55,7 @@ interface ReservationInfo {
   package_id: string | null; amount_total: number | null; amount_paid: number;
   balance_due: number | null; price_snapshot: number | null; currency_snapshot: string | null;
   moneda: string; reservation_status: string;
+  genero_habitacion: string | null;
 }
 
 
@@ -111,7 +112,7 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
       resR, clR, adR, adjR, insR, payR, rmR, ntR,
     ] = await Promise.all([
       supabase.from("event_reservations")
-        .select("id, alumno_id, event_id, package_nombre_snapshot, package_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, reservation_status")
+        .select("id, alumno_id, event_id, package_nombre_snapshot, package_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, reservation_status, genero_habitacion")
         .eq("id", reservationId).maybeSingle(),
       supabase.from("reservation_checklist_data")
         .select("id, step_key, completed, needs_advice, data, file_url, updated_at")
@@ -501,7 +502,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
           reservationId={reservationId}
           eventId={reservation.event_id}
           alumnoId={alumnoId}
+          packageId={reservation?.package_id}
           packageName={reservation?.package_nombre_snapshot}
+          roomGender={reservation?.genero_habitacion}
           onChanged={load}
         />
       )}

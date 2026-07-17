@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Check, X, Mail, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { parseRoomCapacity } from "@/lib/roomCapacity";
+import { fetchPackageAvailability, AvailabilityRow, formatAvailabilityRow, generoLabel } from "@/lib/packageAvailability";
 
 interface Props {
   open: boolean;
@@ -24,7 +24,9 @@ interface Props {
   reservationId: string;
   eventId: string;
   alumnoId: string | null;
+  packageId?: string | null;
   packageName?: string | null;
+  roomGender?: string | null;
   onChanged?: () => void;
 }
 
@@ -47,7 +49,7 @@ interface Participant {
   reservation_id: string;
 }
 
-export default function TripRoommatesDrawer({ open, onOpenChange, reservationId, eventId, alumnoId, packageName, onChanged }: Props) {
+export default function TripRoommatesDrawer({ open, onOpenChange, reservationId, eventId, alumnoId, packageId, packageName, roomGender, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [outgoing, setOutgoing] = useState<RmRow[]>([]);   // rows on my reservation
@@ -55,8 +57,8 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [search, setSearch] = useState("");
   const [myEmail, setMyEmail] = useState<string>("");
-
-  const { capacity, requiresLodging, label } = useMemo(() => parseRoomCapacity(packageName), [packageName]);
+  const [capacity, setCapacity] = useState<number | null>(null);
+  const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,14 +90,39 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
       // Load event participants for autocomplete
       const { data: part } = await supabase.rpc("list_event_participants_for_roommate", { _event_id: eventId });
       setParticipants((part || []) as Participant[]);
+
+      // Fetch real room capacity from event_packages.personas_por_habitacion
+      if (packageId) {
+        const { data: pkg } = await supabase
+          .from("event_packages")
+          .select("personas_por_habitacion")
+          .eq("id", packageId)
+          .maybeSingle();
+        setCapacity(pkg?.personas_por_habitacion ?? null);
+        const rows = await fetchPackageAvailability(packageId);
+        setAvailability(rows);
+      } else {
+        setCapacity(null);
+        setAvailability([]);
+      }
     } catch (e: any) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [reservationId, eventId]);
+  }, [reservationId, eventId, packageId]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
+
+  // Derived from real package data (event_packages.personas_por_habitacion) + event_rooms availability
+  const requiresLodging = (capacity ?? 0) > 0 && availability.length > 0;
+  const label = capacity ? (capacity === 1 ? "Individual" : `${capacity} por habitación`) : "";
+  const genderRows = useMemo(
+    () => availability.filter(r => !roomGender || r.genero === roomGender || r.genero === "mixta"),
+    [availability, roomGender]
+  );
+  const genderAvailable = genderRows.reduce((s, r) => s + Math.max(0, r.available), 0);
+  const genderLabelStr = roomGender ? generoLabel(roomGender) : "";
 
   const invite = async (p: Participant) => {
     setSaving(true);
@@ -108,6 +135,10 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
       const usedSlots = outgoing.filter(r => r.status !== "rejected").length;
       if (capacity && usedSlots >= capacity - 1) {
         toast.error(`Tu habitación (${label}) sólo admite ${capacity} personas en total`);
+        return;
+      }
+      if (roomGender && genderAvailable <= 0) {
+        toast.error("No hay cupo disponible para agregar más personas a este tipo de habitación");
         return;
       }
       const nextPos = (outgoing[outgoing.length - 1]?.posicion || 0) + 1;
@@ -222,6 +253,7 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
           </SheetTitle>
           <SheetDescription>
             {label && <Badge variant="outline" className="mr-2">{label}</Badge>}
+            {genderLabelStr && <Badge variant="outline" className="mr-2 capitalize">{genderLabelStr}</Badge>}
             {packageName || "Tu paquete"}
           </SheetDescription>
         </SheetHeader>
@@ -318,8 +350,22 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
                 </section>
               )}
 
+              {/* No cupo disponible for this gender/tipo */}
+              {slotsRemaining !== null && slotsRemaining > 0 && roomGender && genderAvailable <= 0 && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  No hay cupo disponible para agregar más personas a este tipo de habitación.
+                  {genderRows.length > 0 && (
+                    <ul className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                      {genderRows.map((r, i) => (
+                        <li key={i}>· {formatAvailabilityRow(r)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               {/* Invite */}
-              {slotsRemaining !== null && slotsRemaining > 0 && (
+              {slotsRemaining !== null && slotsRemaining > 0 && (!roomGender || genderAvailable > 0) && (
                 <section className="space-y-2">
                   <p className="text-xs uppercase tracking-wider font-semibold text-foreground">
                     Invitar compañero{slotsRemaining > 1 ? "s" : ""} <span className="text-muted-foreground normal-case font-normal">· {slotsRemaining} lugar{slotsRemaining > 1 ? "es" : ""} libre{slotsRemaining > 1 ? "s" : ""}</span>
