@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Wallet, TrendingUp, BedDouble } from "lucide-react";
+import { CalendarDays, Wallet, TrendingUp, BedDouble, BellRing } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
+import { Button } from "@/components/ui/button";
+import { WaitlistRequestDialog } from "./WaitlistRequestDialog";
 
 interface PlanInstallment {
   numero: number;
