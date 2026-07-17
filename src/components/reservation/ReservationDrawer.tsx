@@ -161,6 +161,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
           p.used_mixto = x[p.id] || 0;
         });
       }
+      // Disponibilidad real desde event_rooms
+      if (rows.length > 0) {
+        const availMap = await fetchPackagesAvailability(rows.map((p) => p.id));
+        rows.forEach((p) => { p.availability = availMap[p.id] || []; });
+      }
       if (!cancelled) setPackages(rows);
       setLoadingPackages(false);
     })();
