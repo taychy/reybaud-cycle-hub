@@ -502,7 +502,9 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
           reservationId={reservationId}
           eventId={reservation.event_id}
           alumnoId={alumnoId}
+          packageId={reservation?.package_id}
           packageName={reservation?.package_nombre_snapshot}
+          roomGender={reservation?.genero_habitacion}
           onChanged={load}
         />
       )}
