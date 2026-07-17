@@ -781,19 +781,22 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
               <div className="space-y-2">
                 {packages.map((p) => {
                   const isSelected = p.id === selectedPackageId;
-                  const cupoLeft = p.cupo != null ? Math.max(0, p.cupo - (p.used || 0)) : null;
-                  const sinCupo = cupoLeft === 0;
+                  const totalAvail = packageTotalAvail(p);
+                  const rows = p.availability || [];
+                  const noRooms = rows.length === 0;
+                  const sinCupo = totalAvail != null && totalAvail <= 0;
+                  const disabled = noRooms || sinCupo;
                   return (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => !sinCupo && setSelectedPackageId(p.id)}
-                      disabled={sinCupo}
+                      onClick={() => !disabled && setSelectedPackageId(p.id)}
+                      disabled={disabled}
                       className={`w-full text-left rounded-xl border p-3 transition-all ${
                         isSelected
                           ? "border-primary bg-primary/10"
                           : "border-border/60 bg-card/60 hover:border-primary/40"
-                      } ${sinCupo ? "opacity-50 cursor-not-allowed" : ""}`}
+                      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       <div className="flex items-start gap-2">
                         <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
@@ -817,12 +820,18 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                                 Seña: <span className="text-foreground/80 font-medium">{formatPrice(p.sena, p.currency)}</span>
                               </span>
                             )}
-                            {p.cupo != null && (
-                              <span className={`text-[11px] px-1.5 py-0.5 rounded ${
-                                sinCupo ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"
-                              }`}>
-                                {sinCupo ? "Sin cupo" : `${cupoLeft} ${cupoLeft === 1 ? "lugar" : "lugares"}`}
-                              </span>
+                          </div>
+                          {/* Disponibilidad real por tipo/género */}
+                          <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
+                            {noRooms ? (
+                              <p className="text-[11px] text-destructive">Sin alojamiento cargado — no disponible</p>
+                            ) : (
+                              rows.map((a, i) => (
+                                <div key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                                  <span>{formatAvailabilityRow(a)}</span>
+                                  <span className="tabular-nums opacity-70">{a.taken}/{a.capacity}</span>
+                                </div>
+                              ))
                             )}
                           </div>
                         </div>
