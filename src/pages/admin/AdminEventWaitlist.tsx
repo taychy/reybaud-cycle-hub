@@ -49,6 +49,7 @@ const ESTADO_PUB_LABELS: Record<string, string> = {
   borrador: "Borrador",
   proximamente: "Próximamente",
   publicado: "Publicado",
+  agotado: "Agotado",
   cerrado: "Cerrado",
 };
 
