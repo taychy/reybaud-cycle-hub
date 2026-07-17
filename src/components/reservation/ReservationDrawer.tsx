@@ -60,6 +60,8 @@ interface PackageRow {
   used_mixto?: number;
   // etapa de precio vigente (si aplica)
   active_stage_id?: string | null;
+  // disponibilidad real desde event_rooms
+  availability?: AvailabilityRow[];
 }
 
 type RoomGender = "femenina" | "masculina" | "mixta";
