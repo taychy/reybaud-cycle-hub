@@ -504,7 +504,10 @@ const PlanSelection = () => {
 
       const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
       const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
-      const notasMarker = [upgradeMarker, earlyMarker].filter(Boolean).join(" | ") || null;
+      const pausaMarker = plan.categoria === "pausa" && pausaTipo
+        ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
+        : null;
+      const notasMarker = [upgradeMarker, earlyMarker, pausaMarker].filter(Boolean).join(" | ") || null;
 
       let subId: string | null = null;
       const reused = !earlyRenewal && !isUpgradeFlow
