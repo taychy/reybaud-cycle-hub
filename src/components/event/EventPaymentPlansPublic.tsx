@@ -52,6 +52,7 @@ const computeAmount = (tipo: string, valor: number, total: number, sena: number 
 const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
+  const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
