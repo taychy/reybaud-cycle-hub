@@ -25,9 +25,31 @@ import {
 const sb: any = supabase;
 
 const AdminProcessTemplates = () => {
+  const navigate = useNavigate();
   const { templates, stages, loading, reload } = useProcessTemplates(true);
   const [editing, setEditing] = useState<ProcessTemplate | null>(null);
   const [creating, setCreating] = useState(false);
+  const [starting, setStarting] = useState<string | null>(null);
+
+  const startFromTemplate = async (t: ProcessTemplate) => {
+    setStarting(t.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sin sesión");
+      const instanceId = await startProcessInstance({
+        template_id: t.id,
+        iniciado_por: user.id,
+        destinatario_reporte_email: user.email ?? null,
+        plan_id: null,
+      });
+      toast({ title: "Proceso iniciado", description: `${t.nombre} — abriendo el checklist…` });
+      navigate(`/admin/procesos/runner/${instanceId}`);
+    } catch (e: any) {
+      toast({ title: "No se pudo iniciar", description: e?.message || "Error desconocido", variant: "destructive" });
+    } finally {
+      setStarting(null);
+    }
+  };
 
   const createTemplate = async () => {
     const { data, error } = await sb
