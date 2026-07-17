@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Save, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Save, Copy, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useProcessTemplates,
+  startProcessInstance,
   ProcessTemplate,
   ProcessTemplateStage,
   EntidadControl,
