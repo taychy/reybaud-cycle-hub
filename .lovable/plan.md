@@ -1,97 +1,83 @@
-## Objetivo
+## Lista de espera por evento
 
-Un externo que ve la landing pública de un evento (viaje, carrera, salida) puede reservar y pagar **sin crear cuenta de alumno**. Al confirmarse el pago recibe un magic link con acceso a una vista limitada donde solo ve/gestiona **su evento**: estado, checklist, roommate, documentos. Nunca ve entrenamientos, planes, ni el resto de la app.
+### 1. Nuevo estado del evento
 
-Aplica a **todos los eventos abiertos** (viajes, carreras, salidas one-shot). Si en el futuro querés restringirlo por evento, agregamos el toggle en admin — pero de arranque queda universal.
+Agregar a `events`:
+- `estado_publicacion` enum: `borrador` | `proximamente` | `publicado` | `cerrado` (default `borrador`; migrar los `activo=true` actuales a `publicado`).
+- `waitlist_habilitada bool` (default false).
+- `waitlist_mensaje text` — copy corto que se muestra arriba del formulario (ej: "Estamos definiendo fechas. Anotate y te avisamos apenas abramos.").
 
-## 1. Landing pública (`/eventos/:id`)
+En el listado público (`Eventos.tsx`) y el detalle:
+- `borrador` no se lista.
+- `proximamente` muestra badge "Próximamente" y CTA "Anotarme en la lista de espera" (oculta paquetes/precios; muestra "fechas y precios a confirmar").
+- `publicado` funciona como hoy.
+- `cerrado` se lista sin CTA, solo lectura.
 
-Reemplazo el CTA único de "Iniciar sesión" por **dos botones lado a lado** cuando el visitante no está logueado:
+### 2. Plantillas de preguntas reutilizables
 
-- **Soy alumno** → login flujo actual (`/?returnTo=…`).
-- **Reservar como invitado** → abre nuevo `GuestReservationDrawer` (checkout completo sin cuenta).
+Tabla `waitlist_question_templates`:
+- `nombre` (ej. "Camp base"), `descripcion`.
+- `preguntas jsonb` — array de `{ id, orden, label, tipo, opciones, requerida }`.
+- Tipos soportados: `text`, `textarea`, `single_choice`, `multi_choice`, `date`, `number`.
 
-Si ya hay `alumno` en sesión, sigue viéndose el CTA único actual — sin cambios.
+Admin en Configuración → "Plantillas lista de espera": CRUD con editor visual para agregar/reordenar/borrar preguntas.
 
-## 2. Checkout de invitado (`GuestReservationDrawer`)
+En el editor del evento, tab "Lista de espera":
+- Toggle "Habilitar lista de espera".
+- Selector "Plantilla base" (opcional) → al elegirla, copia las preguntas al evento.
+- Editor local: podés editar/agregar/quitar preguntas específicas de este evento sin tocar la plantilla.
+- Las preguntas finales se guardan en `events.waitlist_questions jsonb`.
 
-Wizard corto de 3 pasos, mismo look que el drawer actual pero sin dependencia de `alumno`:
+### 3. Tabla de anotados
 
-1. **Datos personales**: nombre, apellido, email, teléfono, documento, fecha de nacimiento, contacto de emergencia (nombre + tel).
-2. **Paquete + extras**: mismos componentes que hoy usa el alumno logueado (`PackageSelector`, `AddonsSelector`), reutilizados.
-3. **Pago**: MP o transferencia (mismo flujo que reservas de alumnos).
+Tabla `event_waitlist_entries`:
+- `event_id`, `alumno_id` (nullable), `nombre`, `email`, `telefono`, `dni` (nullable).
+- `respuestas jsonb` — `{ question_id: valor }`.
+- `estado`: `nuevo` | `contactado` | `convertido` | `descartado` (default `nuevo`).
+- `admin_notas text`, `contactado_por uuid`, `contactado_at timestamptz`.
+- Índice único parcial `(event_id, email)` para evitar duplicados.
+- RLS: insert público (con validación de que el evento tenga `waitlist_habilitada`), select/update solo admin.
 
-Al enviar, invoca una nueva edge function **`create-guest-reservation`** que:
+Al insertar: si viene con `alumno_id` (logueado), linkea; si no, upsert por email y también mete en `marketing_contacts` (best-effort).
 
-- Crea (o actualiza si ya existe por email) una fila en `event_external_participants` con todos los datos personales — **no toca `alumnos`**.
-- Crea `event_reservations` con `alumno_id = NULL` y `external_participant_id = <id>` (agrego esa columna).
-- Aplica el mismo flujo de pago que la reserva de alumno (MP preference / upload de comprobante) — reutiliza `resolveCuentaMP` y el bucket `payment-proofs`.
-- Genera un token único (`event_external_participants.access_token`, ya existe) para el acceso post-pago.
+### 4. Formulario público
 
-Con esto, el externo queda separado del padrón de alumnos y no ensucia métricas de retención/MRR.
+Componente `EventWaitlistDialog`:
+- Detecta sesión: si hay alumno, prellena nombre/email/teléfono/DNI (readonly los que ya tenga) y guarda `alumno_id`.
+- Si no hay sesión, muestra los mismos campos editables + validación con zod.
+- Renderiza dinámicamente las `waitlist_questions` del evento según su `tipo`.
+- Al enviar: RPC `submit_waitlist_entry` (SECURITY DEFINER) que valida evento habilitado + inserta.
+- Confirmación in-place: "Listo, quedaste anotado. Te avisamos por mail cuando abramos inscripciones."
+- Sin envío de email automático (el aviso se hace después vía mail masivo manual).
 
-## 3. Confirmación por email + magic link
+Entradas al formulario:
+- `EventCard` en `Eventos.tsx` cuando `estado_publicacion = proximamente`.
+- Botón secundario en `EventDetail` para eventos `proximamente`.
+- Link público directo `/eventos/:slug/lista-espera` (para poder compartirlo por WhatsApp/RRSS).
 
-Al aprobarse el pago (MP webhook aprobado o admin valida transferencia), se dispara **`send-guest-reservation-confirmed`**:
+### 5. Panel admin
 
-- Encola email con resumen del paquete, monto pagado, fecha del evento y un **botón "Acceder a tu reserva"** que apunta a `https://reybaud-app.com/mi-reserva/:token`.
-- El token es el mismo `access_token` de `event_external_participants` — no requiere que el guest haga login.
+Nueva página `/admin/eventos/:id/lista-espera`:
+- KPIs: total, nuevos, contactados, convertidos, descartados.
+- Tabla con filtros por estado + búsqueda por nombre/email + filtro por respuesta (ej. "los que eligieron marzo").
+- Acciones por fila: marcar como contactado/convertido/descartado, agregar nota, ver todas las respuestas en un drawer, WhatsApp directo con el teléfono.
+- Botón "Exportar CSV" con las respuestas expandidas en columnas.
+- Botón "Copiar emails" para pegar en la herramienta de mail masivo.
+- Link "Editar preguntas" que abre el tab correspondiente del editor del evento.
 
-Los recordatorios de cuotas, cambios de estado y avisos generales del viaje reutilizan la infra existente (`reservation_notifications`), pero apuntando al link con token en lugar de a la app de alumno.
+En el sidebar admin: contador de entries con estado `nuevo` (todos los eventos), similar al de solicitudes de alojamiento.
 
-## 4. Mini-app post-pago (`/mi-reserva/:token`)
+### 6. Alcance excluido de esta primera versión
 
-Nueva ruta pública (sin `ProtectedRoute`) que valida el token y muestra **solo** lo que corresponde a esa reserva:
+- Conversión asistida a reserva (queda para después; por ahora el aviso masivo lleva al link del evento y el alumno reserva normal).
+- Notificación automática al publicar (confirmaste que se hace manual desde mail masivo).
+- Preventa exclusiva / prioridad con token (no lo pediste).
 
-- Header: evento, fechas, paquete contratado, estado de pago.
-- Tabs:
-  - **Detalles del viaje** — descripción, itinerario, inclusiones (mismo componente readonly que ya existe).
-  - **Mi reserva** — comprobante, cuotas pendientes, botón "Pagar cuota siguiente" (MP link generado con el mismo token).
-  - **Checklist** — bike sizing, documentos, formularios (reutilizo el `ReservationChecklist` actual, adaptado para trabajar con `external_participant_id` en vez de `alumno_id`).
-  - **Roommate** — puede elegir compartir habitación con otro participante externo o pedir asignación admin.
-- **No hay**: entrenamientos, planes, cuenta corriente, otros eventos, tienda, comunidad.
+### Detalles técnicos
 
-Diseño limpio, respeta el look luxury dark existente pero sin `BottomNav` de alumno.
+- Migración crea: `waitlist_question_templates`, `event_waitlist_entries`, columnas nuevas en `events`, RPC `submit_waitlist_entry`, RPC `count_new_waitlist_entries` para el badge.
+- GRANTs: templates y entries → `authenticated` + `service_role`; entries también `INSERT` para `anon` vía RPC (la RPC valida).
+- Frontend nuevo: `EventWaitlistDialog.tsx`, `WaitlistQuestionsEditor.tsx` (reutilizable en plantillas y evento), `AdminWaitlistTemplates.tsx`, `AdminEventWaitlist.tsx`, página pública `EventWaitlistPage.tsx`.
+- Frontend editado: `Eventos.tsx`, `EventDetail.tsx`, editor de evento admin, `AdminLayout.tsx` (badge + link a plantillas).
 
-## 5. Admin sigue viendo todo unificado
-
-- El panel actual de reservas (`AdminEventReservations` + `EventTripReports`) ya muestra participantes externos con badge — se mantiene igual.
-- Agrego columna extra: "Origen" (alumno / externo directo) para distinguir los que se anotaron por landing pública de los que fueron agregados como acompañantes por un alumno.
-- El botón "Convertir a alumno" (opcional) queda disponible por si un externo después decide sumarse a un plan mensual — reutiliza la RPC `merge_alumnos` de la iteración anterior.
-
-## 6. Detalles técnicos
-
-**Migraciones:**
-- `event_reservations.external_participant_id uuid REFERENCES event_external_participants(id)` (nullable).
-- `event_external_participants`: verificar que tenga `documento`, `fecha_nacimiento`, `contacto_emergencia_nombre`, `contacto_emergencia_telefono` (agregar los que falten).
-- RLS pública sobre `event_reservations`, `reservation_installments`, `reservation_checklist_data`, `event_room_assignments`: policy `SELECT/UPDATE` cuando el request trae header con token válido (usar `check_external_participant_token(token)` SECURITY DEFINER que ya existe o se crea).
-- `event_external_participants`: mismo patrón — RLS que permite SELECT/UPDATE por token.
-
-**Edge functions nuevas:**
-- `create-guest-reservation` (POST público, sin JWT).
-- `send-guest-reservation-confirmed` (invocado desde webhook MP y desde admin al validar transferencia).
-- `guest-reservation-pay-installment` (POST público, genera MP preference para una cuota específica validando el token).
-
-**Archivos nuevos:**
-- `src/pages/GuestReservationView.tsx` — mini-app post-pago.
-- `src/components/reservation/GuestReservationDrawer.tsx` — wizard de checkout.
-- `src/App.tsx` — nueva ruta `/mi-reserva/:token`.
-- `src/pages/EventDetail.tsx` — dos CTAs cuando no hay alumno.
-
-**Reutilización:**
-- `PackageSelector`, `AddonsSelector`, `ReservationChecklist`, `TripRoommatesDrawer` — refactor mínimo para aceptar `external_participant_id` como alternativa a `alumno_id`.
-- Flujo de pago MP y transferencia — mismos handlers que reservas de alumno.
-
-**Fuera de alcance de esta iteración (podemos hacer después si querés):**
-- Toggle por evento para desactivar el flujo de externos.
-- UI de admin para "invitar por link" a un externo específico.
-- Recuperación de acceso si el guest pierde el email (self-service reenvío de magic link por email).
-
-## 7. Caso de uso validador
-
-Al terminar, un amigo de un alumno que quiere ir a Girona 2027:
-1. Entra a `reybaud-app.com/eventos/girona-2027`.
-2. Ve fotos, precios, itinerario. Toca "Reservar como invitado".
-3. Llena sus datos + elige paquete "Doble" + paga con MP.
-4. Recibe email "Reserva confirmada" con link `/mi-reserva/abc123`.
-5. Entra al link → ve su paquete, sube su pasaporte, elige roommate. Nunca vio la app de alumnos ni tuvo que registrarse.
+¿Confirmás y arranco con la migración + backend, o querés ajustar algo antes?
