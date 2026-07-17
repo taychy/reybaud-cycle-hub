@@ -258,9 +258,18 @@ const EventCard = ({
             size="sm"
             variant={hasUserLink ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
             className="text-[10px] h-7 px-2.5"
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (event.estado_publicacion === "proximamente" && event.waitlist_habilitada) {
+                window.location.href = `/eventos/${event.id}/lista-espera`;
+                return;
+              }
+              onClick();
+            }}
           >
-            {hasUserLink
+            {event.estado_publicacion === "proximamente" && event.waitlist_habilitada
+              ? "Anotarme"
+              : hasUserLink
               ? (isPast ? "Ver resultado" : "Ver estado")
               : isPast ? "Finalizado"
               : isInformative ? "Ver info"
