@@ -281,6 +281,15 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
       <p className="text-[11px] text-muted-foreground">
         Podés pagar con Mercado Pago, transferencia o efectivo. La seña confirma tu lugar.
       </p>
+      {waitlistPkg && (
+        <WaitlistRequestDialog
+          open={!!waitlistPkg}
+          onOpenChange={(o) => { if (!o) setWaitlistPkg(null); }}
+          eventId={eventId}
+          packageId={waitlistPkg.id}
+          packageName={waitlistPkg.nombre}
+        />
+      )}
     </div>
   );
 };
