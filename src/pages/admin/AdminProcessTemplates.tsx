@@ -391,8 +391,8 @@ function StageEditDialog({
   };
 
   return (
-    <Dialog open={!!stage} onOpenChange={(o) => { if (!o) { setTitulo(""); setInstrucciones(""); onClose(); } }}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={!!stage} onOpenChange={(o) => { if (!o) { setTitulo(""); setInstrucciones(""); setSubtasks([]); onClose(); } }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Editar etapa</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div><Label>Título</Label><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} /></div>
