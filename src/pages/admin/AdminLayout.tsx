@@ -16,6 +16,7 @@ const mainItems: NavItem[] = [
   { to: "/admin/coaches", label: "Coaches", icon: UserCog },
   { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
   { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+  { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
   { to: "/admin/programas", label: "Programas", icon: GraduationCap },
   { to: "/admin/procesos", label: "Procesos", icon: Workflow },
   { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
