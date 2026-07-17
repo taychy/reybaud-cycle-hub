@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Save } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, Save, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -49,6 +49,52 @@ const AdminProcessTemplates = () => {
   const toggleActive = async (t: ProcessTemplate) => {
     await sb.from("process_templates").update({ activo: !t.activo }).eq("id", t.id);
     reload();
+  };
+
+  const duplicateTemplate = async (t: ProcessTemplate) => {
+    const suggested = `${t.nombre} — copia`;
+    const nuevoNombre = window.prompt("Nombre de la nueva plantilla:", suggested);
+    if (!nuevoNombre || !nuevoNombre.trim()) return;
+
+    const { data: newTpl, error: tplErr } = await sb
+      .from("process_templates")
+      .insert({
+        nombre: nuevoNombre.trim(),
+        descripcion: t.descripcion,
+        rol_destino: t.rol_destino,
+        icono: t.icono,
+        activo: true,
+      })
+      .select()
+      .single();
+    if (tplErr || !newTpl) {
+      return toast({ title: "Error al duplicar", description: tplErr?.message, variant: "destructive" });
+    }
+
+    const originStages = stages
+      .filter((s) => s.template_id === t.id)
+      .sort((a, b) => a.orden - b.orden);
+
+    if (originStages.length > 0) {
+      const rows = originStages.map((s) => ({
+        template_id: newTpl.id,
+        orden: s.orden,
+        titulo: s.titulo,
+        instrucciones: s.instrucciones,
+        requiere_foto: s.requiere_foto,
+        requiere_nota: s.requiere_nota,
+        entidad_control: s.entidad_control,
+        accion_final: s.accion_final,
+      }));
+      const { error: stErr } = await sb.from("process_template_stages").insert(rows);
+      if (stErr) {
+        toast({ title: "Plantilla creada, pero fallaron las etapas", description: stErr.message, variant: "destructive" });
+      }
+    }
+
+    toast({ title: "Plantilla duplicada", description: `Se creó "${nuevoNombre.trim()}" con ${originStages.length} etapa(s).` });
+    await reload();
+    setEditing(newTpl as ProcessTemplate);
   };
 
   if (editing) {
@@ -99,13 +145,16 @@ const AdminProcessTemplates = () => {
                   <div className="text-xs text-muted-foreground">
                     {tStages.length} etapa{tStages.length === 1 ? "" : "s"} · rol: <span className="font-medium">{t.rol_destino}</span>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap items-center">
                     <Button size="sm" variant="outline" onClick={() => setEditing(t)}>
                       <Pencil className="w-3 h-3 mr-1" /> Editar
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => duplicateTemplate(t)}>
+                      <Copy className="w-3 h-3 mr-1" /> Duplicar
+                    </Button>
                     <div className="flex items-center gap-2">
                       <Switch checked={t.activo} onCheckedChange={() => toggleActive(t)} />
-                      <span className="text-xs">Activa</span>
+                      <span className="text-xs">{t.activo ? "Activa" : "Archivada"}</span>
                     </div>
                     <Button size="sm" variant="ghost" className="text-destructive ml-auto" onClick={() => deleteTemplate(t.id)}>
                       <Trash2 className="w-3 h-3" />
