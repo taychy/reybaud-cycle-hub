@@ -1229,6 +1229,19 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
           )}
         </div>
       </DrawerContent>
+      {waitlistPkg && (
+        <WaitlistRequestDialog
+          open={!!waitlistPkg}
+          onOpenChange={(o) => { if (!o) setWaitlistPkg(null); }}
+          eventId={event.id}
+          packageId={waitlistPkg.id}
+          packageName={waitlistPkg.nombre}
+          alumnoId={alumno?.id || null}
+          defaultName={alumno ? `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() : ""}
+          defaultEmail={alumno?.email || ""}
+          defaultPhone={alumno?.telefono || ""}
+        />
+      )}
     </Drawer>
   );
 };
