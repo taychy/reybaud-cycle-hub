@@ -340,6 +340,7 @@ function StageEditDialog({
   const [requiereNota, setRequiereNota] = useState(false);
   const [entidadControl, setEntidadControl] = useState<EntidadControl>("none");
   const [accionFinal, setAccionFinal] = useState<AccionFinal>("none");
+  const [subtasks, setSubtasks] = useState<ProcessSubtask[]>([]);
 
   useEffect(() => {
     if (stage) {
@@ -349,25 +350,44 @@ function StageEditDialog({
       setRequiereNota(stage.requiere_nota);
       setEntidadControl(stage.entidad_control);
       setAccionFinal(stage.accion_final);
+      setSubtasks(Array.isArray(stage.subtasks) ? stage.subtasks : []);
     }
   }, [stage?.id]);
 
+  const addSubtask = () => {
+    const id = `st-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setSubtasks([...subtasks, { id, titulo: "" }]);
+  };
+  const updateSubtask = (id: string, titulo: string) => {
+    setSubtasks(subtasks.map((s) => (s.id === id ? { ...s, titulo } : s)));
+  };
+  const removeSubtask = (id: string) => setSubtasks(subtasks.filter((s) => s.id !== id));
+  const moveSubtask = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= subtasks.length) return;
+    const next = [...subtasks];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setSubtasks(next);
+  };
 
   const save = async () => {
     if (!stage) return;
-    const patch = {
+    const cleaned = subtasks
+      .map((s) => ({ ...s, titulo: s.titulo.trim() }))
+      .filter((s) => s.titulo.length > 0);
+    const patch: any = {
       titulo,
       instrucciones: instrucciones || null,
       requiere_foto: requiereFoto,
       requiere_nota: requiereNota,
       entidad_control: entidadControl,
       accion_final: accionFinal,
+      subtasks: cleaned,
     };
     const { error } = await sb.from("process_template_stages").update(patch).eq("id", stage.id);
     if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
     onSaved({ ...stage, ...patch });
-    // reset for next open
-    setTitulo(""); setInstrucciones("");
+    setTitulo(""); setInstrucciones(""); setSubtasks([]);
   };
 
   return (
