@@ -19,6 +19,7 @@ import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import { extractReglamento, extractReglamentoWithDefaults, hasAnyReglamento } from "@/lib/eventReglamentoDefaults";
 import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/lib/paymentPlanCalculator";
 import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
+import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
 
 
 type Alumno = Tables<"alumnos">;
