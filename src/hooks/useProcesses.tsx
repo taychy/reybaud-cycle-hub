@@ -62,6 +62,8 @@ export interface ProcessInstanceStage {
   completed_by: string | null;
   completed_at: string | null;
   subtasks_state?: Record<string, { done: boolean; at?: string; by?: string }>;
+}
+
 
 const sb: any = supabase;
 
