@@ -49,6 +49,7 @@ const ESTADO_PUB_LABELS: Record<string, string> = {
   borrador: "Borrador",
   proximamente: "Próximamente",
   publicado: "Publicado",
+  agotado: "Agotado",
   cerrado: "Cerrado",
 };
 
@@ -352,7 +353,8 @@ export default function AdminEventWaitlist() {
                 </Select>
                 <p className="text-[11px] text-muted-foreground mt-1">
                   <b>Próximamente</b>: aparece en el listado con badge y CTA de lista de espera (sin paquetes/precios).{" "}
-                  <b>Publicado</b>: reserva normal. <b>Borrador</b>: oculto. <b>Cerrado</b>: solo lectura.
+                  <b>Publicado</b>: reserva normal. <b>Agotado</b>: se muestra publicado pero sin cupos, con CTA de lista de espera.{" "}
+                  <b>Borrador</b>: oculto. <b>Cerrado</b>: solo lectura.
                 </p>
               </div>
 

@@ -177,6 +177,11 @@ const EventCard = ({
               Próximamente
             </span>
           )}
+          {event.estado_publicacion === "agotado" && (
+            <span className="text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm bg-red-500 text-white">
+              Agotado
+            </span>
+          )}
         </div>
 
         {/* Reservation badge bottom-left */}
@@ -260,15 +265,20 @@ const EventCard = ({
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => {
               e.stopPropagation();
-              if (event.estado_publicacion === "proximamente" && event.waitlist_habilitada) {
+              const isWaitlistState =
+                event.estado_publicacion === "proximamente" ||
+                event.estado_publicacion === "agotado";
+              if (isWaitlistState && event.waitlist_habilitada) {
                 window.location.href = `/eventos/${event.id}/lista-espera`;
                 return;
               }
               onClick();
             }}
           >
-            {event.estado_publicacion === "proximamente" && event.waitlist_habilitada
+            {(event.estado_publicacion === "proximamente" || event.estado_publicacion === "agotado") && event.waitlist_habilitada
               ? "Anotarme"
+              : event.estado_publicacion === "agotado"
+              ? "Agotado"
               : hasUserLink
               ? (isPast ? "Ver resultado" : "Ver estado")
               : isPast ? "Finalizado"
@@ -364,7 +374,7 @@ export const EventosContent = () => {
         .select("*")
         .eq("is_active", true)
         .eq("visible_to_students", true)
-        .in("estado_publicacion", ["proximamente", "publicado", "cerrado"])
+        .in("estado_publicacion", ["proximamente", "publicado", "agotado", "cerrado"])
         .order("date", { ascending: true });
       if (!data || data.length === 0) { setEvents([]); setLoading(false); return; }
 
@@ -431,7 +441,7 @@ export const EventosContent = () => {
 
   const today = new Date().toISOString().slice(0, 10);
   // Un evento sigue "vigente" mientras no haya pasado su fecha de fin (o su fecha única si no tiene end_date)
-  const upcoming = events.filter((e) => e.estado_publicacion === "proximamente" || (e.end_date || e.date) >= today);
+  const upcoming = events.filter((e) => e.estado_publicacion === "proximamente" || e.estado_publicacion === "agotado" || (e.end_date || e.date) >= today);
   const reservedEventIds = new Set(Object.keys(reservations));
   // "Mis eventos" = todo evento donde el alumno tiene vínculo real (reserva o participación),
   // sin filtrar por fecha. Aplica a TODOS los tipos: carreras, viajes, camps, Record, etc.
