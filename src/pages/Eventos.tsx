@@ -364,7 +364,7 @@ export const EventosContent = () => {
         .select("*")
         .eq("is_active", true)
         .eq("visible_to_students", true)
-        .in("estado_publicacion", ["proximamente", "publicado", "cerrado"])
+        .in("estado_publicacion", ["proximamente", "publicado", "agotado", "cerrado"])
         .order("date", { ascending: true });
       if (!data || data.length === 0) { setEvents([]); setLoading(false); return; }
 
