@@ -42,7 +42,7 @@ const AdminProgramaFlujoRunner = () => {
   const [emailTemplates, setEmailTemplates] = useState<Array<{ key: string; name: string }>>([]);
   const [taskCreating, setTaskCreating] = useState(false);
 
-  const backTo = `/admin/programas/${cohortId}`;
+  const backTo = cohortId ? `/admin/programas/${cohortId}` : `/admin/procesos`;
 
   const load = async () => {
     if (!instanceId) return;
