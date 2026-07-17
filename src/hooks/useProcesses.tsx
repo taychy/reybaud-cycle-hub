@@ -32,7 +32,7 @@ export interface ProcessTemplateStage {
   requiere_nota: boolean;
   entidad_control: EntidadControl;
   accion_final: AccionFinal;
-  subtasks: ProcessSubtask[];
+  subtasks?: ProcessSubtask[];
 }
 
 export interface ProcessInstance {
