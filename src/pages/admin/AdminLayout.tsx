@@ -75,6 +75,18 @@ const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
   });
+  const [waitlistPending, setWaitlistPending] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const { data } = await supabase.rpc("count_pending_waitlist_requests" as any);
+      if (alive) setWaitlistPending(Number(data ?? 0));
+    };
+    load();
+    const iv = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
 
   const toggleCollapsed = () => {
     const next = !collapsed;
