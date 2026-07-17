@@ -431,7 +431,7 @@ export const EventosContent = () => {
 
   const today = new Date().toISOString().slice(0, 10);
   // Un evento sigue "vigente" mientras no haya pasado su fecha de fin (o su fecha única si no tiene end_date)
-  const upcoming = events.filter((e) => e.estado_publicacion === "proximamente" || (e.end_date || e.date) >= today);
+  const upcoming = events.filter((e) => e.estado_publicacion === "proximamente" || e.estado_publicacion === "agotado" || (e.end_date || e.date) >= today);
   const reservedEventIds = new Set(Object.keys(reservations));
   // "Mis eventos" = todo evento donde el alumno tiene vínculo real (reserva o participación),
   // sin filtrar por fecha. Aplica a TODOS los tipos: carreras, viajes, camps, Record, etc.
