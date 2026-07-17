@@ -205,6 +205,23 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                       <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{pkg.descripcion}</p>
                     </div>
                   )}
+                  <div className="space-y-1 pt-1">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading flex items-center gap-1.5">
+                      <BedDouble className="w-3 h-3" /> Disponibilidad
+                    </p>
+                    {pkg.availability.length === 0 ? (
+                      <p className="text-[11px] text-destructive">Sin alojamiento cargado — este paquete aún no está disponible.</p>
+                    ) : (
+                      <ul className="space-y-0.5">
+                        {pkg.availability.map((a, i) => (
+                          <li key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-foreground/90"}`}>
+                            <span>{formatAvailabilityRow(a)}</span>
+                            <span className="text-muted-foreground tabular-nums">{a.taken}/{a.capacity}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   {pkg.plan && (
                     <div className="space-y-1.5 pt-1">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-heading">Plan de pagos</p>
