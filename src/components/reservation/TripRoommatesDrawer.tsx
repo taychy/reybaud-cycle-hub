@@ -49,7 +49,7 @@ interface Participant {
   reservation_id: string;
 }
 
-export default function TripRoommatesDrawer({ open, onOpenChange, reservationId, eventId, alumnoId, packageName, onChanged }: Props) {
+export default function TripRoommatesDrawer({ open, onOpenChange, reservationId, eventId, alumnoId, packageId, packageName, roomGender, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [outgoing, setOutgoing] = useState<RmRow[]>([]);   // rows on my reservation
@@ -57,8 +57,8 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [search, setSearch] = useState("");
   const [myEmail, setMyEmail] = useState<string>("");
-
-  const { capacity, requiresLodging, label } = useMemo(() => parseRoomCapacity(packageName), [packageName]);
+  const [capacity, setCapacity] = useState<number | null>(null);
+  const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
