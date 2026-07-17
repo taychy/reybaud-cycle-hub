@@ -135,14 +135,14 @@ const AdminProcessTemplates = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/admin/resumen">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Volver a Resumen</Button>
+        <Link to="/admin/procesos">
+          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Volver a Procesos activos</Button>
         </Link>
       </div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Plantillas de Procesos</h1>
-          <p className="text-sm text-muted-foreground">Definí los procesos guiados que ejecutan los usuarios (depósito, coach, admin).</p>
+          <p className="text-sm text-muted-foreground">Definí los procesos guiados y lanzalos como instancias activas cuando toque ejecutarlos.</p>
         </div>
         <Button onClick={createTemplate}><Plus className="w-4 h-4 mr-1" /> Nueva plantilla</Button>
       </div>
@@ -170,7 +170,25 @@ const AdminProcessTemplates = () => {
                   <div className="text-xs text-muted-foreground">
                     {tStages.length} etapa{tStages.length === 1 ? "" : "s"} · rol: <span className="font-medium">{t.rol_destino}</span>
                   </div>
-                  <div className="flex gap-2 flex-wrap items-center">
+
+                  {/* CTA principal — Iniciar proceso */}
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => startFromTemplate(t)}
+                    disabled={!t.activo || tStages.length === 0 || starting === t.id}
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />
+                    {starting === t.id ? "Iniciando…" : "Iniciar proceso"}
+                  </Button>
+                  {!t.activo && (
+                    <p className="text-[10px] text-muted-foreground text-center">Archivada — reactivala para poder iniciarla.</p>
+                  )}
+                  {tStages.length === 0 && t.activo && (
+                    <p className="text-[10px] text-muted-foreground text-center">Agregá al menos una etapa antes de iniciar.</p>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap items-center pt-1 border-t border-border/50">
                     <Button size="sm" variant="outline" onClick={() => setEditing(t)}>
                       <Pencil className="w-3 h-3 mr-1" /> Editar
                     </Button>
