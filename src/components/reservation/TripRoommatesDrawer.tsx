@@ -114,6 +114,16 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
+  // Derived from real package data (event_packages.personas_por_habitacion) + event_rooms availability
+  const requiresLodging = (capacity ?? 0) > 0 && availability.length > 0;
+  const label = capacity ? (capacity === 1 ? "Individual" : `${capacity} por habitación`) : "";
+  const genderRows = useMemo(
+    () => availability.filter(r => !roomGender || r.genero === roomGender || r.genero === "mixta"),
+    [availability, roomGender]
+  );
+  const genderAvailable = genderRows.reduce((s, r) => s + Math.max(0, r.available), 0);
+  const genderLabelStr = roomGender ? generoLabel(roomGender) : "";
+
   const invite = async (p: Participant) => {
     setSaving(true);
     try {
