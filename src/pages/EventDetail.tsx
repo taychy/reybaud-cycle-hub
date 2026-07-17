@@ -451,6 +451,9 @@ const EventDetail = () => {
   const isExternal = eventNature === "externo_informativo";
   const allowsParticipation = isReservable || isInscriptionOnly;
   const isTripLike = event.type === "camp" || event.type === "viaje";
+  const isSoldOut = event.estado_publicacion === "agotado";
+  const isProximamente = event.estado_publicacion === "proximamente";
+  const waitlistEnabled = !!event.waitlist_habilitada;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
