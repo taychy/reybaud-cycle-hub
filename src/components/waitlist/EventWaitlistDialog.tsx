@@ -140,7 +140,7 @@ export default function EventWaitlistDialog({
             </div>
             <h3 className="text-lg font-semibold">¡Estás anotado!</h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Te vamos a avisar por mail apenas abramos las inscripciones para{" "}
+              Te vamos a avisar por mail apenas abramos las inscripciones para la próxima edición de{" "}
               <span className="text-foreground">{eventTitle}</span>.
             </p>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
