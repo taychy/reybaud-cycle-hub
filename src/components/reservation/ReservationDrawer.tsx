@@ -324,24 +324,24 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
         toastTitle: "¡Solicitud de reserva enviada!",
       };
 
-  // Disponibilidad por género en el paquete seleccionado
+  // Disponibilidad real por género (suma de habitaciones cargadas en Alojamiento)
   const genderAvail = (g: RoomGender): number | null => {
     if (!selectedPackage) return null;
-    const cupo = g === "femenina" ? selectedPackage.cupo_mujeres
-      : g === "masculina" ? selectedPackage.cupo_varones
-      : selectedPackage.cupo_mixto;
-    const used = g === "femenina" ? (selectedPackage.used_mujeres || 0)
-      : g === "masculina" ? (selectedPackage.used_varones || 0)
-      : (selectedPackage.used_mixto || 0);
-    if (cupo == null) return null; // sin límite
-    return Math.max(0, cupo - used);
+    const rows = selectedPackage.availability || [];
+    if (rows.length === 0) return null; // sin alojamiento cargado
+    return rows.filter((r) => r.genero === g).reduce((acc, r) => acc + Math.max(0, r.available), 0);
   };
 
-  const packageHasGenderConfig = !!selectedPackage && (
-    selectedPackage.cupo_mujeres != null ||
-    selectedPackage.cupo_varones != null ||
-    (selectedPackage.permite_mixto && selectedPackage.cupo_mixto != null)
+  const packageHasGenderConfig = !!selectedPackage && (selectedPackage.availability || []).some(
+    (r) => r.genero === "femenina" || r.genero === "masculina"
   );
+
+  // Total disponible del paquete (para deshabilitar sin cupo)
+  const packageTotalAvail = (p: PackageRow): number | null => {
+    const rows = p.availability || [];
+    if (rows.length === 0) return 0;
+    return rows.reduce((acc, r) => acc + Math.max(0, r.available), 0);
+  };
 
   const roomCapacity = selectedPackage?.personas_por_habitacion || 0;
   const matesNeeded = Math.max(0, roomCapacity - 1); // restantes a declarar
