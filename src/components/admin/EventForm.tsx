@@ -494,7 +494,9 @@ const EventForm = ({
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="borrador">Borrador</SelectItem>
+                <SelectItem value="proximamente">Próximamente</SelectItem>
                 <SelectItem value="publicado">Publicado</SelectItem>
+                <SelectItem value="agotado">Agotado (activa lista de espera)</SelectItem>
                 <SelectItem value="finalizado">Finalizado</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
