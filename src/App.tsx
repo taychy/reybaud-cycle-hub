@@ -108,6 +108,7 @@ import AdminNovedades from "./pages/admin/AdminNovedades";
 import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
 import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests";
+import AdminWaitlistRequests from "./pages/admin/AdminWaitlistRequests";
 import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 import FormacionInicial from "./pages/FormacionInicial";
