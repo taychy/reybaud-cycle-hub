@@ -169,6 +169,7 @@ const AdminLayout = () => {
   const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2.5";
+    const badgeCount = item.badgeKey === "waitlist" ? waitlistPending : 0;
 
     if (collapsed && !mobile) {
       return (
@@ -178,7 +179,7 @@ const AdminLayout = () => {
               to={item.to}
               end={item.to === "/admin/tienda"}
               className={({ isActive }) =>
-                `flex items-center justify-center p-2.5 rounded-md transition-colors ${
+                `relative flex items-center justify-center p-2.5 rounded-md transition-colors ${
                   isActive
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50"
@@ -186,10 +187,15 @@ const AdminLayout = () => {
               }
             >
               <item.icon className={iconSize} />
+              {badgeCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
+                  {badgeCount > 99 ? "99+" : badgeCount}
+                </span>
+              )}
             </NavLink>
           </TooltipTrigger>
           <TooltipContent side="right" className="text-xs">
-            {item.label}
+            {item.label}{badgeCount > 0 ? ` (${badgeCount})` : ""}
           </TooltipContent>
         </Tooltip>
       );
@@ -209,7 +215,12 @@ const AdminLayout = () => {
         }
       >
         <item.icon className={iconSize} />
-        {item.label}
+        <span className="flex-1">{item.label}</span>
+        {badgeCount > 0 && (
+          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+            {badgeCount > 99 ? "99+" : badgeCount}
+          </span>
+        )}
       </NavLink>
     );
   };
