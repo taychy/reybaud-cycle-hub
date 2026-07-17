@@ -177,6 +177,11 @@ const EventCard = ({
               Próximamente
             </span>
           )}
+          {event.estado_publicacion === "agotado" && (
+            <span className="text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm bg-red-500 text-white">
+              Agotado
+            </span>
+          )}
         </div>
 
         {/* Reservation badge bottom-left */}
