@@ -265,15 +265,20 @@ const EventCard = ({
             className="text-[10px] h-7 px-2.5"
             onClick={(e) => {
               e.stopPropagation();
-              if (event.estado_publicacion === "proximamente" && event.waitlist_habilitada) {
+              const isWaitlistState =
+                event.estado_publicacion === "proximamente" ||
+                event.estado_publicacion === "agotado";
+              if (isWaitlistState && event.waitlist_habilitada) {
                 window.location.href = `/eventos/${event.id}/lista-espera`;
                 return;
               }
               onClick();
             }}
           >
-            {event.estado_publicacion === "proximamente" && event.waitlist_habilitada
+            {(event.estado_publicacion === "proximamente" || event.estado_publicacion === "agotado") && event.waitlist_habilitada
               ? "Anotarme"
+              : event.estado_publicacion === "agotado"
+              ? "Agotado"
               : hasUserLink
               ? (isPast ? "Ver resultado" : "Ver estado")
               : isPast ? "Finalizado"
