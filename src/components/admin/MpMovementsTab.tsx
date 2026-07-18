@@ -256,10 +256,16 @@ export default function MpMovementsTab() {
             Todos los cobros recibidos en las cuentas MP. Asigná un alumno cuando no lo identifiquemos automáticamente.
           </p>
         </div>
-        <Button onClick={handleSync} disabled={syncing} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Sincronizando..." : "Sincronizar con MP"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleEnrich} disabled={enriching} variant="outline" title="Completa nombres de pagador leyendo el settlement report de MP. Sólo llena campos vacíos.">
+            <UserPlus className={`h-4 w-4 mr-2 ${enriching ? "animate-pulse" : ""}`} />
+            {enriching ? "Enriqueciendo..." : "Enriquecer nombres"}
+          </Button>
+          <Button onClick={handleSync} disabled={syncing} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando..." : "Sincronizar con MP"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
