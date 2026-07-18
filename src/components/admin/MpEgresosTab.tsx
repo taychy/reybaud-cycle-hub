@@ -47,7 +47,7 @@ export default function MpEgresosTab() {
   const { toast } = useToast();
   const [items, setItems] = useState<MpEgreso[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"egresos" | "reservas" | "categorizados">("egresos");
+  const [tab, setTab] = useState<"egresos" | "internos" | "categorizados">("egresos");
   const [dialog, setDialog] = useState<MpEgreso | null>(null);
   const [form, setForm] = useState({
     categoria: "MP - Egresos",
