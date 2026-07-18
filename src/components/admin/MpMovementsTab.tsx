@@ -410,7 +410,7 @@ export default function MpMovementsTab() {
                       </TableCell>
                       <TableCell className="text-xs">{m.payment_type || m.payment_method || "—"}</TableCell>
                       <TableCell className="text-xs font-mono">{m.mp_payment_id}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className={`text-right whitespace-nowrap sticky right-0 shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.5)] ${!assigned ? "bg-[hsl(var(--card))]" : "bg-card"}`}>
                         {assigned ? (
                           <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
                         ) : (
