@@ -395,7 +395,8 @@ const AdminLayout = () => {
             ))}
           </nav>
 
-          <div className="p-3 border-t border-sidebar-border">
+          <div className="p-3 border-t border-sidebar-border space-y-1">
+            <SwitchPortalButton fullWidth onNavigate={() => setMobileOpen(false)} />
             <button
               onClick={() => { setMobileOpen(false); handleLogout(); }}
               className="flex items-center gap-3 px-3 py-3 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
