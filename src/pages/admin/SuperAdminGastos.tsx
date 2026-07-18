@@ -906,6 +906,7 @@ const SuperAdminGastos = () => {
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "historial") loadHistorial(); }}>
         <TabsList>
+          <TabsTrigger value="mp" className="gap-1"><CreditCard className="w-4 h-4" />MP</TabsTrigger>
           <TabsTrigger value="agenda" className="gap-1"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
           <TabsTrigger value="catalogo" className="gap-1"><Wallet className="w-4 h-4" />Catálogo</TabsTrigger>
