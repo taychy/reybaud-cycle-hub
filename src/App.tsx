@@ -193,6 +193,7 @@ const App = () => (
             <Route path="alumnos" element={<ManageStudents />} />
             <Route path="whatsapp-conciliador" element={<WhatsAppConciliador />} />
             <Route path="whatsapp-historial" element={<WhatsAppHistorial />} />
+            <Route path="contactos-whatsapp" element={<AdminContactosWhatsapp />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
