@@ -113,11 +113,10 @@ export default function MpEgresosTab() {
   }
 
   const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id);
-  const reservas = items.filter(i => i.direccion === "reserva_tecnica");
+  const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
   const categorizados = items.filter(i => i.gasto_id);
 
   const totalEgresosPendientes = egresos.reduce((s, i) => s + Number(i.amount), 0);
-  const totalReservas = reservas.reduce((s, i) => s + Number(i.amount), 0);
 
   return (
     <div className="space-y-4">
@@ -134,10 +133,10 @@ export default function MpEgresosTab() {
         <Card className="border-cyan-500/30 bg-cyan-500/5">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-cyan-400 text-xs uppercase tracking-wider">
-              <PiggyBank className="w-4 h-4" /> MP - Reservas técnicas
+              <PiggyBank className="w-4 h-4" /> Movimientos internos MP
             </div>
-            <div className="text-2xl font-bold mt-1">$ {totalReservas.toLocaleString("es-AR")}</div>
-            <div className="text-xs text-muted-foreground">{reservas.length} retenciones · no cuentan como gasto</div>
+            <div className="text-2xl font-bold mt-1">{internos.length}</div>
+            <div className="text-xs text-muted-foreground">transferencias entre bolsillos · no son gasto ni cobro</div>
           </CardContent>
         </Card>
         <Card>
@@ -152,7 +151,7 @@ export default function MpEgresosTab() {
       </div>
 
       <div className="flex gap-2 border-b border-border">
-        {(["egresos","reservas","categorizados"] as const).map(t => (
+        {(["egresos","internos","categorizados"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -161,11 +160,19 @@ export default function MpEgresosTab() {
             }`}
           >
             {t === "egresos" && `Pendientes (${egresos.length})`}
-            {t === "reservas" && `Reservas técnicas (${reservas.length})`}
+            {t === "internos" && `Internos MP (${internos.length})`}
             {t === "categorizados" && `Categorizados (${categorizados.length})`}
           </button>
         ))}
       </div>
+
+      {tab === "internos" && (
+        <div className="text-xs text-muted-foreground bg-cyan-500/5 border border-cyan-500/20 rounded p-3">
+          Son <b>transferencias internas</b> de MP entre bolsillos (Disponible ↔ Reservas ↔ Inversiones). No son cobros ni gastos.
+          El saldo de <b>"Reservas"</b> que ves en el panel de Mercado Pago (ej: $330.023) es <b>una foto del bolsillo Inversiones</b>,
+          no se puede reconstruir sumando estos movimientos.
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
