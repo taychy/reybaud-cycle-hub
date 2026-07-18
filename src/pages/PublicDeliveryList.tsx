@@ -147,6 +147,19 @@ const PublicDeliveryList = () => {
           </div>
         </div>
 
+        {items.length > 0 && (
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o producto..."
+              className="pl-9"
+            />
+          </div>
+        )}
+
+
         {items.length === 0 ? (
           <div className="glass-card rounded-lg p-8 text-center text-sm text-muted-foreground">
             Todavía no hay ítems en esta lista.
