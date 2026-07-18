@@ -1635,6 +1635,10 @@ export type Database = {
       }
       delivery_list_items: {
         Row: {
+          alumno_id: string | null
+          aviso_retiro_channel: string | null
+          aviso_retiro_enviado_at: string | null
+          aviso_retiro_enviado_por: string | null
           cantidad: number
           cliente_alumno_id: string | null
           cliente_nombre: string
@@ -1655,6 +1659,10 @@ export type Database = {
           variante: string | null
         }
         Insert: {
+          alumno_id?: string | null
+          aviso_retiro_channel?: string | null
+          aviso_retiro_enviado_at?: string | null
+          aviso_retiro_enviado_por?: string | null
           cantidad?: number
           cliente_alumno_id?: string | null
           cliente_nombre: string
@@ -1675,6 +1683,10 @@ export type Database = {
           variante?: string | null
         }
         Update: {
+          alumno_id?: string | null
+          aviso_retiro_channel?: string | null
+          aviso_retiro_enviado_at?: string | null
+          aviso_retiro_enviado_por?: string | null
           cantidad?: number
           cliente_alumno_id?: string | null
           cliente_nombre?: string
@@ -1695,6 +1707,13 @@ export type Database = {
           variante?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "delivery_list_items_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "delivery_list_items_list_id_fkey"
             columns: ["list_id"]
