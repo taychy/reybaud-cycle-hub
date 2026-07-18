@@ -201,6 +201,59 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     return alumnos.filter(a => `${a.nombre} ${a.apellido ?? ""}`.toLowerCase().includes(q));
   }, [alumnos, search]);
 
+  // Alumnos "a abordar": alguna dimensión evaluada < 3 estrellas
+  const DIM_KEYS = ["postura","cadencia","manejo","potencia","fisico","constancia","actitud","progreso"] as const;
+  const alumnosAbordar = useMemo(() => {
+    return alumnos.filter(a => {
+      const ev = evalsMap[a.id];
+      if (!ev) return false;
+      return DIM_KEYS.some(k => {
+        const v = (ev as any)[k];
+        return typeof v === "number" && v > 0 && v < 3;
+      });
+    }).map(a => {
+      const ev = evalsMap[a.id]!;
+      const lows = DIM_KEYS.filter(k => {
+        const v = (ev as any)[k];
+        return typeof v === "number" && v > 0 && v < 3;
+      });
+      return { alumno: a, lowDims: lows, ev };
+    });
+  }, [alumnos, evalsMap]);
+
+  const handleConvertirNota = async (nota: Nota) => {
+    if (!openAlumno) return;
+    setConvertingNotaId(nota.id);
+    try {
+      const coachSec = convertCoachSec[nota.id] || null;
+      const { data: fb, error } = await supabase.from("feedback_coach").insert({
+        alumno_id: openAlumno.id,
+        coach_id: coachId,
+        coach_id_secundario: coachSec,
+        comentario: nota.nota,
+        tipo: "general",
+        fecha: (nota.created_at || new Date().toISOString()).split("T")[0],
+        origen: "chequeo",
+        origen_nota_id: nota.id,
+      } as any).select("id").single();
+      if (error || !fb) throw error || new Error("insert feedback failed");
+
+      await supabase
+        .from("alumno_evaluaciones_coach_notas")
+        .update({ feedback_id: (fb as any).id } as any)
+        .eq("id", nota.id);
+
+      supabase.functions.invoke("notify-coach-feedback", { body: { feedback_id: (fb as any).id } }).catch(() => {});
+
+      setNotas(prev => prev.map(n => n.id === nota.id ? { ...n, feedback_id: (fb as any).id } : n));
+      toast.success("Convertido en feedback y enviado al alumno");
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo convertir");
+    } finally {
+      setConvertingNotaId(null);
+    }
+  };
+
   const openPanel = async (a: AlumnoRow) => {
     setOpenAlumno(a);
     setForm(evalsMap[a.id] ? { ...evalsMap[a.id] } : emptyEval(a.id));
