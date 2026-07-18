@@ -25,7 +25,9 @@ const CoachFeedback = () => {
   const [sending, setSending] = useState(false);
   const [coachId, setCoachId] = useState("");
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [coachesList, setCoachesList] = useState<{ id: string; nombre: string }[]>([]);
   const [selectedAlumno, setSelectedAlumno] = useState("");
+  const [coachSecundario, setCoachSecundario] = useState("");
   const [tipo, setTipo] = useState("general");
   const [comentario, setComentario] = useState("");
 
@@ -54,6 +56,14 @@ const CoachFeedback = () => {
         setAlumnos(studentData || []);
       }
 
+      // Otros coaches (para asignar co-feedback)
+      const { data: otherCoaches } = await supabase
+        .from("coaches")
+        .select("id, nombre")
+        .neq("id", coach.id)
+        .order("nombre");
+      setCoachesList((otherCoaches || []) as any);
+
       setLoading(false);
     };
     init();
@@ -66,23 +76,35 @@ const CoachFeedback = () => {
     }
     setSending(true);
 
-    const { error } = await supabase.from("feedback_coach").insert({
+    const { data: inserted, error } = await supabase.from("feedback_coach").insert({
       alumno_id: selectedAlumno,
       coach_id: coachId,
+      coach_id_secundario: coachSecundario || null,
       comentario: comentario.trim(),
       tipo,
       fecha: new Date().toISOString().split("T")[0],
-    });
+      origen: "directo",
+    } as any).select("id").single();
+
+    if (error || !inserted) {
+      setSending(false);
+      toast({ title: "Error", description: "No se pudo enviar el feedback.", variant: "destructive" });
+      return;
+    }
+
+    // Enviar mail al alumno (siempre)
+    try {
+      await supabase.functions.invoke("notify-coach-feedback", { body: { feedback_id: (inserted as any).id } });
+    } catch (e) {
+      console.error("notify-coach-feedback error", e);
+    }
 
     setSending(false);
-    if (error) {
-      toast({ title: "Error", description: "No se pudo enviar el feedback.", variant: "destructive" });
-    } else {
-      toast({ title: "✅ Feedback enviado", description: "El alumno podrá verlo en su sección de Progreso." });
-      setComentario("");
-      setSelectedAlumno("");
-      setTipo("general");
-    }
+    toast({ title: "✅ Feedback enviado", description: "El alumno lo recibió por mail y lo verá en su sección de Progreso." });
+    setComentario("");
+    setSelectedAlumno("");
+    setCoachSecundario("");
+    setTipo("general");
   };
 
   if (loading) {
@@ -123,6 +145,24 @@ const CoachFeedback = () => {
               <option key={a.id} value={a.id}>{a.nombre} ({a.grupo})</option>
             ))}
           </select>
+        </div>
+
+        {/* Coach secundario */}
+        <div className="space-y-2">
+          <label className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+            Co-entrenador (opcional)
+          </label>
+          <select
+            value={coachSecundario}
+            onChange={(e) => setCoachSecundario(e.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground"
+          >
+            <option value="">-- Ninguno --</option>
+            {coachesList.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-muted-foreground">Si el feedback lo hicieron entre dos, sumá al otro coach.</p>
         </div>
 
         {/* Tipo */}

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ArrowLeft, Search, Star, ClipboardCheck, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check } from "lucide-react";
 import { toast } from "sonner";
 
 type AlumnoRow = {
@@ -103,7 +103,10 @@ type Nota = {
   autor_nombre: string | null;
   snapshot_scores: any;
   created_at: string;
+  feedback_id: string | null;
 };
+
+type CoachOpt = { id: string; nombre: string };
 
 export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?: boolean }) {
   const navigate = useNavigate();
@@ -122,6 +125,10 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   const [form, setForm] = useState<Evaluacion | null>(null);
   const [notaNueva, setNotaNueva] = useState("");
   const [notas, setNotas] = useState<Nota[]>([]);
+  const [showAlertList, setShowAlertList] = useState(false);
+  const [otherCoaches, setOtherCoaches] = useState<CoachOpt[]>([]);
+  const [convertingNotaId, setConvertingNotaId] = useState<string | null>(null);
+  const [convertCoachSec, setConvertCoachSec] = useState<Record<string, string>>({});
 
   useEffect(() => {
     (async () => {
@@ -152,6 +159,11 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
       setGrupos(gruposDisponibles);
       if (gruposDisponibles.length > 0) setGrupoSel(gruposDisponibles[0]);
+
+      // Otros coaches para asignar co-feedback al convertir
+      const { data: cs } = await supabase.from("coaches").select("id, nombre").order("nombre");
+      setOtherCoaches(((cs || []) as any[]).map(c => ({ id: c.id, nombre: c.nombre })));
+
       setLoading(false);
     })();
   }, [adminMode]);
@@ -188,6 +200,59 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     if (!q) return alumnos;
     return alumnos.filter(a => `${a.nombre} ${a.apellido ?? ""}`.toLowerCase().includes(q));
   }, [alumnos, search]);
+
+  // Alumnos "a abordar": alguna dimensión evaluada < 3 estrellas
+  const DIM_KEYS = ["postura","cadencia","manejo","potencia","fisico","constancia","actitud","progreso"] as const;
+  const alumnosAbordar = useMemo(() => {
+    return alumnos.filter(a => {
+      const ev = evalsMap[a.id];
+      if (!ev) return false;
+      return DIM_KEYS.some(k => {
+        const v = (ev as any)[k];
+        return typeof v === "number" && v > 0 && v < 3;
+      });
+    }).map(a => {
+      const ev = evalsMap[a.id]!;
+      const lows = DIM_KEYS.filter(k => {
+        const v = (ev as any)[k];
+        return typeof v === "number" && v > 0 && v < 3;
+      });
+      return { alumno: a, lowDims: lows, ev };
+    });
+  }, [alumnos, evalsMap]);
+
+  const handleConvertirNota = async (nota: Nota) => {
+    if (!openAlumno) return;
+    setConvertingNotaId(nota.id);
+    try {
+      const coachSec = convertCoachSec[nota.id] || null;
+      const { data: fb, error } = await supabase.from("feedback_coach").insert({
+        alumno_id: openAlumno.id,
+        coach_id: coachId,
+        coach_id_secundario: coachSec,
+        comentario: nota.nota,
+        tipo: "general",
+        fecha: (nota.created_at || new Date().toISOString()).split("T")[0],
+        origen: "chequeo",
+        origen_nota_id: nota.id,
+      } as any).select("id").single();
+      if (error || !fb) throw error || new Error("insert feedback failed");
+
+      await supabase
+        .from("alumno_evaluaciones_coach_notas")
+        .update({ feedback_id: (fb as any).id } as any)
+        .eq("id", nota.id);
+
+      supabase.functions.invoke("notify-coach-feedback", { body: { feedback_id: (fb as any).id } }).catch(() => {});
+
+      setNotas(prev => prev.map(n => n.id === nota.id ? { ...n, feedback_id: (fb as any).id } : n));
+      toast.success("Convertido en feedback y enviado al alumno");
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo convertir");
+    } finally {
+      setConvertingNotaId(null);
+    }
+  };
 
   const openPanel = async (a: AlumnoRow) => {
     setOpenAlumno(a);
@@ -322,6 +387,52 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
         {grupoSel && (
           <>
+            {/* Alerta: alumnos a abordar (con dimensiones < 3) */}
+            {alumnosAbordar.length > 0 && (
+              <div className="rounded-xl border border-red-500/40 bg-red-500/10 overflow-hidden">
+                <button
+                  onClick={() => setShowAlertList(v => !v)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-500/15 transition"
+                >
+                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-300">
+                      {alumnosAbordar.length} {alumnosAbordar.length === 1 ? "alumno a abordar" : "alumnos a abordar"}
+                    </p>
+                    <p className="text-[11px] text-red-300/80">
+                      Tienen alguna dimensión por debajo de 3 estrellas. Tocá para ver.
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-red-300 font-medium">
+                    {showAlertList ? "Ocultar" : "Ver"}
+                  </span>
+                </button>
+                {showAlertList && (
+                  <div className="border-t border-red-500/30 divide-y divide-red-500/20">
+                    {alumnosAbordar.map(({ alumno, lowDims, ev }) => (
+                      <button
+                        key={alumno.id}
+                        onClick={() => openPanel(alumno)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-red-500/10 transition flex items-center gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {alumno.nombre} {alumno.apellido ?? ""}
+                          </p>
+                          <p className="text-[11px] text-red-300/90 truncate">
+                            {lowDims.map(k => `${k} ${(ev as any)[k]}★`).join(" · ")}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] border-red-500/40 text-red-300">
+                          Abordar
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -485,6 +596,40 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                             ))}
                           </div>
                         )}
+
+                        {/* Convertir en feedback */}
+                        <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+                          {n.feedback_id ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                              <Check className="w-3 h-3" /> Enviado como feedback al alumno
+                            </span>
+                          ) : (
+                            <>
+                              <select
+                                value={convertCoachSec[n.id] || ""}
+                                onChange={e => setConvertCoachSec(prev => ({ ...prev, [n.id]: e.target.value }))}
+                                className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] text-foreground"
+                              >
+                                <option value="">Co-entrenador (opcional)</option>
+                                {otherCoaches.filter(c => c.id !== coachId).map(c => (
+                                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[11px] gap-1.5"
+                                onClick={() => handleConvertirNota(n)}
+                                disabled={convertingNotaId === n.id}
+                              >
+                                {convertingNotaId === n.id
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <MessageSquarePlus className="w-3 h-3" />}
+                                Convertir en feedback + enviar al alumno
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
