@@ -75,8 +75,18 @@ Deno.serve(async (req) => {
     // Try to match existing alumno
     let alumnoId: string | null = null;
     if (telNorm) {
-      const { data } = await admin.from('alumnos').select('id').eq('telefono_normalizado', telNorm).limit(1).maybeSingle();
+      const last10 = telNorm.slice(-10);
+      const { data } = await admin.rpc('find_alumno_by_phone_last10', { last10 }).maybeSingle().then((r: any) => r).catch(() => ({ data: null }));
       if (data?.id) alumnoId = data.id;
+      if (!alumnoId) {
+        // Fallback: fetch and compare last10 digits in JS
+        const { data: rows } = await admin.from('alumnos').select('id, telefono').not('telefono', 'is', null).limit(5000);
+        const match = (rows ?? []).find((r: any) => {
+          const d = String(r.telefono ?? '').replace(/\D/g, '');
+          return d.length >= 10 && d.slice(-10) === last10;
+        });
+        if (match) alumnoId = match.id;
+      }
     }
     if (!alumnoId && email) {
       const { data } = await admin.from('alumnos').select('id').ilike('email', email).limit(1).maybeSingle();
