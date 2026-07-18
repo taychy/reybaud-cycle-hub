@@ -18,6 +18,7 @@ interface Payload {
   list_id: string;
   cliente_nombre: string;
   alumno_id: string;
+  channel?: "email" | "whatsapp"; // default email
   actor_id?: string | null;
   actor_email?: string | null;
 }
