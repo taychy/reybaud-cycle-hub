@@ -133,6 +133,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/portal" element={<Portal />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/completar-registro" element={<CompleteRegistration />} />
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
