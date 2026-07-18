@@ -1331,153 +1331,99 @@ const SuperAdminGastos = () => {
               })()}
             </CardContent>
           </Card>
-        </TabsContent>
+            </TabsContent>
 
-        {/* CONCILIAR MP */}
-        <TabsContent value="conciliar" className="mt-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-                <Link2 className="w-4 h-4" />Pagos de Mercado Pago pendientes de conciliar
-              </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Movimientos creados automáticamente desde el webhook de MP que no pudieron vincularse a un gasto existente. Revisalos, ajustá la categoría/descripción si hace falta y confirmá la conciliación, o eliminá si es duplicado.
-              </p>
-            </CardHeader>
-            <CardContent className="p-0">
-              {(() => {
-                const pendientes = gastos.filter(g => g.estado_conciliacion === "pendiente_conciliar");
-                if (pendientes.length === 0) {
-                  return <div className="py-12 text-center text-muted-foreground text-sm">✓ No hay pagos MP pendientes de conciliar</div>;
-                }
-                return (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead>Proveedor / Pagador</TableHead>
-                        <TableHead>MP ID</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Monto</TableHead>
-                        <TableHead className="w-32">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendientes.map(g => (
-                        <TableRow key={g.id}>
-                          <TableCell className="text-xs">{parseDate(g.fecha)!.toLocaleDateString("es-AR")}</TableCell>
-                          <TableCell className="text-sm max-w-[260px] truncate">{g.descripcion}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{g.proveedor || "—"}</TableCell>
-                          <TableCell className="text-[10px] font-mono">{g.mp_payment_id}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-[10px]">{g.mp_status}</Badge></TableCell>
-                          <TableCell className="text-right font-heading font-bold">{fmt(g.monto, g.moneda)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => confirmarConciliacion(g)} title="Confirmar conciliación"><CheckCircle2 className="w-3 h-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
-                            </div>
-                          </TableCell>
+            <TabsContent value="cambios" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
+                      <History className="w-4 h-4" /> Historial de cambios
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Toda creación, edición, archivado, pago y eliminación sobre gastos, deudas y catálogo queda registrada acá.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Buscar usuario, acción, concepto..."
+                      value={historialSearch}
+                      onChange={(e) => setHistorialSearch(e.target.value)}
+                      className="h-8 w-full sm:w-80 text-xs"
+                    />
+                    <Button size="sm" variant="outline" className="h-8 gap-1" onClick={loadHistorial}>
+                      <RefreshCw className="w-3 h-3" /> Refrescar
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportHistorialCSV} disabled={historial.length === 0}>
+                      <Receipt className="w-3 h-3" /> Exportar CSV
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {historialLoading ? (
+                    <div className="text-center py-10 text-muted-foreground text-sm animate-pulse">Cargando historial...</div>
+                  ) : historial.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground text-sm">
+                      Sin registros. A partir de ahora todas las acciones nuevas quedan acá.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-40">Fecha</TableHead>
+                          <TableHead>Usuario</TableHead>
+                          <TableHead>Acción</TableHead>
+                          <TableHead>Entidad</TableHead>
+                          <TableHead>Detalle</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                );
-              })()}
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {historial
+                          .filter(h => {
+                            const q = historialSearch.trim().toLowerCase();
+                            if (!q) return true;
+                            const det = JSON.stringify(h.details || {}).toLowerCase();
+                            return [h.user_email, h.action, h.entity_type, det].filter(Boolean).join(" ").toLowerCase().includes(q);
+                          })
+                          .map(h => {
+                            const after = h.details?.after || {};
+                            const before = h.details?.before || {};
+                            const obj = after || before;
+                            const label = obj?.concepto || obj?.descripcion || obj?.proveedor || h.entity_id?.slice(0, 8) || "—";
+                            const monto = obj?.monto ?? obj?.monto_estimado ?? obj?.monto_previsto;
+                            const moneda = obj?.moneda || "ARS";
+                            const actionColor =
+                              h.action.startsWith("eliminar") ? "bg-destructive/15 text-destructive border-destructive/30" :
+                              h.action.startsWith("archivar") ? "bg-orange-500/15 text-orange-500 border-orange-500/30" :
+                              h.action.startsWith("crear") ? "bg-green-500/15 text-green-500 border-green-500/30" :
+                              "bg-blue-500/15 text-blue-500 border-blue-500/30";
+                            return (
+                              <TableRow key={h.id}>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {new Date(h.created_at).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                </TableCell>
+                                <TableCell className="text-xs">
+                                  <div className="font-medium">{h.user_email || "Sistema"}</div>
+                                  <div className="text-[10px] text-muted-foreground">{h.user_role}</div>
+                                </TableCell>
+                                <TableCell><Badge variant="outline" className={`text-[10px] ${actionColor}`}>{h.action.replace(/_/g, " ")}</Badge></TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{h.entity_type.replace("gastos_", "")}</TableCell>
+                                <TableCell className="text-xs">
+                                  <div className="font-medium">{label}</div>
+                                  {monto != null && <div className="text-muted-foreground">{fmt(Number(monto), moneda)}</div>}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
-        {/* HISTORIAL / AUDITORÍA */}
-        <TabsContent value="historial" className="mt-4">
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
-              <div>
-                <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider flex items-center gap-2">
-                  <History className="w-4 h-4" /> Historial de cambios
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Toda creación, edición, archivado, pago y eliminación sobre gastos, deudas y catálogo queda registrada acá.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Buscar usuario, acción, concepto..."
-                  value={historialSearch}
-                  onChange={(e) => setHistorialSearch(e.target.value)}
-                  className="h-8 w-full sm:w-80 text-xs"
-                />
-                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={loadHistorial}>
-                  <RefreshCw className="w-3 h-3" /> Refrescar
-                </Button>
-                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportHistorialCSV} disabled={historial.length === 0}>
-                  <Receipt className="w-3 h-3" /> Exportar CSV
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {historialLoading ? (
-                <div className="text-center py-10 text-muted-foreground text-sm animate-pulse">Cargando historial...</div>
-              ) : historial.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground text-sm">
-                  Sin registros. A partir de ahora todas las acciones nuevas quedan acá.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-40">Fecha</TableHead>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Acción</TableHead>
-                      <TableHead>Entidad</TableHead>
-                      <TableHead>Detalle</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {historial
-                      .filter(h => {
-                        const q = historialSearch.trim().toLowerCase();
-                        if (!q) return true;
-                        const det = JSON.stringify(h.details || {}).toLowerCase();
-                        return [h.user_email, h.action, h.entity_type, det].filter(Boolean).join(" ").toLowerCase().includes(q);
-                      })
-                      .map(h => {
-                        const after = h.details?.after || {};
-                        const before = h.details?.before || {};
-                        const obj = after || before;
-                        const label = obj?.concepto || obj?.descripcion || obj?.proveedor || h.entity_id?.slice(0, 8) || "—";
-                        const monto = obj?.monto ?? obj?.monto_estimado ?? obj?.monto_previsto;
-                        const moneda = obj?.moneda || "ARS";
-                        const actionColor =
-                          h.action.startsWith("eliminar") ? "bg-destructive/15 text-destructive border-destructive/30" :
-                          h.action.startsWith("archivar") ? "bg-orange-500/15 text-orange-500 border-orange-500/30" :
-                          h.action.startsWith("crear") ? "bg-green-500/15 text-green-500 border-green-500/30" :
-                          "bg-blue-500/15 text-blue-500 border-blue-500/30";
-                        return (
-                          <TableRow key={h.id}>
-                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                              {new Date(h.created_at).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              <div className="font-medium">{h.user_email || "Sistema"}</div>
-                              <div className="text-[10px] text-muted-foreground">{h.user_role}</div>
-                            </TableCell>
-                            <TableCell><Badge variant="outline" className={`text-[10px] ${actionColor}`}>{h.action.replace(/_/g, " ")}</Badge></TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{h.entity_type.replace("gastos_", "")}</TableCell>
-                            <TableCell className="text-xs">
-                              <div className="font-medium">{label}</div>
-                              {monto != null && <div className="text-muted-foreground">{fmt(Number(monto), moneda)}</div>}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* DIALOG: Catálogo */}
