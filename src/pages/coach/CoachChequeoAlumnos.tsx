@@ -387,6 +387,52 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
         {grupoSel && (
           <>
+            {/* Alerta: alumnos a abordar (con dimensiones < 3) */}
+            {alumnosAbordar.length > 0 && (
+              <div className="rounded-xl border border-red-500/40 bg-red-500/10 overflow-hidden">
+                <button
+                  onClick={() => setShowAlertList(v => !v)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-500/15 transition"
+                >
+                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-300">
+                      {alumnosAbordar.length} {alumnosAbordar.length === 1 ? "alumno a abordar" : "alumnos a abordar"}
+                    </p>
+                    <p className="text-[11px] text-red-300/80">
+                      Tienen alguna dimensión por debajo de 3 estrellas. Tocá para ver.
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-red-300 font-medium">
+                    {showAlertList ? "Ocultar" : "Ver"}
+                  </span>
+                </button>
+                {showAlertList && (
+                  <div className="border-t border-red-500/30 divide-y divide-red-500/20">
+                    {alumnosAbordar.map(({ alumno, lowDims, ev }) => (
+                      <button
+                        key={alumno.id}
+                        onClick={() => openPanel(alumno)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-red-500/10 transition flex items-center gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {alumno.nombre} {alumno.apellido ?? ""}
+                          </p>
+                          <p className="text-[11px] text-red-300/90 truncate">
+                            {lowDims.map(k => `${k} ${(ev as any)[k]}★`).join(" · ")}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] border-red-500/40 text-red-300">
+                          Abordar
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
