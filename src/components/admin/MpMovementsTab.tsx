@@ -300,8 +300,40 @@ export default function MpMovementsTab() {
                       <TableCell className="text-xs">{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</TableCell>
                       <TableCell><Badge variant="outline">{m.cuentas_mp?.nombre ?? "—"}</Badge></TableCell>
                       <TableCell className="text-xs">
-                        <div>{m.payer_name || m.payer_email || "—"}</div>
-                        {m.payer_name && m.payer_email && <div className="text-muted-foreground">{m.payer_email}</div>}
+                        {(() => {
+                          const isTransfer = ["account_money", "cvu", "bank_transfer"].includes(m.payment_method ?? "");
+                          const collectorEmail = m.cuentas_mp?.slug === "claudio" ? "cobrosreybaud@gmail.com" : null;
+                          const emailIsOwn = collectorEmail && m.payer_email?.toLowerCase() === collectorEmail;
+                          if (m.payer_name) {
+                            return (
+                              <>
+                                <div className="font-medium">{m.payer_name}</div>
+                                {m.payer_email && !emailIsOwn && <div className="text-muted-foreground">{m.payer_email}</div>}
+                                {m.payer_document && <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>}
+                              </>
+                            );
+                          }
+                          if (m.payer_email && !emailIsOwn) {
+                            return (
+                              <>
+                                <div>{m.payer_email}</div>
+                                {m.payer_document && <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>}
+                              </>
+                            );
+                          }
+                          // Sin datos utilizables del pagador
+                          return (
+                            <div className="space-y-0.5">
+                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30 text-[10px]">
+                                {isTransfer ? "Transferencia sin datos" : "Sin datos del pagador"}
+                              </Badge>
+                              <div className="text-muted-foreground text-[10px]">
+                                MP no envía el nombre. Identificá por monto/fecha y asigná manualmente.
+                              </div>
+                              {m.description && <div className="text-muted-foreground italic">"{m.description}"</div>}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="font-mono font-semibold">{formatPrice(Number(m.amount), m.currency)}</TableCell>
                       <TableCell>
