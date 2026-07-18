@@ -60,6 +60,9 @@ interface DeliveryItem {
   source_type: string | null;
   source_order_id: string | null;
   source_preorder_id: string | null;
+  alumno_id: string | null;
+  aviso_retiro_enviado_at: string | null;
+  aviso_retiro_channel: string | null;
 }
 
 const formatVariant = (v: any): string | null => {
