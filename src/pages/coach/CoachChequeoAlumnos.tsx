@@ -103,7 +103,10 @@ type Nota = {
   autor_nombre: string | null;
   snapshot_scores: any;
   created_at: string;
+  feedback_id: string | null;
 };
+
+type CoachOpt = { id: string; nombre: string };
 
 export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?: boolean }) {
   const navigate = useNavigate();
