@@ -508,6 +508,9 @@ const AdminDashboard = () => {
         ))}
       </div>
 
+      {/* Cumpleaños */}
+      <BirthdayWidget />
+
       {/* Alertas operativas - clickable */}
       {alerts.length > 0 && (
         <div className="space-y-2">
