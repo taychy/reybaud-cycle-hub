@@ -88,6 +88,8 @@ const DepositoEntregaDetail = () => {
   const [showManual, setShowManual] = useState(false);
   const [showFromOrders, setShowFromOrders] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [search, setSearch] = useState("");
   const excelRef = useRef<HTMLInputElement>(null);
 
   const fetch = async () => {
