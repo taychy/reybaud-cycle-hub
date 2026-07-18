@@ -134,12 +134,14 @@ Deno.serve(async (req) => {
       try {
         await admin.from('student_activity_log').insert({
           alumno_id: alumnoId,
-          tipo: 'contacto_whatsapp',
-          descripcion: `Contacto WhatsApp registrado por ${user.email ?? 'staff'}${notas ? ': ' + notas.slice(0, 200) : ''}`,
+          event_type: 'contacto_whatsapp',
+          title: `Contacto WhatsApp registrado`,
+          description: `Registrado por ${user.email ?? 'staff'}${notas ? ': ' + notas.slice(0, 300) : ''}`,
           actor_id: user.id,
           actor_email: user.email ?? null,
+          actor_role: 'admin',
         });
-      } catch (_) { /* activity log is best-effort */ }
+      } catch (_) { /* best-effort */ }
     }
 
     return new Response(JSON.stringify({
