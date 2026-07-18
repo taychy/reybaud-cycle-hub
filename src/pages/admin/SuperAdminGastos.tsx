@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import AgendaMes from "@/components/admin/gastos/AgendaMes";
+import MpEgresosTab from "@/components/admin/MpEgresosTab";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
