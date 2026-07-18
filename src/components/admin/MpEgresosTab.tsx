@@ -1,0 +1,276 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank } from "lucide-react";
+
+type MpEgreso = {
+  id: string;
+  mp_payment_id: string;
+  amount: number;
+  currency: string;
+  description: string | null;
+  payment_type: string | null;
+  fecha_movimiento: string;
+  direccion: "egreso" | "reserva_tecnica";
+  gasto_id: string | null;
+  cuentas_mp?: { nombre: string; slug: string };
+};
+
+const CATEGORIAS = [
+  "MP - Egresos",
+  "Sueldos",
+  "Impuestos",
+  "Servicios",
+  "Vehículo",
+  "Insumos",
+  "Marketing",
+  "Comisiones",
+  "Otros",
+];
+
+const UNIDADES = [
+  { value: "compartido", label: "Compartido" },
+  { value: "escuela", label: "Escuela" },
+  { value: "tienda", label: "Tienda" },
+  { value: "viajes", label: "Viajes" },
+];
+
+export default function MpEgresosTab() {
+  const { toast } = useToast();
+  const [items, setItems] = useState<MpEgreso[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"egresos" | "reservas" | "categorizados">("egresos");
+  const [dialog, setDialog] = useState<MpEgreso | null>(null);
+  const [form, setForm] = useState({
+    categoria: "MP - Egresos",
+    subcategoria: "",
+    descripcion: "",
+    proveedor: "",
+    unidad_negocio: "compartido",
+    notas: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("mp_account_movements")
+      .select(`
+        id, mp_payment_id, amount, currency, description, payment_type,
+        fecha_movimiento, direccion, gasto_id,
+        cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
+      `)
+      .in("direccion", ["egreso", "reserva_tecnica"])
+      .order("fecha_movimiento", { ascending: false })
+      .limit(300);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else setItems((data as any) ?? []);
+    setLoading(false);
+  }
+
+  function openDialog(m: MpEgreso) {
+    setDialog(m);
+    setForm({
+      categoria: "MP - Egresos",
+      subcategoria: "",
+      descripcion: m.description && m.description !== "Varios" ? m.description : `Egreso MP ${m.mp_payment_id}`,
+      proveedor: "",
+      unidad_negocio: "compartido",
+      notas: "",
+    });
+  }
+
+  async function handleSave() {
+    if (!dialog) return;
+    setSaving(true);
+    const { data, error } = await supabase.rpc("mp_egreso_to_gasto", {
+      _movement_id: dialog.id,
+      _categoria: form.categoria,
+      _subcategoria: form.subcategoria || null,
+      _descripcion: form.descripcion,
+      _proveedor: form.proveedor || null,
+      _unidad_negocio: form.unidad_negocio,
+      _notas: form.notas || null,
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: "No se pudo categorizar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Egreso categorizado", description: `Gasto creado: ${data}` });
+    setDialog(null);
+    load();
+  }
+
+  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id);
+  const reservas = items.filter(i => i.direccion === "reserva_tecnica");
+  const categorizados = items.filter(i => i.gasto_id);
+
+  const totalEgresosPendientes = egresos.reduce((s, i) => s + Number(i.amount), 0);
+  const totalReservas = reservas.reduce((s, i) => s + Number(i.amount), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card className="border-orange-500/30 bg-orange-500/5">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-orange-400 text-xs uppercase tracking-wider">
+              <TrendingDown className="w-4 h-4" /> Egresos pendientes de categorizar
+            </div>
+            <div className="text-2xl font-bold mt-1">$ {totalEgresosPendientes.toLocaleString("es-AR")}</div>
+            <div className="text-xs text-muted-foreground">{egresos.length} movimientos</div>
+          </CardContent>
+        </Card>
+        <Card className="border-cyan-500/30 bg-cyan-500/5">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-cyan-400 text-xs uppercase tracking-wider">
+              <PiggyBank className="w-4 h-4" /> MP - Reservas técnicas
+            </div>
+            <div className="text-2xl font-bold mt-1">$ {totalReservas.toLocaleString("es-AR")}</div>
+            <div className="text-xs text-muted-foreground">{reservas.length} retenciones · no cuentan como gasto</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-green-400 text-xs uppercase tracking-wider">
+              <CheckCircle2 className="w-4 h-4" /> Ya categorizados
+            </div>
+            <div className="text-2xl font-bold mt-1">{categorizados.length}</div>
+            <div className="text-xs text-muted-foreground">egresos MP convertidos en gastos</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex gap-2 border-b border-border">
+        {(["egresos","reservas","categorizados"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-3 py-2 text-sm font-medium transition-colors ${
+              tab === t ? "border-b-2 border-orange-500 text-orange-400" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t === "egresos" && `Pendientes (${egresos.length})`}
+            {t === "reservas" && `Reservas técnicas (${reservas.length})`}
+            {t === "categorizados" && `Categorizados (${categorizados.length})`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
+      ) : (
+        <div className="space-y-2">
+          {(tab === "egresos" ? egresos : tab === "reservas" ? reservas : categorizados).map(m => (
+            <Card key={m.id} className="hover:border-orange-500/40 transition-colors">
+              <CardContent className="py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-sm">{m.mp_payment_id}</span>
+                    <Badge variant="outline" className="text-[10px]">{m.cuentas_mp?.nombre ?? "MP"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{m.payment_type ?? "-"}</Badge>
+                    {m.direccion === "reserva_tecnica" && (
+                      <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-[10px]">Reserva técnica</Badge>
+                    )}
+                    {m.gasto_id && (
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Gasto creado</Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {new Date(m.fecha_movimiento).toLocaleString("es-AR")}
+                    {m.description && m.description !== "Varios" && <span className="ml-2 italic text-cyan-400/80">{m.description}</span>}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
+                  <div className="text-[10px] text-muted-foreground">{m.currency}</div>
+                </div>
+                {m.direccion === "egreso" && !m.gasto_id && (
+                  <Button size="sm" onClick={() => openDialog(m)}>Categorizar</Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+          {tab === "egresos" && egresos.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-400" />
+              No hay egresos pendientes de categorizar
+            </div>
+          )}
+          {tab === "reservas" && (
+            <div className="rounded-md bg-cyan-500/5 border border-cyan-500/20 p-3 text-xs text-cyan-400/80 flex gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Las reservas técnicas son retenciones que MP hace en garantía y luego devuelve. No cuentan como gasto real.
+            </div>
+          )}
+        </div>
+      )}
+
+      <Dialog open={!!dialog} onOpenChange={(o) => !o && setDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Categorizar egreso MP como gasto</DialogTitle>
+          </DialogHeader>
+          {dialog && (
+            <div className="space-y-3">
+              <div className="rounded-md bg-muted/50 p-3 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">MP ID:</span><span className="font-mono">{dialog.mp_payment_id}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Monto:</span><span className="font-bold text-orange-400">- $ {Number(dialog.amount).toLocaleString("es-AR")}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Fecha:</span><span>{new Date(dialog.fecha_movimiento).toLocaleString("es-AR")}</span></div>
+              </div>
+              <div>
+                <Label>Categoría</Label>
+                <Select value={form.categoria} onValueChange={(v) => setForm(f => ({ ...f, categoria: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Subcategoría (opcional)</Label>
+                <Input value={form.subcategoria} onChange={(e) => setForm(f => ({ ...f, subcategoria: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Descripción</Label>
+                <Input value={form.descripcion} onChange={(e) => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Proveedor</Label>
+                  <Input value={form.proveedor} onChange={(e) => setForm(f => ({ ...f, proveedor: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Unidad de negocio</Label>
+                  <Select value={form.unidad_negocio} onValueChange={(v) => setForm(f => ({ ...f, unidad_negocio: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{UNIDADES.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Notas</Label>
+                <Textarea rows={2} value={form.notas} onChange={(e) => setForm(f => ({ ...f, notas: e.target.value }))} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirmar y crear gasto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

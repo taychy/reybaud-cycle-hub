@@ -97,6 +97,7 @@ export default function MpMovementsTab() {
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug ),
         alumnos:alumnos!alumno_id ( id, nombre, apellido, email )
       `)
+      .eq("direccion", "ingreso")
       .order("fecha_movimiento", { ascending: false })
       .limit(500);
     if (error) {

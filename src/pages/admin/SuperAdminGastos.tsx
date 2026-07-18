@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import AgendaMes from "@/components/admin/gastos/AgendaMes";
+import MpEgresosTab from "@/components/admin/MpEgresosTab";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
@@ -144,7 +145,7 @@ const estadoBadge = (e: EstadoEjec, dias: number | null) => {
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
   const [mes, setMes] = useState(nowMonth());
-  const [activeTab, setActiveTab] = useState<string>("agenda");
+  const [activeTab, setActiveTab] = useState<string>("mp");
 
   const [recurrentes, setRecurrentes] = useState<Recurrente[]>([]);
   const [ejecuciones, setEjecuciones] = useState<Ejecucion[]>([]);
@@ -905,6 +906,7 @@ const SuperAdminGastos = () => {
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "historial") loadHistorial(); }}>
         <TabsList>
+          <TabsTrigger value="mp" className="gap-1"><CreditCard className="w-4 h-4" />MP</TabsTrigger>
           <TabsTrigger value="agenda" className="gap-1"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
           <TabsTrigger value="matriz" className="gap-1"><Boxes className="w-4 h-4" />Matriz anual</TabsTrigger>
           <TabsTrigger value="catalogo" className="gap-1"><Wallet className="w-4 h-4" />Catálogo</TabsTrigger>
@@ -919,6 +921,11 @@ const SuperAdminGastos = () => {
           </TabsTrigger>
           <TabsTrigger value="historial" className="gap-1"><History className="w-4 h-4" />Historial</TabsTrigger>
         </TabsList>
+
+        {/* MP EGRESOS + RESERVAS TÉCNICAS */}
+        <TabsContent value="mp" className="mt-4">
+          <MpEgresosTab />
+        </TabsContent>
 
         {/* AGENDA */}
         <TabsContent value="agenda" className="mt-4 space-y-4">
