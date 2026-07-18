@@ -634,6 +634,7 @@ const ManageStudents = () => {
       emails_adicionales: (((updatedAlumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
+      fecha_nacimiento: (updatedAlumno as any).fecha_nacimiento || "",
       notas: updatedAlumno.notas || "",
       nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
