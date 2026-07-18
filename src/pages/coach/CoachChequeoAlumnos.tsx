@@ -159,6 +159,11 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
       setGrupos(gruposDisponibles);
       if (gruposDisponibles.length > 0) setGrupoSel(gruposDisponibles[0]);
+
+      // Otros coaches para asignar co-feedback al convertir
+      const { data: cs } = await supabase.from("coaches").select("id, nombre").order("nombre");
+      setOtherCoaches(((cs || []) as any[]).map(c => ({ id: c.id, nombre: c.nombre })));
+
       setLoading(false);
     })();
   }, [adminMode]);
