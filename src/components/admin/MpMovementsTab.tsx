@@ -320,18 +320,18 @@ export default function MpMovementsTab() {
           </div>
 
           <div className="rounded-md border overflow-x-auto">
-            <Table>
+            <Table className="min-w-[1100px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Cuenta</TableHead>
-                  <TableHead>Pagador</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Alumno</TableHead>
-                  <TableHead>Método</TableHead>
-                  <TableHead>MP ID</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="whitespace-nowrap">Fecha</TableHead>
+                  <TableHead className="whitespace-nowrap">Cuenta</TableHead>
+                  <TableHead className="min-w-[220px]">Pagador</TableHead>
+                  <TableHead className="whitespace-nowrap">Monto</TableHead>
+                  <TableHead className="whitespace-nowrap">Estado</TableHead>
+                  <TableHead className="min-w-[160px]">Alumno</TableHead>
+                  <TableHead className="whitespace-nowrap">Método</TableHead>
+                  <TableHead className="whitespace-nowrap">MP ID</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 bg-card shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.5)]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
