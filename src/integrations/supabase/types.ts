@@ -478,6 +478,7 @@ export type Database = {
           emails_adicionales: string[]
           estado: string
           fecha_baja: string | null
+          fecha_nacimiento: string | null
           fusionada_at: string | null
           fusionada_en: string | null
           grupo: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -516,6 +517,7 @@ export type Database = {
           sede_id: string | null
           telefono: string | null
           tipo_documento: string
+          ultimo_saludo_cumple_year: number | null
           updated_at: string
           user_id: string | null
         }
@@ -543,6 +545,7 @@ export type Database = {
           emails_adicionales?: string[]
           estado?: string
           fecha_baja?: string | null
+          fecha_nacimiento?: string | null
           fusionada_at?: string | null
           fusionada_en?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -581,6 +584,7 @@ export type Database = {
           sede_id?: string | null
           telefono?: string | null
           tipo_documento?: string
+          ultimo_saludo_cumple_year?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -608,6 +612,7 @@ export type Database = {
           emails_adicionales?: string[]
           estado?: string
           fecha_baja?: string | null
+          fecha_nacimiento?: string | null
           fusionada_at?: string | null
           fusionada_en?: string | null
           grupo?: Database["public"]["Enums"]["grupo_ciclismo"]
@@ -646,6 +651,7 @@ export type Database = {
           sede_id?: string | null
           telefono?: string | null
           tipo_documento?: string
+          ultimo_saludo_cumple_year?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -9651,6 +9657,7 @@ export type Database = {
           admin_id: string | null
           cerrado_at: string | null
           cerrado_por: string | null
+          coaches_participantes: string[]
           confirmados: number
           created_at: string
           desconocidos_en_grupo: number
@@ -9672,6 +9679,7 @@ export type Database = {
           admin_id?: string | null
           cerrado_at?: string | null
           cerrado_por?: string | null
+          coaches_participantes?: string[]
           confirmados?: number
           created_at?: string
           desconocidos_en_grupo?: number
@@ -9693,6 +9701,7 @@ export type Database = {
           admin_id?: string | null
           cerrado_at?: string | null
           cerrado_por?: string | null
+          coaches_participantes?: string[]
           confirmados?: number
           created_at?: string
           desconocidos_en_grupo?: number
