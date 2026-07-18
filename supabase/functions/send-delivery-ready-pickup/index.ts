@@ -64,7 +64,9 @@ Deno.serve(async (req) => {
     ]);
 
     if (!list) return new Response(JSON.stringify({ error: "Lista no encontrada" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    if (!alumno || !alumno.email) return new Response(JSON.stringify({ error: "Alumno sin email" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!alumno) return new Response(JSON.stringify({ error: "Alumno no encontrado" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (channel === "email" && !alumno.email) return new Response(JSON.stringify({ error: "Alumno sin email" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (channel === "whatsapp" && !(alumno as any).telefono) return new Response(JSON.stringify({ error: "Alumno sin teléfono" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (!tpl) return new Response(JSON.stringify({ error: "Plantilla no encontrada" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const its = items || [];
