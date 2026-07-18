@@ -262,6 +262,8 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     setOpenAlumno(a);
     setForm(evalsMap[a.id] ? { ...evalsMap[a.id] } : emptyEval(a.id));
     setNotaNueva("");
+    setNotaEnviarFeedback(false);
+    setNotaCoachSec("");
     const { data } = await supabase
       .from("alumno_evaluaciones_coach_notas")
       .select("*")
