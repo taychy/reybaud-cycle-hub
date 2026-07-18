@@ -76,23 +76,35 @@ const CoachFeedback = () => {
     }
     setSending(true);
 
-    const { error } = await supabase.from("feedback_coach").insert({
+    const { data: inserted, error } = await supabase.from("feedback_coach").insert({
       alumno_id: selectedAlumno,
       coach_id: coachId,
+      coach_id_secundario: coachSecundario || null,
       comentario: comentario.trim(),
       tipo,
       fecha: new Date().toISOString().split("T")[0],
-    });
+      origen: "directo",
+    } as any).select("id").single();
+
+    if (error || !inserted) {
+      setSending(false);
+      toast({ title: "Error", description: "No se pudo enviar el feedback.", variant: "destructive" });
+      return;
+    }
+
+    // Enviar mail al alumno (siempre)
+    try {
+      await supabase.functions.invoke("notify-coach-feedback", { body: { feedback_id: (inserted as any).id } });
+    } catch (e) {
+      console.error("notify-coach-feedback error", e);
+    }
 
     setSending(false);
-    if (error) {
-      toast({ title: "Error", description: "No se pudo enviar el feedback.", variant: "destructive" });
-    } else {
-      toast({ title: "✅ Feedback enviado", description: "El alumno podrá verlo en su sección de Progreso." });
-      setComentario("");
-      setSelectedAlumno("");
-      setTipo("general");
-    }
+    toast({ title: "✅ Feedback enviado", description: "El alumno lo recibió por mail y lo verá en su sección de Progreso." });
+    setComentario("");
+    setSelectedAlumno("");
+    setCoachSecundario("");
+    setTipo("general");
   };
 
   if (loading) {
