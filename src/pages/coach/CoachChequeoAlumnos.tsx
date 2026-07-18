@@ -17,6 +17,7 @@ type AlumnoRow = {
   apellido: string | null;
   grupo: string | null;
   fecha_nacimiento: string | null;
+  es_staff?: boolean | null;
 };
 
 type Evaluacion = {
