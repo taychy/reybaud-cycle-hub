@@ -298,7 +298,8 @@ const AdminLayout = () => {
           ))}
 
           {/* Logout inside nav */}
-          <div className="pt-4">
+          <div className="pt-4 space-y-1">
+            {!collapsed && <SwitchPortalButton fullWidth />}
             {collapsed ? (
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
