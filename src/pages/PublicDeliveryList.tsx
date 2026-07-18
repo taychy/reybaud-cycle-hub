@@ -196,6 +196,14 @@ const PublicDeliveryList = () => {
                       );
                     })}
                   </div>
+                  {list.public_editable && (
+                    <DeliveryPaymentsSection
+                      mode="public"
+                      listId={list.id}
+                      publicToken={token}
+                      clienteNombre={cliente}
+                    />
+                  )}
                 </div>
               );
             })}
