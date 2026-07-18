@@ -35,6 +35,7 @@ import {
   type DeliveryExcelRow,
 } from "@/lib/deliveryExcel";
 import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
+import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 
 interface DeliveryList {
   id: string;
