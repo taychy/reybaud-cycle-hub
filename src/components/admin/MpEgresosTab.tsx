@@ -19,7 +19,7 @@ type MpEgreso = {
   description: string | null;
   payment_type: string | null;
   fecha_movimiento: string;
-  direccion: "egreso" | "reserva_tecnica";
+  direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
   cuentas_mp?: { nombre: string; slug: string };
 };
