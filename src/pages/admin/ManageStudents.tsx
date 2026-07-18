@@ -604,6 +604,7 @@ const ManageStudents = () => {
       emails_adicionales: emailsAdicionalesArr,
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
+      fecha_nacimiento: detailForm.fecha_nacimiento || null,
       notas: detailForm.notas.trim() || null,
       nombres_bancarios: nombresBancariosArr,
     } as any;
