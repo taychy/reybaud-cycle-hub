@@ -145,7 +145,7 @@ const estadoBadge = (e: EstadoEjec, dias: number | null) => {
 const SuperAdminGastos = () => {
   const [loading, setLoading] = useState(true);
   const [mes, setMes] = useState(nowMonth());
-  const [activeTab, setActiveTab] = useState<string>("agenda");
+  const [activeTab, setActiveTab] = useState<string>("mp");
 
   const [recurrentes, setRecurrentes] = useState<Recurrente[]>([]);
   const [ejecuciones, setEjecuciones] = useState<Ejecucion[]>([]);
