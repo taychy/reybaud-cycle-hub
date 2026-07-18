@@ -685,8 +685,19 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                       ))}
                     </select>
                   )}
+                  {notaEnviarFeedback && notaNueva.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-[12px] text-primary hover:underline"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Ver preview del mail
+                    </button>
+                  )}
                 </div>
               </section>
+
 
               <Button className="w-full" onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (notaEnviarFeedback ? "Guardar chequeo y enviar por mail" : "Guardar chequeo")}
