@@ -309,7 +309,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
           postura: form.postura, cadencia: form.cadencia, manejo: form.manejo, potencia: form.potencia,
           fisico: form.fisico, constancia: form.constancia, actitud: form.actitud, progreso: form.progreso,
         };
-        const { error: nErr } = await supabase
+        const { data: notaIns, error: nErr } = await supabase
           .from("alumno_evaluaciones_coach_notas")
           .insert({
             alumno_id: form.alumno_id,
@@ -317,8 +317,32 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
             autor_nombre: coachNombre || (adminMode ? "Admin" : null),
             nota: notaNueva.trim(),
             snapshot_scores: snap,
-          } as any);
+          } as any)
+          .select("id, created_at")
+          .single();
         if (nErr) throw nErr;
+
+        // Convertir en feedback + enviar al alumno si el coach lo pidió
+        if (notaEnviarFeedback && notaIns) {
+          const { data: fb, error: fbErr } = await supabase.from("feedback_coach").insert({
+            alumno_id: form.alumno_id,
+            coach_id: coachId,
+            coach_id_secundario: notaCoachSec || null,
+            comentario: notaNueva.trim(),
+            tipo: "general",
+            fecha: ((notaIns as any).created_at || new Date().toISOString()).split("T")[0],
+            origen: "chequeo",
+            origen_nota_id: (notaIns as any).id,
+          } as any).select("id").single();
+          if (fbErr) throw fbErr;
+
+          await supabase
+            .from("alumno_evaluaciones_coach_notas")
+            .update({ feedback_id: (fb as any).id } as any)
+            .eq("id", (notaIns as any).id);
+
+          supabase.functions.invoke("notify-coach-feedback", { body: { feedback_id: (fb as any).id } }).catch(() => {});
+        }
       }
 
       setEvalsMap(prev => ({ ...prev, [form.alumno_id]: upserted as any }));
