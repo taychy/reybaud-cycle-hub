@@ -2,6 +2,7 @@ import { Outlet, useNavigate, NavLink } from "react-router-dom";
 import { Package, History, LogOut, AlertTriangle, RefreshCw, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 const DepositoLayout = () => {
   const navigate = useNavigate();
