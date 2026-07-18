@@ -493,7 +493,8 @@ const StudentDashboard = () => {
             </div>
 
             {/* Logout */}
-            <div className="pt-4">
+            <div className="pt-4 space-y-2">
+              <SwitchPortalButton variant="outline" fullWidth />
               <Button
                 variant="outline"
                 className="w-full"
