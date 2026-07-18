@@ -258,8 +258,11 @@ const App = () => (
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
             <Route path="pedidos-proveedor" element={<SupplierOrders />} />
+            <Route path="entregas" element={<DepositoEntregas />} />
+            <Route path="entregas/:id" element={<DepositoEntregaDetail />} />
             <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
+          <Route path="/entrega/:token" element={<PublicDeliveryList />} />
           <Route path="/reservar" element={<BookingLanding />} />
           <Route path="/reservar/confirmacion" element={<TurneraConfirmacion />} />
           <Route path="/reservar/:id/transferencia" element={<TurneraTransferencia />} />
