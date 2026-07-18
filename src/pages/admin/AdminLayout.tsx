@@ -5,6 +5,7 @@ import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 /* ─── Nav sections ─── */
 type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" };
