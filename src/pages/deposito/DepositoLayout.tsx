@@ -10,7 +10,8 @@ const DepositoLayout = () => {
   const navItems = [
     { to: "/deposito/alertas", icon: AlertTriangle, label: "Alertas" },
     { to: "/deposito/ventas", icon: ShoppingBag, label: "Ventas" },
-    { to: "/deposito/pedidos-proveedor", icon: Truck, label: "Pedidos" },
+    { to: "/deposito/entregas", icon: Truck, label: "Entregas" },
+    { to: "/deposito/pedidos-proveedor", icon: Package, label: "Prov." },
     { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
     { to: "/deposito/movimientos", icon: History, label: "Movim." },
     { to: "/deposito/stock", icon: Package, label: "Stock" },
@@ -79,7 +80,7 @@ const DepositoLayout = () => {
         className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-7">
           {navItems.map((item) => (
             <NavLink
               key={item.to}

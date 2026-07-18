@@ -1633,6 +1633,119 @@ export type Database = {
           },
         ]
       }
+      delivery_list_items: {
+        Row: {
+          cantidad: number
+          cliente_alumno_id: string | null
+          cliente_nombre: string
+          created_at: string
+          id: string
+          list_id: string
+          notas: string | null
+          posicion: number
+          preparado: boolean
+          preparado_at: string | null
+          preparado_by: string | null
+          producto: string
+          source_order_id: string | null
+          source_order_item_id: string | null
+          source_preorder_id: string | null
+          source_type: string | null
+          updated_at: string
+          variante: string | null
+        }
+        Insert: {
+          cantidad?: number
+          cliente_alumno_id?: string | null
+          cliente_nombre: string
+          created_at?: string
+          id?: string
+          list_id: string
+          notas?: string | null
+          posicion?: number
+          preparado?: boolean
+          preparado_at?: string | null
+          preparado_by?: string | null
+          producto: string
+          source_order_id?: string | null
+          source_order_item_id?: string | null
+          source_preorder_id?: string | null
+          source_type?: string | null
+          updated_at?: string
+          variante?: string | null
+        }
+        Update: {
+          cantidad?: number
+          cliente_alumno_id?: string | null
+          cliente_nombre?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          notas?: string | null
+          posicion?: number
+          preparado?: boolean
+          preparado_at?: string | null
+          preparado_by?: string | null
+          producto?: string
+          source_order_id?: string | null
+          source_order_item_id?: string | null
+          source_preorder_id?: string | null
+          source_type?: string | null
+          updated_at?: string
+          variante?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_lists: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          estado: string
+          fecha_entrega: string | null
+          id: string
+          origen: string
+          public_editable: boolean
+          public_token: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          estado?: string
+          fecha_entrega?: string | null
+          id?: string
+          origen?: string
+          public_editable?: boolean
+          public_token?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          estado?: string
+          fecha_entrega?: string | null
+          id?: string
+          origen?: string
+          public_editable?: boolean
+          public_token?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deposito_profiles: {
         Row: {
           created_at: string
@@ -9777,6 +9890,11 @@ export type Database = {
       }
       delete_gasto_deuda_mov: { Args: { p_id: string }; Returns: undefined }
       delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
+      delivery_get_by_token: { Args: { _token: string }; Returns: Json }
+      delivery_toggle_item_by_token: {
+        Args: { _item_id: string; _preparado: boolean; _token: string }
+        Returns: boolean
+      }
       deposito_definir_reemplazo: {
         Args: {
           p_cambio_id: string

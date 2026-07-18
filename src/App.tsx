@@ -81,6 +81,9 @@ import DepositoAlertas from "./pages/deposito/DepositoAlertas";
 import DepositoProcesoRunner from "./pages/deposito/DepositoProcesoRunner";
 import AdminProcessTemplates from "./pages/admin/AdminProcessTemplates";
 import DepositoVentas from "./pages/deposito/DepositoVentas";
+import DepositoEntregas from "./pages/deposito/DepositoEntregas";
+import DepositoEntregaDetail from "./pages/deposito/DepositoEntregaDetail";
+import PublicDeliveryList from "./pages/PublicDeliveryList";
 import SupplierOrders from "./pages/SupplierOrders";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
@@ -255,8 +258,11 @@ const App = () => (
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
             <Route path="pedidos-proveedor" element={<SupplierOrders />} />
+            <Route path="entregas" element={<DepositoEntregas />} />
+            <Route path="entregas/:id" element={<DepositoEntregaDetail />} />
             <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
+          <Route path="/entrega/:token" element={<PublicDeliveryList />} />
           <Route path="/reservar" element={<BookingLanding />} />
           <Route path="/reservar/confirmacion" element={<TurneraConfirmacion />} />
           <Route path="/reservar/:id/transferencia" element={<TurneraTransferencia />} />
