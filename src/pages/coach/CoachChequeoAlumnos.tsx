@@ -203,9 +203,24 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return alumnos;
-    return alumnos.filter(a => `${a.nombre} ${a.apellido ?? ""}`.toLowerCase().includes(q));
-  }, [alumnos, search]);
+    const base = q
+      ? alumnos.filter(a => `${a.nombre} ${a.apellido ?? ""}`.toLowerCase().includes(q))
+      : alumnos;
+    // no chequeados primero, luego chequeados por fecha desc
+    return [...base].sort((a, b) => {
+      const ea = evalsMap[a.id]?.updated_at;
+      const eb = evalsMap[b.id]?.updated_at;
+      if (!ea && eb) return -1;
+      if (ea && !eb) return 1;
+      if (!ea && !eb) return a.nombre.localeCompare(b.nombre);
+      return new Date(eb!).getTime() - new Date(ea!).getTime();
+    });
+  }, [alumnos, search, evalsMap]);
+
+  const totalContables = alumnos.length;
+  const chequeados = alumnos.filter(a => !!evalsMap[a.id]?.updated_at).length;
+  const pendientes = totalContables - chequeados;
+  const pctHecho = totalContables > 0 ? Math.round((chequeados / totalContables) * 100) : 0;
 
   // Alumnos "a abordar": alguna dimensión evaluada < 3 estrellas
   const DIM_KEYS = ["postura","cadencia","manejo","potencia","fisico","constancia","actitud","progreso"] as const;
