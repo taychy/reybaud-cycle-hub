@@ -15,6 +15,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
 import WhatsAppConciliador from "./pages/admin/WhatsAppConciliador";
 import WhatsAppHistorial from "./pages/admin/WhatsAppHistorial";
+import AdminContactosWhatsapp from "./pages/admin/AdminContactosWhatsapp";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
 import Unsubscribe from "./pages/Unsubscribe";
@@ -192,6 +193,7 @@ const App = () => (
             <Route path="alumnos" element={<ManageStudents />} />
             <Route path="whatsapp-conciliador" element={<WhatsAppConciliador />} />
             <Route path="whatsapp-historial" element={<WhatsAppHistorial />} />
+            <Route path="contactos-whatsapp" element={<AdminContactosWhatsapp />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />

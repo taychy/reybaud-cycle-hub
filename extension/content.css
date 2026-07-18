@@ -1,0 +1,38 @@
+#reybaud-panel {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  width: 300px;
+  background: #0F172A;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  font-family: -apple-system, system-ui, sans-serif;
+  z-index: 999999;
+  padding: 14px;
+  border: 1px solid #f97316;
+}
+#reybaud-panel h3 { margin:0 0 8px; font-size:14px; color:#f97316; display:flex; justify-content:space-between; align-items:center; }
+#reybaud-panel .rb-close { cursor:pointer; color:#94a3b8; font-size:16px; background:none; border:none; }
+#reybaud-panel label { display:block; font-size:11px; color:#94a3b8; margin-top:8px; }
+#reybaud-panel input, #reybaud-panel textarea {
+  width:100%; box-sizing:border-box; padding:7px; border-radius:6px;
+  border:1px solid #334155; background:#1e293b; color:#fff; font-size:13px;
+  font-family:inherit;
+}
+#reybaud-panel textarea { resize:vertical; min-height:50px; }
+#reybaud-panel button.rb-save {
+  width:100%; padding:9px; margin-top:10px; border-radius:6px; border:none;
+  background:#f97316; color:#fff; font-weight:600; cursor:pointer;
+}
+#reybaud-panel button.rb-save:disabled { opacity:.5; cursor:not-allowed; }
+#reybaud-panel .rb-status { margin-top:8px; font-size:12px; min-height:16px; }
+#reybaud-panel .rb-ok { color:#22c55e; }
+#reybaud-panel .rb-err { color:#ef4444; }
+#reybaud-panel .rb-muted { color:#94a3b8; font-size:11px; margin-top:6px; }
+#reybaud-panel .rb-toggle {
+  position:fixed; top:60px; right:20px; z-index:999998;
+  background:#f97316; color:#fff; border:none; border-radius:20px;
+  padding:8px 12px; font-weight:600; cursor:pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+}

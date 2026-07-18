@@ -5500,6 +5500,8 @@ export type Database = {
         Row: {
           alumno_id: string | null
           apellido: string | null
+          capturado_por_email: string | null
+          capturado_por_id: string | null
           created_at: string
           created_by: string | null
           email: string
@@ -5516,12 +5518,15 @@ export type Database = {
           source_event_participant_id: string | null
           tags: string[]
           telefono: string | null
+          telefono_normalizado: string | null
           tipo: Database["public"]["Enums"]["marketing_contact_type"]
           updated_at: string
         }
         Insert: {
           alumno_id?: string | null
           apellido?: string | null
+          capturado_por_email?: string | null
+          capturado_por_id?: string | null
           created_at?: string
           created_by?: string | null
           email: string
@@ -5538,12 +5543,15 @@ export type Database = {
           source_event_participant_id?: string | null
           tags?: string[]
           telefono?: string | null
+          telefono_normalizado?: string | null
           tipo?: Database["public"]["Enums"]["marketing_contact_type"]
           updated_at?: string
         }
         Update: {
           alumno_id?: string | null
           apellido?: string | null
+          capturado_por_email?: string | null
+          capturado_por_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string
@@ -5560,6 +5568,7 @@ export type Database = {
           source_event_participant_id?: string | null
           tags?: string[]
           telefono?: string | null
+          telefono_normalizado?: string | null
           tipo?: Database["public"]["Enums"]["marketing_contact_type"]
           updated_at?: string
         }
@@ -11062,6 +11071,7 @@ export type Database = {
         | "evento_externo"
         | "manual"
         | "importado"
+        | "whatsapp_web"
       modo_mp: "test" | "prod"
       payment_plan_monto_tipo: "fijo" | "porcentaje_saldo"
       payment_plan_regla_tardia:
@@ -11281,6 +11291,7 @@ export const Constants = {
         "evento_externo",
         "manual",
         "importado",
+        "whatsapp_web",
       ],
       modo_mp: ["test", "prod"],
       payment_plan_monto_tipo: ["fijo", "porcentaje_saldo"],

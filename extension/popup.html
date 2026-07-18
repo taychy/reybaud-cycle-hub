@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { width: 300px; font-family: -apple-system, system-ui, sans-serif; padding: 14px; margin: 0; background: #0F172A; color: #fff; }
+    h1 { font-size: 15px; margin: 0 0 10px; color: #f97316; }
+    label { display:block; font-size: 11px; color: #94a3b8; margin-top: 8px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #fff; font-size: 13px; }
+    button { width: 100%; padding: 9px; margin-top: 10px; border-radius: 6px; border: none; background: #f97316; color: #fff; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #334155; }
+    .status { margin-top: 8px; font-size: 12px; }
+    .ok { color: #22c55e; }
+    .err { color: #ef4444; }
+    .muted { color: #94a3b8; font-size: 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Reybaud · WhatsApp</h1>
+  <div id="loggedout">
+    <div id="step1">
+      <label>Email de staff</label>
+      <input id="email" type="email" placeholder="natalia@ciclismoreybaud.com" />
+      <button id="sendOtp">Enviar código</button>
+    </div>
+    <div id="step2" style="display:none">
+      <label>Código recibido por mail</label>
+      <input id="otp" type="text" placeholder="123456" />
+      <button id="verifyOtp">Ingresar</button>
+      <button class="secondary" id="backStep">Volver</button>
+    </div>
+    <div class="status" id="msg"></div>
+  </div>
+  <div id="loggedin" style="display:none">
+    <div class="muted">Conectado como <b id="who"></b></div>
+    <button class="secondary" id="logout">Cerrar sesión</button>
+    <div class="muted">Abrí <a href="https://web.whatsapp.com" target="_blank" style="color:#22d3ee">web.whatsapp.com</a>: el panel Reybaud aparece al costado del chat.</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
