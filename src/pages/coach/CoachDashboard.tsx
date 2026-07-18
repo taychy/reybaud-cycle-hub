@@ -105,9 +105,12 @@ const CoachDashboard = () => {
               </h1>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <SwitchPortalButton size="sm" />
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
