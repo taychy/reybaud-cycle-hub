@@ -94,25 +94,27 @@ Deno.serve(async (req) => {
     const text = tpl.text_body ? replace(tpl.text_body) : `${alumnoName}, tu pedido de ${list.titulo} está listo para retirar.`;
 
     const messageId = crypto.randomUUID();
-    const idempotencyKey = `delivery-ready-${list_id}-${alumno_id}-${Date.now()}`;
+    const idempotencyKey = `delivery-ready-${list_id}-${alumno_id}-${channel}-${Date.now()}`;
 
-    const { error: qErr } = await supabase.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
-        message_id: messageId,
-        to: alumno.email,
-        from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
-        sender_domain: SENDER_DOMAIN,
-        subject,
-        html,
-        text,
-        purpose: "transactional",
-        label: "delivery-ready-pickup",
-        idempotency_key: idempotencyKey,
-        queued_at: new Date().toISOString(),
-      },
-    });
-    if (qErr) throw new Error(`queue_failed: ${qErr.message}`);
+    if (channel === "email") {
+      const { error: qErr } = await supabase.rpc("enqueue_email", {
+        queue_name: "transactional_emails",
+        payload: {
+          message_id: messageId,
+          to: alumno.email,
+          from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+          sender_domain: SENDER_DOMAIN,
+          subject,
+          html,
+          text,
+          purpose: "transactional",
+          label: "delivery-ready-pickup",
+          idempotency_key: idempotencyKey,
+          queued_at: new Date().toISOString(),
+        },
+      });
+      if (qErr) throw new Error(`queue_failed: ${qErr.message}`);
+    }
 
     // Mark items as notified
     const nowIso = new Date().toISOString();
@@ -120,19 +122,19 @@ Deno.serve(async (req) => {
       .from("delivery_list_items")
       .update({
         aviso_retiro_enviado_at: nowIso,
-        aviso_retiro_channel: "email",
+        aviso_retiro_channel: channel,
         aviso_retiro_enviado_por: actor_id ?? null,
         alumno_id,
       })
       .eq("list_id", list_id)
       .eq("cliente_nombre", cliente_nombre);
 
-    // Log in student activity
+    const channelLabel = channel === "whatsapp" ? "WhatsApp" : "email";
     await supabase.from("student_activity_log").insert({
       alumno_id,
-      event_type: "email_enviado",
-      title: `Aviso de retiro enviado`,
-      description: `Se le avisó por email que su pedido de "${list.titulo}" está listo para retirar en la camioneta de la escuela.`,
+      event_type: channel === "whatsapp" ? "whatsapp_enviado" : "email_enviado",
+      title: `Aviso de retiro enviado por ${channelLabel}`,
+      description: `Se le avisó por ${channelLabel} que su pedido de "${list.titulo}" está listo para retirar en la camioneta de la escuela.`,
       actor_id: actor_id ?? null,
       actor_email: actor_email ?? null,
       actor_role: "admin",
@@ -141,9 +143,10 @@ Deno.serve(async (req) => {
       reference_label: list.titulo,
     });
 
-    return new Response(JSON.stringify({ ok: true, sent_to: alumno.email }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, channel, sent_to: channel === "email" ? alumno.email : (alumno as any).telefono || null }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     console.error("send-delivery-ready-pickup error:", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
