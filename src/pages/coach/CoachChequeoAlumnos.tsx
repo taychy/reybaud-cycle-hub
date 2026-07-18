@@ -372,6 +372,23 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     }
   };
 
+  const handleMarkStaff = async () => {
+    if (!openAlumno) return;
+    if (!confirm(`Marcar a ${openAlumno.nombre} como staff? Va a salir del listado de chequeo y no contará en el porcentaje.`)) return;
+    try {
+      const { error } = await supabase
+        .from("alumnos")
+        .update({ es_staff: true } as any)
+        .eq("id", openAlumno.id);
+      if (error) throw error;
+      setAlumnos(prev => prev.filter(a => a.id !== openAlumno.id));
+      toast.success("Marcado como staff. Excluido del chequeo.");
+      setOpenAlumno(null);
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo marcar");
+    }
+  };
+
   const renderStars = (n: number | null | undefined) => {
     if (!n) return null;
     return (
