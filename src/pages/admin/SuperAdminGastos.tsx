@@ -1190,8 +1190,14 @@ const SuperAdminGastos = () => {
         </TabsContent>
 
 
-        {/* HISTORICO */}
+        {/* HISTORICO (Contable + Cambios) */}
         <TabsContent value="historico" className="mt-4">
+          <Tabs defaultValue="contable" onValueChange={(v) => { if (v === "cambios") loadHistorial(); }}>
+            <TabsList>
+              <TabsTrigger value="contable" className="gap-1"><Receipt className="w-4 h-4" />Contable</TabsTrigger>
+              <TabsTrigger value="cambios" className="gap-1"><History className="w-4 h-4" />Cambios</TabsTrigger>
+            </TabsList>
+            <TabsContent value="contable" className="mt-4">
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-sm font-heading font-bold uppercase tracking-wider">Histórico contable</CardTitle>
