@@ -27,6 +27,7 @@ import CoachFeedback from "./pages/coach/CoachFeedback";
 import CoachLiquidaciones from "./pages/coach/CoachLiquidaciones";
 import CoachEntrenamientos from "./pages/coach/CoachEntrenamientos";
 import CoachAsesoria from "./pages/coach/CoachAsesoria";
+import CoachChequeoAlumnos from "./pages/coach/CoachChequeoAlumnos";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
