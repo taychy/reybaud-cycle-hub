@@ -45,9 +45,13 @@
     <input id="rb-telefono" placeholder="+54 9 11 5555 5555" />
     <label>Notas (interés, consulta, etc.)</label>
     <textarea id="rb-notas" placeholder="Consultó por escuela cuatrimestre"></textarea>
-    <button class="rb-save" id="rb-save">Guardar en Reybaud</button>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#e2e8f0">
+      <input type="checkbox" id="rb-gcontacts" checked style="width:auto;margin:0" />
+      Agendar también en Google Contacts (obligatorio)
+    </label>
+    <button class="rb-save" id="rb-save">Guardar y agendar</button>
     <div class="rb-status" id="rb-status"></div>
-    <div class="rb-muted">Se autocompleta desde el chat abierto. Si no aparecen datos, completalo a mano.</div>
+    <div class="rb-muted">Se autocompleta desde el chat abierto. Al guardar se descarga una vCard y se abre Google Contacts para importarla.</div>
   `;
   document.body.appendChild(panel);
 
