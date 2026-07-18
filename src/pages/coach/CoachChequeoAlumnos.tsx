@@ -343,11 +343,25 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
         // Convertir en feedback + enviar al alumno si el coach lo pidió
         if (notaEnviarFeedback && notaIns) {
+          const dimAll = [...TECH_DIMS, ...RENDI_DIMS] as ReadonlyArray<{ key: string; label: string }>;
+          const detalleLines = dimAll
+            .map(d => {
+              const nota = ((form as any)[`${d.key}_nota`] as string | null)?.trim();
+              const score = (form as any)[d.key] as number | null;
+              if (!nota) return null;
+              const star = score ? ` (${score}★)` : "";
+              return `• ${d.label}${star}: ${nota}`;
+            })
+            .filter(Boolean)
+            .join("\n");
+          const comentarioFull = detalleLines
+            ? `${notaNueva.trim()}\n\n---DETALLE---\n${detalleLines}`
+            : notaNueva.trim();
           const { data: fb, error: fbErr } = await supabase.from("feedback_coach").insert({
             alumno_id: form.alumno_id,
             coach_id: coachId,
             coach_id_secundario: notaCoachSec || null,
-            comentario: notaNueva.trim(),
+            comentario: comentarioFull,
             tipo: "general",
             fecha: ((notaIns as any).created_at || new Date().toISOString()).split("T")[0],
             origen: "chequeo",
@@ -794,8 +808,17 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
             const secName = otherCoaches.find(c => c.id === notaCoachSec)?.nombre;
             const coachName = [coachNombre || "Tu entrenador", secName].filter(Boolean).join(" y ");
             const comentario = (notaNueva || "").replace(/</g, "&lt;");
+            const dimAll = [...TECH_DIMS, ...RENDI_DIMS] as ReadonlyArray<{ key: string; label: string }>;
+            const detalleCount = form
+              ? dimAll.filter(d => (((form as any)[`${d.key}_nota`] as string | null)?.trim())).length
+              : 0;
             const to = "alumno@ejemplo.com";
             const subject = `📝 Nuevo feedback de ${coachName}`;
+            const detalleHint = detalleCount > 0
+              ? `<p style="margin:14px 0 0;color:#666;font-size:13px;text-align:center;">
+                   Tenés <strong>${detalleCount} comentario${detalleCount === 1 ? "" : "s"}</strong> por característica esperándote en la app.
+                 </p>`
+              : "";
             const html = `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background:#fff;">
                 <h2 style="color: #d4820a; margin-bottom: 12px;">📝 Nuevo feedback</h2>
@@ -806,9 +829,10 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                   <p style="margin:0 0 6px;color:#8a5a12;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;">General</p>
                   <p style="margin:0;color:#222;white-space:pre-wrap;font-size:15px;line-height:1.5;">${comentario}</p>
                 </div>
+                ${detalleHint}
                 <div style="text-align:center;margin-top:20px;">
                   <a href="https://reybaud-app.com" style="display:inline-block;padding:12px 24px;background:#d4820a;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">
-                    Ver en la app
+                    Ver detalle en la app
                   </a>
                 </div>
                 <p style="color:#999;font-size:12px;margin-top:24px;text-align:center;">
