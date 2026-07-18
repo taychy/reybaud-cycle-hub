@@ -46,6 +46,7 @@ const PublicDeliveryList = () => {
   const [items, setItems] = useState<PublicItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [search, setSearch] = useState("");
 
   const fetch = async () => {
     if (!token) return;
