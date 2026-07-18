@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Reybaud · Contactos WhatsApp",
+  "version": "1.0.0",
+  "description": "Registra contactos de WhatsApp Web directamente en Reybaud.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://tgqfakfloonbunwkdoug.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Reybaud"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "icons": { "48": "icon.png", "128": "icon.png" }
+}
