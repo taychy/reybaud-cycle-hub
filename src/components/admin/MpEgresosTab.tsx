@@ -214,12 +214,6 @@ export default function MpEgresosTab() {
               No hay egresos pendientes de categorizar
             </div>
           )}
-          {tab === "reservas" && (
-            <div className="rounded-md bg-cyan-500/5 border border-cyan-500/20 p-3 text-xs text-cyan-400/80 flex gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              Las reservas técnicas son retenciones que MP hace en garantía y luego devuelve. No cuentan como gasto real.
-            </div>
-          )}
         </div>
       )}
 
