@@ -308,6 +308,7 @@ export type Database = {
           autor_nombre: string | null
           coach_id: string | null
           created_at: string
+          feedback_id: string | null
           id: string
           nota: string
           snapshot_scores: Json | null
@@ -317,6 +318,7 @@ export type Database = {
           autor_nombre?: string | null
           coach_id?: string | null
           created_at?: string
+          feedback_id?: string | null
           id?: string
           nota: string
           snapshot_scores?: Json | null
@@ -326,6 +328,7 @@ export type Database = {
           autor_nombre?: string | null
           coach_id?: string | null
           created_at?: string
+          feedback_id?: string | null
           id?: string
           nota?: string
           snapshot_scores?: Json | null
@@ -350,6 +353,13 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_coach"
             referencedColumns: ["id"]
           },
         ]
@@ -4729,33 +4739,42 @@ export type Database = {
         Row: {
           alumno_id: string
           coach_id: string
+          coach_id_secundario: string | null
           comentario: string
           created_at: string
           entrenamiento_id: string | null
           fecha: string
           id: string
+          origen: string | null
+          origen_nota_id: string | null
           tipo: string | null
           updated_at: string
         }
         Insert: {
           alumno_id: string
           coach_id: string
+          coach_id_secundario?: string | null
           comentario: string
           created_at?: string
           entrenamiento_id?: string | null
           fecha?: string
           id?: string
+          origen?: string | null
+          origen_nota_id?: string | null
           tipo?: string | null
           updated_at?: string
         }
         Update: {
           alumno_id?: string
           coach_id?: string
+          coach_id_secundario?: string | null
           comentario?: string
           created_at?: string
           entrenamiento_id?: string | null
           fecha?: string
           id?: string
+          origen?: string | null
+          origen_nota_id?: string | null
           tipo?: string | null
           updated_at?: string
         }
@@ -4782,10 +4801,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "feedback_coach_coach_id_secundario_fkey"
+            columns: ["coach_id_secundario"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_coach_coach_id_secundario_fkey"
+            columns: ["coach_id_secundario"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "feedback_coach_entrenamiento_id_fkey"
             columns: ["entrenamiento_id"]
             isOneToOne: false
             referencedRelation: "entrenamientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_coach_origen_nota_id_fkey"
+            columns: ["origen_nota_id"]
+            isOneToOne: false
+            referencedRelation: "alumno_evaluaciones_coach_notas"
             referencedColumns: ["id"]
           },
         ]
