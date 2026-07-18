@@ -92,18 +92,27 @@ const CoachDashboard = () => {
     });
   };
 
+  const initial = (coachName || "?").trim().charAt(0).toUpperCase();
+
+  const quickActions = [
+    { icon: Users, label: "Ver mis alumnos", onClick: () => navigate("/coach/alumnos") },
+    { icon: ClipboardList, label: "Ver plan del grupo", onClick: () => navigate("/coach/entrenamientos") },
+    { icon: CheckSquare, label: "Registrar asistencia", onClick: () => navigate("/coach/asistencia") },
+    { icon: MessageSquare, label: "Dar feedback", onClick: () => navigate("/coach/feedback") },
+    { icon: ClipboardCheck, label: "Chequeo de alumnos", onClick: () => navigate("/coach/chequeo-alumnos") },
+    { icon: Banknote, label: "Liquidaciones", onClick: () => navigate("/coach/liquidaciones") },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
-            <div>
-              <h1 className="font-heading font-bold text-foreground text-sm uppercase tracking-wider">
-                Panel Coach
-              </h1>
-            </div>
+            <h1 className="font-heading font-bold text-foreground text-sm uppercase tracking-wider">
+              Panel Coach
+            </h1>
           </div>
           <div className="flex items-center gap-1">
             <SwitchPortalButton size="sm" />
@@ -114,19 +123,32 @@ const CoachDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Greeting */}
-        <div>
-          <h2 className="text-2xl font-heading font-bold text-foreground">
-            Hola, {coachName}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Este es tu panel de trabajo
-          </p>
+      <main className="max-w-md mx-auto px-4 py-5 space-y-4">
+        {/* Greeting con avatar */}
+        <div className="rounded-2xl border border-border/50 bg-card/60 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-primary/15 text-primary flex items-center justify-center font-heading font-semibold text-lg flex-shrink-0">
+              {initial}
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-heading font-semibold text-foreground truncate">
+                Hola, {coachName}
+              </p>
+              <p className="text-[13px] text-muted-foreground">
+                Este es tu panel de trabajo
+              </p>
+            </div>
+          </div>
+
           {grupos.length > 0 && (
-            <div className="flex gap-1.5 mt-3">
+            <div className="flex flex-wrap gap-1.5 mt-3">
               {grupos.map((g) => (
-                <Badge key={g} variant="secondary" className="text-xs">{g}</Badge>
+                <span
+                  key={g}
+                  className="text-[11px] px-2.5 py-0.5 rounded-full bg-secondary/60 border border-border/50 text-muted-foreground font-mono"
+                >
+                  {g}
+                </span>
               ))}
             </div>
           )}
@@ -135,125 +157,91 @@ const CoachDashboard = () => {
         {/* Clases de hoy con confirmación */}
         <MisClasesHoy />
 
-        {/* Next class card */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-3">
+        {/* Próxima clase — compacta */}
+        <div className="rounded-xl border border-border/50 bg-secondary/30 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
               Próxima clase
-            </p>
-            {proximaClase ? (
-              <div className="space-y-2">
-                <p className="text-foreground font-heading font-semibold text-lg capitalize">
-                  {formatDate(proximaClase.fecha)}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    {proximaClase.grupo}
-                  </Badge>
-                  {proximaClase.tipo && (
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {proximaClase.tipo}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">
+            </span>
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+          </div>
+          {proximaClase ? (
+            <div className="space-y-2">
+              <p className="text-[15px] font-heading font-semibold text-foreground capitalize">
+                {formatDate(proximaClase.fecha)}
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-mono">
+                  {proximaClase.grupo}
+                </span>
+                {proximaClase.tipo && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-card border border-border/50 text-muted-foreground capitalize">
+                    {proximaClase.tipo}
+                  </span>
+                )}
+              </div>
+              {proximaClase.titulo && (
+                <p className="text-[12px] text-muted-foreground font-mono uppercase tracking-wide">
                   {proximaClase.titulo}
                 </p>
-              </div>
-            ) : (
-              <div className="py-4 text-center">
-                <p className="text-muted-foreground text-sm">
-                  No tenés clases asignadas.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Action buttons */}
-        <div className="space-y-3">
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/alumnos")}
-          >
-            <Users className="w-5 h-5 text-primary" />
-            Ver mis alumnos
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/entrenamientos")}
-          >
-            <ClipboardList className="w-5 h-5 text-primary" />
-            Ver plan del grupo
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/asistencia")}
-          >
-            <CheckSquare className="w-5 h-5 text-primary" />
-            Registrar asistencia
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/feedback")}
-          >
-            <MessageSquare className="w-5 h-5 text-primary" />
-            Dar feedback a alumno
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/chequeo-alumnos")}
-          >
-            <ClipboardCheck className="w-5 h-5 text-primary" />
-            Chequeo de alumnos
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/liquidaciones")}
-          >
-            <Banknote className="w-5 h-5 text-primary" />
-            Liquidaciones
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => navigate("/coach/asesoria")}
-          >
-            <ClipboardList className="w-5 h-5 text-primary" />
-            Asesoría Personalizada
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
-            onClick={() => setShowAusencias(true)}
-          >
-            <Plane className="w-5 h-5 text-primary" />
-            Mis ausencias / vacaciones
-          </Button>
-
-          <Button
-            variant="gold"
-            className="w-full h-14 justify-start gap-3 text-base"
-            onClick={() => navigate("/coach/eventos/record-de-la-hora")}
-          >
-            <Trophy className="w-5 h-5" />
-            Record de la Hora
-          </Button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-1">
+              No tenés clases asignadas.
+            </p>
+          )}
         </div>
+
+        {/* Acciones rápidas — grid 2x2 */}
+        <div>
+          <p className="text-[12px] text-muted-foreground mb-2 px-1">Acciones rápidas</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {quickActions.map(({ icon: Icon, label, onClick }) => (
+              <button
+                key={label}
+                onClick={onClick}
+                className="flex flex-col items-start gap-2 p-3 rounded-xl border border-border/50 bg-card hover:bg-secondary/60 hover:border-primary/40 transition text-left h-auto"
+              >
+                <Icon className="w-5 h-5 text-primary" />
+                <span className="text-[13px] text-foreground leading-tight">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Más — lista */}
+        <div>
+          <p className="text-[12px] text-muted-foreground mb-2 px-1">Más</p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => navigate("/coach/asesoria")}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/50 bg-card hover:bg-secondary/60 transition text-left"
+            >
+              <ClipboardList className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">Asesoría personalizada</span>
+            </button>
+            <button
+              onClick={() => setShowAusencias(true)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/50 bg-card hover:bg-secondary/60 transition text-left"
+            >
+              <Plane className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">Mis ausencias / vacaciones</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Récord de la hora — destacado */}
+        <Button
+          variant="gold"
+          className="w-full h-12 justify-center gap-2 text-sm font-medium"
+          onClick={() => navigate("/coach/eventos/record-de-la-hora")}
+        >
+          <Trophy className="w-4 h-4" />
+          Récord de la Hora
+        </Button>
       </main>
+
 
       <Dialog open={showAusencias} onOpenChange={setShowAusencias}>
         <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
