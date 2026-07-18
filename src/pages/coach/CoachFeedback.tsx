@@ -147,6 +147,24 @@ const CoachFeedback = () => {
           </select>
         </div>
 
+        {/* Coach secundario */}
+        <div className="space-y-2">
+          <label className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+            Co-entrenador (opcional)
+          </label>
+          <select
+            value={coachSecundario}
+            onChange={(e) => setCoachSecundario(e.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground"
+          >
+            <option value="">-- Ninguno --</option>
+            {coachesList.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-muted-foreground">Si el feedback lo hicieron entre dos, sumá al otro coach.</p>
+        </div>
+
         {/* Tipo */}
         <div className="space-y-2">
           <label className="text-xs font-heading font-semibold uppercase tracking-wider text-muted-foreground">
