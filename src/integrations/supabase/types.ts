@@ -476,6 +476,7 @@ export type Database = {
           domicilio_fiscal: string | null
           email: string
           emails_adicionales: string[]
+          es_staff: boolean
           estado: string
           fecha_baja: string | null
           fecha_nacimiento: string | null
@@ -543,6 +544,7 @@ export type Database = {
           domicilio_fiscal?: string | null
           email: string
           emails_adicionales?: string[]
+          es_staff?: boolean
           estado?: string
           fecha_baja?: string | null
           fecha_nacimiento?: string | null
@@ -610,6 +612,7 @@ export type Database = {
           domicilio_fiscal?: string | null
           email?: string
           emails_adicionales?: string[]
+          es_staff?: boolean
           estado?: string
           fecha_baja?: string | null
           fecha_nacimiento?: string | null
