@@ -34,6 +34,7 @@ import {
   buildDeliveryExcelTemplate,
   type DeliveryExcelRow,
 } from "@/lib/deliveryExcel";
+import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 
 interface DeliveryList {
   id: string;
