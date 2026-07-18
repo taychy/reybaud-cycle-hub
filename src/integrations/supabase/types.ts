@@ -1633,6 +1633,63 @@ export type Database = {
           },
         ]
       }
+      delivery_item_check_log: {
+        Row: {
+          actor_type: string
+          actor_user_id: string | null
+          cantidad: number | null
+          cliente_nombre: string
+          created_at: string
+          id: string
+          item_id: string | null
+          list_id: string
+          preparado: boolean
+          producto: string
+          variante: string | null
+        }
+        Insert: {
+          actor_type?: string
+          actor_user_id?: string | null
+          cantidad?: number | null
+          cliente_nombre: string
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          list_id: string
+          preparado: boolean
+          producto: string
+          variante?: string | null
+        }
+        Update: {
+          actor_type?: string
+          actor_user_id?: string | null
+          cantidad?: number | null
+          cliente_nombre?: string
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          list_id?: string
+          preparado?: boolean
+          producto?: string
+          variante?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_item_check_log_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_list_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_item_check_log_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_list_items: {
         Row: {
           alumno_id: string | null

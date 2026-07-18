@@ -27,6 +27,8 @@ import {
   Unlock,
   FileSpreadsheet,
   UserRound,
+  Search,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -86,6 +88,8 @@ const DepositoEntregaDetail = () => {
   const [showManual, setShowManual] = useState(false);
   const [showFromOrders, setShowFromOrders] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [search, setSearch] = useState("");
   const excelRef = useRef<HTMLInputElement>(null);
 
   const fetch = async () => {
@@ -110,12 +114,17 @@ const DepositoEntregaDetail = () => {
   }, [id]);
 
   const grouped = useMemo(() => {
+    const q = search.trim().toLowerCase();
     const byClient: Record<string, DeliveryItem[]> = {};
     items.forEach((it) => {
+      if (q) {
+        const hay = `${it.cliente_nombre} ${it.producto} ${formatVariant(it.variante) || ""}`.toLowerCase();
+        if (!hay.includes(q)) return;
+      }
       (byClient[it.cliente_nombre] ||= []).push(it);
     });
     return Object.entries(byClient).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [items]);
+  }, [items, search]);
 
   const totals = useMemo(() => {
     const total = items.length;
@@ -269,8 +278,23 @@ const DepositoEntregaDetail = () => {
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
             <FileSpreadsheet className="w-3.5 h-3.5 mr-1" /> Importar Excel
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}>
+            <History className="w-3.5 h-3.5 mr-1" /> Historial
+          </Button>
         </div>
       </div>
+
+      {items.length > 0 && (
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o producto..."
+            className="pl-9"
+          />
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="glass-card rounded-lg p-8 text-center space-y-2">
@@ -417,7 +441,68 @@ const DepositoEntregaDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <HistoryDialog open={showHistory} onOpenChange={setShowHistory} listId={list.id} />
     </div>
+  );
+};
+
+const HistoryDialog = ({
+  open,
+  onOpenChange,
+  listId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  listId: string;
+}) => {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    supabase
+      .from("delivery_item_check_log")
+      .select("*")
+      .eq("list_id", listId)
+      .order("created_at", { ascending: false })
+      .limit(500)
+      .then(({ data }) => {
+        setLogs(data || []);
+        setLoading(false);
+      });
+  }, [open, listId]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Historial de tildados</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <p className="text-sm text-muted-foreground animate-pulse py-8 text-center">Cargando...</p>
+        ) : logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Todavía no hay movimientos.</p>
+        ) : (
+          <div className="space-y-1.5 text-sm">
+            {logs.map((l) => (
+              <div key={l.id} className="flex items-start gap-2 p-2 rounded border border-border/50">
+                <Badge variant={l.preparado ? "default" : "secondary"} className="text-[10px] shrink-0">
+                  {l.preparado ? "✓ tildado" : "destildado"}
+                </Badge>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{l.cliente_nombre} · {l.producto}</div>
+                  {l.variante && <div className="text-xs text-muted-foreground">{l.variante}</div>}
+                  <div className="text-[11px] text-muted-foreground">
+                    {new Date(l.created_at).toLocaleString()} · {l.actor_type === "public" ? "link público" : "depósito/admin"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 

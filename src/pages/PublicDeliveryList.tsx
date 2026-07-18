@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Truck, UserRound, CalendarDays, Info } from "lucide-react";
+import { Truck, UserRound, CalendarDays, Info, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 
@@ -45,6 +46,7 @@ const PublicDeliveryList = () => {
   const [items, setItems] = useState<PublicItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [search, setSearch] = useState("");
 
   const fetch = async () => {
     if (!token) return;
@@ -67,12 +69,17 @@ const PublicDeliveryList = () => {
   }, [token]);
 
   const grouped = useMemo(() => {
+    const q = search.trim().toLowerCase();
     const byClient: Record<string, PublicItem[]> = {};
     items.forEach((it) => {
+      if (q) {
+        const hay = `${it.cliente_nombre} ${it.producto} ${formatVariant(it.variante) || ""}`.toLowerCase();
+        if (!hay.includes(q)) return;
+      }
       (byClient[it.cliente_nombre] ||= []).push(it);
     });
     return Object.entries(byClient).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [items]);
+  }, [items, search]);
 
   const totals = useMemo(() => {
     const total = items.length;
@@ -139,6 +146,19 @@ const PublicDeliveryList = () => {
             </div>
           </div>
         </div>
+
+        {items.length > 0 && (
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o producto..."
+              className="pl-9"
+            />
+          </div>
+        )}
+
 
         {items.length === 0 ? (
           <div className="glass-card rounded-lg p-8 text-center text-sm text-muted-foreground">
