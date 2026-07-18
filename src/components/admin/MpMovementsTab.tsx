@@ -313,12 +313,21 @@ export default function MpMovementsTab() {
                         {(() => {
                           const isTransfer = ["account_money", "cvu", "bank_transfer"].includes(m.payment_method ?? "");
                           const emailIsOwn = isOwnMpEmail(m.cuentas_mp?.slug, m.payer_email);
+                          const desc = m.description && m.description.trim() && m.description.trim().toLowerCase() !== "varios"
+                            ? m.description.trim()
+                            : null;
+                          const descBlock = desc ? (
+                            <div className="mt-1 text-[10px] text-cyan-400/80 italic border-l border-cyan-500/40 pl-1.5">
+                              {desc}
+                            </div>
+                          ) : null;
                           if (m.payer_name) {
                             return (
                               <>
                                 <div className="font-medium">{m.payer_name}</div>
                                 {m.payer_email && !emailIsOwn && <div className="text-muted-foreground">{m.payer_email}</div>}
                                 {m.payer_document && <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>}
+                                {descBlock}
                               </>
                             );
                           }
@@ -327,6 +336,7 @@ export default function MpMovementsTab() {
                               <>
                                 <div>{m.payer_email}</div>
                                 {m.payer_document && <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>}
+                                {descBlock}
                               </>
                             );
                           }
@@ -339,7 +349,7 @@ export default function MpMovementsTab() {
                               <div className="text-muted-foreground text-[10px]">
                                 MP no envía el nombre. Identificá por monto/fecha y asigná manualmente.
                               </div>
-                              {m.description && <div className="text-muted-foreground italic">"{m.description}"</div>}
+                              {descBlock}
                             </div>
                           );
                         })()}
