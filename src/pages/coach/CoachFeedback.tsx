@@ -25,7 +25,9 @@ const CoachFeedback = () => {
   const [sending, setSending] = useState(false);
   const [coachId, setCoachId] = useState("");
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [coachesList, setCoachesList] = useState<{ id: string; nombre: string }[]>([]);
   const [selectedAlumno, setSelectedAlumno] = useState("");
+  const [coachSecundario, setCoachSecundario] = useState("");
   const [tipo, setTipo] = useState("general");
   const [comentario, setComentario] = useState("");
 
