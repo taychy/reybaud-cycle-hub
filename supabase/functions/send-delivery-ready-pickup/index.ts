@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
   try {
     const body = (await req.json()) as Payload;
     const { list_id, cliente_nombre, alumno_id, actor_id, actor_email } = body;
+    const channel = body.channel === "whatsapp" ? "whatsapp" : "email";
     if (!list_id || !cliente_nombre || !alumno_id) {
       return new Response(JSON.stringify({ error: "list_id, cliente_nombre y alumno_id son requeridos" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
