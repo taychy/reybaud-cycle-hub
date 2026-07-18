@@ -596,6 +596,40 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                             ))}
                           </div>
                         )}
+
+                        {/* Convertir en feedback */}
+                        <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+                          {n.feedback_id ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                              <Check className="w-3 h-3" /> Enviado como feedback al alumno
+                            </span>
+                          ) : (
+                            <>
+                              <select
+                                value={convertCoachSec[n.id] || ""}
+                                onChange={e => setConvertCoachSec(prev => ({ ...prev, [n.id]: e.target.value }))}
+                                className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] text-foreground"
+                              >
+                                <option value="">Co-entrenador (opcional)</option>
+                                {otherCoaches.filter(c => c.id !== coachId).map(c => (
+                                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[11px] gap-1.5"
+                                onClick={() => handleConvertirNota(n)}
+                                disabled={convertingNotaId === n.id}
+                              >
+                                {convertingNotaId === n.id
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <MessageSquarePlus className="w-3 h-3" />}
+                                Convertir en feedback + enviar al alumno
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
