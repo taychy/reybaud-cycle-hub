@@ -602,6 +602,43 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
             <SheetTitle>
               {openAlumno ? `${openAlumno.nombre} ${openAlumno.apellido ?? ""}` : ""}
             </SheetTitle>
+            {openAlumno && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">Grupo:</span>
+                <select
+                  className="text-xs bg-background border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={openAlumno.grupo ?? ""}
+                  onChange={async (e) => {
+                    const nuevoGrupo = e.target.value || null;
+                    const prevGrupo = openAlumno.grupo;
+                    if (nuevoGrupo === prevGrupo) return;
+                    const { error } = await supabase
+                      .from("alumnos")
+                      .update({ grupo: nuevoGrupo as any })
+                      .eq("id", openAlumno.id);
+                    if (error) {
+                      toast.error("No se pudo actualizar el grupo");
+                      return;
+                    }
+                    setOpenAlumno({ ...openAlumno, grupo: nuevoGrupo });
+                    setAlumnos(prev =>
+                      nuevoGrupo === grupoSel
+                        ? prev.map(a => a.id === openAlumno.id ? { ...a, grupo: nuevoGrupo } : a)
+                        : prev.filter(a => a.id !== openAlumno.id)
+                    );
+                    toast.success(`Grupo actualizado a ${nuevoGrupo ?? "—"}`);
+                  }}
+                >
+                  {!openAlumno.grupo && <option value="">— sin grupo —</option>}
+                  {grupos.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                  {openAlumno.grupo && !grupos.includes(openAlumno.grupo) && (
+                    <option value={openAlumno.grupo}>{openAlumno.grupo}</option>
+                  )}
+                </select>
+              </div>
+            )}
           </SheetHeader>
 
           {form && (
