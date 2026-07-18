@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     const [{ data: list }, { data: items }, { data: alumno }, { data: tpl }] = await Promise.all([
       supabase.from("delivery_lists").select("id, titulo").eq("id", list_id).maybeSingle(),
       supabase.from("delivery_list_items").select("id, producto, variante, cantidad").eq("list_id", list_id).eq("cliente_nombre", cliente_nombre),
-      supabase.from("alumnos").select("id, nombre, apellido, email").eq("id", alumno_id).maybeSingle(),
+      supabase.from("alumnos").select("id, nombre, apellido, email, telefono").eq("id", alumno_id).maybeSingle(),
       supabase.from("email_templates").select("subject, html_body, text_body").eq("key", "delivery-ready-pickup").maybeSingle(),
     ]);
 
