@@ -114,12 +114,41 @@
       const status = r.body?.status;
       setStatus(status === "alumno" ? "Guardado y vinculado al alumno ✓" : "Prospecto guardado ✓", "rb-ok");
       $("rb-notas").value = "";
+      if ($("rb-gcontacts").checked) {
+        downloadVCard(payload);
+        setStatus((status === "alumno" ? "Guardado ✓" : "Prospecto guardado ✓") + " · vCard descargada, abrí Google Contacts y arrastrala para importar.", "rb-ok");
+        window.open("https://contacts.google.com/", "_blank", "noopener");
+      }
     } else {
       const err = r?.body?.error ?? r?.error ?? "Error";
       const errStr = typeof err === "string" ? err : JSON.stringify(err);
       setStatus(errStr, "rb-err");
     }
   });
+
+  function downloadVCard(p) {
+    const fn = [p.nombre, p.apellido].filter(Boolean).join(" ") || (p.telefono || p.email || "Contacto Reybaud");
+    const last = p.apellido || "";
+    const first = p.nombre || fn;
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `N:${last};${first};;;`,
+      `FN:${fn}`,
+      p.telefono ? `TEL;TYPE=CELL:${p.telefono}` : "",
+      p.email ? `EMAIL;TYPE=INTERNET:${p.email}` : "",
+      p.notas ? `NOTE:${p.notas.replace(/\n/g, "\\n")}` : "",
+      "CATEGORIES:Reybaud",
+      "END:VCARD",
+    ].filter(Boolean).join("\r\n");
+    const blob = new Blob([lines], { type: "text/vcard;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${fn.replace(/[^\w\-]+/g, "_")}.vcf`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
 
   autofill();
 })();
