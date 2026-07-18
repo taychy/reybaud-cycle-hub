@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Truck, UserRound, CalendarDays, Info } from "lucide-react";
 import { toast } from "sonner";
+import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 
 interface PublicItem {
   id: string;
