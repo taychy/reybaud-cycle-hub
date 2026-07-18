@@ -1122,6 +1122,10 @@ const AdminPayments = () => {
                                   <p className="font-medium">{sub.estado === "activa" || sub.estado === "conciliado" ? formatDate(sub.fecha_inicio) : "—"}</p>
                                 </div>
                                 <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">F. Vencimiento</p>
+                                  <p className="font-medium">{formatDate(sub.fecha_fin)}</p>
+                                </div>
+                                <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Email</p>
                                   <p className="font-medium truncate">{sub.alumnos?.email || "—"}</p>
                                 </div>
