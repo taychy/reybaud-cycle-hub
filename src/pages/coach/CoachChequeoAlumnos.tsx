@@ -343,11 +343,25 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
         // Convertir en feedback + enviar al alumno si el coach lo pidió
         if (notaEnviarFeedback && notaIns) {
+          const dimAll = [...TECH_DIMS, ...RENDI_DIMS] as ReadonlyArray<{ key: string; label: string }>;
+          const detalleLines = dimAll
+            .map(d => {
+              const nota = ((form as any)[`${d.key}_nota`] as string | null)?.trim();
+              const score = (form as any)[d.key] as number | null;
+              if (!nota) return null;
+              const star = score ? ` (${score}★)` : "";
+              return `• ${d.label}${star}: ${nota}`;
+            })
+            .filter(Boolean)
+            .join("\n");
+          const comentarioFull = detalleLines
+            ? `${notaNueva.trim()}\n\n---DETALLE---\n${detalleLines}`
+            : notaNueva.trim();
           const { data: fb, error: fbErr } = await supabase.from("feedback_coach").insert({
             alumno_id: form.alumno_id,
             coach_id: coachId,
             coach_id_secundario: notaCoachSec || null,
-            comentario: notaNueva.trim(),
+            comentario: comentarioFull,
             tipo: "general",
             fecha: ((notaIns as any).created_at || new Date().toISOString()).split("T")[0],
             origen: "chequeo",
