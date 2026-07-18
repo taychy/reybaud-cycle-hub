@@ -114,12 +114,17 @@ const DepositoEntregaDetail = () => {
   }, [id]);
 
   const grouped = useMemo(() => {
+    const q = search.trim().toLowerCase();
     const byClient: Record<string, DeliveryItem[]> = {};
     items.forEach((it) => {
+      if (q) {
+        const hay = `${it.cliente_nombre} ${it.producto} ${formatVariant(it.variante) || ""}`.toLowerCase();
+        if (!hay.includes(q)) return;
+      }
       (byClient[it.cliente_nombre] ||= []).push(it);
     });
     return Object.entries(byClient).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [items]);
+  }, [items, search]);
 
   const totals = useMemo(() => {
     const total = items.length;
