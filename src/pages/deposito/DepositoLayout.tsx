@@ -2,6 +2,7 @@ import { Outlet, useNavigate, NavLink } from "react-router-dom";
 import { Package, History, LogOut, AlertTriangle, RefreshCw, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 const DepositoLayout = () => {
   const navigate = useNavigate();
@@ -59,7 +60,8 @@ const DepositoLayout = () => {
             </NavLink>
           ))}
         </nav>
-        <div className="p-2 border-t border-border">
+        <div className="p-2 border-t border-border space-y-1">
+          <SwitchPortalButton fullWidth />
           <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Cerrar sesión

@@ -92,6 +92,7 @@ import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
 import PublicCuentaCorriente from "./pages/PublicCuentaCorriente";
 import AuthCallback from "./pages/AuthCallback";
+import Portal from "./pages/Portal";
 import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
@@ -132,6 +133,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/portal" element={<Portal />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/completar-registro" element={<CompleteRegistration />} />
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />

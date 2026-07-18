@@ -5,6 +5,7 @@ import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 /* ─── Nav sections ─── */
 type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" };
@@ -297,7 +298,8 @@ const AdminLayout = () => {
           ))}
 
           {/* Logout inside nav */}
-          <div className="pt-4">
+          <div className="pt-4 space-y-1">
+            {!collapsed && <SwitchPortalButton fullWidth />}
             {collapsed ? (
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
@@ -393,7 +395,8 @@ const AdminLayout = () => {
             ))}
           </nav>
 
-          <div className="p-3 border-t border-sidebar-border">
+          <div className="p-3 border-t border-sidebar-border space-y-1">
+            <SwitchPortalButton fullWidth onNavigate={() => setMobileOpen(false)} />
             <button
               onClick={() => { setMobileOpen(false); handleLogout(); }}
               className="flex items-center gap-3 px-3 py-3 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors w-full"

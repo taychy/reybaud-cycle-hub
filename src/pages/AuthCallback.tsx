@@ -85,47 +85,44 @@ const AuthCallback = () => {
       const returnTo = getSafeReturnTo(pendingOtp?.returnTo);
       const portalContext = pendingOtp?.context; // "main" = student, "staff" = admin/coach
 
-      // Gather all roles in parallel
-      const [{ data: isAdmin }, { data: isCoach }, { data: isDeposito }, { data: alumno }] = await Promise.all([
-        supabase.rpc("has_role", { _user_id: userId, _role: "admin" as any }),
-        supabase.rpc("has_role", { _user_id: userId, _role: "coach" as any }),
-        supabase.rpc("has_role", { _user_id: userId, _role: "deposito" as any }),
-        supabase.from("alumnos").select("id").eq("user_id", userId).maybeSingle(),
-      ]);
+      const { getAvailablePortals, getRememberedPortal, PORTAL_PATHS } = await import("@/lib/portalPreference");
+      const available = await getAvailablePortals(userId);
 
       if (cancelled) return;
-
-      // If came from student portal, prioritize alumno
-      if (portalContext === "main" && alumno) {
-        clearPendingOtpState();
-        navigate(returnTo || "/alumno", { replace: true });
-        return;
-      }
+      clearPendingOtpState();
 
       // Explicit deposito returnTo wins
-      if (returnTo === "/deposito" && isDeposito) {
-        clearPendingOtpState();
+      if (returnTo === "/deposito" && available.includes("deposito")) {
         navigate("/deposito", { replace: true });
         return;
       }
 
-      // If came from staff portal, prioritize admin > coach > deposito
-      if (portalContext === "staff") {
-        if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return; }
-        if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return; }
-        if (isDeposito) { clearPendingOtpState(); navigate("/deposito", { replace: true }); return; }
+      // Student portal context → prefer alumno if available
+      if (portalContext === "main" && available.includes("alumno")) {
+        navigate(returnTo || "/alumno", { replace: true });
+        return;
       }
 
-      // No context or fallback: admin > coach > deposito > alumno
-      if (isAdmin) { clearPendingOtpState(); navigate("/admin", { replace: true }); return; }
-      if (isCoach) { clearPendingOtpState(); navigate("/coach", { replace: true }); return; }
-      if (isDeposito) { clearPendingOtpState(); navigate("/deposito", { replace: true }); return; }
-      if (alumno) { clearPendingOtpState(); navigate(returnTo || "/alumno", { replace: true }); return; }
+      // Only one portal → go directly
+      if (available.length === 1) {
+        const target = available[0] === "alumno" ? (returnTo || "/alumno") : PORTAL_PATHS[available[0]];
+        navigate(target, { replace: true });
+        return;
+      }
 
+      // Multiple portals → check remembered choice
+      if (available.length > 1) {
+        const remembered = getRememberedPortal();
+        if (remembered && available.includes(remembered)) {
+          navigate(PORTAL_PATHS[remembered], { replace: true });
+          return;
+        }
+        navigate("/portal", { replace: true });
+        return;
+      }
 
       // Fallback: user exists but no role matched — send to home
       if (!cancelled) {
-        clearPendingOtpState();
         navigate("/", { replace: true });
       }
     };

@@ -10,6 +10,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import MisClasesHoy from "@/components/coach/MisClasesHoy";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
@@ -104,9 +105,12 @@ const CoachDashboard = () => {
               </h1>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <SwitchPortalButton size="sm" />
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </header>
 

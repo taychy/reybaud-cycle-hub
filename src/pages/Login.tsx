@@ -185,6 +185,22 @@ const Login = () => {
       localStorage.removeItem("upgrade_from_sub_id");
       localStorage.removeItem("upgrade_preselect_plan_id");
       clearPendingOtpState();
+
+      // Multi-portal check: if user has multiple roles, offer selection
+      try {
+        const { getAvailablePortals, getRememberedPortal, PORTAL_PATHS } = await import("@/lib/portalPreference");
+        const available = await getAvailablePortals(userId);
+        if (available.length > 1 && !targetReturnTo) {
+          const remembered = getRememberedPortal();
+          if (remembered && available.includes(remembered)) {
+            navigate(PORTAL_PATHS[remembered], { replace: true });
+            return;
+          }
+          navigate("/portal", { replace: true });
+          return;
+        }
+      } catch {}
+
       navigate(targetReturnTo || "/alumno", { replace: true });
     };
 
