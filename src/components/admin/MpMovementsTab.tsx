@@ -62,6 +62,7 @@ const isOwnMpEmail = (slug: string | undefined, email: string | null) => {
 export default function MpMovementsTab() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [cuentas, setCuentas] = useState<Array<{ id: string; nombre: string; slug: string }>>([]);
   const [cuentaFilter, setCuentaFilter] = useState<string>("all");
