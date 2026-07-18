@@ -211,6 +211,15 @@ const CoachDashboard = () => {
           <Button
             variant="outline"
             className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
+            onClick={() => navigate("/coach/chequeo-alumnos")}
+          >
+            <ClipboardCheck className="w-5 h-5 text-primary" />
+            Chequeo de alumnos
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full h-14 justify-start gap-3 text-base border-border hover:bg-secondary"
             onClick={() => navigate("/coach/liquidaciones")}
           >
             <Banknote className="w-5 h-5 text-primary" />
