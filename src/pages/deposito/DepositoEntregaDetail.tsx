@@ -345,6 +345,11 @@ const DepositoEntregaDetail = () => {
                     );
                   })}
                 </div>
+                <DeliveryPaymentsSection
+                  mode="auth"
+                  listId={list.id}
+                  clienteNombre={cliente}
+                />
               </div>
             );
           })}
