@@ -45,9 +45,13 @@
     <input id="rb-telefono" placeholder="+54 9 11 5555 5555" />
     <label>Notas (interés, consulta, etc.)</label>
     <textarea id="rb-notas" placeholder="Consultó por escuela cuatrimestre"></textarea>
-    <button class="rb-save" id="rb-save">Guardar en Reybaud</button>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#e2e8f0">
+      <input type="checkbox" id="rb-gcontacts" checked style="width:auto;margin:0" />
+      Agendar también en Google Contacts (obligatorio)
+    </label>
+    <button class="rb-save" id="rb-save">Guardar y agendar</button>
     <div class="rb-status" id="rb-status"></div>
-    <div class="rb-muted">Se autocompleta desde el chat abierto. Si no aparecen datos, completalo a mano.</div>
+    <div class="rb-muted">Se autocompleta desde el chat abierto. Al guardar se descarga una vCard y se abre Google Contacts para importarla.</div>
   `;
   document.body.appendChild(panel);
 
@@ -110,12 +114,41 @@
       const status = r.body?.status;
       setStatus(status === "alumno" ? "Guardado y vinculado al alumno ✓" : "Prospecto guardado ✓", "rb-ok");
       $("rb-notas").value = "";
+      if ($("rb-gcontacts").checked) {
+        downloadVCard(payload);
+        setStatus((status === "alumno" ? "Guardado ✓" : "Prospecto guardado ✓") + " · vCard descargada, abrí Google Contacts y arrastrala para importar.", "rb-ok");
+        window.open("https://contacts.google.com/", "_blank", "noopener");
+      }
     } else {
       const err = r?.body?.error ?? r?.error ?? "Error";
       const errStr = typeof err === "string" ? err : JSON.stringify(err);
       setStatus(errStr, "rb-err");
     }
   });
+
+  function downloadVCard(p) {
+    const fn = [p.nombre, p.apellido].filter(Boolean).join(" ") || (p.telefono || p.email || "Contacto Reybaud");
+    const last = p.apellido || "";
+    const first = p.nombre || fn;
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `N:${last};${first};;;`,
+      `FN:${fn}`,
+      p.telefono ? `TEL;TYPE=CELL:${p.telefono}` : "",
+      p.email ? `EMAIL;TYPE=INTERNET:${p.email}` : "",
+      p.notas ? `NOTE:${p.notas.replace(/\n/g, "\\n")}` : "",
+      "CATEGORIES:Reybaud",
+      "END:VCARD",
+    ].filter(Boolean).join("\r\n");
+    const blob = new Blob([lines], { type: "text/vcard;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${fn.replace(/[^\w\-]+/g, "_")}.vcf`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
 
   autofill();
 })();
