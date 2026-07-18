@@ -34,6 +34,7 @@ import {
   buildDeliveryExcelTemplate,
   type DeliveryExcelRow,
 } from "@/lib/deliveryExcel";
+import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 
 interface DeliveryList {
   id: string;
@@ -344,6 +345,11 @@ const DepositoEntregaDetail = () => {
                     );
                   })}
                 </div>
+                <DeliveryPaymentsSection
+                  mode="auth"
+                  listId={list.id}
+                  clienteNombre={cliente}
+                />
               </div>
             );
           })}
