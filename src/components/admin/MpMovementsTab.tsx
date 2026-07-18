@@ -56,7 +56,7 @@ export default function MpMovementsTab() {
   const [cuentas, setCuentas] = useState<Array<{ id: string; nombre: string; slug: string }>>([]);
   const [cuentaFilter, setCuentaFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [assignFilter, setAssignFilter] = useState<"all" | "assigned" | "unassigned">("all");
+  const [assignFilter, setAssignFilter] = useState<"all" | "assigned" | "unassigned">("unassigned");
   const [search, setSearch] = useState("");
 
   const [assignDialog, setAssignDialog] = useState<Movement | null>(null);
