@@ -1523,6 +1523,19 @@ const ManageStudents = () => {
                           )}
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
+                          {(drawerAlumno as any).fecha_nacimiento && (
+                            <DetailRow
+                              label="Nacimiento"
+                              value={`${(drawerAlumno as any).fecha_nacimiento.split("-").reverse().join("/")} · ${(() => {
+                                const fn = (drawerAlumno as any).fecha_nacimiento;
+                                const [y, m, d] = fn.split("-").map(Number);
+                                const today = new Date();
+                                let edad = today.getFullYear() - y;
+                                if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) edad--;
+                                return `${edad} años`;
+                              })()}`}
+                            />
+                          )}
                           {(((drawerAlumno as any).nombres_bancarios as string[]) || []).length > 0 && (
                             <DetailRow
                               label="Nombres bancarios"
