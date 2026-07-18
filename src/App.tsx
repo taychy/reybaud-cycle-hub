@@ -92,6 +92,7 @@ import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
 import PublicCuentaCorriente from "./pages/PublicCuentaCorriente";
 import AuthCallback from "./pages/AuthCallback";
+import Portal from "./pages/Portal";
 import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
