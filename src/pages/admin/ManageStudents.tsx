@@ -133,7 +133,7 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", notas: "", nombres_bancarios: "" });
+  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", fecha_nacimiento: "", notas: "", nombres_bancarios: "" });
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
@@ -575,6 +575,7 @@ const ManageStudents = () => {
       emails_adicionales: (((alumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
+      fecha_nacimiento: (alumno as any).fecha_nacimiento || "",
       notas: alumno.notas || "",
       nombres_bancarios: ((alumno as any).nombres_bancarios || []).join(", "),
     });
@@ -603,6 +604,7 @@ const ManageStudents = () => {
       emails_adicionales: emailsAdicionalesArr,
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
+      fecha_nacimiento: detailForm.fecha_nacimiento || null,
       notas: detailForm.notas.trim() || null,
       nombres_bancarios: nombresBancariosArr,
     } as any;
@@ -633,6 +635,7 @@ const ManageStudents = () => {
       emails_adicionales: (((updatedAlumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
+      fecha_nacimiento: (updatedAlumno as any).fecha_nacimiento || "",
       notas: updatedAlumno.notas || "",
       nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
@@ -1483,6 +1486,15 @@ const ManageStudents = () => {
                             </div>
                           </div>
                           <div className="space-y-1">
+                            <Label className="text-xs">Fecha de nacimiento</Label>
+                            <Input
+                              type="date"
+                              value={detailForm.fecha_nacimiento}
+                              onChange={(e) => setDetailForm({ ...detailForm, fecha_nacimiento: e.target.value })}
+                              className="bg-secondary border-border text-sm h-8"
+                            />
+                          </div>
+                          <div className="space-y-1">
                             <Label className="text-xs">Nombres bancarios / titulares</Label>
                             <Input
                               value={detailForm.nombres_bancarios}
@@ -1511,6 +1523,19 @@ const ManageStudents = () => {
                           )}
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
                           <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
+                          {(drawerAlumno as any).fecha_nacimiento && (
+                            <DetailRow
+                              label="Nacimiento"
+                              value={`${(drawerAlumno as any).fecha_nacimiento.split("-").reverse().join("/")} · ${(() => {
+                                const fn = (drawerAlumno as any).fecha_nacimiento;
+                                const [y, m, d] = fn.split("-").map(Number);
+                                const today = new Date();
+                                let edad = today.getFullYear() - y;
+                                if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) edad--;
+                                return `${edad} años`;
+                              })()}`}
+                            />
+                          )}
                           {(((drawerAlumno as any).nombres_bancarios as string[]) || []).length > 0 && (
                             <DetailRow
                               label="Nombres bancarios"

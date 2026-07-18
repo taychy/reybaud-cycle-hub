@@ -9,12 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check } from "lucide-react";
 import { toast } from "sonner";
+import { calcularEdad } from "@/lib/dates";
 
 type AlumnoRow = {
   id: string;
   nombre: string;
   apellido: string | null;
   grupo: string | null;
+  fecha_nacimiento: string | null;
 };
 
 type Evaluacion = {
@@ -173,7 +175,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     (async () => {
       const { data: al } = await supabase
         .from("alumnos")
-        .select("id, nombre, apellido, grupo")
+        .select("id, nombre, apellido, grupo, fecha_nacimiento")
         .eq("grupo", grupoSel as any)
         .eq("estado", "activo")
         .order("nombre");
@@ -418,6 +420,9 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">
                             {alumno.nombre} {alumno.apellido ?? ""}
+                            {calcularEdad(alumno.fecha_nacimiento) !== null && (
+                              <span className="text-muted-foreground/80 font-normal"> · {calcularEdad(alumno.fecha_nacimiento)}</span>
+                            )}
                           </p>
                           <p className="text-[11px] text-red-300/90 truncate">
                             {lowDims.map(k => `${k} ${(ev as any)[k]}★`).join(" · ")}
@@ -459,6 +464,9 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">
                           {a.nombre} {a.apellido ?? ""}
+                          {calcularEdad(a.fecha_nacimiento) !== null && (
+                            <span className="text-muted-foreground font-normal"> · {calcularEdad(a.fecha_nacimiento)}</span>
+                          )}
                         </p>
                         {ev?.updated_at ? (
                           <p className="text-[11px] text-muted-foreground mt-0.5">
