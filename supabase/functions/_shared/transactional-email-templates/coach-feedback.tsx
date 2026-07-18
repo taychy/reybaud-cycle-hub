@@ -51,8 +51,9 @@ const CoachFeedbackEmail = ({
         ) : null}
         <Section style={{ textAlign: 'center', marginTop: '20px' }}>
           <Button href={appUrl} style={button}>
-            Ver detalle en la app
+            Abrir app
           </Button>
+
         </Section>
         <Text style={footer}>Ciclismo Reybaud — Escuela de ciclismo</Text>
       </Container>

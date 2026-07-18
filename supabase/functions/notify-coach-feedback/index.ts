@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
             tipoLabel: tipoTxt,
             generalNote: generalRaw.trim(),
             detailCount,
-            appUrl: "https://reybaud-app.com/alumno/progreso",
+            appUrl: "https://reybaud-app.com/",
           },
         },
       }
