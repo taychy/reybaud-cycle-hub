@@ -349,6 +349,21 @@ const DepositoEntregaDetail = () => {
                     );
                   })}
                 </div>
+                <DeliveryClientNotify
+                  listId={list.id}
+                  listTitulo={list.titulo}
+                  clienteNombre={cliente}
+                  items={its.map(i => ({
+                    id: i.id,
+                    producto: i.producto,
+                    variante: i.variante,
+                    cantidad: i.cantidad,
+                    alumno_id: i.alumno_id,
+                    aviso_retiro_enviado_at: i.aviso_retiro_enviado_at,
+                    aviso_retiro_channel: i.aviso_retiro_channel,
+                  }))}
+                  onChanged={fetch}
+                />
                 <DeliveryPaymentsSection
                   mode="auth"
                   listId={list.id}
