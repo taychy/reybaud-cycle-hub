@@ -500,6 +500,23 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
               </div>
             )}
 
+            {/* Stats de avance */}
+            {totalContables > 0 && (
+              <div className="rounded-lg border border-border bg-card/60 px-3 py-2 flex items-center justify-between text-[12px]">
+                <div className="text-muted-foreground">
+                  <span className="text-foreground font-semibold">{chequeados}</span> chequeados
+                  {" · "}
+                  <span className="text-foreground font-semibold">{pendientes}</span> pendientes
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${pctHecho}%` }} />
+                  </div>
+                  <span className="text-foreground font-semibold">{pctHecho}%</span>
+                </div>
+              </div>
+            )}
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
