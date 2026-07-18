@@ -62,6 +62,7 @@ const isOwnMpEmail = (slug: string | undefined, email: string | null) => {
 export default function MpMovementsTab() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [cuentas, setCuentas] = useState<Array<{ id: string; nombre: string; slug: string }>>([]);
   const [cuentaFilter, setCuentaFilter] = useState<string>("all");
@@ -126,6 +127,36 @@ export default function MpMovementsTab() {
       setSyncing(false);
     }
   }
+
+  async function handleEnrich() {
+    setEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enrich-mp-settlement-report", {
+        body: { days: 30 },
+      });
+      if (error) throw error;
+      const pending = (data?.cuentas ?? []).filter((c: any) => c.pending);
+      const enriched = (data?.cuentas ?? []).reduce((s: number, c: any) => s + (c.enriched ?? 0), 0);
+      const matched = (data?.cuentas ?? []).reduce((s: number, c: any) => s + (c.matched ?? 0), 0);
+      if (pending.length && enriched === 0) {
+        toast({
+          title: "Reporte MP en preparación",
+          description: "MP está generando el settlement report. Volvé a apretar en 2-3 min.",
+        });
+      } else {
+        toast({
+          title: "Enriquecimiento completo",
+          description: `${enriched} movimientos actualizados (de ${matched} matches). Sólo se completaron campos vacíos.`,
+        });
+      }
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error enriqueciendo", description: e.message, variant: "destructive" });
+    } finally {
+      setEnriching(false);
+    }
+  }
+
 
   async function loadAlumnosQuery(q: string) {
     if (q.length < 2) {
@@ -226,10 +257,16 @@ export default function MpMovementsTab() {
             Todos los cobros recibidos en las cuentas MP. Asigná un alumno cuando no lo identifiquemos automáticamente.
           </p>
         </div>
-        <Button onClick={handleSync} disabled={syncing} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Sincronizando..." : "Sincronizar con MP"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleEnrich} disabled={enriching} variant="outline" title="Completa nombres de pagador leyendo el settlement report de MP. Sólo llena campos vacíos.">
+            <UserPlus className={`h-4 w-4 mr-2 ${enriching ? "animate-pulse" : ""}`} />
+            {enriching ? "Enriqueciendo..." : "Enriquecer nombres"}
+          </Button>
+          <Button onClick={handleSync} disabled={syncing} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando..." : "Sincronizar con MP"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
