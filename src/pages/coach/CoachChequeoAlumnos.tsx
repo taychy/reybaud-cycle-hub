@@ -779,6 +779,56 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Preview del mail de feedback */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b border-border">
+            <DialogTitle className="text-sm">Preview del mail</DialogTitle>
+            <p className="text-[11px] text-muted-foreground">
+              Así lo va a recibir el alumno cuando guardes.
+            </p>
+          </DialogHeader>
+          {(() => {
+            const firstName = (openAlumno?.nombre || "").split(" ")[0] || "alumno";
+            const secName = otherCoaches.find(c => c.id === notaCoachSec)?.nombre;
+            const coachName = [coachNombre || "Tu entrenador", secName].filter(Boolean).join(" y ");
+            const comentario = (notaNueva || "").replace(/</g, "&lt;");
+            const to = "alumno@ejemplo.com";
+            const subject = `📝 Nuevo feedback de ${coachName}`;
+            const html = `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background:#fff;">
+                <h2 style="color: #d4820a; margin-bottom: 12px;">📝 Nuevo feedback</h2>
+                <p style="color: #333; margin-bottom: 12px;">
+                  Hola <strong>${firstName}</strong>, recibiste un feedback de <strong>${coachName}</strong>.
+                </p>
+                <div style="background:#f7f4ef;border-left:4px solid #d4820a;padding:14px 16px;border-radius:6px;margin:16px 0;">
+                  <p style="margin:0 0 6px;color:#8a5a12;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;">General</p>
+                  <p style="margin:0;color:#222;white-space:pre-wrap;font-size:15px;line-height:1.5;">${comentario}</p>
+                </div>
+                <div style="text-align:center;margin-top:20px;">
+                  <a href="https://reybaud-app.com" style="display:inline-block;padding:12px 24px;background:#d4820a;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">
+                    Ver en la app
+                  </a>
+                </div>
+                <p style="color:#999;font-size:12px;margin-top:24px;text-align:center;">
+                  Ciclismo Reybaud — Escuela de ciclismo
+                </p>
+              </div>
+            `;
+            return (
+              <div>
+                <div className="px-4 py-3 text-[11px] text-muted-foreground border-b border-border space-y-0.5 bg-secondary/30">
+                  <div><span className="text-foreground/70">De:</span> Ciclismo Reybaud &lt;info@reybaud-app.com&gt;</div>
+                  <div><span className="text-foreground/70">Para:</span> {openAlumno?.nombre} {openAlumno?.apellido || ""} &lt;{to}&gt;</div>
+                  <div><span className="text-foreground/70">Asunto:</span> {subject}</div>
+                </div>
+                <div className="bg-white" dangerouslySetInnerHTML={{ __html: html }} />
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
