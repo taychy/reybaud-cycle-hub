@@ -18,6 +18,7 @@ import FontSizeToggle from "@/components/FontSizeToggle";
 import PaymentStatusCard from "@/components/PaymentStatusCard";
 import LanguageSelector from "@/components/LanguageSelector";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useToast } from "@/hooks/use-toast";
 import { getAccessPermissions, type SubStatusInput, type AccessPermissions } from "@/lib/subscriptionStatus";
