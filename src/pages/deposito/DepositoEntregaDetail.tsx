@@ -441,7 +441,68 @@ const DepositoEntregaDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <HistoryDialog open={showHistory} onOpenChange={setShowHistory} listId={list.id} />
     </div>
+  );
+};
+
+const HistoryDialog = ({
+  open,
+  onOpenChange,
+  listId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  listId: string;
+}) => {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    supabase
+      .from("delivery_item_check_log")
+      .select("*")
+      .eq("list_id", listId)
+      .order("created_at", { ascending: false })
+      .limit(500)
+      .then(({ data }) => {
+        setLogs(data || []);
+        setLoading(false);
+      });
+  }, [open, listId]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Historial de tildados</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <p className="text-sm text-muted-foreground animate-pulse py-8 text-center">Cargando...</p>
+        ) : logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Todavía no hay movimientos.</p>
+        ) : (
+          <div className="space-y-1.5 text-sm">
+            {logs.map((l) => (
+              <div key={l.id} className="flex items-start gap-2 p-2 rounded border border-border/50">
+                <Badge variant={l.preparado ? "default" : "secondary"} className="text-[10px] shrink-0">
+                  {l.preparado ? "✓ tildado" : "destildado"}
+                </Badge>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{l.cliente_nombre} · {l.producto}</div>
+                  {l.variante && <div className="text-xs text-muted-foreground">{l.variante}</div>}
+                  <div className="text-[11px] text-muted-foreground">
+                    {new Date(l.created_at).toLocaleString()} · {l.actor_type === "public" ? "link público" : "depósito/admin"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 
