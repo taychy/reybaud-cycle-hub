@@ -23,13 +23,21 @@ $("sendOtp").addEventListener("click", async () => {
   if (!email) return setMsg("Ingresá tu email", "err");
   setMsg("Enviando…");
   const r = await chrome.runtime.sendMessage({ type: "SEND_OTP", email });
-  if (r.ok) {
-    $("step1").style.display = "none";
-    $("step2").style.display = "block";
-    setMsg("Revisá tu mail y pegá el código.", "ok");
-  } else {
-    setMsg("No se pudo enviar el código. Revisá el email.", "err");
-  }
+  // Aunque devuelva error (rate limit, "user not found"), avanzamos para permitir pegar
+  // un código que ya haya llegado por mail. El verify final valida de verdad.
+  $("step1").style.display = "none";
+  $("step2").style.display = "block";
+  if (r.ok) setMsg("Revisá tu mail y pegá el código.", "ok");
+  else setMsg("Si ya recibiste un código, pegalo abajo.", "");
+});
+
+$("haveCode").addEventListener("click", (e) => {
+  e.preventDefault();
+  const email = $("email").value.trim().toLowerCase();
+  if (!email) return setMsg("Escribí primero tu email", "err");
+  $("step1").style.display = "none";
+  $("step2").style.display = "block";
+  setMsg("Pegá el código que recibiste por mail.", "");
 });
 
 $("backStep").addEventListener("click", () => {
