@@ -198,6 +198,7 @@ const App = () => (
             <Route path="cierre-caja" element={<AdminCierreCaja />} />
             <Route path="cuenta-corriente" element={<AdminCuentaCorriente />} />
             <Route path="facturacion" element={<AdminBilling />} />
+            <Route path="cobros-entrega" element={<AdminDeliveryPayments />} />
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
