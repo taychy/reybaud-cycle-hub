@@ -60,13 +60,13 @@ export async function parseDeliveryExcel(file: File): Promise<{ rows: DeliveryEx
       const f = matchField(String(text ?? ""));
       if (f) tmpMap[col] = f;
     });
-    if (Object.keys(tmpMap).length >= 2 && tmpMap[Object.keys(tmpMap).map(Number).find((c) => tmpMap[c] === "cliente_nombre") as any] || Object.values(tmpMap).includes("cliente_nombre" as any)) {
-      // require at least cliente_nombre and producto
-      if (Object.values(tmpMap).includes("cliente_nombre") && Object.values(tmpMap).includes("producto")) {
-        headerRowIdx = r;
-        Object.assign(map, tmpMap);
-        break;
-      }
+    if (
+      Object.values(tmpMap).includes("cliente_nombre") &&
+      Object.values(tmpMap).includes("producto")
+    ) {
+      headerRowIdx = r;
+      Object.assign(map, tmpMap);
+      break;
     }
   }
 
