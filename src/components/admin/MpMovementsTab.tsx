@@ -49,6 +49,16 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
+const OWN_MP_EMAILS_BY_SLUG: Record<string, string[]> = {
+  claudio_reybaud: ["cobrosreybaud@gmail.com"],
+  scarlett_tayna_barros: ["scarlett.tayna.bs@gmail.com"],
+};
+
+const isOwnMpEmail = (slug: string | undefined, email: string | null) => {
+  if (!slug || !email) return false;
+  return (OWN_MP_EMAILS_BY_SLUG[slug] ?? []).includes(email.toLowerCase());
+};
+
 export default function MpMovementsTab() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -302,8 +312,7 @@ export default function MpMovementsTab() {
                       <TableCell className="text-xs">
                         {(() => {
                           const isTransfer = ["account_money", "cvu", "bank_transfer"].includes(m.payment_method ?? "");
-                          const collectorEmail = m.cuentas_mp?.slug === "claudio" ? "cobrosreybaud@gmail.com" : null;
-                          const emailIsOwn = collectorEmail && m.payer_email?.toLowerCase() === collectorEmail;
+                          const emailIsOwn = isOwnMpEmail(m.cuentas_mp?.slug, m.payer_email);
                           if (m.payer_name) {
                             return (
                               <>
