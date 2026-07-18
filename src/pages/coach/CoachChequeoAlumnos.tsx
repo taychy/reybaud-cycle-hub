@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { calcularEdad } from "@/lib/dates";
 
