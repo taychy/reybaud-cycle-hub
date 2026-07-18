@@ -17,6 +17,7 @@ type AlumnoRow = {
   apellido: string | null;
   grupo: string | null;
   fecha_nacimiento: string | null;
+  es_staff?: boolean | null;
 };
 
 type Evaluacion = {
@@ -177,9 +178,10 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     (async () => {
       const { data: al } = await supabase
         .from("alumnos")
-        .select("id, nombre, apellido, grupo, fecha_nacimiento")
+        .select("id, nombre, apellido, grupo, fecha_nacimiento, es_staff")
         .eq("grupo", grupoSel as any)
         .eq("estado", "activo")
+        .or("es_staff.is.null,es_staff.eq.false")
         .order("nombre");
       const list = (al || []) as AlumnoRow[];
       setAlumnos(list);
@@ -201,9 +203,24 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return alumnos;
-    return alumnos.filter(a => `${a.nombre} ${a.apellido ?? ""}`.toLowerCase().includes(q));
-  }, [alumnos, search]);
+    const base = q
+      ? alumnos.filter(a => `${a.nombre} ${a.apellido ?? ""}`.toLowerCase().includes(q))
+      : alumnos;
+    // no chequeados primero, luego chequeados por fecha desc
+    return [...base].sort((a, b) => {
+      const ea = evalsMap[a.id]?.updated_at;
+      const eb = evalsMap[b.id]?.updated_at;
+      if (!ea && eb) return -1;
+      if (ea && !eb) return 1;
+      if (!ea && !eb) return a.nombre.localeCompare(b.nombre);
+      return new Date(eb!).getTime() - new Date(ea!).getTime();
+    });
+  }, [alumnos, search, evalsMap]);
+
+  const totalContables = alumnos.length;
+  const chequeados = alumnos.filter(a => !!evalsMap[a.id]?.updated_at).length;
+  const pendientes = totalContables - chequeados;
+  const pctHecho = totalContables > 0 ? Math.round((chequeados / totalContables) * 100) : 0;
 
   // Alumnos "a abordar": alguna dimensión evaluada < 3 estrellas
   const DIM_KEYS = ["postura","cadencia","manejo","potencia","fisico","constancia","actitud","progreso"] as const;
@@ -355,6 +372,23 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     }
   };
 
+  const handleMarkStaff = async () => {
+    if (!openAlumno) return;
+    if (!confirm(`Marcar a ${openAlumno.nombre} como staff? Va a salir del listado de chequeo y no contará en el porcentaje.`)) return;
+    try {
+      const { error } = await supabase
+        .from("alumnos")
+        .update({ es_staff: true } as any)
+        .eq("id", openAlumno.id);
+      if (error) throw error;
+      setAlumnos(prev => prev.filter(a => a.id !== openAlumno.id));
+      toast.success("Marcado como staff. Excluido del chequeo.");
+      setOpenAlumno(null);
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo marcar");
+    }
+  };
+
   const renderStars = (n: number | null | undefined) => {
     if (!n) return null;
     return (
@@ -463,6 +497,23 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Stats de avance */}
+            {totalContables > 0 && (
+              <div className="rounded-lg border border-border bg-card/60 px-3 py-2 flex items-center justify-between text-[12px]">
+                <div className="text-muted-foreground">
+                  <span className="text-foreground font-semibold">{chequeados}</span> chequeados
+                  {" · "}
+                  <span className="text-foreground font-semibold">{pendientes}</span> pendientes
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${pctHecho}%` }} />
+                  </div>
+                  <span className="text-foreground font-semibold">{pctHecho}%</span>
+                </div>
               </div>
             )}
 
@@ -637,6 +688,14 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
               <Button className="w-full" onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar chequeo"}
               </Button>
+
+              <button
+                type="button"
+                onClick={handleMarkStaff}
+                className="w-full text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 py-1"
+              >
+                Marcar como staff (excluir del chequeo)
+              </button>
 
               {/* Timeline */}
               {notas.length > 0 && (

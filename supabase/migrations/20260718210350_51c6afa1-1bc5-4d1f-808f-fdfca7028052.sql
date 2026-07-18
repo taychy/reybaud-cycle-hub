@@ -1,0 +1,1 @@
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS es_staff boolean NOT NULL DEFAULT false;
