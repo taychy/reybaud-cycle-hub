@@ -1704,6 +1704,86 @@ export type Database = {
           },
         ]
       }
+      delivery_list_payments: {
+        Row: {
+          cargado_por_email: string | null
+          cargado_por_nombre: string | null
+          cargado_por_user_id: string | null
+          cliente_nombre: string
+          comprobante_path: string | null
+          created_at: string
+          forma_pago: string
+          forma_pago_esperada: string | null
+          id: string
+          list_id: string
+          moneda: string
+          moneda_esperada: string | null
+          monto: number
+          monto_esperado: number | null
+          notas: string | null
+          origen: string
+          updated_at: string
+          validado: boolean
+          validado_at: string | null
+          validado_notas: string | null
+          validado_por: string | null
+        }
+        Insert: {
+          cargado_por_email?: string | null
+          cargado_por_nombre?: string | null
+          cargado_por_user_id?: string | null
+          cliente_nombre: string
+          comprobante_path?: string | null
+          created_at?: string
+          forma_pago: string
+          forma_pago_esperada?: string | null
+          id?: string
+          list_id: string
+          moneda?: string
+          moneda_esperada?: string | null
+          monto: number
+          monto_esperado?: number | null
+          notas?: string | null
+          origen?: string
+          updated_at?: string
+          validado?: boolean
+          validado_at?: string | null
+          validado_notas?: string | null
+          validado_por?: string | null
+        }
+        Update: {
+          cargado_por_email?: string | null
+          cargado_por_nombre?: string | null
+          cargado_por_user_id?: string | null
+          cliente_nombre?: string
+          comprobante_path?: string | null
+          created_at?: string
+          forma_pago?: string
+          forma_pago_esperada?: string | null
+          id?: string
+          list_id?: string
+          moneda?: string
+          moneda_esperada?: string | null
+          monto?: number
+          monto_esperado?: number | null
+          notas?: string | null
+          origen?: string
+          updated_at?: string
+          validado?: boolean
+          validado_at?: string | null
+          validado_notas?: string | null
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_list_payments_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_lists: {
         Row: {
           created_at: string
@@ -9890,6 +9970,19 @@ export type Database = {
       }
       delete_gasto_deuda_mov: { Args: { p_id: string }; Returns: undefined }
       delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
+      delivery_add_payment_by_token: {
+        Args: {
+          p_cargado_por_nombre?: string
+          p_cliente_nombre: string
+          p_comprobante_path?: string
+          p_forma_pago: string
+          p_moneda: string
+          p_monto: number
+          p_notas?: string
+          p_token: string
+        }
+        Returns: string
+      }
       delivery_get_by_token: { Args: { _token: string }; Returns: Json }
       delivery_toggle_item_by_token: {
         Args: { _item_id: string; _preparado: boolean; _token: string }
