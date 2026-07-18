@@ -125,8 +125,12 @@ const DeliveryClientNotify = ({ listId, listTitulo, clienteNombre, items, onChan
       `Detalle:\n${detail}\n\n` +
       `Si querés saber cuánto te resta pagar, admin se va a comunicar con vos, ` +
       `o podés escribirnos a ${REPLY_EMAIL}. ¡Nos vemos!`;
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    // Usamos web.whatsapp.com/send porque wa.me suele redirigir a api.whatsapp.com,
+    // que algunas redes corporativas bloquean (ERR_BLOCKED_BY_RESPONSE).
+    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+    try { await navigator.clipboard?.writeText(msg); } catch {}
     window.open(url, "_blank", "noopener,noreferrer");
+    toast.success("Mensaje copiado. Se abrió WhatsApp Web.");
 
     // Log the notification (server marks items + student_activity_log)
     setSending("whatsapp");
