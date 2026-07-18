@@ -178,7 +178,7 @@ export default function MpEgresosTab() {
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
         <div className="space-y-2">
-          {(tab === "egresos" ? egresos : tab === "reservas" ? reservas : categorizados).map(m => (
+          {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => (
             <Card key={m.id} className="hover:border-orange-500/40 transition-colors">
               <CardContent className="py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
