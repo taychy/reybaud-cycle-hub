@@ -56,6 +56,14 @@ const CoachFeedback = () => {
         setAlumnos(studentData || []);
       }
 
+      // Otros coaches (para asignar co-feedback)
+      const { data: otherCoaches } = await supabase
+        .from("coaches")
+        .select("id, nombre")
+        .neq("id", coach.id)
+        .order("nombre");
+      setCoachesList((otherCoaches || []) as any);
+
       setLoading(false);
     };
     init();
