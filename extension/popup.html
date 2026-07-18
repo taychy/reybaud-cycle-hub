@@ -22,10 +22,11 @@
       <label>Email de staff</label>
       <input id="email" type="email" placeholder="natalia@ciclismoreybaud.com" />
       <button id="sendOtp">Enviar código</button>
+      <div style="text-align:center;margin-top:8px"><a href="#" id="haveCode" style="color:#22d3ee;font-size:12px">Ya tengo un código</a></div>
     </div>
     <div id="step2" style="display:none">
       <label>Código recibido por mail</label>
-      <input id="otp" type="text" placeholder="123456" />
+      <input id="otp" type="text" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" />
       <button id="verifyOtp">Ingresar</button>
       <button class="secondary" id="backStep">Volver</button>
     </div>
