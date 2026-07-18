@@ -461,6 +461,9 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">
                           {a.nombre} {a.apellido ?? ""}
+                          {calcularEdad(a.fecha_nacimiento) !== null && (
+                            <span className="text-muted-foreground font-normal"> · {calcularEdad(a.fecha_nacimiento)}</span>
+                          )}
                         </p>
                         {ev?.updated_at ? (
                           <p className="text-[11px] text-muted-foreground mt-0.5">
