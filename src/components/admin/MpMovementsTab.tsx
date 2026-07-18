@@ -125,7 +125,36 @@ export default function MpMovementsTab() {
       toast({ title: "Error sincronizando", description: e.message, variant: "destructive" });
     } finally {
       setSyncing(false);
+  }
+
+  async function handleEnrich() {
+    setEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enrich-mp-settlement-report", {
+        body: { days: 30 },
+      });
+      if (error) throw error;
+      const pending = (data?.cuentas ?? []).filter((c: any) => c.pending);
+      const enriched = (data?.cuentas ?? []).reduce((s: number, c: any) => s + (c.enriched ?? 0), 0);
+      const matched = (data?.cuentas ?? []).reduce((s: number, c: any) => s + (c.matched ?? 0), 0);
+      if (pending.length && enriched === 0) {
+        toast({
+          title: "Reporte MP en preparación",
+          description: "MP está generando el settlement report. Volvé a apretar en 2-3 min.",
+        });
+      } else {
+        toast({
+          title: "Enriquecimiento completo",
+          description: `${enriched} movimientos actualizados (de ${matched} matches). Sólo se completaron campos vacíos.`,
+        });
+      }
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error enriqueciendo", description: e.message, variant: "destructive" });
+    } finally {
+      setEnriching(false);
     }
+  }
   }
 
   async function loadAlumnosQuery(q: string) {
