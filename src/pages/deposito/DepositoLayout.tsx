@@ -13,7 +13,8 @@ const DepositoLayout = () => {
     { to: "/deposito/entregas", icon: Truck, label: "Entregas" },
     { to: "/deposito/pedidos-proveedor", icon: Package, label: "Prov." },
     { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
-    { to: "/deposito/stock", icon: History, label: "Stock" },
+    { to: "/deposito/movimientos", icon: History, label: "Movim." },
+    { to: "/deposito/stock", icon: Package, label: "Stock" },
   ];
 
   const handleLogout = async () => {
