@@ -35,6 +35,7 @@ const finanzasItems: NavItem[] = [
   { to: "/admin/precios", label: "Precios", icon: DollarSign },
   { to: "/admin/facturacion", label: "Facturación", icon: FileText },
   { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
+  { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck },
 ];
 
 const configItems: NavItem[] = [
