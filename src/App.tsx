@@ -17,6 +17,7 @@ import WhatsAppConciliador from "./pages/admin/WhatsAppConciliador";
 import WhatsAppHistorial from "./pages/admin/WhatsAppHistorial";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
+import Unsubscribe from "./pages/Unsubscribe";
 import Asesoria from "./pages/Asesoria";
 import CoachRegister from "./pages/CoachRegister";
 import CoachDashboard from "./pages/coach/CoachDashboard";
@@ -162,6 +163,7 @@ const App = () => (
           <Route path="/politica-privacidad" element={<PrivacyPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/instalar" element={<Install />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/formacion-inicial" element={<FormacionInicial />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachDashboard /></ProtectedRoute>} />
