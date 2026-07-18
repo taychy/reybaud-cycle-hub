@@ -27,6 +27,8 @@ import {
   Unlock,
   FileSpreadsheet,
   UserRound,
+  Search,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
