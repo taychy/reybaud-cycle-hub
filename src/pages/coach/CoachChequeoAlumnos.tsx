@@ -126,6 +126,8 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   const [openAlumno, setOpenAlumno] = useState<AlumnoRow | null>(null);
   const [form, setForm] = useState<Evaluacion | null>(null);
   const [notaNueva, setNotaNueva] = useState("");
+  const [notaEnviarFeedback, setNotaEnviarFeedback] = useState(false);
+  const [notaCoachSec, setNotaCoachSec] = useState<string>("");
   const [notas, setNotas] = useState<Nota[]>([]);
   const [showAlertList, setShowAlertList] = useState(false);
   const [otherCoaches, setOtherCoaches] = useState<CoachOpt[]>([]);
@@ -260,6 +262,8 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     setOpenAlumno(a);
     setForm(evalsMap[a.id] ? { ...evalsMap[a.id] } : emptyEval(a.id));
     setNotaNueva("");
+    setNotaEnviarFeedback(false);
+    setNotaCoachSec("");
     const { data } = await supabase
       .from("alumno_evaluaciones_coach_notas")
       .select("*")
@@ -305,7 +309,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
           postura: form.postura, cadencia: form.cadencia, manejo: form.manejo, potencia: form.potencia,
           fisico: form.fisico, constancia: form.constancia, actitud: form.actitud, progreso: form.progreso,
         };
-        const { error: nErr } = await supabase
+        const { data: notaIns, error: nErr } = await supabase
           .from("alumno_evaluaciones_coach_notas")
           .insert({
             alumno_id: form.alumno_id,
@@ -313,8 +317,32 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
             autor_nombre: coachNombre || (adminMode ? "Admin" : null),
             nota: notaNueva.trim(),
             snapshot_scores: snap,
-          } as any);
+          } as any)
+          .select("id, created_at")
+          .single();
         if (nErr) throw nErr;
+
+        // Convertir en feedback + enviar al alumno si el coach lo pidió
+        if (notaEnviarFeedback && notaIns) {
+          const { data: fb, error: fbErr } = await supabase.from("feedback_coach").insert({
+            alumno_id: form.alumno_id,
+            coach_id: coachId,
+            coach_id_secundario: notaCoachSec || null,
+            comentario: notaNueva.trim(),
+            tipo: "general",
+            fecha: ((notaIns as any).created_at || new Date().toISOString()).split("T")[0],
+            origen: "chequeo",
+            origen_nota_id: (notaIns as any).id,
+          } as any).select("id").single();
+          if (fbErr) throw fbErr;
+
+          await supabase
+            .from("alumno_evaluaciones_coach_notas")
+            .update({ feedback_id: (fb as any).id } as any)
+            .eq("id", (notaIns as any).id);
+
+          supabase.functions.invoke("notify-coach-feedback", { body: { feedback_id: (fb as any).id } }).catch(() => {});
+        }
       }
 
       setEvalsMap(prev => ({ ...prev, [form.alumno_id]: upserted as any }));
@@ -573,6 +601,37 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                 <p className="text-[11px] text-muted-foreground mt-1">
                   Se guarda con fecha, autor y snapshot de los puntajes.
                 </p>
+
+                {notaNueva.trim().length > 0 && (
+                  <div className="mt-3 rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-2">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notaEnviarFeedback}
+                        onChange={e => setNotaEnviarFeedback(e.target.checked)}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <span className="text-[13px] text-foreground leading-snug">
+                        Convertir en feedback y enviárselo al alumno por mail
+                        <span className="block text-[11px] text-muted-foreground mt-0.5">
+                          El alumno verá esta nota como feedback firmado por vos.
+                        </span>
+                      </span>
+                    </label>
+                    {notaEnviarFeedback && (
+                      <select
+                        value={notaCoachSec}
+                        onChange={e => setNotaCoachSec(e.target.value)}
+                        className="w-full rounded border border-border bg-card px-2 py-1.5 text-[12px] text-foreground"
+                      >
+                        <option value="">Co-entrenador (opcional)</option>
+                        {otherCoaches.filter(c => c.id !== coachId).map(c => (
+                          <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
               </section>
 
               <Button className="w-full" onClick={handleSave} disabled={saving}>
