@@ -10,6 +10,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import MisClasesHoy from "@/components/coach/MisClasesHoy";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
+import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
