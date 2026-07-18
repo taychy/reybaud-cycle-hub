@@ -653,36 +653,37 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                   Se guarda con fecha, autor y snapshot de los puntajes.
                 </p>
 
-                {notaNueva.trim().length > 0 && (
-                  <div className="mt-3 rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-2">
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notaEnviarFeedback}
-                        onChange={e => setNotaEnviarFeedback(e.target.checked)}
-                        className="mt-0.5 accent-primary"
-                      />
-                      <span className="text-[13px] text-foreground leading-snug">
-                        Convertir en feedback y enviárselo al alumno por mail
-                        <span className="block text-[11px] text-muted-foreground mt-0.5">
-                          El alumno verá esta nota como feedback firmado por vos.
-                        </span>
+                <div className="mt-3 rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-2">
+                  <label className={`flex items-start gap-2 ${notaNueva.trim().length > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}>
+                    <input
+                      type="checkbox"
+                      checked={notaEnviarFeedback}
+                      onChange={e => setNotaEnviarFeedback(e.target.checked)}
+                      disabled={notaNueva.trim().length === 0}
+                      className="mt-0.5 accent-primary"
+                    />
+                    <span className="text-[13px] text-foreground leading-snug">
+                      Convertir en feedback y enviárselo al alumno por mail
+                      <span className="block text-[11px] text-muted-foreground mt-0.5">
+                        {notaNueva.trim().length === 0
+                          ? "Escribí una nota arriba para habilitar el envío."
+                          : "El alumno verá esta nota como feedback firmado por vos."}
                       </span>
-                    </label>
-                    {notaEnviarFeedback && (
-                      <select
-                        value={notaCoachSec}
-                        onChange={e => setNotaCoachSec(e.target.value)}
-                        className="w-full rounded border border-border bg-card px-2 py-1.5 text-[12px] text-foreground"
-                      >
-                        <option value="">Co-entrenador (opcional)</option>
-                        {otherCoaches.filter(c => c.id !== coachId).map(c => (
-                          <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                )}
+                    </span>
+                  </label>
+                  {notaEnviarFeedback && notaNueva.trim().length > 0 && (
+                    <select
+                      value={notaCoachSec}
+                      onChange={e => setNotaCoachSec(e.target.value)}
+                      className="w-full rounded border border-border bg-card px-2 py-1.5 text-[12px] text-foreground"
+                    >
+                      <option value="">Co-entrenador (opcional)</option>
+                      {otherCoaches.filter(c => c.id !== coachId).map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </section>
 
               <Button className="w-full" onClick={handleSave} disabled={saving}>
