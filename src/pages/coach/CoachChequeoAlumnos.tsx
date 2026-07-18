@@ -178,9 +178,10 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
     (async () => {
       const { data: al } = await supabase
         .from("alumnos")
-        .select("id, nombre, apellido, grupo, fecha_nacimiento")
+        .select("id, nombre, apellido, grupo, fecha_nacimiento, es_staff")
         .eq("grupo", grupoSel as any)
         .eq("estado", "activo")
+        .or("es_staff.is.null,es_staff.eq.false")
         .order("nombre");
       const list = (al || []) as AlumnoRow[];
       setAlumnos(list);
