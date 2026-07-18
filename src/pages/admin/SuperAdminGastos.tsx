@@ -922,6 +922,11 @@ const SuperAdminGastos = () => {
           <TabsTrigger value="historial" className="gap-1"><History className="w-4 h-4" />Historial</TabsTrigger>
         </TabsList>
 
+        {/* MP EGRESOS + RESERVAS TÉCNICAS */}
+        <TabsContent value="mp" className="mt-4">
+          <MpEgresosTab />
+        </TabsContent>
+
         {/* AGENDA */}
         <TabsContent value="agenda" className="mt-4 space-y-4">
           <AgendaMes
