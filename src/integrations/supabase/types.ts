@@ -5552,13 +5552,17 @@ export type Database = {
           assigned_at: string | null
           assigned_by: string | null
           assigned_manually: boolean
+          categorizado_at: string | null
+          categorizado_por: string | null
           created_at: string
           cuenta_mp_id: string
           currency: string
           description: string | null
+          direccion: string
           external_reference: string | null
           fecha_movimiento: string
           fee_amount: number | null
+          gasto_id: string | null
           id: string
           mp_payment_id: string
           net_received: number | null
@@ -5582,13 +5586,17 @@ export type Database = {
           assigned_at?: string | null
           assigned_by?: string | null
           assigned_manually?: boolean
+          categorizado_at?: string | null
+          categorizado_por?: string | null
           created_at?: string
           cuenta_mp_id: string
           currency?: string
           description?: string | null
+          direccion?: string
           external_reference?: string | null
           fecha_movimiento: string
           fee_amount?: number | null
+          gasto_id?: string | null
           id?: string
           mp_payment_id: string
           net_received?: number | null
@@ -5612,13 +5620,17 @@ export type Database = {
           assigned_at?: string | null
           assigned_by?: string | null
           assigned_manually?: boolean
+          categorizado_at?: string | null
+          categorizado_por?: string | null
           created_at?: string
           cuenta_mp_id?: string
           currency?: string
           description?: string | null
+          direccion?: string
           external_reference?: string | null
           fecha_movimiento?: string
           fee_amount?: number | null
+          gasto_id?: string | null
           id?: string
           mp_payment_id?: string
           net_received?: number | null
@@ -5648,6 +5660,13 @@ export type Database = {
             columns: ["cuenta_mp_id"]
             isOneToOne: false
             referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
             referencedColumns: ["id"]
           },
           {
@@ -10490,6 +10509,18 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      mp_egreso_to_gasto: {
+        Args: {
+          _categoria: string
+          _descripcion: string
+          _movement_id: string
+          _notas: string
+          _proveedor: string
+          _subcategoria: string
+          _unidad_negocio: string
+        }
+        Returns: string
       }
       pay_gasto_ejecucion: {
         Args: {
