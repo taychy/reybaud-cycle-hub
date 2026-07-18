@@ -689,6 +689,14 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar chequeo"}
               </Button>
 
+              <button
+                type="button"
+                onClick={handleMarkStaff}
+                className="w-full text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 py-1"
+              >
+                Marcar como staff (excluir del chequeo)
+              </button>
+
               {/* Timeline */}
               {notas.length > 0 && (
                 <section>
