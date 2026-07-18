@@ -686,7 +686,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
               </section>
 
               <Button className="w-full" onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar chequeo"}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (notaEnviarFeedback ? "Guardar chequeo y enviar por mail" : "Guardar chequeo")}
               </Button>
 
               <button
