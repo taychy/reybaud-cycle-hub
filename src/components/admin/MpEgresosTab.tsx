@@ -70,7 +70,7 @@ export default function MpEgresosTab() {
         fecha_movimiento, direccion, gasto_id,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
-      .in("direccion", ["egreso", "reserva_tecnica"])
+      .in("direccion", ["egreso", "reserva_tecnica", "interno"])
       .order("fecha_movimiento", { ascending: false })
       .limit(300);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
