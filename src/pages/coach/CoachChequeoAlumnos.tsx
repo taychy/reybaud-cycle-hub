@@ -135,6 +135,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   const [otherCoaches, setOtherCoaches] = useState<CoachOpt[]>([]);
   const [convertingNotaId, setConvertingNotaId] = useState<string | null>(null);
   const [convertCoachSec, setConvertCoachSec] = useState<Record<string, string>>({});
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
