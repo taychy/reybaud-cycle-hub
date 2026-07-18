@@ -69,6 +69,17 @@ Deno.serve(async (req) => {
     }
 
     const subject = `📝 Nuevo feedback de ${coachName}`;
+    const fullComentario = fb.comentario || "";
+    const [generalRaw, detalleRaw = ""] = fullComentario.split("---DETALLE---");
+    const detalleCount = detalleRaw
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l.startsWith("•")).length;
+    const detalleHint = detalleCount > 0
+      ? `<p style="margin:14px 0 0;color:#666;font-size:13px;text-align:center;">
+           Tenés <strong>${detalleCount} comentario${detalleCount === 1 ? "" : "s"}</strong> por característica esperándote en la app.
+         </p>`
+      : "";
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #d4820a; margin-bottom: 12px;">📝 Nuevo feedback</h2>
@@ -77,11 +88,12 @@ Deno.serve(async (req) => {
         </p>
         <div style="background:#f7f4ef;border-left:4px solid #d4820a;padding:14px 16px;border-radius:6px;margin:16px 0;">
           <p style="margin:0 0 6px;color:#8a5a12;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;">${tipoTxt}</p>
-          <p style="margin:0;color:#222;white-space:pre-wrap;font-size:15px;line-height:1.5;">${(fb.comentario || "").replace(/</g, "&lt;")}</p>
+          <p style="margin:0;color:#222;white-space:pre-wrap;font-size:15px;line-height:1.5;">${generalRaw.trim().replace(/</g, "&lt;")}</p>
         </div>
+        ${detalleHint}
         <div style="text-align:center;margin-top:20px;">
           <a href="https://reybaud-app.com" style="display:inline-block;padding:12px 24px;background:#d4820a;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">
-            Ver en la app
+            Ver detalle en la app
           </a>
         </div>
         <p style="color:#999;font-size:12px;margin-top:24px;text-align:center;">
