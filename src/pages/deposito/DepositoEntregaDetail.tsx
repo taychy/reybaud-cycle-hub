@@ -35,6 +35,7 @@ import {
   type DeliveryExcelRow,
 } from "@/lib/deliveryExcel";
 import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
+import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 
 interface DeliveryList {
   id: string;
@@ -60,6 +61,9 @@ interface DeliveryItem {
   source_type: string | null;
   source_order_id: string | null;
   source_preorder_id: string | null;
+  alumno_id: string | null;
+  aviso_retiro_enviado_at: string | null;
+  aviso_retiro_channel: string | null;
 }
 
 const formatVariant = (v: any): string | null => {
@@ -345,6 +349,21 @@ const DepositoEntregaDetail = () => {
                     );
                   })}
                 </div>
+                <DeliveryClientNotify
+                  listId={list.id}
+                  listTitulo={list.titulo}
+                  clienteNombre={cliente}
+                  items={its.map(i => ({
+                    id: i.id,
+                    producto: i.producto,
+                    variante: i.variante,
+                    cantidad: i.cantidad,
+                    alumno_id: i.alumno_id,
+                    aviso_retiro_enviado_at: i.aviso_retiro_enviado_at,
+                    aviso_retiro_channel: i.aviso_retiro_channel,
+                  }))}
+                  onChanged={fetch}
+                />
                 <DeliveryPaymentsSection
                   mode="auth"
                   listId={list.id}

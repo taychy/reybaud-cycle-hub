@@ -92,3 +92,5 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.enroll-programa]
     verify_jwt = false
+  [functions.send-delivery-ready-pickup]
+    verify_jwt = false
