@@ -46,41 +46,41 @@ const AdminLogin = () => {
     if (!session) return false;
     const userId = session.user.id;
 
-    if (await checkAppRole(userId, "admin")) {
-      clearPendingOtpState();
-      const target = otpReturnTo && otpReturnTo.startsWith("/admin") ? otpReturnTo : "/admin";
+    const { getAvailablePortals, getRememberedPortal, PORTAL_PATHS } = await import("@/lib/portalPreference");
+    const available = await getAvailablePortals(userId);
+    if (available.length === 0) return false;
+
+    clearPendingOtpState();
+
+    // Explicit returnTo respected if user has that portal
+    if (otpReturnTo?.startsWith("/admin") && available.includes("admin")) {
+      navigate(otpReturnTo, { replace: true });
+      return true;
+    }
+    if (otpReturnTo?.startsWith("/coach") && available.includes("coach")) {
+      navigate(otpReturnTo, { replace: true });
+      return true;
+    }
+    if (otpReturnTo?.startsWith("/deposito") && available.includes("deposito")) {
+      navigate(otpReturnTo, { replace: true });
+      return true;
+    }
+
+    if (available.length === 1) {
+      const only = available[0];
+      const target = only === "alumno" ? (otpReturnTo || "/alumno") : PORTAL_PATHS[only];
       navigate(target, { replace: true });
       return true;
     }
 
-    if (await checkAppRole(userId, "coach")) {
-      clearPendingOtpState();
-      const target = otpReturnTo && otpReturnTo.startsWith("/coach") ? otpReturnTo : "/coach";
-      navigate(target, { replace: true });
+    const remembered = getRememberedPortal();
+    if (remembered && available.includes(remembered)) {
+      navigate(PORTAL_PATHS[remembered], { replace: true });
       return true;
     }
 
-    if (await checkAppRole(userId, "deposito")) {
-      clearPendingOtpState();
-      const target = otpReturnTo?.startsWith("/deposito") ? otpReturnTo : "/deposito";
-      navigate(target, { replace: true });
-      return true;
-    }
-
-
-    const { data: alumno } = await supabase
-      .from("alumnos")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (alumno) {
-      clearPendingOtpState();
-      navigate(otpReturnTo || "/alumno", { replace: true });
-      return true;
-    }
-
-    return false;
+    navigate("/portal", { replace: true });
+    return true;
   }, [navigate, otpReturnTo]);
 
   // Detect callback errors from URL
