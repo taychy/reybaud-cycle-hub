@@ -717,11 +717,11 @@ const AdminPayments = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="suscripciones" className="space-y-6">
+      <Tabs defaultValue="mp" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="mp">Cuentas MP sin vincular</TabsTrigger>
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
-          <TabsTrigger value="mp">Cuentas MP</TabsTrigger>
           <TabsTrigger value="todas">Todas las operaciones</TabsTrigger>
         </TabsList>
 
