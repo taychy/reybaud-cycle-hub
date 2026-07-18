@@ -202,6 +202,158 @@ export type Database = {
           },
         ]
       }
+      alumno_evaluaciones_coach: {
+        Row: {
+          actitud: number | null
+          actitud_nota: string | null
+          alumno_id: string
+          cadencia: number | null
+          cadencia_nota: string | null
+          coach_id_ultimo: string | null
+          constancia: number | null
+          constancia_nota: string | null
+          created_at: string
+          fisico: number | null
+          fisico_nota: string | null
+          id: string
+          manejo: number | null
+          manejo_nota: string | null
+          postura: number | null
+          postura_nota: string | null
+          potencia: number | null
+          potencia_nota: string | null
+          progreso: number | null
+          progreso_nota: string | null
+          promedio_rendimiento: number | null
+          promedio_tecnico: number | null
+          updated_at: string
+        }
+        Insert: {
+          actitud?: number | null
+          actitud_nota?: string | null
+          alumno_id: string
+          cadencia?: number | null
+          cadencia_nota?: string | null
+          coach_id_ultimo?: string | null
+          constancia?: number | null
+          constancia_nota?: string | null
+          created_at?: string
+          fisico?: number | null
+          fisico_nota?: string | null
+          id?: string
+          manejo?: number | null
+          manejo_nota?: string | null
+          postura?: number | null
+          postura_nota?: string | null
+          potencia?: number | null
+          potencia_nota?: string | null
+          progreso?: number | null
+          progreso_nota?: string | null
+          promedio_rendimiento?: number | null
+          promedio_tecnico?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actitud?: number | null
+          actitud_nota?: string | null
+          alumno_id?: string
+          cadencia?: number | null
+          cadencia_nota?: string | null
+          coach_id_ultimo?: string | null
+          constancia?: number | null
+          constancia_nota?: string | null
+          created_at?: string
+          fisico?: number | null
+          fisico_nota?: string | null
+          id?: string
+          manejo?: number | null
+          manejo_nota?: string | null
+          postura?: number | null
+          postura_nota?: string | null
+          potencia?: number | null
+          potencia_nota?: string | null
+          progreso?: number | null
+          progreso_nota?: string | null
+          promedio_rendimiento?: number | null
+          promedio_tecnico?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: true
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_coach_id_ultimo_fkey"
+            columns: ["coach_id_ultimo"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_coach_id_ultimo_fkey"
+            columns: ["coach_id_ultimo"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alumno_evaluaciones_coach_notas: {
+        Row: {
+          alumno_id: string
+          autor_nombre: string | null
+          coach_id: string | null
+          created_at: string
+          id: string
+          nota: string
+          snapshot_scores: Json | null
+        }
+        Insert: {
+          alumno_id: string
+          autor_nombre?: string | null
+          coach_id?: string | null
+          created_at?: string
+          id?: string
+          nota: string
+          snapshot_scores?: Json | null
+        }
+        Update: {
+          alumno_id?: string
+          autor_nombre?: string | null
+          coach_id?: string | null
+          created_at?: string
+          id?: string
+          nota?: string
+          snapshot_scores?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alumno_familiares: {
         Row: {
           alumno_id: string
