@@ -9,12 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check } from "lucide-react";
 import { toast } from "sonner";
+import { calcularEdad } from "@/lib/dates";
 
 type AlumnoRow = {
   id: string;
   nombre: string;
   apellido: string | null;
   grupo: string | null;
+  fecha_nacimiento: string | null;
 };
 
 type Evaluacion = {
