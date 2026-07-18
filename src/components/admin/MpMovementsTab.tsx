@@ -125,6 +125,7 @@ export default function MpMovementsTab() {
       toast({ title: "Error sincronizando", description: e.message, variant: "destructive" });
     } finally {
       setSyncing(false);
+    }
   }
 
   async function handleEnrich() {
@@ -155,7 +156,7 @@ export default function MpMovementsTab() {
       setEnriching(false);
     }
   }
-  }
+
 
   async function loadAlumnosQuery(q: string) {
     if (q.length < 2) {
