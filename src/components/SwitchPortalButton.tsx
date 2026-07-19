@@ -35,7 +35,7 @@ const SwitchPortalButton = ({ variant = "ghost", size = "sm", className, fullWid
     <Button
       variant={variant}
       size={size}
-      className={`${fullWidth ? "w-full justify-start" : ""} ${className || ""}`}
+      className={`${fullWidth ? "w-full justify-center" : ""} ${className || ""}`}
       onClick={() => {
         // Al cambiar de portal, olvidar la preferencia "recordar" para que vuelva a preguntar
         setRememberedPortal(null);
