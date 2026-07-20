@@ -186,6 +186,7 @@ const AdminLayout = () => {
     const badgeCount =
       item.badgeKey === "waitlist" ? waitlistPending :
       item.badgeKey === "waitlist_entries" ? waitlistEntriesPending :
+      item.badgeKey === "turnera" ? turneraPending :
       0;
 
     if (collapsed && !mobile) {
