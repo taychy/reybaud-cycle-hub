@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       pago_estado: "comprobante_subido",
     } as any).eq("id", reservationId);
 
-    // Aviso al admin (best-effort)
+    // Aviso al admin + al alumno (best-effort)
     try {
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-turnera-email`, {
         method: "POST",
@@ -103,7 +103,19 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ reservation_id: reservationId, tipo: "admin_nuevo_comprobante" }),
       });
     } catch (e) {
-      console.error("[upload-turnera-comprobante] email error:", (e as Error).message);
+      console.error("[upload-turnera-comprobante] admin email error:", (e as Error).message);
+    }
+    try {
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-turnera-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ reservation_id: reservationId, tipo: "transferencia_comprobante_recibido" }),
+      });
+    } catch (e) {
+      console.error("[upload-turnera-comprobante] alumno email error:", (e as Error).message);
     }
 
     return new Response(JSON.stringify({ ok: true, path }), {
