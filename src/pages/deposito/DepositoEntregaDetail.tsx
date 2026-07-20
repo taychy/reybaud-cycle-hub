@@ -282,6 +282,18 @@ const DepositoEntregaDetail = () => {
                 <><Lock className="w-3.5 h-3.5 mr-1" /> Solo lectura</>
               )}
             </Button>
+            <Button
+              variant={modoRapido ? "default" : "outline"}
+              size="sm"
+              onClick={() => setModoRapidoPersist(!modoRapido)}
+              title={modoRapido ? "Los ítems se marcan sin confirmación" : "Cada check pide confirmación"}
+            >
+              {modoRapido ? (
+                <><Zap className="w-3.5 h-3.5 mr-1" /> Modo rápido</>
+              ) : (
+                <><ShieldCheck className="w-3.5 h-3.5 mr-1" /> Confirmar chequeos</>
+              )}
+            </Button>
             <Button variant="outline" size="sm" onClick={closeList}>
               {list.estado === "abierta" ? "Cerrar lista" : "Reabrir"}
             </Button>
