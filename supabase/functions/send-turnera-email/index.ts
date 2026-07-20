@@ -25,6 +25,7 @@ type Tipo =
   | "transferencia_expirada"
   | "transferencia_aprobada"
   | "transferencia_rechazada"
+  | "transferencia_comprobante_recibido"
   | "admin_nuevo_comprobante";
 
 const normalizeEmail = (e: string) => e.trim().toLowerCase();
@@ -157,6 +158,7 @@ Deno.serve(async (req) => {
       "transferencia_expirada",
       "transferencia_aprobada",
       "transferencia_rechazada",
+      "transferencia_comprobante_recibido",
       "admin_nuevo_comprobante",
     ]);
     if (TRANSFER_TIPOS.has(tipo)) {
@@ -448,6 +450,12 @@ async function handleTransferenciaEmail(
         : `Si creés que fue un error, escribinos y lo revisamos.`;
       bodyHtml = detalleReserva;
       cta = { label: "Volver a reservar", url: `${APP_DOMAIN}` };
+      break;
+    case "transferencia_comprobante_recibido":
+      subject = `Recibimos tu comprobante · ${servicioNombre}`;
+      title = "📩 Recibimos tu comprobante";
+      intro = `Gracias por enviar el comprobante de transferencia. Nuestro equipo lo está revisando y te vamos a avisar por email en cuanto lo validemos. Mientras tanto, tu turno queda <strong>reservado</strong>.`;
+      bodyHtml = detalleReserva;
       break;
     case "admin_nuevo_comprobante": {
       recipient = cfgMap.admin_notification_email || "natalia@ciclismoreybaud.com";
