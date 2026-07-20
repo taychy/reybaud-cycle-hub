@@ -30,6 +30,29 @@ export default function AdminWaitlistTemplates() {
   const [descripcion, setDescripcion] = useState("");
   const [preguntas, setPreguntas] = useState<WaitlistQuestion[]>([]);
   const [saving, setSaving] = useState(false);
+  const [viewingResponses, setViewingResponses] = useState<Template | null>(null);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+
+  const openResponses = async (t: Template) => {
+    setViewingResponses(t);
+    setLoadingResponses(true);
+    setResponses([]);
+    const { data, error } = await supabase.rpc("get_waitlist_entries_for_template" as any, { p_template_id: t.id });
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setResponses((data as any[]) || []);
+    }
+    setLoadingResponses(false);
+  };
+
+  const formatAnswer = (val: any): string => {
+    if (val == null) return "—";
+    if (Array.isArray(val)) return val.join(", ");
+    if (typeof val === "object") return JSON.stringify(val);
+    return String(val);
+  };
 
   const load = async () => {
     setLoading(true);
