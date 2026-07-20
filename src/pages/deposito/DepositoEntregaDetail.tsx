@@ -489,7 +489,7 @@ const DepositoEntregaDetail = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmToggle?.next ? "¿Confirmás que este ítem está preparado?" : "¿Desmarcar este ítem?"}
+              {confirmToggle?.next ? "¿Confirmás que este ítem está entregado?" : "¿Desmarcar este ítem?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmToggle && (
@@ -504,7 +504,7 @@ const DepositoEntregaDetail = () => {
                   <span className="block text-xs text-muted-foreground mt-1">Cliente: {confirmToggle.item.cliente_nombre}</span>
                   {!confirmToggle.next && (
                     <span className="block text-xs text-amber-600 mt-2">
-                      Este ítem ya estaba marcado como preparado. Solo desmarcalo si fue un error.
+                      Este ítem ya estaba marcado como entregado. Solo desmarcalo si fue un error.
                     </span>
                   )}
                 </>
@@ -519,7 +519,7 @@ const DepositoEntregaDetail = () => {
                 setConfirmToggle(null);
               }}
             >
-              {confirmToggle?.next ? "Sí, marcar preparado" : "Sí, desmarcar"}
+              {confirmToggle?.next ? "Sí, marcar entregado" : "Sí, desmarcar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
