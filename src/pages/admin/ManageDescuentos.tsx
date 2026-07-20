@@ -134,8 +134,11 @@ const ManageDescuentos = () => {
     aplica_a: "todo",
     vigencia_desde: "",
     vigencia_hasta: "",
+    evento_id: "",
     activo: true,
   });
+
+  const [eventos, setEventos] = useState<EventoOpt[]>([]);
 
   const loadDescuentos = async () => {
     const { data } = await supabase
@@ -146,7 +149,16 @@ const ManageDescuentos = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadDescuentos(); loadOverview(); }, []);
+  const loadEventos = async () => {
+    const { data } = await supabase
+      .from("events")
+      .select("id, title")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    setEventos(((data as any[]) || []).map(e => ({ id: e.id, titulo: e.title })));
+  };
+
+  useEffect(() => { loadDescuentos(); loadOverview(); loadEventos(); }, []);
 
   const loadOverview = async () => {
     setOverviewLoading(true);
