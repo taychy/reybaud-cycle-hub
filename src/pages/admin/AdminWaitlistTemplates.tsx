@@ -165,6 +165,14 @@ export default function AdminWaitlistTemplates() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-primary hover:text-primary"
+                      onClick={() => openResponses(t)}
+                    >
+                      <Users className="w-4 h-4" /> Respuestas
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(t)}>
                       <Pencil className="w-4 h-4" />
                     </Button>
