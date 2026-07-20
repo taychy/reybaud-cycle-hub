@@ -27,8 +27,11 @@ interface Descuento {
   aplica_a: string;
   vigencia_desde: string | null;
   vigencia_hasta: string | null;
+  evento_id: string | null;
   created_at: string;
 }
+
+interface EventoOpt { id: string; titulo: string; }
 
 interface DescuentoAlumno {
   id: string;
@@ -131,8 +134,11 @@ const ManageDescuentos = () => {
     aplica_a: "todo",
     vigencia_desde: "",
     vigencia_hasta: "",
+    evento_id: "",
     activo: true,
   });
+
+  const [eventos, setEventos] = useState<EventoOpt[]>([]);
 
   const loadDescuentos = async () => {
     const { data } = await supabase
@@ -143,7 +149,16 @@ const ManageDescuentos = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadDescuentos(); loadOverview(); }, []);
+  const loadEventos = async () => {
+    const { data } = await supabase
+      .from("events")
+      .select("id, title")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    setEventos(((data as any[]) || []).map(e => ({ id: e.id, titulo: e.title })));
+  };
+
+  useEffect(() => { loadDescuentos(); loadOverview(); loadEventos(); }, []);
 
   const loadOverview = async () => {
     setOverviewLoading(true);
@@ -182,7 +197,7 @@ const ManageDescuentos = () => {
   });
 
   const resetForm = () => {
-    setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", activo: true });
+    setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", evento_id: "", activo: true });
     setEditing(null);
   };
 
@@ -200,6 +215,7 @@ const ManageDescuentos = () => {
       aplica_a: d.aplica_a,
       vigencia_desde: d.vigencia_desde || "",
       vigencia_hasta: d.vigencia_hasta || "",
+      evento_id: d.evento_id || "",
       activo: d.activo,
     });
     setDialogOpen(true);
@@ -221,6 +237,7 @@ const ManageDescuentos = () => {
       aplica_a: form.aplica_a,
       vigencia_desde: form.vigencia_desde || null,
       vigencia_hasta: form.vigencia_hasta || null,
+      evento_id: form.aplica_a === "eventos" && form.evento_id ? form.evento_id : null,
       activo: form.activo,
     };
 
@@ -591,13 +608,31 @@ const ManageDescuentos = () => {
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Aplica a</label>
-              <Select value={form.aplica_a} onValueChange={v => setForm(f => ({ ...f, aplica_a: v }))}>
+              <Select value={form.aplica_a} onValueChange={v => setForm(f => ({ ...f, aplica_a: v, evento_id: v === "eventos" ? f.evento_id : "" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {aplicaOpciones.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {form.aplica_a === "eventos" && (
+              <div>
+                <label className="text-sm text-muted-foreground">Evento específico (opcional)</label>
+                <Select
+                  value={form.evento_id || "__all__"}
+                  onValueChange={v => setForm(f => ({ ...f, evento_id: v === "__all__" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Todos los eventos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos los eventos</SelectItem>
+                    {eventos.map(e => <SelectItem key={e.id} value={e.id}>{e.titulo}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Si elegís un evento, este descuento sólo se aplica en ese evento. Dejá "Todos los eventos" para que sirva en cualquier evento.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm text-muted-foreground">Vigencia desde (opcional)</label>
