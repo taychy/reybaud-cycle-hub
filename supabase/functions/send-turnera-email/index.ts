@@ -295,6 +295,13 @@ Deno.serve(async (req) => {
           .filter((e: string) => e && e.includes("@"));
         if (adminEmails.length === 0) adminEmails.push("natalia@ciclismoreybaud.com");
 
+        // Nombre del coach (para mostrar en la copia admin de coach_aviso)
+        let coachNombre = "";
+        if (tipo === "coach_aviso" && r.coach_id) {
+          const { data: coachRow } = await supabase.from("coaches").select("nombre").eq("id", r.coach_id).maybeSingle();
+          coachNombre = coachRow?.nombre || "";
+        }
+
         for (const adm of adminEmails) {
           if (normalizeEmail(adm) === normalizeEmail(recipientEmail)) continue;
           const admMsgId = crypto.randomUUID();
@@ -302,8 +309,46 @@ Deno.serve(async (req) => {
           const adminSubject = tipo === "coach_aviso"
             ? `[Admin] Nueva reserva · ${servicioNombre} · ${fechaTxt} ${fmtHora(r.hora_inicio as string)} · ${r.nombre} ${r.apellido || ""}`.trim()
             : `[Admin] Reserva confirmada · ${servicioNombre} · ${fechaTxt} · ${r.nombre} ${r.apellido || ""}`.trim();
-          const adminBanner = `<div style="background:#fff8e1;border:1px solid #f0c69a;color:#5a3d00;padding:10px 14px;border-radius:8px;margin:0 0 16px;font-size:13px;">📬 Copia interna — reserva de turnera</div>`;
-          const adminHtml = html.replace('<div style="max-width:600px;margin:0 auto;padding:32px 24px;">', `<div style="max-width:600px;margin:0 auto;padding:32px 24px;">${adminBanner}`);
+
+          // Render exclusivo para admin (no reutiliza el saludo del destinatario)
+          const adminTitle = tipo === "coach_aviso"
+            ? "📬 Nueva reserva de turnera"
+            : "📬 Reserva confirmada";
+          const adminIntro = tipo === "coach_aviso"
+            ? `Se agendó una nueva clase${coachNombre ? ` con <strong>${escapeHtml(coachNombre)}</strong>` : ""}. Detalle:`
+            : `Se confirmó una reserva. Detalle:`;
+          const alumnoBlock = `<div style="background:#fff5ec;border:1px solid #f0c69a;border-radius:12px;padding:16px;margin-top:16px;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Alumno</div>
+            <div style="font-size:14px;color:#0f1115;line-height:1.6;">
+              <strong>${escapeHtml(`${r.nombre} ${r.apellido || ""}`.trim())}</strong><br/>
+              ${r.email ? `📧 ${escapeHtml(r.email)}<br/>` : ""}
+              ${r.celular ? `📱 ${escapeHtml(r.celular)}<br/>` : ""}
+              ${r.documento ? `🪪 DNI ${escapeHtml(r.documento)}<br/>` : ""}
+              ${sedeNombre ? `📍 Sede ${escapeHtml(sedeNombre)}<br/>` : ""}
+              ${coachNombre ? `👤 Coach ${escapeHtml(coachNombre)}<br/>` : ""}
+              ${r.nota ? `<br/><em>${escapeHtml(r.nota)}</em>` : ""}
+            </div>
+          </div>`;
+          const adminHtml = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+            <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+              <div style="text-align:center;margin-bottom:24px;">
+                <span style="font-size:11px;letter-spacing:3px;color:#888;text-transform:uppercase;">Reybaud Ciclismo · Interno</span>
+              </div>
+              <div style="background:#fff8e1;border:1px solid #f0c69a;color:#5a3d00;padding:10px 14px;border-radius:8px;margin:0 0 16px;font-size:13px;">📬 Copia interna — no responder</div>
+              <h1 style="font-size:22px;color:#0f1115;margin:0 0 12px;">${adminTitle}</h1>
+              <p style="font-size:15px;color:#333;margin:0 0 20px;">${adminIntro}</p>
+              <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px;">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:6px;">Servicio</div>
+                <div style="font-size:16px;color:#0f1115;font-weight:600;margin-bottom:14px;">${escapeHtml(servicioNombre)}</div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:6px;">Fecha y hora</div>
+                <div style="font-size:15px;color:#0f1115;margin-bottom:14px;">${escapeHtml(fechaTxt)} · ${escapeHtml(horaTxt)} hs</div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:6px;">Modalidad</div>
+                <div style="font-size:14px;color:#0f1115;">${escapeHtml(modalidad)}</div>
+              </div>
+              ${alumnoBlock}
+              <p style="font-size:12px;color:#999;margin-top:32px;text-align:center;">Reybaud Ciclismo · <a href="${APP_DOMAIN}" style="color:#999;">reybaud-app.com</a></p>
+            </div></body></html>`;
+
           await supabase.rpc("enqueue_email", {
             queue_name: "transactional_emails",
             payload: {
