@@ -470,9 +470,16 @@ const EventForm = ({
                 {uploading ? "Subiendo..." : "Hacé clic para subir una imagen"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP — máx. 5MB</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Recomendado: <strong className="text-foreground font-medium">1200 × 900 px (4:3)</strong>. Mínimo 800 × 600 px.
+              <p className="text-xs text-muted-foreground mt-2">
+                <strong className="text-foreground font-medium">Medida ideal: 1600 × 1200 px (4:3)</strong> · Mínimo 1200 × 900 px.
               </p>
+              <p className="text-[11px] text-muted-foreground/80 mt-1 leading-snug">
+                ⚠️ La misma imagen se usa en varios lugares (tarjeta 4:3, destacado ancho 21:9, portada de detalle).
+                Mantené <strong className="text-foreground/90">título, caras y logo dentro del tercio central vertical</strong> (zona segura ≈ 1600 × 700 px al centro).
+                Evitá texto en los bordes superior e inferior — se recorta en el slider destacado.
+              </p>
+
+
 
             </div>
           )}
