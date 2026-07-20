@@ -3,7 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const CALENDAR_ID = "c_bb8012c23102415cdee4dd2209226311d060fae683d1482108b0580cd23fcf54@group.calendar.google.com";
+const CALENDAR_ID = "c_bb8012c231024152cdee4dd2209226311d060fae683d148210b0580cd23fcf54@group.calendar.google.com";
 const GATEWAY_BASE = "https://connector-gateway.lovable.dev/google_calendar/calendar/v3";
 const TZ = "America/Argentina/Buenos_Aires";
 
