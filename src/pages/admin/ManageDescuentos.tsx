@@ -197,7 +197,7 @@ const ManageDescuentos = () => {
   });
 
   const resetForm = () => {
-    setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", activo: true });
+    setForm({ nombre: "", tipo: "porcentaje", categoria: "general", valor: 0, codigo: "", max_usos: "", aplica_a: "todo", vigencia_desde: "", vigencia_hasta: "", evento_id: "", activo: true });
     setEditing(null);
   };
 
@@ -215,6 +215,7 @@ const ManageDescuentos = () => {
       aplica_a: d.aplica_a,
       vigencia_desde: d.vigencia_desde || "",
       vigencia_hasta: d.vigencia_hasta || "",
+      evento_id: d.evento_id || "",
       activo: d.activo,
     });
     setDialogOpen(true);
@@ -236,6 +237,7 @@ const ManageDescuentos = () => {
       aplica_a: form.aplica_a,
       vigencia_desde: form.vigencia_desde || null,
       vigencia_hasta: form.vigencia_hasta || null,
+      evento_id: form.aplica_a === "eventos" && form.evento_id ? form.evento_id : null,
       activo: form.activo,
     };
 
