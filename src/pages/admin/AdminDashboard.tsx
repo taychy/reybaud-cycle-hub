@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscriptionStatus";
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import BirthdayWidget from "@/components/admin/BirthdayWidget";
+import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 
 interface MetricCard {
   label: string;
