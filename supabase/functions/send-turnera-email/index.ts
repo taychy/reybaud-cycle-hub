@@ -451,6 +451,12 @@ async function handleTransferenciaEmail(
       bodyHtml = detalleReserva;
       cta = { label: "Volver a reservar", url: `${APP_DOMAIN}` };
       break;
+    case "transferencia_comprobante_recibido":
+      subject = `Recibimos tu comprobante · ${servicioNombre}`;
+      title = "📩 Recibimos tu comprobante";
+      intro = `Gracias por enviar el comprobante de transferencia. Nuestro equipo lo está revisando y te vamos a avisar por email en cuanto lo validemos. Mientras tanto, tu turno queda <strong>reservado</strong>.`;
+      bodyHtml = detalleReserva;
+      break;
     case "admin_nuevo_comprobante": {
       recipient = cfgMap.admin_notification_email || "natalia@ciclismoreybaud.com";
       recipientName = "equipo Reybaud";
