@@ -608,13 +608,31 @@ const ManageDescuentos = () => {
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Aplica a</label>
-              <Select value={form.aplica_a} onValueChange={v => setForm(f => ({ ...f, aplica_a: v }))}>
+              <Select value={form.aplica_a} onValueChange={v => setForm(f => ({ ...f, aplica_a: v, evento_id: v === "eventos" ? f.evento_id : "" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {aplicaOpciones.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {form.aplica_a === "eventos" && (
+              <div>
+                <label className="text-sm text-muted-foreground">Evento específico (opcional)</label>
+                <Select
+                  value={form.evento_id || "__all__"}
+                  onValueChange={v => setForm(f => ({ ...f, evento_id: v === "__all__" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Todos los eventos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos los eventos</SelectItem>
+                    {eventos.map(e => <SelectItem key={e.id} value={e.id}>{e.titulo}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Si elegís un evento, este descuento sólo se aplica en ese evento. Dejá "Todos los eventos" para que sirva en cualquier evento.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm text-muted-foreground">Vigencia desde (opcional)</label>
