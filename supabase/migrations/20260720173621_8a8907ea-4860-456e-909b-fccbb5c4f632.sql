@@ -1,0 +1,1 @@
+UPDATE app_config SET value = '"c_bb8012c231024152cdee4dd2209226311d060fae683d148210b0580cd23fcf54@group.calendar.google.com"'::jsonb WHERE key = 'google_calendar_clases_id';
