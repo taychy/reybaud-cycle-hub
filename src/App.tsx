@@ -50,6 +50,7 @@ import AdminCierreCaja from "./pages/admin/AdminCierreCaja";
 import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
 import AdminBilling from "./pages/admin/billing/AdminBilling";
 import AdminDeliveryPayments from "./pages/admin/AdminDeliveryPayments";
+import AdminEntregasCaja from "./pages/admin/AdminEntregasCaja";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
