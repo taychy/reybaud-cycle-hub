@@ -654,7 +654,7 @@ const EventDetail = () => {
           {!isActiveReservation && (isPaid || priceDisplay.mode === "gratuito" || event.max_capacity || event.duration_days) && (
             <div className="glass-card rounded-xl p-5 space-y-4">
               {isPaid && (() => {
-                const disc = applyDiscount(priceDisplay.price!, "eventos");
+                const disc = applyDiscount(priceDisplay.price!, "eventos", false, id);
                 return (
                 <div className="flex items-baseline justify-between">
                   <div>
