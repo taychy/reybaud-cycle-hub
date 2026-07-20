@@ -484,6 +484,46 @@ const DepositoEntregaDetail = () => {
         </DialogContent>
       </Dialog>
       <HistoryDialog open={showHistory} onOpenChange={setShowHistory} listId={list.id} />
+
+      <AlertDialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) setConfirmToggle(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmToggle?.next ? "¿Confirmás que este ítem está preparado?" : "¿Desmarcar este ítem?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmToggle && (
+                <>
+                  <span className="block font-medium text-foreground mt-1">
+                    {confirmToggle.item.cantidad > 1 ? `${confirmToggle.item.cantidad}× ` : ""}
+                    {confirmToggle.item.producto}
+                  </span>
+                  {formatVariant(confirmToggle.item.variante) && (
+                    <span className="block text-xs text-muted-foreground">{formatVariant(confirmToggle.item.variante)}</span>
+                  )}
+                  <span className="block text-xs text-muted-foreground mt-1">Cliente: {confirmToggle.item.cliente_nombre}</span>
+                  {!confirmToggle.next && (
+                    <span className="block text-xs text-amber-600 mt-2">
+                      Este ítem ya estaba marcado como preparado. Solo desmarcalo si fue un error.
+                    </span>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmToggle) applyToggle(confirmToggle.item, confirmToggle.next);
+                setConfirmToggle(null);
+              }}
+            >
+              {confirmToggle?.next ? "Sí, marcar preparado" : "Sí, desmarcar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
