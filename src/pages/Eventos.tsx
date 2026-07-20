@@ -314,7 +314,7 @@ const FeaturedBanner = ({
 
   return (
     <div className="relative rounded-2xl overflow-hidden cursor-pointer group" onClick={() => onSelect(ev.id)}>
-      <div className="aspect-[2/1] md:aspect-[3/1]">
+      <div className="aspect-[4/3] md:aspect-[21/9]">
         <img
           src={ev.image_url || placeholderImages[ev.type] || placeholderImages.otro}
           alt={ev.title}
