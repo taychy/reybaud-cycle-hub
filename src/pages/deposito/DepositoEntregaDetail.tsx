@@ -153,7 +153,7 @@ const DepositoEntregaDetail = () => {
     return { total, prep, pct: total ? Math.round((prep / total) * 100) : 0 };
   }, [items]);
 
-  const toggleItem = async (item: DeliveryItem, checked: boolean) => {
+  const applyToggle = async (item: DeliveryItem, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
     const { data: userRes } = await supabase.auth.getUser();
     const { error } = await supabase
@@ -165,6 +165,15 @@ const DepositoEntregaDetail = () => {
       fetch();
     }
   };
+
+  const requestToggle = (item: DeliveryItem, checked: boolean) => {
+    // Safety: always confirm when unchecking an already-prepared item.
+    // Also confirm marking as prepared unless "Modo rápido" is enabled.
+    if (checked && modoRapido) return applyToggle(item, true);
+    if (!checked && !item.preparado) return applyToggle(item, false);
+    setConfirmToggle({ item, next: checked });
+  };
+
 
   const removeItem = async (item: DeliveryItem) => {
     if (!confirm("¿Eliminar este ítem?")) return;
