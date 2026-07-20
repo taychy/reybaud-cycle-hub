@@ -366,7 +366,7 @@ const DepositoEntregaDetail = () => {
                       >
                         <Checkbox
                           checked={it.preparado}
-                          onCheckedChange={(v) => toggleItem(it, !!v)}
+                          onCheckedChange={(v) => requestToggle(it, !!v)}
                           className="mt-0.5"
                         />
                         <div className="flex-1 min-w-0">
