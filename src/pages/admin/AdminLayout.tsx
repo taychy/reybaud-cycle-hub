@@ -60,6 +60,7 @@ const storeItems: NavItem[] = [
   { to: "/admin/tienda/stock", label: "Stock", icon: Package },
   { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/admin/tienda/cambios", label: "Cambios", icon: RefreshCw },
+  { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck },
 ];
 
 const navSections: NavSection[] = [
