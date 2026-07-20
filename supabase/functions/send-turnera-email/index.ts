@@ -158,6 +158,7 @@ Deno.serve(async (req) => {
       "transferencia_expirada",
       "transferencia_aprobada",
       "transferencia_rechazada",
+      "transferencia_comprobante_recibido",
       "admin_nuevo_comprobante",
     ]);
     if (TRANSFER_TIPOS.has(tipo)) {
