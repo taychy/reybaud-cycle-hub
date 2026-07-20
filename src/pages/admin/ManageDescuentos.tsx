@@ -27,8 +27,11 @@ interface Descuento {
   aplica_a: string;
   vigencia_desde: string | null;
   vigencia_hasta: string | null;
+  evento_id: string | null;
   created_at: string;
 }
+
+interface EventoOpt { id: string; titulo: string; }
 
 interface DescuentoAlumno {
   id: string;
