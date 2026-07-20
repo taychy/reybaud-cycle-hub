@@ -277,6 +277,54 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "queue_failed", detail: qErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Copia al admin para confirmacion / coach_aviso
+    if (tipo === "confirmacion" || tipo === "coach_aviso") {
+      try {
+        const { data: cfg } = await supabase
+          .from("app_config")
+          .select("value")
+          .eq("key", "admin_notification_email")
+          .maybeSingle();
+        const rawAdmin = (cfg?.value as any) ?? "";
+        const adminEmailStr = typeof rawAdmin === "string" ? rawAdmin : String(rawAdmin || "");
+        const adminEmails = adminEmailStr
+          .split(/[,;]/)
+          .map((e: string) => e.trim())
+          .filter((e: string) => e && e.includes("@"));
+        if (adminEmails.length === 0) adminEmails.push("natalia@ciclismoreybaud.com");
+
+        for (const adm of adminEmails) {
+          if (normalizeEmail(adm) === normalizeEmail(recipientEmail)) continue;
+          const admMsgId = crypto.randomUUID();
+          const admToken = await getOrCreateUnsubscribeToken(supabase, adm);
+          const adminSubject = tipo === "coach_aviso"
+            ? `[Admin] Nueva reserva · ${servicioNombre} · ${fechaTxt} ${fmtHora(r.hora_inicio as string)} · ${r.nombre} ${r.apellido || ""}`.trim()
+            : `[Admin] Reserva confirmada · ${servicioNombre} · ${fechaTxt} · ${r.nombre} ${r.apellido || ""}`.trim();
+          const adminBanner = `<div style="background:#fff8e1;border:1px solid #f0c69a;color:#5a3d00;padding:10px 14px;border-radius:8px;margin:0 0 16px;font-size:13px;">📬 Copia interna — reserva de turnera</div>`;
+          const adminHtml = html.replace('<div style="max-width:600px;margin:0 auto;padding:32px 24px;">', `<div style="max-width:600px;margin:0 auto;padding:32px 24px;">${adminBanner}`);
+          await supabase.rpc("enqueue_email", {
+            queue_name: "transactional_emails",
+            payload: {
+              message_id: admMsgId,
+              to: adm,
+              from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+              sender_domain: SENDER_DOMAIN,
+              subject: adminSubject,
+              html: adminHtml,
+              text: `${adminSubject}\n\n${fechaTxt} ${horaTxt}`,
+              purpose: "transactional",
+              label: `turnera_${tipo}_admin`,
+              idempotency_key: `turnera-${tipo}-admin-${r.id}-${adm}`,
+              unsubscribe_token: admToken,
+              queued_at: new Date().toISOString(),
+            },
+          });
+        }
+      } catch (e) {
+        console.error("[send-turnera-email] admin copy error:", (e as Error).message);
+      }
+    }
+
     // Mark reminder as sent so cron doesn't re-send
     if (tipo === "recordatorio") {
       await supabase.from("reservas_turnera").update({ recordatorio_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
