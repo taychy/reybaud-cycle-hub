@@ -6783,6 +6783,10 @@ export type Database = {
           fecha: string
           fecha_nacimiento: string | null
           form_responses: Json
+          google_event_id: string | null
+          google_sync_error: string | null
+          google_sync_status: string | null
+          google_synced_at: string | null
           hold_expira_at: string | null
           hora_fin: string
           hora_inicio: string
@@ -6826,6 +6830,10 @@ export type Database = {
           fecha: string
           fecha_nacimiento?: string | null
           form_responses?: Json
+          google_event_id?: string | null
+          google_sync_error?: string | null
+          google_sync_status?: string | null
+          google_synced_at?: string | null
           hold_expira_at?: string | null
           hora_fin: string
           hora_inicio: string
@@ -6869,6 +6877,10 @@ export type Database = {
           fecha?: string
           fecha_nacimiento?: string | null
           form_responses?: Json
+          google_event_id?: string | null
+          google_sync_error?: string | null
+          google_sync_status?: string | null
+          google_synced_at?: string | null
           hold_expira_at?: string | null
           hora_fin?: string
           hora_inicio?: string
