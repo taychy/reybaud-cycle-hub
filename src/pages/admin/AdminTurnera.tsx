@@ -331,11 +331,16 @@ const AdminTurnera = () => {
           </Dialog>
 
           {servicios.map(s => (
-            <Card key={s.id} className="bg-card border-border">
+            <Card key={s.id} className={`bg-card border-border ${s.activo === false ? "opacity-60" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-foreground">{s.nombre}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground">{s.nombre}</p>
+                      <Badge variant={s.activo === false ? "outline" : "default"} className="text-[10px]">
+                        {s.activo === false ? "Inactivo" : "Activo"}
+                      </Badge>
+                    </div>
                     <p className="text-xs text-muted-foreground">{s.descripcion || "Sin descripción"}</p>
                     <div className="flex gap-2 mt-2">
                       <Badge variant="secondary" className="text-xs">{s.duracion_minutos} min</Badge>
@@ -343,7 +348,24 @@ const AdminTurnera = () => {
                       <Badge variant="outline" className="text-xs">{s.modalidad}</Badge>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5" title={s.activo === false ? "Activar servicio" : "Desactivar servicio"}>
+                      <Switch
+                        checked={s.activo !== false}
+                        onCheckedChange={async (checked) => {
+                          const { error } = await supabase
+                            .from("servicios_turnera")
+                            .update({ activo: checked } as any)
+                            .eq("id", s.id);
+                          if (error) {
+                            toast({ title: "Error", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          setServicios((prev) => prev.map((x) => (x.id === s.id ? { ...x, activo: checked } : x)));
+                          toast({ title: checked ? "Servicio activado" : "Servicio desactivado" });
+                        }}
+                      />
+                    </div>
                     <Button variant="ghost" size="icon" onClick={() => setConfigServ(s)} title="Configurar">
                       <Settings className="w-4 h-4" />
                     </Button>
