@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Link2,
   Upload,
@@ -29,6 +39,8 @@ import {
   UserRound,
   Search,
   History,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
