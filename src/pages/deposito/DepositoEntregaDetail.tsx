@@ -103,6 +103,15 @@ const DepositoEntregaDetail = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [search, setSearch] = useState("");
   const excelRef = useRef<HTMLInputElement>(null);
+  const [modoRapido, setModoRapido] = useState<boolean>(() => {
+    try { return localStorage.getItem("delivery_modo_rapido") === "1"; } catch { return false; }
+  });
+  const [confirmToggle, setConfirmToggle] = useState<{ item: DeliveryItem; next: boolean } | null>(null);
+
+  const setModoRapidoPersist = (v: boolean) => {
+    setModoRapido(v);
+    try { localStorage.setItem("delivery_modo_rapido", v ? "1" : "0"); } catch { /* ignore */ }
+  };
 
   const fetch = async () => {
     if (!id) return;
