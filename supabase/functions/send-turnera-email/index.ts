@@ -51,6 +51,79 @@ const fmtDateAR = (iso: string) => {
 
 const fmtHora = (t: string) => t.substring(0, 5);
 
+// Devuelve "mañana", "hoy" o "el <fecha>" respecto de la fecha actual en zona AR (UTC-3).
+const whenLabelAR = (isoFecha: string): string => {
+  const [y, m, d] = isoFecha.split("-").map(Number);
+  // "Hoy" en AR: fecha actual UTC desplazada -3h
+  const now = new Date(Date.now() - 3 * 3600 * 1000);
+  const hoy = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const target = new Date(Date.UTC(y, m - 1, d));
+  const diff = Math.round((target.getTime() - hoy.getTime()) / 86400000);
+  if (diff === 0) return "hoy";
+  if (diff === 1) return "mañana";
+  return `el ${fmtDateAR(isoFecha)}`;
+};
+
+// Link de Google Maps por sede — matching por nombre.
+const sedeMapsLink = (sedeNombre: string): string | null => {
+  const n = (sedeNombre || "").toLowerCase();
+  if (n.includes("kdt")) return "https://maps.app.goo.gl/MixfSzuLDWhskfhx9";
+  if (n.includes("sarmiento")) return "https://maps.app.goo.gl/ik45eU5bt2yyDJhN9";
+  return null;
+};
+
+// Normaliza teléfono AR a formato wa.me (549 + área + número, solo dígitos).
+const normalizePhoneWA = (raw: string | null | undefined): string | null => {
+  if (!raw) return null;
+  let d = String(raw).replace(/\D/g, "");
+  if (d.length < 8) return null;
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("549")) d = d.slice(3);
+  else if (d.startsWith("54")) d = d.slice(2);
+  while (d.startsWith("0")) d = d.slice(1);
+  if (d.length > 10) {
+    for (const areaLen of [2, 3, 4]) {
+      if (d.length - areaLen >= 8 && d.substring(areaLen, areaLen + 2) === "15") {
+        const c = d.substring(0, areaLen) + d.substring(areaLen + 2);
+        if (c.length === 10) { d = c; break; }
+      }
+    }
+  }
+  if (d.length < 10 || d.length > 11) return null;
+  d = d.slice(-10);
+  return "549" + d;
+};
+
+// Construye el mensaje precargado que el coach enviará al alumno por WhatsApp.
+const buildCoachWaMessage = (opts: {
+  alumnoNombre: string;
+  coachNombre: string;
+  fecha: string;       // YYYY-MM-DD
+  hora: string;        // HH:MM
+  sedeNombre: string;
+  mapsLink: string | null;
+}): string => {
+  const cuando = whenLabelAR(opts.fecha);
+  const sede = opts.sedeNombre || "la sede";
+  const maps = opts.mapsLink ? `\n\nUbicación de ${sede}: ${opts.mapsLink}` : "";
+  return (
+`Hola ${opts.alumnoNombre}, soy ${opts.coachNombre} tu profe de Ciclismo. ¡Un gusto!
+
+Te escribo para recordarte que ${cuando} tenés clase a las ${opts.hora} en ${sede}.
+
+También quiero recordarte los elementos que vas a necesitar: casco, lentes, zapas, bici con ruedas infladas y cadena lubricada.
+
+En la entrada de ${sede} te cobran para usar las instalaciones del parque, llevate efectivo.${maps}
+
+Te espero en la entrada de la pista, está después del estacionamiento. Vas a ver a los ciclistas yendo hacia esa puerta.
+
+Cualquier duda estoy a tu disposición.
+
+¡Muchas gracias!
+${opts.coachNombre}`
+  );
+};
+
 const googleCalLink = (title: string, fecha: string, hi: string, hf: string, desc: string, loc: string) => {
   const pad = (n: number) => String(n).padStart(2, "0");
   const [y, m, d] = fecha.split("-").map(Number);
@@ -230,21 +303,46 @@ Deno.serve(async (req) => {
       gcalUrl: gcal,
     });
 
-    // For coach: append alumno contact block
+    // For coach: append alumno contact block + botón WhatsApp con mensaje precargado
     if (tipo === "coach_aviso") {
+      const alumnoNombreFull = `${r.nombre} ${r.apellido || ""}`.trim();
+      const alumnoFirstName = (r.nombre || "").split(" ")[0] || alumnoNombreFull;
+      const waPhone = normalizePhoneWA(r.celular as string);
+      const mapsLink = sedeMapsLink(sedeNombre);
+      const waMsg = buildCoachWaMessage({
+        alumnoNombre: alumnoFirstName,
+        coachNombre: (recipientName || "").split(" ")[0] || recipientName || "tu profe",
+        fecha: r.fecha as string,
+        hora: fmtHora(r.hora_inicio as string),
+        sedeNombre,
+        mapsLink,
+      });
+      const waUrl = waPhone
+        ? `https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`
+        : null;
+
+      const waBlock = waUrl
+        ? `<div style="margin:20px 0;text-align:center;">
+             <a href="${waUrl}" style="background:#25D366;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:15px;font-weight:700;display:inline-block;">💬 Enviar confirmación por WhatsApp al alumno</a>
+             <div style="font-size:12px;color:#888;margin-top:8px;">El mensaje se abre precargado — solo tenés que apretar enviar.</div>
+           </div>`
+        : `<div style="margin:20px 0;padding:12px;background:#fff8e1;border:1px solid #f0c69a;border-radius:8px;font-size:13px;color:#5a3d00;">⚠️ El alumno no dejó un celular válido, por lo que no podemos armar el botón de WhatsApp.</div>`;
+
       const contactBlock = `<div style="background:#fff5ec;border:1px solid #f0c69a;border-radius:12px;padding:16px;margin-top:16px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Datos del alumno</div>
         <div style="font-size:14px;color:#0f1115;line-height:1.6;">
-          <strong>${escapeHtml(`${r.nombre} ${r.apellido || ""}`.trim())}</strong><br/>
+          <strong>${escapeHtml(alumnoNombreFull)}</strong><br/>
           ${r.email ? `📧 ${escapeHtml(r.email)}<br/>` : ""}
           ${r.celular ? `📱 ${escapeHtml(r.celular)}<br/>` : ""}
           ${r.documento ? `🪪 DNI ${escapeHtml(r.documento)}<br/>` : ""}
           ${sedeNombre ? `📍 Sede ${escapeHtml(sedeNombre)}<br/>` : ""}
           ${r.nota ? `<br/><em>${escapeHtml(r.nota)}</em>` : ""}
         </div>
-      </div>`;
+      </div>
+      ${waBlock}`;
       html = html.replace("</div></body></html>", `${contactBlock}</div></body></html>`);
     }
+
 
     const subjects: Record<Tipo, string> = {
       confirmacion: `Reserva confirmada · ${servicioNombre} · ${fechaTxt}`,
