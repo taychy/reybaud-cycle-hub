@@ -1,0 +1,1 @@
+GRANT SELECT ON public.coaches_public TO anon, authenticated;
