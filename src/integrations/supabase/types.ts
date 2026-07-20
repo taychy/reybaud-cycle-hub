@@ -1870,11 +1870,13 @@ export type Database = {
           cantidad: number
           cliente_alumno_id: string | null
           cliente_nombre: string
+          costo_unitario: number | null
           created_at: string
           id: string
           list_id: string
           notas: string | null
           posicion: number
+          precio_venta: number | null
           preparado: boolean
           preparado_at: string | null
           preparado_by: string | null
@@ -1894,11 +1896,13 @@ export type Database = {
           cantidad?: number
           cliente_alumno_id?: string | null
           cliente_nombre: string
+          costo_unitario?: number | null
           created_at?: string
           id?: string
           list_id: string
           notas?: string | null
           posicion?: number
+          precio_venta?: number | null
           preparado?: boolean
           preparado_at?: string | null
           preparado_by?: string | null
@@ -1918,11 +1922,13 @@ export type Database = {
           cantidad?: number
           cliente_alumno_id?: string | null
           cliente_nombre?: string
+          costo_unitario?: number | null
           created_at?: string
           id?: string
           list_id?: string
           notas?: string | null
           posicion?: number
+          precio_venta?: number | null
           preparado?: boolean
           preparado_at?: string | null
           preparado_by?: string | null
@@ -2033,45 +2039,128 @@ export type Database = {
       }
       delivery_lists: {
         Row: {
+          caja_abierta_at: string | null
+          caja_abierta_por: string | null
+          caja_cerrada_at: string | null
+          caja_cerrada_por: string | null
+          caja_estado: string
+          costo_total_mercaderia: number | null
           created_at: string
           created_by: string | null
           descripcion: string | null
           estado: string
           fecha_entrega: string | null
           id: string
+          moneda_costo: string | null
+          notas_cierre: string | null
           origen: string
+          pagado_a_proveedor: number | null
+          proveedor_nombre: string | null
           public_editable: boolean
           public_token: string
           titulo: string
           updated_at: string
         }
         Insert: {
+          caja_abierta_at?: string | null
+          caja_abierta_por?: string | null
+          caja_cerrada_at?: string | null
+          caja_cerrada_por?: string | null
+          caja_estado?: string
+          costo_total_mercaderia?: number | null
           created_at?: string
           created_by?: string | null
           descripcion?: string | null
           estado?: string
           fecha_entrega?: string | null
           id?: string
+          moneda_costo?: string | null
+          notas_cierre?: string | null
           origen?: string
+          pagado_a_proveedor?: number | null
+          proveedor_nombre?: string | null
           public_editable?: boolean
           public_token?: string
           titulo: string
           updated_at?: string
         }
         Update: {
+          caja_abierta_at?: string | null
+          caja_abierta_por?: string | null
+          caja_cerrada_at?: string | null
+          caja_cerrada_por?: string | null
+          caja_estado?: string
+          costo_total_mercaderia?: number | null
           created_at?: string
           created_by?: string | null
           descripcion?: string | null
           estado?: string
           fecha_entrega?: string | null
           id?: string
+          moneda_costo?: string | null
+          notas_cierre?: string | null
           origen?: string
+          pagado_a_proveedor?: number | null
+          proveedor_nombre?: string | null
           public_editable?: boolean
           public_token?: string
           titulo?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      delivery_supplier_payments: {
+        Row: {
+          comprobante_url: string | null
+          created_at: string
+          delivery_list_id: string
+          fecha: string
+          id: string
+          metodo: string
+          moneda: string
+          monto: number
+          notas: string | null
+          registrado_por: string | null
+          registrado_por_nombre: string | null
+          updated_at: string
+        }
+        Insert: {
+          comprobante_url?: string | null
+          created_at?: string
+          delivery_list_id: string
+          fecha?: string
+          id?: string
+          metodo?: string
+          moneda?: string
+          monto: number
+          notas?: string | null
+          registrado_por?: string | null
+          registrado_por_nombre?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comprobante_url?: string | null
+          created_at?: string
+          delivery_list_id?: string
+          fecha?: string
+          id?: string
+          metodo?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          registrado_por?: string | null
+          registrado_por_nombre?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_supplier_payments_delivery_list_id_fkey"
+            columns: ["delivery_list_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deposito_profiles: {
         Row: {
@@ -10204,6 +10293,10 @@ export type Database = {
         }
         Returns: string
       }
+      close_delivery_cash: {
+        Args: { p_list_id: string; p_notas?: string }
+        Returns: undefined
+      }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
@@ -10296,6 +10389,26 @@ export type Database = {
         Returns: string
       }
       delivery_get_by_token: { Args: { _token: string }; Returns: Json }
+      delivery_list_summary_row: {
+        Args: { p_list_id: string }
+        Returns: {
+          caja_estado: string
+          cobros_sin_validar: number
+          costo_total_mercaderia: number
+          esperado_cobrar: number
+          items_entregados: number
+          items_pendientes: number
+          items_total: number
+          list_id: string
+          margen_bruto: number
+          pagado_a_proveedor: number
+          saldo_a_proveedor: number
+          titulo: string
+          total_cobrado: number
+          total_cobrado_validado: number
+          total_pendiente: number
+        }[]
+      }
       delivery_toggle_item_by_token: {
         Args: { _item_id: string; _preparado: boolean; _token: string }
         Returns: boolean
@@ -10905,6 +11018,7 @@ export type Database = {
         Args: { _roommate_id: string }
         Returns: Json
       }
+      reopen_delivery_cash: { Args: { p_list_id: string }; Returns: undefined }
       request_baja_alumno: {
         Args: {
           p_alumno_id: string

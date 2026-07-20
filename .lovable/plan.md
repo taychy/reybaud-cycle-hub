@@ -1,54 +1,98 @@
-# Captura de contactos de WhatsApp Web (Natalia)
 
-Objetivo: cuando Natalia atiende WhatsApp Web en la compu, quede registrado el contacto (nombre, apellido, email, teléfono) en Reybaud sí o sí, y si ya es alumno se auto-vincule.
+# Caja de Entregas + Alerta en Dashboard Admin
 
-## Alcance (fase 1)
+## Modelo elegido (según tus respuestas)
 
-**Sí incluye:**
-1. Edge function `register-whatsapp-contact` que recibe `{ nombre, apellido, email, telefono, notas }` y decide: vincular a `alumnos` existente por teléfono normalizado o email, o crear en `marketing_contacts` como prospecto.
-2. Panel admin `/admin/contactos-whatsapp` con listado, filtro por día/quién atendió/estado (alumno vs prospecto), y contador de conversión.
-3. Extensión Chrome MV3 que se pega al costado de WhatsApp Web con un mini-form (nombre, apellido, email, teléfono pre-cargado del chat abierto si se puede leer del DOM, notas). Botón "Guardar en Reybaud". Login con `natalia@ciclismoreybaud.com` vía magic link (usa sesión de Reybaud). Empaquetado como zip descargable desde `/admin/contactos-whatsapp`.
+- **Una caja por `delivery_list`**: se abre al crear la lista, se cierra cuando el operador termina de entregar/cobrar. Contabilidad atada al lote (ej: "Santini Invierno").
+- **Cobros entran directo a la caja** al informarlos el entregador (sin fricción). Admin ve alerta pero no bloquea.
+- **Cierre exportable** con totales por moneda × método, ítems no entregados y PDF.
+- **Dashboard admin**: widget "Tienda / Entregas" con cobros sin validar, entregas pendientes, total cobrado (caja abierta), estado de caja, **costo de mercadería, pagos a proveedor, total por cobrar**.
 
-**No incluye (fase 2, después):**
-- Auto-lectura de mensajes del chat.
-- Envío automático de las 3 preguntas al contacto por WhatsApp (Meta no lo permite sin API oficial).
-- Sincronizar Google Contacts (queda pendiente en `.lovable/pendientes.md`, lo hablamos después como pidió).
+## Cambios de base de datos
 
-## Detalle técnico
+### 1. Ampliar `delivery_lists`
+Nuevos campos para la contabilidad del lote:
+- `caja_estado` (enum: `abierta` | `cerrada`) — por defecto `abierta` al crear la lista.
+- `caja_abierta_at`, `caja_abierta_por`, `caja_cerrada_at`, `caja_cerrada_por`.
+- `costo_total_mercaderia` (numeric) — cuánto costó comprar toda la mercadería al proveedor.
+- `pagado_a_proveedor` (numeric) — cuánto ya se le pagó al proveedor.
+- `moneda_costo` (text, default 'ARS') — moneda del costo.
+- `notas_cierre` (text).
 
-### 1. DB
-- Tabla `marketing_contacts` ya existe (20 columnas). Reusar. Verificar que tenga: `nombre`, `apellido`, `email`, `telefono`, `telefono_normalizado`, `origen`, `capturado_por_email`, `capturado_por_id`, `alumno_id` (nullable), `notas`, `created_at`. Si falta alguno, migración chica para agregarlo.
-- Índice único suave: `telefono_normalizado` (para dedupe).
+### 2. Ampliar `delivery_list_items`
+Para el "total por cobrar" y costo unitario:
+- `costo_unitario` (numeric) — costo del ítem al proveedor.
+- `precio_venta` (numeric) — precio de venta al cliente (ya existe si guardamos precio; verificamos).
 
-### 2. Edge function `register-whatsapp-contact`
-- `verify_jwt = true` (Natalia loguea).
-- Normaliza teléfono con lógica AR (reutilizar `phoneNormalize.ts`, portada a Deno).
-- Busca match:
-  - `alumnos` por `telefono_normalizado` o `email` → si existe, upsert en `marketing_contacts` con `alumno_id` seteado y log a `student_activity_log` ("Contacto WhatsApp registrado por Natalia").
-  - Si no, upsert en `marketing_contacts` como prospecto (`alumno_id = null`).
-- Devuelve `{ status: 'alumno' | 'prospecto', alumno_id?, contact_id }`.
+### 3. Nueva tabla `delivery_supplier_payments`
+Registra pagos parciales al proveedor por lista:
+- `delivery_list_id`, `monto`, `moneda`, `metodo` (efectivo/transferencia/MP/otro), `fecha`, `notas`, `comprobante_url`, `registrado_por`.
 
-### 3. Panel admin `/admin/contactos-whatsapp`
-- Tabs: **Hoy**, **Últimos 7 días**, **Prospectos sin convertir**, **Convertidos a alumno**.
-- Tabla con: fecha, atendido por, nombre, teléfono, email, estado (alumno/prospecto), notas, botón "Ver ficha alumno" o "Crear alumno desde este prospecto".
-- KPI arriba: contactos hoy, % convertidos, prospectos abiertos.
-- Botón "Descargar extensión (.zip)" que sirve el artefacto desde `/public/reybaud-whatsapp.zip`.
+### 4. Vista `delivery_list_summary`
+Vista materializada/función que devuelve por lista:
+- Total esperado a cobrar (Σ `precio_venta` × cantidad de ítems entregados o todos)
+- Total cobrado (Σ `delivery_list_payments` validados o todos según método)
+- Total pendiente = esperado − cobrado
+- Costo mercadería, pagado a proveedor, saldo a proveedor
+- Margen bruto = cobrado − costo
+- Ítems entregados vs pendientes
 
-### 4. Extensión Chrome MV3
-- Estructura en `extension/`:
-  - `manifest.json` con `content_scripts` en `https://web.whatsapp.com/*`.
-  - `content.js` inyecta panel flotante al costado del chat con el mini-form.
-  - `content.js` intenta leer el teléfono del chat activo desde el DOM (best-effort, si Meta cambia el selector se degrada a input manual — no rompe).
-  - `popup.html` para login (magic link a Reybaud) y ver últimos guardados.
-  - `background.js` guarda la sesión en `chrome.storage.local` y llama a la edge function con el token.
-- Empaquetado con `nix run nixpkgs#zip` a `public/reybaud-whatsapp.zip`.
-- README en `/admin/contactos-whatsapp` con los 4 pasos de instalación (Developer mode → Load unpacked).
+## Backend
 
-## Orden de ejecución
-1. Migración chica en `marketing_contacts` si faltan columnas + índice.
-2. Edge function `register-whatsapp-contact` + deploy.
-3. Página `/admin/contactos-whatsapp` (listado + KPIs + descarga).
-4. Extensión Chrome (form + login + integración con edge function) + empaquetado.
-5. Documentar instalación en el panel admin.
+### RPCs / triggers
+- `close_delivery_cash(delivery_list_id)` — cierra la caja, valida que no queden cobros pendientes de validación crítica y genera snapshot final.
+- `reopen_delivery_cash(delivery_list_id)` — solo super admin, para corrección.
+- Trigger que impide registrar cobros/pagos si `caja_estado = 'cerrada'`.
 
-Después de que Natalia lo pruebe una semana, avanzamos con Google Contacts (fase 2, ya está anotado en `.lovable/pendientes.md`).
+### Edge function `import-delivery-costs`
+Importa el Excel de costos del proveedor:
+- Recibe archivo XLSX con columnas producto/cantidad/costo unitario/costo total.
+- Matchea por SKU/nombre contra `delivery_list_items` de una lista específica.
+- Actualiza `costo_unitario` y agrega/actualiza `costo_total_mercaderia`.
+- Opcionalmente registra el primer pago al proveedor si se indica.
+
+## Frontend
+
+### Nueva sección Admin → Tienda → "Entregas / Caja"
+Ruta: `/admin/entregas-caja`
+- Lista de todas las `delivery_lists` con estado de caja (abierta/cerrada), totales resumidos, badge de alertas.
+- Detalle por lista con 4 tabs:
+  1. **Ítems y entregas** (lo que ya existe).
+  2. **Cobros** (con validación admin de comprobantes; entra directo a la caja).
+  3. **Costos y proveedor** — costo de mercadería, importar Excel, pagos al proveedor, saldo.
+  4. **Cierre** — resumen final, botón "Cerrar caja", PDF exportable.
+
+### Widget en `AdminDashboard`
+Nuevo card "Tienda / Entregas":
+- Cobros sin validar (N) → link a validación.
+- Listas con caja abierta (N).
+- Total cobrado hoy por moneda (todas las cajas abiertas).
+- Total por cobrar (esperado − cobrado) de listas activas.
+- Costo mercadería no pagada a proveedor.
+- Botón "Ver detalles".
+
+### Sidebar admin
+Agregar item "Entregas / Caja" dentro de categoría "Tienda".
+
+## Sobre el Excel adjunto
+
+Mencionás que adjuntaste un archivo con costo de mercadería y pagos a proveedor, **pero no lo veo cargado en este mensaje**. Cuando aprobés el plan, adjuntalo en el siguiente mensaje y lo proceso para:
+1. Crear la primera "Lista de entrega" con costos ya cargados, o
+2. Actualizar la lista "Santini Invierno" existente con los costos importados.
+
+## Detalles técnicos
+
+- Todas las tablas nuevas con RLS, GRANT para `authenticated` y `service_role`.
+- Políticas: admin/super_admin ven todo; deposito ve/modifica su lista; alumno solo su propio cobro (ya existe).
+- El widget consulta la vista `delivery_list_summary` con caching de 60s.
+- PDF de cierre: generado client-side con jsPDF (ya usado en otros cierres).
+- Cierre de caja emite evento a `admin_notification_events` para trazabilidad.
+
+## Orden de implementación
+
+1. Migración DB (tablas, vista, triggers, RLS).
+2. Sección Admin `/admin/entregas-caja` con los 4 tabs.
+3. Widget dashboard + item sidebar.
+4. Edge function import-delivery-costs.
+5. PDF de cierre.
+6. Procesar Excel adjunto (después de que lo mandes).

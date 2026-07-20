@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscriptionStatus";
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import BirthdayWidget from "@/components/admin/BirthdayWidget";
+import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 
 interface MetricCard {
   label: string;
@@ -511,6 +512,9 @@ const AdminDashboard = () => {
 
       {/* Cumpleaños */}
       <BirthdayWidget />
+
+      {/* Tienda / Entregas - Caja abierta */}
+      <DeliveryCashWidget />
 
       {/* Alertas operativas - clickable */}
       {alerts.length > 0 && (
