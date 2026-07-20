@@ -124,7 +124,8 @@ export function useStudentDiscounts(alumnoId: string | null) {
   const applyDiscount = (
     price: number,
     context: "planes" | "eventos" | "tienda" | "todo" = "todo",
-    isSecondarySubscription: boolean = false
+    isSecondarySubscription: boolean = false,
+    eventoId?: string | null,
   ): DiscountResult => {
     const applicable = discounts.filter(d => {
       // segunda_actividad: sólo en planes y sólo si es 2da
@@ -135,6 +136,11 @@ export function useStudentDiscounts(alumnoId: string | null) {
       }
       // Otros descuentos: respetar aplica_a
       if (d.aplica_a !== "todo" && d.aplica_a !== context) return false;
+      // Si el descuento está ligado a un evento específico, sólo aplica a ese evento
+      if (d.evento_id) {
+        if (context !== "eventos") return false;
+        if (!eventoId || eventoId !== d.evento_id) return false;
+      }
       return true;
     });
 
@@ -153,7 +159,7 @@ export function useStudentDiscounts(alumnoId: string | null) {
       }
     }
 
-    if (!bestDiscount) return { original: price, final: price, discount: null };
+    if (!bestDiscount) return { original: price, final: bestFinal, discount: null };
     return { original: price, final: bestFinal, discount: bestDiscount };
   };
 
@@ -162,13 +168,18 @@ export function useStudentDiscounts(alumnoId: string | null) {
    * Filtra `segunda_actividad` salvo que el alumno ya califique como 2da.
    */
   const getBestDiscount = (
-    context: "planes" | "eventos" | "tienda" | "todo" = "todo"
+    context: "planes" | "eventos" | "tienda" | "todo" = "todo",
+    eventoId?: string | null,
   ): StudentDiscount | null => {
     const applicable = discounts.filter(d => {
       if (d.categoria === "segunda_actividad") {
         // Sólo lo mostramos si el alumno ya tendría 2da actividad
         if (context !== "planes" && context !== "todo") return false;
         return activeNonPausaCount >= 1;
+      }
+      if (d.evento_id) {
+        if (context !== "eventos") return false;
+        if (!eventoId || eventoId !== d.evento_id) return false;
       }
       return d.aplica_a === "todo" || d.aplica_a === context;
     });
