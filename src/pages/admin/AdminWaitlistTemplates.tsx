@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ClipboardList, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Loader2, Users, Mail, Phone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import WaitlistQuestionsEditor from "@/components/waitlist/WaitlistQuestionsEditor";
-import { WaitlistQuestion } from "@/lib/waitlistTypes";
+import { WaitlistQuestion, STATE_LABELS, STATE_COLORS, WaitlistEntryState } from "@/lib/waitlistTypes";
 
 interface Template {
   id: string;
