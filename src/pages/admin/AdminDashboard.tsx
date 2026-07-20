@@ -513,6 +513,9 @@ const AdminDashboard = () => {
       {/* Cumpleaños */}
       <BirthdayWidget />
 
+      {/* Tienda / Entregas - Caja abierta */}
+      <DeliveryCashWidget />
+
       {/* Alertas operativas - clickable */}
       {alerts.length > 0 && (
         <div className="space-y-2">
