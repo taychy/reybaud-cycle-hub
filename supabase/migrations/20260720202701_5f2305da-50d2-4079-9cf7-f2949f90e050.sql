@@ -1,0 +1,1 @@
+ALTER VIEW public.coaches_public SET (security_invoker = off);
