@@ -470,6 +470,10 @@ const EventForm = ({
                 {uploading ? "Subiendo..." : "Hacé clic para subir una imagen"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP — máx. 5MB</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Recomendado: <strong className="text-foreground font-medium">1200 × 900 px (4:3)</strong>. Mínimo 800 × 600 px.
+              </p>
+
             </div>
           )}
           <input
