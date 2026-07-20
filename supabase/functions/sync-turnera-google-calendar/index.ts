@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
         ? supabase.from("servicios_turnera").select("nombre").eq("id", r.servicio_id).maybeSingle()
         : Promise.resolve({ data: null }),
       r.coach_id
-        ? supabase.from("coaches").select("nombre, apellido, email").eq("id", r.coach_id).maybeSingle()
+        ? supabase.from("coaches").select("nombre, email").eq("id", r.coach_id).maybeSingle()
         : Promise.resolve({ data: null }),
       r.sede_id
         ? supabase.from("sedes").select("nombre").eq("id", r.sede_id).maybeSingle()
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     ]);
 
     const coachFull = coach
-      ? { nombre: `${coach.nombre ?? ""} ${coach.apellido ?? ""}`.trim(), email: coach.email }
+      ? { nombre: coach.nombre ?? "", email: coach.email }
       : null;
 
     const eventPayload = buildEvent(r, servicio, coachFull, sede);
