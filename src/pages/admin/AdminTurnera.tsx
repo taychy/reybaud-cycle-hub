@@ -67,7 +67,11 @@ const AdminTurnera = () => {
     estado_economico: "pagado",
   });
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+    // Marcar todas las reservas como vistas al ingresar (limpia el badge de la sidebar)
+    supabase.rpc("mark_turnera_reservations_seen" as any).then(() => {});
+  }, []);
 
   const loadAll = async () => {
     setLoading(true);
