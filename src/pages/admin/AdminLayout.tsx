@@ -81,23 +81,26 @@ const AdminLayout = () => {
   });
   const [waitlistPending, setWaitlistPending] = useState(0);
   const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
+  const [turneraPending, setTurneraPending] = useState(0);
 
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [{ data: pending }, { data: newEntries }] = await Promise.all([
+      const [{ data: pending }, { data: newEntries }, { data: newTurnera }] = await Promise.all([
         supabase.rpc("count_pending_waitlist_requests" as any),
         supabase.rpc("count_new_waitlist_entries" as any),
+        supabase.rpc("count_new_turnera_reservations" as any),
       ]);
       if (alive) {
         setWaitlistPending(Number(pending ?? 0));
         setWaitlistEntriesPending(Number(newEntries ?? 0));
+        setTurneraPending(Number(newTurnera ?? 0));
       }
     };
     load();
     const iv = setInterval(load, 60000);
     return () => { alive = false; clearInterval(iv); };
-  }, []);
+  }, [location.pathname]);
 
   const toggleCollapsed = () => {
     const next = !collapsed;
