@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Link2,
   Upload,
@@ -29,6 +39,8 @@ import {
   UserRound,
   Search,
   History,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -91,6 +103,15 @@ const DepositoEntregaDetail = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [search, setSearch] = useState("");
   const excelRef = useRef<HTMLInputElement>(null);
+  const [modoRapido, setModoRapido] = useState<boolean>(() => {
+    try { return localStorage.getItem("delivery_modo_rapido") === "1"; } catch { return false; }
+  });
+  const [confirmToggle, setConfirmToggle] = useState<{ item: DeliveryItem; next: boolean } | null>(null);
+
+  const setModoRapidoPersist = (v: boolean) => {
+    setModoRapido(v);
+    try { localStorage.setItem("delivery_modo_rapido", v ? "1" : "0"); } catch { /* ignore */ }
+  };
 
   const fetch = async () => {
     if (!id) return;
@@ -132,7 +153,7 @@ const DepositoEntregaDetail = () => {
     return { total, prep, pct: total ? Math.round((prep / total) * 100) : 0 };
   }, [items]);
 
-  const toggleItem = async (item: DeliveryItem, checked: boolean) => {
+  const applyToggle = async (item: DeliveryItem, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
     const { data: userRes } = await supabase.auth.getUser();
     const { error } = await supabase
@@ -144,6 +165,15 @@ const DepositoEntregaDetail = () => {
       fetch();
     }
   };
+
+  const requestToggle = (item: DeliveryItem, checked: boolean) => {
+    // Safety: always confirm when unchecking an already-prepared item.
+    // Also confirm marking as prepared unless "Modo rápido" is enabled.
+    if (checked && modoRapido) return applyToggle(item, true);
+    if (!checked && !item.preparado) return applyToggle(item, false);
+    setConfirmToggle({ item, next: checked });
+  };
+
 
   const removeItem = async (item: DeliveryItem) => {
     if (!confirm("¿Eliminar este ítem?")) return;
@@ -252,6 +282,18 @@ const DepositoEntregaDetail = () => {
                 <><Lock className="w-3.5 h-3.5 mr-1" /> Solo lectura</>
               )}
             </Button>
+            <Button
+              variant={modoRapido ? "default" : "outline"}
+              size="sm"
+              onClick={() => setModoRapidoPersist(!modoRapido)}
+              title={modoRapido ? "Los ítems se marcan sin confirmación" : "Cada check pide confirmación"}
+            >
+              {modoRapido ? (
+                <><Zap className="w-3.5 h-3.5 mr-1" /> Modo rápido</>
+              ) : (
+                <><ShieldCheck className="w-3.5 h-3.5 mr-1" /> Confirmar chequeos</>
+              )}
+            </Button>
             <Button variant="outline" size="sm" onClick={closeList}>
               {list.estado === "abierta" ? "Cerrar lista" : "Reabrir"}
             </Button>
@@ -336,7 +378,7 @@ const DepositoEntregaDetail = () => {
                       >
                         <Checkbox
                           checked={it.preparado}
-                          onCheckedChange={(v) => toggleItem(it, !!v)}
+                          onCheckedChange={(v) => requestToggle(it, !!v)}
                           className="mt-0.5"
                         />
                         <div className="flex-1 min-w-0">
@@ -442,6 +484,46 @@ const DepositoEntregaDetail = () => {
         </DialogContent>
       </Dialog>
       <HistoryDialog open={showHistory} onOpenChange={setShowHistory} listId={list.id} />
+
+      <AlertDialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) setConfirmToggle(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmToggle?.next ? "¿Confirmás que este ítem está preparado?" : "¿Desmarcar este ítem?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmToggle && (
+                <>
+                  <span className="block font-medium text-foreground mt-1">
+                    {confirmToggle.item.cantidad > 1 ? `${confirmToggle.item.cantidad}× ` : ""}
+                    {confirmToggle.item.producto}
+                  </span>
+                  {formatVariant(confirmToggle.item.variante) && (
+                    <span className="block text-xs text-muted-foreground">{formatVariant(confirmToggle.item.variante)}</span>
+                  )}
+                  <span className="block text-xs text-muted-foreground mt-1">Cliente: {confirmToggle.item.cliente_nombre}</span>
+                  {!confirmToggle.next && (
+                    <span className="block text-xs text-amber-600 mt-2">
+                      Este ítem ya estaba marcado como preparado. Solo desmarcalo si fue un error.
+                    </span>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmToggle) applyToggle(confirmToggle.item, confirmToggle.next);
+                setConfirmToggle(null);
+              }}
+            >
+              {confirmToggle?.next ? "Sí, marcar preparado" : "Sí, desmarcar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
