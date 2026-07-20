@@ -8,7 +8,7 @@ import logo from "@/assets/logo.png";
 import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 /* ─── Nav sections ─── */
-type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" };
+type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" | "turnera" };
 interface NavSection { label: string; items: NavItem[] }
 
 const mainItems: NavItem[] = [
