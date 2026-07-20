@@ -54,7 +54,7 @@ export function useStudentDiscounts(alumnoId: string | null) {
       const [discountsRes, subsRes] = await Promise.all([
         supabase
           .from("descuentos_alumno" as any)
-          .select("descuento_id, descuentos!inner(id, nombre, categoria, valor, tipo, codigo, aplica_a, activo, vigencia_desde, vigencia_hasta)")
+          .select("descuento_id, descuentos!inner(id, nombre, categoria, valor, tipo, codigo, aplica_a, activo, vigencia_desde, vigencia_hasta, evento_id)")
           .eq("alumno_id", alumnoId)
           .eq("activo", true),
         supabase
@@ -86,6 +86,7 @@ export function useStudentDiscounts(alumnoId: string | null) {
             aplica_a: d.descuentos.aplica_a,
             vigencia_desde: d.descuentos.vigencia_desde,
             vigencia_hasta: d.descuentos.vigencia_hasta,
+            evento_id: d.descuentos.evento_id ?? null,
           }))
           .filter((d: StudentDiscount) => {
             if (d.vigencia_desde && d.vigencia_desde > today) return false;
