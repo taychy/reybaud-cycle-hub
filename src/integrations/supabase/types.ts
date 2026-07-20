@@ -6677,6 +6677,7 @@ export type Database = {
       reservas_turnera: {
         Row: {
           acepto_politica: boolean
+          admin_visto_at: string | null
           alumno_id: string | null
           apellido: string
           celular: string | null
@@ -6719,6 +6720,7 @@ export type Database = {
         }
         Insert: {
           acepto_politica?: boolean
+          admin_visto_at?: string | null
           alumno_id?: string | null
           apellido: string
           celular?: string | null
@@ -6761,6 +6763,7 @@ export type Database = {
         }
         Update: {
           acepto_politica?: boolean
+          admin_visto_at?: string | null
           alumno_id?: string | null
           apellido?: string
           celular?: string | null
@@ -10239,6 +10242,7 @@ export type Database = {
         }
         Returns: string
       }
+      count_new_turnera_reservations: { Args: never; Returns: number }
       count_new_waitlist_entries: { Args: never; Returns: number }
       count_pending_waitlist_requests: { Args: never; Returns: number }
       create_gasto_from_mp: {
@@ -10660,6 +10664,21 @@ export type Database = {
           titular: string
         }[]
       }
+      get_waitlist_entries_for_template: {
+        Args: { p_template_id: string }
+        Returns: {
+          created_at: string
+          dni: string
+          email: string
+          entry_id: string
+          estado: string
+          event_id: string
+          event_title: string
+          nombre: string
+          respuestas: Json
+          telefono: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -10706,6 +10725,7 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_turnera_reservations_seen: { Args: never; Returns: number }
       materialize_reservation_installments: {
         Args: { p_reservation_id: string }
         Returns: number

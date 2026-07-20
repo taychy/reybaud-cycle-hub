@@ -8,7 +8,7 @@ import logo from "@/assets/logo.png";
 import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 /* ─── Nav sections ─── */
-type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" };
+type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" | "turnera" };
 interface NavSection { label: string; items: NavItem[] }
 
 const mainItems: NavItem[] = [
@@ -41,7 +41,7 @@ const finanzasItems: NavItem[] = [
 
 const configItems: NavItem[] = [
   { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-  { to: "/admin/turnera", label: "Turnera", icon: CalendarClock },
+  { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
   { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
   { to: "/admin/comunicaciones", label: "Plantillas email", icon: Megaphone },
   { to: "/admin/email-masivo", label: "Email masivo", icon: Megaphone },
@@ -81,23 +81,26 @@ const AdminLayout = () => {
   });
   const [waitlistPending, setWaitlistPending] = useState(0);
   const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
+  const [turneraPending, setTurneraPending] = useState(0);
 
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [{ data: pending }, { data: newEntries }] = await Promise.all([
+      const [{ data: pending }, { data: newEntries }, { data: newTurnera }] = await Promise.all([
         supabase.rpc("count_pending_waitlist_requests" as any),
         supabase.rpc("count_new_waitlist_entries" as any),
+        supabase.rpc("count_new_turnera_reservations" as any),
       ]);
       if (alive) {
         setWaitlistPending(Number(pending ?? 0));
         setWaitlistEntriesPending(Number(newEntries ?? 0));
+        setTurneraPending(Number(newTurnera ?? 0));
       }
     };
     load();
     const iv = setInterval(load, 60000);
     return () => { alive = false; clearInterval(iv); };
-  }, []);
+  }, [location.pathname]);
 
   const toggleCollapsed = () => {
     const next = !collapsed;
@@ -183,6 +186,7 @@ const AdminLayout = () => {
     const badgeCount =
       item.badgeKey === "waitlist" ? waitlistPending :
       item.badgeKey === "waitlist_entries" ? waitlistEntriesPending :
+      item.badgeKey === "turnera" ? turneraPending :
       0;
 
     if (collapsed && !mobile) {

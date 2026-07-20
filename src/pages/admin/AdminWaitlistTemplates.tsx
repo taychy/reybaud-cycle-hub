@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ClipboardList, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Loader2, Users, Mail, Phone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import WaitlistQuestionsEditor from "@/components/waitlist/WaitlistQuestionsEditor";
-import { WaitlistQuestion } from "@/lib/waitlistTypes";
+import { WaitlistQuestion, STATE_LABELS, STATE_COLORS, WaitlistEntryState } from "@/lib/waitlistTypes";
 
 interface Template {
   id: string;
@@ -29,6 +30,29 @@ export default function AdminWaitlistTemplates() {
   const [descripcion, setDescripcion] = useState("");
   const [preguntas, setPreguntas] = useState<WaitlistQuestion[]>([]);
   const [saving, setSaving] = useState(false);
+  const [viewingResponses, setViewingResponses] = useState<Template | null>(null);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+
+  const openResponses = async (t: Template) => {
+    setViewingResponses(t);
+    setLoadingResponses(true);
+    setResponses([]);
+    const { data, error } = await supabase.rpc("get_waitlist_entries_for_template" as any, { p_template_id: t.id });
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setResponses((data as any[]) || []);
+    }
+    setLoadingResponses(false);
+  };
+
+  const formatAnswer = (val: any): string => {
+    if (val == null) return "—";
+    if (Array.isArray(val)) return val.join(", ");
+    if (typeof val === "object") return JSON.stringify(val);
+    return String(val);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -141,6 +165,14 @@ export default function AdminWaitlistTemplates() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-primary hover:text-primary"
+                      onClick={() => openResponses(t)}
+                    >
+                      <Users className="w-4 h-4" /> Respuestas
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(t)}>
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -208,6 +240,94 @@ export default function AdminWaitlistTemplates() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Respuestas por plantilla */}
+      <Dialog open={!!viewingResponses} onOpenChange={(v) => !v && setViewingResponses(null)}>
+        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Respuestas · {viewingResponses?.nombre}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Personas que respondieron preguntas de esta plantilla en cualquier evento.
+            </p>
+          </DialogHeader>
+
+          {loadingResponses ? (
+            <div className="py-12 text-center">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+            </div>
+          ) : responses.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Todavía nadie respondió esta plantilla.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                {responses.length} respuesta{responses.length === 1 ? "" : "s"}
+              </div>
+              {responses.map((r) => {
+                const preguntasMap = new Map(
+                  (viewingResponses?.preguntas || []).map((q) => [q.id, q.label])
+                );
+                const estadoKey = (r.estado as WaitlistEntryState) || "nuevo";
+                return (
+                  <Card key={r.entry_id} className="bg-card/60">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                          <CardTitle className="text-sm">{r.nombre}</CardTitle>
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+                            {r.email && (
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" /> {r.email}
+                              </span>
+                            )}
+                            {r.telefono && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3 h-3" /> {r.telefono}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge variant="outline" className={STATE_COLORS[estadoKey]}>
+                            {STATE_LABELS[estadoKey] || r.estado}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(r.created_at).toLocaleDateString("es-AR", {
+                              day: "2-digit", month: "2-digit", year: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Evento: <span className="text-foreground">{r.event_title}</span>
+                      </p>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        {Object.entries(r.respuestas || {}).map(([qid, val]) => {
+                          const label = preguntasMap.get(qid) || qid;
+                          return (
+                            <div key={qid} className="border-l-2 border-primary/40 pl-3">
+                              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                {label}
+                              </div>
+                              <div className="text-sm text-foreground">{formatAnswer(val)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
