@@ -252,15 +252,34 @@ const AdminTurnera = () => {
   };
 
   const updateReservaEstado = async (id: string, estado_operativo: string) => {
-    await supabase.from("reservas_turnera").update({ estado_operativo } as any).eq("id", id);
-    if (estado_operativo === "cancelada") {
-      supabase.functions.invoke("send-turnera-email", {
-        body: { reservation_id: id, tipo: "cancelacion" },
-      }).catch(() => {});
+    try {
+      const { error } = await supabase
+        .from("reservas_turnera")
+        .update({ estado_operativo } as any)
+        .eq("id", id);
+      if (error) {
+        console.error("[updateReservaEstado] update failed", error);
+        toast({ title: "No se pudo cambiar el estado", description: error.message, variant: "destructive" });
+        return;
+      }
+      if (estado_operativo.startsWith("cancelada")) {
+        try {
+          await supabase.functions.invoke("send-turnera-email", {
+            body: { reservation_id: id, tipo: "cancelacion" },
+          });
+        } catch (e: any) {
+          // El mail no debe bloquear el cambio de estado.
+          console.warn("[updateReservaEstado] send-turnera-email cancelacion falló", e?.message || e);
+        }
+      }
+      toast({ title: `Reserva marcada como ${estado_operativo.replace(/_/g, " ")}` });
+      await loadAll();
+    } catch (e: any) {
+      console.error("[updateReservaEstado] error inesperado", e);
+      toast({ title: "Error inesperado", description: e?.message || "Intentá de nuevo", variant: "destructive" });
     }
-    toast({ title: `Reserva marcada como ${estado_operativo}` });
-    loadAll();
   };
+
 
   const coachName = (id: string) => coaches.find(c => c.id === id)?.nombre || "–";
   const servicioName = (id: string) => servicios.find(s => s.id === id)?.nombre || "–";
