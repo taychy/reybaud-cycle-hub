@@ -25,6 +25,7 @@ type Tipo =
   | "transferencia_expirada"
   | "transferencia_aprobada"
   | "transferencia_rechazada"
+  | "transferencia_comprobante_recibido"
   | "admin_nuevo_comprobante";
 
 const normalizeEmail = (e: string) => e.trim().toLowerCase();
