@@ -519,7 +519,7 @@ const DepositoEntregaDetail = () => {
                 setConfirmToggle(null);
               }}
             >
-              {confirmToggle?.next ? "Sí, marcar preparado" : "Sí, desmarcar"}
+              {confirmToggle?.next ? "Sí, marcar entregado" : "Sí, desmarcar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
