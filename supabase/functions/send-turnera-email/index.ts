@@ -303,21 +303,46 @@ Deno.serve(async (req) => {
       gcalUrl: gcal,
     });
 
-    // For coach: append alumno contact block
+    // For coach: append alumno contact block + botón WhatsApp con mensaje precargado
     if (tipo === "coach_aviso") {
+      const alumnoNombreFull = `${r.nombre} ${r.apellido || ""}`.trim();
+      const alumnoFirstName = (r.nombre || "").split(" ")[0] || alumnoNombreFull;
+      const waPhone = normalizePhoneWA(r.celular as string);
+      const mapsLink = sedeMapsLink(sedeNombre);
+      const waMsg = buildCoachWaMessage({
+        alumnoNombre: alumnoFirstName,
+        coachNombre: (recipientName || "").split(" ")[0] || recipientName || "tu profe",
+        fecha: r.fecha as string,
+        hora: fmtHora(r.hora_inicio as string),
+        sedeNombre,
+        mapsLink,
+      });
+      const waUrl = waPhone
+        ? `https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`
+        : null;
+
+      const waBlock = waUrl
+        ? `<div style="margin:20px 0;text-align:center;">
+             <a href="${waUrl}" style="background:#25D366;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:15px;font-weight:700;display:inline-block;">💬 Enviar confirmación por WhatsApp al alumno</a>
+             <div style="font-size:12px;color:#888;margin-top:8px;">El mensaje se abre precargado — solo tenés que apretar enviar.</div>
+           </div>`
+        : `<div style="margin:20px 0;padding:12px;background:#fff8e1;border:1px solid #f0c69a;border-radius:8px;font-size:13px;color:#5a3d00;">⚠️ El alumno no dejó un celular válido, por lo que no podemos armar el botón de WhatsApp.</div>`;
+
       const contactBlock = `<div style="background:#fff5ec;border:1px solid #f0c69a;border-radius:12px;padding:16px;margin-top:16px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Datos del alumno</div>
         <div style="font-size:14px;color:#0f1115;line-height:1.6;">
-          <strong>${escapeHtml(`${r.nombre} ${r.apellido || ""}`.trim())}</strong><br/>
+          <strong>${escapeHtml(alumnoNombreFull)}</strong><br/>
           ${r.email ? `📧 ${escapeHtml(r.email)}<br/>` : ""}
           ${r.celular ? `📱 ${escapeHtml(r.celular)}<br/>` : ""}
           ${r.documento ? `🪪 DNI ${escapeHtml(r.documento)}<br/>` : ""}
           ${sedeNombre ? `📍 Sede ${escapeHtml(sedeNombre)}<br/>` : ""}
           ${r.nota ? `<br/><em>${escapeHtml(r.nota)}</em>` : ""}
         </div>
-      </div>`;
+      </div>
+      ${waBlock}`;
       html = html.replace("</div></body></html>", `${contactBlock}</div></body></html>`);
     }
+
 
     const subjects: Record<Tipo, string> = {
       confirmacion: `Reserva confirmada · ${servicioNombre} · ${fechaTxt}`,
