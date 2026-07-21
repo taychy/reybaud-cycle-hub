@@ -149,42 +149,81 @@ const AdminEntregaDetail = () => {
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
   const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-  const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "" });
+  const [creatingPayment, setCreatingPayment] = useState(false);
+  const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "", concepto: "sena" });
   const [savingPayEdit, setSavingPayEdit] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
+  // Parse concepto tag from notas prefix like "[Seña] resto..."
+  const parseConceptoFromNotas = (notas: string | null | undefined): { concepto: string; rest: string } => {
+    const s = (notas || "").trim();
+    const m = s.match(/^\[(Seña|Sena|Saldo|Otro)\]\s*(.*)$/i);
+    if (!m) return { concepto: "otro", rest: s };
+    const tag = m[1].toLowerCase().replace("ñ", "n");
+    const key = tag === "sena" ? "sena" : tag === "saldo" ? "saldo" : "otro";
+    return { concepto: key, rest: m[2] || "" };
+  };
+  const conceptoLabel = (c: string) => c === "sena" ? "Seña" : c === "saldo" ? "Saldo" : "Otro";
+  const serializeNotas = (concepto: string, rest: string) => {
+    const clean = (rest || "").trim();
+    return `[${conceptoLabel(concepto)}]${clean ? " " + clean : ""}`;
+  };
+
   const openEditPayment = (p: Payment) => {
+    setCreatingPayment(false);
     setEditingPayment(p);
+    const { concepto, rest } = parseConceptoFromNotas(p.notas);
     setPayEdit({
       monto: String(p.monto ?? ""),
       moneda: p.moneda || "ARS",
       forma_pago: (p.forma_pago || "efectivo").toLowerCase(),
       validado: !!p.validado,
-      notas: p.notas || "",
+      notas: rest,
       cliente_nombre: p.cliente_nombre || "",
+      concepto,
     });
   };
 
+  const openNewPayment = () => {
+    setEditingPayment(null);
+    setCreatingPayment(true);
+    setPayEdit({ monto: "", moneda: "USD", forma_pago: "transferencia", validado: true, notas: "", cliente_nombre: "", concepto: "sena" });
+  };
+
   const savePaymentEdit = async () => {
-    if (!editingPayment) return;
     const monto = parseFloat(payEdit.monto);
     if (isNaN(monto) || monto <= 0) { toast.error("Monto inválido"); return; }
+    if (!payEdit.cliente_nombre.trim()) { toast.error("Elegí un cliente"); return; }
     setSavingPayEdit(true);
-    const { error } = await supabase
-      .from("delivery_list_payments")
-      .update({
-        monto,
-        moneda: payEdit.moneda,
-        forma_pago: payEdit.forma_pago,
-        validado: payEdit.validado,
-        notas: payEdit.notas || null,
-        cliente_nombre: payEdit.cliente_nombre,
-      })
-      .eq("id", editingPayment.id);
+    const payload = {
+      monto,
+      moneda: payEdit.moneda,
+      forma_pago: payEdit.forma_pago,
+      validado: payEdit.validado,
+      notas: serializeNotas(payEdit.concepto, payEdit.notas),
+      cliente_nombre: payEdit.cliente_nombre,
+    };
+    let error;
+    if (creatingPayment) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const res = await supabase.from("delivery_list_payments").insert({
+        ...payload,
+        list_id: listId!,
+        origen: "admin",
+        cargado_por_user_id: user?.id ?? null,
+        cargado_por_email: user?.email ?? null,
+        cargado_por_nombre: user?.user_metadata?.full_name || user?.email || null,
+      });
+      error = res.error;
+    } else if (editingPayment) {
+      const res = await supabase.from("delivery_list_payments").update(payload).eq("id", editingPayment.id);
+      error = res.error;
+    }
     setSavingPayEdit(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Cobro actualizado");
+    toast.success(creatingPayment ? "Cobro registrado" : "Cobro actualizado");
     setEditingPayment(null);
+    setCreatingPayment(false);
     await load();
   };
 
@@ -670,42 +709,74 @@ const AdminEntregaDetail = () => {
 
         {/* COBROS */}
         <TabsContent value="cobros" className="space-y-2 pt-4">
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-muted-foreground">Cobros reportados por el entregador. Entran directo a la caja.</p>
+          <div className="flex justify-between items-center gap-2">
+            <p className="text-xs text-muted-foreground flex-1">Seña al encargar + saldo al recibir. Podés cargar 2+ cobros por cliente.</p>
+            <Button size="sm" variant="gold" onClick={openNewPayment}>
+              <Plus className="w-3 h-3 mr-1" /> Nuevo cobro
+            </Button>
             <Button size="sm" variant="ghost" asChild>
-              <Link to="/admin/cobros-entrega">Validar cobros <ExternalLink className="w-3 h-3 ml-1" /></Link>
+              <Link to="/admin/cobros-entrega">Validar <ExternalLink className="w-3 h-3 ml-1" /></Link>
             </Button>
           </div>
           {payments.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No hay cobros aún.</p>
           ) : (
-            <div className="space-y-1.5">
-              {payments.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => openEditPayment(p)}
-                  className="w-full flex items-center justify-between rounded-md bg-secondary/40 hover:bg-secondary/60 transition px-3 py-2 text-sm text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{p.cliente_nombre}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {new Date(p.created_at).toLocaleString("es-AR")} · {p.forma_pago}
-                      {p.cargado_por_nombre ? ` · ${p.cargado_por_nombre}` : ""}
-                      <span className="ml-1 opacity-70">· tocá para editar</span>
+            <div className="space-y-3">
+              {Object.entries(
+                payments.reduce<Record<string, Payment[]>>((acc, p) => {
+                  const k = p.cliente_nombre || "(sin cliente)";
+                  (acc[k] ||= []).push(p);
+                  return acc;
+                }, {})
+              )
+                .sort(([a], [b]) => a.localeCompare(b, "es"))
+                .map(([cliente, list]) => {
+                  const byCur = list.reduce<Record<string, number>>((a, p) => {
+                    a[p.moneda] = (a[p.moneda] || 0) + Number(p.monto || 0);
+                    return a;
+                  }, {});
+                  return (
+                    <div key={cliente} className="space-y-1">
+                      <div className="flex items-center justify-between px-1">
+                        <div className="text-xs font-semibold">{cliente} <span className="text-muted-foreground font-normal">· {list.length} cobro{list.length > 1 ? "s" : ""}</span></div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {Object.entries(byCur).map(([m, t]) => formatPrice(t, m)).join(" + ")}
+                        </div>
+                      </div>
+                      {list.map((p) => {
+                        const { concepto, rest } = parseConceptoFromNotas(p.notas);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => openEditPayment(p)}
+                            className="w-full flex items-center justify-between rounded-md bg-secondary/40 hover:bg-secondary/60 transition px-3 py-2 text-sm text-left"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0">{conceptoLabel(concepto)}</Badge>
+                                <span className="text-[11px] text-muted-foreground">{p.forma_pago}</span>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                {new Date(p.created_at).toLocaleDateString("es-AR")}
+                                {p.cargado_por_nombre ? ` · ${p.cargado_por_nombre}` : ""}
+                                {rest ? ` · ${rest}` : ""}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 flex items-center gap-2">
+                              <span className="font-medium">{formatPrice(p.monto, p.moneda)}</span>
+                              {p.validado ? (
+                                <Badge className="text-[9px] bg-primary/20 text-primary">✓</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/50">pend</Badge>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
-                  <div className="text-right shrink-0 flex items-center gap-2">
-                    <span className="font-medium">{formatPrice(p.monto, p.moneda)}</span>
-                    {p.validado ? (
-                      <Badge className="text-[9px] bg-primary/20 text-primary">✓</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/50">pend</Badge>
-                    )}
-                  </div>
-                </button>
-              ))}
-
+                  );
+                })}
             </div>
           )}
         </TabsContent>
@@ -872,16 +943,35 @@ const AdminEntregaDetail = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* EDIT PAYMENT */}
-      <Dialog open={!!editingPayment} onOpenChange={(o) => !o && setEditingPayment(null)}>
+      {/* EDIT / NEW PAYMENT */}
+      <Dialog open={!!editingPayment || creatingPayment} onOpenChange={(o) => { if (!o) { setEditingPayment(null); setCreatingPayment(false); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar cobro</DialogTitle>
+            <DialogTitle>{creatingPayment ? "Nuevo cobro" : "Editar cobro"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Cliente</Label>
-              <Input value={payEdit.cliente_nombre} onChange={(e) => setPayEdit({ ...payEdit, cliente_nombre: e.target.value })} />
+              <Input
+                list="entrega-clientes"
+                value={payEdit.cliente_nombre}
+                onChange={(e) => setPayEdit({ ...payEdit, cliente_nombre: e.target.value })}
+                placeholder="Escribí o elegí un cliente"
+              />
+              <datalist id="entrega-clientes">
+                {grouped.map(([name]) => <option key={name} value={name} />)}
+              </datalist>
+            </div>
+            <div>
+              <Label>Concepto</Label>
+              <Select value={payEdit.concepto} onValueChange={(v) => setPayEdit({ ...payEdit, concepto: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sena">Seña (al encargar)</SelectItem>
+                  <SelectItem value="saldo">Saldo (al recibir)</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -918,17 +1008,19 @@ const AdminEntregaDetail = () => {
               <Label htmlFor="pay-validado" className="cursor-pointer">Validado</Label>
             </div>
             <div>
-              <Label>Notas</Label>
+              <Label>Notas (opcional)</Label>
               <Textarea rows={2} value={payEdit.notas} onChange={(e) => setPayEdit({ ...payEdit, notas: e.target.value })} />
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="destructive" onClick={() => editingPayment && setDeletingPaymentId(editingPayment.id)} className="sm:mr-auto">
-              <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
-            </Button>
-            <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
+            {!creatingPayment && editingPayment && (
+              <Button variant="destructive" onClick={() => setDeletingPaymentId(editingPayment.id)} className="sm:mr-auto">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => { setEditingPayment(null); setCreatingPayment(false); }}>Cancelar</Button>
             <Button variant="gold" onClick={savePaymentEdit} disabled={savingPayEdit}>
-              {savingPayEdit ? "Guardando..." : "Guardar"}
+              {savingPayEdit ? "Guardando..." : creatingPayment ? "Registrar" : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
