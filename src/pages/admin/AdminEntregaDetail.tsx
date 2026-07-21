@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { computeDeliveryBalances } from "@/lib/deliveryBalances";
+import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -112,6 +114,9 @@ interface Item {
   moneda: string | null;
   posicion: number;
   store_product_id: string | null;
+  alumno_id: string | null;
+  aviso_retiro_enviado_at: string | null;
+  aviso_retiro_channel: string | null;
 }
 
 interface StoreProductLite {
@@ -254,7 +259,7 @@ const AdminEntregaDetail = () => {
         .order("created_at", { ascending: false }),
       supabase
         .from("delivery_list_items")
-        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, moneda, posicion, store_product_id")
+        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, moneda, posicion, store_product_id, alumno_id, aviso_retiro_enviado_at, aviso_retiro_channel")
         .eq("list_id", listId)
         .order("cliente_nombre", { ascending: true })
         .order("posicion", { ascending: true }),
@@ -323,6 +328,11 @@ const AdminEntregaDetail = () => {
     });
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
+
+  const balancesByClient = useMemo(
+    () => computeDeliveryBalances(items as any, payments as any),
+    [items, payments],
+  );
 
   const productGroups = useMemo(() => {
     const map: Record<string, { producto: string; variante: string | null; items: Item[]; unidades: number; itemIds: string[] }> = {};
@@ -721,6 +731,26 @@ const AdminEntregaDetail = () => {
                         </div>
                       </div>
                     ))}
+                    {list && (
+                      <DeliveryClientNotify
+                        listId={list.id}
+                        listTitulo={list.titulo}
+                        clienteNombre={cliente}
+                        items={its.map((i) => ({
+                          id: i.id,
+                          producto: i.producto,
+                          variante: i.variante,
+                          cantidad: i.cantidad,
+                          alumno_id: i.alumno_id,
+                          aviso_retiro_enviado_at: i.aviso_retiro_enviado_at,
+                          aviso_retiro_channel: i.aviso_retiro_channel,
+                          precio_venta: i.precio_venta ?? null,
+                          moneda: i.moneda ?? null,
+                        }))}
+                        balances={balancesByClient[cliente] || []}
+                        onChanged={load}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               );
