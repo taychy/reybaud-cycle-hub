@@ -114,6 +114,9 @@ interface Item {
   moneda: string | null;
   posicion: number;
   store_product_id: string | null;
+  alumno_id: string | null;
+  aviso_retiro_enviado_at: string | null;
+  aviso_retiro_channel: string | null;
 }
 
 interface StoreProductLite {
