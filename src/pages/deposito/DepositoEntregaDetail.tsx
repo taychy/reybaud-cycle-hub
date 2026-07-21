@@ -50,6 +50,7 @@ import {
 } from "@/lib/deliveryExcel";
 import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
+import { computeDeliveryBalances, fmtMoneyBalance, type BalanceRow } from "@/lib/deliveryBalances";
 
 interface DeliveryList {
   id: string;
@@ -96,6 +97,7 @@ const DepositoEntregaDetail = () => {
   const navigate = useNavigate();
   const [list, setList] = useState<DeliveryList | null>(null);
   const [items, setItems] = useState<DeliveryItem[]>([]);
+  const [payments, setPayments] = useState<Array<{ cliente_nombre: string; monto: number; moneda: string; validado: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [showFromOrders, setShowFromOrders] = useState(false);
