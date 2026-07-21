@@ -162,6 +162,11 @@ const DepositoEntregaDetail = () => {
     return { total, prep, pct: total ? Math.round((prep / total) * 100) : 0 };
   }, [items]);
 
+  const balancesByClient = useMemo(
+    () => computeDeliveryBalances(items as any, payments as any),
+    [items, payments],
+  );
+
   const applyToggle = async (item: DeliveryItem, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
     const { data: userRes } = await supabase.auth.getUser();
@@ -362,6 +367,7 @@ const DepositoEntregaDetail = () => {
             const prep = its.filter((i) => i.preparado).length;
             const pct = Math.round((prep / total) * 100);
             const complete = prep === total;
+            const bal = balancesByClient[cliente] || [];
             return (
               <div key={cliente} className={`glass-card rounded-lg p-3 border ${complete ? "border-primary/40" : "border-transparent"}`}>
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -375,6 +381,22 @@ const DepositoEntregaDetail = () => {
                 <div className="h-1 rounded bg-secondary overflow-hidden mb-2">
                   <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                 </div>
+                {bal.length > 0 && bal.some((r) => r.total > 0 || r.cobrado > 0) && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {bal.filter((r) => r.total > 0 || r.cobrado > 0).map((r) => (
+                      <div key={r.moneda} className="text-[11px] rounded-md bg-secondary/60 border border-border/60 px-2 py-1 flex items-center gap-2">
+                        <span className="text-muted-foreground">Total {r.moneda}</span>
+                        <span className="font-semibold">{fmtMoneyBalance(r.total, r.moneda)}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-emerald-500">cobrado {fmtMoneyBalance(r.cobrado, r.moneda)}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className={r.pendiente > 0.001 ? "text-amber-500 font-semibold" : "text-emerald-500 font-semibold"}>
+                          {r.pendiente > 0.001 ? `saldo ${fmtMoneyBalance(r.pendiente, r.moneda)}` : "saldado"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-1">
                   {its.map((it) => {
                     const variantText = formatVariant(it.variante);
