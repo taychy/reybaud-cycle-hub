@@ -33,8 +33,11 @@ const DepositoAlertas = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [admins, setAdmins] = useState<{ email: string; nombre: string }[]>([]);
 
-  const { templates } = useProcessTemplates(false);
-  const { instances, reload: reloadInstances } = useMyInstances(userId);
+  const { templates: allTemplates } = useProcessTemplates(false);
+  const { instances: allInstances, reload: reloadInstances } = useMyInstances(userId);
+  const templates = allTemplates.filter((t) => t.rol_destino === "deposito");
+  const depositoTemplateIds = new Set(templates.map((t) => t.id));
+  const instances = allInstances.filter((i) => depositoTemplateIds.has(i.template_id));
 
   const [launchTemplate, setLaunchTemplate] = useState<ProcessTemplate | null>(null);
   const [launchEmail, setLaunchEmail] = useState("");
