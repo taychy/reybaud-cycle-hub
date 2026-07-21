@@ -872,6 +872,7 @@ const AdminEntregaDetail = () => {
                 })}
             </div>
           )}
+
         </TabsContent>
 
         {/* PROVEEDOR */}
