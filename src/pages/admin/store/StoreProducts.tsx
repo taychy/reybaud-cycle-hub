@@ -37,6 +37,8 @@ interface Product {
   preorder_status?: string;
   preorder_variants?: any;
   currency?: string;
+  costo?: number | null;
+  costo_moneda?: string | null;
   variants?: any;
   variant_stock?: Record<string, number>;
   checkout_mode?: string;
