@@ -107,6 +107,16 @@ interface Item {
   precio_venta: number | null;
   moneda: string | null;
   posicion: number;
+  store_product_id: string | null;
+}
+
+interface StoreProductLite {
+  id: string;
+  name: string;
+  price: number | null;
+  currency: string | null;
+  costo: number | null;
+  costo_moneda: string | null;
 }
 
 const AdminEntregaDetail = () => {
