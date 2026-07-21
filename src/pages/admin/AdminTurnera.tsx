@@ -95,8 +95,8 @@ const AdminTurnera = () => {
   const fetchAlumnosForReserva = async () => {
     const { data } = await supabase
       .from("alumnos")
-      .select("id, nombre, apellido, email, documento, celular")
-      .eq("estado", "activo")
+      .select("id, nombre, apellido, email, documento, celular, estado")
+      .in("estado", ["activo", "vacaciones", "inactivo"])
       .order("apellido");
     setAlumnos((data as any[]) || []);
   };
