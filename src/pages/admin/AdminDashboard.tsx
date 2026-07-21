@@ -210,13 +210,9 @@ const AdminDashboard = () => {
         { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con conflicto de modalidad` : "Ver pagos activos" },
         { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Pendientes + gracia día 1-5" },
         { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Vencidas + acceso pausado (post día 5)" },
-        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes (precio final)" },
         { label: "Monto pendiente", value: `$${montoPendienteSubs.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: `Subs por cobrar · vencidas: $${montoVencidoSubs.toLocaleString("es-AR")}` },
-        { label: "Cuotas eventos", value: `$${cuotasMonto.toLocaleString("es-AR")}`, icon: CalendarClock, color: "text-orange-500", to: "/admin/eventos", hint: `${cuotasCount} cuota(s)${cuotasVencidas > 0 ? ` · ${cuotasVencidas} vencida(s)` : ""}` },
-        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive", to: "/admin/alumnos?filter=bloqueados", hint: "Alumnos bloqueados" },
         { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500", to: "/admin/alumnos?filter=vacaciones", hint: "Alumnos en vacaciones" },
         { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground", to: "/admin/alumnos?filter=inactivos", hint: "Alumnos inactivos" },
-        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500", to: "/admin/alumnos?filter=acceso_pausado", hint: "Suscripciones pausadas" },
       ]);
 
 
