@@ -492,7 +492,10 @@ const AdminEntregaDetail = () => {
                             {g.unidades} unidad(es) · {g.items.length} cliente(s)
                           </div>
                         </div>
-                        {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
+                        <div className="flex items-center gap-1">
+                          {productSaveState[key] === "saved" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">✓ Guardado</Badge>}
+                          {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                         <div className="col-span-2">
