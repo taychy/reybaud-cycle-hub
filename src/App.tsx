@@ -51,6 +51,7 @@ import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
 import AdminBilling from "./pages/admin/billing/AdminBilling";
 import AdminDeliveryPayments from "./pages/admin/AdminDeliveryPayments";
 import AdminEntregasCaja from "./pages/admin/AdminEntregasCaja";
+import AdminEntregaDetail from "./pages/admin/AdminEntregaDetail";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
 import EventManagement from "./pages/admin/EventManagement";
@@ -208,6 +209,8 @@ const App = () => (
             <Route path="facturacion" element={<AdminBilling />} />
             <Route path="cobros-entrega" element={<AdminDeliveryPayments />} />
             <Route path="entregas-caja" element={<AdminEntregasCaja />} />
+            <Route path="entregas" element={<AdminEntregasCaja />} />
+            <Route path="entregas/:listId" element={<AdminEntregaDetail />} />
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
