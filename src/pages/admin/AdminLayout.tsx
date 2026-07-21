@@ -284,7 +284,6 @@ const AdminLayout = () => {
             <>
               <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
               <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
-              <NavItem item={{ to: "/admin/gestion-redes", label: "Gestión de Redes", icon: Image }} />
             </>
           )}
 
@@ -384,7 +383,6 @@ const AdminLayout = () => {
               <>
                 <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
                 <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
-                <NavItem item={{ to: "/admin/gestion-redes", label: "Gestión de Redes", icon: Image }} mobile />
               </>
             )}
 
