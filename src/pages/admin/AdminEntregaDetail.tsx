@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { computeDeliveryBalances } from "@/lib/deliveryBalances";
+import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
