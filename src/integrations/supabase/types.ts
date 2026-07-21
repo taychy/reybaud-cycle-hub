@@ -1886,6 +1886,7 @@ export type Database = {
           source_order_item_id: string | null
           source_preorder_id: string | null
           source_type: string | null
+          store_product_id: string | null
           updated_at: string
           variante: string | null
         }
@@ -1913,6 +1914,7 @@ export type Database = {
           source_order_item_id?: string | null
           source_preorder_id?: string | null
           source_type?: string | null
+          store_product_id?: string | null
           updated_at?: string
           variante?: string | null
         }
@@ -1940,6 +1942,7 @@ export type Database = {
           source_order_item_id?: string | null
           source_preorder_id?: string | null
           source_type?: string | null
+          store_product_id?: string | null
           updated_at?: string
           variante?: string | null
         }
@@ -1956,6 +1959,13 @@ export type Database = {
             columns: ["list_id"]
             isOneToOne: false
             referencedRelation: "delivery_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_list_items_store_product_id_fkey"
+            columns: ["store_product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
             referencedColumns: ["id"]
           },
         ]
@@ -8963,6 +8973,8 @@ export type Database = {
           checkout_mode: string
           combo_price: number | null
           combo_pricing_mode: string
+          costo: number | null
+          costo_moneda: string | null
           created_at: string
           currency: string
           delivery_methods: Json
@@ -9005,6 +9017,8 @@ export type Database = {
           checkout_mode?: string
           combo_price?: number | null
           combo_pricing_mode?: string
+          costo?: number | null
+          costo_moneda?: string | null
           created_at?: string
           currency?: string
           delivery_methods?: Json
@@ -9047,6 +9061,8 @@ export type Database = {
           checkout_mode?: string
           combo_price?: number | null
           combo_pricing_mode?: string
+          costo?: number | null
+          costo_moneda?: string | null
           created_at?: string
           currency?: string
           delivery_methods?: Json
