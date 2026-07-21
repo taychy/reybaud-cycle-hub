@@ -10287,6 +10287,10 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_mp_movement_to_alumno: {
+        Args: { _alumno_id: string; _movement_id: string; _notes?: string }
+        Returns: Json
+      }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
       cancel_store_order:
@@ -11118,6 +11122,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      unassign_mp_movement: { Args: { _movement_id: string }; Returns: Json }
       update_gasto_deuda_mov: {
         Args: {
           p_concepto?: string
