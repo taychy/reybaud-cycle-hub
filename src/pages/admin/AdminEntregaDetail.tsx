@@ -128,7 +128,9 @@ const AdminEntregaDetail = () => {
   const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [tab, setTab] = useState<"resumen" | "items" | "cobros" | "proveedor" | "cierre">("resumen");
+  const [tab, setTab] = useState<"resumen" | "productos" | "items" | "cobros" | "proveedor" | "cierre">("resumen");
+  const [storeProducts, setStoreProducts] = useState<StoreProductLite[]>([]);
+  const [productEdits, setProductEdits] = useState<Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }>>({});
   const [loading, setLoading] = useState(true);
 
   const [showNewPayment, setShowNewPayment] = useState(false);
