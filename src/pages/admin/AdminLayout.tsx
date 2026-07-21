@@ -1,74 +1,158 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, Warehouse, FileText, TrendingUp, Wallet, Activity, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing, ClipboardList } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, FileText, TrendingUp, Wallet, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing, ClipboardList, ChevronDown, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 import SwitchPortalButton from "@/components/SwitchPortalButton";
 
-/* ─── Nav sections ─── */
-type NavItem = { to: string; label: string; icon: any; badgeKey?: "waitlist" | "waitlist_entries" | "turnera" };
-interface NavSection { label: string; items: NavItem[] }
+/* ─── Nav structure ─── */
+type BadgeKey = "waitlist" | "waitlist_entries" | "turnera";
+type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; superAdmin?: boolean };
+type NavGroup = { label: string; items: NavItem[] };
+type NavModule = { key: string; label: string; icon: any; groups: NavGroup[] };
 
-const mainItems: NavItem[] = [
-  { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
-  { to: "/admin/alumnos", label: "Alumnos", icon: Users },
-  { to: "/admin/coaches", label: "Coaches", icon: UserCog },
-  { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
-  { to: "/admin/eventos", label: "Eventos", icon: Trophy },
-  { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
-  { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" },
-  { to: "/admin/programas", label: "Programas", icon: GraduationCap },
-  { to: "/admin/procesos", label: "Procesos", icon: Workflow },
-  { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
-  { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
-  { to: "/admin/whatsapp-conciliador", label: "WhatsApp", icon: MessageCircle },
-  { to: "/admin/contactos-whatsapp", label: "Contactos WhatsApp", icon: MessageCircle },
+const modules: NavModule[] = [
+  {
+    key: "academia",
+    label: "Academia",
+    icon: GraduationCap,
+    groups: [
+      {
+        label: "Principal",
+        items: [
+          { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
+          { to: "/admin/metricas", label: "Métricas", icon: TrendingUp, superAdmin: true },
+        ],
+      },
+      {
+        label: "Personas",
+        items: [
+          { to: "/admin/alumnos", label: "Alumnos", icon: Users },
+          { to: "/admin/coaches", label: "Coaches", icon: UserCog },
+          { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
+        ],
+      },
+      {
+        label: "Admisiones",
+        items: [
+          { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+          { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
+          { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" },
+          { to: "/admin/procesos", label: "Procesos", icon: Workflow },
+        ],
+      },
+      {
+        label: "Comunicación",
+        items: [
+          { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
+          { to: "/admin/whatsapp-conciliador", label: "WhatsApp", icon: MessageCircle },
+          { to: "/admin/contactos-whatsapp", label: "Contactos WhatsApp", icon: MessageCircle },
+          { to: "/admin/comunicaciones", label: "Plantillas email", icon: Megaphone },
+          { to: "/admin/email-masivo", label: "Email masivo", icon: Megaphone },
+        ],
+      },
+      {
+        label: "Entrenamiento",
+        items: [
+          { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
+          { to: "/admin/programas", label: "Programas", icon: GraduationCap },
+        ],
+      },
+    ],
+  },
+  {
+    key: "finanzas",
+    label: "Finanzas",
+    icon: Wallet,
+    groups: [
+      {
+        label: "Cobros",
+        items: [
+          { to: "/admin/pagos", label: "Pagos", icon: Receipt },
+          { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet },
+          { to: "/admin/cuenta-corriente", label: "Cuenta corriente", icon: Wallet },
+          { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck },
+        ],
+      },
+      {
+        label: "Precios",
+        items: [
+          { to: "/admin/planes", label: "Planes", icon: Package },
+          { to: "/admin/descuentos", label: "Descuentos", icon: Tag },
+          { to: "/admin/precios", label: "Precios", icon: DollarSign },
+        ],
+      },
+      {
+        label: "Contabilidad",
+        items: [
+          { to: "/admin/facturacion", label: "Facturación", icon: FileText },
+          { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
+          { to: "/admin/gastos", label: "Gastos", icon: Wallet, superAdmin: true },
+        ],
+      },
+    ],
+  },
+  {
+    key: "tienda",
+    label: "Tienda",
+    icon: ShoppingCart,
+    groups: [
+      {
+        label: "General",
+        items: [
+          { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
+          { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+        ],
+      },
+      {
+        label: "Catálogo",
+        items: [
+          { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
+          { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
+          { to: "/admin/tienda/stock", label: "Stock", icon: Package },
+          { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
+          { to: "/admin/tienda/banners", label: "Banners", icon: Image },
+        ],
+      },
+      {
+        label: "Operación",
+        items: [
+          { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
+          { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
+          { to: "/admin/tienda/cambios", label: "Cambios", icon: RefreshCw },
+          { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck },
+        ],
+      },
+    ],
+  },
+  {
+    key: "config",
+    label: "Configuración",
+    icon: Settings,
+    groups: [
+      {
+        label: "Configuración",
+        items: [
+          { to: "/admin/sedes", label: "Sedes", icon: MapPin },
+          { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
+          { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
+          { to: "/admin/historial", label: "Historial", icon: ScrollText },
+        ],
+      },
+    ],
+  },
 ];
 
-const finanzasItems: NavItem[] = [
-  { to: "/admin/pagos", label: "Pagos", icon: Receipt },
-  { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet },
-  { to: "/admin/cuenta-corriente", label: "Cuenta corriente", icon: Wallet },
-  { to: "/admin/planes", label: "Planes", icon: Package },
-  { to: "/admin/descuentos", label: "Descuentos", icon: Tag },
-  { to: "/admin/precios", label: "Precios", icon: DollarSign },
-  { to: "/admin/facturacion", label: "Facturación", icon: FileText },
-  { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
-  { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck },
-];
-
-const configItems: NavItem[] = [
-  { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-  { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
-  { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
-  { to: "/admin/comunicaciones", label: "Plantillas email", icon: Megaphone },
-  { to: "/admin/email-masivo", label: "Email masivo", icon: Megaphone },
-  { to: "/admin/historial", label: "Historial", icon: ScrollText },
-];
-
-
-const storeItems: NavItem[] = [
-  { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
-  { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
-  { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
-  { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
-  { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
-  { to: "/admin/tienda/banners", label: "Banners", icon: Image },
-  { to: "/admin/tienda/stock", label: "Stock", icon: Package },
-  { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/admin/tienda/cambios", label: "Cambios", icon: RefreshCw },
-  { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck },
-];
-
-const navSections: NavSection[] = [
-  { label: "Principal", items: mainItems },
-  { label: "Finanzas", items: finanzasItems },
-  { label: "Configuración", items: configItems },
-  { label: "Tienda", items: storeItems },
-];
+const findModuleKeyForPath = (pathname: string): string => {
+  for (const m of modules) {
+    for (const g of m.groups) {
+      if (g.items.some((it) => pathname.startsWith(it.to))) return m.key;
+    }
+  }
+  return "academia";
+};
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -80,9 +164,18 @@ const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
   });
+  const [openModule, setOpenModule] = useState<string>(() => {
+    return localStorage.getItem("admin_sidebar_open_module") || findModuleKeyForPath(location.pathname);
+  });
   const [waitlistPending, setWaitlistPending] = useState(0);
   const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
   const [turneraPending, setTurneraPending] = useState(0);
+
+  useEffect(() => {
+    const key = findModuleKeyForPath(location.pathname);
+    setOpenModule(key);
+    localStorage.setItem("admin_sidebar_open_module", key);
+  }, [location.pathname]);
 
   useEffect(() => {
     let alive = true;
@@ -107,6 +200,11 @@ const AdminLayout = () => {
     const next = !collapsed;
     setCollapsed(next);
     localStorage.setItem("admin_sidebar_collapsed", String(next));
+  };
+
+  const selectModule = (key: string) => {
+    setOpenModule(key);
+    localStorage.setItem("admin_sidebar_open_module", key);
   };
 
   useEffect(() => {
@@ -138,7 +236,6 @@ const AdminLayout = () => {
         sessionStorage.setItem("admin_login_updated", "true");
       }
 
-      // Load admin_profile role
       const { data: profile } = await supabase
         .from("admin_profiles")
         .select("role")
@@ -146,7 +243,6 @@ const AdminLayout = () => {
         .maybeSingle();
       if (isMounted) {
         if (profile?.role === "super_admin") setIsSuperAdmin(true);
-        // Solo restringir a Tienda si es deposito puro (sin rol admin)
         if (!isAdmin && (profile?.role === "deposito" || isDepo)) setIsDeposito(true);
       }
 
@@ -170,25 +266,38 @@ const AdminLayout = () => {
     );
   }
 
-  // Restrict deposito to Tienda section only
   if (isDeposito && !location.pathname.startsWith("/admin/tienda")) {
     return <Navigate to="/admin/tienda" replace />;
   }
 
-  const visibleSections = isDeposito
-    ? navSections.filter((s) => s.label === "Tienda")
-    : navSections;
+  const visibleModules = useMemo(() => {
+    let mods = isDeposito ? modules.filter((m) => m.key === "tienda") : modules;
+    // Filter super-admin-only items
+    return mods
+      .map((m) => ({
+        ...m,
+        groups: m.groups
+          .map((g) => ({
+            ...g,
+            items: g.items.filter((it) => !it.superAdmin || isSuperAdmin),
+          }))
+          .filter((g) => g.items.length > 0),
+      }))
+      .filter((m) => m.groups.length > 0);
+  }, [isDeposito, isSuperAdmin]);
 
+  const badgeCountFor = (key?: BadgeKey) =>
+    key === "waitlist" ? waitlistPending :
+    key === "waitlist_entries" ? waitlistEntriesPending :
+    key === "turnera" ? turneraPending : 0;
 
+  const moduleBadgeCount = (m: NavModule) =>
+    m.groups.reduce((acc, g) => acc + g.items.reduce((a, it) => a + badgeCountFor(it.badgeKey), 0), 0);
 
-  const NavItem = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
+  const NavItemRow = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
-    const py = mobile ? "py-3" : "py-2.5";
-    const badgeCount =
-      item.badgeKey === "waitlist" ? waitlistPending :
-      item.badgeKey === "waitlist_entries" ? waitlistEntriesPending :
-      item.badgeKey === "turnera" ? turneraPending :
-      0;
+    const py = mobile ? "py-3" : "py-2";
+    const badgeCount = badgeCountFor(item.badgeKey);
 
     if (collapsed && !mobile) {
       return (
@@ -226,7 +335,7 @@ const AdminLayout = () => {
         end={item.to === "/admin/tienda"}
         onClick={mobile ? () => setMobileOpen(false) : undefined}
         className={({ isActive }) =>
-          `flex items-center gap-3 px-3 ${py} rounded-md text-sm font-medium transition-colors ${
+          `flex items-center gap-3 pl-6 pr-3 ${py} rounded-md text-sm font-medium transition-colors ${
             isActive
               ? "bg-sidebar-accent text-sidebar-primary"
               : "text-sidebar-foreground hover:bg-sidebar-accent/50"
@@ -244,6 +353,71 @@ const AdminLayout = () => {
     );
   };
 
+  const renderModules = (mobile: boolean) => (
+    <div className="space-y-1">
+      {visibleModules.map((m) => {
+        const isOpen = openModule === m.key;
+        const badge = moduleBadgeCount(m);
+        const Icon = m.icon;
+
+        if (collapsed && !mobile) {
+          // In collapsed desktop: flat list of items grouped by module divider
+          return (
+            <div key={m.key} className="pt-2">
+              <div className="border-t border-sidebar-border mx-1 mb-1" />
+              {m.groups.flatMap((g) => g.items).map((item) => (
+                <NavItemRow key={item.to} item={item} />
+              ))}
+            </div>
+          );
+        }
+
+        return (
+          <div key={m.key}>
+            <button
+              onClick={() => selectModule(isOpen ? "" : m.key)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-heading font-bold uppercase tracking-wider transition-colors ${
+                isOpen
+                  ? "text-sidebar-primary bg-sidebar-accent/30"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+              }`}
+            >
+              <Icon className={mobile ? "w-5 h-5" : "w-4 h-4"} />
+              <span className="flex-1 text-left">{m.label}</span>
+              {badge > 0 && !isOpen && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {isOpen && (
+              <div className="mt-1 mb-2 space-y-2">
+                {m.groups.map((g, gi) => (
+                  <div key={g.label} className={gi > 0 ? "pt-1" : ""}>
+                    {m.groups.length > 1 && (
+                      <div className="px-3 pb-1 pt-1 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
+                        {g.label}
+                      </div>
+                    )}
+                    <div className="space-y-0.5">
+                      {g.items.map((item) => (
+                        <NavItemRow key={item.to} item={item} mobile={mobile} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar - desktop */}
@@ -252,7 +426,6 @@ const AdminLayout = () => {
           collapsed ? "w-[60px]" : "w-64"
         }`}
       >
-        {/* Header with hamburger toggle */}
         <div className={`border-b border-sidebar-border ${collapsed ? "p-3" : "px-4 py-3"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
             <button
@@ -278,32 +451,9 @@ const AdminLayout = () => {
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className={`flex-1 ${collapsed ? "p-1.5" : "p-3"} space-y-1 overflow-y-auto`}>
-          {isSuperAdmin && (
-            <>
-              <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} />
-              <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} />
-            </>
-          )}
+        <nav className={`flex-1 ${collapsed ? "p-1.5" : "p-3"} overflow-y-auto`}>
+          {renderModules(false)}
 
-          {visibleSections.map((section, idx) => (
-            <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
-              <div className="pb-1">
-                {!collapsed && (
-                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
-                    {section.label}
-                  </span>
-                )}
-                {collapsed && <div className="border-t border-sidebar-border mx-1" />}
-              </div>
-              {section.items.map((item) => (
-                <NavItem key={item.to} item={item} />
-              ))}
-            </div>
-          ))}
-
-          {/* Logout inside nav */}
           <div className="pt-4 space-y-1">
             {!collapsed && <SwitchPortalButton fullWidth />}
             {collapsed ? (
@@ -333,7 +483,7 @@ const AdminLayout = () => {
         </nav>
       </aside>
 
-      {/* Mobile header */}
+      {/* Mobile */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -347,7 +497,6 @@ const AdminLayout = () => {
           </Button>
         </header>
 
-        {/* Mobile drawer overlay */}
         {mobileOpen && (
           <div
             className="md:hidden fixed inset-0 z-40 bg-black/60 animate-fade-in"
@@ -355,7 +504,6 @@ const AdminLayout = () => {
           />
         )}
 
-        {/* Mobile drawer */}
         <aside
           className={`md:hidden fixed top-0 left-0 z-50 h-full w-[80%] max-w-xs bg-sidebar border-r border-border flex flex-col transition-transform duration-300 ease-out ${
             mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -378,26 +526,8 @@ const AdminLayout = () => {
             </Button>
           </div>
 
-          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {isSuperAdmin && (
-              <>
-                <NavItem item={{ to: "/admin/metricas", label: "Métricas", icon: TrendingUp }} mobile />
-                <NavItem item={{ to: "/admin/gastos", label: "Gastos", icon: Wallet }} mobile />
-              </>
-            )}
-
-            {visibleSections.map((section, idx) => (
-              <div key={section.label} className={idx > 0 || isSuperAdmin ? "pt-3" : ""}>
-                <div className="pb-1">
-                  <span className="px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">
-                    {section.label}
-                  </span>
-                </div>
-                {section.items.map((item) => (
-                  <NavItem key={item.to} item={item} mobile />
-                ))}
-              </div>
-            ))}
+          <nav className="flex-1 p-3 overflow-y-auto">
+            {renderModules(true)}
           </nav>
 
           <div className="p-3 border-t border-sidebar-border space-y-1">
@@ -412,7 +542,6 @@ const AdminLayout = () => {
           </div>
         </aside>
 
-        {/* Page content */}
         <main className="flex-1 p-6 md:p-8 overflow-auto">
           <Outlet />
         </main>
