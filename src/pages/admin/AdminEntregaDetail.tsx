@@ -105,6 +105,7 @@ interface Item {
   preparado: boolean;
   costo_unitario: number | null;
   precio_venta: number | null;
+  moneda: string | null;
   posicion: number;
 }
 
