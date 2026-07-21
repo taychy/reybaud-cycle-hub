@@ -274,6 +274,19 @@ const AdminLayout = () => {
       .filter((m) => m.groups.length > 0);
   }, [isDeposito, isSuperAdmin]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (isDeposito && !location.pathname.startsWith("/admin/tienda")) {
+    return <Navigate to="/admin/tienda" replace />;
+  }
+
+
   const badgeCountFor = (key?: BadgeKey) =>
     key === "waitlist" ? waitlistPending :
     key === "waitlist_entries" ? waitlistEntriesPending :
