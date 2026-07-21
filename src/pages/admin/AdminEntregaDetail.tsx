@@ -548,7 +548,14 @@ const AdminEntregaDetail = () => {
                               <SelectItem value="EUR">EUR</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button size="sm" onClick={() => saveProductGroup(key, g.itemIds)}>Aplicar</Button>
+                          <Button
+                            size="sm"
+                            onClick={() => saveProductGroup(key, g.itemIds)}
+                            disabled={productSaveState[key] === "saving"}
+                            className={productSaveState[key] === "saved" ? "bg-emerald-600 hover:bg-emerald-600" : ""}
+                          >
+                            {productSaveState[key] === "saving" ? "Guardando…" : productSaveState[key] === "saved" ? "✓ Guardado" : "Aplicar"}
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
