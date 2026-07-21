@@ -74,7 +74,7 @@ const DeliveryCashWidget = () => {
           )}
         </CardTitle>
         <Button size="sm" variant="ghost" asChild>
-          <Link to="/admin/entregas-caja">
+          <Link to="/admin/entregas">
             Ver <ArrowRight className="w-3 h-3 ml-1" />
           </Link>
         </Button>
