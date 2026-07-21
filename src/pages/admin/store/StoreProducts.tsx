@@ -37,6 +37,8 @@ interface Product {
   preorder_status?: string;
   preorder_variants?: any;
   currency?: string;
+  costo?: number | null;
+  costo_moneda?: string | null;
   variants?: any;
   variant_stock?: Record<string, number>;
   checkout_mode?: string;
@@ -126,6 +128,8 @@ const StoreProducts = () => {
       featured_order: editProduct.featured_order || null,
       is_preorder: editProduct.is_preorder || false,
       currency: editProduct.currency || "ARS",
+      costo: editProduct.costo ?? null,
+      costo_moneda: editProduct.costo_moneda || editProduct.currency || "ARS",
       preorder_description: editProduct.preorder_description || null,
       preorder_deposit_amount: editProduct.preorder_deposit_amount || null,
       preorder_deposit_percent: editProduct.preorder_deposit_percent || null,
@@ -416,6 +420,35 @@ const StoreProducts = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Costo interno (para entregas / margen) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-heading uppercase text-muted-foreground">Costo</label>
+                <Input
+                  type="number"
+                  value={editProduct?.costo ?? ""}
+                  onChange={(e) => setEditProduct((p) => ({ ...p, costo: e.target.value ? Number(e.target.value) : null }))}
+                  placeholder="Costo unitario"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Uso interno. Se hereda al vincular en Entregas.</p>
+              </div>
+              <div>
+                <label className="text-xs font-heading uppercase text-muted-foreground">Moneda del costo</label>
+                <Select
+                  value={editProduct?.costo_moneda || editProduct?.currency || "ARS"}
+                  onValueChange={(v) => setEditProduct((p) => ({ ...p, costo_moneda: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
 
             {/* Variantes (siempre disponibles para productos NO combo NO preventa) */}
             {!editProduct?.is_preorder && !editProduct?.is_combo && (
