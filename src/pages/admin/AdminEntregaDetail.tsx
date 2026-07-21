@@ -871,7 +871,86 @@ const AdminEntregaDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* EDIT PAYMENT */}
+      <Dialog open={!!editingPayment} onOpenChange={(o) => !o && setEditingPayment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cobro</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Cliente</Label>
+              <Input value={payEdit.cliente_nombre} onChange={(e) => setPayEdit({ ...payEdit, cliente_nombre: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Monto</Label>
+                <Input type="number" step="0.01" value={payEdit.monto} onChange={(e) => setPayEdit({ ...payEdit, monto: e.target.value })} />
+              </div>
+              <div>
+                <Label>Moneda</Label>
+                <Select value={payEdit.moneda} onValueChange={(v) => setPayEdit({ ...payEdit, moneda: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Forma de pago</Label>
+              <Select value={payEdit.forma_pago} onValueChange={(v) => setPayEdit({ ...payEdit, forma_pago: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="transferencia">Transferencia</SelectItem>
+                  <SelectItem value="mp">Mercado Pago</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="pay-validado" checked={payEdit.validado} onCheckedChange={(v) => setPayEdit({ ...payEdit, validado: !!v })} />
+              <Label htmlFor="pay-validado" className="cursor-pointer">Validado</Label>
+            </div>
+            <div>
+              <Label>Notas</Label>
+              <Textarea rows={2} value={payEdit.notas} onChange={(e) => setPayEdit({ ...payEdit, notas: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="destructive" onClick={() => editingPayment && setDeletingPaymentId(editingPayment.id)} className="sm:mr-auto">
+              <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
+            </Button>
+            <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
+            <Button variant="gold" onClick={savePaymentEdit} disabled={savingPayEdit}>
+              {savingPayEdit ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE PAYMENT CONFIRM */}
+      <AlertDialog open={!!deletingPaymentId} onOpenChange={(o) => !o && setDeletingPaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este cobro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El cobro se quitará de la caja de la entrega.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deletePayment}>Sí, eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 };
 
