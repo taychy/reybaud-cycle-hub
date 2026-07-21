@@ -51,6 +51,7 @@ const AdminTurnera = () => {
   // Reserva manual (admin)
   const [showReservaForm, setShowReservaForm] = useState(false);
   const [alumnos, setAlumnos] = useState<any[]>([]);
+  const [alumnoPickerOpen, setAlumnoPickerOpen] = useState(false);
   const [reservaForm, setReservaForm] = useState({
     servicio_id: "",
     coach_id: "",
