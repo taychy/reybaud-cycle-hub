@@ -133,7 +133,7 @@ const AdminEntregaDetail = () => {
   });
   const [savingCost, setSavingCost] = useState(false);
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
-  const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string }>>({});
+  const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
 
   const load = async () => {
     if (!listId) return;
