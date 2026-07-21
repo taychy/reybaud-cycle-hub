@@ -79,6 +79,8 @@ interface DeliveryItem {
   alumno_id: string | null;
   aviso_retiro_enviado_at: string | null;
   aviso_retiro_channel: string | null;
+  precio_venta?: number | null;
+  moneda?: string | null;
 }
 
 const formatVariant = (v: any): string | null => {
@@ -117,7 +119,7 @@ const DepositoEntregaDetail = () => {
 
   const fetch = async () => {
     if (!id) return;
-    const [{ data: l }, { data: its }] = await Promise.all([
+    const [{ data: l }, { data: its }, { data: pays }] = await Promise.all([
       supabase.from("delivery_lists").select("*").eq("id", id).maybeSingle(),
       supabase
         .from("delivery_list_items")
@@ -126,9 +128,14 @@ const DepositoEntregaDetail = () => {
         .order("cliente_nombre")
         .order("posicion")
         .order("created_at"),
+      supabase
+        .from("delivery_list_payments")
+        .select("cliente_nombre, monto, moneda, validado")
+        .eq("list_id", id),
     ]);
     setList(l as any);
     setItems((its as any) || []);
+    setPayments((pays as any) || []);
     setLoading(false);
   };
 
