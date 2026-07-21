@@ -458,9 +458,13 @@ const DepositoEntregaDetail = () => {
                     alumno_id: i.alumno_id,
                     aviso_retiro_enviado_at: i.aviso_retiro_enviado_at,
                     aviso_retiro_channel: i.aviso_retiro_channel,
+                    precio_venta: i.precio_venta ?? null,
+                    moneda: i.moneda ?? null,
                   }))}
+                  balances={bal}
                   onChanged={fetch}
                 />
+
                 <DeliveryPaymentsSection
                   mode="auth"
                   listId={list.id}
