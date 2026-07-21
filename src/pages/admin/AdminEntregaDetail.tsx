@@ -93,7 +93,9 @@ interface Payment {
   validado: boolean;
   created_at: string;
   cargado_por_nombre: string | null;
+  notas?: string | null;
 }
+
 
 interface Item {
   id: string;
