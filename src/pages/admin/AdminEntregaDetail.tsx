@@ -167,11 +167,12 @@ const AdminEntregaDetail = () => {
     setPayments((pays as any) || []);
     const itemsData = ((its as any) || []) as Item[];
     setItems(itemsData);
-    const edits: Record<string, { costo_unitario: string; precio_venta: string }> = {};
+    const edits: Record<string, { costo_unitario: string; precio_venta: string; moneda: string }> = {};
     itemsData.forEach((it) => {
       edits[it.id] = {
         costo_unitario: it.costo_unitario?.toString() ?? "",
         precio_venta: it.precio_venta?.toString() ?? "",
+        moneda: it.moneda ?? "ARS",
       };
     });
     setItemEdits(edits);
