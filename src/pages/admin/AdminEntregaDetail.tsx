@@ -158,7 +158,7 @@ const AdminEntregaDetail = () => {
       supabase.from("delivery_supplier_payments").select("*").eq("delivery_list_id", listId).order("fecha", { ascending: false }),
       supabase
         .from("delivery_list_payments")
-        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre")
+        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre, notas")
         .eq("list_id", listId)
         .order("created_at", { ascending: false }),
       supabase
