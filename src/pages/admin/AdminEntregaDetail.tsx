@@ -399,7 +399,7 @@ const AdminEntregaDetail = () => {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {its.map((it) => {
-                      const edit = itemEdits[it.id] || { costo_unitario: "", precio_venta: "" };
+                      const edit = itemEdits[it.id] || { costo_unitario: "", precio_venta: "", moneda: "ARS" };
                       return (
                         <div key={it.id} className="rounded-md border border-border p-2 space-y-2">
                           <div className="flex items-start gap-2">
