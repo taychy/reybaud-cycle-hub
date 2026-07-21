@@ -153,6 +153,15 @@ Deno.serve(async (req) => {
     }
 
     const alumnoName = [alumno.nombre, alumno.apellido].filter(Boolean).join(" ").trim() || cliente_nombre;
+
+    // WhatsApp CTA button (wa.me con mensaje pre-armado)
+    const WA_PHONE = "5491153833337";
+    const waMsg = `Hola! Escribo por mi pedido de ${list.titulo}. Quiero coordinar el retiro${(monedas.some((m) => (totales[m] || 0) - (cobrados[m] || 0) > 0.001)) ? " y el pago del saldo pendiente" : ""}.`;
+    const waUrl = `https://wa.me/${WA_PHONE}?text=${encodeURIComponent(waMsg)}`;
+    const waButtonHtml = `<div style="text-align:center;margin:20px 0"><a href="${waUrl}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;font-size:14px">💬 Escribinos por WhatsApp</a></div>`;
+    pagoEstadoHtml = pagoEstadoHtml + waButtonHtml;
+    pagoEstadoTxt = pagoEstadoTxt + `\n\nWhatsApp: ${waUrl}`;
+
     const vars: Record<string, string> = {
       alumno_nombre: escapeHtml(alumnoName),
       lista_titulo: escapeHtml(list.titulo),
@@ -161,6 +170,7 @@ Deno.serve(async (req) => {
       pago_estado_html: pagoEstadoHtml,
       pago_estado_txt: pagoEstadoTxt,
       reply_email: REPLY_EMAIL,
+      whatsapp_url: waUrl,
     };
     const replace = (s: string) => s.replace(/\{(\w+)\}/g, (_m, k) => vars[k] ?? `{${k}}`);
 
