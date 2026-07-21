@@ -943,16 +943,35 @@ const AdminEntregaDetail = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* EDIT PAYMENT */}
-      <Dialog open={!!editingPayment} onOpenChange={(o) => !o && setEditingPayment(null)}>
+      {/* EDIT / NEW PAYMENT */}
+      <Dialog open={!!editingPayment || creatingPayment} onOpenChange={(o) => { if (!o) { setEditingPayment(null); setCreatingPayment(false); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar cobro</DialogTitle>
+            <DialogTitle>{creatingPayment ? "Nuevo cobro" : "Editar cobro"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Cliente</Label>
-              <Input value={payEdit.cliente_nombre} onChange={(e) => setPayEdit({ ...payEdit, cliente_nombre: e.target.value })} />
+              <Input
+                list="entrega-clientes"
+                value={payEdit.cliente_nombre}
+                onChange={(e) => setPayEdit({ ...payEdit, cliente_nombre: e.target.value })}
+                placeholder="Escribí o elegí un cliente"
+              />
+              <datalist id="entrega-clientes">
+                {grouped.map(([name]) => <option key={name} value={name} />)}
+              </datalist>
+            </div>
+            <div>
+              <Label>Concepto</Label>
+              <Select value={payEdit.concepto} onValueChange={(v) => setPayEdit({ ...payEdit, concepto: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sena">Seña (al encargar)</SelectItem>
+                  <SelectItem value="saldo">Saldo (al recibir)</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -989,17 +1008,19 @@ const AdminEntregaDetail = () => {
               <Label htmlFor="pay-validado" className="cursor-pointer">Validado</Label>
             </div>
             <div>
-              <Label>Notas</Label>
+              <Label>Notas (opcional)</Label>
               <Textarea rows={2} value={payEdit.notas} onChange={(e) => setPayEdit({ ...payEdit, notas: e.target.value })} />
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="destructive" onClick={() => editingPayment && setDeletingPaymentId(editingPayment.id)} className="sm:mr-auto">
-              <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
-            </Button>
-            <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
+            {!creatingPayment && editingPayment && (
+              <Button variant="destructive" onClick={() => setDeletingPaymentId(editingPayment.id)} className="sm:mr-auto">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => { setEditingPayment(null); setCreatingPayment(false); }}>Cancelar</Button>
             <Button variant="gold" onClick={savePaymentEdit} disabled={savingPayEdit}>
-              {savingPayEdit ? "Guardando..." : "Guardar"}
+              {savingPayEdit ? "Guardando..." : creatingPayment ? "Registrar" : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
