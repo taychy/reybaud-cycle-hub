@@ -50,6 +50,7 @@ import {
 } from "@/lib/deliveryExcel";
 import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
+import { computeDeliveryBalances, fmtMoneyBalance, type BalanceRow } from "@/lib/deliveryBalances";
 
 interface DeliveryList {
   id: string;
@@ -78,6 +79,8 @@ interface DeliveryItem {
   alumno_id: string | null;
   aviso_retiro_enviado_at: string | null;
   aviso_retiro_channel: string | null;
+  precio_venta?: number | null;
+  moneda?: string | null;
 }
 
 const formatVariant = (v: any): string | null => {
@@ -96,6 +99,7 @@ const DepositoEntregaDetail = () => {
   const navigate = useNavigate();
   const [list, setList] = useState<DeliveryList | null>(null);
   const [items, setItems] = useState<DeliveryItem[]>([]);
+  const [payments, setPayments] = useState<Array<{ cliente_nombre: string; monto: number; moneda: string; validado: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [showFromOrders, setShowFromOrders] = useState(false);
@@ -115,7 +119,7 @@ const DepositoEntregaDetail = () => {
 
   const fetch = async () => {
     if (!id) return;
-    const [{ data: l }, { data: its }] = await Promise.all([
+    const [{ data: l }, { data: its }, { data: pays }] = await Promise.all([
       supabase.from("delivery_lists").select("*").eq("id", id).maybeSingle(),
       supabase
         .from("delivery_list_items")
@@ -124,9 +128,14 @@ const DepositoEntregaDetail = () => {
         .order("cliente_nombre")
         .order("posicion")
         .order("created_at"),
+      supabase
+        .from("delivery_list_payments")
+        .select("cliente_nombre, monto, moneda, validado")
+        .eq("list_id", id),
     ]);
     setList(l as any);
     setItems((its as any) || []);
+    setPayments((pays as any) || []);
     setLoading(false);
   };
 
@@ -152,6 +161,11 @@ const DepositoEntregaDetail = () => {
     const prep = items.filter((i) => i.preparado).length;
     return { total, prep, pct: total ? Math.round((prep / total) * 100) : 0 };
   }, [items]);
+
+  const balancesByClient = useMemo(
+    () => computeDeliveryBalances(items as any, payments as any),
+    [items, payments],
+  );
 
   const applyToggle = async (item: DeliveryItem, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
@@ -353,6 +367,7 @@ const DepositoEntregaDetail = () => {
             const prep = its.filter((i) => i.preparado).length;
             const pct = Math.round((prep / total) * 100);
             const complete = prep === total;
+            const bal = balancesByClient[cliente] || [];
             return (
               <div key={cliente} className={`glass-card rounded-lg p-3 border ${complete ? "border-primary/40" : "border-transparent"}`}>
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -366,6 +381,22 @@ const DepositoEntregaDetail = () => {
                 <div className="h-1 rounded bg-secondary overflow-hidden mb-2">
                   <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                 </div>
+                {bal.length > 0 && bal.some((r) => r.total > 0 || r.cobrado > 0) && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {bal.filter((r) => r.total > 0 || r.cobrado > 0).map((r) => (
+                      <div key={r.moneda} className="text-[11px] rounded-md bg-secondary/60 border border-border/60 px-2 py-1 flex items-center gap-2">
+                        <span className="text-muted-foreground">Total {r.moneda}</span>
+                        <span className="font-semibold">{fmtMoneyBalance(r.total, r.moneda)}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-emerald-500">cobrado {fmtMoneyBalance(r.cobrado, r.moneda)}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className={r.pendiente > 0.001 ? "text-amber-500 font-semibold" : "text-emerald-500 font-semibold"}>
+                          {r.pendiente > 0.001 ? `saldo ${fmtMoneyBalance(r.pendiente, r.moneda)}` : "saldado"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-1">
                   {its.map((it) => {
                     const variantText = formatVariant(it.variante);
@@ -427,9 +458,13 @@ const DepositoEntregaDetail = () => {
                     alumno_id: i.alumno_id,
                     aviso_retiro_enviado_at: i.aviso_retiro_enviado_at,
                     aviso_retiro_channel: i.aviso_retiro_channel,
+                    precio_venta: i.precio_venta ?? null,
+                    moneda: i.moneda ?? null,
                   }))}
+                  balances={bal}
                   onChanged={fetch}
                 />
+
                 <DeliveryPaymentsSection
                   mode="auth"
                   listId={list.id}

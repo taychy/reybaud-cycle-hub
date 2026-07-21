@@ -29,7 +29,10 @@ interface Props {
     alumno_id: string | null;
     aviso_retiro_enviado_at: string | null;
     aviso_retiro_channel: string | null;
+    precio_venta?: number | null;
+    moneda?: string | null;
   }>;
+  balances?: Array<{ moneda: string; total: number; cobrado: number; pendiente: number }>;
   onChanged: () => void;
 }
 
@@ -56,7 +59,11 @@ const normalizePhoneAr = (raw: string): string => {
   return "549" + digits;
 };
 
-const DeliveryClientNotify = ({ listId, listTitulo, clienteNombre, items, onChanged }: Props) => {
+const CURRENCY_SYMBOL: Record<string, string> = { ARS: "$", USD: "US$", EUR: "€" };
+const fmtM = (n: number, cur: string) =>
+  `${CURRENCY_SYMBOL[cur] || ""} ${(Math.round(n * 100) / 100).toLocaleString("es-AR")}`.trim();
+
+const DeliveryClientNotify = ({ listId, listTitulo, clienteNombre, items, balances, onChanged }: Props) => {
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLink, setShowLink] = useState(false);
@@ -117,14 +124,23 @@ const DeliveryClientNotify = ({ listId, listTitulo, clienteNombre, items, onChan
     const detail = items.map(i => {
       const q = (i.cantidad || 1) > 1 ? `${i.cantidad}× ` : "";
       const v = formatVariant(i.variante);
-      return `• ${q}${i.producto}${v ? ` (${v})` : ""}`;
+      const price = Number(i.precio_venta || 0) > 0
+        ? ` — ${fmtM(Number(i.precio_venta) * Number(i.cantidad || 1), i.moneda || "ARS")}`
+        : "";
+      return `• ${q}${i.producto}${v ? ` (${v})` : ""}${price}`;
     }).join("\n");
+    const balRows = (balances || []).filter((r) => r.total > 0 || r.cobrado > 0);
+    const balText = balRows.length
+      ? "\n\n*Estado de pago*\n" + balRows.map((r) =>
+          `${r.moneda}: total ${fmtM(r.total, r.moneda)} · cobrado ${fmtM(r.cobrado, r.moneda)} · ` +
+          (r.pendiente > 0.001 ? `pendiente ${fmtM(r.pendiente, r.moneda)}` : "saldado ✅")
+        ).join("\n")
+      : "";
     const msg =
       `Hola ${alumno.nombre}! Tu pedido de *${listTitulo}* ya está listo. ` +
       `Podés retirarlo en la camioneta de la escuela en tu próxima clase.\n\n` +
-      `Detalle:\n${detail}\n\n` +
-      `Si querés saber cuánto te resta pagar, admin se va a comunicar con vos, ` +
-      `o podés escribirnos a ${REPLY_EMAIL}. ¡Nos vemos!`;
+      `Detalle:\n${detail}` + balText + `\n\n` +
+      `Cualquier consulta escribinos a ${REPLY_EMAIL}. ¡Nos vemos!`;
     // Usamos web.whatsapp.com/send porque wa.me suele redirigir a api.whatsapp.com,
     // que algunas redes corporativas bloquean (ERR_BLOCKED_BY_RESPONSE).
     const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
