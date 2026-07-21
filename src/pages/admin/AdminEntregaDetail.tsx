@@ -416,7 +416,7 @@ const AdminEntregaDetail = () => {
                               {it.notas && <div className="text-[11px] text-muted-foreground">{it.notas}</div>}
                             </div>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 items-end">
+                          <div className="grid grid-cols-4 gap-2 items-end">
                             <div>
                               <Label className="text-[10px] uppercase text-muted-foreground">Costo unit.</Label>
                               <Input
@@ -436,6 +436,17 @@ const AdminEntregaDetail = () => {
                                 placeholder="0"
                                 className="h-8 text-sm"
                               />
+                            </div>
+                            <div>
+                              <Label className="text-[10px] uppercase text-muted-foreground">Moneda</Label>
+                              <Select value={edit.moneda} onValueChange={(v) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, moneda: v } })}>
+                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ARS">ARS</SelectItem>
+                                  <SelectItem value="USD">USD</SelectItem>
+                                  <SelectItem value="EUR">EUR</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <Button size="sm" variant="outline" onClick={() => saveItemMoney(it)}>Guardar</Button>
                           </div>
