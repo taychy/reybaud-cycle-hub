@@ -709,42 +709,74 @@ const AdminEntregaDetail = () => {
 
         {/* COBROS */}
         <TabsContent value="cobros" className="space-y-2 pt-4">
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-muted-foreground">Cobros reportados por el entregador. Entran directo a la caja.</p>
+          <div className="flex justify-between items-center gap-2">
+            <p className="text-xs text-muted-foreground flex-1">Seña al encargar + saldo al recibir. Podés cargar 2+ cobros por cliente.</p>
+            <Button size="sm" variant="gold" onClick={openNewPayment}>
+              <Plus className="w-3 h-3 mr-1" /> Nuevo cobro
+            </Button>
             <Button size="sm" variant="ghost" asChild>
-              <Link to="/admin/cobros-entrega">Validar cobros <ExternalLink className="w-3 h-3 ml-1" /></Link>
+              <Link to="/admin/cobros-entrega">Validar <ExternalLink className="w-3 h-3 ml-1" /></Link>
             </Button>
           </div>
           {payments.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No hay cobros aún.</p>
           ) : (
-            <div className="space-y-1.5">
-              {payments.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => openEditPayment(p)}
-                  className="w-full flex items-center justify-between rounded-md bg-secondary/40 hover:bg-secondary/60 transition px-3 py-2 text-sm text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{p.cliente_nombre}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {new Date(p.created_at).toLocaleString("es-AR")} · {p.forma_pago}
-                      {p.cargado_por_nombre ? ` · ${p.cargado_por_nombre}` : ""}
-                      <span className="ml-1 opacity-70">· tocá para editar</span>
+            <div className="space-y-3">
+              {Object.entries(
+                payments.reduce<Record<string, Payment[]>>((acc, p) => {
+                  const k = p.cliente_nombre || "(sin cliente)";
+                  (acc[k] ||= []).push(p);
+                  return acc;
+                }, {})
+              )
+                .sort(([a], [b]) => a.localeCompare(b, "es"))
+                .map(([cliente, list]) => {
+                  const byCur = list.reduce<Record<string, number>>((a, p) => {
+                    a[p.moneda] = (a[p.moneda] || 0) + Number(p.monto || 0);
+                    return a;
+                  }, {});
+                  return (
+                    <div key={cliente} className="space-y-1">
+                      <div className="flex items-center justify-between px-1">
+                        <div className="text-xs font-semibold">{cliente} <span className="text-muted-foreground font-normal">· {list.length} cobro{list.length > 1 ? "s" : ""}</span></div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {Object.entries(byCur).map(([m, t]) => formatPrice(t, m)).join(" + ")}
+                        </div>
+                      </div>
+                      {list.map((p) => {
+                        const { concepto, rest } = parseConceptoFromNotas(p.notas);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => openEditPayment(p)}
+                            className="w-full flex items-center justify-between rounded-md bg-secondary/40 hover:bg-secondary/60 transition px-3 py-2 text-sm text-left"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0">{conceptoLabel(concepto)}</Badge>
+                                <span className="text-[11px] text-muted-foreground">{p.forma_pago}</span>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                {new Date(p.created_at).toLocaleDateString("es-AR")}
+                                {p.cargado_por_nombre ? ` · ${p.cargado_por_nombre}` : ""}
+                                {rest ? ` · ${rest}` : ""}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 flex items-center gap-2">
+                              <span className="font-medium">{formatPrice(p.monto, p.moneda)}</span>
+                              {p.validado ? (
+                                <Badge className="text-[9px] bg-primary/20 text-primary">✓</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/50">pend</Badge>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
-                  <div className="text-right shrink-0 flex items-center gap-2">
-                    <span className="font-medium">{formatPrice(p.monto, p.moneda)}</span>
-                    {p.validado ? (
-                      <Badge className="text-[9px] bg-primary/20 text-primary">✓</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/50">pend</Badge>
-                    )}
-                  </div>
-                </button>
-              ))}
-
+                  );
+                })}
             </div>
           )}
         </TabsContent>
