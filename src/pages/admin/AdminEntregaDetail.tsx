@@ -149,7 +149,7 @@ const AdminEntregaDetail = () => {
         .order("created_at", { ascending: false }),
       supabase
         .from("delivery_list_items")
-        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, posicion")
+        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, moneda, posicion")
         .eq("list_id", listId)
         .order("cliente_nombre", { ascending: true })
         .order("posicion", { ascending: true }),
