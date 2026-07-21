@@ -1,0 +1,1 @@
+UPDATE public.process_template_stages SET entidad_control='supplier_order' WHERE id='9410bd31-ab8c-4acb-bf09-7da088e598e7';
