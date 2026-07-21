@@ -193,7 +193,13 @@ const AdminLayout = () => {
     };
     load();
     const iv = setInterval(load, 60000);
-    return () => { alive = false; clearInterval(iv); };
+    const onRefresh = () => { if (alive) load(); };
+    window.addEventListener("reybaud:refresh-admin-badges", onRefresh);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+      window.removeEventListener("reybaud:refresh-admin-badges", onRefresh);
+    };
   }, [location.pathname]);
 
   const toggleCollapsed = () => {

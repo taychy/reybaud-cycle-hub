@@ -34,6 +34,10 @@ export default function AdminWaitlistTemplates() {
   const [responses, setResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(false);
 
+  const refreshAdminBadges = () => {
+    window.dispatchEvent(new Event("reybaud:refresh-admin-badges"));
+  };
+
   const openResponses = async (t: Template) => {
     setViewingResponses(t);
     setLoadingResponses(true);
@@ -44,6 +48,9 @@ export default function AdminWaitlistTemplates() {
     } else {
       setResponses((data as any[]) || []);
     }
+    // Marcar como vistas las entradas de esta plantilla para limpiar el badge
+    await supabase.rpc("mark_waitlist_entries_seen_for_template" as any, { p_template_id: t.id });
+    refreshAdminBadges();
     setLoadingResponses(false);
   };
 
@@ -65,7 +72,10 @@ export default function AdminWaitlistTemplates() {
   };
 
   useEffect(() => {
-    load();
+    load().then(() => {
+      // Al abrir la página se marcan todas las entradas nuevas como vistas
+      supabase.rpc("mark_waitlist_entries_seen" as any).then(() => refreshAdminBadges());
+    });
   }, []);
 
   const openNew = () => {

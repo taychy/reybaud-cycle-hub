@@ -89,7 +89,12 @@ export default function AdminEventWaitlist() {
   };
 
   useEffect(() => {
-    load();
+    load().then(() => {
+      // Al ver las entradas de lista de espera de un evento se marcan como vistas
+      supabase.rpc("mark_waitlist_entries_seen" as any).then(() => {
+        window.dispatchEvent(new Event("reybaud:refresh-admin-badges"));
+      });
+    });
   }, [id]);
 
   const saveConfig = async () => {
