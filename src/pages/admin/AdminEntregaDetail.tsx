@@ -460,10 +460,99 @@ const AdminEntregaDetail = () => {
           </div>
         </TabsContent>
 
-        {/* ITEMS Y CLIENTES */}
+        {/* PRODUCTOS (fuente única de costo/precio por producto+variante) */}
+        <TabsContent value="productos" className="space-y-3 pt-4">
+          <p className="text-xs text-muted-foreground">
+            Cargá costo y precio a nivel <strong>producto + variante</strong>: se aplica a todos los clientes que llevaron ese ítem. Vinculá a un producto de la tienda para heredar los valores.
+          </p>
+          {productGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Sin productos.</p>
+          ) : (
+            <div className="space-y-2">
+              {productGroups.map(([key, g]) => {
+                const edit = productEdits[key] || { costo: "", precio: "", moneda: "ARS", store_product_id: "" };
+                const linked = storeProducts.find((s) => s.id === edit.store_product_id);
+                return (
+                  <Card key={key}>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {g.producto}
+                            {g.variante ? <span className="text-muted-foreground text-xs"> · {g.variante}</span> : null}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {g.unidades} unidad(es) · {g.items.length} cliente(s)
+                          </div>
+                        </div>
+                        {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+                        <div className="col-span-2">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Producto de tienda</Label>
+                          <Select
+                            value={edit.store_product_id || "none"}
+                            onValueChange={(v) => {
+                              if (v === "none") {
+                                setProductEdits({ ...productEdits, [key]: { ...edit, store_product_id: "" } });
+                              } else {
+                                linkAndPullFromStore(key, v);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Sin vincular" /></SelectTrigger>
+                            <SelectContent className="max-h-64">
+                              <SelectItem value="none">Sin vincular</SelectItem>
+                              {storeProducts.map((sp) => (
+                                <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase text-muted-foreground">Costo unit.</Label>
+                          <Input
+                            type="number"
+                            value={edit.costo}
+                            onChange={(e) => setProductEdits({ ...productEdits, [key]: { ...edit, costo: e.target.value } })}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase text-muted-foreground">Precio venta</Label>
+                          <Input
+                            type="number"
+                            value={edit.precio}
+                            onChange={(e) => setProductEdits({ ...productEdits, [key]: { ...edit, precio: e.target.value } })}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-1">
+                          <Select value={edit.moneda} onValueChange={(v) => setProductEdits({ ...productEdits, [key]: { ...edit, moneda: v } })}>
+                            <SelectTrigger className="h-8 text-sm w-20"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ARS">ARS</SelectItem>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" onClick={() => saveProductGroup(key, g.itemIds)}>Aplicar</Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ÍTEMS Y CLIENTES (solo entrega + resumen de plata read-only) */}
         <TabsContent value="items" className="space-y-3 pt-4">
           <p className="text-xs text-muted-foreground">
-            Cargá <strong>costo unitario</strong> (lo que te cuesta a vos) y <strong>precio de venta</strong> por ítem para calcular rentabilidad. El tilde de entregado se sincroniza con depósito.
+            Marcá los ítems entregados. El costo y precio se configura en la pestaña <strong>Productos</strong>.
           </p>
           {grouped.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">Sin ítems.</p>
@@ -478,62 +567,31 @@ const AdminEntregaDetail = () => {
                       <Badge variant="secondary" className="text-[10px]">{done}/{its.length} entregados</Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    {its.map((it) => {
-                      const edit = itemEdits[it.id] || { costo_unitario: "", precio_venta: "", moneda: "ARS" };
-                      return (
-                        <div key={it.id} className="rounded-md border border-border p-2 space-y-2">
-                          <div className="flex items-start gap-2">
-                            <Checkbox
-                              checked={it.preparado}
-                              disabled={!cajaAbierta}
-                              onCheckedChange={(v) => toggleEntregado(it, !!v)}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-sm font-medium ${it.preparado ? "line-through text-muted-foreground" : ""}`}>
-                                {it.producto} {it.variante ? <span className="text-muted-foreground text-xs">· {it.variante}</span> : null} × {it.cantidad}
-                              </div>
-                              {it.notas && <div className="text-[11px] text-muted-foreground">{it.notas}</div>}
-                            </div>
+                  <CardContent className="space-y-1.5">
+                    {its.map((it) => (
+                      <div key={it.id} className="flex items-start gap-2 rounded-md border border-border/60 p-2">
+                        <Checkbox
+                          checked={it.preparado}
+                          disabled={!cajaAbierta}
+                          onCheckedChange={(v) => toggleEntregado(it, !!v)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm ${it.preparado ? "line-through text-muted-foreground" : ""}`}>
+                            {it.producto}{it.variante ? <span className="text-muted-foreground text-xs"> · {it.variante}</span> : null} × {it.cantidad}
                           </div>
-                          <div className="grid grid-cols-4 gap-2 items-end">
-                            <div>
-                              <Label className="text-[10px] uppercase text-muted-foreground">Costo unit.</Label>
-                              <Input
-                                type="number"
-                                value={edit.costo_unitario}
-                                onChange={(e) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, costo_unitario: e.target.value } })}
-                                placeholder="0"
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-[10px] uppercase text-muted-foreground">Precio venta</Label>
-                              <Input
-                                type="number"
-                                value={edit.precio_venta}
-                                onChange={(e) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, precio_venta: e.target.value } })}
-                                placeholder="0"
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-[10px] uppercase text-muted-foreground">Moneda</Label>
-                              <Select value={edit.moneda} onValueChange={(v) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, moneda: v } })}>
-                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="ARS">ARS</SelectItem>
-                                  <SelectItem value="USD">USD</SelectItem>
-                                  <SelectItem value="EUR">EUR</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <Button size="sm" variant="outline" onClick={() => saveItemMoney(it)}>Guardar</Button>
-                          </div>
+                          {it.notas && <div className="text-[11px] text-muted-foreground">{it.notas}</div>}
                         </div>
-                      );
-                    })}
+                        <div className="text-right shrink-0 text-[11px] text-muted-foreground">
+                          {it.precio_venta != null
+                            ? <div className="text-foreground">{formatPrice(Number(it.precio_venta) * Number(it.cantidad || 1), it.moneda || "ARS")}</div>
+                            : <div className="italic">sin precio</div>}
+                          {it.costo_unitario != null && (
+                            <div>costo {formatPrice(Number(it.costo_unitario), it.moneda || "ARS")}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               );
