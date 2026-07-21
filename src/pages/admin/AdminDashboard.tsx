@@ -210,13 +210,9 @@ const AdminDashboard = () => {
         { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con conflicto de modalidad` : "Ver pagos activos" },
         { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Pendientes + gracia día 1-5" },
         { label: "Pagos vencidos", value: pagosVencidos, icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", hint: "Vencidas + acceso pausado (post día 5)" },
-        { label: "Cobrado este mes", value: `$${cobradoEsteMes.toLocaleString("es-AR")}`, icon: DollarSign, color: "text-green-500", to: "/admin/pagos?estado=pagado", hint: "Suscripciones cobradas este mes (precio final)" },
         { label: "Monto pendiente", value: `$${montoPendienteSubs.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: `Subs por cobrar · vencidas: $${montoVencidoSubs.toLocaleString("es-AR")}` },
-        { label: "Cuotas eventos", value: `$${cuotasMonto.toLocaleString("es-AR")}`, icon: CalendarClock, color: "text-orange-500", to: "/admin/eventos", hint: `${cuotasCount} cuota(s)${cuotasVencidas > 0 ? ` · ${cuotasVencidas} vencida(s)` : ""}` },
-        { label: "Bloqueados", value: alumnosBloqueados, icon: Ban, color: "text-destructive", to: "/admin/alumnos?filter=bloqueados", hint: "Alumnos bloqueados" },
         { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500", to: "/admin/alumnos?filter=vacaciones", hint: "Alumnos en vacaciones" },
         { label: "Inactivos", value: alumnosInactivos, icon: Users, color: "text-muted-foreground", to: "/admin/alumnos?filter=inactivos", hint: "Alumnos inactivos" },
-        { label: "Subs. en pausa", value: subsPausa, icon: Pause, color: "text-blue-500", to: "/admin/alumnos?filter=acceso_pausado", hint: "Suscripciones pausadas" },
       ]);
 
 
@@ -533,154 +529,8 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Two blocks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* A. Próximos vencimientos */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-heading uppercase tracking-wider flex items-center gap-2">
-              <CalendarClock className="w-4 h-4 text-primary" />
-              Próximos vencimientos
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {expirations.length === 0 ? (
-              <p className="text-muted-foreground text-sm p-6 pt-0">No hay vencimientos próximos.</p>
-            ) : isMobile ? (
-              <div className="space-y-2 px-4 pb-4">
-                {expirations.map((e) => (
-                  <div key={e.suscripcion_id} className="rounded-md border border-border p-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(e.alumno_nombre)}`)}>{e.alumno_nombre}</span>
-                      <Badge variant={e.estado === "Por vencer" ? "destructive" : "secondary"} className="text-xs">{e.estado}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{e.plan_nombre} · ${e.monto.toLocaleString("es-AR")}</p>
-                    <p className="text-xs text-muted-foreground">Vence: {new Date(e.fecha_fin).toLocaleDateString("es-AR")}</p>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => openWhatsApp(e.alumno_telefono, e.alumno_nombre)}>
-                        <MessageCircle className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Alumno</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Vencimiento</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expirations.map((e) => (
-                    <TableRow key={e.suscripcion_id}>
-                      <TableCell className="font-medium">
-                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(e.alumno_nombre)}`)}>
-                          {e.alumno_nombre}
-                        </span>
-                      </TableCell>
-                      <TableCell>{e.plan_nombre}</TableCell>
-                      <TableCell>{new Date(e.fecha_fin).toLocaleDateString("es-AR")}</TableCell>
-                      <TableCell>${e.monto.toLocaleString("es-AR")}</TableCell>
-                      <TableCell>
-                        <Badge variant={e.estado === "Por vencer" ? "destructive" : "secondary"}>{e.estado}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" title="Ver ficha" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(e.alumno_nombre)}`)}><Eye className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" title="Contactar por WhatsApp" onClick={() => openWhatsApp(e.alumno_telefono, e.alumno_nombre)}>
-                            <MessageCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* B. Pagos pendientes */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-heading uppercase tracking-wider flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-yellow-500" />
-              Pagos pendientes
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {pendingPayments.length === 0 ? (
-              <p className="text-muted-foreground text-sm p-6 pt-0">No hay pagos pendientes.</p>
-            ) : isMobile ? (
-              <div className="space-y-2 px-4 pb-4">
-                {pendingPayments.map((p) => (
-                  <div key={p.suscripcion_id} className="rounded-md border border-border p-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(p.alumno_nombre)}`)}>{p.alumno_nombre}</span>
-                      <PaymentBadgeComponent mpStatus={p.mp_status} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{p.plan_nombre} · ${p.monto.toLocaleString("es-AR")}</p>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => requestMarkPaid(p.suscripcion_id, p.alumno_nombre)}>
-                        <CheckCircle className="w-3 h-3 mr-1" /> Cobrado
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => openWhatsApp(p.alumno_telefono, p.alumno_nombre)}>
-                        <MessageCircle className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Alumno</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingPayments.map((p) => (
-                    <TableRow key={p.suscripcion_id}>
-                      <TableCell className="font-medium">
-                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => navigate(`/admin/alumnos?buscar=${encodeURIComponent(p.alumno_nombre)}`)}>
-                          {p.alumno_nombre}
-                        </span>
-                      </TableCell>
-                      <TableCell>{p.plan_nombre}</TableCell>
-                      <TableCell>${p.monto.toLocaleString("es-AR")}</TableCell>
-                      <TableCell>{new Date(p.fecha_inicio).toLocaleDateString("es-AR")}</TableCell>
-                      <TableCell>
-                        <PaymentBadgeComponent mpStatus={p.mp_status} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" title="Marcar como pagado" onClick={() => requestMarkPaid(p.suscripcion_id, p.alumno_nombre)}>
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Contactar por WhatsApp" onClick={() => openWhatsApp(p.alumno_telefono, p.alumno_nombre)}>
-                            <MessageCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+
 
 
       {/* Confirmation Dialog */}
