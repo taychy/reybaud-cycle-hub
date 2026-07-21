@@ -72,7 +72,10 @@ export default function AdminWaitlistTemplates() {
   };
 
   useEffect(() => {
-    load();
+    load().then(() => {
+      // Al abrir la página se marcan todas las entradas nuevas como vistas
+      supabase.rpc("mark_waitlist_entries_seen" as any).then(() => refreshAdminBadges());
+    });
   }, []);
 
   const openNew = () => {
