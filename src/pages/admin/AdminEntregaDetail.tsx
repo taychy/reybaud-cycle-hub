@@ -149,42 +149,81 @@ const AdminEntregaDetail = () => {
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
   const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-  const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "" });
+  const [creatingPayment, setCreatingPayment] = useState(false);
+  const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "", concepto: "sena" });
   const [savingPayEdit, setSavingPayEdit] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
+  // Parse concepto tag from notas prefix like "[Seña] resto..."
+  const parseConceptoFromNotas = (notas: string | null | undefined): { concepto: string; rest: string } => {
+    const s = (notas || "").trim();
+    const m = s.match(/^\[(Seña|Sena|Saldo|Otro)\]\s*(.*)$/i);
+    if (!m) return { concepto: "otro", rest: s };
+    const tag = m[1].toLowerCase().replace("ñ", "n");
+    const key = tag === "sena" ? "sena" : tag === "saldo" ? "saldo" : "otro";
+    return { concepto: key, rest: m[2] || "" };
+  };
+  const conceptoLabel = (c: string) => c === "sena" ? "Seña" : c === "saldo" ? "Saldo" : "Otro";
+  const serializeNotas = (concepto: string, rest: string) => {
+    const clean = (rest || "").trim();
+    return `[${conceptoLabel(concepto)}]${clean ? " " + clean : ""}`;
+  };
+
   const openEditPayment = (p: Payment) => {
+    setCreatingPayment(false);
     setEditingPayment(p);
+    const { concepto, rest } = parseConceptoFromNotas(p.notas);
     setPayEdit({
       monto: String(p.monto ?? ""),
       moneda: p.moneda || "ARS",
       forma_pago: (p.forma_pago || "efectivo").toLowerCase(),
       validado: !!p.validado,
-      notas: p.notas || "",
+      notas: rest,
       cliente_nombre: p.cliente_nombre || "",
+      concepto,
     });
   };
 
+  const openNewPayment = () => {
+    setEditingPayment(null);
+    setCreatingPayment(true);
+    setPayEdit({ monto: "", moneda: "USD", forma_pago: "transferencia", validado: true, notas: "", cliente_nombre: "", concepto: "sena" });
+  };
+
   const savePaymentEdit = async () => {
-    if (!editingPayment) return;
     const monto = parseFloat(payEdit.monto);
     if (isNaN(monto) || monto <= 0) { toast.error("Monto inválido"); return; }
+    if (!payEdit.cliente_nombre.trim()) { toast.error("Elegí un cliente"); return; }
     setSavingPayEdit(true);
-    const { error } = await supabase
-      .from("delivery_list_payments")
-      .update({
-        monto,
-        moneda: payEdit.moneda,
-        forma_pago: payEdit.forma_pago,
-        validado: payEdit.validado,
-        notas: payEdit.notas || null,
-        cliente_nombre: payEdit.cliente_nombre,
-      })
-      .eq("id", editingPayment.id);
+    const payload = {
+      monto,
+      moneda: payEdit.moneda,
+      forma_pago: payEdit.forma_pago,
+      validado: payEdit.validado,
+      notas: serializeNotas(payEdit.concepto, payEdit.notas),
+      cliente_nombre: payEdit.cliente_nombre,
+    };
+    let error;
+    if (creatingPayment) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const res = await supabase.from("delivery_list_payments").insert({
+        ...payload,
+        list_id: listId!,
+        origen: "admin",
+        cargado_por_user_id: user?.id ?? null,
+        cargado_por_email: user?.email ?? null,
+        cargado_por_nombre: user?.user_metadata?.full_name || user?.email || null,
+      });
+      error = res.error;
+    } else if (editingPayment) {
+      const res = await supabase.from("delivery_list_payments").update(payload).eq("id", editingPayment.id);
+      error = res.error;
+    }
     setSavingPayEdit(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Cobro actualizado");
+    toast.success(creatingPayment ? "Cobro registrado" : "Cobro actualizado");
     setEditingPayment(null);
+    setCreatingPayment(false);
     await load();
   };
 
