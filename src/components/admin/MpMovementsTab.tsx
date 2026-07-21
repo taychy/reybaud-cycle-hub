@@ -174,23 +174,29 @@ export default function MpMovementsTab() {
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
     setAssigning(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("mp_account_movements")
-      .update({
-        alumno_id: selectedAlumno,
-        assigned_manually: true,
-        assigned_by: userData?.user?.id ?? null,
-        assigned_at: new Date().toISOString(),
-        assign_notes: assignNotes || null,
-      })
-      .eq("id", assignDialog.id);
+    const { data, error } = await supabase.rpc("assign_mp_movement_to_alumno", {
+      _movement_id: assignDialog.id,
+      _alumno_id: selectedAlumno,
+      _notes: assignNotes || null,
+    });
     setAssigning(false);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const msg = error.message || "";
+      let human = msg;
+      if (msg.includes("already_assigned_to_other_student")) human = "Este movimiento ya fue asignado a otro alumno. Desasigná primero si querés reasignar.";
+      else if (msg.includes("only_approved_movements")) human = "Sólo se pueden asignar movimientos aprobados.";
+      else if (msg.includes("only_income_movements")) human = "Sólo se pueden asignar ingresos.";
+      else if (msg.includes("not_authorized")) human = "No tenés permisos para asignar movimientos.";
+      toast({ title: "No se pudo asignar", description: human, variant: "destructive" });
       return;
     }
-    toast({ title: "Movimiento asignado" });
+    const created = (data as any)?.created;
+    toast({
+      title: "Movimiento asignado",
+      description: created
+        ? "Se registró un saldo a favor en la cuenta corriente del alumno."
+        : "Ya existía un saldo a favor vinculado a este pago.",
+    });
     setAssignDialog(null);
     setSelectedAlumno(null);
     setAssignNotes("");
@@ -198,19 +204,19 @@ export default function MpMovementsTab() {
   }
 
   async function handleUnassign(m: Movement) {
-    if (!confirm("¿Quitar la asignación de este movimiento?")) return;
-    const { error } = await supabase
-      .from("mp_account_movements")
-      .update({
-        alumno_id: null,
-        assigned_manually: false,
-        assigned_by: null,
-        assigned_at: null,
-        assign_notes: null,
-      })
-      .eq("id", m.id);
-    if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
-    toast({ title: "Asignación removida" });
+    if (!confirm("¿Quitar la asignación de este movimiento? Se revertirá el saldo a favor si aún no fue aplicado.")) return;
+    const { error } = await supabase.rpc("unassign_mp_movement", { _movement_id: m.id });
+    if (error) {
+      const msg = error.message || "";
+      let human = msg;
+      if (msg.includes("credit_already_applied_cannot_unassign")) {
+        human = "El saldo a favor ya fue aplicado a una deuda. Revertí primero esa imputación desde la cuenta del alumno.";
+      } else if (msg.includes("not_authorized")) {
+        human = "No tenés permisos.";
+      }
+      return toast({ title: "No se pudo desasignar", description: human, variant: "destructive" });
+    }
+    toast({ title: "Asignación removida", description: "Se revirtió el saldo a favor." });
     await load();
   }
 
@@ -437,6 +443,10 @@ export default function MpMovementsTab() {
               {assignDialog?.payer_email && <div className="text-xs mt-1">Pagador: {assignDialog.payer_name} ({assignDialog.payer_email})</div>}
             </DialogDescription>
           </DialogHeader>
+
+          <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-200">
+            Al asignar este movimiento se cargará automáticamente un <b>saldo a favor</b> por {assignDialog && formatPrice(Number(assignDialog.amount), assignDialog.currency)} en la cuenta corriente del alumno. Después podés aplicarlo a la deuda que corresponda (cuota, evento, turno, tienda) desde su ficha.
+          </div>
 
           <div className="space-y-3">
             <div>
