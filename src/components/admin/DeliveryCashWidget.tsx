@@ -108,7 +108,7 @@ const DeliveryCashWidget = () => {
           {rows.slice(0, 4).map((r) => (
             <Link
               key={r.list_id}
-              to={`/admin/entregas-caja?list=${r.list_id}`}
+              to={`/admin/entregas/${r.list_id}`}
               className="flex items-center justify-between text-xs rounded-md hover:bg-secondary/50 px-2 py-1.5"
             >
               <span className="truncate flex items-center gap-1.5">
