@@ -148,6 +148,56 @@ const AdminEntregaDetail = () => {
   const [savingCost, setSavingCost] = useState(false);
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
   const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "" });
+  const [savingPayEdit, setSavingPayEdit] = useState(false);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+
+  const openEditPayment = (p: Payment) => {
+    setEditingPayment(p);
+    setPayEdit({
+      monto: String(p.monto ?? ""),
+      moneda: p.moneda || "ARS",
+      forma_pago: p.forma_pago || "efectivo",
+      validado: !!p.validado,
+      notas: p.notas || "",
+      cliente_nombre: p.cliente_nombre || "",
+    });
+  };
+
+  const savePaymentEdit = async () => {
+    if (!editingPayment) return;
+    const monto = parseFloat(payEdit.monto);
+    if (isNaN(monto) || monto <= 0) { toast.error("Monto inválido"); return; }
+    setSavingPayEdit(true);
+    const { error } = await supabase
+      .from("delivery_list_payments")
+      .update({
+        monto,
+        moneda: payEdit.moneda,
+        forma_pago: payEdit.forma_pago,
+        validado: payEdit.validado,
+        notas: payEdit.notas || null,
+        cliente_nombre: payEdit.cliente_nombre,
+      })
+      .eq("id", editingPayment.id);
+    setSavingPayEdit(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Cobro actualizado");
+    setEditingPayment(null);
+    await load();
+  };
+
+  const deletePayment = async () => {
+    if (!deletingPaymentId) return;
+    const { error } = await supabase.from("delivery_list_payments").delete().eq("id", deletingPaymentId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Cobro eliminado");
+    setDeletingPaymentId(null);
+    setEditingPayment(null);
+    await load();
+  };
+
 
   const load = async () => {
     if (!listId) return;
