@@ -243,6 +243,7 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  const [productSaveState, setProductSaveState] = useState<Record<string, "saving" | "saved" | undefined>>({});
   const saveProductGroup = async (key: string, itemIds: string[]) => {
     const edit = productEdits[key];
     if (!edit) return;
@@ -254,9 +255,15 @@ const AdminEntregaDetail = () => {
       moneda: edit.moneda || "ARS",
       store_product_id: edit.store_product_id || null,
     };
+    setProductSaveState((s) => ({ ...s, [key]: "saving" }));
     const { error } = await supabase.from("delivery_list_items").update(patch).in("id", itemIds);
-    if (error) return toast.error(error.message);
+    if (error) {
+      setProductSaveState((s) => ({ ...s, [key]: undefined }));
+      return toast.error(error.message);
+    }
     toast.success(`Actualizados ${itemIds.length} ítem(s)`);
+    setProductSaveState((s) => ({ ...s, [key]: "saved" }));
+    setTimeout(() => setProductSaveState((s) => ({ ...s, [key]: undefined })), 2500);
     load();
   };
 
