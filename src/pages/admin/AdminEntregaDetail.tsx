@@ -231,6 +231,51 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  const productGroups = useMemo(() => {
+    const map: Record<string, { producto: string; variante: string | null; items: Item[]; unidades: number; itemIds: string[] }> = {};
+    items.forEach((it) => {
+      const key = `${it.producto}||${it.variante ?? ""}`;
+      if (!map[key]) map[key] = { producto: it.producto, variante: it.variante, items: [], unidades: 0, itemIds: [] };
+      map[key].items.push(it);
+      map[key].unidades += Number(it.cantidad || 0);
+      map[key].itemIds.push(it.id);
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
+  }, [items]);
+
+  const saveProductGroup = async (key: string, itemIds: string[]) => {
+    const edit = productEdits[key];
+    if (!edit) return;
+    const costo = edit.costo === "" ? null : Number(edit.costo);
+    const precio = edit.precio === "" ? null : Number(edit.precio);
+    const patch: any = {
+      costo_unitario: costo,
+      precio_venta: precio,
+      moneda: edit.moneda || "ARS",
+      store_product_id: edit.store_product_id || null,
+    };
+    const { error } = await supabase.from("delivery_list_items").update(patch).in("id", itemIds);
+    if (error) return toast.error(error.message);
+    toast.success(`Actualizados ${itemIds.length} ítem(s)`);
+    load();
+  };
+
+  const linkAndPullFromStore = (key: string, storeProductId: string) => {
+    const sp = storeProducts.find((s) => s.id === storeProductId);
+    const current = productEdits[key];
+    if (!sp || !current) return;
+    setProductEdits({
+      ...productEdits,
+      [key]: {
+        ...current,
+        store_product_id: storeProductId,
+        costo: sp.costo != null ? String(sp.costo) : current.costo,
+        precio: sp.price != null ? String(sp.price) : current.precio,
+        moneda: sp.costo_moneda || sp.currency || current.moneda,
+      },
+    });
+  };
+
   const toggleEntregado = async (item: Item, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
     const { data: userRes } = await supabase.auth.getUser();
