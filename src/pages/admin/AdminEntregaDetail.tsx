@@ -107,6 +107,16 @@ interface Item {
   precio_venta: number | null;
   moneda: string | null;
   posicion: number;
+  store_product_id: string | null;
+}
+
+interface StoreProductLite {
+  id: string;
+  name: string;
+  price: number | null;
+  currency: string | null;
+  costo: number | null;
+  costo_moneda: string | null;
 }
 
 const AdminEntregaDetail = () => {
@@ -118,7 +128,9 @@ const AdminEntregaDetail = () => {
   const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [tab, setTab] = useState<"resumen" | "items" | "cobros" | "proveedor" | "cierre">("resumen");
+  const [tab, setTab] = useState<"resumen" | "productos" | "items" | "cobros" | "proveedor" | "cierre">("resumen");
+  const [storeProducts, setStoreProducts] = useState<StoreProductLite[]>([]);
+  const [productEdits, setProductEdits] = useState<Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }>>({});
   const [loading, setLoading] = useState(true);
 
   const [showNewPayment, setShowNewPayment] = useState(false);
@@ -149,7 +161,7 @@ const AdminEntregaDetail = () => {
         .order("created_at", { ascending: false }),
       supabase
         .from("delivery_list_items")
-        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, moneda, posicion")
+        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, moneda, posicion, store_product_id")
         .eq("list_id", listId)
         .order("cliente_nombre", { ascending: true })
         .order("posicion", { ascending: true }),
@@ -176,6 +188,29 @@ const AdminEntregaDetail = () => {
       };
     });
     setItemEdits(edits);
+
+    // productEdits: aggregated per producto+variante
+    const pEdits: Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }> = {};
+    itemsData.forEach((it) => {
+      const key = `${it.producto}||${it.variante ?? ""}`;
+      if (!pEdits[key]) {
+        pEdits[key] = {
+          costo: it.costo_unitario?.toString() ?? "",
+          precio: it.precio_venta?.toString() ?? "",
+          moneda: it.moneda ?? "ARS",
+          store_product_id: it.store_product_id ?? "",
+        };
+      }
+    });
+    setProductEdits(pEdits);
+
+    // Fetch store products (once per load)
+    const { data: sp2 } = await supabase
+      .from("store_products")
+      .select("id, name, price, currency, costo, costo_moneda")
+      .order("name", { ascending: true });
+    setStoreProducts((sp2 as any) || []);
+
     setLoading(false);
   };
 
@@ -195,6 +230,51 @@ const AdminEntregaDetail = () => {
     });
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
+
+  const productGroups = useMemo(() => {
+    const map: Record<string, { producto: string; variante: string | null; items: Item[]; unidades: number; itemIds: string[] }> = {};
+    items.forEach((it) => {
+      const key = `${it.producto}||${it.variante ?? ""}`;
+      if (!map[key]) map[key] = { producto: it.producto, variante: it.variante, items: [], unidades: 0, itemIds: [] };
+      map[key].items.push(it);
+      map[key].unidades += Number(it.cantidad || 0);
+      map[key].itemIds.push(it.id);
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
+  }, [items]);
+
+  const saveProductGroup = async (key: string, itemIds: string[]) => {
+    const edit = productEdits[key];
+    if (!edit) return;
+    const costo = edit.costo === "" ? null : Number(edit.costo);
+    const precio = edit.precio === "" ? null : Number(edit.precio);
+    const patch: any = {
+      costo_unitario: costo,
+      precio_venta: precio,
+      moneda: edit.moneda || "ARS",
+      store_product_id: edit.store_product_id || null,
+    };
+    const { error } = await supabase.from("delivery_list_items").update(patch).in("id", itemIds);
+    if (error) return toast.error(error.message);
+    toast.success(`Actualizados ${itemIds.length} ítem(s)`);
+    load();
+  };
+
+  const linkAndPullFromStore = (key: string, storeProductId: string) => {
+    const sp = storeProducts.find((s) => s.id === storeProductId);
+    const current = productEdits[key];
+    if (!sp || !current) return;
+    setProductEdits({
+      ...productEdits,
+      [key]: {
+        ...current,
+        store_product_id: storeProductId,
+        costo: sp.costo != null ? String(sp.costo) : current.costo,
+        precio: sp.price != null ? String(sp.price) : current.precio,
+        moneda: sp.costo_moneda || sp.currency || current.moneda,
+      },
+    });
+  };
 
   const toggleEntregado = async (item: Item, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
@@ -355,9 +435,10 @@ const AdminEntregaDetail = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
-        <TabsList className="grid grid-cols-5 w-full">
+        <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
-          <TabsTrigger value="items">Ítems y clientes</TabsTrigger>
+          <TabsTrigger value="productos">Productos</TabsTrigger>
+          <TabsTrigger value="items">Clientes</TabsTrigger>
           <TabsTrigger value="cobros">Cobros ({payments.length})</TabsTrigger>
           <TabsTrigger value="proveedor">Proveedor</TabsTrigger>
           <TabsTrigger value="cierre">Cierre</TabsTrigger>
@@ -379,10 +460,99 @@ const AdminEntregaDetail = () => {
           </div>
         </TabsContent>
 
-        {/* ITEMS Y CLIENTES */}
+        {/* PRODUCTOS (fuente única de costo/precio por producto+variante) */}
+        <TabsContent value="productos" className="space-y-3 pt-4">
+          <p className="text-xs text-muted-foreground">
+            Cargá costo y precio a nivel <strong>producto + variante</strong>: se aplica a todos los clientes que llevaron ese ítem. Vinculá a un producto de la tienda para heredar los valores.
+          </p>
+          {productGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Sin productos.</p>
+          ) : (
+            <div className="space-y-2">
+              {productGroups.map(([key, g]) => {
+                const edit = productEdits[key] || { costo: "", precio: "", moneda: "ARS", store_product_id: "" };
+                const linked = storeProducts.find((s) => s.id === edit.store_product_id);
+                return (
+                  <Card key={key}>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {g.producto}
+                            {g.variante ? <span className="text-muted-foreground text-xs"> · {g.variante}</span> : null}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {g.unidades} unidad(es) · {g.items.length} cliente(s)
+                          </div>
+                        </div>
+                        {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+                        <div className="col-span-2">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Producto de tienda</Label>
+                          <Select
+                            value={edit.store_product_id || "none"}
+                            onValueChange={(v) => {
+                              if (v === "none") {
+                                setProductEdits({ ...productEdits, [key]: { ...edit, store_product_id: "" } });
+                              } else {
+                                linkAndPullFromStore(key, v);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Sin vincular" /></SelectTrigger>
+                            <SelectContent className="max-h-64">
+                              <SelectItem value="none">Sin vincular</SelectItem>
+                              {storeProducts.map((sp) => (
+                                <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase text-muted-foreground">Costo unit.</Label>
+                          <Input
+                            type="number"
+                            value={edit.costo}
+                            onChange={(e) => setProductEdits({ ...productEdits, [key]: { ...edit, costo: e.target.value } })}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase text-muted-foreground">Precio venta</Label>
+                          <Input
+                            type="number"
+                            value={edit.precio}
+                            onChange={(e) => setProductEdits({ ...productEdits, [key]: { ...edit, precio: e.target.value } })}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-1">
+                          <Select value={edit.moneda} onValueChange={(v) => setProductEdits({ ...productEdits, [key]: { ...edit, moneda: v } })}>
+                            <SelectTrigger className="h-8 text-sm w-20"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ARS">ARS</SelectItem>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" onClick={() => saveProductGroup(key, g.itemIds)}>Aplicar</Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ÍTEMS Y CLIENTES (solo entrega + resumen de plata read-only) */}
         <TabsContent value="items" className="space-y-3 pt-4">
           <p className="text-xs text-muted-foreground">
-            Cargá <strong>costo unitario</strong> (lo que te cuesta a vos) y <strong>precio de venta</strong> por ítem para calcular rentabilidad. El tilde de entregado se sincroniza con depósito.
+            Marcá los ítems entregados. El costo y precio se configura en la pestaña <strong>Productos</strong>.
           </p>
           {grouped.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">Sin ítems.</p>
@@ -397,62 +567,31 @@ const AdminEntregaDetail = () => {
                       <Badge variant="secondary" className="text-[10px]">{done}/{its.length} entregados</Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    {its.map((it) => {
-                      const edit = itemEdits[it.id] || { costo_unitario: "", precio_venta: "", moneda: "ARS" };
-                      return (
-                        <div key={it.id} className="rounded-md border border-border p-2 space-y-2">
-                          <div className="flex items-start gap-2">
-                            <Checkbox
-                              checked={it.preparado}
-                              disabled={!cajaAbierta}
-                              onCheckedChange={(v) => toggleEntregado(it, !!v)}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-sm font-medium ${it.preparado ? "line-through text-muted-foreground" : ""}`}>
-                                {it.producto} {it.variante ? <span className="text-muted-foreground text-xs">· {it.variante}</span> : null} × {it.cantidad}
-                              </div>
-                              {it.notas && <div className="text-[11px] text-muted-foreground">{it.notas}</div>}
-                            </div>
+                  <CardContent className="space-y-1.5">
+                    {its.map((it) => (
+                      <div key={it.id} className="flex items-start gap-2 rounded-md border border-border/60 p-2">
+                        <Checkbox
+                          checked={it.preparado}
+                          disabled={!cajaAbierta}
+                          onCheckedChange={(v) => toggleEntregado(it, !!v)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm ${it.preparado ? "line-through text-muted-foreground" : ""}`}>
+                            {it.producto}{it.variante ? <span className="text-muted-foreground text-xs"> · {it.variante}</span> : null} × {it.cantidad}
                           </div>
-                          <div className="grid grid-cols-4 gap-2 items-end">
-                            <div>
-                              <Label className="text-[10px] uppercase text-muted-foreground">Costo unit.</Label>
-                              <Input
-                                type="number"
-                                value={edit.costo_unitario}
-                                onChange={(e) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, costo_unitario: e.target.value } })}
-                                placeholder="0"
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-[10px] uppercase text-muted-foreground">Precio venta</Label>
-                              <Input
-                                type="number"
-                                value={edit.precio_venta}
-                                onChange={(e) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, precio_venta: e.target.value } })}
-                                placeholder="0"
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-[10px] uppercase text-muted-foreground">Moneda</Label>
-                              <Select value={edit.moneda} onValueChange={(v) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, moneda: v } })}>
-                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="ARS">ARS</SelectItem>
-                                  <SelectItem value="USD">USD</SelectItem>
-                                  <SelectItem value="EUR">EUR</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <Button size="sm" variant="outline" onClick={() => saveItemMoney(it)}>Guardar</Button>
-                          </div>
+                          {it.notas && <div className="text-[11px] text-muted-foreground">{it.notas}</div>}
                         </div>
-                      );
-                    })}
+                        <div className="text-right shrink-0 text-[11px] text-muted-foreground">
+                          {it.precio_venta != null
+                            ? <div className="text-foreground">{formatPrice(Number(it.precio_venta) * Number(it.cantidad || 1), it.moneda || "ARS")}</div>
+                            : <div className="italic">sin precio</div>}
+                          {it.costo_unitario != null && (
+                            <div>costo {formatPrice(Number(it.costo_unitario), it.moneda || "ARS")}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               );
