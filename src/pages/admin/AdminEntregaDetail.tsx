@@ -158,7 +158,7 @@ const AdminEntregaDetail = () => {
     setPayEdit({
       monto: String(p.monto ?? ""),
       moneda: p.moneda || "ARS",
-      forma_pago: p.forma_pago || "efectivo",
+      forma_pago: (p.forma_pago || "efectivo").toLowerCase(),
       validado: !!p.validado,
       notas: p.notas || "",
       cliente_nombre: p.cliente_nombre || "",
