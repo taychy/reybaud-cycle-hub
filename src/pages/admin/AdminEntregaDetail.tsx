@@ -681,12 +681,18 @@ const AdminEntregaDetail = () => {
           ) : (
             <div className="space-y-1.5">
               {payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm">
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => openEditPayment(p)}
+                  className="w-full flex items-center justify-between rounded-md bg-secondary/40 hover:bg-secondary/60 transition px-3 py-2 text-sm text-left"
+                >
                   <div className="min-w-0">
                     <div className="font-medium truncate">{p.cliente_nombre}</div>
                     <div className="text-[10px] text-muted-foreground">
                       {new Date(p.created_at).toLocaleString("es-AR")} · {p.forma_pago}
                       {p.cargado_por_nombre ? ` · ${p.cargado_por_nombre}` : ""}
+                      <span className="ml-1 opacity-70">· tocá para editar</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0 flex items-center gap-2">
@@ -697,8 +703,9 @@ const AdminEntregaDetail = () => {
                       <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/50">pend</Badge>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
+
             </div>
           )}
         </TabsContent>
