@@ -444,6 +444,10 @@ export default function MpMovementsTab() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-200">
+            Al asignar este movimiento se cargará automáticamente un <b>saldo a favor</b> por {assignDialog && formatPrice(Number(assignDialog.amount), assignDialog.currency)} en la cuenta corriente del alumno. Después podés aplicarlo a la deuda que corresponda (cuota, evento, turno, tienda) desde su ficha.
+          </div>
+
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium">Alumno</label>
