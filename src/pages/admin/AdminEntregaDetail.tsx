@@ -93,7 +93,9 @@ interface Payment {
   validado: boolean;
   created_at: string;
   cargado_por_nombre: string | null;
+  notas?: string | null;
 }
+
 
 interface Item {
   id: string;
@@ -146,6 +148,56 @@ const AdminEntregaDetail = () => {
   const [savingCost, setSavingCost] = useState(false);
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
   const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "" });
+  const [savingPayEdit, setSavingPayEdit] = useState(false);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+
+  const openEditPayment = (p: Payment) => {
+    setEditingPayment(p);
+    setPayEdit({
+      monto: String(p.monto ?? ""),
+      moneda: p.moneda || "ARS",
+      forma_pago: p.forma_pago || "efectivo",
+      validado: !!p.validado,
+      notas: p.notas || "",
+      cliente_nombre: p.cliente_nombre || "",
+    });
+  };
+
+  const savePaymentEdit = async () => {
+    if (!editingPayment) return;
+    const monto = parseFloat(payEdit.monto);
+    if (isNaN(monto) || monto <= 0) { toast.error("Monto inválido"); return; }
+    setSavingPayEdit(true);
+    const { error } = await supabase
+      .from("delivery_list_payments")
+      .update({
+        monto,
+        moneda: payEdit.moneda,
+        forma_pago: payEdit.forma_pago,
+        validado: payEdit.validado,
+        notas: payEdit.notas || null,
+        cliente_nombre: payEdit.cliente_nombre,
+      })
+      .eq("id", editingPayment.id);
+    setSavingPayEdit(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Cobro actualizado");
+    setEditingPayment(null);
+    await load();
+  };
+
+  const deletePayment = async () => {
+    if (!deletingPaymentId) return;
+    const { error } = await supabase.from("delivery_list_payments").delete().eq("id", deletingPaymentId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Cobro eliminado");
+    setDeletingPaymentId(null);
+    setEditingPayment(null);
+    await load();
+  };
+
 
   const load = async () => {
     if (!listId) return;
@@ -156,7 +208,7 @@ const AdminEntregaDetail = () => {
       supabase.from("delivery_supplier_payments").select("*").eq("delivery_list_id", listId).order("fecha", { ascending: false }),
       supabase
         .from("delivery_list_payments")
-        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre")
+        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre, notas")
         .eq("list_id", listId)
         .order("created_at", { ascending: false }),
       supabase
@@ -629,12 +681,18 @@ const AdminEntregaDetail = () => {
           ) : (
             <div className="space-y-1.5">
               {payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm">
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => openEditPayment(p)}
+                  className="w-full flex items-center justify-between rounded-md bg-secondary/40 hover:bg-secondary/60 transition px-3 py-2 text-sm text-left"
+                >
                   <div className="min-w-0">
                     <div className="font-medium truncate">{p.cliente_nombre}</div>
                     <div className="text-[10px] text-muted-foreground">
                       {new Date(p.created_at).toLocaleString("es-AR")} · {p.forma_pago}
                       {p.cargado_por_nombre ? ` · ${p.cargado_por_nombre}` : ""}
+                      <span className="ml-1 opacity-70">· tocá para editar</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0 flex items-center gap-2">
@@ -645,8 +703,9 @@ const AdminEntregaDetail = () => {
                       <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/50">pend</Badge>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
+
             </div>
           )}
         </TabsContent>
@@ -812,7 +871,86 @@ const AdminEntregaDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* EDIT PAYMENT */}
+      <Dialog open={!!editingPayment} onOpenChange={(o) => !o && setEditingPayment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cobro</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Cliente</Label>
+              <Input value={payEdit.cliente_nombre} onChange={(e) => setPayEdit({ ...payEdit, cliente_nombre: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Monto</Label>
+                <Input type="number" step="0.01" value={payEdit.monto} onChange={(e) => setPayEdit({ ...payEdit, monto: e.target.value })} />
+              </div>
+              <div>
+                <Label>Moneda</Label>
+                <Select value={payEdit.moneda} onValueChange={(v) => setPayEdit({ ...payEdit, moneda: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Forma de pago</Label>
+              <Select value={payEdit.forma_pago} onValueChange={(v) => setPayEdit({ ...payEdit, forma_pago: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="transferencia">Transferencia</SelectItem>
+                  <SelectItem value="mp">Mercado Pago</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="pay-validado" checked={payEdit.validado} onCheckedChange={(v) => setPayEdit({ ...payEdit, validado: !!v })} />
+              <Label htmlFor="pay-validado" className="cursor-pointer">Validado</Label>
+            </div>
+            <div>
+              <Label>Notas</Label>
+              <Textarea rows={2} value={payEdit.notas} onChange={(e) => setPayEdit({ ...payEdit, notas: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="destructive" onClick={() => editingPayment && setDeletingPaymentId(editingPayment.id)} className="sm:mr-auto">
+              <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
+            </Button>
+            <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
+            <Button variant="gold" onClick={savePaymentEdit} disabled={savingPayEdit}>
+              {savingPayEdit ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE PAYMENT CONFIRM */}
+      <AlertDialog open={!!deletingPaymentId} onOpenChange={(o) => !o && setDeletingPaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este cobro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El cobro se quitará de la caja de la entrega.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deletePayment}>Sí, eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 };
 
