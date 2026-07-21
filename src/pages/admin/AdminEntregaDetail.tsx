@@ -720,7 +720,100 @@ const AdminEntregaDetail = () => {
           </div>
           {payments.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No hay cobros aún.</p>
-          ) : (
+          ) : (() => {
+            const validPays = payments.filter((p) => p.validado);
+            // Totales por método + moneda
+            const byMethod: Record<string, Record<string, { total: number; count: number }>> = {};
+            for (const p of validPays) {
+              const m = (p.forma_pago || "otro").toLowerCase();
+              (byMethod[m] ||= {});
+              (byMethod[m][p.moneda] ||= { total: 0, count: 0 });
+              byMethod[m][p.moneda].total += Number(p.monto || 0);
+              byMethod[m][p.moneda].count += 1;
+            }
+            const methodLabel = (k: string) =>
+              k === "efectivo" ? "💵 Efectivo"
+              : k === "transferencia" ? "🏦 Transferencia"
+              : k === "mercadopago" ? "🟦 Mercado Pago"
+              : k === "tarjeta" ? "💳 Tarjeta"
+              : k.charAt(0).toUpperCase() + k.slice(1);
+            const transfers = validPays
+              .filter((p) => (p.forma_pago || "").toLowerCase() === "transferencia")
+              .sort((a, b) => (a.cliente_nombre || "").localeCompare(b.cliente_nombre || "", "es"));
+            return (
+              <>
+                <Card className="bg-secondary/20 border-border/60">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Resumen por método de pago</CardTitle></CardHeader>
+                  <CardContent className="space-y-1.5">
+                    {Object.keys(byMethod).length === 0 && (
+                      <p className="text-xs text-muted-foreground">Sin cobros validados aún.</p>
+                    )}
+                    {Object.entries(byMethod)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([m, curs]) => (
+                        <div key={m} className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{methodLabel(m)}</span>
+                          <div className="text-right">
+                            {Object.entries(curs).map(([cur, v]) => (
+                              <div key={cur} className="text-xs">
+                                <span className="font-mono">{formatPrice(v.total, cur)}</span>
+                                <span className="text-muted-foreground"> · {v.count} cobro{v.count > 1 ? "s" : ""}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                  </CardContent>
+                </Card>
+
+                {transfers.length > 0 && (
+                  <Card className="border-border/60">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">🏦 Transferencias recibidas ({transfers.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1">
+                      {transfers.map((p) => {
+                        const { rest } = parseConceptoFromNotas(p.notas);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => openEditPayment(p)}
+                            className="w-full flex items-center justify-between rounded-md bg-secondary/30 hover:bg-secondary/50 px-3 py-1.5 text-sm text-left"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{p.cliente_nombre || "(sin cliente)"}</div>
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                {new Date(p.created_at).toLocaleDateString("es-AR")}
+                                {rest ? ` · ${rest}` : ""}
+                              </div>
+                            </div>
+                            <span className="font-mono font-medium shrink-0">{formatPrice(p.monto, p.moneda)}</span>
+                          </button>
+                        );
+                      })}
+                      {(() => {
+                        const totals = transfers.reduce<Record<string, number>>((a, p) => {
+                          a[p.moneda] = (a[p.moneda] || 0) + Number(p.monto || 0);
+                          return a;
+                        }, {});
+                        return (
+                          <div className="flex justify-end gap-3 pt-2 mt-1 border-t border-border/60 text-xs">
+                            <span className="text-muted-foreground">Total transferencias:</span>
+                            <span className="font-mono font-semibold">
+                              {Object.entries(totals).map(([m, t]) => formatPrice(t, m)).join(" + ")}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            );
+          })()}
+          {payments.length > 0 && (
+
             <div className="space-y-3">
               {Object.entries(
                 payments.reduce<Record<string, Payment[]>>((acc, p) => {
@@ -779,6 +872,7 @@ const AdminEntregaDetail = () => {
                 })}
             </div>
           )}
+
         </TabsContent>
 
         {/* PROVEEDOR */}
