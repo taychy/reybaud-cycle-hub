@@ -329,6 +329,11 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  const balancesByClient = useMemo(
+    () => computeDeliveryBalances(items as any, payments as any),
+    [items, payments],
+  );
+
   const productGroups = useMemo(() => {
     const map: Record<string, { producto: string; variante: string | null; items: Item[]; unidades: number; itemIds: string[] }> = {};
     items.forEach((it) => {
