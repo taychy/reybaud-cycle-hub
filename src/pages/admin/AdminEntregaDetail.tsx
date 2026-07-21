@@ -188,6 +188,29 @@ const AdminEntregaDetail = () => {
       };
     });
     setItemEdits(edits);
+
+    // productEdits: aggregated per producto+variante
+    const pEdits: Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }> = {};
+    itemsData.forEach((it) => {
+      const key = `${it.producto}||${it.variante ?? ""}`;
+      if (!pEdits[key]) {
+        pEdits[key] = {
+          costo: it.costo_unitario?.toString() ?? "",
+          precio: it.precio_venta?.toString() ?? "",
+          moneda: it.moneda ?? "ARS",
+          store_product_id: it.store_product_id ?? "",
+        };
+      }
+    });
+    setProductEdits(pEdits);
+
+    // Fetch store products (once per load)
+    const { data: sp2 } = await supabase
+      .from("store_products")
+      .select("id, name, price, currency, costo, costo_moneda")
+      .order("name", { ascending: true });
+    setStoreProducts((sp2 as any) || []);
+
     setLoading(false);
   };
 
