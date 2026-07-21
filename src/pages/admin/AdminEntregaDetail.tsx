@@ -243,6 +243,7 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  const [productSaveState, setProductSaveState] = useState<Record<string, "saving" | "saved" | undefined>>({});
   const saveProductGroup = async (key: string, itemIds: string[]) => {
     const edit = productEdits[key];
     if (!edit) return;
@@ -254,9 +255,15 @@ const AdminEntregaDetail = () => {
       moneda: edit.moneda || "ARS",
       store_product_id: edit.store_product_id || null,
     };
+    setProductSaveState((s) => ({ ...s, [key]: "saving" }));
     const { error } = await supabase.from("delivery_list_items").update(patch).in("id", itemIds);
-    if (error) return toast.error(error.message);
+    if (error) {
+      setProductSaveState((s) => ({ ...s, [key]: undefined }));
+      return toast.error(error.message);
+    }
     toast.success(`Actualizados ${itemIds.length} ítem(s)`);
+    setProductSaveState((s) => ({ ...s, [key]: "saved" }));
+    setTimeout(() => setProductSaveState((s) => ({ ...s, [key]: undefined })), 2500);
     load();
   };
 
@@ -485,7 +492,10 @@ const AdminEntregaDetail = () => {
                             {g.unidades} unidad(es) · {g.items.length} cliente(s)
                           </div>
                         </div>
-                        {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
+                        <div className="flex items-center gap-1">
+                          {productSaveState[key] === "saved" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">✓ Guardado</Badge>}
+                          {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                         <div className="col-span-2">
@@ -538,7 +548,14 @@ const AdminEntregaDetail = () => {
                               <SelectItem value="EUR">EUR</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button size="sm" onClick={() => saveProductGroup(key, g.itemIds)}>Aplicar</Button>
+                          <Button
+                            size="sm"
+                            onClick={() => saveProductGroup(key, g.itemIds)}
+                            disabled={productSaveState[key] === "saving"}
+                            className={productSaveState[key] === "saved" ? "bg-emerald-600 hover:bg-emerald-600" : ""}
+                          >
+                            {productSaveState[key] === "saving" ? "Guardando…" : productSaveState[key] === "saved" ? "✓ Guardado" : "Aplicar"}
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
