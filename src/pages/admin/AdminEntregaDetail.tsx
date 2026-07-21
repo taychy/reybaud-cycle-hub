@@ -770,45 +770,68 @@ const AdminEntregaDetail = () => {
 
                 {transfers.length > 0 && (
                   <Card className="border-border/60">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">🏦 Transferencias recibidas ({transfers.length})</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-1">
-                      {transfers.map((p) => {
-                        const { rest } = parseConceptoFromNotas(p.notas);
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => openEditPayment(p)}
-                            className="w-full flex items-center justify-between rounded-md bg-secondary/30 hover:bg-secondary/50 px-3 py-1.5 text-sm text-left"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate font-medium">{p.cliente_nombre || "(sin cliente)"}</div>
-                              <div className="text-[10px] text-muted-foreground truncate">
-                                {new Date(p.created_at).toLocaleDateString("es-AR")}
-                                {rest ? ` · ${rest}` : ""}
-                              </div>
-                            </div>
-                            <span className="font-mono font-medium shrink-0">{formatPrice(p.monto, p.moneda)}</span>
-                          </button>
-                        );
-                      })}
-                      {(() => {
-                        const totals = transfers.reduce<Record<string, number>>((a, p) => {
-                          a[p.moneda] = (a[p.moneda] || 0) + Number(p.monto || 0);
-                          return a;
-                        }, {});
-                        return (
-                          <div className="flex justify-end gap-3 pt-2 mt-1 border-t border-border/60 text-xs">
-                            <span className="text-muted-foreground">Total transferencias:</span>
-                            <span className="font-mono font-semibold">
-                              {Object.entries(totals).map(([m, t]) => formatPrice(t, m)).join(" + ")}
-                            </span>
+                    <Collapsible defaultOpen={false}>
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between px-6 py-3 text-left group"
+                        >
+                          <CardTitle className="text-sm">🏦 Transferencias recibidas ({transfers.length})</CardTitle>
+                          <div className="flex items-center gap-3">
+                            {(() => {
+                              const totals = transfers.reduce<Record<string, number>>((a, p) => {
+                                a[p.moneda] = (a[p.moneda] || 0) + Number(p.monto || 0);
+                                return a;
+                              }, {});
+                              return (
+                                <span className="font-mono text-xs font-semibold">
+                                  {Object.entries(totals).map(([m, t]) => formatPrice(t, m)).join(" + ")}
+                                </span>
+                              );
+                            })()}
+                            <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
                           </div>
-                        );
-                      })()}
-                    </CardContent>
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="space-y-1 pt-0">
+                          {transfers.map((p) => {
+                            const { rest } = parseConceptoFromNotas(p.notas);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => openEditPayment(p)}
+                                className="w-full flex items-center justify-between rounded-md bg-secondary/30 hover:bg-secondary/50 px-3 py-1.5 text-sm text-left"
+                              >
+                                <div className="min-w-0">
+                                  <div className="truncate font-medium">{p.cliente_nombre || "(sin cliente)"}</div>
+                                  <div className="text-[10px] text-muted-foreground truncate">
+                                    {new Date(p.created_at).toLocaleDateString("es-AR")}
+                                    {rest ? ` · ${rest}` : ""}
+                                  </div>
+                                </div>
+                                <span className="font-mono font-medium shrink-0">{formatPrice(p.monto, p.moneda)}</span>
+                              </button>
+                            );
+                          })}
+                          {(() => {
+                            const totals = transfers.reduce<Record<string, number>>((a, p) => {
+                              a[p.moneda] = (a[p.moneda] || 0) + Number(p.monto || 0);
+                              return a;
+                            }, {});
+                            return (
+                              <div className="flex justify-end gap-3 pt-2 mt-1 border-t border-border/60 text-xs">
+                                <span className="text-muted-foreground">Total transferencias:</span>
+                                <span className="font-mono font-semibold">
+                                  {Object.entries(totals).map(([m, t]) => formatPrice(t, m)).join(" + ")}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </Card>
                 )}
               </>
