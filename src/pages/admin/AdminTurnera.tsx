@@ -544,13 +544,59 @@ const AdminTurnera = () => {
 
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Vincular a alumno existente</label>
-                  <Select value={reservaForm.alumno_id || "__none__"} onValueChange={(v) => onReservaAlumnoChange(v === "__none__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Opcional: buscar alumno" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Ninguno / invitado</SelectItem>
-                      {alumnos.map(a => <SelectItem key={a.id} value={a.id}>{a.apellido}, {a.nombre} ({a.email || a.documento || "sin contacto"})</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {(() => {
+                    const selected = alumnos.find((a) => a.id === reservaForm.alumno_id);
+                    return (
+                      <Popover open={alumnoPickerOpen} onOpenChange={setAlumnoPickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                            <span className="truncate">
+                              {selected
+                                ? `${selected.apellido}, ${selected.nombre}${selected.email ? ` · ${selected.email}` : ""}`
+                                : "Ninguno / invitado"}
+                            </span>
+                            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-w-[95vw]" align="start">
+                          <Command>
+                            <CommandInput placeholder="Buscar por nombre, email o DNI..." />
+                            <CommandList>
+                              <CommandEmpty>Sin resultados</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="ninguno invitado"
+                                  onSelect={() => { onReservaAlumnoChange(""); setAlumnoPickerOpen(false); }}
+                                >
+                                  <Check className={`mr-2 h-4 w-4 ${!reservaForm.alumno_id ? "opacity-100" : "opacity-0"}`} />
+                                  Ninguno / invitado
+                                </CommandItem>
+                                {alumnos.map((a) => {
+                                  const label = `${a.apellido ?? ""}, ${a.nombre ?? ""}`;
+                                  const search = `${label} ${a.email ?? ""} ${a.documento ?? ""}`.toLowerCase();
+                                  return (
+                                    <CommandItem
+                                      key={a.id}
+                                      value={search}
+                                      onSelect={() => { onReservaAlumnoChange(a.id); setAlumnoPickerOpen(false); }}
+                                    >
+                                      <Check className={`mr-2 h-4 w-4 ${reservaForm.alumno_id === a.id ? "opacity-100" : "opacity-0"}`} />
+                                      <div className="flex flex-col">
+                                        <span>{label}</span>
+                                        <span className="text-[11px] text-muted-foreground">
+                                          {a.email || "sin email"}{a.documento ? ` · ${a.documento}` : ""}{a.estado && a.estado !== "activo" ? ` · ${a.estado}` : ""}
+                                        </span>
+                                      </div>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  })()}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
