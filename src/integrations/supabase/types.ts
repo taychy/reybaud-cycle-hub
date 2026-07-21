@@ -1874,6 +1874,7 @@ export type Database = {
           created_at: string
           id: string
           list_id: string
+          moneda: string
           notas: string | null
           posicion: number
           precio_venta: number | null
@@ -1900,6 +1901,7 @@ export type Database = {
           created_at?: string
           id?: string
           list_id: string
+          moneda?: string
           notas?: string | null
           posicion?: number
           precio_venta?: number | null
@@ -1926,6 +1928,7 @@ export type Database = {
           created_at?: string
           id?: string
           list_id?: string
+          moneda?: string
           notas?: string | null
           posicion?: number
           precio_venta?: number | null

@@ -105,6 +105,7 @@ interface Item {
   preparado: boolean;
   costo_unitario: number | null;
   precio_venta: number | null;
+  moneda: string | null;
   posicion: number;
 }
 
@@ -132,7 +133,7 @@ const AdminEntregaDetail = () => {
   });
   const [savingCost, setSavingCost] = useState(false);
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
-  const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string }>>({});
+  const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
 
   const load = async () => {
     if (!listId) return;
@@ -148,7 +149,7 @@ const AdminEntregaDetail = () => {
         .order("created_at", { ascending: false }),
       supabase
         .from("delivery_list_items")
-        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, posicion")
+        .select("id, cliente_nombre, producto, variante, cantidad, notas, preparado, costo_unitario, precio_venta, moneda, posicion")
         .eq("list_id", listId)
         .order("cliente_nombre", { ascending: true })
         .order("posicion", { ascending: true }),
@@ -166,11 +167,12 @@ const AdminEntregaDetail = () => {
     setPayments((pays as any) || []);
     const itemsData = ((its as any) || []) as Item[];
     setItems(itemsData);
-    const edits: Record<string, { costo_unitario: string; precio_venta: string }> = {};
+    const edits: Record<string, { costo_unitario: string; precio_venta: string; moneda: string }> = {};
     itemsData.forEach((it) => {
       edits[it.id] = {
         costo_unitario: it.costo_unitario?.toString() ?? "",
         precio_venta: it.precio_venta?.toString() ?? "",
+        moneda: it.moneda ?? "ARS",
       };
     });
     setItemEdits(edits);
@@ -214,7 +216,7 @@ const AdminEntregaDetail = () => {
     const precio = edit.precio_venta === "" ? null : Number(edit.precio_venta);
     const { error } = await supabase
       .from("delivery_list_items")
-      .update({ costo_unitario: costo, precio_venta: precio })
+      .update({ costo_unitario: costo, precio_venta: precio, moneda: edit.moneda || "ARS" })
       .eq("id", item.id);
     if (error) return toast.error(error.message);
     toast.success("Guardado");
@@ -397,7 +399,7 @@ const AdminEntregaDetail = () => {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {its.map((it) => {
-                      const edit = itemEdits[it.id] || { costo_unitario: "", precio_venta: "" };
+                      const edit = itemEdits[it.id] || { costo_unitario: "", precio_venta: "", moneda: "ARS" };
                       return (
                         <div key={it.id} className="rounded-md border border-border p-2 space-y-2">
                           <div className="flex items-start gap-2">
@@ -414,7 +416,7 @@ const AdminEntregaDetail = () => {
                               {it.notas && <div className="text-[11px] text-muted-foreground">{it.notas}</div>}
                             </div>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 items-end">
+                          <div className="grid grid-cols-4 gap-2 items-end">
                             <div>
                               <Label className="text-[10px] uppercase text-muted-foreground">Costo unit.</Label>
                               <Input
@@ -434,6 +436,17 @@ const AdminEntregaDetail = () => {
                                 placeholder="0"
                                 className="h-8 text-sm"
                               />
+                            </div>
+                            <div>
+                              <Label className="text-[10px] uppercase text-muted-foreground">Moneda</Label>
+                              <Select value={edit.moneda} onValueChange={(v) => setItemEdits({ ...itemEdits, [it.id]: { ...edit, moneda: v } })}>
+                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ARS">ARS</SelectItem>
+                                  <SelectItem value="USD">USD</SelectItem>
+                                  <SelectItem value="EUR">EUR</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <Button size="sm" variant="outline" onClick={() => saveItemMoney(it)}>Guardar</Button>
                           </div>
