@@ -4398,6 +4398,7 @@ export type Database = {
       event_waitlist_entries: {
         Row: {
           admin_notas: string | null
+          admin_visto_at: string | null
           alumno_id: string | null
           contactado_at: string | null
           contactado_por: string | null
@@ -4416,6 +4417,7 @@ export type Database = {
         }
         Insert: {
           admin_notas?: string | null
+          admin_visto_at?: string | null
           alumno_id?: string | null
           contactado_at?: string | null
           contactado_por?: string | null
@@ -4434,6 +4436,7 @@ export type Database = {
         }
         Update: {
           admin_notas?: string | null
+          admin_visto_at?: string | null
           alumno_id?: string | null
           contactado_at?: string | null
           contactado_por?: string | null
@@ -10855,6 +10858,11 @@ export type Database = {
         Returns: Json
       }
       mark_turnera_reservations_seen: { Args: never; Returns: number }
+      mark_waitlist_entries_seen: { Args: never; Returns: number }
+      mark_waitlist_entries_seen_for_template: {
+        Args: { p_template_id: string }
+        Returns: number
+      }
       materialize_reservation_installments: {
         Args: { p_reservation_id: string }
         Returns: number
