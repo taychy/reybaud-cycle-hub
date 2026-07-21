@@ -29,7 +29,10 @@ interface Props {
     alumno_id: string | null;
     aviso_retiro_enviado_at: string | null;
     aviso_retiro_channel: string | null;
+    precio_venta?: number | null;
+    moneda?: string | null;
   }>;
+  balances?: Array<{ moneda: string; total: number; cobrado: number; pendiente: number }>;
   onChanged: () => void;
 }
 
@@ -56,7 +59,11 @@ const normalizePhoneAr = (raw: string): string => {
   return "549" + digits;
 };
 
-const DeliveryClientNotify = ({ listId, listTitulo, clienteNombre, items, onChanged }: Props) => {
+const CURRENCY_SYMBOL: Record<string, string> = { ARS: "$", USD: "US$", EUR: "€" };
+const fmtM = (n: number, cur: string) =>
+  `${CURRENCY_SYMBOL[cur] || ""} ${(Math.round(n * 100) / 100).toLocaleString("es-AR")}`.trim();
+
+const DeliveryClientNotify = ({ listId, listTitulo, clienteNombre, items, balances, onChanged }: Props) => {
   const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLink, setShowLink] = useState(false);
