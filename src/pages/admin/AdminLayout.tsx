@@ -258,18 +258,6 @@ const AdminLayout = () => {
     navigate("/admin/login");
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Cargando...</div>
-      </div>
-    );
-  }
-
-  if (isDeposito && !location.pathname.startsWith("/admin/tienda")) {
-    return <Navigate to="/admin/tienda" replace />;
-  }
-
   const visibleModules = useMemo(() => {
     let mods = isDeposito ? modules.filter((m) => m.key === "tienda") : modules;
     // Filter super-admin-only items
@@ -285,6 +273,19 @@ const AdminLayout = () => {
       }))
       .filter((m) => m.groups.length > 0);
   }, [isDeposito, isSuperAdmin]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (isDeposito && !location.pathname.startsWith("/admin/tienda")) {
+    return <Navigate to="/admin/tienda" replace />;
+  }
+
 
   const badgeCountFor = (key?: BadgeKey) =>
     key === "waitlist" ? waitlistPending :
