@@ -1,0 +1,1 @@
+ALTER TABLE public.delivery_list_items ADD COLUMN IF NOT EXISTS moneda text NOT NULL DEFAULT 'ARS';
