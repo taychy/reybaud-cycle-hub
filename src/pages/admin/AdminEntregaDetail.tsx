@@ -812,9 +812,8 @@ const AdminEntregaDetail = () => {
               </>
             );
           })()}
-          {payments.length === 0 ? null
+          {payments.length > 0 && (
 
-          ) : (
             <div className="space-y-3">
               {Object.entries(
                 payments.reduce<Record<string, Payment[]>>((acc, p) => {
