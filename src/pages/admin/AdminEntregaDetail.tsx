@@ -546,18 +546,37 @@ const AdminEntregaDetail = () => {
 
         {/* RESUMEN */}
         <TabsContent value="resumen" className="space-y-3 pt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado</div><div className="font-heading text-xl">{formatPrice(summary.esperado_cobrar, "ARS")}</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado</div><div className="font-heading text-xl text-primary">{formatPrice(summary.total_cobrado, "ARS")}</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{formatPrice(summary.total_pendiente, "ARS")}</div></CardContent></Card>
-            <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto</div><div className="font-heading text-xl">{formatPrice(summary.margen_bruto, "ARS")}</div></CardContent></Card>
-          </div>
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} entregados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
-            <div><Banknote className="w-3 h-3 inline mr-1" />Costo mercadería {formatPrice(summary.costo_total_mercaderia, "ARS")} · Pagado {formatPrice(summary.pagado_a_proveedor, "ARS")} · Saldo {formatPrice(summary.saldo_a_proveedor, "ARS")}</div>
-            {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
-            {list.caja_cerrada_at && <div>Caja cerrada el {new Date(list.caja_cerrada_at).toLocaleString("es-AR")}</div>}
-          </div>
+          {(() => {
+            // COGS = costo unitario × cantidad de los ítems ya ENTREGADOS
+            const cogs = items.reduce((acc, it) => acc + (it.preparado ? Number(it.costo_unitario || 0) * Number(it.cantidad || 0) : 0), 0);
+            // Ingresos realizados = precio venta × cantidad entregada (referencia para rentabilidad sobre ventas concretadas)
+            const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? Number(it.precio_venta || 0) * Number(it.cantidad || 0) : 0), 0);
+            const utilidadRealizada = ingresosEntregados - cogs;
+            const rentSobreVentas = ingresosEntregados > 0 ? (utilidadRealizada / ingresosEntregados) * 100 : 0;
+            const markupSobreCosto = cogs > 0 ? (utilidadRealizada / cogs) * 100 : 0;
+            return (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado</div><div className="font-heading text-xl">{formatPrice(summary.esperado_cobrar, "ARS")}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado</div><div className="font-heading text-xl text-primary">{formatPrice(summary.total_cobrado, "ARS")}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{formatPrice(summary.total_pendiente, "ARS")}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (total)</div><div className="font-heading text-xl">{formatPrice(summary.margen_bruto, "ARS")}</div></CardContent></Card>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (entregado)</div><div className="font-heading text-xl">{formatPrice(cogs, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">costo mercadería vendida</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos entregados</div><div className="font-heading text-xl">{formatPrice(ingresosEntregados, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">venta de lo ya entregado</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{formatPrice(utilidadRealizada, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos − COGS</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Rentabilidad</div><div className={`font-heading text-xl ${rentSobreVentas >= 0 ? "text-primary" : "text-destructive"}`}>{rentSobreVentas.toFixed(1)}%</div><div className="text-[10px] text-muted-foreground mt-0.5">sobre ventas · markup {markupSobreCosto.toFixed(0)}%</div></CardContent></Card>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} entregados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {formatPrice(summary.costo_total_mercaderia, "ARS")} · Pagado a proveedor {formatPrice(summary.pagado_a_proveedor, "ARS")} · Saldo {formatPrice(summary.saldo_a_proveedor, "ARS")}</div>
+                  {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
+                  {list.caja_cerrada_at && <div>Caja cerrada el {new Date(list.caja_cerrada_at).toLocaleString("es-AR")}</div>}
+                </div>
+              </>
+            );
+          })()}
         </TabsContent>
 
         {/* PRODUCTOS (fuente única de costo/precio por producto+variante) */}
