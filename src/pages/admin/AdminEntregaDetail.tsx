@@ -216,7 +216,7 @@ const AdminEntregaDetail = () => {
     const precio = edit.precio_venta === "" ? null : Number(edit.precio_venta);
     const { error } = await supabase
       .from("delivery_list_items")
-      .update({ costo_unitario: costo, precio_venta: precio })
+      .update({ costo_unitario: costo, precio_venta: precio, moneda: edit.moneda || "ARS" })
       .eq("id", item.id);
     if (error) return toast.error(error.message);
     toast.success("Guardado");
