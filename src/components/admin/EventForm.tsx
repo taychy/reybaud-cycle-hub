@@ -298,7 +298,7 @@ const EventForm = ({
   // Cargar sugerencias de "Incluye" / "No incluye" desde otros eventos
   useEffect(() => {
     (async () => {
-      let q = supabase.from("eventos").select("meta").not("meta", "is", null).order("created_at", { ascending: false }).limit(60);
+      let q: any = (supabase.from("eventos" as any) as any).select("meta").not("meta", "is", null).order("created_at", { ascending: false }).limit(60);
       if (eventId) q = q.neq("id", eventId);
       const { data } = await q;
       const inc = new Map<string, string>();
