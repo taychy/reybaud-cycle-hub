@@ -9,6 +9,8 @@ interface ItemsChipsEditorProps {
   onChange: (next: string) => void;
   placeholder?: string;
   accent?: "emerald" | "muted";
+  /** Sugerencias de otros eventos — clickeables para agregar rápido */
+  suggestions?: string[];
 }
 
 /** Parse the stored text into items. Preserve commas inside an item. */
@@ -25,9 +27,20 @@ export default function ItemsChipsEditor({
   onChange,
   placeholder = "Escribí un ítem y Enter…",
   accent = "emerald",
+  suggestions = [],
 }: ItemsChipsEditorProps) {
   const items = parse(value);
   const [draft, setDraft] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const norm = (s: string) => s.toLowerCase().trim();
+  const usedSet = new Set(items.map(norm));
+  const availableSuggestions = suggestions.filter((s) => s && !usedSet.has(norm(s)));
+
+  const addSuggestion = (s: string) => {
+    if (usedSet.has(norm(s))) return;
+    commit([...items, s]);
+  };
 
   const commit = (nextItems: string[]) => {
     onChange(nextItems.join("\n"));
@@ -99,6 +112,34 @@ export default function ItemsChipsEditor({
       <p className="text-[10px] text-muted-foreground">
         Tip: Enter para agregar · Backspace en vacío borra el último · las comas se conservan dentro del ítem.
       </p>
+      {availableSuggestions.length > 0 && (
+        <div className="rounded-md border border-border/40 bg-muted/10 p-2 space-y-1.5">
+          <button
+            type="button"
+            onClick={() => setShowSuggestions((v) => !v)}
+            className="text-[11px] text-primary hover:underline flex items-center gap-1"
+          >
+            {showSuggestions ? "Ocultar" : "Ver"} sugerencias de otros camps ({availableSuggestions.length})
+          </button>
+          {showSuggestions && (
+            <ul className="flex flex-wrap gap-1.5">
+              {availableSuggestions.map((s, i) => (
+                <li key={`sug-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => addSuggestion(s)}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/15 text-primary px-2.5 py-1 text-[11px] transition"
+                    title="Click para agregar"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span className="whitespace-pre-wrap break-words max-w-[260px] text-left">{s}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
