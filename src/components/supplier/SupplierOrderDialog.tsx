@@ -245,7 +245,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
                         value={it.producto_nombre}
                         onChange={(e) => updateItem(idx, { producto_nombre: e.target.value })}
                       />
-                      {variantKeys.length > 0 && (
+                      {variantKeys.length > 0 ? (
                         <div className="grid grid-cols-2 gap-2">
                           {variantKeys.map((k) => (
                             <Select
@@ -260,7 +260,13 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
                             </Select>
                           ))}
                         </div>
+                      ) : (
+                        <FreeVarianteEditor
+                          variante={it.variante}
+                          onChange={(v) => updateItem(idx, { variante: v })}
+                        />
                       )}
+
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <Label className="text-xs">Cantidad</Label>
