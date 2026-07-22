@@ -6621,6 +6621,50 @@ export type Database = {
           },
         ]
       }
+      product_barcodes: {
+        Row: {
+          codigo: string
+          created_at: string
+          created_by: string | null
+          id: string
+          origen: string
+          proveedor: string | null
+          store_product_id: string
+          updated_at: string
+          variante: Json | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          origen?: string
+          proveedor?: string | null
+          store_product_id: string
+          updated_at?: string
+          variante?: Json | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          origen?: string
+          proveedor?: string | null
+          store_product_id?: string
+          updated_at?: string
+          variante?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_barcodes_store_product_id_fkey"
+            columns: ["store_product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       redes_sociales_tareas: {
         Row: {
           clase_dictada_id: string | null
@@ -8019,6 +8063,79 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      scan_incidents: {
+        Row: {
+          accion_resolucion: string | null
+          codigo: string
+          created_at: string
+          detalle: string | null
+          estado: string
+          id: string
+          motivo: string
+          resolved_at: string | null
+          resolved_barcode_id: string | null
+          resolved_by: string | null
+          scanned_by: string | null
+          supplier_order_id: string | null
+          supplier_order_item_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          accion_resolucion?: string | null
+          codigo: string
+          created_at?: string
+          detalle?: string | null
+          estado?: string
+          id?: string
+          motivo: string
+          resolved_at?: string | null
+          resolved_barcode_id?: string | null
+          resolved_by?: string | null
+          scanned_by?: string | null
+          supplier_order_id?: string | null
+          supplier_order_item_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accion_resolucion?: string | null
+          codigo?: string
+          created_at?: string
+          detalle?: string | null
+          estado?: string
+          id?: string
+          motivo?: string
+          resolved_at?: string | null
+          resolved_barcode_id?: string | null
+          resolved_by?: string | null
+          scanned_by?: string | null
+          supplier_order_id?: string | null
+          supplier_order_item_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_incidents_resolved_barcode_id_fkey"
+            columns: ["resolved_barcode_id"]
+            isOneToOne: false
+            referencedRelation: "product_barcodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scan_incidents_supplier_order_id_fkey"
+            columns: ["supplier_order_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scan_incidents_supplier_order_item_id_fkey"
+            columns: ["supplier_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_order_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sedes: {
         Row: {
