@@ -9,6 +9,8 @@ interface ItemsChipsEditorProps {
   onChange: (next: string) => void;
   placeholder?: string;
   accent?: "emerald" | "muted";
+  /** Sugerencias de otros eventos — clickeables para agregar rápido */
+  suggestions?: string[];
 }
 
 /** Parse the stored text into items. Preserve commas inside an item. */
