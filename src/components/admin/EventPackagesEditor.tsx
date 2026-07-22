@@ -98,8 +98,11 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     if (isNaN(precio) || precio < 0) { toast.error("Precio inválido"); return; }
     const sena = editDraft.sena ? parseFloat(editDraft.sena) : null;
     if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
-    const personas = parseInt(editDraft.personas_por_habitacion || "2", 10);
-    if (isNaN(personas) || personas < 1) { toast.error("Personas por habitación inválido"); return; }
+    const sinAloj = editDraft.sin_alojamiento;
+    const personas = sinAloj ? 1 : parseInt(editDraft.personas_por_habitacion || "2", 10);
+    if (!sinAloj && (isNaN(personas) || personas < 1)) { toast.error("Personas por habitación inválido"); return; }
+    const cupoManual = sinAloj ? parseInt(editDraft.cupo || "0", 10) : null;
+    if (sinAloj && (isNaN(cupoManual!) || cupoManual! < 1)) { toast.error("Cupo total obligatorio para paquetes sin alojamiento"); return; }
 
     setSaving(true);
     const { error } = await supabase.from("event_packages" as any).update({
@@ -108,13 +111,14 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
       precio,
       sena,
       currency: editDraft.currency,
-      // cupo se calcula desde event_rooms — dejamos null en los campos manuales
-      cupo: null,
+      // cupo manual sólo si es sin alojamiento; sino se calcula desde event_rooms
+      cupo: cupoManual,
       cupo_mujeres: null,
       cupo_varones: null,
       cupo_mixto: null,
       personas_por_habitacion: personas,
-      permite_mixto: editDraft.permite_mixto,
+      permite_mixto: sinAloj ? false : editDraft.permite_mixto,
+      sin_alojamiento: sinAloj,
     }).eq("id", p.id);
     setSaving(false);
     if (error) { toast.error("Error: " + error.message); return; }
