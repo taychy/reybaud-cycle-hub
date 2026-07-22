@@ -446,8 +446,37 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           <span>·</span>
           <span>{items.length - resumen.visitCount} pendientes</span>
         </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mode === "manual" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("manual")}
+            className="h-9"
+          >
+            <Keyboard className="w-4 h-4 mr-1" /> Cantidad
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "scan" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setMode("scan"); setScanCount(0); setScanOpen(true); }}
+            className="h-9"
+          >
+            <ScanLine className="w-4 h-4 mr-1" /> Escaneo
+          </Button>
+        </div>
+        {mode === "scan" && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-xs">
+            <span>Escaneos en esta sesión: <b className="tabular-nums">{scanCount}</b></span>
+            <Button size="sm" variant="outline" className="h-7" onClick={() => setScanOpen(true)}>
+              <ScanLine className="w-3.5 h-3.5 mr-1" /> Abrir cámara
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
+
         {current && (
           <>
             <div className="text-center space-y-1 py-2">
