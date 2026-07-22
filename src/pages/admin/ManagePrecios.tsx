@@ -71,6 +71,8 @@ const ManagePrecios = () => {
   const openUpdatePrice = (plan: Plan) => {
     setSelectedPlan(plan);
     setForm({ precio_nuevo: "", fecha_vigencia: "", aplicar_a: "nuevos", notas: "" });
+    setModo("monto");
+    setPorcentaje("");
     setDialogOpen(true);
   };
 
