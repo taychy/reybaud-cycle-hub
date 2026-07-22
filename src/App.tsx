@@ -91,6 +91,7 @@ import DepositoEntregas from "./pages/deposito/DepositoEntregas";
 import DepositoEntregaDetail from "./pages/deposito/DepositoEntregaDetail";
 import PublicDeliveryList from "./pages/PublicDeliveryList";
 import SupplierOrders from "./pages/SupplierOrders";
+import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
@@ -257,6 +258,7 @@ const App = () => (
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
             <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
+            <Route path="tienda/incidentes-escaneo" element={<AdminScanIncidents />} />
             <Route path="procesos" element={<AdminProcesos />} />
             <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
             <Route path="procesos/runner/:instanceId" element={<AdminProgramaFlujoRunner />} />
