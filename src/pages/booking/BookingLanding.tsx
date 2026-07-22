@@ -19,11 +19,11 @@ const BookingLanding = () => {
     const load = async () => {
       const { data } = await supabase
         .from("servicios_turnera")
-        .select("id, slug, nombre, descripcion, duracion_minutos, precio, moneda, modalidad")
+        .select("id, slug, nombre, descripcion, duracion_minutos, precio, moneda, modalidad, archivado")
         .eq("activo", true)
-        .eq("archivado" as any, false)
         .order("nombre");
-      setServicios((data as any[]) || []);
+      const rows = ((data as any[]) || []).filter((s) => !s.archivado);
+      setServicios(rows);
       setLoading(false);
     };
     load();
