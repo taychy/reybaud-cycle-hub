@@ -53,6 +53,7 @@ const TurneraTransferencia = () => {
   const [bank, setBank] = useState<BankCfg>({ cbu: "", alias: "", titular: "", cuit: "" });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [enviado, setEnviado] = useState(false);
   const [remaining, setRemaining] = useState<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
