@@ -3643,6 +3643,7 @@ export type Database = {
           personas_por_habitacion: number
           precio: number
           sena: number | null
+          sin_alojamiento: boolean
           sort_order: number
           updated_at: string
         }
@@ -3662,6 +3663,7 @@ export type Database = {
           personas_por_habitacion?: number
           precio: number
           sena?: number | null
+          sin_alojamiento?: boolean
           sort_order?: number
           updated_at?: string
         }
@@ -3681,6 +3683,7 @@ export type Database = {
           personas_por_habitacion?: number
           precio?: number
           sena?: number | null
+          sin_alojamiento?: boolean
           sort_order?: number
           updated_at?: string
         }
