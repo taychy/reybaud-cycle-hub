@@ -27,9 +27,20 @@ export default function ItemsChipsEditor({
   onChange,
   placeholder = "Escribí un ítem y Enter…",
   accent = "emerald",
+  suggestions = [],
 }: ItemsChipsEditorProps) {
   const items = parse(value);
   const [draft, setDraft] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const norm = (s: string) => s.toLowerCase().trim();
+  const usedSet = new Set(items.map(norm));
+  const availableSuggestions = suggestions.filter((s) => s && !usedSet.has(norm(s)));
+
+  const addSuggestion = (s: string) => {
+    if (usedSet.has(norm(s))) return;
+    commit([...items, s]);
+  };
 
   const commit = (nextItems: string[]) => {
     onChange(nextItems.join("\n"));
