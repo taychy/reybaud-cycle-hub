@@ -399,11 +399,12 @@ const AdminEventReservations = ({
 
   useEffect(() => {
     (async () => {
+      // Admin ve TODOS los paquetes (activos e inactivos) para poder revisar precios
+      // aunque el evento esté agotado o los paquetes hayan sido desactivados.
       const { data } = await supabase
         .from("event_packages" as any)
         .select("id, nombre, precio, currency, activo, sort_order")
         .eq("event_id", eventId)
-        .eq("activo", true)
         .order("sort_order", { ascending: true });
       const pkgs = ((data as any[]) || []).map((p) => ({
         id: p.id, nombre: p.nombre, precio: Number(p.precio), currency: p.currency || eventCurrency,
@@ -1295,8 +1296,11 @@ const AdminEventReservations = ({
                       {eventPackages.map((p) => {
                         const stages = (priceStagesByPkg[p.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order);
                         return (
-                          <tr key={p.id} className="border-t border-border/30">
-                            <td className="py-2.5 pr-3 font-medium">{p.nombre}</td>
+                          <tr key={p.id} className={`border-t border-border/30 ${!p.activo ? "opacity-60" : ""}`}>
+                            <td className="py-2.5 pr-3 font-medium">
+                              {p.nombre}
+                              {!p.activo && <span className="ml-2 text-[10px] text-muted-foreground uppercase tracking-wider">(inactivo)</span>}
+                            </td>
                             {columnLabels.map((_, i) => {
                               const st = stages[i];
                               const status = columnStatus[i];
