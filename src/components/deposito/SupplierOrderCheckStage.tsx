@@ -54,6 +54,15 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   const [idx, setIdx] = useState(0);
   const [visited, setVisited] = useState<Record<string, boolean>>({});
 
+  // Modo de conteo: manual (input) o escaneo por cámara
+  const [mode, setMode] = useState<"manual" | "scan">("manual");
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const [linkItemId, setLinkItemId] = useState<string>("");
+  const [linking, setLinking] = useState(false);
+
   useEffect(() => {
     sb.from("supplier_orders")
       .select("*")
