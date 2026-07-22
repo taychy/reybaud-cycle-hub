@@ -31,6 +31,7 @@ interface PackageRow {
   cupo_varones: number | null;
   cupo_mixto: number | null;
   permite_mixto: boolean;
+  sin_alojamiento: boolean;
 }
 
 interface RoomRow {
@@ -53,6 +54,8 @@ const emptyDraft = (currency: string) => ({
   currency,
   personas_por_habitacion: "2",
   permite_mixto: false,
+  sin_alojamiento: false,
+  cupo: "",
 });
 
 type GenderCounts = { mujeres: number; varones: number; mixto: number };
