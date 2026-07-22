@@ -187,16 +187,30 @@ const AdminTurnera = () => {
       acepto_politica: true,
       form_responses: {},
     };
-    const { error } = await supabase.from("reservas_turnera").insert(insert);
+    const { data: inserted, error } = await supabase
+      .from("reservas_turnera")
+      .insert(insert)
+      .select("id")
+      .single();
     if (error) {
       toast({ title: "Error al crear reserva", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Reserva creada" });
+    // Disparar aviso al coach + confirmación al alumno (fire-and-forget)
+    if (inserted?.id) {
+      supabase.functions.invoke("send-turnera-email", {
+        body: { reservation_id: inserted.id, tipo: "coach_aviso" },
+      }).catch((e) => console.warn("[admin nueva reserva] coach_aviso falló", e?.message || e));
+      supabase.functions.invoke("send-turnera-email", {
+        body: { reservation_id: inserted.id, tipo: "confirmacion" },
+      }).catch((e) => console.warn("[admin nueva reserva] confirmacion falló", e?.message || e));
+    }
+    toast({ title: "Reserva creada", description: "Se envió aviso al coach y confirmación al alumno." });
     setShowReservaForm(false);
     resetReservaForm();
     loadAll();
   };
+
 
   const addServicio = async () => {
     if (!servForm.nombre || !servForm.slug) return;
