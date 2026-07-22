@@ -282,6 +282,8 @@ const EventForm = ({
   );
   const [hasPackages, setHasPackages] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [includedSuggestions, setIncludedSuggestions] = useState<string[]>([]);
+  const [notIncludedSuggestions, setNotIncludedSuggestions] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detectar si el evento ya tiene paquetes configurados
@@ -292,6 +294,29 @@ const EventForm = ({
       .eq("event_id", eventId)
       .then(({ count }) => setHasPackages((count ?? 0) > 0));
   }, [eventId]);
+
+  // Cargar sugerencias de "Incluye" / "No incluye" desde otros eventos
+  useEffect(() => {
+    (async () => {
+      let q = supabase.from("eventos").select("meta").not("meta", "is", null).order("created_at", { ascending: false }).limit(60);
+      if (eventId) q = q.neq("id", eventId);
+      const { data } = await q;
+      const inc = new Map<string, string>();
+      const noInc = new Map<string, string>();
+      const parseItems = (v: any): string[] => {
+        if (!v || typeof v !== "string") return [];
+        return v.split(/\r?\n|•|·|;/).map((x: string) => x.replace(/^[-–—•·*]\s*/, "").trim()).filter(Boolean);
+      };
+      ((data as any[]) || []).forEach((row) => {
+        const m = row?.meta || {};
+        parseItems(m.included_text).forEach((s) => { const k = s.toLowerCase(); if (!inc.has(k)) inc.set(k, s); });
+        parseItems(m.not_included_text).forEach((s) => { const k = s.toLowerCase(); if (!noInc.has(k)) noInc.set(k, s); });
+      });
+      setIncludedSuggestions(Array.from(inc.values()).slice(0, 30));
+      setNotIncludedSuggestions(Array.from(noInc.values()).slice(0, 30));
+    })();
+  }, [eventId]);
+
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
