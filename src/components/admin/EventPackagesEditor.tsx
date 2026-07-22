@@ -170,7 +170,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
         if (!map[r.package_id]) map[r.package_id] = { mujeres: 0, varones: 0, mixto: 0 };
         if (r.genero_habitacion === "femenina") map[r.package_id].mujeres += 1;
         else if (r.genero_habitacion === "masculina") map[r.package_id].varones += 1;
-        else if (r.genero_habitacion === "mixta") map[r.package_id].mixto += 1;
+        else map[r.package_id].mixto += 1; // mixta o sin género (sin alojamiento)
       });
       setCounts(map);
     } else {
