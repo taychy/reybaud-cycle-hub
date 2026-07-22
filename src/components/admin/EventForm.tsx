@@ -529,7 +529,7 @@ const EventForm = ({
         <div className="space-y-1.5 pt-2 border-t border-border/30">
           <Label className="text-sm">Emails para alertas de cobranzas</Label>
           <Input
-            value={(form.admin_alert_emails ?? []).join(", ")}
+            defaultValue={(form.admin_alert_emails ?? []).join(", ")}
             onChange={(e) => setForm({
               ...form,
               admin_alert_emails: e.target.value.split(",").map(s => s.trim()).filter(Boolean),
