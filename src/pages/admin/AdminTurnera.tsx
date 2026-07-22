@@ -733,11 +733,17 @@ function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidades, rel
   const [sedeId, setSedeId] = useState<string>("none");
   const [saving, setSaving] = useState(false);
 
+  const serviciosActivos = servicios.filter(s => s.activo !== false && !s.archivado);
+
   // Set defaults once data is available
   useEffect(() => {
     if (!coachId && coaches.length) setCoachId(coaches[0].id);
-    if (!servicioId && servicios.length) setServicioId(servicios[0].id);
-  }, [coaches, servicios]);
+    if (!servicioId && serviciosActivos.length) setServicioId(serviciosActivos[0].id);
+    // Si el servicio seleccionado ya no está activo, saltar al primero activo
+    if (servicioId && !serviciosActivos.some(s => s.id === servicioId) && serviciosActivos.length) {
+      setServicioId(serviciosActivos[0].id);
+    }
+  }, [coaches, serviciosActivos, servicioId]);
 
   const bloquesDelContexto = disponibilidades.filter(
     d => d.coach_id === coachId && d.servicio_id === servicioId && (sedeId === "none" ? !d.sede_id : d.sede_id === sedeId)
