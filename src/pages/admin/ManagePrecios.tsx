@@ -34,8 +34,10 @@ interface PrecioHistorial {
 const aplicarOptions = [
   { value: "nuevos", label: "Solo nuevos alumnos" },
   { value: "nuevos_renovaciones", label: "Nuevos + renovaciones" },
-  { value: "todos", label: "Todos (manualmente)" },
+  { value: "todos", label: "Todos" },
 ];
+
+const noSpinnerClass = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
 const ManagePrecios = () => {
   const [planes, setPlanes] = useState<Plan[]>([]);
@@ -45,6 +47,8 @@ const ManagePrecios = () => {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [histDialogOpen, setHistDialogOpen] = useState(false);
   const [histPlanId, setHistPlanId] = useState<string | null>(null);
+  const [modo, setModo] = useState<"monto" | "porcentaje">("monto");
+  const [porcentaje, setPorcentaje] = useState("");
   const [form, setForm] = useState({
     precio_nuevo: "",
     fecha_vigencia: "",
