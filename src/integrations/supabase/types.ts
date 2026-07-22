@@ -8057,6 +8057,7 @@ export type Database = {
         Row: {
           activo: boolean
           anticipacion_horas_minima: number
+          archivado: boolean
           created_at: string
           descripcion: string | null
           duracion_minutos: number
@@ -8082,6 +8083,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           anticipacion_horas_minima?: number
+          archivado?: boolean
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
@@ -8107,6 +8109,7 @@ export type Database = {
         Update: {
           activo?: boolean
           anticipacion_horas_minima?: number
+          archivado?: boolean
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
