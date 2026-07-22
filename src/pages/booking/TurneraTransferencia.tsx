@@ -137,6 +137,7 @@ const TurneraTransferencia = () => {
         throw new Error(json?.error || "No se pudo subir el comprobante");
       }
       toast({ title: "Comprobante enviado", description: "Te avisamos por email cuando lo validemos." });
+      setEnviado(true);
       await load();
     } catch (e: any) {
       toast({ title: "Error", description: e.message || "Falló la subida", variant: "destructive" });
