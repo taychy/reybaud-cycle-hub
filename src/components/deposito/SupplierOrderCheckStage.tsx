@@ -7,8 +7,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListChecks, ArrowLeft } from "lucide-react";
+import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListChecks, ArrowLeft, ScanLine, Keyboard, Link2, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import CameraScanner from "@/components/deposito/CameraScanner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+
+// Serializa un objeto de variante de forma canónica (claves ordenadas y normalizadas)
+const canonVariante = (v: any): string => {
+  if (!v || typeof v !== "object") return "{}";
+  const obj: Record<string, string> = {};
+  Object.keys(v)
+    .filter((k) => v[k] !== null && v[k] !== undefined && String(v[k]).trim() !== "")
+    .sort()
+    .forEach((k) => { obj[k.toLowerCase()] = String(v[k]).trim().toLowerCase(); });
+  return JSON.stringify(obj);
+};
 
 const sb: any = supabase;
 
@@ -40,6 +53,15 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   const [phase, setPhase] = useState<Phase>("select");
   const [idx, setIdx] = useState(0);
   const [visited, setVisited] = useState<Record<string, boolean>>({});
+
+  // Modo de conteo: manual (input) o escaneo por cámara
+  const [mode, setMode] = useState<"manual" | "scan">("manual");
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const [linkItemId, setLinkItemId] = useState<string>("");
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     sb.from("supplier_orders")
@@ -122,6 +144,120 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
     if (!current) return;
     const val = Math.max(0, n);
     setCounts((c) => ({ ...c, [current.id]: val }));
+  };
+
+  const incrementItem = (itemId: string, delta = 1) => {
+    setCounts((c) => ({ ...c, [itemId]: Math.max(0, (c[itemId] || 0) + delta) }));
+    setVisited((v) => ({ ...v, [itemId]: true }));
+  };
+
+  // Al escanear un código: buscar en product_barcodes; si existe y matchea una línea del pedido → +1.
+  // Si no existe → abrir diálogo obligatorio para vincularlo con una línea del pedido.
+  // Si existe pero no matchea ninguna línea → registrar incidente y avisar.
+  const handleScannedCode = async (codigo: string) => {
+    const code = codigo.trim();
+    if (!code) return;
+    try {
+      const { data: bc } = await sb
+        .from("product_barcodes")
+        .select("id, store_product_id, variante")
+        .eq("codigo", code)
+        .maybeSingle();
+
+      if (bc) {
+        const match = items.find(
+          (it) =>
+            it.product_id &&
+            it.product_id === bc.store_product_id &&
+            canonVariante(it.variante) === canonVariante(bc.variante),
+        );
+        if (match) {
+          incrementItem(match.id, 1);
+          setScanCount((n) => n + 1);
+          toast({ title: "✓ " + match.producto_nombre, description: formatVariante(match.variante) || undefined });
+          return;
+        }
+        // Código conocido pero no corresponde al pedido: incidente y bloqueo
+        const { data: { user } } = await supabase.auth.getUser();
+        await sb.from("scan_incidents").insert({
+          codigo: code,
+          supplier_order_id: selectedId,
+          motivo: "no_corresponde",
+          detalle: "Código ya vinculado a otro producto/variante fuera del pedido actual.",
+          scanned_by: user?.id ?? null,
+        });
+        toast({
+          title: "Código no corresponde a este pedido",
+          description: "Se registró un incidente para que admin lo revise.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Desconocido → forzar vinculación
+      setPendingCode(code);
+      setLinkItemId("");
+      setScanOpen(false);
+      setLinkOpen(true);
+    } catch (e: any) {
+      toast({ title: "Error al leer código", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const confirmLinkBarcode = async () => {
+    if (!pendingCode || !linkItemId) return;
+    const item = items.find((it) => it.id === linkItemId);
+    if (!item?.product_id) {
+      return toast({
+        title: "Esta línea no está vinculada a un producto de tienda",
+        description: "Vinculá primero el ítem al producto para poder escanear.",
+        variant: "destructive",
+      });
+    }
+    setLinking(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await sb.from("product_barcodes").insert({
+        codigo: pendingCode,
+        store_product_id: item.product_id,
+        variante: item.variante || {},
+        proveedor: selectedOrder?.proveedor_nombre ?? null,
+        origen: "proveedor",
+        created_by: user?.id ?? null,
+      });
+      if (error) throw error;
+      incrementItem(item.id, 1);
+      setScanCount((n) => n + 1);
+      toast({ title: "Código vinculado", description: `${item.producto_nombre}${formatVariante(item.variante) ? " · " + formatVariante(item.variante) : ""}` });
+      setLinkOpen(false);
+      setPendingCode(null);
+      setLinkItemId("");
+      // Reabrir escáner para seguir
+      setTimeout(() => setScanOpen(true), 150);
+    } catch (e: any) {
+      toast({ title: "No se pudo vincular", description: e.message, variant: "destructive" });
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const skipLinkAsIncident = async () => {
+    if (!pendingCode) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await sb.from("scan_incidents").insert({
+        codigo: pendingCode,
+        supplier_order_id: selectedId,
+        motivo: "desconocido",
+        detalle: "Operario descartó vincular el código durante el conteo.",
+        scanned_by: user?.id ?? null,
+      });
+      toast({ title: "Código guardado como incidente" });
+    } catch {}
+    setLinkOpen(false);
+    setPendingCode(null);
+    setLinkItemId("");
+    setTimeout(() => setScanOpen(true), 150);
   };
 
   const markVisitedAndNext = () => {
@@ -310,8 +446,37 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           <span>·</span>
           <span>{items.length - resumen.visitCount} pendientes</span>
         </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mode === "manual" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("manual")}
+            className="h-9"
+          >
+            <Keyboard className="w-4 h-4 mr-1" /> Cantidad
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "scan" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setMode("scan"); setScanCount(0); setScanOpen(true); }}
+            className="h-9"
+          >
+            <ScanLine className="w-4 h-4 mr-1" /> Escaneo
+          </Button>
+        </div>
+        {mode === "scan" && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-xs">
+            <span>Escaneos en esta sesión: <b className="tabular-nums">{scanCount}</b></span>
+            <Button size="sm" variant="outline" className="h-7" onClick={() => setScanOpen(true)}>
+              <ScanLine className="w-3.5 h-3.5 mr-1" /> Abrir cámara
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
+
         {current && (
           <>
             <div className="text-center space-y-1 py-2">
@@ -385,6 +550,70 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           </>
         )}
       </CardContent>
+
+      <CameraScanner
+        open={scanOpen}
+        continuous
+        onClose={() => setScanOpen(false)}
+        onDetected={handleScannedCode}
+        hint={<>Escaneos: <b className="tabular-nums ml-1">{scanCount}</b></>}
+      />
+
+      <Dialog open={linkOpen} onOpenChange={(v) => { if (!v) skipLinkAsIncident(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="w-5 h-5" /> Vincular código nuevo
+            </DialogTitle>
+            <DialogDescription>
+              Este código no está registrado. Elegí a qué línea del pedido corresponde para
+              guardarlo y contarlo. La próxima vez se reconocerá solo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-md border border-border bg-muted/40 p-2 text-xs font-mono break-all">
+            {pendingCode}
+          </div>
+
+          <div className="max-h-72 overflow-auto space-y-1">
+            {items.filter((it) => it.product_id).length === 0 && (
+              <div className="flex items-start gap-2 text-xs text-amber-500 p-2 border border-amber-500/40 rounded-md bg-amber-500/10">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                Ninguna línea del pedido está vinculada a un producto de tienda. Vinculá primero
+                los ítems al catálogo desde el pedido al proveedor.
+              </div>
+            )}
+            {items.filter((it) => it.product_id).map((it) => {
+              const active = linkItemId === it.id;
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => setLinkItemId(it.id)}
+                  className={`w-full text-left px-3 py-2 rounded border text-sm transition ${
+                    active ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="font-medium">{it.producto_nombre}</div>
+                  {formatVariante(it.variante) && (
+                    <div className="text-[11px] text-muted-foreground">{formatVariante(it.variante)}</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="ghost" onClick={skipLinkAsIncident} disabled={linking}>
+              Descartar
+            </Button>
+            <Button onClick={confirmLinkBarcode} disabled={!linkItemId || linking}>
+              {linking ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link2 className="w-4 h-4 mr-1" />}
+              Vincular y contar +1
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
