@@ -85,6 +85,8 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
       currency: p.currency,
       personas_por_habitacion: String(p.personas_por_habitacion ?? 2),
       permite_mixto: !!p.permite_mixto,
+      sin_alojamiento: !!p.sin_alojamiento,
+      cupo: p.cupo != null ? String(p.cupo) : "",
     });
   };
 
