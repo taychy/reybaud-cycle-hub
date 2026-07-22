@@ -91,6 +91,7 @@ import DepositoEntregas from "./pages/deposito/DepositoEntregas";
 import DepositoEntregaDetail from "./pages/deposito/DepositoEntregaDetail";
 import PublicDeliveryList from "./pages/PublicDeliveryList";
 import SupplierOrders from "./pages/SupplierOrders";
+import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
