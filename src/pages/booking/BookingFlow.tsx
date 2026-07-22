@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -833,9 +833,15 @@ const BookingFlow = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          {step > 1 && step < 6 && (
+          {step > 1 && step < 6 ? (
             <Button variant="ghost" size="icon" onClick={goBack}>
               <ArrowLeft className="w-5 h-5" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/reservar">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
             </Button>
           )}
           <img src={logo} alt="Ciclismo Reybaud" className="w-8 h-8" />
@@ -883,6 +889,9 @@ const BookingFlow = () => {
               </Card>
             )}
             <Button className="w-full" onClick={() => setStep(2)}>Empezar reserva</Button>
+            <Button variant="outline" className="w-full" asChild>
+              <Link to="/reservar">Ver otros servicios</Link>
+            </Button>
           </div>
         )}
 
