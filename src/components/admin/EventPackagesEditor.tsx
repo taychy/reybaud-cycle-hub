@@ -314,14 +314,27 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Personas / habitación</Label>
-                      <Input type="number" min="1" value={editDraft.personas_por_habitacion} onChange={(e) => setEditDraft({ ...editDraft, personas_por_habitacion: e.target.value })} />
+                    <div className="col-span-2 flex items-center gap-2 pt-1 rounded-md border border-primary/30 bg-primary/5 p-2">
+                      <Switch checked={editDraft.sin_alojamiento} onCheckedChange={(v) => setEditDraft({ ...editDraft, sin_alojamiento: v })} />
+                      <Label className="text-xs">Sin alojamiento (ej. día ciclista) — cupo manual, no requiere habitaciones</Label>
                     </div>
-                    <div className="col-span-2 flex items-center gap-2 pt-1">
-                      <Switch checked={editDraft.permite_mixto} onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })} />
-                      <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
-                    </div>
+                    {editDraft.sin_alojamiento ? (
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs">Cupo total *</Label>
+                        <Input type="number" min="1" value={editDraft.cupo} onChange={(e) => setEditDraft({ ...editDraft, cupo: e.target.value })} placeholder="Cantidad de lugares disponibles" />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Personas / habitación</Label>
+                          <Input type="number" min="1" value={editDraft.personas_por_habitacion} onChange={(e) => setEditDraft({ ...editDraft, personas_por_habitacion: e.target.value })} />
+                        </div>
+                        <div className="col-span-2 flex items-center gap-2 pt-1">
+                          <Switch checked={editDraft.permite_mixto} onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })} />
+                          <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => saveEdit(p)} disabled={saving} className="gap-1 flex-1">
