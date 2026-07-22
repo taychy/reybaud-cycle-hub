@@ -53,6 +53,7 @@ const TurneraTransferencia = () => {
   const [bank, setBank] = useState<BankCfg>({ cbu: "", alias: "", titular: "", cuit: "" });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [enviado, setEnviado] = useState(false);
   const [remaining, setRemaining] = useState<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -136,6 +137,7 @@ const TurneraTransferencia = () => {
         throw new Error(json?.error || "No se pudo subir el comprobante");
       }
       toast({ title: "Comprobante enviado", description: "Te avisamos por email cuando lo validemos." });
+      setEnviado(true);
       await load();
     } catch (e: any) {
       toast({ title: "Error", description: e.message || "Falló la subida", variant: "destructive" });
@@ -240,13 +242,13 @@ const TurneraTransferencia = () => {
           </Card>
         )}
 
-        {yaSubido && (
-          <Card className="border-primary/40 bg-primary/5">
+        {(enviado || yaSubido) && (
+          <Card className="border-emerald-500/40 bg-emerald-500/10">
             <CardContent className="p-4 flex gap-2">
-              <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">Comprobante recibido</p>
-                <p className="text-xs text-muted-foreground">Lo estamos revisando. Te vamos a avisar por email en cuanto lo validemos.</p>
+                <p className="font-medium text-foreground">Enviado</p>
+                <p className="text-xs text-muted-foreground">Ya recibimos tu comprobante. Te avisamos por email cuando lo validemos.</p>
               </div>
             </CardContent>
           </Card>
@@ -289,22 +291,24 @@ const TurneraTransferencia = () => {
             </Card>
 
             {/* Upload */}
-            <Card className="bg-card border-border">
-              <CardContent className="p-4 space-y-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subir comprobante</p>
-                <p className="text-xs text-muted-foreground">JPG, PNG, WEBP o PDF (máx. 8MB)</p>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
-                />
-                <Button className="w-full" onClick={onUpload} disabled={uploading || yaSubido}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  {uploading ? "Subiendo..." : yaSubido ? "Ya enviaste el comprobante" : "Enviar comprobante"}
-                </Button>
-              </CardContent>
-            </Card>
+            {!enviado && !yaSubido && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subir comprobante</p>
+                  <p className="text-xs text-muted-foreground">JPG, PNG, WEBP o PDF (máx. 8MB)</p>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
+                  />
+                  <Button className="w-full" onClick={onUpload} disabled={uploading}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? "Subiendo..." : "Enviar comprobante"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>
