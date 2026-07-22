@@ -304,4 +304,44 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   );
 };
 
+
+const FreeVarianteEditor = ({ variante, onChange }: { variante: Record<string, string>; onChange: (v: Record<string, string>) => void }) => {
+  const entries = Object.entries(variante || {});
+  const rows = entries.length > 0 ? entries : [["", ""]];
+  const setRow = (idx: number, key: string, value: string) => {
+    const next: Record<string, string> = {};
+    rows.forEach(([k, v], i) => {
+      const useKey = i === idx ? key : k;
+      const useVal = i === idx ? value : v;
+      if (useKey.trim()) next[useKey.trim()] = useVal;
+    });
+    onChange(next);
+  };
+  const addRow = () => onChange({ ...variante, "": "" });
+  const removeRow = (key: string) => {
+    const next = { ...variante };
+    delete next[key];
+    onChange(next);
+  };
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">Variante (ej: Talle → M)</Label>
+      {rows.map(([k, v], idx) => (
+        <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-1">
+          <Input className="h-8 text-xs" placeholder="Atributo" value={k} onChange={(e) => setRow(idx, e.target.value, v)} />
+          <Input className="h-8 text-xs" placeholder="Valor" value={v} onChange={(e) => setRow(idx, k, e.target.value)} />
+          {k && (
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(k)}>
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+      ))}
+      {Object.keys(variante || {}).length > 0 && (
+        <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={addRow}>+ Otro atributo</Button>
+      )}
+    </div>
+  );
+};
+
 export default SupplierOrderDialog;
