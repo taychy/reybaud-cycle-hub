@@ -87,6 +87,29 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
     load();
   };
 
+  const finalizarIngreso = async (orderId: string) => {
+    setFinalizing(orderId);
+    try {
+      const { data, error } = await sb.rpc("finalize_supplier_order_entry", { _order_id: orderId });
+      if (error) throw error;
+      if (data?.ok === false && data?.unlinked?.length) {
+        setUnlinkedDialog({ orderId, items: data.unlinked });
+        return;
+      }
+      if (data?.already_closed) {
+        toast({ title: "El pedido ya estaba cerrado" });
+      } else {
+        toast({ title: "Ingreso finalizado", description: `${data?.items_procesados || 0} ítems sumados al stock.` });
+      }
+      load();
+    } catch (e: any) {
+      toast({ title: "Error al finalizar", description: e.message, variant: "destructive" });
+    } finally {
+      setFinalizing(null);
+    }
+  };
+
+
   const filtered = useMemo(() => rows.filter((r) => {
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
     if (search) {
