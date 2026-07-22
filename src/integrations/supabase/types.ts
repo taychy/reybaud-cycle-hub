@@ -10636,6 +10636,10 @@ export type Database = {
         Args: { p_alumno_id: string; p_plan_id?: string }
         Returns: number
       }
+      finalize_supplier_order_entry: {
+        Args: { _order_id: string }
+        Returns: Json
+      }
       generate_gastos_ejecuciones_month: {
         Args: { p_mes: string }
         Returns: number

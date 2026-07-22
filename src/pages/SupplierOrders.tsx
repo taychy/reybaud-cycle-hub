@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, Truck } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, Truck, PackageCheck, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import SupplierOrderDialog from "@/components/supplier/SupplierOrderDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const sb: any = supabase;
 
@@ -38,6 +39,9 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
   const [filterEstado, setFilterEstado] = useState("all");
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [finalizing, setFinalizing] = useState<string | null>(null);
+  const [unlinkedDialog, setUnlinkedDialog] = useState<{ orderId: string; items: any[] } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -82,6 +86,29 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
     toast({ title: "Pedido eliminado" });
     load();
   };
+
+  const finalizarIngreso = async (orderId: string) => {
+    setFinalizing(orderId);
+    try {
+      const { data, error } = await sb.rpc("finalize_supplier_order_entry", { _order_id: orderId });
+      if (error) throw error;
+      if (data?.ok === false && data?.unlinked?.length) {
+        setUnlinkedDialog({ orderId, items: data.unlinked });
+        return;
+      }
+      if (data?.already_closed) {
+        toast({ title: "El pedido ya estaba cerrado" });
+      } else {
+        toast({ title: "Ingreso finalizado", description: `${data?.items_procesados || 0} ítems sumados al stock.` });
+      }
+      load();
+    } catch (e: any) {
+      toast({ title: "Error al finalizar", description: e.message, variant: "destructive" });
+    } finally {
+      setFinalizing(null);
+    }
+  };
+
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (filterEstado !== "all" && r.estado !== filterEstado) return false;
@@ -149,14 +176,25 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
                   {r.notas && <div className="text-xs text-muted-foreground mt-1 italic line-clamp-2">{r.notas}</div>}
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => setExpanded((p) => ({ ...p, [r.id]: !p[r.id] }))}>
+                    {expanded[r.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <span className="text-xs">Ítems</span>
+                  </Button>
+                  {r.estado !== "cerrado" && r.estado !== "cancelado" && (
+                    <Button
+                      variant="ghost" size="sm"
+                      className="h-8 gap-1 text-primary"
+                      onClick={() => finalizarIngreso(r.id)}
+                      disabled={finalizing === r.id}
+                      title="Cerrar y sumar recibido al stock"
+                    >
+                      <PackageCheck className="w-4 h-4" />
+                      <span className="text-xs">{finalizing === r.id ? "..." : "Finalizar ingreso"}</span>
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(r)} title="Editar">
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  {r.estado !== "cerrado" && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={() => updateEstado(r.id, "cerrado")} title="Cerrar">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </Button>
-                  )}
                   {r.estado !== "cancelado" && (
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateEstado(r.id, "cancelado")} title="Cancelar">
                       <XCircle className="w-4 h-4" />
@@ -167,10 +205,73 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
                   </Button>
                 </div>
               </div>
+
+              {expanded[r.id] && (
+                <div className="border-t border-border pt-2 space-y-1">
+                  {(itemsByOrder[r.id] || []).length === 0 ? (
+                    <div className="text-xs text-muted-foreground">Sin ítems.</div>
+                  ) : (itemsByOrder[r.id] || []).map((it: any) => {
+                    const vEntries = Object.entries(it.variante || {}).filter(([, v]) => v);
+                    return (
+                      <div key={it.id} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/40 last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium truncate">{it.producto_nombre}</span>
+                            {!it.product_id && <Badge variant="outline" className="text-[10px] h-4 border-amber-500/50 text-amber-500">sin vincular</Badge>}
+                            {vEntries.map(([k, v]) => (
+                              <Badge key={k} variant="secondary" className="text-[10px] h-4">{k}: {String(v)}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-muted-foreground whitespace-nowrap">
+                          {it.cantidad_recibida || 0}/{it.cantidad_pedida}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+
+      <Dialog open={!!unlinkedDialog} onOpenChange={(o) => !o && setUnlinkedDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              No se puede finalizar el ingreso
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Estas líneas no están vinculadas a un producto de tienda (o les falta la variante). Vinculalas antes de sumar al stock.
+            </p>
+            <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              {(unlinkedDialog?.items || []).map((it: any) => (
+                <div key={it.item_id} className="text-sm border border-border rounded p-2 bg-muted/30">
+                  <div className="font-medium">{it.nombre}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {it.reason === "sin_producto" && "Sin producto de tienda"}
+                    {it.reason === "sin_variante" && "Falta variante (talle/color)"}
+                    {it.reason === "producto_no_existe" && "Producto vinculado ya no existe"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnlinkedDialog(null)}>Cerrar</Button>
+            <Button onClick={() => {
+              const order = rows.find((r) => r.id === unlinkedDialog?.orderId);
+              setUnlinkedDialog(null);
+              if (order) setEditing(order);
+            }}>Editar pedido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <SupplierOrderDialog
         open={creating || !!editing}
