@@ -349,8 +349,11 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
               );
             }
             const isOpen = !!expanded[p.id];
+            const isDayOnly = !!p.sin_alojamiento;
+            const dayCap = isDayOnly ? (p.cupo ?? 0) : 0;
+            const canSell = isDayOnly ? dayCap > 0 : hasRooms;
             return (
-              <div key={p.id} className={`rounded-lg border ${hasRooms ? "border-border/50" : "border-amber-500/40"} ${p.activo ? "" : "opacity-50"}`}>
+              <div key={p.id} className={`rounded-lg border ${canSell ? "border-border/50" : "border-amber-500/40"} ${p.activo ? "" : "opacity-50"}`}>
                 <div className="flex items-start gap-2 p-2">
                   <button
                     type="button"
@@ -365,12 +368,28 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                       {p.sena != null && (
                         <span className="text-[10px] text-muted-foreground">seña: {formatPrice(p.sena, p.currency as any)}</span>
                       )}
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        {p.personas_por_habitacion} {p.personas_por_habitacion === 1 ? "persona" : "personas"}/hab
-                      </span>
+                      {isDayOnly ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          Sin alojamiento · día
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          {p.personas_por_habitacion} {p.personas_por_habitacion === 1 ? "persona" : "personas"}/hab
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap pl-5">
-                      {hasRooms ? (
+                      {isDayOnly ? (
+                        canSell ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30">
+                            Cupo: {totalUsed}/{dayCap}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-500/15 text-amber-300 border-amber-500/40 inline-flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> Definí un cupo total para poder vender
+                          </span>
+                        )
+                      ) : hasRooms ? (
                         <>
                           <span className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30">
                             Cupo total: {totalUsed}/{cap!.total} · {cap!.roomCount} {cap!.roomCount === 1 ? "hab." : "habs."}
@@ -399,26 +418,38 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                   <div className="px-2 pb-2 pl-7 space-y-2 animate-fade-in">
                     {p.descripcion && <p className="text-[11px] text-muted-foreground">{p.descripcion}</p>}
                     <div className="rounded-md border border-border/40 bg-muted/10 p-2 text-[11px] space-y-1">
-                      <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
-                        <Info className="w-3 h-3" /> Cupo según habitaciones cargadas en Alojamiento
-                      </div>
-                      {hasRooms ? (
+                      {isDayOnly ? (
                         <>
-                          <div>Capacidad total: <strong>{cap!.total}</strong> plazas en {cap!.roomCount} {cap!.roomCount === 1 ? "habitación" : "habitaciones"}.</div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
-                            {cap!.mujeres > 0 && <span>Mujeres: <strong className="text-rose-300">{cap!.mujeres}</strong></span>}
-                            {cap!.varones > 0 && <span>Varones: <strong className="text-sky-300">{cap!.varones}</strong></span>}
-                            {cap!.mixto > 0 && <span>Mixta: <strong className="text-violet-300">{cap!.mixto}</strong></span>}
+                          <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                            <Info className="w-3 h-3" /> Paquete sin alojamiento — cupo manual
                           </div>
+                          <div>Cupo total: <strong>{dayCap}</strong> · Reservado: <strong>{totalUsed}</strong> · Disponible: <strong>{Math.max(dayCap - totalUsed, 0)}</strong></div>
+                          <p className="text-muted-foreground/70 italic">Editá el cupo desde el botón de edición del paquete.</p>
                         </>
                       ) : (
-                        <div className="text-amber-300">
-                          Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones vinculadas a este paquete.
-                        </div>
+                        <>
+                          <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                            <Info className="w-3 h-3" /> Cupo según habitaciones cargadas en Alojamiento
+                          </div>
+                          {hasRooms ? (
+                            <>
+                              <div>Capacidad total: <strong>{cap!.total}</strong> plazas en {cap!.roomCount} {cap!.roomCount === 1 ? "habitación" : "habitaciones"}.</div>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
+                                {cap!.mujeres > 0 && <span>Mujeres: <strong className="text-rose-300">{cap!.mujeres}</strong></span>}
+                                {cap!.varones > 0 && <span>Varones: <strong className="text-sky-300">{cap!.varones}</strong></span>}
+                                {cap!.mixto > 0 && <span>Mixta: <strong className="text-violet-300">{cap!.mixto}</strong></span>}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-amber-300">
+                              Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones vinculadas a este paquete.
+                            </div>
+                          )}
+                          <p className="text-muted-foreground/70 italic">
+                            Cargá o editá habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento.
+                          </p>
+                        </>
                       )}
-                      <p className="text-muted-foreground/70 italic">
-                        Cargá o editá habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento.
-                      </p>
                     </div>
                     <PackagePriceStagesEditor
                       packageId={p.id}
