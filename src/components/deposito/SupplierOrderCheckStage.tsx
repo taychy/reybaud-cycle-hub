@@ -146,6 +146,120 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
     setCounts((c) => ({ ...c, [current.id]: val }));
   };
 
+  const incrementItem = (itemId: string, delta = 1) => {
+    setCounts((c) => ({ ...c, [itemId]: Math.max(0, (c[itemId] || 0) + delta) }));
+    setVisited((v) => ({ ...v, [itemId]: true }));
+  };
+
+  // Al escanear un código: buscar en product_barcodes; si existe y matchea una línea del pedido → +1.
+  // Si no existe → abrir diálogo obligatorio para vincularlo con una línea del pedido.
+  // Si existe pero no matchea ninguna línea → registrar incidente y avisar.
+  const handleScannedCode = async (codigo: string) => {
+    const code = codigo.trim();
+    if (!code) return;
+    try {
+      const { data: bc } = await sb
+        .from("product_barcodes")
+        .select("id, store_product_id, variante")
+        .eq("codigo", code)
+        .maybeSingle();
+
+      if (bc) {
+        const match = items.find(
+          (it) =>
+            it.product_id &&
+            it.product_id === bc.store_product_id &&
+            canonVariante(it.variante) === canonVariante(bc.variante),
+        );
+        if (match) {
+          incrementItem(match.id, 1);
+          setScanCount((n) => n + 1);
+          toast({ title: "✓ " + match.producto_nombre, description: formatVariante(match.variante) || undefined });
+          return;
+        }
+        // Código conocido pero no corresponde al pedido: incidente y bloqueo
+        const { data: { user } } = await supabase.auth.getUser();
+        await sb.from("scan_incidents").insert({
+          codigo: code,
+          supplier_order_id: selectedId,
+          motivo: "no_corresponde",
+          detalle: "Código ya vinculado a otro producto/variante fuera del pedido actual.",
+          scanned_by: user?.id ?? null,
+        });
+        toast({
+          title: "Código no corresponde a este pedido",
+          description: "Se registró un incidente para que admin lo revise.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Desconocido → forzar vinculación
+      setPendingCode(code);
+      setLinkItemId("");
+      setScanOpen(false);
+      setLinkOpen(true);
+    } catch (e: any) {
+      toast({ title: "Error al leer código", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const confirmLinkBarcode = async () => {
+    if (!pendingCode || !linkItemId) return;
+    const item = items.find((it) => it.id === linkItemId);
+    if (!item?.product_id) {
+      return toast({
+        title: "Esta línea no está vinculada a un producto de tienda",
+        description: "Vinculá primero el ítem al producto para poder escanear.",
+        variant: "destructive",
+      });
+    }
+    setLinking(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await sb.from("product_barcodes").insert({
+        codigo: pendingCode,
+        store_product_id: item.product_id,
+        variante: item.variante || {},
+        proveedor: selectedOrder?.proveedor_nombre ?? null,
+        origen: "proveedor",
+        created_by: user?.id ?? null,
+      });
+      if (error) throw error;
+      incrementItem(item.id, 1);
+      setScanCount((n) => n + 1);
+      toast({ title: "Código vinculado", description: `${item.producto_nombre}${formatVariante(item.variante) ? " · " + formatVariante(item.variante) : ""}` });
+      setLinkOpen(false);
+      setPendingCode(null);
+      setLinkItemId("");
+      // Reabrir escáner para seguir
+      setTimeout(() => setScanOpen(true), 150);
+    } catch (e: any) {
+      toast({ title: "No se pudo vincular", description: e.message, variant: "destructive" });
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const skipLinkAsIncident = async () => {
+    if (!pendingCode) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await sb.from("scan_incidents").insert({
+        codigo: pendingCode,
+        supplier_order_id: selectedId,
+        motivo: "desconocido",
+        detalle: "Operario descartó vincular el código durante el conteo.",
+        scanned_by: user?.id ?? null,
+      });
+      toast({ title: "Código guardado como incidente" });
+    } catch {}
+    setLinkOpen(false);
+    setPendingCode(null);
+    setLinkItemId("");
+    setTimeout(() => setScanOpen(true), 150);
+  };
+
   const markVisitedAndNext = () => {
     if (!current) return;
     setVisited((v) => ({ ...v, [current.id]: true }));
