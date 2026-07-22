@@ -81,11 +81,21 @@ const ManagePrecios = () => {
     setHistDialogOpen(true);
   };
 
+  const computedNewPrice = (() => {
+    if (!selectedPlan) return 0;
+    if (modo === "porcentaje") {
+      const pct = Number(porcentaje);
+      if (!pct) return 0;
+      return Math.round(selectedPlan.precio * (1 + pct / 100));
+    }
+    return Number(form.precio_nuevo) || 0;
+  })();
+
   const handleUpdatePrice = async () => {
     if (!selectedPlan) return;
-    const newPrice = Number(form.precio_nuevo);
+    const newPrice = computedNewPrice;
     if (!newPrice || newPrice <= 0) {
-      toast({ title: "Ingresá un precio válido", variant: "destructive" });
+      toast({ title: "Ingresá un valor válido", variant: "destructive" });
       return;
     }
     if (newPrice === selectedPlan.precio) {
