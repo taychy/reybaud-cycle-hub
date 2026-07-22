@@ -291,22 +291,24 @@ const TurneraTransferencia = () => {
             </Card>
 
             {/* Upload */}
-            <Card className="bg-card border-border">
-              <CardContent className="p-4 space-y-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subir comprobante</p>
-                <p className="text-xs text-muted-foreground">JPG, PNG, WEBP o PDF (máx. 8MB)</p>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
-                />
-                <Button className="w-full" onClick={onUpload} disabled={uploading || yaSubido}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  {uploading ? "Subiendo..." : yaSubido ? "Ya enviaste el comprobante" : "Enviar comprobante"}
-                </Button>
-              </CardContent>
-            </Card>
+            {!enviado && !yaSubido && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subir comprobante</p>
+                  <p className="text-xs text-muted-foreground">JPG, PNG, WEBP o PDF (máx. 8MB)</p>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80"
+                  />
+                  <Button className="w-full" onClick={onUpload} disabled={uploading}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? "Subiendo..." : "Enviar comprobante"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>
