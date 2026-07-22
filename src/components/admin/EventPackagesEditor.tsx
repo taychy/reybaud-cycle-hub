@@ -503,26 +503,40 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Personas / habitación</Label>
-            <Input type="number" min="1" value={draft.personas_por_habitacion} onChange={(e) => setDraft({ ...draft, personas_por_habitacion: e.target.value })} />
+          <div className="col-span-2 flex items-center gap-2 pt-1 rounded-md border border-primary/30 bg-primary/5 p-2">
+            <Switch checked={draft.sin_alojamiento} onCheckedChange={(v) => setDraft({ ...draft, sin_alojamiento: v })} />
+            <Label className="text-xs">Sin alojamiento (ej. día ciclista) — cupo manual, no requiere habitaciones</Label>
           </div>
-          <div className="col-span-2 flex items-center gap-2 pt-1">
-            <Switch checked={draft.permite_mixto} onCheckedChange={(v) => setDraft({ ...draft, permite_mixto: v })} />
-            <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
-          </div>
-          {draft.permite_mixto && (
-            <p className="col-span-2 text-[10px] text-muted-foreground">
-              Quien elija mixta deberá declarar el nombre de sus compañeros/as (grupo cerrado).
-            </p>
+          {draft.sin_alojamiento ? (
+            <div className="space-y-1 col-span-2">
+              <Label className="text-xs">Cupo total *</Label>
+              <Input type="number" min="1" value={draft.cupo} onChange={(e) => setDraft({ ...draft, cupo: e.target.value })} placeholder="Cantidad de lugares disponibles" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <Label className="text-xs">Personas / habitación</Label>
+                <Input type="number" min="1" value={draft.personas_por_habitacion} onChange={(e) => setDraft({ ...draft, personas_por_habitacion: e.target.value })} />
+              </div>
+              <div className="col-span-2 flex items-center gap-2 pt-1">
+                <Switch checked={draft.permite_mixto} onCheckedChange={(v) => setDraft({ ...draft, permite_mixto: v })} />
+                <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
+              </div>
+              {draft.permite_mixto && (
+                <p className="col-span-2 text-[10px] text-muted-foreground">
+                  Quien elija mixta deberá declarar el nombre de sus compañeros/as (grupo cerrado).
+                </p>
+              )}
+            </>
           )}
         </div>
 
         <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] text-muted-foreground flex gap-1.5">
           <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
           <span>
-            El cupo de cada paquete se define cargando habitaciones desde el módulo <strong>Alojamiento</strong> del
-            panel de reservas del evento y vinculándolas a este paquete.
+            {draft.sin_alojamiento
+              ? <>El paquete se venderá con el <strong>cupo total</strong> que definiste. No requiere cargar habitaciones.</>
+              : <>El cupo de cada paquete se define cargando habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento y vinculándolas a este paquete.</>}
           </span>
         </div>
 
