@@ -121,6 +121,7 @@ const modules: NavModule[] = [
         items: [
           { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
           { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
+          { to: "/admin/tienda/incidentes-escaneo", label: "Incidentes de escaneo", icon: AlertTriangle },
           { to: "/admin/tienda/cambios", label: "Cambios", icon: RefreshCw },
           { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck },
         ],
