@@ -187,8 +187,11 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
     if (isNaN(precio) || precio < 0) { toast.error("Precio inválido"); return; }
     const sena = draft.sena ? parseFloat(draft.sena) : null;
     if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
-    const personas = parseInt(draft.personas_por_habitacion || "2", 10);
-    if (isNaN(personas) || personas < 1) { toast.error("Personas por habitación inválido"); return; }
+    const sinAloj = draft.sin_alojamiento;
+    const personas = sinAloj ? 1 : parseInt(draft.personas_por_habitacion || "2", 10);
+    if (!sinAloj && (isNaN(personas) || personas < 1)) { toast.error("Personas por habitación inválido"); return; }
+    const cupoManual = sinAloj ? parseInt(draft.cupo || "0", 10) : null;
+    if (sinAloj && (isNaN(cupoManual!) || cupoManual! < 1)) { toast.error("Cupo total obligatorio para paquetes sin alojamiento"); return; }
 
     setSaving(true);
     const { error } = await supabase.from("event_packages" as any).insert({
@@ -198,18 +201,21 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
       precio,
       sena,
       currency: draft.currency,
-      cupo: null,
+      cupo: cupoManual,
       cupo_mujeres: null,
       cupo_varones: null,
       cupo_mixto: null,
       sort_order: items.length,
       activo: true,
       personas_por_habitacion: personas,
-      permite_mixto: draft.permite_mixto,
+      permite_mixto: sinAloj ? false : draft.permite_mixto,
+      sin_alojamiento: sinAloj,
     });
     setSaving(false);
     if (error) { toast.error("Error: " + error.message); return; }
-    toast.success("Paquete agregado. Ahora cargá sus habitaciones desde el módulo Alojamiento.");
+    toast.success(sinAloj
+      ? "Paquete agregado. Se vende con el cupo manual definido."
+      : "Paquete agregado. Ahora cargá sus habitaciones desde el módulo Alojamiento.");
     setDraft(emptyDraft(eventCurrency));
     load();
   };
