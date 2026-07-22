@@ -830,7 +830,7 @@ function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidades, rel
               <label className="text-xs text-muted-foreground">Servicio</label>
               <Select value={servicioId} onValueChange={setServicioId}>
                 <SelectTrigger><SelectValue placeholder="Elegí un servicio" /></SelectTrigger>
-                <SelectContent>{servicios.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
+                <SelectContent>{serviciosActivos.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {sedes.length > 0 && (
