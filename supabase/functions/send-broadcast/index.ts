@@ -55,10 +55,24 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#39;");
 }
 
+function linkifyPlain(escaped: string) {
+  // markdown [text](url) — url puede contener caracteres ya escapados
+  let out = escaped.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_m, text, url) => `<a href="${url}" style="color:#F08A2A;text-decoration:underline">${text}</a>`,
+  );
+  // URLs sueltas (que no estén ya dentro de un href)
+  out = out.replace(
+    /(^|[^"'>])(https?:\/\/[^\s<)]+)/g,
+    (_m, pre, url) => `${pre}<a href="${url}" style="color:#F08A2A;text-decoration:underline">${url}</a>`,
+  );
+  return out;
+}
+
 function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }) {
   const safe = content.includes("<") && content.includes(">")
     ? content
-    : escapeHtml(content).replace(/\n/g, "<br/>");
+    : linkifyPlain(escapeHtml(content)).replace(/\n/g, "<br/>");
   const pre = preheader
     ? `<div style="display:none;font-size:1px;color:#121212;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(preheader)}</div>`
     : "";
