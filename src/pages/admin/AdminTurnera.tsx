@@ -377,7 +377,7 @@ const AdminTurnera = () => {
             </DialogContent>
           </Dialog>
 
-          {servicios.map(s => (
+          {servicios.filter(s => !s.archivado).map(s => (
             <Card key={s.id} className={`bg-card border-border ${s.activo === false ? "opacity-60" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
@@ -416,7 +416,7 @@ const AdminTurnera = () => {
                     <Button variant="ghost" size="icon" onClick={() => setConfigServ(s)} title="Configurar">
                       <Settings className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)}>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicio(s.id)} title="Archivar">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -424,6 +424,41 @@ const AdminTurnera = () => {
               </CardContent>
             </Card>
           ))}
+
+          {servicios.some(s => s.archivado) && (
+            <details className="mt-6 rounded-lg border border-border bg-muted/20">
+              <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
+                Archivados ({servicios.filter(s => s.archivado).length})
+              </summary>
+              <div className="p-3 space-y-3">
+                {servicios.filter(s => s.archivado).map(s => (
+                  <Card key={s.id} className="bg-card/60 border-border opacity-70">
+                    <CardContent className="p-4 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground truncate">{s.nombre}</p>
+                          <Badge variant="outline" className="text-[10px]">Archivado</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{s.descripcion || "Sin descripción"}</p>
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          <Badge variant="secondary" className="text-xs">{s.duracion_minutos} min</Badge>
+                          {s.precio && <Badge variant="outline" className="text-xs">${Number(s.precio).toLocaleString("es-AR")}</Badge>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button variant="outline" size="sm" onClick={() => restoreServicio(s.id)}>
+                          Restaurar
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteServicioPermanente(s.id)} title="Eliminar definitivamente">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </details>
+          )}
         </TabsContent>
 
         <TabsContent value="disponibilidad" className="space-y-4 mt-4">
