@@ -92,7 +92,7 @@ const TurneraConfirmacion = () => {
       if (error) throw error;
       const token = (data as any)?.upload_token;
       if (!token) throw new Error("No se pudo generar el link de transferencia.");
-      window.location.href = `/reservar/transferencia/${reservationId}?token=${token}`;
+      window.location.href = `/reservar/${reservationId}/transferencia?token=${token}`;
     } catch (e: any) {
       toast({ title: "No pudimos preparar la transferencia", description: e.message || String(e), variant: "destructive" });
       setRetrying(null);

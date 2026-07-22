@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
     if (action === "aprobar") {
       await supabase.from("reservas_turnera").update({
         pago_estado: "aprobado",
+        estado_economico: "pagado",
         verificado_por: uid,
         verificado_at: new Date().toISOString(),
         hold_expira_at: null,

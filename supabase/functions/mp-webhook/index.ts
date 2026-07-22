@@ -603,6 +603,7 @@ Deno.serve(async (req) => {
       };
       if (mpStatus === "approved" && paidAmount > 0) {
         update.pago_monto = paidAmount;
+        update.estado_economico = "pagado";
         // Al aprobar el pago, liberamos el hold (la reserva queda confirmada)
         update.hold_expira_at = null;
       }
