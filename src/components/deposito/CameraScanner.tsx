@@ -3,15 +3,20 @@ import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { DecodeHintType, BarcodeFormat } from "@zxing/library";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X, Zap, ZapOff, Camera } from "lucide-react";
+import { X, Zap, ZapOff, Camera, Volume2, VolumeX } from "lucide-react";
 
 interface CameraScannerProps {
   open: boolean;
   onClose: () => void;
   onDetected: (code: string) => void;
+  /** Si true, no cierra el escáner al detectar; ideal para escanear varios ítems seguidos. */
+  continuous?: boolean;
+  /** Texto/nodo opcional bajo el marco (ej. contador de escaneos). */
+  hint?: React.ReactNode;
 }
 
-const beep = () => {
+const doBeep = (muted: boolean) => {
+  if (muted) return;
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -26,17 +31,20 @@ const beep = () => {
   if ("vibrate" in navigator) navigator.vibrate(80);
 };
 
-const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
+const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: CameraScannerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const onDetectedRef = useRef(onDetected);
+  const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
+  const mutedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [flash, setFlash] = useState(false);
 
-  useEffect(() => {
-    onDetectedRef.current = onDetected;
-  }, [onDetected]);
+  useEffect(() => { onDetectedRef.current = onDetected; }, [onDetected]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +67,6 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
     (async () => {
       try {
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        // Preferimos cámara trasera
         const back = devices.find((d) => /back|rear|trasera|environment/i.test(d.label));
         const deviceId = back?.deviceId ?? devices[0]?.deviceId;
 
@@ -68,20 +75,23 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
           videoRef.current!,
           (result, _err, ctrl) => {
             if (cancelled) return;
-            if (result) {
-              const text = result.getText();
-              if (text) {
-                beep();
-                ctrl.stop();
-                onDetectedRef.current(text);
-              }
-            }
+            if (!result) return;
+            const text = result.getText();
+            if (!text) return;
+            const now = Date.now();
+            const last = lastCodeRef.current;
+            if (last && last.code === text && now - last.at < 1500) return;
+            lastCodeRef.current = { code: text, at: now };
+            doBeep(mutedRef.current);
+            setFlash(true);
+            setTimeout(() => setFlash(false), 200);
+            if (!continuous) ctrl.stop();
+            onDetectedRef.current(text);
           },
         );
         if (cancelled) { controls.stop(); return; }
         controlsRef.current = controls;
 
-        // Detectar soporte de linterna
         const stream = videoRef.current?.srcObject as MediaStream | null;
         const track = stream?.getVideoTracks()[0];
         const caps = (track?.getCapabilities?.() as any) || {};
@@ -95,8 +105,9 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
       cancelled = true;
       controlsRef.current?.stop();
       controlsRef.current = null;
+      lastCodeRef.current = null;
     };
-  }, [open]);
+  }, [open, continuous]);
 
   const toggleTorch = async () => {
     const stream = videoRef.current?.srcObject as MediaStream | null;
@@ -116,12 +127,23 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
             <DrawerTitle className="flex items-center gap-2">
               <Camera className="w-5 h-5" /> Escanear código
             </DrawerTitle>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMuted((m) => !m)}
+                aria-label={muted ? "Activar sonido" : "Silenciar"}
+              >
+                {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
           <DrawerDescription>
             Apuntá la cámara al código de barras o QR del producto.
+            {continuous && " Podés escanear varios seguidos."}
           </DrawerDescription>
         </DrawerHeader>
 
@@ -138,10 +160,19 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
                 playsInline
                 muted
               />
-              {/* Marco de guía */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="w-[80%] max-w-md h-32 border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
               </div>
+              {flash && (
+                <div className="absolute inset-0 pointer-events-none bg-primary/30 animate-pulse" />
+              )}
+              {hint && (
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+                  <div className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                    {hint}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -153,7 +184,11 @@ const CameraScanner = ({ open, onClose, onDetected }: CameraScannerProps) => {
               Linterna
             </Button>
           )}
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={() => setMuted((m) => !m)}>
+            {muted ? <VolumeX className="w-4 h-4 mr-1" /> : <Volume2 className="w-4 h-4 mr-1" />}
+            {muted ? "Silenciado" : "Sonido"}
+          </Button>
+          <Button variant="outline" onClick={onClose}>Cerrar</Button>
         </div>
       </DrawerContent>
     </Drawer>
