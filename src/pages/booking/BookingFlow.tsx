@@ -889,6 +889,9 @@ const BookingFlow = () => {
               </Card>
             )}
             <Button className="w-full" onClick={() => setStep(2)}>Empezar reserva</Button>
+            <Button variant="outline" className="w-full" asChild>
+              <Link to="/reservar">Ver otros servicios</Link>
+            </Button>
           </div>
         )}
 
