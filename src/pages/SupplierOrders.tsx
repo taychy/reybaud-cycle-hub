@@ -39,6 +39,9 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
   const [filterEstado, setFilterEstado] = useState("all");
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [finalizing, setFinalizing] = useState<string | null>(null);
+  const [unlinkedDialog, setUnlinkedDialog] = useState<{ orderId: string; items: any[] } | null>(null);
 
   const load = async () => {
     setLoading(true);
