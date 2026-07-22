@@ -275,10 +275,59 @@ const ManagePrecios = () => {
               <span className="text-muted-foreground">Precio actual: </span>
               <span className="font-mono font-bold">{selectedPlan && formatPrice(selectedPlan.precio, selectedPlan.moneda)}</span>
             </div>
-            <div>
-              <label className="text-sm font-medium">Nuevo precio *</label>
-              <Input type="number" value={form.precio_nuevo} onChange={(e) => setForm({ ...form, precio_nuevo: e.target.value })} placeholder="0" />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={modo === "monto" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setModo("monto")}
+              >
+                Monto fijo
+              </Button>
+              <Button
+                type="button"
+                variant={modo === "porcentaje" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setModo("porcentaje")}
+              >
+                Aumentar por %
+              </Button>
             </div>
+            {modo === "monto" ? (
+              <div>
+                <label className="text-sm font-medium">Nuevo precio *</label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  className={noSpinnerClass}
+                  value={form.precio_nuevo}
+                  onChange={(e) => setForm({ ...form, precio_nuevo: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium">Porcentaje de aumento *</label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    className={`${noSpinnerClass} pr-8`}
+                    value={porcentaje}
+                    onChange={(e) => setPorcentaje(e.target.value)}
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                {selectedPlan && porcentaje && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nuevo precio estimado: <span className="font-mono font-bold text-foreground">{formatPrice(computedNewPrice, selectedPlan.moneda)}</span>
+                  </p>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium">Fecha de entrada en vigencia</label>
               <Input type="date" value={form.fecha_vigencia} onChange={(e) => setForm({ ...form, fecha_vigencia: e.target.value })} />
