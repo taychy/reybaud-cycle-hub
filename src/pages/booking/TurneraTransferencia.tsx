@@ -242,13 +242,13 @@ const TurneraTransferencia = () => {
           </Card>
         )}
 
-        {yaSubido && (
-          <Card className="border-primary/40 bg-primary/5">
+        {(enviado || yaSubido) && (
+          <Card className="border-emerald-500/40 bg-emerald-500/10">
             <CardContent className="p-4 flex gap-2">
-              <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">Comprobante recibido</p>
-                <p className="text-xs text-muted-foreground">Lo estamos revisando. Te vamos a avisar por email en cuanto lo validemos.</p>
+                <p className="font-medium text-foreground">Enviado</p>
+                <p className="text-xs text-muted-foreground">Ya recibimos tu comprobante. Te avisamos por email cuando lo validemos.</p>
               </div>
             </CardContent>
           </Card>
