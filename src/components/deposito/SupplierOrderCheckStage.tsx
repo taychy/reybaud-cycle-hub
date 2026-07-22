@@ -550,6 +550,70 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           </>
         )}
       </CardContent>
+
+      <CameraScanner
+        open={scanOpen}
+        continuous
+        onClose={() => setScanOpen(false)}
+        onDetected={handleScannedCode}
+        hint={<>Escaneos: <b className="tabular-nums ml-1">{scanCount}</b></>}
+      />
+
+      <Dialog open={linkOpen} onOpenChange={(v) => { if (!v) skipLinkAsIncident(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="w-5 h-5" /> Vincular código nuevo
+            </DialogTitle>
+            <DialogDescription>
+              Este código no está registrado. Elegí a qué línea del pedido corresponde para
+              guardarlo y contarlo. La próxima vez se reconocerá solo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-md border border-border bg-muted/40 p-2 text-xs font-mono break-all">
+            {pendingCode}
+          </div>
+
+          <div className="max-h-72 overflow-auto space-y-1">
+            {items.filter((it) => it.product_id).length === 0 && (
+              <div className="flex items-start gap-2 text-xs text-amber-500 p-2 border border-amber-500/40 rounded-md bg-amber-500/10">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                Ninguna línea del pedido está vinculada a un producto de tienda. Vinculá primero
+                los ítems al catálogo desde el pedido al proveedor.
+              </div>
+            )}
+            {items.filter((it) => it.product_id).map((it) => {
+              const active = linkItemId === it.id;
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => setLinkItemId(it.id)}
+                  className={`w-full text-left px-3 py-2 rounded border text-sm transition ${
+                    active ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="font-medium">{it.producto_nombre}</div>
+                  {formatVariante(it.variante) && (
+                    <div className="text-[11px] text-muted-foreground">{formatVariante(it.variante)}</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="ghost" onClick={skipLinkAsIncident} disabled={linking}>
+              Descartar
+            </Button>
+            <Button onClick={confirmLinkBarcode} disabled={!linkItemId || linking}>
+              {linking ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link2 className="w-4 h-4 mr-1" />}
+              Vincular y contar +1
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
