@@ -957,6 +957,7 @@ const EventForm = ({
               onChange={(v) => updateMeta("included_text", v)}
               placeholder="Ej: Alojamiento 3 noches"
               accent="emerald"
+              suggestions={includedSuggestions}
             />
           </div>
           <div className="space-y-1.5">
@@ -966,6 +967,7 @@ const EventForm = ({
               onChange={(v) => updateMeta("not_included_text", v)}
               placeholder="Ej: Traslados al destino"
               accent="muted"
+              suggestions={notIncludedSuggestions}
             />
           </div>
 
