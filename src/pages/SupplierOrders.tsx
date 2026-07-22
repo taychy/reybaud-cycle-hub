@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, Truck } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, Truck, PackageCheck, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import SupplierOrderDialog from "@/components/supplier/SupplierOrderDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const sb: any = supabase;
 
