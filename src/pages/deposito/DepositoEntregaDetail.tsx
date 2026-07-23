@@ -470,6 +470,9 @@ const DepositoEntregaDetail = () => {
                 <><ShieldCheck className="w-3.5 h-3.5 mr-1" /> Confirmar chequeos</>
               )}
             </Button>
+            <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+              <ScanLine className="w-3.5 h-3.5 mr-1" /> Escanear entregas
+            </Button>
             <Button variant="outline" size="sm" onClick={generateLabels}>
               <Printer className="w-3.5 h-3.5 mr-1" /> Generar etiquetas
             </Button>
