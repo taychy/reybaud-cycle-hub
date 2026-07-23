@@ -45,16 +45,17 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   const [items, setItems] = useState<Item[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [confirmSendOpen, setConfirmSendOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     sb.from("store_products")
-      .select("id, name, variants")
-      .eq("status", "active")
+      .select("id, name, variants, status")
+      .in("status", ["active", "hidden"])
       .order("name")
       .then(({ data, error }: any) => {
         if (error) console.error("[SupplierOrderDialog] load products failed:", error);
-        setProductos((data || []).map((p: any) => ({ id: p.id, nombre: p.name, variants: p.variants })));
+        setProductos((data || []).map((p: any) => ({ id: p.id, nombre: p.name, variants: p.variants, status: p.status })));
       });
   }, [open]);
 
