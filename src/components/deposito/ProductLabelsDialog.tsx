@@ -17,6 +17,14 @@ import {
   type LabelLayout,
   type ProductLabelItem,
 } from "@/lib/productLabels";
+import { printNiimbotLabels, type NiimbotSize } from "@/lib/niimbotLabels";
+
+type FormatKind = "a4" | "niimbot";
+const NIIMBOT_SIZES: { value: NiimbotSize; label: string }[] = [
+  { value: "40x30", label: "40 × 30 mm (rollo standard)" },
+  { value: "50x30", label: "50 × 30 mm" },
+  { value: "50x40", label: "50 × 40 mm" },
+];
 
 interface VariantSpec { name: string; options: string[] }
 
