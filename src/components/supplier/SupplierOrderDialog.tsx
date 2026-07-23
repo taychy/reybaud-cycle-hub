@@ -37,7 +37,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   const [proveedor, setProveedor] = useState("");
   const [contacto, setContacto] = useState("");
   const [proveedorEmail, setProveedorEmail] = useState("");
-  const [enviarEmail, setEnviarEmail] = useState(true);
+  const [proveedorEmailTouched, setProveedorEmailTouched] = useState(false);
   const [fechaPedido, setFechaPedido] = useState<string>(new Date().toISOString().slice(0, 10));
   const [fechaEta, setFechaEta] = useState<string>("");
   const [moneda, setMoneda] = useState("ARS");
