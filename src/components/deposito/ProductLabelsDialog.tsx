@@ -56,6 +56,8 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
   const [variantSel, setVariantSel] = useState<Record<string, string>>({});
   const [copies, setCopies] = useState<string>("1");
   const [printing, setPrinting] = useState(false);
+  const [previewLabels, setPreviewLabels] = useState<NiimbotPreviewItem[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
