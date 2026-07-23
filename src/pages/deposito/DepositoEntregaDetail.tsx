@@ -43,6 +43,7 @@ import {
   Zap,
   Printer,
   ScanLine,
+  PackageX,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -55,6 +56,7 @@ import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 import { computeDeliveryBalances, fmtMoneyBalance, type BalanceRow } from "@/lib/deliveryBalances";
 import { compareVariantsBySize } from "@/lib/variantSort";
 import CameraScanner from "@/components/deposito/CameraScanner";
+import ReconcileWithSupplierDialog from "@/components/deposito/ReconcileWithSupplierDialog";
 import QRCode from "qrcode";
 
 interface DeliveryList {
@@ -119,6 +121,8 @@ const DepositoEntregaDetail = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const scanBusyRef = useRef(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+
 
   const clientCode = (cliente: string) => {
     if (!list) return "";
@@ -476,6 +480,9 @@ const DepositoEntregaDetail = () => {
             <Button variant="outline" size="sm" onClick={generateLabels}>
               <Printer className="w-3.5 h-3.5 mr-1" /> Generar etiquetas
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setReconcileOpen(true)}>
+              <PackageX className="w-3.5 h-3.5 mr-1" /> Cruzar con ingreso
+            </Button>
             <Button variant="outline" size="sm" onClick={closeList}>
               {list.estado === "abierta" ? "Cerrar lista" : "Reabrir"}
             </Button>
@@ -735,6 +742,16 @@ const DepositoEntregaDetail = () => {
         continuous
         hint={`${scanCount} entrega${scanCount !== 1 ? "s" : ""} marcada${scanCount !== 1 ? "s" : ""}`}
       />
+
+      {list && (
+        <ReconcileWithSupplierDialog
+          open={reconcileOpen}
+          onOpenChange={setReconcileOpen}
+          listId={list.id}
+          listTitle={list.titulo}
+          onApplied={fetch}
+        />
+      )}
     </div>
   );
 };
