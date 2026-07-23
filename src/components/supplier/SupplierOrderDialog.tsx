@@ -374,14 +374,37 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={save} disabled={saving}>
+          <Button variant="outline" onClick={() => attemptSave(false)} disabled={saving}>
             {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            {order ? "Guardar cambios" : "Crear pedido"}
+            <Save className="w-4 h-4 mr-1" />
+            {order ? "Guardar cambios" : "Guardar"}
+          </Button>
+          <Button onClick={() => attemptSave(true)} disabled={saving}>
+            {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+            <Mail className="w-4 h-4 mr-1" />
+            Guardar y enviar al proveedor
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmSendOpen} onOpenChange={setConfirmSendOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Enviar pedido por email al proveedor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se enviará un correo a <strong>{proveedorEmail || "—"}</strong> con el detalle completo del pedido (ítems, cantidades, moneda y total). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmSendOpen(false); void save(true); }} disabled={saving}>
+              Sí, enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
