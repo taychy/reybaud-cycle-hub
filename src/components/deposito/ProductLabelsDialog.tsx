@@ -137,12 +137,16 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
           })),
           {
             size: niimbotSize,
+            mode: niimbotMode,
             filenameHint: product.name,
           },
         );
         toast({
-          title: `${res.total} etiqueta(s) Niimbot generada(s)`,
-          description: "Abrilas desde la app Niimbot para imprimir.",
+          title: `${res.total} ${niimbotMode === "scan-source" ? "imagen(es) fuente" : "etiqueta(s) Niimbot"} generada(s)`,
+          description:
+            niimbotMode === "scan-source"
+              ? "Abrí la app Niimbot → Escanear código, apuntá a la imagen y la app copiará el código."
+              : "Abrilas desde la app Niimbot para imprimir.",
         });
       } else {
         await printProductLabels(items, {
