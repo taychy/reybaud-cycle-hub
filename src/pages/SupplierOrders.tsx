@@ -207,30 +207,62 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
               </div>
 
               {expanded[r.id] && (
-                <div className="border-t border-border pt-2 space-y-1">
+                <div className="border-t border-border pt-2 space-y-3">
                   {(itemsByOrder[r.id] || []).length === 0 ? (
                     <div className="text-xs text-muted-foreground">Sin ítems.</div>
-                  ) : (itemsByOrder[r.id] || []).map((it: any) => {
-                    const vEntries = Object.entries(it.variante || {}).filter(([, v]) => v);
-                    return (
-                      <div key={it.id} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border/40 last:border-0">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-medium truncate">{it.producto_nombre}</span>
-                            {!it.product_id && <Badge variant="outline" className="text-[10px] h-4 border-amber-500/50 text-amber-500">sin vincular</Badge>}
-                            {vEntries.map(([k, v]) => (
-                              <Badge key={k} variant="secondary" className="text-[10px] h-4">{k}: {String(v)}</Badge>
-                            ))}
+                  ) : (() => {
+                    const groups = new Map<string, any[]>();
+                    for (const it of (itemsByOrder[r.id] || [])) {
+                      const key = it.producto_nombre || "—";
+                      if (!groups.has(key)) groups.set(key, []);
+                      groups.get(key)!.push(it);
+                    }
+                    return Array.from(groups.entries()).map(([name, items]) => {
+                      const totRec = items.reduce((s, x) => s + (x.cantidad_recibida || 0), 0);
+                      const totPed = items.reduce((s, x) => s + (x.cantidad_pedida || 0), 0);
+                      const anyUnlinked = items.some((x) => !x.product_id);
+                      const complete = totRec === totPed;
+                      return (
+                        <div key={name} className="rounded-md border border-border/60 bg-muted/20">
+                          <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/40">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-semibold truncate">{name}</span>
+                              {anyUnlinked && <Badge variant="outline" className="text-[10px] h-4 border-amber-500/50 text-amber-500">sin vincular</Badge>}
+                              <Badge variant="secondary" className="text-[10px] h-4">{items.length} var.</Badge>
+                            </div>
+                            <div className={`text-xs whitespace-nowrap font-medium ${complete ? "text-green-400" : "text-muted-foreground"}`}>
+                              {totRec}/{totPed}
+                            </div>
+                          </div>
+                          <div className="divide-y divide-border/30">
+                            {items.map((it: any) => {
+                              const vEntries = Object.entries(it.variante || {}).filter(([, v]) => v);
+                              const rec = it.cantidad_recibida || 0;
+                              const ped = it.cantidad_pedida || 0;
+                              const okLine = rec === ped;
+                              return (
+                                <div key={it.id} className="flex items-center justify-between gap-2 text-xs px-2 py-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                    {vEntries.length === 0 ? (
+                                      <span className="text-muted-foreground">sin variante</span>
+                                    ) : vEntries.map(([k, v]) => (
+                                      <Badge key={k} variant="secondary" className="text-[10px] h-4">{k}: {String(v)}</Badge>
+                                    ))}
+                                  </div>
+                                  <div className={`whitespace-nowrap ${okLine ? "text-muted-foreground" : "text-amber-500"}`}>
+                                    {rec}/{ped}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                        <div className="text-muted-foreground whitespace-nowrap">
-                          {it.cantidad_recibida || 0}/{it.cantidad_pedida}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               )}
+
             </div>
           ))}
         </div>
