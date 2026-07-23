@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, Mail } from "lucide-react";
+import { Plus, Trash2, Loader2, Mail, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { sortVariantSpecs } from "@/lib/variantSort";
 
@@ -37,7 +37,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   const [proveedor, setProveedor] = useState("");
   const [contacto, setContacto] = useState("");
   const [proveedorEmail, setProveedorEmail] = useState("");
-  const [enviarEmail, setEnviarEmail] = useState(true);
+  
   const [fechaPedido, setFechaPedido] = useState<string>(new Date().toISOString().slice(0, 10));
   const [fechaEta, setFechaEta] = useState<string>("");
   const [moneda, setMoneda] = useState("ARS");
@@ -45,16 +45,17 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   const [items, setItems] = useState<Item[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [confirmSendOpen, setConfirmSendOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     sb.from("store_products")
-      .select("id, name, variants")
-      .eq("status", "active")
+      .select("id, name, variants, status")
+      .in("status", ["active", "hidden"])
       .order("name")
       .then(({ data, error }: any) => {
         if (error) console.error("[SupplierOrderDialog] load products failed:", error);
-        setProductos((data || []).map((p: any) => ({ id: p.id, nombre: p.name, variants: p.variants })));
+        setProductos((data || []).map((p: any) => ({ id: p.id, nombre: p.name, variants: p.variants, status: p.status })));
       });
   }, [open]);
 
@@ -64,7 +65,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
       setProveedor(order.proveedor_nombre || "");
       setContacto(order.proveedor_contacto || "");
       setProveedorEmail(order.proveedor_email || "");
-      setEnviarEmail(false);
+      
       setFechaPedido(order.fecha_pedido || new Date().toISOString().slice(0, 10));
       setFechaEta(order.fecha_estimada_entrega || "");
       setMoneda(order.moneda || "ARS");
@@ -73,7 +74,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         setItems((data || []).map((i: any) => ({ ...i, variante: i.variante || {} })));
       });
     } else {
-      setProveedor(""); setContacto(""); setProveedorEmail(""); setEnviarEmail(true);
+      setProveedor(""); setContacto(""); setProveedorEmail("");
       setFechaPedido(new Date().toISOString().slice(0, 10));
       setFechaEta(""); setMoneda("ARS"); setNotas(""); setItems([]);
     }
@@ -117,20 +118,28 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
     return Object.fromEntries(specs.map((s) => [s.name, s.options]));
   };
 
-  const save = async () => {
+  const attemptSave = (sendEmail: boolean) => {
     if (!proveedor.trim()) return toast({ title: "Falta proveedor", variant: "destructive" });
     const validItems = items.filter((i) => !i._deleted);
     if (validItems.some((i) => !i.producto_nombre.trim() || i.cantidad_pedida <= 0)) {
       return toast({ title: "Ítems incompletos", description: "Cada ítem necesita nombre y cantidad > 0.", variant: "destructive" });
     }
     const emailTrim = proveedorEmail.trim();
-    if (enviarEmail && emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+    if (sendEmail && !emailTrim) {
+      return toast({ title: "Falta email del proveedor", description: "Cargá un email para poder enviarlo.", variant: "destructive" });
+    }
+    if (sendEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
       return toast({ title: "Email inválido", description: "Revisá el email del proveedor.", variant: "destructive" });
     }
-    if (enviarEmail && !emailTrim) {
-      return toast({ title: "Falta email del proveedor", description: "Cargá un email o desmarcá 'Enviar pedido por email'.", variant: "destructive" });
+    if (sendEmail) {
+      setConfirmSendOpen(true);
+    } else {
+      void save(false);
     }
+  };
 
+  const save = async (sendEmail: boolean) => {
+    const emailTrim = proveedorEmail.trim();
     setSaving(true);
     try {
       const { data: userData } = await sb.auth.getUser();
@@ -184,7 +193,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         if (error) throw error;
       }
 
-      if (enviarEmail && emailTrim) {
+      if (sendEmail && emailTrim) {
         const { error: mailErr } = await sb.functions.invoke("send-transactional-email", {
           body: {
             templateName: "supplier-order-created",
@@ -244,28 +253,16 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
               <Input value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono / referente" />
             </div>
             <div className="md:col-span-2">
-              <Label>Email del proveedor {enviarEmail && <span className="text-destructive">*</span>}</Label>
+              <Label>Email del proveedor</Label>
               <Input
                 type="email"
                 value={proveedorEmail}
                 onChange={(e) => setProveedorEmail(e.target.value)}
                 placeholder="ventas@proveedor.com"
               />
-              <label className="mt-2 flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2 cursor-pointer">
-                <Checkbox
-                  checked={enviarEmail}
-                  onCheckedChange={(v) => setEnviarEmail(v === true)}
-                  className="mt-0.5"
-                />
-                <div className="text-xs leading-tight">
-                  <div className="flex items-center gap-1 font-medium text-foreground">
-                    <Mail className="w-3 h-3" /> Enviar el pedido por email al proveedor
-                  </div>
-                  <div className="text-muted-foreground">
-                    Al {order ? "guardar los cambios" : "crear el pedido"} se enviará un correo con el detalle de los ítems.
-                  </div>
-                </div>
-              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Necesario si querés usar "Guardar y enviar" al proveedor.
+              </p>
             </div>
             <div>
               <Label>Fecha del pedido</Label>
@@ -377,14 +374,37 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={save} disabled={saving}>
+          <Button variant="outline" onClick={() => attemptSave(false)} disabled={saving}>
             {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            {order ? "Guardar cambios" : "Crear pedido"}
+            <Save className="w-4 h-4 mr-1" />
+            {order ? "Guardar cambios" : "Guardar"}
+          </Button>
+          <Button onClick={() => attemptSave(true)} disabled={saving}>
+            {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+            <Mail className="w-4 h-4 mr-1" />
+            Guardar y enviar al proveedor
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmSendOpen} onOpenChange={setConfirmSendOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Enviar pedido por email al proveedor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se enviará un correo a <strong>{proveedorEmail || "—"}</strong> con el detalle completo del pedido (ítems, cantidades, moneda y total). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmSendOpen(false); void save(true); }} disabled={saving}>
+              Sí, enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
