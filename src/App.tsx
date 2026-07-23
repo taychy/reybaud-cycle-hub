@@ -279,6 +279,8 @@ const App = () => (
             <Route path="pedidos-proveedor" element={<SupplierOrders />} />
             <Route path="entregas" element={<DepositoEntregas />} />
             <Route path="entregas/:id" element={<DepositoEntregaDetail />} />
+            <Route path="camioneta" element={<DepositoCamioneta />} />
+            <Route path="camioneta/:id" element={<DepositoCamioneta />} />
             <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
           <Route path="/entrega/:token" element={<PublicDeliveryList />} />
