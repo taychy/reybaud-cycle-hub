@@ -142,23 +142,24 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
             size: niimbotSize,
             mode: niimbotMode,
             filenameHint: product.name,
+            preview: true,
           },
         );
-        toast({
-          title: `${res.total} ${niimbotMode === "scan-source" ? "imagen(es) fuente" : "etiqueta(s) Niimbot"} generada(s)`,
-          description:
-            niimbotMode === "scan-source"
-              ? "Abrí la app Niimbot → Escanear código, apuntá a la imagen y la app copiará el código."
-              : "Abrilas desde la app Niimbot para imprimir.",
-        });
+        if (res.previews && res.previews.length) {
+          setPreviewLabels(res.previews);
+          setPreviewOpen(true);
+          // no cerramos el diálogo padre acá: primero que el usuario decida en la preview
+        } else {
+          toast({ title: "No se generaron etiquetas", variant: "destructive" });
+        }
       } else {
         await printProductLabels(items, {
           layout,
           filename: `etiquetas-${product.name.toLowerCase().replace(/\s+/g, "-").slice(0, 30)}.pdf`,
         });
         toast({ title: `${items.length} etiqueta(s) generadas` });
+        onOpenChange(false);
       }
-      onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
