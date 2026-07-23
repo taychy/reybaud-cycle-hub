@@ -70,10 +70,23 @@ const emptyComposer = {
   marketing_ignore_frequency: false,
 };
 
+type CtaPreset = { name: string; url: string; label: string; custom?: boolean };
+const DEFAULT_CTA_PRESETS: CtaPreset[] = [
+  { name: "Renovación automática MP", url: "https://reybaud-app.com/perfil?section=suscripciones", label: "Activar renovación automática" },
+  { name: "Mi plan / pagos", url: "https://reybaud-app.com/alumno/pagos", label: "Ver mi plan" },
+];
+
 export default function AdminBroadcasts() {
   const { toast } = useToast();
   const [tab, setTab] = useState("composer");
   const [composer, setComposer] = useState(emptyComposer);
+  const [ctaPresets, setCtaPresets] = useState<CtaPreset[]>(() => {
+    try {
+      const raw = localStorage.getItem("broadcast_cta_presets");
+      const custom: CtaPreset[] = raw ? JSON.parse(raw).map((p: any) => ({ ...p, custom: true })) : [];
+      return [...DEFAULT_CTA_PRESETS, ...custom];
+    } catch { return DEFAULT_CTA_PRESETS; }
+  });
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -481,27 +494,50 @@ export default function AdminBroadcasts() {
                   placeholder="https://reybaud-app.com/eventos/..."
                 />
                 <div className="flex flex-wrap gap-1.5 pt-1">
+                  {ctaPresets.map((p, i) => (
+                    <span key={i} className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 hover:bg-muted transition-colors overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setComposer({
+                          ...composer,
+                          cta_url: p.url,
+                          cta_label: composer.cta_label || p.label,
+                        })}
+                        className="text-[11px] px-2 py-1"
+                        title={p.url}
+                      >
+                        + {p.name}
+                      </button>
+                      {p.custom && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = ctaPresets.filter((_, idx) => idx !== i);
+                            setCtaPresets(next);
+                            localStorage.setItem("broadcast_cta_presets", JSON.stringify(next.filter(x => x.custom)));
+                          }}
+                          className="text-[11px] px-1.5 py-1 border-l border-border/60 text-muted-foreground hover:text-destructive"
+                          title="Eliminar preset"
+                        >×</button>
+                      )}
+                    </span>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => setComposer({
-                      ...composer,
-                      cta_url: "https://reybaud-app.com/perfil?section=suscripciones",
-                      cta_label: composer.cta_label || "Activar renovación automática",
-                    })}
-                    className="text-[11px] px-2 py-1 rounded-md border border-border/60 bg-muted/40 hover:bg-muted transition-colors"
+                    onClick={() => {
+                      const name = window.prompt("Nombre del preset (ej: Reservar camp San Luis)");
+                      if (!name?.trim()) return;
+                      const url = window.prompt("URL del botón", composer.cta_url || "https://reybaud-app.com/");
+                      if (!url?.trim()) return;
+                      const label = window.prompt("Texto del botón", composer.cta_label || name) || name;
+                      const custom = [...ctaPresets.filter(x => x.custom), { name: name.trim(), url: url.trim(), label: label.trim(), custom: true }];
+                      const next = [...DEFAULT_CTA_PRESETS, ...custom];
+                      setCtaPresets(next);
+                      localStorage.setItem("broadcast_cta_presets", JSON.stringify(custom));
+                    }}
+                    className="text-[11px] px-2 py-1 rounded-md border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
                   >
-                    + Renovación automática MP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setComposer({
-                      ...composer,
-                      cta_url: "https://reybaud-app.com/alumno/pagos",
-                      cta_label: composer.cta_label || "Ver mi plan",
-                    })}
-                    className="text-[11px] px-2 py-1 rounded-md border border-border/60 bg-muted/40 hover:bg-muted transition-colors"
-                  >
-                    + Mi plan / pagos
+                    + Nuevo preset
                   </button>
                 </div>
                 <p className="text-[11px] text-muted-foreground">URL adonde lleva el botón. Si la dejás vacía y hay un link en el texto, se usa ese.</p>
