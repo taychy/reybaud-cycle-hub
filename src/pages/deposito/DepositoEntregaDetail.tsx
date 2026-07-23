@@ -344,24 +344,24 @@ const DepositoEntregaDetail = () => {
   .sheet { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 54mm; gap: 0; }
   .label {
     border: 1px dashed #666;
-    padding: 4mm 5mm;
+    padding: 3mm 4mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     page-break-inside: avoid;
   }
-  .hdr { display: flex; justify-content: space-between; align-items: baseline; font-size: 8.5pt; color: #555; text-transform: uppercase; letter-spacing: .05em; }
+  .hdr { display: flex; justify-content: space-between; align-items: baseline; font-size: 7.5pt; color: #555; text-transform: uppercase; letter-spacing: .05em; }
   .hdr .title { font-weight: 700; }
-  .body { display: flex; gap: 3mm; flex: 1; min-height: 0; margin-top: 1.5mm; }
-  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .client { font-size: 14pt; font-weight: 800; margin: 0 0 1.2mm; line-height: 1.1; text-transform: uppercase; }
-  .items { margin: 0; padding-left: 4mm; font-size: 9.5pt; line-height: 1.2; flex: 1; overflow: hidden; }
-  .items li { margin-bottom: 0.4mm; }
-  .items .v { color: #555; font-size: 8.5pt; }
-  .qr { flex: 0 0 22mm; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-  .qr img { width: 22mm; height: 22mm; display: block; }
-  .qrid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7pt; color: #444; margin-top: 0.8mm; letter-spacing: .05em; }
-  .foot { font-size: 7.5pt; color: #666; margin-top: 1.5mm; border-top: 1px dotted #bbb; padding-top: 1mm; }
+  .body { display: flex; gap: 2.5mm; flex: 1; min-height: 0; margin-top: 1mm; }
+  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .client { font-size: 11pt; font-weight: 800; margin: 0 0 1mm; line-height: 1.05; text-transform: uppercase; }
+  .items { margin: 0; padding-left: 3.5mm; font-size: 8pt; line-height: 1.15; flex: 1; min-height: 0; overflow: hidden; }
+  .items li { margin-bottom: 0.2mm; }
+  .items .v { color: #555; font-size: 7.5pt; }
+  .qr { flex: 0 0 19mm; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+  .qr img { width: 19mm; height: 19mm; display: block; }
+  .qrid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 6.5pt; color: #444; margin-top: 0.5mm; letter-spacing: .05em; }
+  .foot { font-size: 6.5pt; color: #666; margin-top: 1mm; border-top: 1px dotted #bbb; padding-top: 0.8mm; }
   .toolbar { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; }
   .toolbar button { font: 500 13px system-ui; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
   .toolbar button.primary { background: #111; color: #fff; border-color: #111; }
