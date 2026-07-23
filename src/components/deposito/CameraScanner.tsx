@@ -66,29 +66,54 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
 
     (async () => {
       try {
+        // Pedir permiso primero para que listVideoInputDevices devuelva labels
+        let permStream: MediaStream | null = null;
+        try {
+          permStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false,
+          });
+        } catch (permErr: any) {
+          throw new Error(
+            permErr?.name === "NotAllowedError"
+              ? "Permiso de cámara denegado. Habilitalo en el navegador."
+              : permErr?.message || "No se pudo acceder a la cámara",
+          );
+        }
+
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
         const back = devices.find((d) => /back|rear|trasera|environment/i.test(d.label));
         const deviceId = back?.deviceId ?? devices[0]?.deviceId;
 
-        const controls = await reader.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current!,
-          (result, _err, ctrl) => {
-            if (cancelled) return;
-            if (!result) return;
-            const text = result.getText();
-            if (!text) return;
-            const now = Date.now();
-            const last = lastCodeRef.current;
-            if (last && last.code === text && now - last.at < 1500) return;
-            lastCodeRef.current = { code: text, at: now };
-            doBeep(mutedRef.current);
-            setFlash(true);
-            setTimeout(() => setFlash(false), 200);
-            if (!continuous) ctrl.stop();
-            onDetectedRef.current(text);
-          },
-        );
+        // Cerrar el stream temporal antes de que ZXing abra el suyo
+        permStream?.getTracks().forEach((t) => t.stop());
+
+        const onDecode = (result: any, _err: any, ctrl: IScannerControls) => {
+          if (cancelled) return;
+          if (!result) return;
+          const text = result.getText?.() ?? String(result);
+          if (!text) return;
+          const now = Date.now();
+          const last = lastCodeRef.current;
+          if (last && last.code === text && now - last.at < 1500) return;
+          lastCodeRef.current = { code: text, at: now };
+          doBeep(mutedRef.current);
+          setFlash(true);
+          setTimeout(() => setFlash(false), 200);
+          if (!continuous) ctrl.stop();
+          onDetectedRef.current(text);
+        };
+
+        let controls: IScannerControls;
+        if (deviceId) {
+          controls = await reader.decodeFromVideoDevice(deviceId, videoRef.current!, onDecode);
+        } else {
+          controls = await reader.decodeFromConstraints(
+            { video: { facingMode: { ideal: "environment" } }, audio: false },
+            videoRef.current!,
+            onDecode,
+          );
+        }
         if (cancelled) { controls.stop(); return; }
         controlsRef.current = controls;
 
