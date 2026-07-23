@@ -259,6 +259,7 @@ const App = () => (
             <Route path="tienda/cambios" element={<StoreCambios />} />
             <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
             <Route path="tienda/incidentes-escaneo" element={<AdminScanIncidents />} />
+            <Route path="tienda/control-mercaderia" element={<AdminControlMercaderia />} />
             <Route path="procesos" element={<AdminProcesos />} />
             <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
             <Route path="procesos/runner/:instanceId" element={<AdminProgramaFlujoRunner />} />
