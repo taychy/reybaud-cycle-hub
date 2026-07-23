@@ -1,81 +1,117 @@
+# Sistema de Cargas de Camioneta
 
-# Calculadora de rentabilidad de eventos
+Trazabilidad completa desde que la mercadería sale del depósito hasta que llega al cliente, con chequeo manual de contenido de caja y detección de incongruencias.
 
-Nueva funcionalidad interna (solo Super Admin) para simular costos, márgenes y precios sugeridos por modalidad de un evento/viaje, con historial de versiones, opción de aplicar precios a los paquetes reales y comparativa estimado vs real post-evento.
+## Alcance confirmado
 
-## Ubicación
+- **Solo mercadería con retiro en sede** (KDT, Villa Nueva, u otras sedes). Los envíos a domicilio (correo/moto) quedan fuera de la camioneta pero mantienen su propio circuito de estados.
+- Chequeo de caja: **manual, bajo demanda** (botón, sin bloqueo).
+- Envíos externos: **estado manual simple** (admin marca "enviado" y "recibido" con campo libre de tracking).
+- Alerta de demora: **30 días** en camioneta sin entregar.
 
-- Nuevo **tab "Rentabilidad"** dentro de la ficha del evento (`/admin/eventos/:id`), visible solo para `super_admin`.
-- Sin entradas nuevas en el sidebar.
+## Nuevos estados logísticos unificados
 
-## Estructura de datos
+Aplicable a todo pedido físico (delivery items, store_orders, preorders, cambios):
 
-Tres tablas nuevas en Lovable Cloud:
+```text
+pendiente → preparado → en_camioneta → entregado
+                     ↘ enviado (correo/moto) → recibido
+                     ↘ retenido (incidencia manual)
+```
 
-1. `event_cost_simulations` — cabecera por versión
-   - `event_id`, `version` (autoincremental por evento), `nombre`, `notas`
-   - Supuestos: `tc_usd`, `tc_eur`, `pct_imprevistos`, `pct_margen_objetivo`, `moneda_base`
-   - Datos evento: `noches`, `jornadas`, `capacidad_total`, `cantidades_esperadas` (jsonb por modalidad)
-   - `resultados` (jsonb, snapshot calculado: totales, precios sugeridos, margen)
-   - `estado`: `borrador | activa | archivada`
-   - `aplicada_a_packages_at` (nullable)
+- El cliente al comprar elige **Modalidad de retiro**: `Sede KDT`, `Sede Villa Nueva`, `Envío a domicilio`.
+- Solo las de sede alimentan el pool de "listo para cargar en camioneta".
 
-2. `event_cost_items` — líneas de costo de la simulación
-   - `simulation_id`, `categoria` (alojamiento / comida / transporte / staff / servicios / otros), `descripcion`
-   - `cantidad`, `precio_unitario`, `moneda` (ARS/USD/EUR), `es_por_persona` (bool), `aplica_a_modalidades` (jsonb array)
-   - `orden`
+## Piezas nuevas
 
-3. `event_cost_actuals` — ejecución real post-evento
-   - `simulation_id` (la que quedó "activa"), `categoria`, `descripcion`, `monto_real`, `moneda`, `fuente` (`manual | gasto_id`), `gasto_id` nullable, `notas`
-   - Participantes reales por modalidad: guardado en `event_cost_simulations.resultados_reales` (jsonb) o tabla auxiliar simple.
+### 1. Tabla `vehiculo_cargas`
+Representa una salida física de la camioneta.
+- Destino (sede), fecha salida, entregador, estado (`abierta` → `en_ruta` → `cerrada`).
+- Notas y kilometraje opcional.
 
-Todas con RLS restringida a `super_admin` (via `has_role`). GRANTs a `authenticated` + `service_role`. Sin acceso `anon`.
+### 2. Tabla `vehiculo_carga_items`
+- Referencia polimórfica al ítem: `source_table` + `source_id` (delivery_list_item / store_order_item / etc.).
+- Snapshot de producto/variante/cantidad/cliente para no depender de la fuente si se edita.
+- Estado individual: `cargado`, `entregado`, `retornado`, `faltante`.
 
-## Lógica de cálculo (frontend, pura)
+### 3. Tabla `vehiculo_chequeos`
+Cada vez que depósito toca "Chequear caja".
+- Carga asociada, fecha, quién chequeó.
+- JSON con resultado por ítem: `presente` / `ausente` / `sobrante`.
 
-Módulo `src/lib/eventCostCalculator.ts`:
+### 4. Tabla `logistica_incidencias`
+Incongruencias detectadas + acciones manuales tomadas.
+- Tipo: `falta_fisica`, `sobrante_fisico`, `demorado_30d`, `envio_sin_confirmar`.
+- Estado: `abierta`, `resuelta`, `descartada`.
 
-- Normaliza cada ítem a `moneda_base` usando `tc_usd`/`tc_eur`.
-- Suma costos fijos (no `es_por_persona`) y variables (multiplicando por participantes esperados según modalidades marcadas).
-- Aplica `pct_imprevistos` sobre el total.
-- Calcula **costo por participante por modalidad**.
-- Sugiere **precio por modalidad** = `costo_modalidad / (1 - pct_margen_objetivo)`.
-- Devuelve: `totales`, `costo_por_modalidad`, `precio_sugerido_por_modalidad`, `margen_estimado`, `punto_equilibrio`.
+## Flujos
 
-Se recalcula en vivo mientras editás; al guardar, el snapshot queda en `resultados`.
+### A) Armado de carga (depósito)
+1. `/deposito/camioneta` → botón "Nueva carga" → elegir sede destino.
+2. Pool de candidatos: ítems `preparado` cuya modalidad = esa sede + los que ya están `en_camioneta` de cargas previas de esa sede.
+3. Selecciona → pasa a `cargado` en la carga nueva.
+4. "Cerrar carga" → estado `en_ruta`, ítems fuente pasan a `en_camioneta`. Genera `stock_movement` de tipo `salida_camioneta`.
+5. Reusa la generación de etiquetas QR ya existente.
 
-## UI — Tab "Rentabilidad"
+### B) Entrega en sede (entregador)
+- Sigue el flujo actual: escanea QR → marca `entregado`.
+- El ítem de la carga refleja `entregado` en tiempo real.
 
-Componente `EventCostSimulator.tsx` con:
+### C) Chequeo de caja (depósito, manual)
+1. Botón "Chequear caja" → elige carga activa.
+2. Escáner continuo o marcado manual: cada ítem se marca presente/ausente.
+3. Al cerrar chequeo, la app cruza:
+   - `ausente` + entregador no marcó entregado → **incidencia `falta_fisica`**.
+   - `presente` + entregador marcó entregado → **incidencia `sobrante_fisico`**.
+   - Ítem `en_camioneta` con >30 días desde salida → **incidencia `demorado_30d`**.
+4. Se crea registro en `vehiculo_chequeos` y las incidencias resultantes.
 
-1. **Header**: selector de versión (v1, v2, v3…), botones "Nueva versión", "Duplicar", "Archivar", badge de versión activa.
-2. **Bloque supuestos**: TC USD/EUR, % imprevistos, % margen, moneda base.
-3. **Bloque evento**: noches, jornadas, capacidad, cantidades esperadas por modalidad (auto-cargadas desde `event_packages` la primera vez).
-4. **Bloque costos** (tabla editable): categoría, descripción, cantidad, precio, moneda, por persona sí/no, modalidades aplicables. Suma en vivo por categoría y por moneda.
-5. **Bloque resultados**: costo total, costo por modalidad, **precio sugerido por modalidad**, margen estimado, punto de equilibrio.
-6. **Acción "Aplicar precios a paquetes"** (opcional, con confirmación): actualiza `event_packages.precio` de las modalidades elegidas al precio sugerido. Registra `aplicada_a_packages_at` y una entrada en `audit_log`. Checkbox por modalidad para elegir cuáles aplicar.
+### D) Envíos a domicilio (paralelo a camioneta)
+- Admin en el detalle del pedido: botón "Marcar enviado" con campo libre para tracking/observación.
+- Botón "Cliente recibió" → estado `recibido`, cierra el circuito.
+- Job diario opcional (fase 2): si `enviado` >30 días sin `recibido` → incidencia `envio_sin_confirmar`.
 
-## Estimado vs Real (post-evento)
+### E) Panel de incidencias (admin)
+- `/admin/logistica/incidencias` con filtro por tipo/estado/sede.
+- Acciones: marcar entregado retroactivo, reportar pérdida (descuenta stock definitivo), devolver a stock, descartar.
+- Widget en dashboard admin: contador de incidencias abiertas.
 
-Sub-tab "Real" dentro del mismo módulo:
+## Reusa de infraestructura existente
 
-- Tabla de costos reales con las mismas categorías (permite importar/vincular `gastos` existentes filtrados por evento).
-- Input de participantes reales por modalidad (auto desde `event_participants` confirmados).
-- Vista comparativa lado a lado: **Estimado vs Real** por categoría, con desvío absoluto y % — filas resaltadas cuando el desvío supera un umbral (ej. 15%).
-- Margen real vs margen objetivo.
+- **QR y escáner**: `CameraScanner.tsx`, `productQr.ts` — sin cambios.
+- **Etiquetas**: mismo generador de `DepositoEntregaDetail.tsx`, adaptado para imprimir por carga en vez de por lista.
+- **Reconciliación**: patrón similar a `ReconcileWithSupplierDialog.tsx` para el cruce chequeo vs. entregador.
+- **Stock movements**: se extiende con nuevos tipos.
+- **Sidebar depósito**: se agrega item "Camioneta" entre Entregas y Prov.
+
+## Fases sugeridas de implementación
+
+**Fase 1 — Cimientos** (esta ronda)
+- Migraciones: 4 tablas nuevas + campo `modalidad_retiro` en `store_orders` / `delivery_list_items`.
+- Pantalla `/deposito/camioneta` con listado, alta y detalle de carga.
+- Selección de ítems al armar carga (solo delivery_list_items en esta fase).
+- Cierre de carga con generación de estados y stock movements.
+
+**Fase 2 — Chequeo e incidencias**
+- Modal de chequeo con escáner/manual.
+- Motor de cruce y generación automática de incidencias.
+- Panel `/admin/logistica/incidencias`.
+
+**Fase 3 — Envíos externos y expansión**
+- Estados de envío en `store_orders` y otras fuentes.
+- Sumar `store_orders` y `preorders` al pool de cargas.
+- Widget dashboard admin + alertas por email a admin cuando hay >N incidencias abiertas.
 
 ## Detalles técnicos
 
-- Ruta: se agrega el tab en la página existente del evento (no route nueva).
-- Guard: `useAdminAuth` + chequeo `has_role(_, 'super_admin')` antes de renderizar el tab.
-- Migraciones en un solo call con CREATE TABLE + GRANT + RLS + POLICY + trigger `updated_at`.
-- Sin dependencias nuevas; usa shadcn tables/dialogs existentes y `src/lib/currency.ts` para formateo.
-- Historial: cada "Nueva versión" crea un row nuevo; "Duplicar" copia ítems.
+- Referencias polimórficas: `source_table` (`text` con CHECK enum) + `source_id` (`uuid`), sin FK real, se valida por trigger.
+- RLS: depósito y admin pueden todo; alumno no ve estas tablas.
+- Todas las tablas siguen el patrón `GRANT authenticated + service_role`, RLS enable, políticas por rol.
+- Vista `vw_pool_carga_camioneta` que expone ítems candidatos por sede unificando fuentes (fase 1 solo delivery_list_items).
+- Actualización de estados por trigger cuando el ítem fuente cambia (ej. entregador marca entregado → se refleja en `vehiculo_carga_items`).
 
-## Fuera de alcance (para después)
+## Decisiones pendientes (te consulto antes de codear la Fase 1)
 
-- Exportar simulación a PDF.
-- Vinculación automática 1:1 de cada gasto real al ítem estimado (por ahora es por categoría).
-- Multi-usuario colaborativo en la misma simulación.
-
-¿Avanzo con la implementación así?
+1. ¿Las sedes son fijas (**KDT** + **Villa Nueva**) o querés que sea una lista editable (tabla `sedes` ya existe — podría reusarse)?
+2. En delivery lists actuales que ya están cargadas, ¿asignamos modalidad de retiro por defecto a alguna sede, o quedan sin asignar hasta editar manualmente?
+3. Al armar una carga, ¿un ítem puede estar en múltiples cargas simultáneas o forzamos exclusividad (solo una carga activa por ítem)?
