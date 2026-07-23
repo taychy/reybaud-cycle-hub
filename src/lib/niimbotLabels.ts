@@ -199,7 +199,76 @@ const registerBarcode = async (label: NiimbotLabelInput & { sku: string }) => {
 export interface PrintNiimbotOptions {
   size?: NiimbotSize;
   filenameHint?: string; // ej. "campera-termica"
+  /**
+   * "label"       → PNG del tamaño del rollo, listo para imprimir desde la app Niimbot.
+   * "scan-source" → PNG grande con QR gigante + SKU en texto, pensado para que la
+   *                 app Niimbot lo escanee desde la pantalla/papel y COPIE el código
+   *                 a una etiqueta nueva en la app.
+   */
+  mode?: "label" | "scan-source";
 }
+
+/**
+ * Genera un PNG "fuente" con QR muy grande y quiet zone amplia, pensado
+ * para que la app Niimbot pueda escanearlo con la cámara del celular y
+ * copiar el código a una etiqueta nueva.
+ */
+const renderScanSourcePng = async (
+  label: NiimbotLabelInput & { sku: string },
+): Promise<Blob> => {
+  const W = 900;
+  const H = 1100;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // QR grande, centrado, con error correction alto para tolerar reflejos.
+  const qrSize = 760;
+  const qrX = Math.round((W - qrSize) / 2);
+  const qrY = 90;
+  try {
+    const qrDataUrl = await QRCode.toDataURL(label.sku, {
+      margin: 2,
+      width: qrSize,
+      errorCorrectionLevel: "H",
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = reject;
+      img.src = qrDataUrl;
+    });
+    ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+  } catch (err) {
+    console.warn("QR error", err);
+  }
+
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+  ctx.textAlign = "center";
+
+  // SKU grande y monoespaciado (respaldo humano)
+  ctx.font = `bold 64px ui-monospace, "SF Mono", Menlo, monospace`;
+  ctx.fillText(label.sku, W / 2, qrY + qrSize + 30);
+
+  // Nombre + variante debajo
+  ctx.font = `500 34px system-ui, -apple-system, sans-serif`;
+  const variant = variantPretty(label.variant_key);
+  const subtitle = [truncate(label.product_name, 40), variant].filter(Boolean).join(" · ");
+  if (subtitle) ctx.fillText(subtitle, W / 2, qrY + qrSize + 110);
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("toBlob returned null"))),
+      "image/png",
+    );
+  });
+};
 
 /**
  * Genera un PNG por etiqueta. Si es 1 sola → descarga PNG.
@@ -211,10 +280,16 @@ export const printNiimbotLabels = async (
   opts: PrintNiimbotOptions = {},
 ): Promise<{ total: number; registered: string[] }> => {
   const size = opts.size || "40x30";
+  const mode = opts.mode || "label";
+  const render = (l: NiimbotLabelInput & { sku: string }) =>
+    mode === "scan-source" ? renderScanSourcePng(l) : renderLabelPng(l, size);
+  const suffix = mode === "scan-source" ? "-fuente" : "";
+
   const expanded: (NiimbotLabelInput & { sku: string })[] = [];
   labels.forEach((l) => {
     const sku = buildSku(l.sku_base, l.variant_key);
-    const copies = Math.max(1, l.copies || 1);
+    // En modo fuente escaneable, 1 PNG por SKU alcanza (la app lo copia N veces).
+    const copies = mode === "scan-source" ? 1 : Math.max(1, l.copies || 1);
     for (let i = 0; i < copies; i++) expanded.push({ ...l, sku });
   });
 
@@ -223,31 +298,33 @@ export const printNiimbotLabels = async (
   expanded.forEach((l) => uniqueByCode.set(l.sku, l));
   await Promise.all([...uniqueByCode.values()].map(registerBarcode));
 
-  if (expanded.length === 1) {
-    const blob = await renderLabelPng(expanded[0], size);
+  // En modo fuente, deduplicamos por SKU (no tiene sentido repetir la misma imagen)
+  const toRender = mode === "scan-source" ? [...uniqueByCode.values()] : expanded;
+
+  if (toRender.length === 1) {
+    const blob = await render(toRender[0]);
     triggerDownload(
       blob,
-      `${opts.filenameHint ? slug(opts.filenameHint) + "-" : ""}${slug(expanded[0].sku)}.png`,
+      `${opts.filenameHint ? slug(opts.filenameHint) + "-" : ""}${slug(toRender[0].sku)}${suffix}.png`,
     );
     return { total: 1, registered: [...uniqueByCode.keys()] };
   }
 
   const zip = new JSZip();
-  // Numeramos para que Niimbot las liste ordenadas.
   const counters = new Map<string, number>();
-  for (let i = 0; i < expanded.length; i++) {
-    const l = expanded[i];
-    const blob = await renderLabelPng(l, size);
+  for (let i = 0; i < toRender.length; i++) {
+    const l = toRender[i];
+    const blob = await render(l);
     const n = (counters.get(l.sku) || 0) + 1;
     counters.set(l.sku, n);
-    const name = `${String(i + 1).padStart(3, "0")}_${slug(l.sku)}_${n}.png`;
+    const name = `${String(i + 1).padStart(3, "0")}_${slug(l.sku)}${suffix}_${n}.png`;
     zip.file(name, blob);
   }
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const stamp = new Date().toISOString().slice(0, 10);
   triggerDownload(
     zipBlob,
-    `etiquetas-niimbot-${opts.filenameHint ? slug(opts.filenameHint) + "-" : ""}${stamp}-${expanded.length}.zip`,
+    `etiquetas-niimbot${suffix}-${opts.filenameHint ? slug(opts.filenameHint) + "-" : ""}${stamp}-${toRender.length}.zip`,
   );
-  return { total: expanded.length, registered: [...uniqueByCode.keys()] };
+  return { total: toRender.length, registered: [...uniqueByCode.keys()] };
 };
