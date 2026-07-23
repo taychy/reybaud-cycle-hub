@@ -57,12 +57,18 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
       BarcodeFormat.EAN_8,
       BarcodeFormat.CODE_128,
       BarcodeFormat.CODE_39,
+      BarcodeFormat.CODE_93,
       BarcodeFormat.UPC_A,
       BarcodeFormat.UPC_E,
       BarcodeFormat.QR_CODE,
+      BarcodeFormat.DATA_MATRIX,
+      BarcodeFormat.AZTEC,
+      BarcodeFormat.PDF_417,
       BarcodeFormat.ITF,
+      BarcodeFormat.CODABAR,
     ]);
-    const reader = new BrowserMultiFormatReader(hints);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 100 });
 
     (async () => {
       try {
@@ -70,7 +76,11 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
         let permStream: MediaStream | null = null;
         try {
           permStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
             audio: false,
           });
         } catch (permErr: any) {
@@ -109,7 +119,14 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
           controls = await reader.decodeFromVideoDevice(deviceId, videoRef.current!, onDecode);
         } else {
           controls = await reader.decodeFromConstraints(
-            { video: { facingMode: { ideal: "environment" } }, audio: false },
+            {
+              video: {
+                facingMode: { ideal: "environment" },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+              },
+              audio: false,
+            },
             videoRef.current!,
             onDecode,
           );
