@@ -168,6 +168,47 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
     setVisited((v) => ({ ...v, [itemId]: true }));
   };
 
+  const [printingItemId, setPrintingItemId] = useState<string | null>(null);
+  const handlePrintNiimbot = async (item: any, copies: number) => {
+    if (!item?.product_id) {
+      toast({
+        title: "Ítem sin producto vinculado",
+        description: "Vinculá el ítem a un producto de tienda antes de imprimir.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPrintingItemId(item.id);
+    try {
+      const res = await printNiimbotLabels(
+        [
+          {
+            product_id: item.product_id,
+            product_name: item.producto_nombre,
+            sku_base: item.sku_base ?? null,
+            variant_key: item.variante
+              ? Object.entries(item.variante)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => `${k}:${v}`)
+                  .join("|") || null
+              : null,
+            variante: item.variante || {},
+            copies: Math.max(1, copies || 1),
+          },
+        ],
+        { filenameHint: item.producto_nombre },
+      );
+      toast({
+        title: `${res.total} etiqueta(s) Niimbot generada(s)`,
+        description: "Abrilas desde la app Niimbot para imprimir.",
+      });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setPrintingItemId(null);
+    }
+  };
+
   // Al escanear un código: buscar en product_barcodes; si existe y matchea una línea del pedido → +1.
   // Si no existe → abrir diálogo obligatorio para vincularlo con una línea del pedido.
   // Si existe pero no matchea ninguna línea → registrar incidente y avisar.
