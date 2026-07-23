@@ -45,9 +45,14 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
 
   useEffect(() => {
     if (!open) return;
-    sb.from("store_products").select("id, nombre, variants").eq("activo", true).then(({ data }: any) => {
-      setProductos(data || []);
-    });
+    sb.from("store_products")
+      .select("id, name, variants")
+      .eq("status", "active")
+      .order("name")
+      .then(({ data, error }: any) => {
+        if (error) console.error("[SupplierOrderDialog] load products failed:", error);
+        setProductos((data || []).map((p: any) => ({ id: p.id, nombre: p.name, variants: p.variants })));
+      });
   }, [open]);
 
   useEffect(() => {
