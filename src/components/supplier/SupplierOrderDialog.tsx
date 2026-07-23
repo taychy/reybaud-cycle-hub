@@ -63,6 +63,8 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
     if (order) {
       setProveedor(order.proveedor_nombre || "");
       setContacto(order.proveedor_contacto || "");
+      setProveedorEmail(order.proveedor_email || "");
+      setEnviarEmail(false);
       setFechaPedido(order.fecha_pedido || new Date().toISOString().slice(0, 10));
       setFechaEta(order.fecha_estimada_entrega || "");
       setMoneda(order.moneda || "ARS");
@@ -71,7 +73,8 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         setItems((data || []).map((i: any) => ({ ...i, variante: i.variante || {} })));
       });
     } else {
-      setProveedor(""); setContacto(""); setFechaPedido(new Date().toISOString().slice(0, 10));
+      setProveedor(""); setContacto(""); setProveedorEmail(""); setEnviarEmail(true);
+      setFechaPedido(new Date().toISOString().slice(0, 10));
       setFechaEta(""); setMoneda("ARS"); setNotas(""); setItems([]);
     }
   }, [open, order?.id]);
