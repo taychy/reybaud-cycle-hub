@@ -118,19 +118,27 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
     return Object.fromEntries(specs.map((s) => [s.name, s.options]));
   };
 
-  const save = async () => {
+  const attemptSave = (sendEmail: boolean) => {
     if (!proveedor.trim()) return toast({ title: "Falta proveedor", variant: "destructive" });
     const validItems = items.filter((i) => !i._deleted);
     if (validItems.some((i) => !i.producto_nombre.trim() || i.cantidad_pedida <= 0)) {
       return toast({ title: "Ítems incompletos", description: "Cada ítem necesita nombre y cantidad > 0.", variant: "destructive" });
     }
     const emailTrim = proveedorEmail.trim();
-    if (enviarEmail && emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+    if (sendEmail && !emailTrim) {
+      return toast({ title: "Falta email del proveedor", description: "Cargá un email para poder enviarlo.", variant: "destructive" });
+    }
+    if (sendEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
       return toast({ title: "Email inválido", description: "Revisá el email del proveedor.", variant: "destructive" });
     }
-    if (enviarEmail && !emailTrim) {
-      return toast({ title: "Falta email del proveedor", description: "Cargá un email o desmarcá 'Enviar pedido por email'.", variant: "destructive" });
+    if (sendEmail) {
+      setConfirmSendOpen(true);
+    } else {
+      void save(false);
     }
+  };
+
+  const save = async (sendEmail: boolean) => {
 
     setSaving(true);
     try {
