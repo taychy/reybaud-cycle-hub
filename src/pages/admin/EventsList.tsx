@@ -160,6 +160,16 @@ const EventsList = () => {
   const [saving, setSaving] = useState(false);
   const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from("admin_profiles").select("role").eq("user_id", session.user.id).maybeSingle();
+      if ((data as any)?.role === "super_admin") setIsSuperAdmin(true);
+    })();
+  }, []);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
