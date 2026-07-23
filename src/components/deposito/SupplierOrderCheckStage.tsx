@@ -76,12 +76,12 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       });
   }, [initialOrderId]);
 
-  // Sort by producto → variante for grouped counting
+  // Sort by producto → variante (talle first) for grouped counting
   const sortItems = (list: any[]) =>
     [...list].sort((a, b) => {
       const p = String(a.producto_nombre || "").localeCompare(String(b.producto_nombre || ""), "es");
       if (p !== 0) return p;
-      return formatVariante(a.variante).localeCompare(formatVariante(b.variante), "es");
+      return compareVariantsBySize(a.variante, b.variante);
     });
 
   useEffect(() => {

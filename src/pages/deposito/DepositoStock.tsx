@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
+import { sortVariantSpecs } from "@/lib/variantSort";
 
 interface VariantSpec {
   name: string;
@@ -86,11 +87,13 @@ const DepositoStock = () => {
     if (movDialog) setMovVariant({});
   }, [movDialog?.id]);
 
-  const dialogSpecs: VariantSpec[] = Array.isArray(movDialog?.variants)
-    ? (movDialog!.variants as VariantSpec[]).filter(
-        (v) => v?.name && Array.isArray(v?.options) && v.options.length > 0,
-      )
-    : [];
+  const dialogSpecs: VariantSpec[] = sortVariantSpecs(
+    Array.isArray(movDialog?.variants)
+      ? (movDialog!.variants as VariantSpec[]).filter(
+          (v) => v?.name && Array.isArray(v?.options) && v.options.length > 0,
+        )
+      : [],
+  );
   const dialogHasVariants = dialogSpecs.length > 0;
   const dialogVariantKey = buildVariantKey(dialogSpecs, movVariant);
   const dialogVariantStock: number | null = dialogHasVariants

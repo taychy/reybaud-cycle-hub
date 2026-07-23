@@ -158,7 +158,10 @@ const RequestCambioDialog = ({
                 <Label className="text-xs">Nueva variante</Label>
                 {variantsConfig.map((vc: any, idx: number) => {
                   const key = vc.name || vc.label || `attr_${idx}`;
-                  const opts: string[] = vc.options || vc.values || [];
+                  const opts: string[] = sortVariantSpecOptions({
+                    name: key,
+                    options: vc.options || vc.values || [],
+                  }).options;
                   return (
                     <Select
                       key={key}
