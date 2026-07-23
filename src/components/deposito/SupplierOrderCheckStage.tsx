@@ -170,6 +170,11 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   };
 
   const [printingItemId, setPrintingItemId] = useState<string | null>(null);
+  const [previewLabels, setPreviewLabels] = useState<NiimbotPreviewItem[]>([]);
+  const [previewTitle, setPreviewTitle] = useState<string>("Vista previa de etiqueta");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHint, setPreviewHint] = useState<string | undefined>(undefined);
+
   const handlePrintNiimbot = async (
     item: any,
     copies: number,
@@ -201,18 +206,18 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
             copies: Math.max(1, copies || 1),
           },
         ],
-        { filenameHint: item.producto_nombre, mode },
+        { filenameHint: item.producto_nombre, mode, preview: true },
       );
-      toast({
-        title:
+      if (res.previews && res.previews.length) {
+        setPreviewLabels(res.previews);
+        setPreviewTitle(
           mode === "scan-source"
-            ? "Imagen fuente generada"
-            : `${res.total} etiqueta(s) Niimbot generada(s)`,
-        description:
-          mode === "scan-source"
-            ? "Abrí la app Niimbot → Escanear código y apuntá a esta imagen."
-            : "Abrilas desde la app Niimbot para imprimir.",
-      });
+            ? `Fuente escaneable · ${item.producto_nombre}`
+            : `Etiqueta Niimbot · ${item.producto_nombre}`,
+        );
+        setPreviewHint(item.producto_nombre);
+        setPreviewOpen(true);
+      }
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
