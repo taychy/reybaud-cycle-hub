@@ -266,6 +266,78 @@ const DepositoEntregaDetail = () => {
     URL.revokeObjectURL(url);
   };
 
+  const generateLabels = () => {
+    if (!list) return;
+    if (grouped.length === 0) {
+      toast.error("No hay ítems para etiquetar");
+      return;
+    }
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const cards = grouped
+      .map(([cliente, its]) => {
+        const lines = its
+          .map((it) => {
+            const v = formatVariant(it.variante);
+            const qty = it.cantidad > 1 ? ` × ${it.cantidad}` : "";
+            return `<li>${esc(it.producto)}${v ? ` <span class="v">(${esc(v)})</span>` : ""}${qty}</li>`;
+          })
+          .join("");
+        const totalItems = its.reduce((a, i) => a + (i.cantidad || 1), 0);
+        return `
+          <div class="label">
+            <div class="hdr">
+              <div class="title">${esc(list.titulo)}</div>
+              <div class="count">${its.length} ítem${its.length !== 1 ? "s" : ""} · ${totalItems} u.</div>
+            </div>
+            <div class="client">${esc(cliente)}</div>
+            <ul class="items">${lines}</ul>
+            <div class="foot">Ciclismo Reybaud · Entrega${list.fecha_entrega ? ` ${esc(list.fecha_entrega)}` : ""}</div>
+          </div>`;
+      })
+      .join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas — ${esc(list.titulo)}</title>
+<style>
+  @page { size: A4; margin: 8mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; margin: 0; color: #111; background: #fff; }
+  .sheet { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 54mm; gap: 0; }
+  .label {
+    border: 1px dashed #666;
+    padding: 5mm 6mm;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    page-break-inside: avoid;
+  }
+  .hdr { display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: .05em; }
+  .hdr .title { font-weight: 700; }
+  .client { font-size: 16pt; font-weight: 800; margin: 2mm 0 1.5mm; line-height: 1.1; text-transform: uppercase; }
+  .items { margin: 0; padding-left: 4mm; font-size: 10pt; line-height: 1.25; flex: 1; overflow: hidden; }
+  .items li { margin-bottom: 0.6mm; }
+  .items .v { color: #555; font-size: 9pt; }
+  .foot { font-size: 8pt; color: #666; margin-top: 2mm; border-top: 1px dotted #bbb; padding-top: 1.5mm; }
+  .toolbar { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; }
+  .toolbar button { font: 500 13px system-ui; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+  .toolbar button.primary { background: #111; color: #fff; border-color: #111; }
+  @media print { .toolbar { display: none; } }
+</style></head><body>
+<div class="toolbar">
+  <button onclick="window.print()" class="primary">Imprimir</button>
+  <button onclick="window.close()">Cerrar</button>
+</div>
+<div class="sheet">${cards}</div>
+<script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));</script>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) {
+      toast.error("Habilitá pop-ups para generar etiquetas");
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  };
+
   if (loading) return <div className="py-16 text-center text-muted-foreground animate-pulse">Cargando...</div>;
   if (!list) return <div className="py-16 text-center text-muted-foreground">Lista no encontrada.</div>;
 
