@@ -243,7 +243,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     }
     // Carga items belonging to this carga referencing those DLIs and not delivered yet
     const targets = items.filter(
-      (i) => i.source_type === "delivery_list_items" && matchingDliIds.includes(i.source_id) && i.estado !== "entregado",
+      (i) => i.source_table === "delivery_list_items" && matchingDliIds.includes(i.source_id) && i.estado !== "entregado",
     );
     if (targets.length === 0) {
       toast.info(`${parsed.cliente} ya estaba entregado o no está en esta carga`);
