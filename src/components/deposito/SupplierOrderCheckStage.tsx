@@ -7,11 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListChecks, ArrowLeft, ScanLine, Keyboard, Link2, AlertTriangle } from "lucide-react";
+import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListChecks, ArrowLeft, ScanLine, Keyboard, Link2, AlertTriangle, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { compareVariantsBySize } from "@/lib/variantSort";
+import { printNiimbotLabels } from "@/lib/niimbotLabels";
 
 // Serializa un objeto de variante de forma canónica (claves ordenadas y normalizadas)
 const canonVariante = (v: any): string => {
@@ -88,10 +89,24 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   useEffect(() => {
     if (!selectedId) { setItems([]); setCounts({}); return; }
     setLoading(true);
-    sb.from("supplier_order_items").select("*").eq("supplier_order_id", selectedId).then(({ data }: any) => {
-      const list = sortItems(data || []);
+    (async () => {
+      const { data } = await sb
+        .from("supplier_order_items")
+        .select("*")
+        .eq("supplier_order_id", selectedId);
+      let list = sortItems(data || []);
+      const productIds = [...new Set(list.map((it: any) => it.product_id).filter(Boolean))];
+      if (productIds.length) {
+        const { data: prods } = await sb
+          .from("store_products")
+          .select("id, sku_base")
+          .in("id", productIds);
+        const skuMap = new Map<string, string | null>(
+          (prods || []).map((p: any) => [p.id, p.sku_base ?? null]),
+        );
+        list = list.map((it: any) => ({ ...it, sku_base: skuMap.get(it.product_id) ?? null }));
+      }
       setItems(list);
-      // Try restore autosave
       const saved = localStorage.getItem(`sup-count:${selectedId}`);
       let restored: Record<string, number> | null = null;
       let restoredVisited: Record<string, boolean> | null = null;
@@ -110,8 +125,9 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       setVisited(restoredVisited || {});
       setIdx(0);
       setLoading(false);
-    });
+    })();
   }, [selectedId]);
+
 
   // Autosave
   useEffect(() => {
@@ -150,6 +166,47 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   const incrementItem = (itemId: string, delta = 1) => {
     setCounts((c) => ({ ...c, [itemId]: Math.max(0, (c[itemId] || 0) + delta) }));
     setVisited((v) => ({ ...v, [itemId]: true }));
+  };
+
+  const [printingItemId, setPrintingItemId] = useState<string | null>(null);
+  const handlePrintNiimbot = async (item: any, copies: number) => {
+    if (!item?.product_id) {
+      toast({
+        title: "Ítem sin producto vinculado",
+        description: "Vinculá el ítem a un producto de tienda antes de imprimir.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPrintingItemId(item.id);
+    try {
+      const res = await printNiimbotLabels(
+        [
+          {
+            product_id: item.product_id,
+            product_name: item.producto_nombre,
+            sku_base: item.sku_base ?? null,
+            variant_key: item.variante
+              ? Object.entries(item.variante)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => `${k}:${v}`)
+                  .join("|") || null
+              : null,
+            variante: item.variante || {},
+            copies: Math.max(1, copies || 1),
+          },
+        ],
+        { filenameHint: item.producto_nombre },
+      );
+      toast({
+        title: `${res.total} etiqueta(s) Niimbot generada(s)`,
+        description: "Abrilas desde la app Niimbot para imprimir.",
+      });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setPrintingItemId(null);
+    }
   };
 
   // Al escanear un código: buscar en product_barcodes; si existe y matchea una línea del pedido → +1.
@@ -508,6 +565,22 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
               <div className="flex justify-center mt-3">
                 <Badge className={`${diffLabel.cls} border`}>{diffLabel.text}</Badge>
               </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => handlePrintNiimbot(current, currentRecibido || currentPedido || 1)}
+                disabled={printingItemId === current.id || !current.product_id}
+                title={!current.product_id ? "Vinculá el ítem a un producto para imprimir" : ""}
+              >
+                <Tag className="w-4 h-4 mr-1" />
+                {printingItemId === current.id
+                  ? "Generando..."
+                  : `Etiquetas Niimbot (${currentRecibido || currentPedido || 1})`}
+              </Button>
             </div>
 
             <div className="flex gap-2 pt-1">
