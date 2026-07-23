@@ -11,6 +11,7 @@ const DepositoLayout = () => {
     { to: "/deposito/alertas", icon: AlertTriangle, label: "Alertas" },
     { to: "/deposito/ventas", icon: ShoppingBag, label: "Ventas" },
     { to: "/deposito/entregas", icon: Truck, label: "Entregas" },
+    { to: "/deposito/camioneta", icon: Truck, label: "Camioneta" },
     { to: "/deposito/pedidos-proveedor", icon: Package, label: "Prov." },
     { to: "/deposito/cambios", icon: RefreshCw, label: "Cambios" },
     { to: "/deposito/movimientos", icon: History, label: "Movim." },

@@ -89,6 +89,7 @@ import AdminProcessTemplates from "./pages/admin/AdminProcessTemplates";
 import DepositoVentas from "./pages/deposito/DepositoVentas";
 import DepositoEntregas from "./pages/deposito/DepositoEntregas";
 import DepositoEntregaDetail from "./pages/deposito/DepositoEntregaDetail";
+import DepositoCamioneta from "./pages/deposito/DepositoCamioneta";
 import PublicDeliveryList from "./pages/PublicDeliveryList";
 import SupplierOrders from "./pages/SupplierOrders";
 import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
@@ -278,6 +279,8 @@ const App = () => (
             <Route path="pedidos-proveedor" element={<SupplierOrders />} />
             <Route path="entregas" element={<DepositoEntregas />} />
             <Route path="entregas/:id" element={<DepositoEntregaDetail />} />
+            <Route path="camioneta" element={<DepositoCamioneta />} />
+            <Route path="camioneta/:id" element={<DepositoCamioneta />} />
             <Route path="procesos/:instanceId" element={<DepositoProcesoRunner />} />
           </Route>
           <Route path="/entrega/:token" element={<PublicDeliveryList />} />
