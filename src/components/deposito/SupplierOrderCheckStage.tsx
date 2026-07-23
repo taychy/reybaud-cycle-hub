@@ -715,6 +715,14 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NiimbotLabelPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        previews={previewLabels}
+        title={previewTitle}
+        filenameHint={previewHint}
+      />
     </Card>
   );
 };
