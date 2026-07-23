@@ -206,6 +206,24 @@ export interface PrintNiimbotOptions {
    *                 a una etiqueta nueva en la app.
    */
   mode?: "label" | "scan-source";
+  /**
+   * Si es true no descarga nada: devuelve los blobs para previsualizar
+   * y descargar más tarde desde la UI.
+   */
+  preview?: boolean;
+}
+
+export interface NiimbotPreviewItem {
+  sku: string;
+  filename: string;
+  blob: Blob;
+  url: string; // object URL, revocarlo cuando la UI se cierra
+}
+
+export interface PrintNiimbotResult {
+  total: number;
+  registered: string[];
+  previews?: NiimbotPreviewItem[]; // solo cuando opts.preview === true
 }
 
 /**
@@ -226,7 +244,6 @@ const renderScanSourcePng = async (
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, W, H);
 
-  // QR grande, centrado, con error correction alto para tolerar reflejos.
   const qrSize = 760;
   const qrX = Math.round((W - qrSize) / 2);
   const qrY = 90;
@@ -252,11 +269,9 @@ const renderScanSourcePng = async (
   ctx.textBaseline = "top";
   ctx.textAlign = "center";
 
-  // SKU grande y monoespaciado (respaldo humano)
   ctx.font = `bold 64px ui-monospace, "SF Mono", Menlo, monospace`;
   ctx.fillText(label.sku, W / 2, qrY + qrSize + 30);
 
-  // Nombre + variante debajo
   ctx.font = `500 34px system-ui, -apple-system, sans-serif`;
   const variant = variantPretty(label.variant_key);
   const subtitle = [truncate(label.product_name, 40), variant].filter(Boolean).join(" · ");
@@ -271,14 +286,15 @@ const renderScanSourcePng = async (
 };
 
 /**
- * Genera un PNG por etiqueta. Si es 1 sola → descarga PNG.
- * Si son varias → descarga un .zip con todas.
- * Además registra los SKUs en product_barcodes para que se puedan escanear.
+ * Genera un PNG por etiqueta.
+ *  - Con `preview: true` devuelve los blobs para que la UI los muestre y decida.
+ *  - Sin preview: descarga PNG (1) o ZIP (varias) automáticamente.
+ * En ambos casos registra los SKUs en product_barcodes.
  */
 export const printNiimbotLabels = async (
   labels: NiimbotLabelInput[],
   opts: PrintNiimbotOptions = {},
-): Promise<{ total: number; registered: string[] }> => {
+): Promise<PrintNiimbotResult> => {
   const size = opts.size || "40x30";
   const mode = opts.mode || "label";
   const render = (l: NiimbotLabelInput & { sku: string }) =>
@@ -288,25 +304,44 @@ export const printNiimbotLabels = async (
   const expanded: (NiimbotLabelInput & { sku: string })[] = [];
   labels.forEach((l) => {
     const sku = buildSku(l.sku_base, l.variant_key);
-    // En modo fuente escaneable, 1 PNG por SKU alcanza (la app lo copia N veces).
     const copies = mode === "scan-source" ? 1 : Math.max(1, l.copies || 1);
     for (let i = 0; i < copies; i++) expanded.push({ ...l, sku });
   });
 
-  // Registrar barcodes únicos (una vez cada uno)
   const uniqueByCode = new Map<string, NiimbotLabelInput & { sku: string }>();
   expanded.forEach((l) => uniqueByCode.set(l.sku, l));
   await Promise.all([...uniqueByCode.values()].map(registerBarcode));
 
-  // En modo fuente, deduplicamos por SKU (no tiene sentido repetir la misma imagen)
   const toRender = mode === "scan-source" ? [...uniqueByCode.values()] : expanded;
+  const hint = opts.filenameHint ? slug(opts.filenameHint) + "-" : "";
 
+  // === MODO PREVIEW: devolver blobs, no descargar ===
+  if (opts.preview) {
+    const previews: NiimbotPreviewItem[] = [];
+    const counters = new Map<string, number>();
+    for (let i = 0; i < toRender.length; i++) {
+      const l = toRender[i];
+      const blob = await render(l);
+      const n = (counters.get(l.sku) || 0) + 1;
+      counters.set(l.sku, n);
+      const filename =
+        toRender.length === 1
+          ? `${hint}${slug(l.sku)}${suffix}.png`
+          : `${String(i + 1).padStart(3, "0")}_${slug(l.sku)}${suffix}_${n}.png`;
+      previews.push({
+        sku: l.sku,
+        filename,
+        blob,
+        url: URL.createObjectURL(blob),
+      });
+    }
+    return { total: previews.length, registered: [...uniqueByCode.keys()], previews };
+  }
+
+  // === MODO DESCARGA DIRECTA ===
   if (toRender.length === 1) {
     const blob = await render(toRender[0]);
-    triggerDownload(
-      blob,
-      `${opts.filenameHint ? slug(opts.filenameHint) + "-" : ""}${slug(toRender[0].sku)}${suffix}.png`,
-    );
+    triggerDownload(blob, `${hint}${slug(toRender[0].sku)}${suffix}.png`);
     return { total: 1, registered: [...uniqueByCode.keys()] };
   }
 
@@ -322,9 +357,26 @@ export const printNiimbotLabels = async (
   }
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const stamp = new Date().toISOString().slice(0, 10);
-  triggerDownload(
-    zipBlob,
-    `etiquetas-niimbot${suffix}-${opts.filenameHint ? slug(opts.filenameHint) + "-" : ""}${stamp}-${toRender.length}.zip`,
-  );
+  triggerDownload(zipBlob, `etiquetas-niimbot${suffix}-${hint}${stamp}-${toRender.length}.zip`);
   return { total: toRender.length, registered: [...uniqueByCode.keys()] };
+};
+
+/** Exportado para reutilizar desde componentes que muestran preview. */
+export const downloadBlob = (blob: Blob, filename: string) => triggerDownload(blob, filename);
+
+/** Empaqueta previews como ZIP y dispara descarga. */
+export const downloadPreviewsAsZip = async (
+  previews: NiimbotPreviewItem[],
+  filenameHint?: string,
+) => {
+  if (previews.length === 1) {
+    triggerDownload(previews[0].blob, previews[0].filename);
+    return;
+  }
+  const zip = new JSZip();
+  previews.forEach((p) => zip.file(p.filename, p.blob));
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  const stamp = new Date().toISOString().slice(0, 10);
+  const hint = filenameHint ? slug(filenameHint) + "-" : "";
+  triggerDownload(zipBlob, `etiquetas-niimbot-${hint}${stamp}-${previews.length}.zip`);
 };
