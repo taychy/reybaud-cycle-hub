@@ -74,7 +74,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         setItems((data || []).map((i: any) => ({ ...i, variante: i.variante || {} })));
       });
     } else {
-      setProveedor(""); setContacto(""); setProveedorEmail(""); setEnviarEmail(true);
+      setProveedor(""); setContacto(""); setProveedorEmail("");
       setFechaPedido(new Date().toISOString().slice(0, 10));
       setFechaEta(""); setMoneda("ARS"); setNotas(""); setItems([]);
     }
