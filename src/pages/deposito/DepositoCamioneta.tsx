@@ -500,6 +500,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CameraScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDetected={handleScannedCode}
+        continuous
+        hint={`${scanCount} entrega${scanCount !== 1 ? "s" : ""} marcada${scanCount !== 1 ? "s" : ""}`}
+      />
     </div>
   );
 };
