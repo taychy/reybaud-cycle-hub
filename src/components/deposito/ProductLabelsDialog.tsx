@@ -50,6 +50,7 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
   const [format, setFormat] = useState<FormatKind>("a4");
   const [layout, setLayout] = useState<LabelLayout>("8");
   const [niimbotSize, setNiimbotSize] = useState<NiimbotSize>("40x30");
+  const [niimbotMode, setNiimbotMode] = useState<"label" | "scan-source">("label");
   const [mode, setMode] = useState<Mode>("all");
   const [variantSel, setVariantSel] = useState<Record<string, string>>({});
   const [copies, setCopies] = useState<string>("1");
