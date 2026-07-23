@@ -17,7 +17,8 @@ import {
   type LabelLayout,
   type ProductLabelItem,
 } from "@/lib/productLabels";
-import { printNiimbotLabels, type NiimbotSize } from "@/lib/niimbotLabels";
+import { printNiimbotLabels, type NiimbotSize, type NiimbotPreviewItem } from "@/lib/niimbotLabels";
+import NiimbotLabelPreviewDialog from "@/components/deposito/NiimbotLabelPreviewDialog";
 
 type FormatKind = "a4" | "niimbot";
 const NIIMBOT_SIZES: { value: NiimbotSize; label: string }[] = [
@@ -55,6 +56,8 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
   const [variantSel, setVariantSel] = useState<Record<string, string>>({});
   const [copies, setCopies] = useState<string>("1");
   const [printing, setPrinting] = useState(false);
+  const [previewLabels, setPreviewLabels] = useState<NiimbotPreviewItem[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -139,23 +142,24 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
             size: niimbotSize,
             mode: niimbotMode,
             filenameHint: product.name,
+            preview: true,
           },
         );
-        toast({
-          title: `${res.total} ${niimbotMode === "scan-source" ? "imagen(es) fuente" : "etiqueta(s) Niimbot"} generada(s)`,
-          description:
-            niimbotMode === "scan-source"
-              ? "Abrí la app Niimbot → Escanear código, apuntá a la imagen y la app copiará el código."
-              : "Abrilas desde la app Niimbot para imprimir.",
-        });
+        if (res.previews && res.previews.length) {
+          setPreviewLabels(res.previews);
+          setPreviewOpen(true);
+          // no cerramos el diálogo padre acá: primero que el usuario decida en la preview
+        } else {
+          toast({ title: "No se generaron etiquetas", variant: "destructive" });
+        }
       } else {
         await printProductLabels(items, {
           layout,
           filename: `etiquetas-${product.name.toLowerCase().replace(/\s+/g, "-").slice(0, 30)}.pdf`,
         });
         toast({ title: `${items.length} etiqueta(s) generadas` });
+        onOpenChange(false);
       }
-      onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -408,10 +412,25 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
           </Button>
           <Button onClick={handlePrint} disabled={printing}>
             <Printer className="w-4 h-4 mr-1" />
-            {printing ? "Generando..." : `Imprimir ${totalCount}`}
+            {printing
+              ? "Generando..."
+              : format === "niimbot"
+                ? `Ver ${totalCount} etiqueta${totalCount > 1 ? "s" : ""}`
+                : `Imprimir ${totalCount}`}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <NiimbotLabelPreviewDialog
+        open={previewOpen}
+        onOpenChange={(o) => {
+          setPreviewOpen(o);
+          if (!o) onOpenChange(false);
+        }}
+        previews={previewLabels}
+        title={`Etiquetas Niimbot · ${product.name}`}
+        filenameHint={product.name}
+      />
     </Dialog>
   );
 };
