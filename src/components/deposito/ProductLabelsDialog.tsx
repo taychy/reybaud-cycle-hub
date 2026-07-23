@@ -235,24 +235,61 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
               </Select>
             </div>
           ) : (
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                Tamaño del rollo
-              </Label>
-              <Select value={niimbotSize} onValueChange={(v) => setNiimbotSize(v as NiimbotSize)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {NIIMBOT_SIZES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Modo Niimbot
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNiimbotMode("label")}
+                    className={`rounded-lg border p-3 text-left text-xs transition-colors ${
+                      niimbotMode === "label"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="font-medium text-sm">Etiqueta lista</div>
+                    <div className="text-muted-foreground">PNG del tamaño del rollo para enviar a imprimir.</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNiimbotMode("scan-source")}
+                    className={`rounded-lg border p-3 text-left text-xs transition-colors ${
+                      niimbotMode === "scan-source"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="font-medium text-sm">Fuente escaneable</div>
+                    <div className="text-muted-foreground">QR gigante para que la app Niimbot lo escanee y copie el código.</div>
+                  </button>
+                </div>
+              </div>
+
+              {niimbotMode === "label" && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Tamaño del rollo
+                  </Label>
+                  <Select value={niimbotSize} onValueChange={(v) => setNiimbotSize(v as NiimbotSize)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NIIMBOT_SIZES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <p className="text-[11px] text-muted-foreground">
-                Genera un PNG por etiqueta (o un .zip si son varias). Abrilo desde la app Niimbot
-                para enviarlo a la impresora. El QR queda registrado como código escaneable
-                para el control de ingreso de mercadería.
+                {niimbotMode === "scan-source"
+                  ? "Genera un PNG grande con QR + SKU. Abrí la app Niimbot → Escanear código de barras → apuntá a esta imagen y la app copiará el código a una etiqueta nueva."
+                  : "Genera un PNG por etiqueta (o un .zip si son varias). Abrilo desde la app Niimbot para enviarlo a la impresora. El QR queda registrado como código escaneable para el control de ingreso."}
               </p>
             </div>
           )}
