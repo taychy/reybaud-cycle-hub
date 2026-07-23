@@ -65,7 +65,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
       setProveedor(order.proveedor_nombre || "");
       setContacto(order.proveedor_contacto || "");
       setProveedorEmail(order.proveedor_email || "");
-      setEnviarEmail(false);
+      
       setFechaPedido(order.fecha_pedido || new Date().toISOString().slice(0, 10));
       setFechaEta(order.fecha_estimada_entrega || "");
       setMoneda(order.moneda || "ARS");
