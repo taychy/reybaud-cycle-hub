@@ -57,12 +57,19 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
       BarcodeFormat.EAN_8,
       BarcodeFormat.CODE_128,
       BarcodeFormat.CODE_39,
+      BarcodeFormat.CODE_93,
       BarcodeFormat.UPC_A,
       BarcodeFormat.UPC_E,
       BarcodeFormat.QR_CODE,
+      BarcodeFormat.DATA_MATRIX,
+      BarcodeFormat.AZTEC,
+      BarcodeFormat.PDF_417,
       BarcodeFormat.ITF,
+      BarcodeFormat.CODABAR,
     ]);
-    const reader = new BrowserMultiFormatReader(hints);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    hints.set(DecodeHintType.ALSO_INVERTED, true);
+    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 100 });
 
     (async () => {
       try {
