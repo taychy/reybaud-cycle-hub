@@ -80,6 +80,13 @@ export default function AdminBroadcasts() {
   const { toast } = useToast();
   const [tab, setTab] = useState("composer");
   const [composer, setComposer] = useState(emptyComposer);
+  const [ctaPresets, setCtaPresets] = useState<CtaPreset[]>(() => {
+    try {
+      const raw = localStorage.getItem("broadcast_cta_presets");
+      const custom: CtaPreset[] = raw ? JSON.parse(raw).map((p: any) => ({ ...p, custom: true })) : [];
+      return [...DEFAULT_CTA_PRESETS, ...custom];
+    } catch { return DEFAULT_CTA_PRESETS; }
+  });
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
