@@ -76,7 +76,11 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
         let permStream: MediaStream | null = null;
         try {
           permStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
             audio: false,
           });
         } catch (permErr: any) {
