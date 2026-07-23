@@ -12,7 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { compareVariantsBySize } from "@/lib/variantSort";
-import { printNiimbotLabels } from "@/lib/niimbotLabels";
+import { printNiimbotLabels, type NiimbotPreviewItem } from "@/lib/niimbotLabels";
+import NiimbotLabelPreviewDialog from "@/components/deposito/NiimbotLabelPreviewDialog";
 
 // Serializa un objeto de variante de forma canónica (claves ordenadas y normalizadas)
 const canonVariante = (v: any): string => {
