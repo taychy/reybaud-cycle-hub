@@ -169,7 +169,11 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   };
 
   const [printingItemId, setPrintingItemId] = useState<string | null>(null);
-  const handlePrintNiimbot = async (item: any, copies: number) => {
+  const handlePrintNiimbot = async (
+    item: any,
+    copies: number,
+    mode: "label" | "scan-source" = "label",
+  ) => {
     if (!item?.product_id) {
       toast({
         title: "Ítem sin producto vinculado",
@@ -178,7 +182,7 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       });
       return;
     }
-    setPrintingItemId(item.id);
+    setPrintingItemId(item.id + ":" + mode);
     try {
       const res = await printNiimbotLabels(
         [
@@ -196,11 +200,17 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
             copies: Math.max(1, copies || 1),
           },
         ],
-        { filenameHint: item.producto_nombre },
+        { filenameHint: item.producto_nombre, mode },
       );
       toast({
-        title: `${res.total} etiqueta(s) Niimbot generada(s)`,
-        description: "Abrilas desde la app Niimbot para imprimir.",
+        title:
+          mode === "scan-source"
+            ? "Imagen fuente generada"
+            : `${res.total} etiqueta(s) Niimbot generada(s)`,
+        description:
+          mode === "scan-source"
+            ? "Abrí la app Niimbot → Escanear código y apuntá a esta imagen."
+            : "Abrilas desde la app Niimbot para imprimir.",
       });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
