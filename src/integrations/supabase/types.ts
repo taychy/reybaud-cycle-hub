@@ -10527,6 +10527,8 @@ export type Database = {
         Args: { p_product_id: string; p_variante: Json }
         Returns: string
       }
+      _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _supplier_variant_norm: { Args: { v: Json }; Returns: string }
       accept_roommate_invitation: {
         Args: { _roommate_id: string }
         Returns: Json
@@ -10624,6 +10626,16 @@ export type Database = {
           p_revalidation_token: string
         }
         Returns: Json
+      }
+      apply_supplier_shortage_to_delivery: {
+        Args: { _list_id: string; _order_id: string }
+        Returns: {
+          items_borrados: number
+          items_reducidos: number
+          producto: string
+          removido: number
+          variante: string
+        }[]
       }
       assign_mp_movement_to_alumno: {
         Args: { _alumno_id: string; _movement_id: string; _notes?: string }
@@ -11259,6 +11271,18 @@ export type Database = {
           p_roommate_propuesto_id?: string
         }
         Returns: Json
+      }
+      preview_supplier_shortage_vs_delivery: {
+        Args: { _list_id: string; _order_id: string }
+        Returns: {
+          a_quitar: number
+          en_lista: number
+          faltante: number
+          pedido: number
+          producto: string
+          recibido: number
+          variante: string
+        }[]
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
       reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }
