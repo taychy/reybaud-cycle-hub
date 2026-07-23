@@ -570,6 +570,22 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
             <div className="flex gap-2 pt-1">
               <Button
                 variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => handlePrintNiimbot(current, currentRecibido || currentPedido || 1)}
+                disabled={printingItemId === current.id || !current.product_id}
+                title={!current.product_id ? "Vinculá el ítem a un producto para imprimir" : ""}
+              >
+                <Tag className="w-4 h-4 mr-1" />
+                {printingItemId === current.id
+                  ? "Generando..."
+                  : `Etiquetas Niimbot (${currentRecibido || currentPedido || 1})`}
+              </Button>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
                 onClick={() => setIdx(Math.max(0, idx - 1))}
                 disabled={idx === 0}
               >
