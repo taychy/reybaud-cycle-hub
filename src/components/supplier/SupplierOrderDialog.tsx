@@ -123,6 +123,13 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
     if (validItems.some((i) => !i.producto_nombre.trim() || i.cantidad_pedida <= 0)) {
       return toast({ title: "Ítems incompletos", description: "Cada ítem necesita nombre y cantidad > 0.", variant: "destructive" });
     }
+    const emailTrim = proveedorEmail.trim();
+    if (enviarEmail && emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      return toast({ title: "Email inválido", description: "Revisá el email del proveedor.", variant: "destructive" });
+    }
+    if (enviarEmail && !emailTrim) {
+      return toast({ title: "Falta email del proveedor", description: "Cargá un email o desmarcá 'Enviar pedido por email'.", variant: "destructive" });
+    }
 
     setSaving(true);
     try {
@@ -130,6 +137,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
       const header = {
         proveedor_nombre: proveedor.trim(),
         proveedor_contacto: contacto.trim() || null,
+        proveedor_email: emailTrim || null,
         fecha_pedido: fechaPedido,
         fecha_estimada_entrega: fechaEta || null,
         moneda,
@@ -137,13 +145,15 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         total_estimado: totalEstimado,
       };
       let orderId = order?.id;
+      let numero = order?.numero;
       if (orderId) {
         const { error } = await sb.from("supplier_orders").update(header).eq("id", orderId);
         if (error) throw error;
       } else {
-        const { data, error } = await sb.from("supplier_orders").insert({ ...header, created_by: userData?.user?.id || null }).select("id").single();
+        const { data, error } = await sb.from("supplier_orders").insert({ ...header, created_by: userData?.user?.id || null }).select("id, numero").single();
         if (error) throw error;
         orderId = data.id;
+        numero = data.numero;
       }
 
       // Items: delete marked, upsert rest
@@ -173,7 +183,41 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         const { error } = await sb.from("supplier_order_items").update(rest).eq("id", id);
         if (error) throw error;
       }
-      toast({ title: order ? "Pedido actualizado" : "Pedido creado" });
+
+      if (enviarEmail && emailTrim) {
+        const { error: mailErr } = await sb.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "supplier-order-created",
+            recipientEmail: emailTrim,
+            idempotencyKey: `supplier-order-${orderId}-created`,
+            templateData: {
+              proveedorNombre: proveedor.trim(),
+              numero: numero || "",
+              fechaPedido,
+              fechaEta: fechaEta || null,
+              moneda,
+              totalEstimado,
+              notas: notas.trim() || null,
+              items: toUpsert.map((i) => ({
+                producto_nombre: i.producto_nombre,
+                variante: i.variante,
+                cantidad_pedida: i.cantidad_pedida,
+                precio_unitario: i.precio_unitario,
+                notas: i.notas,
+              })),
+              contactoNombre: "Equipo Reybaud",
+            },
+          },
+        });
+        if (mailErr) {
+          console.error("[SupplierOrderDialog] send email failed:", mailErr);
+          toast({ title: "Pedido guardado, pero falló el envío de email", description: mailErr.message, variant: "destructive" });
+        } else {
+          toast({ title: order ? "Pedido actualizado" : "Pedido creado", description: `Email enviado a ${emailTrim}` });
+        }
+      } else {
+        toast({ title: order ? "Pedido actualizado" : "Pedido creado" });
+      }
       onSaved();
     } catch (e: any) {
       toast({ title: "Error al guardar", description: e.message, variant: "destructive" });
