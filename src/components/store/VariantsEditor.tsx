@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Plus, Shirt, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { sortVariantSpecOptions } from "@/lib/variantSort";
 
 export interface VariantSpec {
   name: string;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 const PRESETS: { label: string; spec: VariantSpec }[] = [
-  { label: "Talles ropa", spec: { name: "Talle", options: ["XS", "S", "M", "L", "XL", "XXL"] } },
+  { label: "Talles ropa", spec: { name: "Talle", options: ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"] } },
   { label: "Talles calzado", spec: { name: "Talle", options: ["38", "39", "40", "41", "42", "43", "44", "45"] } },
   { label: "Colores básicos", spec: { name: "Color", options: ["Negro", "Blanco", "Rojo", "Azul"] } },
   { label: "Tipo", spec: { name: "Tipo", options: ["Hombre", "Mujer", "Unisex"] } },
