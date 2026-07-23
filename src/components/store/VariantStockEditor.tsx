@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { useMemo } from "react";
+import { sortVariantSpecOptions } from "@/lib/variantSort";
 
 interface VariantSpec { name: string; options: string[] }
 
@@ -9,10 +10,12 @@ interface Props {
   onChange: (v: Record<string, number>) => void;
 }
 
-/** Genera todas las combinaciones cartesianas como signatures "Talle:M|Color:Negro" */
+/** Genera todas las combinaciones cartesianas como signatures "Talle:M|Color:Negro" en orden canónico. */
 export const buildCombos = (specs: VariantSpec[]): string[] => {
   if (!specs.length) return [];
-  const valid = specs.filter((s) => s.name && s.options.length > 0);
+  const valid = specs
+    .filter((s) => s.name && s.options.length > 0)
+    .map(sortVariantSpecOptions);
   if (!valid.length) return [];
   let combos: string[][] = [[]];
   for (const s of valid) {
