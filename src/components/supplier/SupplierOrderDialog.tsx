@@ -273,18 +273,23 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
                         />
                       )}
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className={`grid ${order ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
                         <div>
-                          <Label className="text-xs">Cantidad</Label>
+                          <Label className="text-xs">Cantidad pedida</Label>
                           <Input type="number" min={0} value={it.cantidad_pedida} onChange={(e) => updateItem(idx, { cantidad_pedida: Number(e.target.value) || 0 })} />
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Cuántas unidades le pediste al proveedor.</p>
                         </div>
+                        {order && (
+                          <div>
+                            <Label className="text-xs">Recibido</Label>
+                            <Input type="number" min={0} value={it.cantidad_recibida || 0} onChange={(e) => updateItem(idx, { cantidad_recibida: Number(e.target.value) || 0 })} />
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Cuántas ya entraron a depósito.</p>
+                          </div>
+                        )}
                         <div>
-                          <Label className="text-xs">Recibido</Label>
-                          <Input type="number" min={0} value={it.cantidad_recibida || 0} onChange={(e) => updateItem(idx, { cantidad_recibida: Number(e.target.value) || 0 })} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Precio u.</Label>
+                          <Label className="text-xs">Precio unitario</Label>
                           <Input type="number" min={0} step="0.01" value={it.precio_unitario ?? ""} onChange={(e) => updateItem(idx, { precio_unitario: e.target.value === "" ? null : Number(e.target.value) })} />
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Costo por unidad (opcional).</p>
                         </div>
                       </div>
                     </div>
