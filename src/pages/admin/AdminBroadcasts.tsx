@@ -480,6 +480,30 @@ export default function AdminBroadcasts() {
                   onChange={e => setComposer({ ...composer, cta_url: e.target.value })}
                   placeholder="https://reybaud-app.com/eventos/..."
                 />
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setComposer({
+                      ...composer,
+                      cta_url: "https://reybaud-app.com/perfil?section=suscripciones",
+                      cta_label: composer.cta_label || "Activar renovación automática",
+                    })}
+                    className="text-[11px] px-2 py-1 rounded-md border border-border/60 bg-muted/40 hover:bg-muted transition-colors"
+                  >
+                    + Renovación automática MP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComposer({
+                      ...composer,
+                      cta_url: "https://reybaud-app.com/alumno/pagos",
+                      cta_label: composer.cta_label || "Ver mi plan",
+                    })}
+                    className="text-[11px] px-2 py-1 rounded-md border border-border/60 bg-muted/40 hover:bg-muted transition-colors"
+                  >
+                    + Mi plan / pagos
+                  </button>
+                </div>
                 <p className="text-[11px] text-muted-foreground">URL adonde lleva el botón. Si la dejás vacía y hay un link en el texto, se usa ese.</p>
               </div>
               <div className="space-y-1.5">
@@ -492,6 +516,7 @@ export default function AdminBroadcasts() {
                 />
               </div>
             </div>
+
           </Card>
 
           <Card className="p-4 space-y-3">
