@@ -139,7 +139,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   };
 
   const save = async (sendEmail: boolean) => {
-
+    const emailTrim = proveedorEmail.trim();
     setSaving(true);
     try {
       const { data: userData } = await sb.auth.getUser();
