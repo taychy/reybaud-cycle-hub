@@ -51,6 +51,7 @@ import {
 import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSection";
 import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 import { computeDeliveryBalances, fmtMoneyBalance, type BalanceRow } from "@/lib/deliveryBalances";
+import { compareVariantsBySize } from "@/lib/variantSort";
 
 interface DeliveryList {
   id: string;
@@ -153,7 +154,9 @@ const DepositoEntregaDetail = () => {
       }
       (byClient[it.cliente_nombre] ||= []).push(it);
     });
-    return Object.entries(byClient).sort((a, b) => a[0].localeCompare(b[0]));
+    return Object.entries(byClient)
+      .map(([cliente, its]) => [cliente, its.sort(compareVariantsBySize)] as [string, DeliveryItem[]])
+      .sort((a, b) => a[0].localeCompare(b[0]));
   }, [items, search]);
 
   const totals = useMemo(() => {
