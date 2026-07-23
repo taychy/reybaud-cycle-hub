@@ -661,7 +661,22 @@ const EventsList = () => {
           </SheetHeader>
           {financeEvent && (
             <div className="pb-8">
-              <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+              {isSuperAdmin ? (
+                <Tabs defaultValue="finanzas">
+                  <TabsList>
+                    <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
+                    <TabsTrigger value="rentabilidad">Rentabilidad</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="finanzas" className="pt-4">
+                    <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+                  </TabsContent>
+                  <TabsContent value="rentabilidad" className="pt-4">
+                    <EventCostSimulator eventId={financeEvent.id} />
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+              )}
             </div>
           )}
         </SheetContent>
