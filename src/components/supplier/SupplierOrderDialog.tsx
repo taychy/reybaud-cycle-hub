@@ -336,7 +336,7 @@ const FreeVarianteEditor = ({ variante, onChange }: { variante: Record<string, s
   };
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">Variante (ej: Talle → M)</Label>
+      <Label className="text-xs text-muted-foreground">Variante — Atributo (ej. "Talle") y Valor (ej. "M"). Dejalo vacío si el producto no tiene variantes.</Label>
       {rows.map(([k, v], idx) => (
         <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-1">
           <Input className="h-8 text-xs" placeholder="Atributo" value={k} onChange={(e) => setRow(idx, e.target.value, v)} />
