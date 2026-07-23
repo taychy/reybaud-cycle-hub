@@ -116,6 +116,32 @@ const DepositoEntregaDetail = () => {
     try { return localStorage.getItem("delivery_modo_rapido") === "1"; } catch { return false; }
   });
   const [confirmToggle, setConfirmToggle] = useState<{ item: DeliveryItem; next: boolean } | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const scanBusyRef = useRef(false);
+
+  const clientCode = (cliente: string) => {
+    if (!list) return "";
+    // Encode as base64url to survive QR-safe chars and rebuild reliably.
+    const raw = `${list.id}|${cliente}`;
+    const b64 = btoa(unescape(encodeURIComponent(raw)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    return `RBDLV1:${b64}`;
+  };
+
+  const parseClientCode = (code: string): { listId: string; cliente: string } | null => {
+    if (!code.startsWith("RBDLV1:")) return null;
+    try {
+      const b64 = code.slice(7).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = decodeURIComponent(escape(atob(b64)));
+      const [listId, ...rest] = raw.split("|");
+      if (!listId || rest.length === 0) return null;
+      return { listId, cliente: rest.join("|") };
+    } catch { return null; }
+  };
+
 
   const setModoRapidoPersist = (v: boolean) => {
     setModoRapido(v);
