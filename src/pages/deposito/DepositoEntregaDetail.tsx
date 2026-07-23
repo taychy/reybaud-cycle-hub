@@ -42,6 +42,7 @@ import {
   ShieldCheck,
   Zap,
   Printer,
+  ScanLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
