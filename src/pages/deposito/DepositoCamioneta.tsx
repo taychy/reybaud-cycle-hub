@@ -207,6 +207,73 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addLoading, setAddLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const scanBusyRef = useRef(false);
+
+  const parseClientCode = (code: string): { listId: string; cliente: string } | null => {
+    if (!code.startsWith("RBDLV1:")) return null;
+    try {
+      const b64 = code.slice(7).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = decodeURIComponent(escape(atob(b64)));
+      const [listId, ...rest] = raw.split("|");
+      if (!listId || rest.length === 0) return null;
+      return { listId, cliente: rest.join("|") };
+    } catch { return null; }
+  };
+
+  const handleScannedCode = async (code: string) => {
+    if (scanBusyRef.current) return;
+    const parsed = parseClientCode(code.trim());
+    if (!parsed) {
+      toast.error("Código no válido", { description: code.slice(0, 40) });
+      return;
+    }
+    // Find delivery_list_items matching this client+list
+    const { data: dliRows } = await supabase
+      .from("delivery_list_items")
+      .select("id, cliente_nombre")
+      .eq("list_id", parsed.listId);
+    const matchingDliIds = ((dliRows as any[]) || [])
+      .filter((r) => (r.cliente_nombre || "").trim().toLowerCase() === parsed.cliente.trim().toLowerCase())
+      .map((r) => r.id);
+    if (matchingDliIds.length === 0) {
+      toast.error(`Sin ítems para "${parsed.cliente}"`);
+      return;
+    }
+    // Carga items belonging to this carga referencing those DLIs and not delivered yet
+    const targets = items.filter(
+      (i) => i.source_type === "delivery_list_items" && matchingDliIds.includes(i.source_id) && i.estado !== "entregado",
+    );
+    if (targets.length === 0) {
+      toast.info(`${parsed.cliente} ya estaba entregado o no está en esta carga`);
+      return;
+    }
+    scanBusyRef.current = true;
+    const targetIds = targets.map((t) => t.id);
+    setItems((prev) => prev.map((i) => (targetIds.includes(i.id) ? { ...i, estado: "entregado" } : i)));
+    const { data: userRes } = await supabase.auth.getUser();
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      (supabase as any)
+        .from("vehiculo_carga_items")
+        .update({ estado: "entregado" })
+        .in("id", targetIds),
+      supabase
+        .from("delivery_list_items")
+        .update({ preparado: true, preparado_by: userRes.user?.id ?? null })
+        .in("id", matchingDliIds)
+        .eq("preparado", false),
+    ]);
+    scanBusyRef.current = false;
+    if (e1 || e2) {
+      toast.error("No se pudo marcar como entregado");
+      load();
+      return;
+    }
+    setScanCount((n) => n + 1);
+    toast.success(`✓ ${parsed.cliente}`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} entregado${targets.length !== 1 ? "s" : ""}` });
+  };
+
 
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
