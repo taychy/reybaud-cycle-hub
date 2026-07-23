@@ -179,22 +179,78 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Layout */}
+          {/* Format */}
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Formato A4
+              Impresora
             </Label>
-            <Select value={layout} onValueChange={(v) => setLayout(v as LabelLayout)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="4">4 por hoja — Grandes (95×140mm)</SelectItem>
-                <SelectItem value="8">8 por hoja — Medianas (95×67mm)</SelectItem>
-                <SelectItem value="21">21 por hoja — Chicas Avery L7160 (63×40mm)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFormat("a4")}
+                className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                  format === "a4"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <div className="font-medium">Común A4</div>
+                <div className="text-xs text-muted-foreground">Grilla en PDF</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormat("niimbot")}
+                className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                  format === "niimbot"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <div className="font-medium">Niimbot</div>
+                <div className="text-xs text-muted-foreground">PNG por etiqueta (QR)</div>
+              </button>
+            </div>
           </div>
+
+          {/* Layout */}
+          {format === "a4" ? (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Formato A4
+              </Label>
+              <Select value={layout} onValueChange={(v) => setLayout(v as LabelLayout)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">4 por hoja — Grandes (95×140mm)</SelectItem>
+                  <SelectItem value="8">8 por hoja — Medianas (95×67mm)</SelectItem>
+                  <SelectItem value="21">21 por hoja — Chicas Avery L7160 (63×40mm)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Tamaño del rollo
+              </Label>
+              <Select value={niimbotSize} onValueChange={(v) => setNiimbotSize(v as NiimbotSize)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NIIMBOT_SIZES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Genera un PNG por etiqueta (o un .zip si son varias). Abrilo desde la app Niimbot
+                para enviarlo a la impresora. El QR queda registrado como código escaneable
+                para el control de ingreso de mercadería.
+              </p>
+            </div>
+          )}
 
           {/* Mode */}
           <div className="space-y-2">
