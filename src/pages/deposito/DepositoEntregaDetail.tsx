@@ -480,6 +480,9 @@ const DepositoEntregaDetail = () => {
             <Button variant="outline" size="sm" onClick={generateLabels}>
               <Printer className="w-3.5 h-3.5 mr-1" /> Generar etiquetas
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setReconcileOpen(true)}>
+              <PackageX className="w-3.5 h-3.5 mr-1" /> Cruzar con ingreso
+            </Button>
             <Button variant="outline" size="sm" onClick={closeList}>
               {list.estado === "abierta" ? "Cerrar lista" : "Reabrir"}
             </Button>
