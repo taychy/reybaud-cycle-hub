@@ -45,9 +45,14 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
 
   useEffect(() => {
     if (!open) return;
-    sb.from("store_products").select("id, nombre, variants").eq("activo", true).then(({ data }: any) => {
-      setProductos(data || []);
-    });
+    sb.from("store_products")
+      .select("id, name, variants")
+      .eq("status", "active")
+      .order("name")
+      .then(({ data, error }: any) => {
+        if (error) console.error("[SupplierOrderDialog] load products failed:", error);
+        setProductos((data || []).map((p: any) => ({ id: p.id, nombre: p.name, variants: p.variants })));
+      });
   }, [open]);
 
   useEffect(() => {
@@ -268,18 +273,23 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
                         />
                       )}
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className={`grid ${order ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
                         <div>
-                          <Label className="text-xs">Cantidad</Label>
+                          <Label className="text-xs">Cantidad pedida</Label>
                           <Input type="number" min={0} value={it.cantidad_pedida} onChange={(e) => updateItem(idx, { cantidad_pedida: Number(e.target.value) || 0 })} />
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Cuántas unidades le pediste al proveedor.</p>
                         </div>
+                        {order && (
+                          <div>
+                            <Label className="text-xs">Recibido</Label>
+                            <Input type="number" min={0} value={it.cantidad_recibida || 0} onChange={(e) => updateItem(idx, { cantidad_recibida: Number(e.target.value) || 0 })} />
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Cuántas ya entraron a depósito.</p>
+                          </div>
+                        )}
                         <div>
-                          <Label className="text-xs">Recibido</Label>
-                          <Input type="number" min={0} value={it.cantidad_recibida || 0} onChange={(e) => updateItem(idx, { cantidad_recibida: Number(e.target.value) || 0 })} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Precio u.</Label>
+                          <Label className="text-xs">Precio unitario</Label>
                           <Input type="number" min={0} step="0.01" value={it.precio_unitario ?? ""} onChange={(e) => updateItem(idx, { precio_unitario: e.target.value === "" ? null : Number(e.target.value) })} />
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Costo por unidad (opcional).</p>
                         </div>
                       </div>
                     </div>
@@ -326,7 +336,7 @@ const FreeVarianteEditor = ({ variante, onChange }: { variante: Record<string, s
   };
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">Variante (ej: Talle → M)</Label>
+      <Label className="text-xs text-muted-foreground">Variante — Atributo (ej. "Talle") y Valor (ej. "M"). Dejalo vacío si el producto no tiene variantes.</Label>
       {rows.map(([k, v], idx) => (
         <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-1">
           <Input className="h-8 text-xs" placeholder="Atributo" value={k} onChange={(e) => setRow(idx, e.target.value, v)} />
