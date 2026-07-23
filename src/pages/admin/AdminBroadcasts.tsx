@@ -70,6 +70,12 @@ const emptyComposer = {
   marketing_ignore_frequency: false,
 };
 
+type CtaPreset = { name: string; url: string; label: string; custom?: boolean };
+const DEFAULT_CTA_PRESETS: CtaPreset[] = [
+  { name: "Renovación automática MP", url: "https://reybaud-app.com/perfil?section=suscripciones", label: "Activar renovación automática" },
+  { name: "Mi plan / pagos", url: "https://reybaud-app.com/alumno/pagos", label: "Ver mi plan" },
+];
+
 export default function AdminBroadcasts() {
   const { toast } = useToast();
   const [tab, setTab] = useState("composer");
