@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Mail } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { sortVariantSpecs } from "@/lib/variantSort";
 
@@ -35,6 +36,8 @@ interface Props {
 const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
   const [proveedor, setProveedor] = useState("");
   const [contacto, setContacto] = useState("");
+  const [proveedorEmail, setProveedorEmail] = useState("");
+  const [enviarEmail, setEnviarEmail] = useState(true);
   const [fechaPedido, setFechaPedido] = useState<string>(new Date().toISOString().slice(0, 10));
   const [fechaEta, setFechaEta] = useState<string>("");
   const [moneda, setMoneda] = useState("ARS");
@@ -60,6 +63,8 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
     if (order) {
       setProveedor(order.proveedor_nombre || "");
       setContacto(order.proveedor_contacto || "");
+      setProveedorEmail(order.proveedor_email || "");
+      setEnviarEmail(false);
       setFechaPedido(order.fecha_pedido || new Date().toISOString().slice(0, 10));
       setFechaEta(order.fecha_estimada_entrega || "");
       setMoneda(order.moneda || "ARS");
@@ -68,7 +73,8 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         setItems((data || []).map((i: any) => ({ ...i, variante: i.variante || {} })));
       });
     } else {
-      setProveedor(""); setContacto(""); setFechaPedido(new Date().toISOString().slice(0, 10));
+      setProveedor(""); setContacto(""); setProveedorEmail(""); setEnviarEmail(true);
+      setFechaPedido(new Date().toISOString().slice(0, 10));
       setFechaEta(""); setMoneda("ARS"); setNotas(""); setItems([]);
     }
   }, [open, order?.id]);
@@ -117,6 +123,13 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
     if (validItems.some((i) => !i.producto_nombre.trim() || i.cantidad_pedida <= 0)) {
       return toast({ title: "Ítems incompletos", description: "Cada ítem necesita nombre y cantidad > 0.", variant: "destructive" });
     }
+    const emailTrim = proveedorEmail.trim();
+    if (enviarEmail && emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      return toast({ title: "Email inválido", description: "Revisá el email del proveedor.", variant: "destructive" });
+    }
+    if (enviarEmail && !emailTrim) {
+      return toast({ title: "Falta email del proveedor", description: "Cargá un email o desmarcá 'Enviar pedido por email'.", variant: "destructive" });
+    }
 
     setSaving(true);
     try {
@@ -124,6 +137,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
       const header = {
         proveedor_nombre: proveedor.trim(),
         proveedor_contacto: contacto.trim() || null,
+        proveedor_email: emailTrim || null,
         fecha_pedido: fechaPedido,
         fecha_estimada_entrega: fechaEta || null,
         moneda,
@@ -131,13 +145,15 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         total_estimado: totalEstimado,
       };
       let orderId = order?.id;
+      let numero = order?.numero;
       if (orderId) {
         const { error } = await sb.from("supplier_orders").update(header).eq("id", orderId);
         if (error) throw error;
       } else {
-        const { data, error } = await sb.from("supplier_orders").insert({ ...header, created_by: userData?.user?.id || null }).select("id").single();
+        const { data, error } = await sb.from("supplier_orders").insert({ ...header, created_by: userData?.user?.id || null }).select("id, numero").single();
         if (error) throw error;
         orderId = data.id;
+        numero = data.numero;
       }
 
       // Items: delete marked, upsert rest
@@ -167,7 +183,41 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         const { error } = await sb.from("supplier_order_items").update(rest).eq("id", id);
         if (error) throw error;
       }
-      toast({ title: order ? "Pedido actualizado" : "Pedido creado" });
+
+      if (enviarEmail && emailTrim) {
+        const { error: mailErr } = await sb.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "supplier-order-created",
+            recipientEmail: emailTrim,
+            idempotencyKey: `supplier-order-${orderId}-created`,
+            templateData: {
+              proveedorNombre: proveedor.trim(),
+              numero: numero || "",
+              fechaPedido,
+              fechaEta: fechaEta || null,
+              moneda,
+              totalEstimado,
+              notas: notas.trim() || null,
+              items: toUpsert.map((i) => ({
+                producto_nombre: i.producto_nombre,
+                variante: i.variante,
+                cantidad_pedida: i.cantidad_pedida,
+                precio_unitario: i.precio_unitario,
+                notas: i.notas,
+              })),
+              contactoNombre: "Equipo Reybaud",
+            },
+          },
+        });
+        if (mailErr) {
+          console.error("[SupplierOrderDialog] send email failed:", mailErr);
+          toast({ title: "Pedido guardado, pero falló el envío de email", description: mailErr.message, variant: "destructive" });
+        } else {
+          toast({ title: order ? "Pedido actualizado" : "Pedido creado", description: `Email enviado a ${emailTrim}` });
+        }
+      } else {
+        toast({ title: order ? "Pedido actualizado" : "Pedido creado" });
+      }
       onSaved();
     } catch (e: any) {
       toast({ title: "Error al guardar", description: e.message, variant: "destructive" });
@@ -191,7 +241,31 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
             </div>
             <div className="md:col-span-2">
               <Label>Contacto (opcional)</Label>
-              <Input value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono / mail / referente" />
+              <Input value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono / referente" />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Email del proveedor {enviarEmail && <span className="text-destructive">*</span>}</Label>
+              <Input
+                type="email"
+                value={proveedorEmail}
+                onChange={(e) => setProveedorEmail(e.target.value)}
+                placeholder="ventas@proveedor.com"
+              />
+              <label className="mt-2 flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2 cursor-pointer">
+                <Checkbox
+                  checked={enviarEmail}
+                  onCheckedChange={(v) => setEnviarEmail(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="text-xs leading-tight">
+                  <div className="flex items-center gap-1 font-medium text-foreground">
+                    <Mail className="w-3 h-3" /> Enviar el pedido por email al proveedor
+                  </div>
+                  <div className="text-muted-foreground">
+                    Al {order ? "guardar los cambios" : "crear el pedido"} se enviará un correo con el detalle de los ítems.
+                  </div>
+                </div>
+              </label>
             </div>
             <div>
               <Label>Fecha del pedido</Label>

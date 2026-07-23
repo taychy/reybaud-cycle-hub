@@ -1,0 +1,1 @@
+ALTER TABLE public.supplier_orders ADD COLUMN IF NOT EXISTS proveedor_email TEXT;

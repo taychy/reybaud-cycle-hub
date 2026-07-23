@@ -9391,6 +9391,7 @@ export type Database = {
           notas: string | null
           numero: string
           proveedor_contacto: string | null
+          proveedor_email: string | null
           proveedor_nombre: string
           total_estimado: number | null
           updated_at: string
@@ -9406,6 +9407,7 @@ export type Database = {
           notas?: string | null
           numero?: string
           proveedor_contacto?: string | null
+          proveedor_email?: string | null
           proveedor_nombre: string
           total_estimado?: number | null
           updated_at?: string
@@ -9421,6 +9423,7 @@ export type Database = {
           notas?: string | null
           numero?: string
           proveedor_contacto?: string | null
+          proveedor_email?: string | null
           proveedor_nombre?: string
           total_estimado?: number | null
           updated_at?: string
