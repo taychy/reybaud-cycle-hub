@@ -253,28 +253,16 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
               <Input value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono / referente" />
             </div>
             <div className="md:col-span-2">
-              <Label>Email del proveedor {enviarEmail && <span className="text-destructive">*</span>}</Label>
+              <Label>Email del proveedor</Label>
               <Input
                 type="email"
                 value={proveedorEmail}
                 onChange={(e) => setProveedorEmail(e.target.value)}
                 placeholder="ventas@proveedor.com"
               />
-              <label className="mt-2 flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2 cursor-pointer">
-                <Checkbox
-                  checked={enviarEmail}
-                  onCheckedChange={(v) => setEnviarEmail(v === true)}
-                  className="mt-0.5"
-                />
-                <div className="text-xs leading-tight">
-                  <div className="flex items-center gap-1 font-medium text-foreground">
-                    <Mail className="w-3 h-3" /> Enviar el pedido por email al proveedor
-                  </div>
-                  <div className="text-muted-foreground">
-                    Al {order ? "guardar los cambios" : "crear el pedido"} se enviará un correo con el detalle de los ítems.
-                  </div>
-                </div>
-              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Necesario si querés usar "Guardar y enviar" al proveedor.
+              </p>
             </div>
             <div>
               <Label>Fecha del pedido</Label>
