@@ -114,11 +114,42 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
     }
     setPrinting(true);
     try {
-      await printProductLabels(items, {
-        layout,
-        filename: `etiquetas-${product.name.toLowerCase().replace(/\s+/g, "-").slice(0, 30)}.pdf`,
-      });
-      toast({ title: `${items.length} etiqueta(s) generadas` });
+      if (format === "niimbot") {
+        // Para Niimbot: siempre 1 etiqueta por combinación (las copias ya vienen
+        // expandidas en `items` cuando el modo es "single").
+        const variantObj = (vk: string | null): Record<string, string> => {
+          if (!vk) return {};
+          const out: Record<string, string> = {};
+          vk.split("|").forEach((p) => {
+            const i = p.indexOf(":");
+            if (i > 0) out[p.slice(0, i)] = p.slice(i + 1);
+          });
+          return out;
+        };
+        const res = await printNiimbotLabels(
+          items.map((it) => ({
+            product_id: it.product_id,
+            product_name: it.product_name,
+            sku_base: it.sku_base,
+            variant_key: it.variant_key,
+            variante: variantObj(it.variant_key),
+          })),
+          {
+            size: niimbotSize,
+            filenameHint: product.name,
+          },
+        );
+        toast({
+          title: `${res.total} etiqueta(s) Niimbot generada(s)`,
+          description: "Abrilas desde la app Niimbot para imprimir.",
+        });
+      } else {
+        await printProductLabels(items, {
+          layout,
+          filename: `etiquetas-${product.name.toLowerCase().replace(/\s+/g, "-").slice(0, 30)}.pdf`,
+        });
+        toast({ title: `${items.length} etiqueta(s) generadas` });
+      }
       onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
