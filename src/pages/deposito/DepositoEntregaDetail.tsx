@@ -53,6 +53,8 @@ import DeliveryPaymentsSection from "@/components/deposito/DeliveryPaymentsSecti
 import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 import { computeDeliveryBalances, fmtMoneyBalance, type BalanceRow } from "@/lib/deliveryBalances";
 import { compareVariantsBySize } from "@/lib/variantSort";
+import CameraScanner from "@/components/deposito/CameraScanner";
+import QRCode from "qrcode";
 
 interface DeliveryList {
   id: string;
