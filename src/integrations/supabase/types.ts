@@ -1874,6 +1874,7 @@ export type Database = {
           created_at: string
           id: string
           list_id: string
+          modalidad_retiro: string | null
           moneda: string
           notas: string | null
           posicion: number
@@ -1882,6 +1883,7 @@ export type Database = {
           preparado_at: string | null
           preparado_by: string | null
           producto: string
+          sede_retiro_id: string | null
           source_order_id: string | null
           source_order_item_id: string | null
           source_preorder_id: string | null
@@ -1902,6 +1904,7 @@ export type Database = {
           created_at?: string
           id?: string
           list_id: string
+          modalidad_retiro?: string | null
           moneda?: string
           notas?: string | null
           posicion?: number
@@ -1910,6 +1913,7 @@ export type Database = {
           preparado_at?: string | null
           preparado_by?: string | null
           producto: string
+          sede_retiro_id?: string | null
           source_order_id?: string | null
           source_order_item_id?: string | null
           source_preorder_id?: string | null
@@ -1930,6 +1934,7 @@ export type Database = {
           created_at?: string
           id?: string
           list_id?: string
+          modalidad_retiro?: string | null
           moneda?: string
           notas?: string | null
           posicion?: number
@@ -1938,6 +1943,7 @@ export type Database = {
           preparado_at?: string | null
           preparado_by?: string | null
           producto?: string
+          sede_retiro_id?: string | null
           source_order_id?: string | null
           source_order_item_id?: string | null
           source_preorder_id?: string | null
@@ -1959,6 +1965,13 @@ export type Database = {
             columns: ["list_id"]
             isOneToOne: false
             referencedRelation: "delivery_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_list_items_sede_retiro_id_fkey"
+            columns: ["sede_retiro_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
           {
@@ -9979,6 +9992,121 @@ export type Database = {
         }
         Relationships: []
       }
+      vehiculo_carga_items: {
+        Row: {
+          alumno_id: string | null
+          cantidad: number
+          carga_id: string
+          cliente_nombre: string
+          created_at: string
+          entregado_at: string | null
+          estado: string
+          id: string
+          notas: string | null
+          producto: string | null
+          source_id: string
+          source_table: string
+          updated_at: string
+          variante: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          cantidad?: number
+          carga_id: string
+          cliente_nombre: string
+          created_at?: string
+          entregado_at?: string | null
+          estado?: string
+          id?: string
+          notas?: string | null
+          producto?: string | null
+          source_id: string
+          source_table: string
+          updated_at?: string
+          variante?: string | null
+        }
+        Update: {
+          alumno_id?: string | null
+          cantidad?: number
+          carga_id?: string
+          cliente_nombre?: string
+          created_at?: string
+          entregado_at?: string | null
+          estado?: string
+          id?: string
+          notas?: string | null
+          producto?: string | null
+          source_id?: string
+          source_table?: string
+          updated_at?: string
+          variante?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_carga_items_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculo_cargas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehiculo_cargas: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          entregador_nombre: string | null
+          entregador_user_id: string | null
+          estado: string
+          fecha_salida: string
+          id: string
+          km_retorno: number | null
+          km_salida: number | null
+          notas: string | null
+          sede_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          entregador_nombre?: string | null
+          entregador_user_id?: string | null
+          estado?: string
+          fecha_salida?: string
+          id?: string
+          km_retorno?: number | null
+          km_salida?: number | null
+          notas?: string | null
+          sede_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          entregador_nombre?: string | null
+          entregador_user_id?: string | null
+          estado?: string
+          fecha_salida?: string
+          id?: string
+          km_retorno?: number | null
+          km_salida?: number | null
+          notas?: string | null
+          sede_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_cargas_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waitlist_question_templates: {
         Row: {
           created_at: string
@@ -10650,6 +10778,7 @@ export type Database = {
         Args: { p_solicitud_id: string }
         Returns: undefined
       }
+      cerrar_vehiculo_carga: { Args: { _carga_id: string }; Returns: undefined }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
       classify_package_change: {
         Args: {
