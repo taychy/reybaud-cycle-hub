@@ -121,6 +121,8 @@ const DepositoEntregaDetail = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const scanBusyRef = useRef(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+
 
   const clientCode = (cliente: string) => {
     if (!list) return "";
