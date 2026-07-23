@@ -404,11 +404,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             </p>
             {carga.notas && <p className="text-xs text-muted-foreground mt-1">{carga.notas}</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {carga.estado === "abierta" && (
               <>
                 <Button variant="outline" size="sm" onClick={openAdd}><Plus className="w-4 h-4 mr-1" /> Agregar</Button>
-                <Button variant="gold" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
+                <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+                  <ScanLine className="w-4 h-4 mr-1" /> Escanear entregas
+                </Button>
+                <Button variant="outline" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
               </>
             )}
           </div>
