@@ -119,7 +119,14 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
           controls = await reader.decodeFromVideoDevice(deviceId, videoRef.current!, onDecode);
         } else {
           controls = await reader.decodeFromConstraints(
-            { video: { facingMode: { ideal: "environment" } }, audio: false },
+            {
+              video: {
+                facingMode: { ideal: "environment" },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+              },
+              audio: false,
+            },
             videoRef.current!,
             onDecode,
           );
