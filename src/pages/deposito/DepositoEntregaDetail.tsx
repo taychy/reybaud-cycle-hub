@@ -742,6 +742,16 @@ const DepositoEntregaDetail = () => {
         continuous
         hint={`${scanCount} entrega${scanCount !== 1 ? "s" : ""} marcada${scanCount !== 1 ? "s" : ""}`}
       />
+
+      {list && (
+        <ReconcileWithSupplierDialog
+          open={reconcileOpen}
+          onOpenChange={setReconcileOpen}
+          listId={list.id}
+          listTitle={list.titulo}
+          onApplied={fetch}
+        />
+      )}
     </div>
   );
 };
