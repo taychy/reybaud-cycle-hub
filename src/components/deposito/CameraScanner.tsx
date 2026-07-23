@@ -68,7 +68,6 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
       BarcodeFormat.CODABAR,
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
-    hints.set(DecodeHintType.ALSO_INVERTED, true);
     const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 100 });
 
     (async () => {
