@@ -412,10 +412,25 @@ const ProductLabelsDialog = ({ open, product, onOpenChange }: Props) => {
           </Button>
           <Button onClick={handlePrint} disabled={printing}>
             <Printer className="w-4 h-4 mr-1" />
-            {printing ? "Generando..." : `Imprimir ${totalCount}`}
+            {printing
+              ? "Generando..."
+              : format === "niimbot"
+                ? `Ver ${totalCount} etiqueta${totalCount > 1 ? "s" : ""}`
+                : `Imprimir ${totalCount}`}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <NiimbotLabelPreviewDialog
+        open={previewOpen}
+        onOpenChange={(o) => {
+          setPreviewOpen(o);
+          if (!o) onOpenChange(false);
+        }}
+        previews={previewLabels}
+        title={`Etiquetas Niimbot · ${product.name}`}
+        filenameHint={product.name}
+      />
     </Dialog>
   );
 };
