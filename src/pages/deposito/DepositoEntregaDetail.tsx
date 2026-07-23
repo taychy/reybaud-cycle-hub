@@ -43,6 +43,7 @@ import {
   Zap,
   Printer,
   ScanLine,
+  PackageX,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
