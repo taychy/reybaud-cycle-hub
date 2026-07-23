@@ -89,10 +89,24 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   useEffect(() => {
     if (!selectedId) { setItems([]); setCounts({}); return; }
     setLoading(true);
-    sb.from("supplier_order_items").select("*").eq("supplier_order_id", selectedId).then(({ data }: any) => {
-      const list = sortItems(data || []);
+    (async () => {
+      const { data } = await sb
+        .from("supplier_order_items")
+        .select("*")
+        .eq("supplier_order_id", selectedId);
+      let list = sortItems(data || []);
+      const productIds = [...new Set(list.map((it: any) => it.product_id).filter(Boolean))];
+      if (productIds.length) {
+        const { data: prods } = await sb
+          .from("store_products")
+          .select("id, sku_base")
+          .in("id", productIds);
+        const skuMap = new Map<string, string | null>(
+          (prods || []).map((p: any) => [p.id, p.sku_base ?? null]),
+        );
+        list = list.map((it: any) => ({ ...it, sku_base: skuMap.get(it.product_id) ?? null }));
+      }
       setItems(list);
-      // Try restore autosave
       const saved = localStorage.getItem(`sup-count:${selectedId}`);
       let restored: Record<string, number> | null = null;
       let restoredVisited: Record<string, boolean> | null = null;
@@ -111,8 +125,9 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       setVisited(restoredVisited || {});
       setIdx(0);
       setLoading(false);
-    });
+    })();
   }, [selectedId]);
+
 
   // Autosave
   useEffect(() => {
