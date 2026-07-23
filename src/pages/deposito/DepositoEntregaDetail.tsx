@@ -295,7 +295,7 @@ const DepositoEntregaDetail = () => {
     URL.revokeObjectURL(url);
   };
 
-  const generateLabels = () => {
+  const generateLabels = async () => {
     if (!list) return;
     if (grouped.length === 0) {
       toast.error("No hay ítems para etiquetar");
@@ -303,8 +303,8 @@ const DepositoEntregaDetail = () => {
     }
     const esc = (s: string) =>
       s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const cards = grouped
-      .map(([cliente, its]) => {
+    const cards = await Promise.all(
+      grouped.map(async ([cliente, its]) => {
         const lines = its
           .map((it) => {
             const v = formatVariant(it.variante);
@@ -313,18 +313,29 @@ const DepositoEntregaDetail = () => {
           })
           .join("");
         const totalItems = its.reduce((a, i) => a + (i.cantidad || 1), 0);
+        const code = clientCode(cliente);
+        const qrData = await QRCode.toDataURL(code, { margin: 0, width: 220, errorCorrectionLevel: "M" });
+        const shortId = code.slice(-8).toUpperCase();
         return `
           <div class="label">
             <div class="hdr">
               <div class="title">${esc(list.titulo)}</div>
               <div class="count">${its.length} ítem${its.length !== 1 ? "s" : ""} · ${totalItems} u.</div>
             </div>
-            <div class="client">${esc(cliente)}</div>
-            <ul class="items">${lines}</ul>
-            <div class="foot">Ciclismo Reybaud · Entrega${list.fecha_entrega ? ` ${esc(list.fecha_entrega)}` : ""}</div>
+            <div class="body">
+              <div class="info">
+                <div class="client">${esc(cliente)}</div>
+                <ul class="items">${lines}</ul>
+              </div>
+              <div class="qr">
+                <img src="${qrData}" alt="QR" />
+                <div class="qrid">#${shortId}</div>
+              </div>
+            </div>
+            <div class="foot">Escaneá el QR para marcar como entregado · Reybaud${list.fecha_entrega ? ` · ${esc(list.fecha_entrega)}` : ""}</div>
           </div>`;
-      })
-      .join("");
+      }),
+    );
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas — ${esc(list.titulo)}</title>
 <style>
   @page { size: A4; margin: 8mm; }
@@ -333,19 +344,24 @@ const DepositoEntregaDetail = () => {
   .sheet { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 54mm; gap: 0; }
   .label {
     border: 1px dashed #666;
-    padding: 5mm 6mm;
+    padding: 4mm 5mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     page-break-inside: avoid;
   }
-  .hdr { display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: .05em; }
+  .hdr { display: flex; justify-content: space-between; align-items: baseline; font-size: 8.5pt; color: #555; text-transform: uppercase; letter-spacing: .05em; }
   .hdr .title { font-weight: 700; }
-  .client { font-size: 16pt; font-weight: 800; margin: 2mm 0 1.5mm; line-height: 1.1; text-transform: uppercase; }
-  .items { margin: 0; padding-left: 4mm; font-size: 10pt; line-height: 1.25; flex: 1; overflow: hidden; }
-  .items li { margin-bottom: 0.6mm; }
-  .items .v { color: #555; font-size: 9pt; }
-  .foot { font-size: 8pt; color: #666; margin-top: 2mm; border-top: 1px dotted #bbb; padding-top: 1.5mm; }
+  .body { display: flex; gap: 3mm; flex: 1; min-height: 0; margin-top: 1.5mm; }
+  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .client { font-size: 14pt; font-weight: 800; margin: 0 0 1.2mm; line-height: 1.1; text-transform: uppercase; }
+  .items { margin: 0; padding-left: 4mm; font-size: 9.5pt; line-height: 1.2; flex: 1; overflow: hidden; }
+  .items li { margin-bottom: 0.4mm; }
+  .items .v { color: #555; font-size: 8.5pt; }
+  .qr { flex: 0 0 22mm; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+  .qr img { width: 22mm; height: 22mm; display: block; }
+  .qrid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7pt; color: #444; margin-top: 0.8mm; letter-spacing: .05em; }
+  .foot { font-size: 7.5pt; color: #666; margin-top: 1.5mm; border-top: 1px dotted #bbb; padding-top: 1mm; }
   .toolbar { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; }
   .toolbar button { font: 500 13px system-ui; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
   .toolbar button.primary { background: #111; color: #fff; border-color: #111; }
@@ -355,8 +371,8 @@ const DepositoEntregaDetail = () => {
   <button onclick="window.print()" class="primary">Imprimir</button>
   <button onclick="window.close()">Cerrar</button>
 </div>
-<div class="sheet">${cards}</div>
-<script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));</script>
+<div class="sheet">${cards.join("")}</div>
+<script>window.addEventListener('load', () => setTimeout(() => window.print(), 400));</script>
 </body></html>`;
     const w = window.open("", "_blank");
     if (!w) {
