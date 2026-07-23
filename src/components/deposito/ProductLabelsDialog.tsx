@@ -17,7 +17,8 @@ import {
   type LabelLayout,
   type ProductLabelItem,
 } from "@/lib/productLabels";
-import { printNiimbotLabels, type NiimbotSize } from "@/lib/niimbotLabels";
+import { printNiimbotLabels, type NiimbotSize, type NiimbotPreviewItem } from "@/lib/niimbotLabels";
+import NiimbotLabelPreviewDialog from "@/components/deposito/NiimbotLabelPreviewDialog";
 
 type FormatKind = "a4" | "niimbot";
 const NIIMBOT_SIZES: { value: NiimbotSize; label: string }[] = [
