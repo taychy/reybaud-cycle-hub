@@ -11,6 +11,7 @@ import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListCh
 import { toast } from "@/hooks/use-toast";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { compareVariantsBySize } from "@/lib/variantSort";
 
 // Serializa un objeto de variante de forma canónica (claves ordenadas y normalizadas)
 const canonVariante = (v: any): string => {
@@ -76,12 +77,12 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       });
   }, [initialOrderId]);
 
-  // Sort by producto → variante for grouped counting
+  // Sort by producto → variante (talle first) for grouped counting
   const sortItems = (list: any[]) =>
     [...list].sort((a, b) => {
       const p = String(a.producto_nombre || "").localeCompare(String(b.producto_nombre || ""), "es");
       if (p !== 0) return p;
-      return formatVariante(a.variante).localeCompare(formatVariante(b.variante), "es");
+      return compareVariantsBySize(a.variante, b.variante);
     });
 
   useEffect(() => {

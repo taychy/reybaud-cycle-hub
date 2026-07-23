@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sortVariantSpecs } from "@/lib/variantSort";
 
 const sb: any = supabase;
 
@@ -101,8 +102,8 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
 
   const productVariantOptions = (productId: string | null | undefined) => {
     const p = productos.find((pp) => pp.id === productId);
-    const variants = (p?.variants || {}) as Record<string, string[]>;
-    return variants;
+    const specs = sortVariantSpecs((p?.variants || []) as { name: string; options: string[] }[]);
+    return Object.fromEntries(specs.map((s) => [s.name, s.options]));
   };
 
   const save = async () => {

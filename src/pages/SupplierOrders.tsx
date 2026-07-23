@@ -9,6 +9,7 @@ import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, Truck, PackageChec
 import { toast } from "@/hooks/use-toast";
 import SupplierOrderDialog from "@/components/supplier/SupplierOrderDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { compareVariantsBySize } from "@/lib/variantSort";
 
 const sb: any = supabase;
 
@@ -218,6 +219,7 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
                       groups.get(key)!.push(it);
                     }
                     return Array.from(groups.entries()).map(([name, items]) => {
+                      const sortedItems = items.sort(compareVariantsBySize);
                       const totRec = items.reduce((s, x) => s + (x.cantidad_recibida || 0), 0);
                       const totPed = items.reduce((s, x) => s + (x.cantidad_pedida || 0), 0);
                       const anyUnlinked = items.some((x) => !x.product_id);
@@ -235,7 +237,7 @@ const SupplierOrders = ({ title = "Pedidos a Proveedor" }: Props) => {
                             </div>
                           </div>
                           <div className="divide-y divide-border/30">
-                            {items.map((it: any) => {
+                            {sortedItems.map((it: any) => {
                               const vEntries = Object.entries(it.variante || {}).filter(([, v]) => v);
                               const rec = it.cantidad_recibida || 0;
                               const ped = it.cantidad_pedida || 0;

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, AlertCircle, Banknote } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { sortVariantSpecs } from "@/lib/variantSort";
 
 interface Product {
   id: string;
@@ -39,7 +40,9 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
 
   const variantSpecs: { name: string; options: string[] }[] = useMemo(() => {
     if (!product?.variants || !Array.isArray(product.variants)) return [];
-    return product.variants.filter((v: any) => v?.name && Array.isArray(v?.options) && v.options.length > 0);
+    return sortVariantSpecs(
+      product.variants.filter((v: any) => v?.name && Array.isArray(v?.options) && v.options.length > 0)
+    );
   }, [product]);
 
   const variantSig = useMemo(() => {

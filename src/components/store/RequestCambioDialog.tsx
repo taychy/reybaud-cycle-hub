@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertTriangle } from "lucide-react";
+import { sortVariantSpecOptions } from "@/lib/variantSort";
 
 interface Props {
   open: boolean;
@@ -158,7 +159,10 @@ const RequestCambioDialog = ({
                 <Label className="text-xs">Nueva variante</Label>
                 {variantsConfig.map((vc: any, idx: number) => {
                   const key = vc.name || vc.label || `attr_${idx}`;
-                  const opts: string[] = vc.options || vc.values || [];
+                  const opts: string[] = sortVariantSpecOptions({
+                    name: key,
+                    options: vc.options || vc.values || [],
+                  }).options;
                   return (
                     <Select
                       key={key}
