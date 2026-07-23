@@ -69,6 +69,8 @@ import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsMana
 import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
+import EventCostSimulator from "@/components/admin/EventCostSimulator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
