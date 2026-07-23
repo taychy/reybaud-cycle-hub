@@ -3195,6 +3195,196 @@ export type Database = {
           },
         ]
       }
+      event_cost_actuals: {
+        Row: {
+          categoria: string
+          created_at: string
+          descripcion: string
+          fuente: string
+          gasto_id: string | null
+          id: string
+          moneda: string
+          monto_real: number
+          notas: string | null
+          simulation_id: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          descripcion?: string
+          fuente?: string
+          gasto_id?: string | null
+          id?: string
+          moneda?: string
+          monto_real?: number
+          notas?: string | null
+          simulation_id: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          descripcion?: string
+          fuente?: string
+          gasto_id?: string | null
+          id?: string
+          moneda?: string
+          monto_real?: number
+          notas?: string | null
+          simulation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_cost_actuals_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_cost_actuals_simulation_id_fkey"
+            columns: ["simulation_id"]
+            isOneToOne: false
+            referencedRelation: "event_cost_simulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_cost_items: {
+        Row: {
+          aplica_a_modalidades: Json
+          cantidad: number
+          categoria: string
+          created_at: string
+          descripcion: string
+          es_por_persona: boolean
+          id: string
+          moneda: string
+          orden: number
+          precio_unitario: number
+          simulation_id: string
+          updated_at: string
+        }
+        Insert: {
+          aplica_a_modalidades?: Json
+          cantidad?: number
+          categoria?: string
+          created_at?: string
+          descripcion?: string
+          es_por_persona?: boolean
+          id?: string
+          moneda?: string
+          orden?: number
+          precio_unitario?: number
+          simulation_id: string
+          updated_at?: string
+        }
+        Update: {
+          aplica_a_modalidades?: Json
+          cantidad?: number
+          categoria?: string
+          created_at?: string
+          descripcion?: string
+          es_por_persona?: boolean
+          id?: string
+          moneda?: string
+          orden?: number
+          precio_unitario?: number
+          simulation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_cost_items_simulation_id_fkey"
+            columns: ["simulation_id"]
+            isOneToOne: false
+            referencedRelation: "event_cost_simulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_cost_simulations: {
+        Row: {
+          aplicada_a_packages_at: string | null
+          cantidades_esperadas: Json
+          capacidad_total: number
+          created_at: string
+          created_by: string | null
+          estado: string
+          event_id: string
+          id: string
+          jornadas: number
+          moneda_base: string
+          noches: number
+          nombre: string | null
+          notas: string | null
+          pct_imprevistos: number
+          pct_margen_objetivo: number
+          resultados: Json
+          resultados_reales: Json
+          tc_eur: number
+          tc_usd: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          aplicada_a_packages_at?: string | null
+          cantidades_esperadas?: Json
+          capacidad_total?: number
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          event_id: string
+          id?: string
+          jornadas?: number
+          moneda_base?: string
+          noches?: number
+          nombre?: string | null
+          notas?: string | null
+          pct_imprevistos?: number
+          pct_margen_objetivo?: number
+          resultados?: Json
+          resultados_reales?: Json
+          tc_eur?: number
+          tc_usd?: number
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          aplicada_a_packages_at?: string | null
+          cantidades_esperadas?: Json
+          capacidad_total?: number
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          event_id?: string
+          id?: string
+          jornadas?: number
+          moneda_base?: string
+          noches?: number
+          nombre?: string | null
+          notas?: string | null
+          pct_imprevistos?: number
+          pct_margen_objetivo?: number
+          resultados?: Json
+          resultados_reales?: Json
+          tc_eur?: number
+          tc_usd?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_cost_simulations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_external_participants: {
         Row: {
           access_token: string

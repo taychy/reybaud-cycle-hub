@@ -69,6 +69,8 @@ import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsMana
 import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
+import EventCostSimulator from "@/components/admin/EventCostSimulator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /* ─── Type groupings ─── */
 type TabFilter = "todos" | "escuela" | "carrera" | "camp_viaje";
@@ -158,6 +160,16 @@ const EventsList = () => {
   const [saving, setSaving] = useState(false);
   const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from("admin_profiles").select("role").eq("user_id", session.user.id).maybeSingle();
+      if ((data as any)?.role === "super_admin") setIsSuperAdmin(true);
+    })();
+  }, []);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
@@ -649,7 +661,22 @@ const EventsList = () => {
           </SheetHeader>
           {financeEvent && (
             <div className="pb-8">
-              <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+              {isSuperAdmin ? (
+                <Tabs defaultValue="finanzas">
+                  <TabsList>
+                    <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
+                    <TabsTrigger value="rentabilidad">Rentabilidad</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="finanzas" className="pt-4">
+                    <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+                  </TabsContent>
+                  <TabsContent value="rentabilidad" className="pt-4">
+                    <EventCostSimulator eventId={financeEvent.id} />
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <EventFinancePanel eventId={financeEvent.id} eventTitle={financeEvent.title} />
+              )}
             </div>
           )}
         </SheetContent>

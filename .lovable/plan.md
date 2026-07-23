@@ -1,98 +1,81 @@
 
-# Caja de Entregas + Alerta en Dashboard Admin
+# Calculadora de rentabilidad de eventos
 
-## Modelo elegido (según tus respuestas)
+Nueva funcionalidad interna (solo Super Admin) para simular costos, márgenes y precios sugeridos por modalidad de un evento/viaje, con historial de versiones, opción de aplicar precios a los paquetes reales y comparativa estimado vs real post-evento.
 
-- **Una caja por `delivery_list`**: se abre al crear la lista, se cierra cuando el operador termina de entregar/cobrar. Contabilidad atada al lote (ej: "Santini Invierno").
-- **Cobros entran directo a la caja** al informarlos el entregador (sin fricción). Admin ve alerta pero no bloquea.
-- **Cierre exportable** con totales por moneda × método, ítems no entregados y PDF.
-- **Dashboard admin**: widget "Tienda / Entregas" con cobros sin validar, entregas pendientes, total cobrado (caja abierta), estado de caja, **costo de mercadería, pagos a proveedor, total por cobrar**.
+## Ubicación
 
-## Cambios de base de datos
+- Nuevo **tab "Rentabilidad"** dentro de la ficha del evento (`/admin/eventos/:id`), visible solo para `super_admin`.
+- Sin entradas nuevas en el sidebar.
 
-### 1. Ampliar `delivery_lists`
-Nuevos campos para la contabilidad del lote:
-- `caja_estado` (enum: `abierta` | `cerrada`) — por defecto `abierta` al crear la lista.
-- `caja_abierta_at`, `caja_abierta_por`, `caja_cerrada_at`, `caja_cerrada_por`.
-- `costo_total_mercaderia` (numeric) — cuánto costó comprar toda la mercadería al proveedor.
-- `pagado_a_proveedor` (numeric) — cuánto ya se le pagó al proveedor.
-- `moneda_costo` (text, default 'ARS') — moneda del costo.
-- `notas_cierre` (text).
+## Estructura de datos
 
-### 2. Ampliar `delivery_list_items`
-Para el "total por cobrar" y costo unitario:
-- `costo_unitario` (numeric) — costo del ítem al proveedor.
-- `precio_venta` (numeric) — precio de venta al cliente (ya existe si guardamos precio; verificamos).
+Tres tablas nuevas en Lovable Cloud:
 
-### 3. Nueva tabla `delivery_supplier_payments`
-Registra pagos parciales al proveedor por lista:
-- `delivery_list_id`, `monto`, `moneda`, `metodo` (efectivo/transferencia/MP/otro), `fecha`, `notas`, `comprobante_url`, `registrado_por`.
+1. `event_cost_simulations` — cabecera por versión
+   - `event_id`, `version` (autoincremental por evento), `nombre`, `notas`
+   - Supuestos: `tc_usd`, `tc_eur`, `pct_imprevistos`, `pct_margen_objetivo`, `moneda_base`
+   - Datos evento: `noches`, `jornadas`, `capacidad_total`, `cantidades_esperadas` (jsonb por modalidad)
+   - `resultados` (jsonb, snapshot calculado: totales, precios sugeridos, margen)
+   - `estado`: `borrador | activa | archivada`
+   - `aplicada_a_packages_at` (nullable)
 
-### 4. Vista `delivery_list_summary`
-Vista materializada/función que devuelve por lista:
-- Total esperado a cobrar (Σ `precio_venta` × cantidad de ítems entregados o todos)
-- Total cobrado (Σ `delivery_list_payments` validados o todos según método)
-- Total pendiente = esperado − cobrado
-- Costo mercadería, pagado a proveedor, saldo a proveedor
-- Margen bruto = cobrado − costo
-- Ítems entregados vs pendientes
+2. `event_cost_items` — líneas de costo de la simulación
+   - `simulation_id`, `categoria` (alojamiento / comida / transporte / staff / servicios / otros), `descripcion`
+   - `cantidad`, `precio_unitario`, `moneda` (ARS/USD/EUR), `es_por_persona` (bool), `aplica_a_modalidades` (jsonb array)
+   - `orden`
 
-## Backend
+3. `event_cost_actuals` — ejecución real post-evento
+   - `simulation_id` (la que quedó "activa"), `categoria`, `descripcion`, `monto_real`, `moneda`, `fuente` (`manual | gasto_id`), `gasto_id` nullable, `notas`
+   - Participantes reales por modalidad: guardado en `event_cost_simulations.resultados_reales` (jsonb) o tabla auxiliar simple.
 
-### RPCs / triggers
-- `close_delivery_cash(delivery_list_id)` — cierra la caja, valida que no queden cobros pendientes de validación crítica y genera snapshot final.
-- `reopen_delivery_cash(delivery_list_id)` — solo super admin, para corrección.
-- Trigger que impide registrar cobros/pagos si `caja_estado = 'cerrada'`.
+Todas con RLS restringida a `super_admin` (via `has_role`). GRANTs a `authenticated` + `service_role`. Sin acceso `anon`.
 
-### Edge function `import-delivery-costs`
-Importa el Excel de costos del proveedor:
-- Recibe archivo XLSX con columnas producto/cantidad/costo unitario/costo total.
-- Matchea por SKU/nombre contra `delivery_list_items` de una lista específica.
-- Actualiza `costo_unitario` y agrega/actualiza `costo_total_mercaderia`.
-- Opcionalmente registra el primer pago al proveedor si se indica.
+## Lógica de cálculo (frontend, pura)
 
-## Frontend
+Módulo `src/lib/eventCostCalculator.ts`:
 
-### Nueva sección Admin → Tienda → "Entregas / Caja"
-Ruta: `/admin/entregas-caja`
-- Lista de todas las `delivery_lists` con estado de caja (abierta/cerrada), totales resumidos, badge de alertas.
-- Detalle por lista con 4 tabs:
-  1. **Ítems y entregas** (lo que ya existe).
-  2. **Cobros** (con validación admin de comprobantes; entra directo a la caja).
-  3. **Costos y proveedor** — costo de mercadería, importar Excel, pagos al proveedor, saldo.
-  4. **Cierre** — resumen final, botón "Cerrar caja", PDF exportable.
+- Normaliza cada ítem a `moneda_base` usando `tc_usd`/`tc_eur`.
+- Suma costos fijos (no `es_por_persona`) y variables (multiplicando por participantes esperados según modalidades marcadas).
+- Aplica `pct_imprevistos` sobre el total.
+- Calcula **costo por participante por modalidad**.
+- Sugiere **precio por modalidad** = `costo_modalidad / (1 - pct_margen_objetivo)`.
+- Devuelve: `totales`, `costo_por_modalidad`, `precio_sugerido_por_modalidad`, `margen_estimado`, `punto_equilibrio`.
 
-### Widget en `AdminDashboard`
-Nuevo card "Tienda / Entregas":
-- Cobros sin validar (N) → link a validación.
-- Listas con caja abierta (N).
-- Total cobrado hoy por moneda (todas las cajas abiertas).
-- Total por cobrar (esperado − cobrado) de listas activas.
-- Costo mercadería no pagada a proveedor.
-- Botón "Ver detalles".
+Se recalcula en vivo mientras editás; al guardar, el snapshot queda en `resultados`.
 
-### Sidebar admin
-Agregar item "Entregas / Caja" dentro de categoría "Tienda".
+## UI — Tab "Rentabilidad"
 
-## Sobre el Excel adjunto
+Componente `EventCostSimulator.tsx` con:
 
-Mencionás que adjuntaste un archivo con costo de mercadería y pagos a proveedor, **pero no lo veo cargado en este mensaje**. Cuando aprobés el plan, adjuntalo en el siguiente mensaje y lo proceso para:
-1. Crear la primera "Lista de entrega" con costos ya cargados, o
-2. Actualizar la lista "Santini Invierno" existente con los costos importados.
+1. **Header**: selector de versión (v1, v2, v3…), botones "Nueva versión", "Duplicar", "Archivar", badge de versión activa.
+2. **Bloque supuestos**: TC USD/EUR, % imprevistos, % margen, moneda base.
+3. **Bloque evento**: noches, jornadas, capacidad, cantidades esperadas por modalidad (auto-cargadas desde `event_packages` la primera vez).
+4. **Bloque costos** (tabla editable): categoría, descripción, cantidad, precio, moneda, por persona sí/no, modalidades aplicables. Suma en vivo por categoría y por moneda.
+5. **Bloque resultados**: costo total, costo por modalidad, **precio sugerido por modalidad**, margen estimado, punto de equilibrio.
+6. **Acción "Aplicar precios a paquetes"** (opcional, con confirmación): actualiza `event_packages.precio` de las modalidades elegidas al precio sugerido. Registra `aplicada_a_packages_at` y una entrada en `audit_log`. Checkbox por modalidad para elegir cuáles aplicar.
+
+## Estimado vs Real (post-evento)
+
+Sub-tab "Real" dentro del mismo módulo:
+
+- Tabla de costos reales con las mismas categorías (permite importar/vincular `gastos` existentes filtrados por evento).
+- Input de participantes reales por modalidad (auto desde `event_participants` confirmados).
+- Vista comparativa lado a lado: **Estimado vs Real** por categoría, con desvío absoluto y % — filas resaltadas cuando el desvío supera un umbral (ej. 15%).
+- Margen real vs margen objetivo.
 
 ## Detalles técnicos
 
-- Todas las tablas nuevas con RLS, GRANT para `authenticated` y `service_role`.
-- Políticas: admin/super_admin ven todo; deposito ve/modifica su lista; alumno solo su propio cobro (ya existe).
-- El widget consulta la vista `delivery_list_summary` con caching de 60s.
-- PDF de cierre: generado client-side con jsPDF (ya usado en otros cierres).
-- Cierre de caja emite evento a `admin_notification_events` para trazabilidad.
+- Ruta: se agrega el tab en la página existente del evento (no route nueva).
+- Guard: `useAdminAuth` + chequeo `has_role(_, 'super_admin')` antes de renderizar el tab.
+- Migraciones en un solo call con CREATE TABLE + GRANT + RLS + POLICY + trigger `updated_at`.
+- Sin dependencias nuevas; usa shadcn tables/dialogs existentes y `src/lib/currency.ts` para formateo.
+- Historial: cada "Nueva versión" crea un row nuevo; "Duplicar" copia ítems.
 
-## Orden de implementación
+## Fuera de alcance (para después)
 
-1. Migración DB (tablas, vista, triggers, RLS).
-2. Sección Admin `/admin/entregas-caja` con los 4 tabs.
-3. Widget dashboard + item sidebar.
-4. Edge function import-delivery-costs.
-5. PDF de cierre.
-6. Procesar Excel adjunto (después de que lo mandes).
+- Exportar simulación a PDF.
+- Vinculación automática 1:1 de cada gasto real al ítem estimado (por ahora es por categoría).
+- Multi-usuario colaborativo en la misma simulación.
+
+¿Avanzo con la implementación así?
