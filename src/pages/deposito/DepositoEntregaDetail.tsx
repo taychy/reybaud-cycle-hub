@@ -383,6 +383,47 @@ const DepositoEntregaDetail = () => {
     w.document.close();
   };
 
+  const handleScannedCode = async (code: string) => {
+    if (scanBusyRef.current) return;
+    const parsed = parseClientCode(code.trim());
+    if (!parsed) {
+      toast.error("Código no válido", { description: code.slice(0, 40) });
+      return;
+    }
+    if (!list) return;
+    if (parsed.listId !== list.id) {
+      toast.error("Este código pertenece a otra lista de entregas");
+      return;
+    }
+    const clienteItems = items.filter(
+      (i) => i.cliente_nombre.trim().toLowerCase() === parsed.cliente.trim().toLowerCase(),
+    );
+    if (clienteItems.length === 0) {
+      toast.error(`Sin ítems para "${parsed.cliente}"`);
+      return;
+    }
+    const pending = clienteItems.filter((i) => !i.preparado);
+    if (pending.length === 0) {
+      toast.info(`${parsed.cliente} ya estaba entregado`);
+      return;
+    }
+    scanBusyRef.current = true;
+    setItems((prev) => prev.map((i) => (pending.some((p) => p.id === i.id) ? { ...i, preparado: true } : i)));
+    const { data: userRes } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("delivery_list_items")
+      .update({ preparado: true, preparado_by: userRes.user?.id ?? null })
+      .in("id", pending.map((p) => p.id));
+    scanBusyRef.current = false;
+    if (error) {
+      toast.error("No se pudo marcar como entregado");
+      fetch();
+      return;
+    }
+    setScanCount((n) => n + 1);
+    toast.success(`✓ ${parsed.cliente}`, { description: `${pending.length} ítem${pending.length !== 1 ? "s" : ""} marcados como entregados` });
+  };
+
   if (loading) return <div className="py-16 text-center text-muted-foreground animate-pulse">Cargando...</div>;
   if (!list) return <div className="py-16 text-center text-muted-foreground">Lista no encontrada.</div>;
 
