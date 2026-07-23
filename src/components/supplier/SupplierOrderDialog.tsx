@@ -193,7 +193,7 @@ const SupplierOrderDialog = ({ open, order, onClose, onSaved }: Props) => {
         if (error) throw error;
       }
 
-      if (enviarEmail && emailTrim) {
+      if (sendEmail && emailTrim) {
         const { error: mailErr } = await sb.functions.invoke("send-transactional-email", {
           body: {
             templateName: "supplier-order-created",
