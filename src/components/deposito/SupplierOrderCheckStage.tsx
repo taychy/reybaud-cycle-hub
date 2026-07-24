@@ -117,11 +117,15 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       const saved = localStorage.getItem(`sup-count:${selectedId}`);
       let restored: Record<string, number> | null = null;
       let restoredVisited: Record<string, boolean> | null = null;
+      let restoredPilas: Record<string, PilaInfo> | null = null;
+      let restoredLabels: Record<string, LabelInfo> | null = null;
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           restored = parsed.counts || null;
           restoredVisited = parsed.visited || null;
+          restoredPilas = parsed.pilas || null;
+          restoredLabels = parsed.labels || null;
         } catch {}
       }
       const initial: Record<string, number> = {};
@@ -130,6 +134,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       });
       setCounts(initial);
       setVisited(restoredVisited || {});
+      setPilas(restoredPilas || {});
+      setLabels(restoredLabels || {});
       setIdx(0);
       setLoading(false);
     })();
@@ -139,8 +145,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   // Autosave
   useEffect(() => {
     if (!selectedId || !items.length) return;
-    localStorage.setItem(`sup-count:${selectedId}`, JSON.stringify({ counts, visited }));
-  }, [counts, visited, selectedId, items.length]);
+    localStorage.setItem(`sup-count:${selectedId}`, JSON.stringify({ counts, visited, pilas, labels }));
+  }, [counts, visited, pilas, labels, selectedId, items.length]);
 
   const selectedOrder = orders.find((o) => o.id === selectedId);
 
