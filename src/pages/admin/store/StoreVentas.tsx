@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingCart, ClipboardList, Inbox } from "lucide-react";
+import { ShoppingCart, ClipboardList, Inbox, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import StoreOrders from "./StoreOrders";
 import StorePreorders from "./StorePreorders";
+import StoreCambios from "./StoreCambios";
 
-type Tab = "nuevos" | "pedidos" | "preventas";
+type Tab = "nuevos" | "pedidos" | "preventas" | "cambios";
 
-// Estados que cuentan como "nuevo / por preparar"
 const NUEVOS_STATUSES = ["pendiente", "pagado", "preparando"];
 
 const StoreVentas = () => {
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab");
-  const tab: Tab = raw === "preventas" ? "preventas" : raw === "pedidos" ? "pedidos" : "nuevos";
+  const tab: Tab =
+    raw === "preventas" ? "preventas"
+    : raw === "pedidos" ? "pedidos"
+    : raw === "cambios" ? "cambios"
+    : "nuevos";
 
   const [nuevosCount, setNuevosCount] = useState<number | null>(null);
 
@@ -43,12 +47,12 @@ const StoreVentas = () => {
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Ventas</h1>
         <p className="text-sm text-muted-foreground">
-          Pedidos de la tienda y preventas con seña.
+          Pedidos de la tienda, preventas con seña y cambios de indumentaria.
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={handleChange} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-xl">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
           <TabsTrigger value="nuevos" className="gap-2">
             <Inbox className="w-4 h-4" />
             <span>Nuevos</span>
@@ -64,6 +68,9 @@ const StoreVentas = () => {
           <TabsTrigger value="preventas" className="gap-2">
             <ClipboardList className="w-4 h-4" /> Preventas
           </TabsTrigger>
+          <TabsTrigger value="cambios" className="gap-2">
+            <RefreshCw className="w-4 h-4" /> Cambios
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="nuevos" className="mt-4">
@@ -78,6 +85,9 @@ const StoreVentas = () => {
         </TabsContent>
         <TabsContent value="preventas" className="mt-4">
           <StorePreorders />
+        </TabsContent>
+        <TabsContent value="cambios" className="mt-4">
+          <StoreCambios />
         </TabsContent>
       </Tabs>
     </div>
