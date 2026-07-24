@@ -483,6 +483,240 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
     );
   }
 
+  // ============ PHASE: PILAS (organización previa) ============
+  if (phase === "pilas") {
+    const pilasDone = items.filter((it) => pilas[it.id]?.organizada).length;
+    const allPilasDone = pilasDone === items.length;
+    const setPilaOrg = (itemId: string, org: boolean) =>
+      setPilas((p) => ({
+        ...p,
+        [itemId]: { faltante_visual: 0, sobrante_visual: 0, ...(p[itemId] || {}), organizada: org },
+      }));
+    const setPilaFalta = (itemId: string, n: number) =>
+      setPilas((p) => ({
+        ...p,
+        [itemId]: { organizada: false, sobrante_visual: 0, ...(p[itemId] || {}), faltante_visual: Math.max(0, n) },
+      }));
+    const setPilaSobra = (itemId: string, n: number) =>
+      setPilas((p) => ({
+        ...p,
+        [itemId]: { organizada: false, faltante_visual: 0, ...(p[itemId] || {}), sobrante_visual: Math.max(0, n) },
+      }));
+
+    return (
+      <Card className="border-primary/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={() => setPhase("select")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <ArrowLeft className="w-3 h-3" /> Volver
+            </button>
+            <Badge variant="outline" className="text-[10px]">Paso 1 · Organizar</Badge>
+          </div>
+          <CardTitle className="text-base flex items-center gap-2 mt-1">
+            <Boxes className="w-4 h-4" /> Armá una pila por variante
+          </CardTitle>
+          <div className="text-xs text-muted-foreground mt-1">
+            Separá la mercadería en {items.length} pilas, una por variante. Ordenalas de izquierda a derecha por talle (XS → 4XL). Verificá visualmente que cada pila coincida con la cantidad indicada.
+          </div>
+          <Progress value={items.length ? (pilasDone / items.length) * 100 : 0} className="h-1.5 mt-2" />
+          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">{pilasDone}/{items.length} pilas armadas</div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
+            {items.map((it) => {
+              const info = pilas[it.id] || { organizada: false, faltante_visual: 0, sobrante_visual: 0 };
+              const skuLine = it.sku_base
+                ? `${it.sku_base}${it.variante && Object.values(it.variante).filter(Boolean).length ? "-" + Object.values(it.variante).filter(Boolean).join("-").toUpperCase() : ""}`
+                : null;
+              return (
+                <div key={it.id} className={`rounded-md border p-3 ${info.organizada ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      checked={info.organizada}
+                      onCheckedChange={(v) => setPilaOrg(it.id, !!v)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm leading-tight">{it.producto_nombre}</div>
+                      {formatVariante(it.variante) && (
+                        <div className="text-xs text-muted-foreground">{formatVariante(it.variante)}</div>
+                      )}
+                      {skuLine && (
+                        <div className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">SKU: {skuLine}</div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Pila de</div>
+                      <div className="text-2xl font-bold tabular-nums leading-none">{it.cantidad_pedida || 0}</div>
+                      <div className="text-[10px] text-muted-foreground">unidades</div>
+                    </div>
+                  </div>
+                  <details className="mt-2">
+                    <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground">
+                      ¿Detectaste diferencia visual? (opcional)
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground block">Falta</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={info.faltante_visual || 0}
+                          onChange={(e) => setPilaFalta(it.id, Number(e.target.value) || 0)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground block">Sobra</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={info.sobrante_visual || 0}
+                          onChange={(e) => setPilaSobra(it.id, Number(e.target.value) || 0)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Se validará contra el conteo del Paso 3. Si no coincide, el sistema pedirá recontar.
+                    </div>
+                  </details>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setPhase("labels")}>
+              <SkipForward className="w-4 h-4 mr-1" /> Saltar
+            </Button>
+            <Button className="flex-1" disabled={!allPilasDone} onClick={() => setPhase("labels")}>
+              {allPilasDone ? "Ir a etiquetas" : `Faltan ${items.length - pilasDone} pilas`}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ============ PHASE: LABELS (Niimbot) ============
+  if (phase === "labels") {
+    const labelsDone = items.filter((it) => labels[it.id]?.impresas || labels[it.id]?.skipped_motivo).length;
+    const allLabelsDone = labelsDone === items.length;
+    const setLabelImpresas = (itemId: string, done: boolean) =>
+      setLabels((l) => ({ ...l, [itemId]: { ...(l[itemId] || {}), impresas: done, skipped_motivo: undefined } }));
+    const setLabelSkipped = (itemId: string) => {
+      const motivo = prompt("Motivo por el que esta variante no lleva etiqueta Niimbot:");
+      if (!motivo) return;
+      setLabels((l) => ({ ...l, [itemId]: { impresas: false, skipped_motivo: motivo } }));
+    };
+
+    return (
+      <Card className="border-primary/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={() => setPhase("pilas")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <ArrowLeft className="w-3 h-3" /> Volver
+            </button>
+            <Badge variant="outline" className="text-[10px]">Paso 2 · Etiquetas</Badge>
+          </div>
+          <CardTitle className="text-base flex items-center gap-2 mt-1">
+            <Printer className="w-4 h-4" /> Generá e imprimí las etiquetas
+          </CardTitle>
+          <div className="text-xs text-muted-foreground mt-1">
+            Por cada pila, generá las etiquetas Niimbot, imprimí desde la app y pegá una en cada unidad. Después tildá "Impresas y pegadas".
+          </div>
+          <Progress value={items.length ? (labelsDone / items.length) * 100 : 0} className="h-1.5 mt-2" />
+          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">{labelsDone}/{items.length} listas</div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
+            {items.map((it) => {
+              const info = labels[it.id] || { impresas: false };
+              const cant = it.cantidad_pedida || 1;
+              const busy = printingItemId?.startsWith(it.id);
+              const noProduct = !it.product_id;
+              return (
+                <div key={it.id} className={`rounded-md border p-3 ${info.impresas ? "border-green-500/40 bg-green-500/5" : info.skipped_motivo ? "border-amber-500/40 bg-amber-500/5" : "border-border"}`}>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm leading-tight">{it.producto_nombre}</div>
+                      {formatVariante(it.variante) && (
+                        <div className="text-xs text-muted-foreground">{formatVariante(it.variante)}</div>
+                      )}
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {cant} unidades → {cant} etiquetas
+                      </div>
+                      {info.skipped_motivo && (
+                        <div className="text-[11px] text-amber-500 mt-1">Sin etiqueta: {info.skipped_motivo}</div>
+                      )}
+                    </div>
+                    {info.impresas && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
+                  </div>
+
+                  {noProduct ? (
+                    <div className="mt-2 text-[11px] text-amber-500 flex items-start gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      Este ítem no está vinculado a un producto de tienda. Vinculalo desde el pedido para poder etiquetar.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePrintNiimbot(it, cant, "label")}
+                        disabled={busy}
+                      >
+                        <Tag className="w-3.5 h-3.5 mr-1" />
+                        {printingItemId === it.id + ":label" ? "Generando…" : `Ver ${cant} etiquetas`}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePrintNiimbot(it, 1, "scan-source")}
+                        disabled={busy}
+                      >
+                        <Tag className="w-3.5 h-3.5 mr-1" />
+                        {printingItemId === it.id + ":scan-source" ? "Generando…" : "Fuente escaneable"}
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer flex-1">
+                      <Checkbox
+                        checked={info.impresas}
+                        onCheckedChange={(v) => setLabelImpresas(it.id, !!v)}
+                      />
+                      Impresas y pegadas
+                    </label>
+                    {!info.impresas && !info.skipped_motivo && (
+                      <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setLabelSkipped(it.id)}>
+                        Sin etiquetas
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setPhase("pilas")}>
+              <ChevronLeft className="w-4 h-4 mr-1" /> Pilas
+            </Button>
+            <Button className="flex-1" disabled={!allLabelsDone} onClick={() => { setPhase("count"); setIdx(0); }}>
+              {allLabelsDone ? "Ir al control contra pedido" : `Faltan ${items.length - labelsDone}`}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+
   // ============ PHASE: SUMMARY ============
   if (phase === "summary") {
     return (
