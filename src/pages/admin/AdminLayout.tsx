@@ -122,7 +122,7 @@ const modules: NavModule[] = [
           { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
           { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
           { to: "/admin/tienda/control-mercaderia", label: "Control de Mercadería", icon: AlertTriangle },
-          { to: "/admin/tienda/cambios", label: "Cambios", icon: RefreshCw },
+          
           { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck },
         ],
       },
