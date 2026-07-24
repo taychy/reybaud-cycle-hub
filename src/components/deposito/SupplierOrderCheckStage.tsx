@@ -446,14 +446,36 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2 text-xs">
+            <div className="font-medium text-primary">Flujo sugerido</div>
+            <div className="text-muted-foreground">
+              <b>1)</b> Organizar mercadería en pilas → <b>2)</b> Imprimir y pegar etiquetas Niimbot → <b>3)</b> Control contra pedido → <b>4)</b> Cierre.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
             <Button
-              className="flex-1"
               disabled={!selectedId || loading || !items.length}
-              onClick={() => { setPhase("count"); setIdx(0); }}
+              onClick={() => setPhase("pilas")}
             >
-              Empezar conteo <ChevronRight className="w-4 h-4 ml-1" />
+              <Boxes className="w-4 h-4 mr-1" /> 1 · Organizar mercadería <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                disabled={!selectedId || loading || !items.length}
+                onClick={() => setPhase("labels")}
+              >
+                <Printer className="w-3.5 h-3.5 mr-1" /> Saltar a etiquetas
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!selectedId || loading || !items.length}
+                onClick={() => { setPhase("count"); setIdx(0); }}
+              >
+                <ScanLine className="w-3.5 h-3.5 mr-1" /> Ir directo al conteo
+              </Button>
+            </div>
             <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
           </div>
         </CardContent>
