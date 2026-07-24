@@ -628,6 +628,7 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
     };
 
     return (
+      <>
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2">
@@ -728,6 +729,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           </div>
         </CardContent>
       </Card>
+      {previewDialog}
+      </>
     );
   }
 
