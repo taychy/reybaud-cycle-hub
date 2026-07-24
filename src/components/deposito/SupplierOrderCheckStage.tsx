@@ -405,6 +405,15 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   const totalEsperado = items.reduce((s, it) => s + (it.cantidad_pedida || 0), 0);
   const totalRecibido = items.reduce((s, it) => s + (counts[it.id] || 0), 0);
   const progressPct = items.length ? Math.round((resumen.visitCount / items.length) * 100) : 0;
+  const previewDialog = (
+    <NiimbotLabelPreviewDialog
+      open={previewOpen}
+      onOpenChange={setPreviewOpen}
+      previews={previewLabels}
+      title={previewTitle}
+      filenameHint={previewHint}
+    />
+  );
 
   // ============ PHASE: SELECT ORDER ============
   if (phase === "select") {
@@ -504,6 +513,7 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       }));
 
     return (
+      <>
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2">
@@ -597,6 +607,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           </div>
         </CardContent>
       </Card>
+      {previewDialog}
+      </>
     );
   }
 
@@ -1026,13 +1038,7 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
         </DialogContent>
       </Dialog>
 
-      <NiimbotLabelPreviewDialog
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        previews={previewLabels}
-        title={previewTitle}
-        filenameHint={previewHint}
-      />
+      {previewDialog}
     </Card>
   );
 };

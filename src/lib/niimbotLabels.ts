@@ -39,6 +39,69 @@ const SIZE_MM: Record<NiimbotSize, { w: number; h: number }> = {
 // Usamos 12 px/mm para tener margen y que el QR quede nítido.
 const PX_PER_MM = 12;
 
+const get2dContext = (canvas: HTMLCanvasElement): CanvasRenderingContext2D => {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo preparar la etiqueta para previsualizar.");
+  return ctx;
+};
+
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const [meta, data] = dataUrl.split(",");
+  const mime = meta.match(/data:(.*?);/)?.[1] || "image/png";
+  const binary = atob(data || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+};
+
+const canvasToPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
+  new Promise<Blob>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+    const fallback = () => {
+      try {
+        const blob = dataUrlToBlob(canvas.toDataURL("image/png"));
+        finish(() => resolve(blob));
+      } catch (err) {
+        finish(() => reject(err));
+      }
+    };
+
+    if (typeof canvas.toBlob !== "function") {
+      fallback();
+      return;
+    }
+
+    const timeout = window.setTimeout(fallback, 1500);
+    canvas.toBlob(
+      (blob) => {
+        window.clearTimeout(timeout);
+        if (blob) finish(() => resolve(blob));
+        else fallback();
+      },
+      "image/png",
+    );
+  });
+
+const renderQrCanvas = async (
+  value: string,
+  size: number,
+  opts: { margin: number; errorCorrectionLevel: "M" | "H" },
+): Promise<HTMLCanvasElement> => {
+  const qrCanvas = document.createElement("canvas");
+  await QRCode.toCanvas(qrCanvas, value, {
+    margin: opts.margin,
+    width: size,
+    errorCorrectionLevel: opts.errorCorrectionLevel,
+    color: { dark: "#000000", light: "#ffffff" },
+  });
+  return qrCanvas;
+};
+
 const variantPretty = (variant_key: string | null): string => {
   if (!variant_key) return "";
   return variant_key
@@ -73,7 +136,7 @@ const renderLabelPng = async (
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = get2dContext(canvas);
 
   // Fondo blanco
   ctx.fillStyle = "#ffffff";
@@ -88,19 +151,11 @@ const renderLabelPng = async (
 
   // QR
   try {
-    const qrDataUrl = await QRCode.toDataURL(label.sku, {
+    const qrCanvas = await renderQrCanvas(label.sku, qrSize, {
       margin: 0,
-      width: qrSize,
       errorCorrectionLevel: "M",
-      color: { dark: "#000000", light: "#ffffff" },
     });
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = reject;
-      img.src = qrDataUrl;
-    });
-    ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
   } catch (err) {
     console.warn("QR error", err);
   }
@@ -154,12 +209,7 @@ const renderLabelPng = async (
   ctx.textBaseline = "alphabetic";
   ctx.fillText(label.sku, qrX, H - pad + Math.round(0.5 * PX_PER_MM));
 
-  return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("toBlob returned null"))),
-      "image/png",
-    );
-  });
+  return await canvasToPngBlob(canvas);
 };
 
 const triggerDownload = (blob: Blob, filename: string) => {
@@ -239,7 +289,7 @@ const renderScanSourcePng = async (
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = get2dContext(canvas);
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, W, H);
@@ -248,19 +298,11 @@ const renderScanSourcePng = async (
   const qrX = Math.round((W - qrSize) / 2);
   const qrY = 90;
   try {
-    const qrDataUrl = await QRCode.toDataURL(label.sku, {
+    const qrCanvas = await renderQrCanvas(label.sku, qrSize, {
       margin: 2,
-      width: qrSize,
       errorCorrectionLevel: "H",
-      color: { dark: "#000000", light: "#ffffff" },
     });
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = reject;
-      img.src = qrDataUrl;
-    });
-    ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
   } catch (err) {
     console.warn("QR error", err);
   }
@@ -277,12 +319,7 @@ const renderScanSourcePng = async (
   const subtitle = [truncate(label.product_name, 40), variant].filter(Boolean).join(" · ");
   if (subtitle) ctx.fillText(subtitle, W / 2, qrY + qrSize + 110);
 
-  return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("toBlob returned null"))),
-      "image/png",
-    );
-  });
+  return await canvasToPngBlob(canvas);
 };
 
 /**
@@ -310,7 +347,8 @@ export const printNiimbotLabels = async (
 
   const uniqueByCode = new Map<string, NiimbotLabelInput & { sku: string }>();
   expanded.forEach((l) => uniqueByCode.set(l.sku, l));
-  await Promise.all([...uniqueByCode.values()].map(registerBarcode));
+  const registeredCodes = [...uniqueByCode.keys()];
+  void Promise.allSettled([...uniqueByCode.values()].map(registerBarcode));
 
   const toRender = mode === "scan-source" ? [...uniqueByCode.values()] : expanded;
   const hint = opts.filenameHint ? slug(opts.filenameHint) + "-" : "";
@@ -335,14 +373,14 @@ export const printNiimbotLabels = async (
         url: URL.createObjectURL(blob),
       });
     }
-    return { total: previews.length, registered: [...uniqueByCode.keys()], previews };
+    return { total: previews.length, registered: registeredCodes, previews };
   }
 
   // === MODO DESCARGA DIRECTA ===
   if (toRender.length === 1) {
     const blob = await render(toRender[0]);
     triggerDownload(blob, `${hint}${slug(toRender[0].sku)}${suffix}.png`);
-    return { total: 1, registered: [...uniqueByCode.keys()] };
+    return { total: 1, registered: registeredCodes };
   }
 
   const zip = new JSZip();
@@ -358,7 +396,7 @@ export const printNiimbotLabels = async (
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const stamp = new Date().toISOString().slice(0, 10);
   triggerDownload(zipBlob, `etiquetas-niimbot${suffix}-${hint}${stamp}-${toRender.length}.zip`);
-  return { total: toRender.length, registered: [...uniqueByCode.keys()] };
+  return { total: toRender.length, registered: registeredCodes };
 };
 
 /** Exportado para reutilizar desde componentes que muestran preview. */
