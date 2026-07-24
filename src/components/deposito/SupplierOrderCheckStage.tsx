@@ -369,11 +369,30 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       const nuevoEstado = allOk ? "cerrado" : someReceived ? "recibido_parcial" : "abierto";
       await sb.from("supplier_orders").update({ estado: nuevoEstado }).eq("id", selectedId);
 
+      // Warnings de reconciliación entre Etapa 1 (organización) y Etapa 3 (conteo)
+      const warnings: string[] = [];
+      items.forEach((it) => {
+        const p = pilas[it.id];
+        if (!p) return;
+        const r = counts[it.id] || 0;
+        const pedido = it.cantidad_pedida || 0;
+        const label = `${it.producto_nombre}${formatVariante(it.variante) ? ` (${formatVariante(it.variante)})` : ""}`;
+        if ((p.faltante_visual || 0) > 0 && r >= pedido) {
+          warnings.push(`⚠️ En organización marcaste falta ${p.faltante_visual} de "${label}", pero el conteo dio ${r}/${pedido}. Recontá para confirmar.`);
+        }
+        if ((p.sobrante_visual || 0) > 0 && r <= pedido) {
+          warnings.push(`⚠️ En organización marcaste sobra ${p.sobrante_visual} de "${label}", pero el conteo dio ${r}/${pedido}. Recontá para confirmar.`);
+        }
+      });
+
       const lines = [
         `Pedido: ${selectedOrder?.numero} · ${selectedOrder?.proveedor_nombre}`,
         `OK: ${resumen.ok} · Faltantes: ${resumen.falta} · Sobrantes: ${resumen.sobra}`,
         ...resumen.detalles,
       ];
+      if (warnings.length) {
+        lines.push("", "Alertas de reconciliación:", ...warnings);
+      }
       if (nota.trim()) lines.push("", "Observaciones:", nota.trim());
 
       localStorage.removeItem(`sup-count:${selectedId}`);
