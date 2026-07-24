@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListChecks, ArrowLeft, ScanLine, Keyboard, Link2, AlertTriangle, Tag } from "lucide-react";
+import { CheckCircle, Loader2, Truck, ChevronLeft, ChevronRight, Package, ListChecks, ArrowLeft, ScanLine, Keyboard, Link2, AlertTriangle, Tag, Boxes, Printer, SkipForward } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -44,7 +45,10 @@ const formatVariante = (v: any) => {
   return entries.map(([k, val]) => `${k}: ${val}`).join(" / ");
 };
 
-type Phase = "select" | "count" | "summary";
+type Phase = "select" | "pilas" | "labels" | "count" | "summary";
+
+type PilaInfo = { organizada: boolean; faltante_visual: number; sobrante_visual: number };
+type LabelInfo = { impresas: boolean; skipped_motivo?: string };
 
 const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, onConfirm, onCancel }: Props) => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -56,6 +60,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   const [phase, setPhase] = useState<Phase>("select");
   const [idx, setIdx] = useState(0);
   const [visited, setVisited] = useState<Record<string, boolean>>({});
+  const [pilas, setPilas] = useState<Record<string, PilaInfo>>({});
+  const [labels, setLabels] = useState<Record<string, LabelInfo>>({});
 
   // Modo de conteo: manual (input) o escaneo por cámara
   const [mode, setMode] = useState<"manual" | "scan">("manual");
@@ -111,11 +117,15 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       const saved = localStorage.getItem(`sup-count:${selectedId}`);
       let restored: Record<string, number> | null = null;
       let restoredVisited: Record<string, boolean> | null = null;
+      let restoredPilas: Record<string, PilaInfo> | null = null;
+      let restoredLabels: Record<string, LabelInfo> | null = null;
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           restored = parsed.counts || null;
           restoredVisited = parsed.visited || null;
+          restoredPilas = parsed.pilas || null;
+          restoredLabels = parsed.labels || null;
         } catch {}
       }
       const initial: Record<string, number> = {};
@@ -124,6 +134,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       });
       setCounts(initial);
       setVisited(restoredVisited || {});
+      setPilas(restoredPilas || {});
+      setLabels(restoredLabels || {});
       setIdx(0);
       setLoading(false);
     })();
@@ -133,8 +145,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   // Autosave
   useEffect(() => {
     if (!selectedId || !items.length) return;
-    localStorage.setItem(`sup-count:${selectedId}`, JSON.stringify({ counts, visited }));
-  }, [counts, visited, selectedId, items.length]);
+    localStorage.setItem(`sup-count:${selectedId}`, JSON.stringify({ counts, visited, pilas, labels }));
+  }, [counts, visited, pilas, labels, selectedId, items.length]);
 
   const selectedOrder = orders.find((o) => o.id === selectedId);
 
@@ -357,11 +369,30 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
       const nuevoEstado = allOk ? "cerrado" : someReceived ? "recibido_parcial" : "abierto";
       await sb.from("supplier_orders").update({ estado: nuevoEstado }).eq("id", selectedId);
 
+      // Warnings de reconciliación entre Etapa 1 (organización) y Etapa 3 (conteo)
+      const warnings: string[] = [];
+      items.forEach((it) => {
+        const p = pilas[it.id];
+        if (!p) return;
+        const r = counts[it.id] || 0;
+        const pedido = it.cantidad_pedida || 0;
+        const label = `${it.producto_nombre}${formatVariante(it.variante) ? ` (${formatVariante(it.variante)})` : ""}`;
+        if ((p.faltante_visual || 0) > 0 && r >= pedido) {
+          warnings.push(`⚠️ En organización marcaste falta ${p.faltante_visual} de "${label}", pero el conteo dio ${r}/${pedido}. Recontá para confirmar.`);
+        }
+        if ((p.sobrante_visual || 0) > 0 && r <= pedido) {
+          warnings.push(`⚠️ En organización marcaste sobra ${p.sobrante_visual} de "${label}", pero el conteo dio ${r}/${pedido}. Recontá para confirmar.`);
+        }
+      });
+
       const lines = [
         `Pedido: ${selectedOrder?.numero} · ${selectedOrder?.proveedor_nombre}`,
         `OK: ${resumen.ok} · Faltantes: ${resumen.falta} · Sobrantes: ${resumen.sobra}`,
         ...resumen.detalles,
       ];
+      if (warnings.length) {
+        lines.push("", "Alertas de reconciliación:", ...warnings);
+      }
       if (nota.trim()) lines.push("", "Observaciones:", nota.trim());
 
       localStorage.removeItem(`sup-count:${selectedId}`);
@@ -415,14 +446,36 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2 text-xs">
+            <div className="font-medium text-primary">Flujo sugerido</div>
+            <div className="text-muted-foreground">
+              <b>1)</b> Organizar mercadería en pilas → <b>2)</b> Imprimir y pegar etiquetas Niimbot → <b>3)</b> Control contra pedido → <b>4)</b> Cierre.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
             <Button
-              className="flex-1"
               disabled={!selectedId || loading || !items.length}
-              onClick={() => { setPhase("count"); setIdx(0); }}
+              onClick={() => setPhase("pilas")}
             >
-              Empezar conteo <ChevronRight className="w-4 h-4 ml-1" />
+              <Boxes className="w-4 h-4 mr-1" /> 1 · Organizar mercadería <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                disabled={!selectedId || loading || !items.length}
+                onClick={() => setPhase("labels")}
+              >
+                <Printer className="w-3.5 h-3.5 mr-1" /> Saltar a etiquetas
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!selectedId || loading || !items.length}
+                onClick={() => { setPhase("count"); setIdx(0); }}
+              >
+                <ScanLine className="w-3.5 h-3.5 mr-1" /> Ir directo al conteo
+              </Button>
+            </div>
             <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
           </div>
         </CardContent>
@@ -430,14 +483,271 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
     );
   }
 
+  // ============ PHASE: PILAS (organización previa) ============
+  if (phase === "pilas") {
+    const pilasDone = items.filter((it) => pilas[it.id]?.organizada).length;
+    const allPilasDone = pilasDone === items.length;
+    const setPilaOrg = (itemId: string, org: boolean) =>
+      setPilas((p) => ({
+        ...p,
+        [itemId]: { faltante_visual: 0, sobrante_visual: 0, ...(p[itemId] || {}), organizada: org },
+      }));
+    const setPilaFalta = (itemId: string, n: number) =>
+      setPilas((p) => ({
+        ...p,
+        [itemId]: { organizada: false, sobrante_visual: 0, ...(p[itemId] || {}), faltante_visual: Math.max(0, n) },
+      }));
+    const setPilaSobra = (itemId: string, n: number) =>
+      setPilas((p) => ({
+        ...p,
+        [itemId]: { organizada: false, faltante_visual: 0, ...(p[itemId] || {}), sobrante_visual: Math.max(0, n) },
+      }));
+
+    return (
+      <Card className="border-primary/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={() => setPhase("select")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <ArrowLeft className="w-3 h-3" /> Volver
+            </button>
+            <Badge variant="outline" className="text-[10px]">Paso 1 · Organizar</Badge>
+          </div>
+          <CardTitle className="text-base flex items-center gap-2 mt-1">
+            <Boxes className="w-4 h-4" /> Armá una pila por variante
+          </CardTitle>
+          <div className="text-xs text-muted-foreground mt-1">
+            Separá la mercadería en {items.length} pilas, una por variante. Ordenalas de izquierda a derecha por talle (XS → 4XL). Verificá visualmente que cada pila coincida con la cantidad indicada.
+          </div>
+          <Progress value={items.length ? (pilasDone / items.length) * 100 : 0} className="h-1.5 mt-2" />
+          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">{pilasDone}/{items.length} pilas armadas</div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
+            {items.map((it) => {
+              const info = pilas[it.id] || { organizada: false, faltante_visual: 0, sobrante_visual: 0 };
+              const skuLine = it.sku_base
+                ? `${it.sku_base}${it.variante && Object.values(it.variante).filter(Boolean).length ? "-" + Object.values(it.variante).filter(Boolean).join("-").toUpperCase() : ""}`
+                : null;
+              return (
+                <div key={it.id} className={`rounded-md border p-3 ${info.organizada ? "border-green-500/40 bg-green-500/5" : "border-border"}`}>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      checked={info.organizada}
+                      onCheckedChange={(v) => setPilaOrg(it.id, !!v)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm leading-tight">{it.producto_nombre}</div>
+                      {formatVariante(it.variante) && (
+                        <div className="text-xs text-muted-foreground">{formatVariante(it.variante)}</div>
+                      )}
+                      {skuLine && (
+                        <div className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">SKU: {skuLine}</div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Pila de</div>
+                      <div className="text-2xl font-bold tabular-nums leading-none">{it.cantidad_pedida || 0}</div>
+                      <div className="text-[10px] text-muted-foreground">unidades</div>
+                    </div>
+                  </div>
+                  <details className="mt-2">
+                    <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground">
+                      ¿Detectaste diferencia visual? (opcional)
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground block">Falta</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={info.faltante_visual || 0}
+                          onChange={(e) => setPilaFalta(it.id, Number(e.target.value) || 0)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground block">Sobra</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={info.sobrante_visual || 0}
+                          onChange={(e) => setPilaSobra(it.id, Number(e.target.value) || 0)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Se validará contra el conteo del Paso 3. Si no coincide, el sistema pedirá recontar.
+                    </div>
+                  </details>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setPhase("labels")}>
+              <SkipForward className="w-4 h-4 mr-1" /> Saltar
+            </Button>
+            <Button className="flex-1" disabled={!allPilasDone} onClick={() => setPhase("labels")}>
+              {allPilasDone ? "Ir a etiquetas" : `Faltan ${items.length - pilasDone} pilas`}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ============ PHASE: LABELS (Niimbot) ============
+  if (phase === "labels") {
+    const labelsDone = items.filter((it) => labels[it.id]?.impresas || labels[it.id]?.skipped_motivo).length;
+    const allLabelsDone = labelsDone === items.length;
+    const setLabelImpresas = (itemId: string, done: boolean) =>
+      setLabels((l) => ({ ...l, [itemId]: { ...(l[itemId] || {}), impresas: done, skipped_motivo: undefined } }));
+    const setLabelSkipped = (itemId: string) => {
+      const motivo = prompt("Motivo por el que esta variante no lleva etiqueta Niimbot:");
+      if (!motivo) return;
+      setLabels((l) => ({ ...l, [itemId]: { impresas: false, skipped_motivo: motivo } }));
+    };
+
+    return (
+      <Card className="border-primary/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={() => setPhase("pilas")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <ArrowLeft className="w-3 h-3" /> Volver
+            </button>
+            <Badge variant="outline" className="text-[10px]">Paso 2 · Etiquetas</Badge>
+          </div>
+          <CardTitle className="text-base flex items-center gap-2 mt-1">
+            <Printer className="w-4 h-4" /> Generá e imprimí las etiquetas
+          </CardTitle>
+          <div className="text-xs text-muted-foreground mt-1">
+            Por cada pila, generá las etiquetas Niimbot, imprimí desde la app y pegá una en cada unidad. Después tildá "Impresas y pegadas".
+          </div>
+          <Progress value={items.length ? (labelsDone / items.length) * 100 : 0} className="h-1.5 mt-2" />
+          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">{labelsDone}/{items.length} listas</div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
+            {items.map((it) => {
+              const info = labels[it.id] || { impresas: false };
+              const cant = it.cantidad_pedida || 1;
+              const busy = printingItemId?.startsWith(it.id);
+              const noProduct = !it.product_id;
+              return (
+                <div key={it.id} className={`rounded-md border p-3 ${info.impresas ? "border-green-500/40 bg-green-500/5" : info.skipped_motivo ? "border-amber-500/40 bg-amber-500/5" : "border-border"}`}>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm leading-tight">{it.producto_nombre}</div>
+                      {formatVariante(it.variante) && (
+                        <div className="text-xs text-muted-foreground">{formatVariante(it.variante)}</div>
+                      )}
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {cant} unidades → {cant} etiquetas
+                      </div>
+                      {info.skipped_motivo && (
+                        <div className="text-[11px] text-amber-500 mt-1">Sin etiqueta: {info.skipped_motivo}</div>
+                      )}
+                    </div>
+                    {info.impresas && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
+                  </div>
+
+                  {noProduct ? (
+                    <div className="mt-2 text-[11px] text-amber-500 flex items-start gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      Este ítem no está vinculado a un producto de tienda. Vinculalo desde el pedido para poder etiquetar.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePrintNiimbot(it, cant, "label")}
+                        disabled={busy}
+                      >
+                        <Tag className="w-3.5 h-3.5 mr-1" />
+                        {printingItemId === it.id + ":label" ? "Generando…" : `Ver ${cant} etiquetas`}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePrintNiimbot(it, 1, "scan-source")}
+                        disabled={busy}
+                      >
+                        <Tag className="w-3.5 h-3.5 mr-1" />
+                        {printingItemId === it.id + ":scan-source" ? "Generando…" : "Fuente escaneable"}
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer flex-1">
+                      <Checkbox
+                        checked={info.impresas}
+                        onCheckedChange={(v) => setLabelImpresas(it.id, !!v)}
+                      />
+                      Impresas y pegadas
+                    </label>
+                    {!info.impresas && !info.skipped_motivo && (
+                      <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setLabelSkipped(it.id)}>
+                        Sin etiquetas
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setPhase("pilas")}>
+              <ChevronLeft className="w-4 h-4 mr-1" /> Pilas
+            </Button>
+            <Button className="flex-1" disabled={!allLabelsDone} onClick={() => { setPhase("count"); setIdx(0); }}>
+              {allLabelsDone ? "Ir al control contra pedido" : `Faltan ${items.length - labelsDone}`}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+
   // ============ PHASE: SUMMARY ============
   if (phase === "summary") {
+    const reconcWarnings = items
+      .map((it) => {
+        const p = pilas[it.id];
+        if (!p) return null;
+        const r = counts[it.id] || 0;
+        const pedido = it.cantidad_pedida || 0;
+        const label = `${it.producto_nombre}${formatVariante(it.variante) ? ` (${formatVariante(it.variante)})` : ""}`;
+        if ((p.faltante_visual || 0) > 0 && r >= pedido) return `Marcaste falta ${p.faltante_visual} de "${label}" en organización, pero al contar dio ${r}/${pedido}.`;
+        if ((p.sobrante_visual || 0) > 0 && r <= pedido) return `Marcaste sobra ${p.sobrante_visual} de "${label}" en organización, pero al contar dio ${r}/${pedido}.`;
+        return null;
+      })
+      .filter(Boolean) as string[];
     return (
       <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="w-4 h-4" /> Paso final · Resumen del conteo</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {reconcWarnings.length > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+              <div className="text-xs font-medium text-amber-500 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Alertas de reconciliación (Paso 1 vs Paso 3)
+              </div>
+              {reconcWarnings.map((w, i) => (
+                <div key={i} className="text-[11px] text-muted-foreground">• {w}</div>
+              ))}
+              <div className="text-[11px] text-amber-500 mt-1">Recomendado: recontar antes de cerrar.</div>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-md bg-green-500/10 border border-green-500/30 p-3">
               <div className="text-2xl font-bold text-green-400">{resumen.ok}</div>
