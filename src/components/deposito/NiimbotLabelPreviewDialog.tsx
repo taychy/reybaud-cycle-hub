@@ -30,14 +30,14 @@ const NiimbotLabelPreviewDialog = ({
   title = "Vista previa de etiqueta",
   filenameHint,
 }: Props) => {
-  // Revocar object URLs al cerrar para no filtrar memoria
+  // Revocar object URLs solo al desmontar / cambiar de set de previews,
+  // nunca al abrir (si no, el cleanup del efecto previo revoca las URLs
+  // justo antes de mostrarlas y las <img> quedan cargando).
   useEffect(() => {
-    if (!open) {
-      return () => {
-        previews.forEach((p) => URL.revokeObjectURL(p.url));
-      };
-    }
-  }, [open, previews]);
+    return () => {
+      previews.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, [previews]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
