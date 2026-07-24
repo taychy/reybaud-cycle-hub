@@ -45,7 +45,10 @@ const formatVariante = (v: any) => {
   return entries.map(([k, val]) => `${k}: ${val}`).join(" / ");
 };
 
-type Phase = "select" | "count" | "summary";
+type Phase = "select" | "pilas" | "labels" | "count" | "summary";
+
+type PilaInfo = { organizada: boolean; faltante_visual: number; sobrante_visual: number };
+type LabelInfo = { impresas: boolean; skipped_motivo?: string };
 
 const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, onConfirm, onCancel }: Props) => {
   const [orders, setOrders] = useState<any[]>([]);
