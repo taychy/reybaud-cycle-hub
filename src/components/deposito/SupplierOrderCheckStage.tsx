@@ -719,12 +719,35 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
 
   // ============ PHASE: SUMMARY ============
   if (phase === "summary") {
+    const reconcWarnings = items
+      .map((it) => {
+        const p = pilas[it.id];
+        if (!p) return null;
+        const r = counts[it.id] || 0;
+        const pedido = it.cantidad_pedida || 0;
+        const label = `${it.producto_nombre}${formatVariante(it.variante) ? ` (${formatVariante(it.variante)})` : ""}`;
+        if ((p.faltante_visual || 0) > 0 && r >= pedido) return `Marcaste falta ${p.faltante_visual} de "${label}" en organización, pero al contar dio ${r}/${pedido}.`;
+        if ((p.sobrante_visual || 0) > 0 && r <= pedido) return `Marcaste sobra ${p.sobrante_visual} de "${label}" en organización, pero al contar dio ${r}/${pedido}.`;
+        return null;
+      })
+      .filter(Boolean) as string[];
     return (
       <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="w-4 h-4" /> Paso final · Resumen del conteo</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {reconcWarnings.length > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+              <div className="text-xs font-medium text-amber-500 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Alertas de reconciliación (Paso 1 vs Paso 3)
+              </div>
+              {reconcWarnings.map((w, i) => (
+                <div key={i} className="text-[11px] text-muted-foreground">• {w}</div>
+              ))}
+              <div className="text-[11px] text-amber-500 mt-1">Recomendado: recontar antes de cerrar.</div>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-md bg-green-500/10 border border-green-500/30 p-3">
               <div className="text-2xl font-bold text-green-400">{resumen.ok}</div>
