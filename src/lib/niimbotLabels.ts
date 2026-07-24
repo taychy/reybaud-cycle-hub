@@ -357,9 +357,14 @@ export const printNiimbotLabels = async (
   if (opts.preview) {
     const previews: NiimbotPreviewItem[] = [];
     const counters = new Map<string, number>();
+    const renderedBySku = new Map<string, Blob>();
     for (let i = 0; i < toRender.length; i++) {
       const l = toRender[i];
-      const blob = await render(l);
+      let blob = renderedBySku.get(l.sku);
+      if (!blob) {
+        blob = await render(l);
+        renderedBySku.set(l.sku, blob);
+      }
       const n = (counters.get(l.sku) || 0) + 1;
       counters.set(l.sku, n);
       const filename =
