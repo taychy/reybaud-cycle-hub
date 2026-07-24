@@ -418,6 +418,7 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   // ============ PHASE: SELECT ORDER ============
   if (phase === "select") {
     return (
+      <>
       <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Package className="w-4 h-4" /> Paso 1 · Elegí el pedido</CardTitle>
@@ -489,6 +490,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
           </div>
         </CardContent>
       </Card>
+      {previewDialog}
+      </>
     );
   }
 
