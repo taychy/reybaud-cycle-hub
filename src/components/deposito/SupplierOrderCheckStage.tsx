@@ -60,6 +60,8 @@ const SupplierOrderCheckStage = ({ saving, isLast, initialOrderId, initialNota, 
   const [phase, setPhase] = useState<Phase>("select");
   const [idx, setIdx] = useState(0);
   const [visited, setVisited] = useState<Record<string, boolean>>({});
+  const [pilas, setPilas] = useState<Record<string, PilaInfo>>({});
+  const [labels, setLabels] = useState<Record<string, LabelInfo>>({});
 
   // Modo de conteo: manual (input) o escaneo por cámara
   const [mode, setMode] = useState<"manual" | "scan">("manual");
