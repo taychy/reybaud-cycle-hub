@@ -82,7 +82,8 @@ const AuthCallback = () => {
       // 3. Determine role and redirect based on portal context
       const userId = session.user.id;
       const pendingOtp = loadPendingOtpState();
-      const returnTo = getSafeReturnTo(pendingOtp?.returnTo);
+      const returnTo = getSafeReturnTo(pendingOtp?.returnTo) || loadOAuthReturnTo();
+      if (returnTo) clearOAuthReturnTo();
       const portalContext = pendingOtp?.context; // "main" = student, "staff" = admin/coach
 
       const { getAvailablePortals, getRememberedPortal, PORTAL_PATHS } = await import("@/lib/portalPreference");
