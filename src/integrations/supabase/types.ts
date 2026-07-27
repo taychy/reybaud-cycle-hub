@@ -2084,6 +2084,7 @@ export type Database = {
           proveedor_nombre: string | null
           public_editable: boolean
           public_token: string
+          tc_usd: number | null
           titulo: string
           updated_at: string
         }
@@ -2107,6 +2108,7 @@ export type Database = {
           proveedor_nombre?: string | null
           public_editable?: boolean
           public_token?: string
+          tc_usd?: number | null
           titulo: string
           updated_at?: string
         }
@@ -2130,6 +2132,7 @@ export type Database = {
           proveedor_nombre?: string | null
           public_editable?: boolean
           public_token?: string
+          tc_usd?: number | null
           titulo?: string
           updated_at?: string
         }
@@ -10889,15 +10892,20 @@ export type Database = {
         Returns: {
           caja_estado: string
           cobros_sin_validar: number
+          costo_desde_items: boolean
           costo_total_mercaderia: number
+          costo_total_nativo: number
           esperado_cobrar: number
+          esperado_cobrar_nativo: number
           items_entregados: number
           items_pendientes: number
           items_total: number
           list_id: string
           margen_bruto: number
+          moneda_items: string
           pagado_a_proveedor: number
           saldo_a_proveedor: number
+          tc_usd: number
           titulo: string
           total_cobrado: number
           total_cobrado_validado: number
