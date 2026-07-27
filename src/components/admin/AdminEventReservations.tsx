@@ -382,6 +382,29 @@ const AdminEventReservations = ({
     return `${p.nombre} ${p.apellido || ""}`.trim();
   };
 
+  /* ─── Habitaciones asignadas (badge por reserva) ─── */
+  const [roomByRes, setRoomByRes] = useState<Record<string, string>>({});
+
+  const loadRoomAssignments = async () => {
+    const { data: rooms } = await supabase
+      .from("event_rooms" as any)
+      .select("id, nombre")
+      .eq("event_id", eventId);
+    const roomIds = ((rooms as any[]) || []).map((r) => r.id);
+    if (!roomIds.length) { setRoomByRes({}); return; }
+    const { data: asigs } = await supabase
+      .from("event_room_assignments" as any)
+      .select("room_id, reservation_id")
+      .in("room_id", roomIds);
+    const nameById: Record<string, string> = {};
+    ((rooms as any[]) || []).forEach((r) => { nameById[r.id] = r.nombre; });
+    const map: Record<string, string> = {};
+    ((asigs as any[]) || []).forEach((a) => {
+      if (a.reservation_id) map[a.reservation_id] = nameById[a.room_id] || "Habitación";
+    });
+    setRoomByRes(map);
+  };
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
@@ -393,6 +416,7 @@ const AdminEventReservations = ({
       .order("created_at", { ascending: false });
     if (data) setReservations(data as unknown as EventReservation[]);
     setLoading(false);
+    loadRoomAssignments();
   };
 
   useEffect(() => { loadReservations(); }, [eventId]);
