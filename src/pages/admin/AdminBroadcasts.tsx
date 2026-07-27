@@ -793,7 +793,7 @@ export default function AdminBroadcasts() {
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Si seleccionás contactos puntuales, el envío usa esa lista exacta. Si no seleccionás ninguno, usa la segmentación de arriba.
+                Los contactos puntuales reemplazan el filtro amplio de su mismo tipo (alumnos/coaches/marketing), pero se suman a las demás audiencias marcadas (ej: listas de espera).
               </p>
             </div>
 
