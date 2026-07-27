@@ -671,24 +671,39 @@ const AdminEntregaDetail = () => {
         <TabsContent value="resumen" className="space-y-3 pt-4">
           {(() => {
             const tc = Number(summary.tc_usd || 0);
+            const necesitaTc = summary.moneda_items !== "ARS" && !tc;
+            const convertible = !necesitaTc;
             const toArs = (monto: number, moneda?: string | null) =>
               (moneda || "ARS") === "ARS" ? monto : monto * tc;
-            const necesitaTc = summary.moneda_items !== "ARS" && !tc;
-            // COGS = costo unitario × cantidad de los ítems ya PREPARADOS (convertido a ARS)
+
+            // Totales nativos (moneda de los ítems) — no dependen del tipo de cambio
+            const ventaPrepNativo = items.reduce((acc, it) => acc + (it.preparado ? Number(it.precio_venta || 0) * Number(it.cantidad || 0) : 0), 0);
+            const costoPrepNativo = items.reduce((acc, it) => acc + (it.preparado ? Number(it.costo_unitario || 0) * Number(it.cantidad || 0) : 0), 0);
+
+            // COGS / ingresos de lo ya preparado, convertidos a ARS
             const cogs = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.costo_unitario || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
             const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.precio_venta || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
             const utilidadRealizada = ingresosEntregados - cogs;
             const rentSobreVentas = ingresosEntregados > 0 ? (utilidadRealizada / ingresosEntregados) * 100 : 0;
             const markupSobreCosto = cogs > 0 ? (utilidadRealizada / cogs) * 100 : 0;
+
+            // Tipo de cambio implícito sugerido a partir de lo ya cobrado
+            const tcSugerido = ventaPrepNativo > 0 && Number(summary.total_cobrado) > 0
+              ? Number(summary.total_cobrado) / ventaPrepNativo
+              : 0;
+
+            const monedaNativa = (summary.moneda_items === "MIXTA" ? "USD" : summary.moneda_items) as any;
+            const ars = (v: number) => (convertible ? formatPrice(v, "ARS") : "—");
+
             return (
               <>
                 {necesitaTc && (
                   <Card className="border-amber-500/40 bg-amber-500/5">
                     <CardContent className="p-3 text-xs space-y-2">
                       <div>
-                        Los ítems están valuados en <strong>{summary.moneda_items}</strong> y las cobranzas en ARS. Sin tipo de cambio no se pueden convertir, por eso los totales en ARS dan <strong>$ 0</strong>.
+                        Los ítems están valuados en <strong>{summary.moneda_items}</strong> y las cobranzas en ARS. Mientras no cargues el tipo de cambio, los indicadores en ARS no se pueden calcular (se muestran como “—”). Lo cobrado sí es real.
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="whitespace-nowrap">1 USD =</span>
                         <Input
                           type="number"
@@ -700,26 +715,40 @@ const AdminEntregaDetail = () => {
                         <Button size="sm" onClick={saveCost} disabled={savingCost || !costForm.tc_usd}>
                           {savingCost ? "Guardando..." : "Aplicar"}
                         </Button>
+                        {tcSugerido > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setCostForm({ ...costForm, tc_usd: tcSugerido.toFixed(2) })}
+                          >
+                            Usar implícito ({tcSugerido.toFixed(0)})
+                          </Button>
+                        )}
                       </div>
+                      {tcSugerido > 0 && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Implícito = cobrado {formatPrice(Number(summary.total_cobrado), "ARS")} ÷ venta preparada {formatPrice(ventaPrepNativo, monedaNativa)}.
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado (ARS)</div><div className="font-heading text-xl">{formatPrice(summary.esperado_cobrar, "ARS")}</div>{summary.moneda_items !== "ARS" && <div className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(summary.esperado_cobrar_nativo, summary.moneda_items === "MIXTA" ? "USD" : (summary.moneda_items as any))} en {summary.moneda_items}</div>}</CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado (ARS)</div><div className="font-heading text-xl text-primary">{formatPrice(summary.total_cobrado, "ARS")}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar (ARS)</div><div className="font-heading text-xl text-amber-500">{formatPrice(summary.total_pendiente, "ARS")}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (total)</div><div className="font-heading text-xl">{formatPrice(summary.margen_bruto, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado total</div><div className="font-heading text-xl">{ars(Number(summary.esperado_cobrar))}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(Number(summary.esperado_cobrar_nativo), monedaNativa)} · ${summary.items_total} ítems` : "precio × cantidad de todos los ítems"}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado (ARS)</div><div className="font-heading text-xl text-primary">{formatPrice(Number(summary.total_cobrado), "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">{payments.length} cobros registrados</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{ars(Number(summary.total_pendiente))}</div><div className="text-[10px] text-muted-foreground mt-0.5">esperado − cobrado</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (caja)</div><div className="font-heading text-xl">{ars(Number(summary.margen_bruto))}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo total mercadería</div></CardContent></Card>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (preparado)</div><div className="font-heading text-xl">{formatPrice(cogs, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">costo mercadería vendida</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos preparados</div><div className="font-heading text-xl">{formatPrice(ingresosEntregados, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">venta de lo ya preparado</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{formatPrice(utilidadRealizada, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos − COGS</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Rentabilidad</div><div className={`font-heading text-xl ${rentSobreVentas >= 0 ? "text-primary" : "text-destructive"}`}>{rentSobreVentas.toFixed(1)}%</div><div className="text-[10px] text-muted-foreground mt-0.5">sobre ventas · markup {markupSobreCosto.toFixed(0)}%</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (preparado)</div><div className="font-heading text-xl">{ars(cogs)}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(costoPrepNativo, monedaNativa)} de costo preparado` : "costo mercadería vendida"}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos preparados</div><div className="font-heading text-xl">{ars(ingresosEntregados)}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(ventaPrepNativo, monedaNativa)} de venta preparada` : "venta de lo ya preparado"}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{ars(utilidadRealizada)}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos preparados − COGS</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Rentabilidad</div><div className={`font-heading text-xl ${rentSobreVentas >= 0 ? "text-primary" : "text-destructive"}`}>{convertible ? `${rentSobreVentas.toFixed(1)}%` : "—"}</div><div className="text-[10px] text-muted-foreground mt-0.5">sobre ventas · markup {convertible ? `${markupSobreCosto.toFixed(0)}%` : "—"}</div></CardContent></Card>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} preparados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
-                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {formatPrice(summary.costo_total_mercaderia, "ARS")}{summary.costo_desde_items && <span> (calculado desde ítems)</span>} · Pagado a proveedor {formatPrice(summary.pagado_a_proveedor, "ARS")} · Saldo {formatPrice(summary.saldo_a_proveedor, "ARS")}</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {ars(Number(summary.costo_total_mercaderia))}{summary.costo_desde_items && <span> (calculado desde ítems{summary.moneda_items !== "ARS" ? `: ${formatPrice(Number(summary.costo_total_nativo), monedaNativa)}` : ""})</span>} · Pagado a proveedor {formatPrice(Number(summary.pagado_a_proveedor), "ARS")} · Saldo {ars(Number(summary.saldo_a_proveedor))}</div>
                   {tc > 0 && <div>Tipo de cambio aplicado: 1 USD = {formatPrice(tc, "ARS")}</div>}
                   {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
                   {list.caja_cerrada_at && <div>Caja cerrada el {new Date(list.caja_cerrada_at).toLocaleString("es-AR")}</div>}
@@ -727,6 +756,7 @@ const AdminEntregaDetail = () => {
               </>
             );
           })()}
+
         </TabsContent>
 
         {/* PRODUCTOS (costo/precio a nivel producto, con override por variante) */}
