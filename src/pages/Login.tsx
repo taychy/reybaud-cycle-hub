@@ -272,7 +272,12 @@ const Login = () => {
     setLoginError(null);
     setGoogleLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+      const safeReturnTo = getSafeReturnTo(returnTo || otpReturnTo);
+      saveOAuthReturnTo(safeReturnTo);
+      const redirectUri = safeReturnTo
+        ? `${window.location.origin}/?returnTo=${encodeURIComponent(safeReturnTo)}`
+        : window.location.origin;
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: redirectUri });
       if (result.error) { setLoginError(result.error.message || "Error al iniciar sesión con Google"); setGoogleLoading(false); return; }
       if (result.redirected) return;
     } catch (err: any) {
