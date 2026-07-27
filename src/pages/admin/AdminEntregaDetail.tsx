@@ -1248,9 +1248,11 @@ const AdminEntregaDetail = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-xs">Costo total de la mercadería</Label>
-                  <Input type="number" value={costForm.costo} onChange={(e) => setCostForm({ ...costForm, costo: e.target.value })} placeholder="0 = calcular desde ítems" />
-                  <p className="text-[10px] text-muted-foreground mt-1">Dejalo en 0 para que se calcule automáticamente sumando el costo de cada ítem.</p>
+                  <Label className="text-xs">Costo total de la mercadería (automático)</Label>
+                  <div className="h-10 flex items-center rounded-md border border-border bg-secondary/40 px-3 text-sm font-medium">
+                    {summary ? formatPrice(Number(summary.costo_total_nativo || 0), (summary.moneda_items === "MIXTA" ? "USD" : summary.moneda_items) as any) : "—"}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Se calcula solo sumando el costo de cada ítem. Los pagos al proveedor se registran abajo.</p>
                 </div>
                 <div>
                   <Label className="text-xs">Tipo de cambio USD (ARS por 1 USD)</Label>
