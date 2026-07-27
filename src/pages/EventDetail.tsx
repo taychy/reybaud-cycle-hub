@@ -721,9 +721,29 @@ const EventDetail = () => {
           {/* Botón siempre visible: ver precios, paquetes e inclusiones (también funciona sin login) */}
           {!isActiveReservation && id && packagesCount > 0 && (
             <div id="precios" className="scroll-mt-6">
-              <EventPackagesDrawer eventId={id} />
+              <EventPackagesDrawer
+                eventId={id}
+                onReserve={
+                  allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
+                    ? () => {
+                        if (!alumno) {
+                          setShowGuestDrawer(true);
+                          return;
+                        }
+                        if (isImpersonating) {
+                          toast({ title: "Modo solo lectura", description: "Estás viendo la cuenta como super admin: no podés crear reservas.", variant: "destructive" });
+                          return;
+                        }
+                        setShowReservationDrawer(true);
+                      }
+                    : undefined
+                }
+                reserveLabel={isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
+                reserveDisabled={!!alumno && isImpersonating}
+              />
             </div>
           )}
+
 
 
           {/* ═══ SOLD OUT / PRÓXIMAMENTE ═══ */}
