@@ -11550,6 +11550,10 @@ export type Database = {
         Args: { _roommate_id: string }
         Returns: Json
       }
+      release_room_on_cancel: {
+        Args: { _liberar: boolean; _reservation_id: string }
+        Returns: Json
+      }
       reopen_delivery_cash: { Args: { p_list_id: string }; Returns: undefined }
       request_baja_alumno: {
         Args: {

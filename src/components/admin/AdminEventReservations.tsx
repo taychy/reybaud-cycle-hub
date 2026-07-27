@@ -382,6 +382,29 @@ const AdminEventReservations = ({
     return `${p.nombre} ${p.apellido || ""}`.trim();
   };
 
+  /* ─── Habitaciones asignadas (badge por reserva) ─── */
+  const [roomByRes, setRoomByRes] = useState<Record<string, string>>({});
+
+  const loadRoomAssignments = async () => {
+    const { data: rooms } = await supabase
+      .from("event_rooms" as any)
+      .select("id, nombre")
+      .eq("event_id", eventId);
+    const roomIds = ((rooms as any[]) || []).map((r) => r.id);
+    if (!roomIds.length) { setRoomByRes({}); return; }
+    const { data: asigs } = await supabase
+      .from("event_room_assignments" as any)
+      .select("room_id, reservation_id")
+      .in("room_id", roomIds);
+    const nameById: Record<string, string> = {};
+    ((rooms as any[]) || []).forEach((r) => { nameById[r.id] = r.nombre; });
+    const map: Record<string, string> = {};
+    ((asigs as any[]) || []).forEach((a) => {
+      if (a.reservation_id) map[a.reservation_id] = nameById[a.room_id] || "Habitación";
+    });
+    setRoomByRes(map);
+  };
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
@@ -393,6 +416,7 @@ const AdminEventReservations = ({
       .order("created_at", { ascending: false });
     if (data) setReservations(data as unknown as EventReservation[]);
     setLoading(false);
+    loadRoomAssignments();
   };
 
   useEffect(() => { loadReservations(); }, [eventId]);
@@ -837,7 +861,18 @@ const AdminEventReservations = ({
   };
 
 
+  // Cancelación con habitación asignada → preguntar si liberar la cama
+  const [pendingCancel, setPendingCancel] = useState<{ resId: string; room: string } | null>(null);
+
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
+    if (field === "reservation_status" && value === "cancelada" && roomByRes[resId]) {
+      setPendingCancel({ resId, room: roomByRes[resId] });
+      return;
+    }
+    return applyReservationStatus(resId, field, value);
+  };
+
+  const applyReservationStatus = async (resId: string, field: string, value: string, liberar?: boolean) => {
     setUpdatingId(resId);
     const res = reservations.find(r => r.id === resId);
     if (!res) return;
@@ -898,6 +933,17 @@ const AdminEventReservations = ({
         changed_by_role: "admin",
         note: `Admin cambió ${field} a ${value}`,
       } as any);
+      if (field === "reservation_status" && value === "cancelada" && liberar !== undefined) {
+        const { error: relErr } = await supabase.rpc("release_room_on_cancel" as any, {
+          _reservation_id: resId,
+          _liberar: liberar,
+        });
+        if (relErr) {
+          toast({ title: "Reserva cancelada, pero no se pudo liberar la cama", description: relErr.message, variant: "destructive" });
+        } else if (liberar) {
+          toast({ title: "Cama liberada", description: "Se avisó a los super admins para contactar la lista de espera." });
+        }
+      }
       toast({ title: "Estado actualizado" });
       loadReservations();
       if (selectedRes?.id === resId) {
@@ -1158,6 +1204,18 @@ const AdminEventReservations = ({
     setParticipantResult(data);
   };
 
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+
+  const loadStatusHistory = async (resId: string) => {
+    const { data } = await supabase
+      .from("reservation_status_history" as any)
+      .select("*")
+      .eq("reservation_id", resId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    setStatusHistory((data as any[]) || []);
+  };
+
   const openDetail = (r: EventReservation) => {
     setSelectedRes(r);
     setShowAdminPayment(false);
@@ -1166,6 +1224,7 @@ const AdminEventReservations = ({
     loadPayments(r.id);
     loadNotifications(r.id);
     loadParticipantResult(r);
+    loadStatusHistory(r.id);
   };
 
   /* ─── Priority indicators ─── */
@@ -1558,6 +1617,7 @@ const AdminEventReservations = ({
                         {p.isExternal && <Badge variant="outline" className="ml-1.5 text-[9px] border-violet-500/30 text-violet-500">Externo</Badge>}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{p.email}</p>
+                      <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
                     </div>
                     {/* Estado reserva */}
                     <div>
@@ -1659,6 +1719,7 @@ const AdminEventReservations = ({
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
                         {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
+                      <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
                     </div>
                     {!isPaymentFree && (
                       <div className="flex items-center gap-4 text-xs">
@@ -1809,6 +1870,43 @@ const AdminEventReservations = ({
                   <TimelineItem label="Última actualización" date={selectedRes.updated_at} />
                 </div>
               </div>
+
+              {/* Historial de auditoría */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5" /> Historial de cambios
+                </h4>
+                {statusHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Sin movimientos registrados.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {statusHistory.map((h) => (
+                      <div key={h.id} className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs space-y-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">
+                            {h.new_reservation_status
+                              ? `Estado → ${reservationStatusLabels[h.new_reservation_status] || h.new_reservation_status}`
+                              : h.new_payment_status
+                                ? `Pago → ${paymentStatusLabels[h.new_payment_status] || h.new_payment_status}`
+                                : "Movimiento"}
+                          </span>
+                          <span className="text-muted-foreground shrink-0">
+                            {new Date(h.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                            {" "}
+                            {new Date(h.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        {h.note && <p className="text-muted-foreground">{h.note}</p>}
+                        {h.changed_by_role && (
+                          <p className="text-[10px] text-muted-foreground/70 capitalize">por {h.changed_by_role}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+
 
               {/* Participant notes */}
               {selectedRes.participant_notes && (
@@ -2611,15 +2709,73 @@ const AdminEventReservations = ({
 
       <EventLodgingManager
         open={showLodging}
-        onOpenChange={setShowLodging}
+        onOpenChange={(o) => { setShowLodging(o); if (!o) loadRoomAssignments(); }}
         eventId={eventId}
         eventTitle={eventTitle}
       />
+
+      {/* Cancelar reserva con habitación asignada */}
+      <Dialog open={!!pendingCancel} onOpenChange={(o) => { if (!o) setPendingCancel(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Esta reserva tiene una habitación asignada</DialogTitle>
+            <DialogDescription>
+              La reserva está asignada a <strong>{pendingCancel?.room}</strong>. ¿Querés liberar la cama automáticamente?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
+            Si liberás la cama, se avisa por mail a los super admins y se crea una tarea para contactar a la lista de espera.
+            Si no la liberás, queda ocupada y marcada en rojo en Alojamiento.
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={async () => {
+                const p = pendingCancel; setPendingCancel(null);
+                if (p) await applyReservationStatus(p.resId, "reservation_status", "cancelada", false);
+              }}
+            >
+              Cancelar sin liberar
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={async () => {
+                const p = pendingCancel; setPendingCancel(null);
+                if (p) await applyReservationStatus(p.resId, "reservation_status", "cancelada", true);
+              }}
+            >
+              <BedDouble className="w-4 h-4 mr-1.5" /> Cancelar y liberar cama
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 /* ─── Sub-components ─── */
+
+const RoomBadge = ({ room, cancelled }: { room?: string; cancelled?: boolean }) => {
+  if (room) {
+    return (
+      <Badge
+        variant="outline"
+        className={`mt-1 text-[9px] ${cancelled
+          ? "bg-destructive/10 text-destructive border-destructive/30"
+          : "bg-primary/10 text-primary border-primary/30"}`}
+      >
+        <BedDouble className="w-2.5 h-2.5 mr-1" />
+        {room} — {cancelled ? "pendiente de liberar" : "asignada"}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="mt-1 text-[9px] text-muted-foreground border-border/50">
+      Sin habitación
+    </Badge>
+  );
+};
 
 const StatCard = ({ label, value, color, icon }: { label: string; value: string | number; color?: string; icon?: React.ReactNode }) => (
   <div className="rounded-xl border border-border bg-card p-4 text-center space-y-1">

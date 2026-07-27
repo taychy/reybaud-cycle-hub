@@ -13,6 +13,7 @@ import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown, AlertT
 import { formatPrice } from "@/lib/currency";
 import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
 import { PackagePriceStagesEditor } from "./PackagePriceStagesEditor";
+import EventLodgingManager from "./EventLodgingManager";
 
 
 interface PackageRow {
@@ -44,6 +45,7 @@ interface RoomRow {
 interface Props {
   eventId: string;
   eventCurrency: string;
+  eventTitle?: string;
 }
 
 const emptyDraft = (currency: string) => ({
@@ -61,7 +63,7 @@ const emptyDraft = (currency: string) => ({
 type GenderCounts = { mujeres: number; varones: number; mixto: number };
 type RoomCapacity = { mujeres: number; varones: number; mixto: number; total: number; roomCount: number };
 
-export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
+export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Props) => {
   const [items, setItems] = useState<PackageRow[]>([]);
   const [counts, setCounts] = useState<Record<string, GenderCounts>>({});
   const [roomCapacity, setRoomCapacity] = useState<Record<string, RoomCapacity>>({});
@@ -71,6 +73,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState(emptyDraft(eventCurrency));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showLodging, setShowLodging] = useState(false);
 
   const toggleExpand = (id: string) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -391,9 +394,17 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                         )
                       ) : hasRooms ? (
                         <>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30">
-                            Cupo total: {totalUsed}/{cap!.total} · {cap!.roomCount} {cap!.roomCount === 1 ? "hab." : "habs."}
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setShowLodging(true); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setShowLodging(true); } }}
+                            className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30 inline-flex items-center gap-1 hover:bg-primary/20 cursor-pointer"
+                          >
+                            <BedDouble className="w-3 h-3" />
+                            Cupo total: {totalUsed}/{cap!.total} · Ver/editar en Alojamiento
                           </span>
+
                           {renderCapacityLine("Mujeres", c.mujeres, cap!.mujeres, "rose")}
                           {renderCapacityLine("Varones", c.varones, cap!.varones, "sky")}
                           {renderCapacityLine("Mixta", c.mixto, cap!.mixto, "violet")}
@@ -445,9 +456,15 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
                               Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones vinculadas a este paquete.
                             </div>
                           )}
-                          <p className="text-muted-foreground/70 italic">
-                            Cargá o editá habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento.
-                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px]"
+                            onClick={() => setShowLodging(true)}
+                          >
+                            <BedDouble className="w-3 h-3 mr-1" /> Ver/editar en Alojamiento
+                          </Button>
                         </>
                       )}
                     </div>
@@ -469,6 +486,15 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
           })}
         </div>
       )}
+
+      <EventLodgingManager
+        open={showLodging}
+        onOpenChange={(o) => { setShowLodging(o); if (!o) load(); }}
+        eventId={eventId}
+        eventTitle={eventTitle || "Evento"}
+      />
+
+
 
       <div className="rounded-lg border border-border/50 p-3 space-y-2 bg-muted/20">
         <p className="text-xs font-medium">Agregar paquete</p>
