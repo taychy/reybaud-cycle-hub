@@ -734,10 +734,21 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                   </div>
                                 </div>
                                 <div className="space-y-1">
-                                  {occ.map((r) => (
-                                    <div key={r.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
+                                  {occ.map((r) => {
+                                    const cancelada = r.reservation_status === "cancelada" || r.reservation_status === "rechazada";
+                                    return (
+                                    <div
+                                      key={r.id}
+                                      className={`flex items-center justify-between text-xs rounded px-2 py-1 ${cancelada ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}
+                                    >
                                       <span className="truncate flex items-center gap-1 flex-wrap">
-                                        <span>{r.nombre} {r.apellido}</span>
+                                        {cancelada && <AlertCircle className="w-3 h-3 text-destructive shrink-0" />}
+                                        <span className={cancelada ? "text-destructive line-through" : ""}>{r.nombre} {r.apellido}</span>
+                                        {cancelada && (
+                                          <Badge variant="outline" className="text-[9px] bg-destructive/10 text-destructive border-destructive/30">
+                                            Reserva cancelada — liberar cama
+                                          </Badge>
+                                        )}
                                         {r.prefiere_asignacion ? (
                                           <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
                                         ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo) ? (
@@ -751,7 +762,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                         <X className="w-3 h-3" />
                                       </Button>
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                   {free > 0 && (
                                     <div className="text-[10px] text-primary italic">
                                       {free} plaza(s) libre(s)
