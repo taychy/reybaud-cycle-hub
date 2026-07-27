@@ -80,6 +80,8 @@ interface Summary {
   esperado_cobrar_nativo: number;
   costo_total_nativo: number;
   costo_desde_items: boolean;
+  otras_salidas: number;
+  salidas_totales: number;
 }
 
 
@@ -91,9 +93,25 @@ interface SupplierPayment {
   metodo: string;
   fecha: string;
   notas: string | null;
+  categoria: string | null;
+  concepto: string | null;
   registrado_por_nombre: string | null;
   created_at: string;
 }
+
+export const SALIDA_CATEGORIAS: { value: string; label: string }[] = [
+  { value: "proveedor", label: "Pago a proveedor" },
+  { value: "flete", label: "Flete / envío" },
+  { value: "aduana", label: "Aduana / impuestos de importación" },
+  { value: "comision", label: "Comisiones" },
+  { value: "impuestos", label: "Impuestos y bancarios" },
+  { value: "viaticos", label: "Viáticos / combustible" },
+  { value: "otros", label: "Otros gastos" },
+];
+
+const categoriaLabel = (c?: string | null) =>
+  SALIDA_CATEGORIAS.find((x) => x.value === (c || "proveedor"))?.label || "Otros gastos";
+
 
 interface Payment {
   id: string;
@@ -158,6 +176,8 @@ const AdminEntregaDetail = () => {
     metodo: "transferencia",
     fecha: new Date().toISOString().slice(0, 10),
     notas: "",
+    categoria: "proveedor",
+    concepto: "",
   });
   const [savingCost, setSavingCost] = useState(false);
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS", tc_usd: "" });
@@ -560,13 +580,15 @@ const AdminEntregaDetail = () => {
       metodo: newPay.metodo,
       fecha: newPay.fecha,
       notas: newPay.notas.trim() || null,
+      categoria: newPay.categoria,
+      concepto: newPay.concepto.trim() || null,
       registrado_por: userRes.user?.id || null,
       registrado_por_nombre: nombre,
     });
     if (error) return toast.error(error.message);
-    toast.success("Pago a proveedor registrado");
+    toast.success(newPay.categoria === "proveedor" ? "Pago a proveedor registrado" : "Salida registrada");
     setShowNewPayment(false);
-    setNewPay({ monto: "", moneda: "ARS", metodo: "transferencia", fecha: new Date().toISOString().slice(0, 10), notas: "" });
+    setNewPay({ monto: "", moneda: "ARS", metodo: "transferencia", fecha: new Date().toISOString().slice(0, 10), notas: "", categoria: "proveedor", concepto: "" });
     load();
   };
 
@@ -663,7 +685,7 @@ const AdminEntregaDetail = () => {
           <TabsTrigger value="productos">Productos</TabsTrigger>
           <TabsTrigger value="items">Clientes</TabsTrigger>
           <TabsTrigger value="cobros">Cobros ({payments.length})</TabsTrigger>
-          <TabsTrigger value="proveedor">Proveedor</TabsTrigger>
+          <TabsTrigger value="proveedor">Proveedor y salidas</TabsTrigger>
           <TabsTrigger value="cierre">Cierre</TabsTrigger>
         </TabsList>
 
@@ -683,7 +705,8 @@ const AdminEntregaDetail = () => {
             // COGS / ingresos de lo ya preparado, convertidos a ARS
             const cogs = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.costo_unitario || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
             const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.precio_venta || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
-            const utilidadRealizada = ingresosEntregados - cogs;
+            const otrasSalidas = Number(summary.otras_salidas || 0);
+            const utilidadRealizada = ingresosEntregados - cogs - otrasSalidas;
             const rentSobreVentas = ingresosEntregados > 0 ? (utilidadRealizada / ingresosEntregados) * 100 : 0;
             const markupSobreCosto = cogs > 0 ? (utilidadRealizada / cogs) * 100 : 0;
 
@@ -738,17 +761,21 @@ const AdminEntregaDetail = () => {
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado total</div><div className="font-heading text-xl">{ars(Number(summary.esperado_cobrar))}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(Number(summary.esperado_cobrar_nativo), monedaNativa)} · ${summary.items_total} ítems` : "precio × cantidad de todos los ítems"}</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado (ARS)</div><div className="font-heading text-xl text-primary">{formatPrice(Number(summary.total_cobrado), "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">{payments.length} cobros registrados</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{ars(Number(summary.total_pendiente))}</div><div className="text-[10px] text-muted-foreground mt-0.5">esperado − cobrado</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (caja)</div><div className="font-heading text-xl">{ars(Number(summary.margen_bruto))}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo total mercadería</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (caja)</div><div className="font-heading text-xl">{ars(Number(summary.margen_bruto))}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo mercadería − otras salidas</div></CardContent></Card>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (preparado)</div><div className="font-heading text-xl">{ars(cogs)}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(costoPrepNativo, monedaNativa)} de costo preparado` : "costo mercadería vendida"}</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos preparados</div><div className="font-heading text-xl">{ars(ingresosEntregados)}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(ventaPrepNativo, monedaNativa)} de venta preparada` : "venta de lo ya preparado"}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{ars(utilidadRealizada)}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos preparados − COGS</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{ars(utilidadRealizada)}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos preparados − COGS − salidas</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Rentabilidad</div><div className={`font-heading text-xl ${rentSobreVentas >= 0 ? "text-primary" : "text-destructive"}`}>{convertible ? `${rentSobreVentas.toFixed(1)}%` : "—"}</div><div className="text-[10px] text-muted-foreground mt-0.5">sobre ventas · markup {convertible ? `${markupSobreCosto.toFixed(0)}%` : "—"}</div></CardContent></Card>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Salidas totales</div><div className="font-heading text-xl text-destructive">{ars(Number(summary.salidas_totales || 0))}</div><div className="text-[10px] text-muted-foreground mt-0.5">proveedor {formatPrice(Number(summary.pagado_a_proveedor), "ARS")} + otras {ars(otrasSalidas)}</div></CardContent></Card>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} preparados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
                   <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {ars(Number(summary.costo_total_mercaderia))}{summary.costo_desde_items && <span> (calculado desde ítems{summary.moneda_items !== "ARS" ? `: ${formatPrice(Number(summary.costo_total_nativo), monedaNativa)}` : ""})</span>} · Pagado a proveedor {formatPrice(Number(summary.pagado_a_proveedor), "ARS")} · Saldo {ars(Number(summary.saldo_a_proveedor))}</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Salidas totales {ars(Number(summary.salidas_totales || 0))} = pagos a proveedor {formatPrice(Number(summary.pagado_a_proveedor), "ARS")} + otras salidas {ars(otrasSalidas)}</div>
                   {tc > 0 && <div>Tipo de cambio aplicado: 1 USD = {formatPrice(tc, "ARS")}</div>}
                   {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
                   {list.caja_cerrada_at && <div>Caja cerrada el {new Date(list.caja_cerrada_at).toLocaleString("es-AR")}</div>}
@@ -1215,34 +1242,56 @@ const AdminEntregaDetail = () => {
             </CardContent>
           </Card>
 
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Pagos al proveedor ({supplierPayments.length})</h4>
-            <Button size="sm" variant="gold" onClick={() => setShowNewPayment(true)}>
-              <Plus className="w-3 h-3 mr-1" /> Nuevo pago
-            </Button>
-          </div>
-
-          {supplierPayments.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Sin pagos registrados.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {supplierPayments.map((sp) => (
-                <div key={sp.id} className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <div className="font-medium">{formatPrice(sp.monto, sp.moneda)} · {sp.metodo}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {sp.fecha}
-                      {sp.registrado_por_nombre ? ` · ${sp.registrado_por_nombre}` : ""}
-                      {sp.notas ? ` · ${sp.notas}` : ""}
-                    </div>
+          {(() => {
+            const pagosProv = supplierPayments.filter((sp) => (sp.categoria || "proveedor") === "proveedor");
+            const otras = supplierPayments.filter((sp) => (sp.categoria || "proveedor") !== "proveedor");
+            const renderRow = (sp: SupplierPayment) => (
+              <div key={sp.id} className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <div className="font-medium">{formatPrice(sp.monto, sp.moneda)} · {sp.metodo}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {categoriaLabel(sp.categoria)}
+                    {sp.concepto ? ` · ${sp.concepto}` : ""}
+                    {` · ${sp.fecha}`}
+                    {sp.registrado_por_nombre ? ` · ${sp.registrado_por_nombre}` : ""}
+                    {sp.notas ? ` · ${sp.notas}` : ""}
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => deleteSupplierPayment(sp.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => deleteSupplierPayment(sp.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            );
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Pagos al proveedor ({pagosProv.length})</h4>
+                  <Button size="sm" variant="gold" onClick={() => { setNewPay({ ...newPay, categoria: "proveedor" }); setShowNewPayment(true); }}>
+                    <Plus className="w-3 h-3 mr-1" /> Nuevo pago
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
+                {pagosProv.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin pagos al proveedor.</p>
+                ) : (
+                  <div className="space-y-1.5">{pagosProv.map(renderRow)}</div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <h4 className="text-sm font-medium">Otras salidas ({otras.length})</h4>
+                  <Button size="sm" variant="outline" onClick={() => { setNewPay({ ...newPay, categoria: "flete" }); setShowNewPayment(true); }}>
+                    <Plus className="w-3 h-3 mr-1" /> Nueva salida
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground -mt-1">Flete, aduana, comisiones, impuestos, viáticos. Se descuentan del margen y de la utilidad realizada.</p>
+                {otras.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin otras salidas registradas.</p>
+                ) : (
+                  <div className="space-y-1.5">{otras.map(renderRow)}</div>
+                )}
+              </>
+            );
+          })()}
+
         </TabsContent>
 
         {/* CIERRE */}
@@ -1278,8 +1327,25 @@ const AdminEntregaDetail = () => {
       {/* NEW SUPPLIER PAYMENT */}
       <Dialog open={showNewPayment} onOpenChange={setShowNewPayment}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nuevo pago al proveedor</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{newPay.categoria === "proveedor" ? "Nuevo pago al proveedor" : "Nueva salida"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Categoría</Label>
+                <Select value={newPay.categoria} onValueChange={(v) => setNewPay({ ...newPay, categoria: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SALIDA_CATEGORIAS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Concepto (opcional)</Label>
+                <Input value={newPay.concepto} onChange={(e) => setNewPay({ ...newPay, concepto: e.target.value })} placeholder="Ej: courier DHL" />
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <Label>Monto</Label>
