@@ -10,7 +10,7 @@ import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
-import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
+import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest, saveOAuthReturnTo, loadOAuthReturnTo, clearOAuthReturnTo } from "@/lib/pendingOtp";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -87,7 +87,8 @@ const Login = () => {
         return;
       }
 
-      const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo);
+      const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo) || loadOAuthReturnTo();
+      if (targetReturnTo) clearOAuthReturnTo();
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
@@ -272,7 +273,12 @@ const Login = () => {
     setLoginError(null);
     setGoogleLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+      const safeReturnTo = getSafeReturnTo(returnTo || otpReturnTo);
+      saveOAuthReturnTo(safeReturnTo);
+      const redirectUri = safeReturnTo
+        ? `${window.location.origin}/?returnTo=${encodeURIComponent(safeReturnTo)}`
+        : window.location.origin;
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: redirectUri });
       if (result.error) { setLoginError(result.error.message || "Error al iniciar sesión con Google"); setGoogleLoading(false); return; }
       if (result.redirected) return;
     } catch (err: any) {

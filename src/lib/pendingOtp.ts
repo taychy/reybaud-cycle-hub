@@ -115,3 +115,31 @@ export const getSafeReturnTo = (returnTo: string | null | undefined) => {
   if (returnTo === "/" || returnTo.startsWith("/admin/login")) return null;
   return returnTo;
 };
+
+/**
+ * OAuth (Google) hace un redirect de página completa, por lo que perdemos el
+ * ?returnTo de la URL. Lo guardamos antes de salir y lo recuperamos al volver.
+ */
+const OAUTH_RETURN_KEY = "oauth_return_to";
+
+export const saveOAuthReturnTo = (returnTo: string | null | undefined) => {
+  const safe = getSafeReturnTo(returnTo);
+  try {
+    if (safe) localStorage.setItem(OAUTH_RETURN_KEY, safe);
+    else localStorage.removeItem(OAUTH_RETURN_KEY);
+  } catch {}
+};
+
+export const loadOAuthReturnTo = () => {
+  try {
+    return getSafeReturnTo(localStorage.getItem(OAUTH_RETURN_KEY));
+  } catch {
+    return null;
+  }
+};
+
+export const clearOAuthReturnTo = () => {
+  try {
+    localStorage.removeItem(OAUTH_RETURN_KEY);
+  } catch {}
+};
