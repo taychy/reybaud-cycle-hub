@@ -595,7 +595,10 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         {label}
                       </h3>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgOccupied} ocupada(s)
+                        {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgBedsUsed} ocupada(s)
+                        {pkgBedsCancel > 0 && ` (${pkgBedsCancel} con reserva cancelada)`}
+                        {` · ${pkgFree} libre(s)`}
+                        {freeDetail && ` → ${freeDetail}`}
                         {pkg?.cupo != null && ` · cupo paquete: ${pkg.cupo}`}
                         {pkg?.personas_por_habitacion != null && ` · ${pkg.personas_por_habitacion}p/hab`}
                       </p>
