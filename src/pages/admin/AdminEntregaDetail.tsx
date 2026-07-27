@@ -505,9 +505,10 @@ const AdminEntregaDetail = () => {
       head: [["Indicador", "Valor"]],
       body: [
         ["Ítems totales", String(summary.items_total)],
-        ["Entregados", String(summary.items_entregados)],
+        ["Preparados", String(summary.items_entregados)],
         ["Pendientes", String(summary.items_pendientes)],
-        ["Esperado a cobrar", formatPrice(summary.esperado_cobrar, "ARS")],
+        ["Esperado a cobrar (ARS)", formatPrice(summary.esperado_cobrar, "ARS")],
+        ["Tipo de cambio USD", summary.tc_usd ? formatPrice(summary.tc_usd, "ARS") : "—"],
         ["Total cobrado", formatPrice(summary.total_cobrado, "ARS")],
         ["Pendiente de cobro", formatPrice(summary.total_pendiente, "ARS")],
         ["Costo mercadería", formatPrice(summary.costo_total_mercaderia, "ARS")],

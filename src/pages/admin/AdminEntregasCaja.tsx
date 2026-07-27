@@ -150,7 +150,7 @@ const AdminEntregasCaja = () => {
                           </div>
                         </div>
                         <div>
-                          <div className="text-muted-foreground">Por cobrar</div>
+                          <div className="text-muted-foreground">Por cobrar (ARS)</div>
                           <div className="font-medium text-amber-500">
                             {formatPrice(s.total_pendiente, "ARS")}
                           </div>
