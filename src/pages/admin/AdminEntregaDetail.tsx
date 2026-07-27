@@ -91,9 +91,25 @@ interface SupplierPayment {
   metodo: string;
   fecha: string;
   notas: string | null;
+  categoria: string | null;
+  concepto: string | null;
   registrado_por_nombre: string | null;
   created_at: string;
 }
+
+export const SALIDA_CATEGORIAS: { value: string; label: string }[] = [
+  { value: "proveedor", label: "Pago a proveedor" },
+  { value: "flete", label: "Flete / envío" },
+  { value: "aduana", label: "Aduana / impuestos de importación" },
+  { value: "comision", label: "Comisiones" },
+  { value: "impuestos", label: "Impuestos y bancarios" },
+  { value: "viaticos", label: "Viáticos / combustible" },
+  { value: "otros", label: "Otros gastos" },
+];
+
+const categoriaLabel = (c?: string | null) =>
+  SALIDA_CATEGORIAS.find((x) => x.value === (c || "proveedor"))?.label || "Otros gastos";
+
 
 interface Payment {
   id: string;
