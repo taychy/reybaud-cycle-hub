@@ -1258,7 +1258,7 @@ const AdminEntregaDetail = () => {
                 </div>
               </div>
               <Button size="sm" variant="gold" onClick={saveCost} disabled={savingCost}>
-                {savingCost ? "Guardando..." : "Guardar costo"}
+                {savingCost ? "Guardando..." : "Guardar datos"}
               </Button>
             </CardContent>
           </Card>
