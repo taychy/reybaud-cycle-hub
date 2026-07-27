@@ -705,7 +705,8 @@ const AdminEntregaDetail = () => {
             // COGS / ingresos de lo ya preparado, convertidos a ARS
             const cogs = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.costo_unitario || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
             const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.precio_venta || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
-            const utilidadRealizada = ingresosEntregados - cogs;
+            const otrasSalidas = Number(summary.otras_salidas || 0);
+            const utilidadRealizada = ingresosEntregados - cogs - otrasSalidas;
             const rentSobreVentas = ingresosEntregados > 0 ? (utilidadRealizada / ingresosEntregados) * 100 : 0;
             const markupSobreCosto = cogs > 0 ? (utilidadRealizada / cogs) * 100 : 0;
 
@@ -760,17 +761,18 @@ const AdminEntregaDetail = () => {
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado total</div><div className="font-heading text-xl">{ars(Number(summary.esperado_cobrar))}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(Number(summary.esperado_cobrar_nativo), monedaNativa)} · ${summary.items_total} ítems` : "precio × cantidad de todos los ítems"}</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado (ARS)</div><div className="font-heading text-xl text-primary">{formatPrice(Number(summary.total_cobrado), "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">{payments.length} cobros registrados</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{ars(Number(summary.total_pendiente))}</div><div className="text-[10px] text-muted-foreground mt-0.5">esperado − cobrado</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (caja)</div><div className="font-heading text-xl">{ars(Number(summary.margen_bruto))}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo total mercadería</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (caja)</div><div className="font-heading text-xl">{ars(Number(summary.margen_bruto))}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo mercadería − otras salidas</div></CardContent></Card>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (preparado)</div><div className="font-heading text-xl">{ars(cogs)}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(costoPrepNativo, monedaNativa)} de costo preparado` : "costo mercadería vendida"}</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos preparados</div><div className="font-heading text-xl">{ars(ingresosEntregados)}</div><div className="text-[10px] text-muted-foreground mt-0.5">{summary.moneda_items !== "ARS" ? `${formatPrice(ventaPrepNativo, monedaNativa)} de venta preparada` : "venta de lo ya preparado"}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{ars(utilidadRealizada)}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos preparados − COGS</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{ars(utilidadRealizada)}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos preparados − COGS − salidas</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Rentabilidad</div><div className={`font-heading text-xl ${rentSobreVentas >= 0 ? "text-primary" : "text-destructive"}`}>{convertible ? `${rentSobreVentas.toFixed(1)}%` : "—"}</div><div className="text-[10px] text-muted-foreground mt-0.5">sobre ventas · markup {convertible ? `${markupSobreCosto.toFixed(0)}%` : "—"}</div></CardContent></Card>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} preparados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
                   <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {ars(Number(summary.costo_total_mercaderia))}{summary.costo_desde_items && <span> (calculado desde ítems{summary.moneda_items !== "ARS" ? `: ${formatPrice(Number(summary.costo_total_nativo), monedaNativa)}` : ""})</span>} · Pagado a proveedor {formatPrice(Number(summary.pagado_a_proveedor), "ARS")} · Saldo {ars(Number(summary.saldo_a_proveedor))}</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Salidas totales {ars(Number(summary.salidas_totales || 0))} = pagos a proveedor {formatPrice(Number(summary.pagado_a_proveedor), "ARS")} + otras salidas {ars(otrasSalidas)}</div>
                   {tc > 0 && <div>Tipo de cambio aplicado: 1 USD = {formatPrice(tc, "ARS")}</div>}
                   {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
                   {list.caja_cerrada_at && <div>Caja cerrada el {new Date(list.caja_cerrada_at).toLocaleString("es-AR")}</div>}
@@ -1324,6 +1326,23 @@ const AdminEntregaDetail = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>{newPay.categoria === "proveedor" ? "Nuevo pago al proveedor" : "Nueva salida"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Categoría</Label>
+                <Select value={newPay.categoria} onValueChange={(v) => setNewPay({ ...newPay, categoria: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SALIDA_CATEGORIAS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Concepto (opcional)</Label>
+                <Input value={newPay.concepto} onChange={(e) => setNewPay({ ...newPay, concepto: e.target.value })} placeholder="Ej: courier DHL" />
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <Label>Monto</Label>
