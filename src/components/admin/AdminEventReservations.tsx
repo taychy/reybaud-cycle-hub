@@ -1858,6 +1858,43 @@ const AdminEventReservations = ({
                 </div>
               </div>
 
+              {/* Historial de auditoría */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5" /> Historial de cambios
+                </h4>
+                {statusHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Sin movimientos registrados.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {statusHistory.map((h) => (
+                      <div key={h.id} className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs space-y-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">
+                            {h.new_reservation_status
+                              ? `Estado → ${reservationStatusLabels[h.new_reservation_status] || h.new_reservation_status}`
+                              : h.new_payment_status
+                                ? `Pago → ${paymentStatusLabels[h.new_payment_status] || h.new_payment_status}`
+                                : "Movimiento"}
+                          </span>
+                          <span className="text-muted-foreground shrink-0">
+                            {new Date(h.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                            {" "}
+                            {new Date(h.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        {h.note && <p className="text-muted-foreground">{h.note}</p>}
+                        {h.changed_by_role && (
+                          <p className="text-[10px] text-muted-foreground/70 capitalize">por {h.changed_by_role}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+
+
               {/* Participant notes */}
               {selectedRes.participant_notes && (
                 <div className="rounded-lg bg-muted/40 p-3 space-y-1">
