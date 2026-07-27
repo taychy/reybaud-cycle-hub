@@ -2732,7 +2732,7 @@ const AdminEventReservations = ({
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
-            Si liberás la cama, se avisa por mail a los super admins y se crea una tarea para contactar a la lista de espera.
+            Si liberás la cama, se avisa por mail a los super admins, se crea una tarea para contactar a la lista de espera y el paquete se reactiva automáticamente para volver a venderse en la página pública (si el evento estaba agotado, vuelve a "publicado").
             Si no la liberás, queda ocupada y marcada en rojo en Alojamiento.
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
