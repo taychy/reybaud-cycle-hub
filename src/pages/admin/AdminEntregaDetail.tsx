@@ -1237,34 +1237,56 @@ const AdminEntregaDetail = () => {
             </CardContent>
           </Card>
 
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Pagos al proveedor ({supplierPayments.length})</h4>
-            <Button size="sm" variant="gold" onClick={() => setShowNewPayment(true)}>
-              <Plus className="w-3 h-3 mr-1" /> Nuevo pago
-            </Button>
-          </div>
-
-          {supplierPayments.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Sin pagos registrados.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {supplierPayments.map((sp) => (
-                <div key={sp.id} className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <div className="font-medium">{formatPrice(sp.monto, sp.moneda)} · {sp.metodo}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {sp.fecha}
-                      {sp.registrado_por_nombre ? ` · ${sp.registrado_por_nombre}` : ""}
-                      {sp.notas ? ` · ${sp.notas}` : ""}
-                    </div>
+          {(() => {
+            const pagosProv = supplierPayments.filter((sp) => (sp.categoria || "proveedor") === "proveedor");
+            const otras = supplierPayments.filter((sp) => (sp.categoria || "proveedor") !== "proveedor");
+            const renderRow = (sp: SupplierPayment) => (
+              <div key={sp.id} className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <div className="font-medium">{formatPrice(sp.monto, sp.moneda)} · {sp.metodo}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {categoriaLabel(sp.categoria)}
+                    {sp.concepto ? ` · ${sp.concepto}` : ""}
+                    {` · ${sp.fecha}`}
+                    {sp.registrado_por_nombre ? ` · ${sp.registrado_por_nombre}` : ""}
+                    {sp.notas ? ` · ${sp.notas}` : ""}
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => deleteSupplierPayment(sp.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => deleteSupplierPayment(sp.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            );
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Pagos al proveedor ({pagosProv.length})</h4>
+                  <Button size="sm" variant="gold" onClick={() => { setNewPay({ ...newPay, categoria: "proveedor" }); setShowNewPayment(true); }}>
+                    <Plus className="w-3 h-3 mr-1" /> Nuevo pago
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
+                {pagosProv.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin pagos al proveedor.</p>
+                ) : (
+                  <div className="space-y-1.5">{pagosProv.map(renderRow)}</div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <h4 className="text-sm font-medium">Otras salidas ({otras.length})</h4>
+                  <Button size="sm" variant="outline" onClick={() => { setNewPay({ ...newPay, categoria: "flete" }); setShowNewPayment(true); }}>
+                    <Plus className="w-3 h-3 mr-1" /> Nueva salida
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground -mt-1">Flete, aduana, comisiones, impuestos, viáticos. Se descuentan del margen y de la utilidad realizada.</p>
+                {otras.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin otras salidas registradas.</p>
+                ) : (
+                  <div className="space-y-1.5">{otras.map(renderRow)}</div>
+                )}
+              </>
+            );
+          })()}
+
         </TabsContent>
 
         {/* CIERRE */}
