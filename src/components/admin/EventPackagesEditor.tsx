@@ -13,6 +13,7 @@ import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown, AlertT
 import { formatPrice } from "@/lib/currency";
 import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
 import { PackagePriceStagesEditor } from "./PackagePriceStagesEditor";
+import EventLodgingManager from "./EventLodgingManager";
 
 
 interface PackageRow {
