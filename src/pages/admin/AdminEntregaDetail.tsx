@@ -429,7 +429,8 @@ const AdminEntregaDetail = () => {
         costo_total_mercaderia: Number(costForm.costo) || 0,
         proveedor_nombre: costForm.proveedor.trim() || null,
         moneda_costo: costForm.moneda,
-      })
+        tc_usd: costForm.tc_usd === "" ? null : Number(costForm.tc_usd),
+      } as any)
       .eq("id", list.id);
     setSavingCost(false);
     if (error) return toast.error(error.message);
