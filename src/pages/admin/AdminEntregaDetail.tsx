@@ -159,7 +159,7 @@ const AdminEntregaDetail = () => {
     notas: "",
   });
   const [savingCost, setSavingCost] = useState(false);
-  const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
+  const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS", tc_usd: "" });
   const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [creatingPayment, setCreatingPayment] = useState(false);
