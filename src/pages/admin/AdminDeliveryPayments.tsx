@@ -87,6 +87,9 @@ const AdminDeliveryPayments = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4">
+      <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate(-1)}>
+        <ArrowLeft className="w-4 h-4 mr-1" /> Volver
+      </Button>
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl flex items-center gap-2">
           <Banknote className="w-6 h-6 text-primary" /> Cobros de entrega
