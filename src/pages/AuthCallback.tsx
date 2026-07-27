@@ -5,7 +5,7 @@ import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo.png";
-import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState } from "@/lib/pendingOtp";
+import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, loadOAuthReturnTo, clearOAuthReturnTo } from "@/lib/pendingOtp";
 
 /**
  * Centralized auth callback handler.
