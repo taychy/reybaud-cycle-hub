@@ -353,6 +353,28 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  /** Agrupado por PRODUCTO (padre) con sus variantes adentro */
+  const parentGroups = useMemo(() => {
+    const map: Record<string, {
+      producto: string;
+      unidades: number;
+      clientes: number;
+      itemIds: string[];
+      variants: { key: string; variante: string | null; unidades: number; clientes: number; itemIds: string[] }[];
+    }> = {};
+    productGroups.forEach(([key, g]) => {
+      if (!map[g.producto]) map[g.producto] = { producto: g.producto, unidades: 0, clientes: 0, itemIds: [], variants: [] };
+      const p = map[g.producto];
+      p.unidades += g.unidades;
+      p.clientes += g.items.length;
+      p.itemIds.push(...g.itemIds);
+      p.variants.push({ key, variante: g.variante, unidades: g.unidades, clientes: g.items.length, itemIds: g.itemIds });
+    });
+    return Object.values(map)
+      .map((p) => ({ ...p, variants: p.variants.sort((a, b) => compareVariantValues(a.variante ?? "", b.variante ?? "")) }))
+      .sort((a, b) => a.producto.localeCompare(b.producto, "es"));
+  }, [productGroups]);
+
   const [productSaveState, setProductSaveState] = useState<Record<string, "saving" | "saved" | undefined>>({});
   const saveProductGroup = async (key: string, itemIds: string[]) => {
     const edit = productEdits[key];
@@ -377,21 +399,102 @@ const AdminEntregaDetail = () => {
     load();
   };
 
-  const linkAndPullFromStore = (key: string, storeProductId: string) => {
+  /** Estado de edición a nivel PRODUCTO (se propaga a todas sus variantes) */
+  const [parentEdits, setParentEdits] = useState<Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }>>({});
+
+  useEffect(() => {
+    const next: Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }> = {};
+    parentGroups.forEach((p) => {
+      const first = p.variants[0] ? productEdits[p.variants[0].key] : undefined;
+      const allSame = (field: "costo" | "precio" | "moneda" | "store_product_id") =>
+        p.variants.every((v) => (productEdits[v.key]?.[field] ?? "") === (first?.[field] ?? ""));
+      next[p.producto] = {
+        costo: allSame("costo") ? first?.costo ?? "" : "",
+        precio: allSame("precio") ? first?.precio ?? "" : "",
+        moneda: allSame("moneda") ? first?.moneda ?? "ARS" : first?.moneda ?? "ARS",
+        store_product_id: allSame("store_product_id") ? first?.store_product_id ?? "" : "",
+      };
+    });
+    setParentEdits(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  const linkParentFromStore = (producto: string, storeProductId: string) => {
     const sp = storeProducts.find((s) => s.id === storeProductId);
-    const current = productEdits[key];
+    const current = parentEdits[producto];
     if (!sp || !current) return;
-    setProductEdits({
-      ...productEdits,
-      [key]: {
+    setParentEdits((prev) => ({
+      ...prev,
+      [producto]: {
         ...current,
         store_product_id: storeProductId,
         costo: sp.costo != null ? String(sp.costo) : current.costo,
         precio: sp.price != null ? String(sp.price) : current.precio,
         moneda: sp.costo_moneda || sp.currency || current.moneda,
       },
-    });
+    }));
   };
+
+  const saveParentGroup = async (producto: string, itemIds: string[]) => {
+    const edit = parentEdits[producto];
+    if (!edit) return;
+    const patch: any = {
+      costo_unitario: edit.costo === "" ? null : Number(edit.costo),
+      precio_venta: edit.precio === "" ? null : Number(edit.precio),
+      moneda: edit.moneda || "ARS",
+      store_product_id: edit.store_product_id || null,
+    };
+    setProductSaveState((s) => ({ ...s, [producto]: "saving" }));
+    const { error } = await supabase.from("delivery_list_items").update(patch).in("id", itemIds);
+    if (error) {
+      setProductSaveState((s) => ({ ...s, [producto]: undefined }));
+      return toast.error(error.message);
+    }
+    toast.success(`${producto}: ${itemIds.length} ítem(s) actualizados (todas las variantes)`);
+    setProductSaveState((s) => ({ ...s, [producto]: "saved" }));
+    setTimeout(() => setProductSaveState((s) => ({ ...s, [producto]: undefined })), 2500);
+    load();
+  };
+
+  /** Vinculación automática por nombre para todos los productos sin vincular */
+  const [autoLinking, setAutoLinking] = useState(false);
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const autoLinkAll = async () => {
+    setAutoLinking(true);
+    let matched = 0;
+    const updates: { ids: string[]; patch: any }[] = [];
+    parentGroups.forEach((p) => {
+      const already = parentEdits[p.producto]?.store_product_id;
+      if (already) return;
+      const target = norm(p.producto);
+      const sp =
+        storeProducts.find((s) => norm(s.name) === target) ||
+        storeProducts.find((s) => norm(s.name).includes(target) || target.includes(norm(s.name)));
+      if (!sp) return;
+      matched++;
+      updates.push({
+        ids: p.itemIds,
+        patch: {
+          store_product_id: sp.id,
+          costo_unitario: sp.costo ?? null,
+          precio_venta: sp.price ?? null,
+          moneda: sp.costo_moneda || sp.currency || "ARS",
+        },
+      });
+    });
+    for (const u of updates) {
+      const { error } = await supabase.from("delivery_list_items").update(u.patch).in("id", u.ids);
+      if (error) {
+        setAutoLinking(false);
+        return toast.error(error.message);
+      }
+    }
+    setAutoLinking(false);
+    if (matched === 0) toast.info("No encontré coincidencias nuevas por nombre");
+    else toast.success(`${matched} producto(s) vinculados y actualizados`);
+    if (matched) load();
+  };
+
 
   const toggleEntregado = async (item: Item, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
