@@ -755,8 +755,9 @@ const AdminEntregaDetail = () => {
                   <Card className="border-amber-500/40 bg-amber-500/5">
                     <CardContent className="p-3 text-xs space-y-2">
                       <div>
-                        Los indicadores están en <strong>{monedaNativa}</strong>. Las cobranzas se registran en ARS: cargá el tipo de cambio para poder expresarlas en {monedaNativa} y ver el equivalente en ARS de cada indicador.
+                        Los indicadores están en <strong>{monedaNativa}</strong>. Hay {formatPrice(cobradoOtraMoneda, "ARS")} cobrados en ARS: cargá el tipo de cambio para sumarlos al total en {monedaNativa}.
                       </div>
+
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="whitespace-nowrap">1 USD =</span>
                         <Input
