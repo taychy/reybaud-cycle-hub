@@ -684,11 +684,27 @@ const AdminEntregaDetail = () => {
               <>
                 {necesitaTc && (
                   <Card className="border-amber-500/40 bg-amber-500/5">
-                    <CardContent className="p-3 text-xs">
-                      Los ítems están valuados en <strong>{summary.moneda_items}</strong> y las cobranzas en ARS. Cargá el <strong>tipo de cambio USD</strong> en la pestaña <strong>Proveedor</strong> para que los totales sean comparables.
+                    <CardContent className="p-3 text-xs space-y-2">
+                      <div>
+                        Los ítems están valuados en <strong>{summary.moneda_items}</strong> y las cobranzas en ARS. Sin tipo de cambio no se pueden convertir, por eso los totales en ARS dan <strong>$ 0</strong>.
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="whitespace-nowrap">1 USD =</span>
+                        <Input
+                          type="number"
+                          className="h-8 w-32"
+                          placeholder="Ej: 1300"
+                          value={costForm.tc_usd}
+                          onChange={(e) => setCostForm({ ...costForm, tc_usd: e.target.value })}
+                        />
+                        <Button size="sm" onClick={saveCost} disabled={savingCost || !costForm.tc_usd}>
+                          {savingCost ? "Guardando..." : "Aplicar"}
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado (ARS)</div><div className="font-heading text-xl">{formatPrice(summary.esperado_cobrar, "ARS")}</div>{summary.moneda_items !== "ARS" && <div className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(summary.esperado_cobrar_nativo, summary.moneda_items === "MIXTA" ? "USD" : (summary.moneda_items as any))} en {summary.moneda_items}</div>}</CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado (ARS)</div><div className="font-heading text-xl text-primary">{formatPrice(summary.total_cobrado, "ARS")}</div></CardContent></Card>
