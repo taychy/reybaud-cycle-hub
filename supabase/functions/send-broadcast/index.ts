@@ -118,20 +118,20 @@ function personalize(value: string | undefined, recipient: any) {
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
-  const explicitSelection = Boolean(
-    filters.alumno_ids?.length ||
-    filters.coach_ids?.length ||
-    filters.marketing_contact_ids?.length
-  );
+  // Selección puntual por tipo: sólo reemplaza al segmento amplio de ESE tipo,
+  // el resto de las audiencias marcadas (ej: listas de espera) se suman igual.
+  const explicitAlumnos = Boolean(filters.alumno_ids?.length);
+  const explicitCoaches = Boolean(filters.coach_ids?.length);
+  const explicitMarketing = Boolean(filters.marketing_contact_ids?.length);
   const audience = Array.isArray(filters.audience) ? filters.audience : ["students"];
   let rows: any[] = [];
 
   // --- ALUMNOS ---
-  if ((filters.alumno_ids?.length || (!explicitSelection && audience.includes("students")))) {
+  if (explicitAlumnos || audience.includes("students")) {
     let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo");
-    if (filters.alumno_ids?.length) {
-      q = q.in("id", filters.alumno_ids);
-    } else if (!explicitSelection) {
+    if (explicitAlumnos) {
+      q = q.in("id", filters.alumno_ids!);
+    } else {
       if (filters.estados?.length) q = q.in("estado", filters.estados);
       if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
       if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
@@ -146,11 +146,11 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   }
 
   // --- COACHES ---
-  if ((filters.coach_ids?.length || (!explicitSelection && audience.includes("coaches")))) {
+  if (explicitCoaches || audience.includes("coaches")) {
     let q = supabase.from("coaches").select("id, nombre, email, estado, sede_id, grupos");
-    if (filters.coach_ids?.length) {
-      q = q.in("id", filters.coach_ids);
-    } else if (!explicitSelection) {
+    if (explicitCoaches) {
+      q = q.in("id", filters.coach_ids!);
+    } else {
       if (filters.estados?.length) q = q.in("estado", filters.estados);
       if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
       if (filters.grupos?.length) q = q.overlaps("grupos", filters.grupos);
@@ -165,12 +165,12 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   }
 
   // --- MARKETING CONTACTS ---
-  if ((filters.marketing_contact_ids?.length || (!explicitSelection && audience.includes("marketing")))) {
+  if (explicitMarketing || audience.includes("marketing")) {
     let q = supabase.from("marketing_contacts").select(
       "id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at"
     );
-    if (filters.marketing_contact_ids?.length) {
-      q = q.in("id", filters.marketing_contact_ids);
+    if (explicitMarketing) {
+      q = q.in("id", filters.marketing_contact_ids!);
     } else {
       if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
       if (filters.marketing_tipos?.length) q = q.in("tipo", filters.marketing_tipos);
@@ -196,7 +196,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   }
 
   // --- LISTAS DE ESPERA ---
-  if (!explicitSelection && audience.includes("waitlist")) {
+  if (audience.includes("waitlist")) {
     let q = supabase
       .from("event_waitlist_entries")
       .select("id, event_id, nombre, email, estado");
