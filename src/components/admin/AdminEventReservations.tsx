@@ -933,6 +933,17 @@ const AdminEventReservations = ({
         changed_by_role: "admin",
         note: `Admin cambió ${field} a ${value}`,
       } as any);
+      if (field === "reservation_status" && value === "cancelada" && liberar !== undefined) {
+        const { error: relErr } = await supabase.rpc("release_room_on_cancel" as any, {
+          _reservation_id: resId,
+          _liberar: liberar,
+        });
+        if (relErr) {
+          toast({ title: "Reserva cancelada, pero no se pudo liberar la cama", description: relErr.message, variant: "destructive" });
+        } else if (liberar) {
+          toast({ title: "Cama liberada", description: "Se avisó a los super admins para contactar la lista de espera." });
+        }
+      }
       toast({ title: "Estado actualizado" });
       loadReservations();
       if (selectedRes?.id === resId) {
