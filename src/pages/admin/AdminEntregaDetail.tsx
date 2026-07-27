@@ -74,7 +74,13 @@ interface Summary {
   saldo_a_proveedor: number;
   margen_bruto: number;
   cobros_sin_validar: number;
+  tc_usd: number | null;
+  moneda_items: string;
+  esperado_cobrar_nativo: number;
+  costo_total_nativo: number;
+  costo_desde_items: boolean;
 }
+
 
 interface SupplierPayment {
   id: string;
