@@ -782,9 +782,10 @@ const AdminEntregaDetail = () => {
                       </div>
                       {tcSugerido > 0 && (
                         <div className="text-[11px] text-muted-foreground">
-                          Implícito = cobrado {formatPrice(cobradoArs, "ARS")} ÷ venta preparada {formatPrice(ventaPrepNativo, monedaNativa)}.
+                          Implícito = cobrado en ARS {formatPrice(cobradoOtraMoneda, "ARS")} ÷ venta preparada {formatPrice(ventaPrepNativo, monedaNativa)}.
                         </div>
                       )}
+
                     </CardContent>
                   </Card>
                 )}
