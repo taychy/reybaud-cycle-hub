@@ -138,7 +138,7 @@ const AdminEntregasCaja = () => {
                     <>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <div className="text-muted-foreground">Entregas</div>
+                          <div className="text-muted-foreground">Preparados</div>
                           <div className="font-medium">
                             {s.items_entregados}/{s.items_total}
                           </div>
