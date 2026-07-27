@@ -544,8 +544,28 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
               const pkgRooms = roomsByPackage[pkgKey] || [];
               const pkgReservations = reservationsByPackage[pkgKey] || [];
               const pkgUnassigned = pkgReservations.filter((r) => !assignedReservationIds.has(r.id));
-              const pkgOccupied = pkgReservations.filter((r) => assignedReservationIds.has(r.id)).length;
               const pkgCapacity = pkgRooms.reduce((s, r) => s + r.capacidad, 0);
+              // Ocupación real de camas (incluye ocupantes con reserva cancelada, que siguen bloqueando la plaza)
+              let pkgBedsUsed = 0;
+              let pkgBedsCancel = 0;
+              const freeByGenero: Record<string, number> = {};
+              pkgRooms.forEach((room) => {
+                const occ = occupantsByRoom[room.id] || [];
+                pkgBedsUsed += occ.length;
+                pkgBedsCancel += occ.filter(
+                  (o) => o.reservation_status === "cancelada" || o.reservation_status === "rechazada"
+                ).length;
+                const free = Math.max(0, room.capacidad - occ.length);
+                if (free > 0) {
+                  const g = (room as any).genero || "mixto";
+                  freeByGenero[g] = (freeByGenero[g] || 0) + free;
+                }
+              });
+              const pkgFree = Math.max(0, pkgCapacity - pkgBedsUsed);
+              const freeDetail = Object.entries(freeByGenero)
+                .map(([g, n]) => `${n} ${g}`)
+                .join(" · ");
+
 
               if (pkgReservations.length === 0 && pkgRooms.length === 0) return null;
               const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
@@ -575,7 +595,10 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         {label}
                       </h3>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgOccupied} ocupada(s)
+                        {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgBedsUsed} ocupada(s)
+                        {pkgBedsCancel > 0 && ` (${pkgBedsCancel} con reserva cancelada)`}
+                        {` · ${pkgFree} libre(s)`}
+                        {freeDetail && ` → ${freeDetail}`}
                         {pkg?.cupo != null && ` · cupo paquete: ${pkg.cupo}`}
                         {pkg?.personas_por_habitacion != null && ` · ${pkg.personas_por_habitacion}p/hab`}
                       </p>
