@@ -2140,7 +2140,9 @@ export type Database = {
       }
       delivery_supplier_payments: {
         Row: {
+          categoria: string
           comprobante_url: string | null
+          concepto: string | null
           created_at: string
           delivery_list_id: string
           fecha: string
@@ -2154,7 +2156,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          categoria?: string
           comprobante_url?: string | null
+          concepto?: string | null
           created_at?: string
           delivery_list_id: string
           fecha?: string
@@ -2168,7 +2172,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          categoria?: string
           comprobante_url?: string | null
+          concepto?: string | null
           created_at?: string
           delivery_list_id?: string
           fecha?: string
@@ -10903,8 +10909,10 @@ export type Database = {
           list_id: string
           margen_bruto: number
           moneda_items: string
+          otras_salidas: number
           pagado_a_proveedor: number
           saldo_a_proveedor: number
+          salidas_totales: number
           tc_usd: number
           titulo: string
           total_cobrado: number
