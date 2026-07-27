@@ -733,11 +733,8 @@ const AdminEntregaDetail = () => {
             const rentBase = utilidadBase !== null && ventaPrepNativo > 0 ? (utilidadBase / ventaPrepNativo) * 100 : null;
             const markupBase = utilidadBase !== null && costoPrepNativo > 0 ? (utilidadBase / costoPrepNativo) * 100 : null;
 
-            const Sec = ({ label, ars: arsVal }: { label: string; ars: number | null }) => (
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {label}
-                {esUsd && <span className="block">≈ {secArs(arsVal)} ARS</span>}
-              </div>
+            const Sec = ({ label }: { label: string; ars?: number | null }) => (
+              <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
             );
 
             return (
