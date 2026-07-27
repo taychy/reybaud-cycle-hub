@@ -351,17 +351,22 @@ export default function AdminBroadcasts() {
       estados: seg.estados || ["activo"],
       grupos: seg.grupos || [],
       sede_ids: seg.sede_ids || [],
-      alumno_ids: seg.alumno_ids || [],
-      coach_ids: seg.coach_ids || [],
+      alumno_ids: [],
+      coach_ids: [],
       marketing_tipos: seg.marketing_tipos || [],
       marketing_tags: seg.marketing_tags || [],
       marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
       waitlist_event_ids: seg.waitlist_event_ids || [],
       waitlist_estados: seg.waitlist_estados || ["nuevo", "contactado"],
     });
+    setPreviewCount(null);
+    setPreviewSample([]);
+    setFullRecipients([]);
+    setExcludedEmails(new Set());
+    setContactSearch("");
     setShowDetail(null);
     setTab("composer");
-    toast({ title: "Campaña duplicada", description: "Podés editar y enviar de nuevo." });
+    toast({ title: "Campaña duplicada", description: "Copié contenido y CTA; la selección puntual queda limpia para segmentar de nuevo." });
   };
 
 

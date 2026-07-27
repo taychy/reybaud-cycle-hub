@@ -118,8 +118,8 @@ function personalize(value: string | undefined, recipient: any) {
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
-  // Selección puntual por tipo: sólo reemplaza al segmento amplio de ESE tipo,
-  // el resto de las audiencias marcadas (ej: listas de espera) se suman igual.
+  // Selección puntual por tipo: se suma al segmento amplio marcado.
+  // Ej: alumnos activos + Claudio puntual = ambos conjuntos, deduplicados por email.
   const explicitAlumnos = Boolean(filters.alumno_ids?.length);
   const explicitCoaches = Boolean(filters.coach_ids?.length);
   const explicitMarketing = Boolean(filters.marketing_contact_ids?.length);
@@ -127,16 +127,24 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   let rows: any[] = [];
 
   // --- ALUMNOS ---
-  if (explicitAlumnos || audience.includes("students")) {
+  if (audience.includes("students")) {
     let q = supabase.from("alumnos").select("id, nombre, apellido, email, estado, sede_id, grupo");
-    if (explicitAlumnos) {
-      q = q.in("id", filters.alumno_ids!);
-    } else {
-      if (filters.estados?.length) q = q.in("estado", filters.estados);
-      if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
-      if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
-    }
+    if (filters.estados?.length) q = q.in("estado", filters.estados);
+    if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
+    if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
     const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((a: any) => ({
+      ...a,
+      contact_type: "alumno",
+      display_name: `${a.nombre ?? ""} ${a.apellido ?? ""}`.trim(),
+    })));
+  }
+  if (explicitAlumnos) {
+    const { data, error } = await supabase
+      .from("alumnos")
+      .select("id, nombre, apellido, email, estado, sede_id, grupo")
+      .in("id", filters.alumno_ids!);
     if (error) throw error;
     rows.push(...(data || []).map((a: any) => ({
       ...a,
@@ -146,16 +154,24 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   }
 
   // --- COACHES ---
-  if (explicitCoaches || audience.includes("coaches")) {
+  if (audience.includes("coaches")) {
     let q = supabase.from("coaches").select("id, nombre, email, estado, sede_id, grupos");
-    if (explicitCoaches) {
-      q = q.in("id", filters.coach_ids!);
-    } else {
-      if (filters.estados?.length) q = q.in("estado", filters.estados);
-      if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
-      if (filters.grupos?.length) q = q.overlaps("grupos", filters.grupos);
-    }
+    if (filters.estados?.length) q = q.in("estado", filters.estados);
+    if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
+    if (filters.grupos?.length) q = q.overlaps("grupos", filters.grupos);
     const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((c: any) => ({
+      ...c,
+      contact_type: "coach",
+      display_name: c.nombre,
+    })));
+  }
+  if (explicitCoaches) {
+    const { data, error } = await supabase
+      .from("coaches")
+      .select("id, nombre, email, estado, sede_id, grupos")
+      .in("id", filters.coach_ids!);
     if (error) throw error;
     rows.push(...(data || []).map((c: any) => ({
       ...c,
@@ -165,24 +181,36 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   }
 
   // --- MARKETING CONTACTS ---
-  if (explicitMarketing || audience.includes("marketing")) {
+  if (audience.includes("marketing")) {
     let q = supabase.from("marketing_contacts").select(
       "id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at"
     );
-    if (explicitMarketing) {
-      q = q.in("id", filters.marketing_contact_ids!);
-    } else {
-      if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
-      if (filters.marketing_tipos?.length) q = q.in("tipo", filters.marketing_tipos);
-      if (filters.marketing_tags?.length) q = q.overlaps("tags", filters.marketing_tags);
-      // Frequency cap (7 días)
-      if (!filters.marketing_ignore_frequency) {
-        const cutoff = new Date(Date.now() - FREQUENCY_DAYS * 24 * 60 * 60 * 1000).toISOString();
-        // last_campaign_sent_at IS NULL OR <= cutoff
-        q = q.or(`last_campaign_sent_at.is.null,last_campaign_sent_at.lte.${cutoff}`);
-      }
+    if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
+    if (filters.marketing_tipos?.length) q = q.in("tipo", filters.marketing_tipos);
+    if (filters.marketing_tags?.length) q = q.overlaps("tags", filters.marketing_tags);
+    // Frequency cap (7 días)
+    if (!filters.marketing_ignore_frequency) {
+      const cutoff = new Date(Date.now() - FREQUENCY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      // last_campaign_sent_at IS NULL OR <= cutoff
+      q = q.or(`last_campaign_sent_at.is.null,last_campaign_sent_at.lte.${cutoff}`);
     }
     const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((m: any) => ({
+      id: m.id,
+      email: m.email,
+      nombre: m.nombre,
+      apellido: m.apellido,
+      contact_type: "marketing",
+      marketing_tipo: m.tipo,
+      display_name: `${m.nombre ?? ""} ${m.apellido ?? ""}`.trim() || m.email,
+    })));
+  }
+  if (explicitMarketing) {
+    const { data, error } = await supabase
+      .from("marketing_contacts")
+      .select("id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at")
+      .in("id", filters.marketing_contact_ids!);
     if (error) throw error;
     rows.push(...(data || []).map((m: any) => ({
       id: m.id,
