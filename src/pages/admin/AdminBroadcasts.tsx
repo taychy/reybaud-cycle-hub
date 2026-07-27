@@ -164,6 +164,8 @@ export default function AdminBroadcasts() {
     marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
     waitlist_event_ids: composer.waitlist_event_ids.length ? composer.waitlist_event_ids : undefined,
     waitlist_estados: composer.waitlist_estados.length ? composer.waitlist_estados : undefined,
+    cta_url: composer.cta_url || undefined,
+    cta_label: composer.cta_label || undefined,
   }), [composer]);
 
   const [waitlistEvents, setWaitlistEvents] = useState<Array<{ id: string; title: string; count: number }>>([]);
@@ -791,7 +793,7 @@ export default function AdminBroadcasts() {
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Si seleccionás contactos puntuales, el envío usa esa lista exacta. Si no seleccionás ninguno, usa la segmentación de arriba.
+                Los contactos puntuales reemplazan el filtro amplio de su mismo tipo (alumnos/coaches/marketing), pero se suman a las demás audiencias marcadas (ej: listas de espera).
               </p>
             </div>
 
