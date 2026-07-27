@@ -486,6 +486,15 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
         </div>
       )}
 
+      <EventLodgingManager
+        open={showLodging}
+        onOpenChange={(o) => { setShowLodging(o); if (!o) load(); }}
+        eventId={eventId}
+        eventTitle={eventTitle || "Evento"}
+      />
+
+
+
       <div className="rounded-lg border border-border/50 p-3 space-y-2 bg-muted/20">
         <p className="text-xs font-medium">Agregar paquete</p>
         <div className="grid grid-cols-2 gap-2">
