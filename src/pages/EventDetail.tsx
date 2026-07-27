@@ -812,7 +812,7 @@ const EventDetail = () => {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/?returnTo=${encodeURIComponent(window.location.pathname)}`)}
+                onClick={() => navigate(`/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
               >
                 Ya soy alumno · Iniciar sesión
               </Button>
