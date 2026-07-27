@@ -246,11 +246,13 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
 
   const reservationsByPackage = useMemo(() => {
     const m: Record<string, Reservation[]> = {};
-    reservations.forEach((r) => {
-      const k = r.package_id || "sin";
-      m[k] ??= [];
-      m[k].push(r);
-    });
+    reservations
+      .filter((r) => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
+      .forEach((r) => {
+        const k = r.package_id || "sin";
+        m[k] ??= [];
+        m[k].push(r);
+      });
     return m;
   }, [reservations]);
 
