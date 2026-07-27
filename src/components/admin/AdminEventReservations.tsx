@@ -1204,6 +1204,18 @@ const AdminEventReservations = ({
     setParticipantResult(data);
   };
 
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+
+  const loadStatusHistory = async (resId: string) => {
+    const { data } = await supabase
+      .from("reservation_status_history" as any)
+      .select("*")
+      .eq("reservation_id", resId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    setStatusHistory((data as any[]) || []);
+  };
+
   const openDetail = (r: EventReservation) => {
     setSelectedRes(r);
     setShowAdminPayment(false);
