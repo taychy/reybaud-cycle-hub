@@ -693,20 +693,30 @@ const AdminEntregaDetail = () => {
         <TabsContent value="resumen" className="space-y-3 pt-4">
           {(() => {
             const tc = Number(summary.tc_usd || 0);
-            const necesitaTc = summary.moneda_items !== "ARS" && !tc;
 
             // Totales nativos (moneda de los ítems) — no dependen del tipo de cambio
             const ventaPrepNativo = items.reduce((acc, it) => acc + (it.preparado ? Number(it.precio_venta || 0) * Number(it.cantidad || 0) : 0), 0);
             const costoPrepNativo = items.reduce((acc, it) => acc + (it.preparado ? Number(it.costo_unitario || 0) * Number(it.cantidad || 0) : 0), 0);
 
-
-            // Tipo de cambio implícito sugerido a partir de lo ya cobrado
-            const tcSugerido = ventaPrepNativo > 0 && Number(summary.total_cobrado) > 0
-              ? Number(summary.total_cobrado) / ventaPrepNativo
-              : 0;
-
             const monedaNativa = (summary.moneda_items === "MIXTA" ? "USD" : summary.moneda_items) as any;
             const esUsd = monedaNativa !== "ARS";
+
+            // Cobranzas: se separan por moneda real de cada cobro
+            const cobradoMismaMoneda = payments.reduce(
+              (acc, p) => acc + ((p.moneda || "ARS") === monedaNativa ? Number(p.monto || 0) : 0),
+              0
+            );
+            const cobradoOtraMoneda = payments.reduce(
+              (acc, p) => acc + ((p.moneda || "ARS") !== monedaNativa ? Number(p.monto || 0) : 0),
+              0
+            );
+            // Sólo hace falta el tipo de cambio si hay cobros (o ítems) en otra moneda
+            const necesitaTc = !tc && (cobradoOtraMoneda > 0 || summary.moneda_items === "MIXTA");
+
+            // Tipo de cambio implícito: sólo tiene sentido si todo se cobró en la otra moneda
+            const tcSugerido = esUsd && cobradoMismaMoneda === 0 && cobradoOtraMoneda > 0 && ventaPrepNativo > 0
+              ? cobradoOtraMoneda / ventaPrepNativo
+              : 0;
 
             // Conversión ARS -> moneda base (solo informativa, línea secundaria)
             const arsToBase = (v: number) => (esUsd ? (tc > 0 ? v / tc : null) : v);
@@ -718,8 +728,9 @@ const AdminEntregaDetail = () => {
 
             // Todo en moneda base
             const esperadoBase = Number(summary.esperado_cobrar_nativo || 0);
+            const cobradoOtraEnBase = esUsd ? (cobradoOtraMoneda === 0 ? 0 : tc > 0 ? cobradoOtraMoneda / tc : null) : cobradoOtraMoneda;
+            const cobradoBase = cobradoOtraEnBase === null ? null : cobradoMismaMoneda + cobradoOtraEnBase;
             const cobradoArs = Number(summary.total_cobrado || 0);
-            const cobradoBase = arsToBase(cobradoArs);
             const porCobrarBase = cobradoBase === null ? null : esperadoBase - cobradoBase;
             const costoTotalBase = Number(summary.costo_total_nativo || 0);
             const otrasSalidasArs = Number(summary.otras_salidas || 0);
@@ -733,6 +744,7 @@ const AdminEntregaDetail = () => {
             const rentBase = utilidadBase !== null && ventaPrepNativo > 0 ? (utilidadBase / ventaPrepNativo) * 100 : null;
             const markupBase = utilidadBase !== null && costoPrepNativo > 0 ? (utilidadBase / costoPrepNativo) * 100 : null;
 
+
             const Sec = ({ label }: { label: string; ars?: number | null }) => (
               <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
             );
@@ -743,8 +755,9 @@ const AdminEntregaDetail = () => {
                   <Card className="border-amber-500/40 bg-amber-500/5">
                     <CardContent className="p-3 text-xs space-y-2">
                       <div>
-                        Los indicadores están en <strong>{monedaNativa}</strong>. Las cobranzas se registran en ARS: cargá el tipo de cambio para poder expresarlas en {monedaNativa} y ver el equivalente en ARS de cada indicador.
+                        Los indicadores están en <strong>{monedaNativa}</strong>. Hay {formatPrice(cobradoOtraMoneda, "ARS")} cobrados en ARS: cargá el tipo de cambio para sumarlos al total en {monedaNativa}.
                       </div>
+
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="whitespace-nowrap">1 USD =</span>
                         <Input
@@ -769,16 +782,17 @@ const AdminEntregaDetail = () => {
                       </div>
                       {tcSugerido > 0 && (
                         <div className="text-[11px] text-muted-foreground">
-                          Implícito = cobrado {formatPrice(cobradoArs, "ARS")} ÷ venta preparada {formatPrice(ventaPrepNativo, monedaNativa)}.
+                          Implícito = cobrado en ARS {formatPrice(cobradoOtraMoneda, "ARS")} ÷ venta preparada {formatPrice(ventaPrepNativo, monedaNativa)}.
                         </div>
                       )}
+
                     </CardContent>
                   </Card>
                 )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado total</div><div className="font-heading text-xl">{fmtBase(esperadoBase)}</div><Sec label={`${summary.items_total} ítems`} ars={baseToArs(esperadoBase)} /></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado</div><div className="font-heading text-xl text-primary">{fmtBase(cobradoBase)}</div><Sec label={`${payments.length} cobros registrados`} ars={cobradoArs} /></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado</div><div className="font-heading text-xl text-primary">{fmtBase(cobradoBase)}</div><Sec label={`${payments.length} cobros · ${formatPrice(cobradoMismaMoneda, monedaNativa)}${cobradoOtraMoneda > 0 ? ` + ${formatPrice(cobradoOtraMoneda, "ARS")}` : ""}`} ars={cobradoArs} /></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{fmtBase(porCobrarBase)}</div><Sec label="esperado − cobrado" ars={porCobrarBase === null ? null : baseToArs(porCobrarBase)} /></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (caja)</div><div className="font-heading text-xl">{fmtBase(margenBase)}</div><Sec label="cobrado − costo mercadería − otras salidas" ars={margenBase === null ? null : baseToArs(margenBase)} /></CardContent></Card>
                 </div>
