@@ -12,7 +12,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FREQUENCY_DAYS = 7;
 
 interface SegmentFilters {
-  audience?: ("students" | "coaches" | "marketing")[];
+  audience?: ("students" | "coaches" | "marketing" | "waitlist")[];
   estados?: string[];
   sede_ids?: string[];
   grupos?: string[];
@@ -25,6 +25,9 @@ interface SegmentFilters {
   marketing_tags?: string[];           // tags a matchear (OR)
   marketing_contact_ids?: string[];    // selección puntual
   marketing_ignore_frequency?: boolean;
+  // waitlist
+  waitlist_event_ids?: string[];       // eventos cuyas listas de espera se incluyen
+  waitlist_estados?: string[];         // nuevo | contactado | convertido | descartado
   marketing_include_opt_out?: boolean;
 }
 
@@ -192,6 +195,25 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
 
+  // --- LISTAS DE ESPERA ---
+  if (!explicitSelection && audience.includes("waitlist")) {
+    let q = supabase
+      .from("event_waitlist_entries")
+      .select("id, event_id, nombre, email, estado");
+    if (filters.waitlist_event_ids?.length) q = q.in("event_id", filters.waitlist_event_ids);
+    if (filters.waitlist_estados?.length) q = q.in("estado", filters.waitlist_estados);
+    const { data, error } = await q;
+    if (error) throw error;
+    rows.push(...(data || []).map((w: any) => ({
+      id: w.id,
+      email: w.email,
+      nombre: w.nombre,
+      contact_type: "waitlist",
+      event_id: w.event_id,
+      display_name: w.nombre || w.email,
+    })));
+  }
+
   rows = rows.filter((a: any) => a.email && a.email.includes("@"));
 
   // exclude suppressed (rebotes / quejas)
@@ -206,7 +228,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
   }
 
   // de-dupe by email (prioriza alumno > coach > marketing)
-  const priority: Record<string, number> = { alumno: 0, coach: 1, marketing: 2 };
+  const priority: Record<string, number> = { alumno: 0, coach: 1, waitlist: 2, marketing: 3 };
   rows.sort((a, b) => (priority[a.contact_type] ?? 9) - (priority[b.contact_type] ?? 9));
   const seen = new Set<string>();
   return rows.filter((r: any) => {

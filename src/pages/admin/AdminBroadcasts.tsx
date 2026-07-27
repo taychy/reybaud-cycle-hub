@@ -59,7 +59,7 @@ const emptyComposer = {
   content_html: "",
   cta_url: "",
   cta_label: "",
-  audience: ["students"] as ("students" | "coaches" | "marketing")[],
+  audience: ["students"] as ("students" | "coaches" | "marketing" | "waitlist")[],
   estados: ["activo"] as string[],
   grupos: [] as string[],
   sede_ids: [] as string[],
@@ -68,7 +68,11 @@ const emptyComposer = {
   marketing_tipos: [] as string[],
   marketing_tags: [] as string[],
   marketing_ignore_frequency: false,
+  waitlist_event_ids: [] as string[],
+  waitlist_estados: ["nuevo", "contactado"] as string[],
 };
+
+const WAITLIST_ESTADOS = ["nuevo", "contactado", "convertido", "descartado"];
 
 type CtaPreset = { name: string; url: string; label: string; custom?: boolean };
 const DEFAULT_CTA_PRESETS: CtaPreset[] = [
@@ -158,7 +162,27 @@ export default function AdminBroadcasts() {
     marketing_tipos: composer.marketing_tipos.length ? composer.marketing_tipos : undefined,
     marketing_tags: composer.marketing_tags.length ? composer.marketing_tags : undefined,
     marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
+    waitlist_event_ids: composer.waitlist_event_ids.length ? composer.waitlist_event_ids : undefined,
+    waitlist_estados: composer.waitlist_estados.length ? composer.waitlist_estados : undefined,
   }), [composer]);
+
+  const [waitlistEvents, setWaitlistEvents] = useState<Array<{ id: string; title: string; count: number }>>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("event_waitlist_entries" as any)
+        .select("event_id, events(title)")
+        .limit(5000);
+      const map = new Map<string, { id: string; title: string; count: number }>();
+      ((data as any[]) || []).forEach((r) => {
+        if (!r?.event_id) return;
+        const prev = map.get(r.event_id);
+        if (prev) prev.count += 1;
+        else map.set(r.event_id, { id: r.event_id, title: r.events?.title || "Evento", count: 1 });
+      });
+      setWaitlistEvents(Array.from(map.values()).sort((a, b) => b.count - a.count));
+    })();
+  }, []);
 
   const [marketingTagOptions, setMarketingTagOptions] = useState<string[]>([]);
   useEffect(() => {
@@ -330,6 +354,8 @@ export default function AdminBroadcasts() {
       marketing_tipos: seg.marketing_tipos || [],
       marketing_tags: seg.marketing_tags || [],
       marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
+      waitlist_event_ids: seg.waitlist_event_ids || [],
+      waitlist_estados: seg.waitlist_estados || ["nuevo", "contactado"],
     });
     setShowDetail(null);
     setTab("composer");
@@ -579,6 +605,13 @@ export default function AdminBroadcasts() {
                 />
                 Contactos marketing
               </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={composer.audience.includes("waitlist")}
+                  onCheckedChange={() => setComposer({ ...composer, audience: toggleArr(composer.audience, "waitlist") as any })}
+                />
+                Listas de espera
+              </label>
               <span className="text-xs text-muted-foreground self-center">Alumnos, coaches y/o la base de leads y ex-clientes.</span>
             </div>
 
@@ -630,6 +663,45 @@ export default function AdminBroadcasts() {
                 </label>
                 <p className="text-[10px] text-muted-foreground">
                   Sólo se envía a contactos con <b>opt-in activo</b>. Los rebotes/bajas (suppressed_emails) se descartan siempre.
+                </p>
+              </div>
+            )}
+            {composer.audience.includes("waitlist") && (
+              <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/20">
+                <div className="text-xs font-medium flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" /> Listas de espera de eventos
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Eventos</Label>
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {waitlistEvents.length === 0 ? (
+                      <span className="text-[10px] text-muted-foreground">Todavía no hay anotados en ninguna lista de espera.</span>
+                    ) : waitlistEvents.map((ev) => (
+                      <Badge key={ev.id}
+                        variant={composer.waitlist_event_ids.includes(ev.id) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => setComposer({ ...composer, waitlist_event_ids: toggleArr(composer.waitlist_event_ids, ev.id) })}>
+                        {ev.title} ({ev.count})
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Vacío = todas las listas de espera.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Estado del anotado</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {WAITLIST_ESTADOS.map((e) => (
+                      <Badge key={e}
+                        variant={composer.waitlist_estados.includes(e) ? "default" : "outline"}
+                        className="cursor-pointer capitalize"
+                        onClick={() => setComposer({ ...composer, waitlist_estados: toggleArr(composer.waitlist_estados, e) })}>
+                        {e}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Los filtros de estado/grupo/sede no aplican a las listas de espera. Rebotes y bajas se descartan siempre.
                 </p>
               </div>
             )}
