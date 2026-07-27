@@ -688,7 +688,7 @@ const EventForm = ({
             {selectedCategory === "camp_viaje" && (
               <div className="pt-2 border-t border-border/30">
                 {eventId ? (
-                  <EventPackagesEditor eventId={eventId} eventCurrency={meta.currency || "ARS"} />
+                  <EventPackagesEditor eventId={eventId} eventCurrency={meta.currency || "ARS"} eventTitle={form.title} />
                 ) : (
                   <p className="text-xs text-muted-foreground italic">
                     Guardá el evento primero para configurar paquetes (tipos de habitación con precios diferenciados).
