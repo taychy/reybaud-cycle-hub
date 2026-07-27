@@ -1706,6 +1706,7 @@ const AdminEventReservations = ({
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
                         {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
+                      <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
                     </div>
                     {!isPaymentFree && (
                       <div className="flex items-center gap-4 text-xs">
