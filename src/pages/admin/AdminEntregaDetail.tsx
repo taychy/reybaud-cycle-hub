@@ -80,6 +80,8 @@ interface Summary {
   esperado_cobrar_nativo: number;
   costo_total_nativo: number;
   costo_desde_items: boolean;
+  otras_salidas: number;
+  salidas_totales: number;
 }
 
 
@@ -174,6 +176,8 @@ const AdminEntregaDetail = () => {
     metodo: "transferencia",
     fecha: new Date().toISOString().slice(0, 10),
     notas: "",
+    categoria: "proveedor",
+    concepto: "",
   });
   const [savingCost, setSavingCost] = useState(false);
   const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS", tc_usd: "" });
@@ -576,13 +580,15 @@ const AdminEntregaDetail = () => {
       metodo: newPay.metodo,
       fecha: newPay.fecha,
       notas: newPay.notas.trim() || null,
+      categoria: newPay.categoria,
+      concepto: newPay.concepto.trim() || null,
       registrado_por: userRes.user?.id || null,
       registrado_por_nombre: nombre,
     });
     if (error) return toast.error(error.message);
-    toast.success("Pago a proveedor registrado");
+    toast.success(newPay.categoria === "proveedor" ? "Pago a proveedor registrado" : "Salida registrada");
     setShowNewPayment(false);
-    setNewPay({ monto: "", moneda: "ARS", metodo: "transferencia", fecha: new Date().toISOString().slice(0, 10), notas: "" });
+    setNewPay({ monto: "", moneda: "ARS", metodo: "transferencia", fecha: new Date().toISOString().slice(0, 10), notas: "", categoria: "proveedor", concepto: "" });
     load();
   };
 
@@ -679,7 +685,7 @@ const AdminEntregaDetail = () => {
           <TabsTrigger value="productos">Productos</TabsTrigger>
           <TabsTrigger value="items">Clientes</TabsTrigger>
           <TabsTrigger value="cobros">Cobros ({payments.length})</TabsTrigger>
-          <TabsTrigger value="proveedor">Proveedor</TabsTrigger>
+          <TabsTrigger value="proveedor">Proveedor y salidas</TabsTrigger>
           <TabsTrigger value="cierre">Cierre</TabsTrigger>
         </TabsList>
 
@@ -1294,7 +1300,7 @@ const AdminEntregaDetail = () => {
       {/* NEW SUPPLIER PAYMENT */}
       <Dialog open={showNewPayment} onOpenChange={setShowNewPayment}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nuevo pago al proveedor</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{newPay.categoria === "proveedor" ? "Nuevo pago al proveedor" : "Nueva salida"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
