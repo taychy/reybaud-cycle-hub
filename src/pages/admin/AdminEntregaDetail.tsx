@@ -550,7 +550,7 @@ const AdminEntregaDetail = () => {
     const { error } = await supabase
       .from("delivery_lists")
       .update({
-        costo_total_mercaderia: Number(costForm.costo) || 0,
+        costo_total_mercaderia: 0,
         proveedor_nombre: costForm.proveedor.trim() || null,
         moneda_costo: costForm.moneda,
         tc_usd: costForm.tc_usd === "" ? null : Number(costForm.tc_usd),
@@ -733,11 +733,8 @@ const AdminEntregaDetail = () => {
             const rentBase = utilidadBase !== null && ventaPrepNativo > 0 ? (utilidadBase / ventaPrepNativo) * 100 : null;
             const markupBase = utilidadBase !== null && costoPrepNativo > 0 ? (utilidadBase / costoPrepNativo) * 100 : null;
 
-            const Sec = ({ label, ars: arsVal }: { label: string; ars: number | null }) => (
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {label}
-                {esUsd && <span className="block">≈ {secArs(arsVal)} ARS</span>}
-              </div>
+            const Sec = ({ label }: { label: string; ars?: number | null }) => (
+              <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
             );
 
             return (
@@ -796,7 +793,7 @@ const AdminEntregaDetail = () => {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} preparados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
-                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {fmtBase(costoTotalBase)}{esUsd && <span> (≈ {secArs(baseToArs(costoTotalBase))} ARS)</span>} · Pagado a proveedor {fmtBase(pagadoProvBase)}{esUsd && <span> (≈ {formatPrice(pagadoProvArs, "ARS")})</span>} · Saldo {fmtBase(pagadoProvBase === null ? null : costoTotalBase - pagadoProvBase)}</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {fmtBase(costoTotalBase)} · Pagado a proveedor {fmtBase(pagadoProvBase)} · Saldo {fmtBase(pagadoProvBase === null ? null : costoTotalBase - pagadoProvBase)}</div>
                   <div><Banknote className="w-3 h-3 inline mr-1" />Salidas totales {fmtBase(salidasTotalesBase)} = pagos a proveedor {fmtBase(pagadoProvBase)} + otras salidas {fmtBase(otrasSalidasBase)}</div>
                   {tc > 0 && <div>Tipo de cambio aplicado: 1 USD = {formatPrice(tc, "ARS")}</div>}
                   {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
@@ -1248,9 +1245,11 @@ const AdminEntregaDetail = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-xs">Costo total de la mercadería</Label>
-                  <Input type="number" value={costForm.costo} onChange={(e) => setCostForm({ ...costForm, costo: e.target.value })} placeholder="0 = calcular desde ítems" />
-                  <p className="text-[10px] text-muted-foreground mt-1">Dejalo en 0 para que se calcule automáticamente sumando el costo de cada ítem.</p>
+                  <Label className="text-xs">Costo total de la mercadería (automático)</Label>
+                  <div className="h-10 flex items-center rounded-md border border-border bg-secondary/40 px-3 text-sm font-medium">
+                    {summary ? formatPrice(Number(summary.costo_total_nativo || 0), (summary.moneda_items === "MIXTA" ? "USD" : summary.moneda_items) as any) : "—"}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Se calcula solo sumando el costo de cada ítem. Los pagos al proveedor se registran abajo.</p>
                 </div>
                 <div>
                   <Label className="text-xs">Tipo de cambio USD (ARS por 1 USD)</Label>
@@ -1259,7 +1258,7 @@ const AdminEntregaDetail = () => {
                 </div>
               </div>
               <Button size="sm" variant="gold" onClick={saveCost} disabled={savingCost}>
-                {savingCost ? "Guardando..." : "Guardar costo"}
+                {savingCost ? "Guardando..." : "Guardar datos"}
               </Button>
             </CardContent>
           </Card>
