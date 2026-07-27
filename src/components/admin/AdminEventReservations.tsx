@@ -861,7 +861,18 @@ const AdminEventReservations = ({
   };
 
 
+  // Cancelación con habitación asignada → preguntar si liberar la cama
+  const [pendingCancel, setPendingCancel] = useState<{ resId: string; room: string } | null>(null);
+
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
+    if (field === "reservation_status" && value === "cancelada" && roomByRes[resId]) {
+      setPendingCancel({ resId, room: roomByRes[resId] });
+      return;
+    }
+    return applyReservationStatus(resId, field, value);
+  };
+
+  const applyReservationStatus = async (resId: string, field: string, value: string, liberar?: boolean) => {
     setUpdatingId(resId);
     const res = reservations.find(r => r.id === resId);
     if (!res) return;
