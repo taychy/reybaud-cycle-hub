@@ -1212,6 +1212,7 @@ const AdminEventReservations = ({
     loadPayments(r.id);
     loadNotifications(r.id);
     loadParticipantResult(r);
+    loadStatusHistory(r.id);
   };
 
   /* ─── Priority indicators ─── */
