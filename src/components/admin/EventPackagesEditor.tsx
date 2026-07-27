@@ -393,9 +393,17 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                         )
                       ) : hasRooms ? (
                         <>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30">
-                            Cupo total: {totalUsed}/{cap!.total} · {cap!.roomCount} {cap!.roomCount === 1 ? "hab." : "habs."}
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setShowLodging(true); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setShowLodging(true); } }}
+                            className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30 inline-flex items-center gap-1 hover:bg-primary/20 cursor-pointer"
+                          >
+                            <BedDouble className="w-3 h-3" />
+                            Cupo total: {totalUsed}/{cap!.total} · Ver/editar en Alojamiento
                           </span>
+
                           {renderCapacityLine("Mujeres", c.mujeres, cap!.mujeres, "rose")}
                           {renderCapacityLine("Varones", c.varones, cap!.varones, "sky")}
                           {renderCapacityLine("Mixta", c.mixto, cap!.mixto, "violet")}
