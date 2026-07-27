@@ -358,7 +358,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     const roomsPayload = unassigned.map((r, idx) => ({
       event_id: eventId,
       package_id: pkgId,
-      nombre: `Individual — ${r.nombre} ${r.apellido}`.trim(),
+      nombre: `Individual ${baseOrder + idx + 1}`,
       capacidad: 1,
       genero: null,
       tipo: "individual",
