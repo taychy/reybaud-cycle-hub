@@ -44,6 +44,7 @@ interface RoomRow {
 interface Props {
   eventId: string;
   eventCurrency: string;
+  eventTitle?: string;
 }
 
 const emptyDraft = (currency: string) => ({
