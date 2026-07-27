@@ -793,7 +793,7 @@ const AdminEntregaDetail = () => {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} preparados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
-                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {fmtBase(costoTotalBase)}{esUsd && <span> (≈ {secArs(baseToArs(costoTotalBase))} ARS)</span>} · Pagado a proveedor {fmtBase(pagadoProvBase)}{esUsd && <span> (≈ {formatPrice(pagadoProvArs, "ARS")})</span>} · Saldo {fmtBase(pagadoProvBase === null ? null : costoTotalBase - pagadoProvBase)}</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {fmtBase(costoTotalBase)} · Pagado a proveedor {fmtBase(pagadoProvBase)} · Saldo {fmtBase(pagadoProvBase === null ? null : costoTotalBase - pagadoProvBase)}</div>
                   <div><Banknote className="w-3 h-3 inline mr-1" />Salidas totales {fmtBase(salidasTotalesBase)} = pagos a proveedor {fmtBase(pagadoProvBase)} + otras salidas {fmtBase(otrasSalidasBase)}</div>
                   {tc > 0 && <div>Tipo de cambio aplicado: 1 USD = {formatPrice(tc, "ARS")}</div>}
                   {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
