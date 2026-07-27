@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Clock, Eye, ExternalLink, Banknote } from "lucide-react";
+import { CheckCircle2, Clock, Eye, ExternalLink, Banknote, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 
@@ -29,6 +29,7 @@ interface Row {
 }
 
 const AdminDeliveryPayments = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [tab, setTab] = useState<"pendientes" | "validados">("pendientes");
   const [loading, setLoading] = useState(true);
