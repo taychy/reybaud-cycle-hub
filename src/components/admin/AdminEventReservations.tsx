@@ -2705,6 +2705,27 @@ const AdminEventReservations = ({
 
 /* ─── Sub-components ─── */
 
+const RoomBadge = ({ room, cancelled }: { room?: string; cancelled?: boolean }) => {
+  if (room) {
+    return (
+      <Badge
+        variant="outline"
+        className={`mt-1 text-[9px] ${cancelled
+          ? "bg-destructive/10 text-destructive border-destructive/30"
+          : "bg-primary/10 text-primary border-primary/30"}`}
+      >
+        <BedDouble className="w-2.5 h-2.5 mr-1" />
+        {room} — {cancelled ? "pendiente de liberar" : "asignada"}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="mt-1 text-[9px] text-muted-foreground border-border/50">
+      Sin habitación
+    </Badge>
+  );
+};
+
 const StatCard = ({ label, value, color, icon }: { label: string; value: string | number; color?: string; icon?: React.ReactNode }) => (
   <div className="rounded-xl border border-border bg-card p-4 text-center space-y-1">
     <div className={`flex items-center justify-center gap-1.5 ${color || "text-foreground"}`}>
