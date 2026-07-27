@@ -1604,6 +1604,7 @@ const AdminEventReservations = ({
                         {p.isExternal && <Badge variant="outline" className="ml-1.5 text-[9px] border-violet-500/30 text-violet-500">Externo</Badge>}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{p.email}</p>
+                      <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
                     </div>
                     {/* Estado reserva */}
                     <div>
