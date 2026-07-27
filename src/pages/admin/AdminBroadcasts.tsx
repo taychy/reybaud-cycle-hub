@@ -164,6 +164,8 @@ export default function AdminBroadcasts() {
     marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
     waitlist_event_ids: composer.waitlist_event_ids.length ? composer.waitlist_event_ids : undefined,
     waitlist_estados: composer.waitlist_estados.length ? composer.waitlist_estados : undefined,
+    cta_url: composer.cta_url || undefined,
+    cta_label: composer.cta_label || undefined,
   }), [composer]);
 
   const [waitlistEvents, setWaitlistEvents] = useState<Array<{ id: string; title: string; count: number }>>([]);
