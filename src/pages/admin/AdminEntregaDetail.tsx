@@ -694,21 +694,11 @@ const AdminEntregaDetail = () => {
           {(() => {
             const tc = Number(summary.tc_usd || 0);
             const necesitaTc = summary.moneda_items !== "ARS" && !tc;
-            const convertible = !necesitaTc;
-            const toArs = (monto: number, moneda?: string | null) =>
-              (moneda || "ARS") === "ARS" ? monto : monto * tc;
 
             // Totales nativos (moneda de los ítems) — no dependen del tipo de cambio
             const ventaPrepNativo = items.reduce((acc, it) => acc + (it.preparado ? Number(it.precio_venta || 0) * Number(it.cantidad || 0) : 0), 0);
             const costoPrepNativo = items.reduce((acc, it) => acc + (it.preparado ? Number(it.costo_unitario || 0) * Number(it.cantidad || 0) : 0), 0);
 
-            // COGS / ingresos de lo ya preparado, convertidos a ARS
-            const cogs = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.costo_unitario || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
-            const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.precio_venta || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
-            const otrasSalidas = Number(summary.otras_salidas || 0);
-            const utilidadRealizada = ingresosEntregados - cogs - otrasSalidas;
-            const rentSobreVentas = ingresosEntregados > 0 ? (utilidadRealizada / ingresosEntregados) * 100 : 0;
-            const markupSobreCosto = cogs > 0 ? (utilidadRealizada / cogs) * 100 : 0;
 
             // Tipo de cambio implícito sugerido a partir de lo ya cobrado
             const tcSugerido = ventaPrepNativo > 0 && Number(summary.total_cobrado) > 0
