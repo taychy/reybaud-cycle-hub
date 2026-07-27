@@ -934,14 +934,22 @@ const AdminEventReservations = ({
         note: `Admin cambió ${field} a ${value}`,
       } as any);
       if (field === "reservation_status" && value === "cancelada" && liberar !== undefined) {
-        const { error: relErr } = await supabase.rpc("release_room_on_cancel" as any, {
+        const { data: relData, error: relErr } = await supabase.rpc("release_room_on_cancel" as any, {
           _reservation_id: resId,
           _liberar: liberar,
         });
         if (relErr) {
           toast({ title: "Reserva cancelada, pero no se pudo liberar la cama", description: relErr.message, variant: "destructive" });
         } else if (liberar) {
-          toast({ title: "Cama liberada", description: "Se avisó a los super admins para contactar la lista de espera." });
+          const r: any = relData || {};
+          const extras = [
+            r.paquete_reactivado ? "paquete reactivado (vuelve a venderse)" : null,
+            r.evento_reactivado ? "evento vuelto a publicado" : null,
+          ].filter(Boolean).join(" · ");
+          toast({
+            title: "Cama liberada",
+            description: `Se avisó a los super admins para contactar la lista de espera.${extras ? ` ${extras}.` : ""}`,
+          });
         }
       }
       toast({ title: "Estado actualizado" });
@@ -2724,7 +2732,7 @@ const AdminEventReservations = ({
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
-            Si liberás la cama, se avisa por mail a los super admins y se crea una tarea para contactar a la lista de espera.
+            Si liberás la cama, se avisa por mail a los super admins, se crea una tarea para contactar a la lista de espera y el paquete se reactiva automáticamente para volver a venderse en la página pública (si el evento estaba agotado, vuelve a "publicado").
             Si no la liberás, queda ocupada y marcada en rojo en Alojamiento.
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
