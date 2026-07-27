@@ -550,7 +550,7 @@ const AdminEntregaDetail = () => {
     const { error } = await supabase
       .from("delivery_lists")
       .update({
-        costo_total_mercaderia: Number(costForm.costo) || 0,
+        costo_total_mercaderia: 0,
         proveedor_nombre: costForm.proveedor.trim() || null,
         moneda_costo: costForm.moneda,
         tc_usd: costForm.tc_usd === "" ? null : Number(costForm.tc_usd),
