@@ -2657,10 +2657,47 @@ const AdminEventReservations = ({
 
       <EventLodgingManager
         open={showLodging}
-        onOpenChange={setShowLodging}
+        onOpenChange={(o) => { setShowLodging(o); if (!o) loadRoomAssignments(); }}
         eventId={eventId}
         eventTitle={eventTitle}
       />
+
+      {/* Cancelar reserva con habitación asignada */}
+      <Dialog open={!!pendingCancel} onOpenChange={(o) => { if (!o) setPendingCancel(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Esta reserva tiene una habitación asignada</DialogTitle>
+            <DialogDescription>
+              La reserva está asignada a <strong>{pendingCancel?.room}</strong>. ¿Querés liberar la cama automáticamente?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
+            Si liberás la cama, se avisa por mail a los super admins y se crea una tarea para contactar a la lista de espera.
+            Si no la liberás, queda ocupada y marcada en rojo en Alojamiento.
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={async () => {
+                const p = pendingCancel; setPendingCancel(null);
+                if (p) await applyReservationStatus(p.resId, "reservation_status", "cancelada", false);
+              }}
+            >
+              Cancelar sin liberar
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={async () => {
+                const p = pendingCancel; setPendingCancel(null);
+                if (p) await applyReservationStatus(p.resId, "reservation_status", "cancelada", true);
+              }}
+            >
+              <BedDouble className="w-4 h-4 mr-1.5" /> Cancelar y liberar cama
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
