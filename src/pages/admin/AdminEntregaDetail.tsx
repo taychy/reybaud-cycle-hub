@@ -276,6 +276,7 @@ const AdminEntregaDetail = () => {
         costo: (l as any).costo_total_mercaderia?.toString() || "",
         proveedor: (l as any).proveedor_nombre || "",
         moneda: (l as any).moneda_costo || "ARS",
+        tc_usd: (l as any).tc_usd?.toString() || "",
       });
     }
     if (sum && (sum as any[])[0]) setSummary((sum as any)[0] as Summary);
