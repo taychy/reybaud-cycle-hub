@@ -87,7 +87,8 @@ const Login = () => {
         return;
       }
 
-      const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo);
+      const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo) || loadOAuthReturnTo();
+      if (targetReturnTo) clearOAuthReturnTo();
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();
