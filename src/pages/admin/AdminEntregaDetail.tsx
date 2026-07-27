@@ -74,7 +74,13 @@ interface Summary {
   saldo_a_proveedor: number;
   margen_bruto: number;
   cobros_sin_validar: number;
+  tc_usd: number | null;
+  moneda_items: string;
+  esperado_cobrar_nativo: number;
+  costo_total_nativo: number;
+  costo_desde_items: boolean;
 }
+
 
 interface SupplierPayment {
   id: string;
@@ -153,7 +159,7 @@ const AdminEntregaDetail = () => {
     notas: "",
   });
   const [savingCost, setSavingCost] = useState(false);
-  const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS" });
+  const [costForm, setCostForm] = useState({ costo: "", proveedor: "", moneda: "ARS", tc_usd: "" });
   const [itemEdits, setItemEdits] = useState<Record<string, { costo_unitario: string; precio_venta: string; moneda: string }>>({});
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [creatingPayment, setCreatingPayment] = useState(false);
@@ -270,6 +276,7 @@ const AdminEntregaDetail = () => {
         costo: (l as any).costo_total_mercaderia?.toString() || "",
         proveedor: (l as any).proveedor_nombre || "",
         moneda: (l as any).moneda_costo || "ARS",
+        tc_usd: (l as any).tc_usd?.toString() || "",
       });
     }
     if (sum && (sum as any[])[0]) setSummary((sum as any)[0] as Summary);
@@ -422,7 +429,8 @@ const AdminEntregaDetail = () => {
         costo_total_mercaderia: Number(costForm.costo) || 0,
         proveedor_nombre: costForm.proveedor.trim() || null,
         moneda_costo: costForm.moneda,
-      })
+        tc_usd: costForm.tc_usd === "" ? null : Number(costForm.tc_usd),
+      } as any)
       .eq("id", list.id);
     setSavingCost(false);
     if (error) return toast.error(error.message);
@@ -497,9 +505,10 @@ const AdminEntregaDetail = () => {
       head: [["Indicador", "Valor"]],
       body: [
         ["Ítems totales", String(summary.items_total)],
-        ["Entregados", String(summary.items_entregados)],
+        ["Preparados", String(summary.items_entregados)],
         ["Pendientes", String(summary.items_pendientes)],
-        ["Esperado a cobrar", formatPrice(summary.esperado_cobrar, "ARS")],
+        ["Esperado a cobrar (ARS)", formatPrice(summary.esperado_cobrar, "ARS")],
+        ["Tipo de cambio USD", summary.tc_usd ? formatPrice(summary.tc_usd, "ARS") : "—"],
         ["Total cobrado", formatPrice(summary.total_cobrado, "ARS")],
         ["Pendiente de cobro", formatPrice(summary.total_pendiente, "ARS")],
         ["Costo mercadería", formatPrice(summary.costo_total_mercaderia, "ARS")],
@@ -557,30 +566,41 @@ const AdminEntregaDetail = () => {
         {/* RESUMEN */}
         <TabsContent value="resumen" className="space-y-3 pt-4">
           {(() => {
-            // COGS = costo unitario × cantidad de los ítems ya ENTREGADOS
-            const cogs = items.reduce((acc, it) => acc + (it.preparado ? Number(it.costo_unitario || 0) * Number(it.cantidad || 0) : 0), 0);
-            // Ingresos realizados = precio venta × cantidad entregada (referencia para rentabilidad sobre ventas concretadas)
-            const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? Number(it.precio_venta || 0) * Number(it.cantidad || 0) : 0), 0);
+            const tc = Number(summary.tc_usd || 0);
+            const toArs = (monto: number, moneda?: string | null) =>
+              (moneda || "ARS") === "ARS" ? monto : monto * tc;
+            const necesitaTc = summary.moneda_items !== "ARS" && !tc;
+            // COGS = costo unitario × cantidad de los ítems ya PREPARADOS (convertido a ARS)
+            const cogs = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.costo_unitario || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
+            const ingresosEntregados = items.reduce((acc, it) => acc + (it.preparado ? toArs(Number(it.precio_venta || 0) * Number(it.cantidad || 0), it.moneda) : 0), 0);
             const utilidadRealizada = ingresosEntregados - cogs;
             const rentSobreVentas = ingresosEntregados > 0 ? (utilidadRealizada / ingresosEntregados) * 100 : 0;
             const markupSobreCosto = cogs > 0 ? (utilidadRealizada / cogs) * 100 : 0;
             return (
               <>
+                {necesitaTc && (
+                  <Card className="border-amber-500/40 bg-amber-500/5">
+                    <CardContent className="p-3 text-xs">
+                      Los ítems están valuados en <strong>{summary.moneda_items}</strong> y las cobranzas en ARS. Cargá el <strong>tipo de cambio USD</strong> en la pestaña <strong>Proveedor</strong> para que los totales sean comparables.
+                    </CardContent>
+                  </Card>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado</div><div className="font-heading text-xl">{formatPrice(summary.esperado_cobrar, "ARS")}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado</div><div className="font-heading text-xl text-primary">{formatPrice(summary.total_cobrado, "ARS")}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar</div><div className="font-heading text-xl text-amber-500">{formatPrice(summary.total_pendiente, "ARS")}</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (total)</div><div className="font-heading text-xl">{formatPrice(summary.margen_bruto, "ARS")}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Esperado (ARS)</div><div className="font-heading text-xl">{formatPrice(summary.esperado_cobrar, "ARS")}</div>{summary.moneda_items !== "ARS" && <div className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(summary.esperado_cobrar_nativo, summary.moneda_items === "MIXTA" ? "USD" : (summary.moneda_items as any))} en {summary.moneda_items}</div>}</CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Cobrado (ARS)</div><div className="font-heading text-xl text-primary">{formatPrice(summary.total_cobrado, "ARS")}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Por cobrar (ARS)</div><div className="font-heading text-xl text-amber-500">{formatPrice(summary.total_pendiente, "ARS")}</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Margen bruto (total)</div><div className="font-heading text-xl">{formatPrice(summary.margen_bruto, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">cobrado − costo</div></CardContent></Card>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (entregado)</div><div className="font-heading text-xl">{formatPrice(cogs, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">costo mercadería vendida</div></CardContent></Card>
-                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos entregados</div><div className="font-heading text-xl">{formatPrice(ingresosEntregados, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">venta de lo ya entregado</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">COGS (preparado)</div><div className="font-heading text-xl">{formatPrice(cogs, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">costo mercadería vendida</div></CardContent></Card>
+                  <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Ingresos preparados</div><div className="font-heading text-xl">{formatPrice(ingresosEntregados, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">venta de lo ya preparado</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Utilidad realizada</div><div className={`font-heading text-xl ${utilidadRealizada >= 0 ? "text-primary" : "text-destructive"}`}>{formatPrice(utilidadRealizada, "ARS")}</div><div className="text-[10px] text-muted-foreground mt-0.5">ingresos − COGS</div></CardContent></Card>
                   <Card><CardContent className="p-3"><div className="text-[10px] uppercase text-muted-foreground">Rentabilidad</div><div className={`font-heading text-xl ${rentSobreVentas >= 0 ? "text-primary" : "text-destructive"}`}>{rentSobreVentas.toFixed(1)}%</div><div className="text-[10px] text-muted-foreground mt-0.5">sobre ventas · markup {markupSobreCosto.toFixed(0)}%</div></CardContent></Card>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
-                  <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} entregados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
-                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {formatPrice(summary.costo_total_mercaderia, "ARS")} · Pagado a proveedor {formatPrice(summary.pagado_a_proveedor, "ARS")} · Saldo {formatPrice(summary.saldo_a_proveedor, "ARS")}</div>
+                  <div><Package className="w-3 h-3 inline mr-1" />{summary.items_entregados} preparados de {summary.items_total} ({summary.items_pendientes} pendientes)</div>
+                  <div><Banknote className="w-3 h-3 inline mr-1" />Costo total mercadería {formatPrice(summary.costo_total_mercaderia, "ARS")}{summary.costo_desde_items && <span> (calculado desde ítems)</span>} · Pagado a proveedor {formatPrice(summary.pagado_a_proveedor, "ARS")} · Saldo {formatPrice(summary.saldo_a_proveedor, "ARS")}</div>
+                  {tc > 0 && <div>Tipo de cambio aplicado: 1 USD = {formatPrice(tc, "ARS")}</div>}
                   {list.caja_abierta_at && <div>Caja abierta el {new Date(list.caja_abierta_at).toLocaleString("es-AR")}</div>}
                   {list.caja_cerrada_at && <div>Caja cerrada el {new Date(list.caja_cerrada_at).toLocaleString("es-AR")}</div>}
                 </div>
@@ -971,9 +991,17 @@ const AdminEntregaDetail = () => {
                   </Select>
                 </div>
               </div>
-              <div>
-                <Label className="text-xs">Costo total de la mercadería</Label>
-                <Input type="number" value={costForm.costo} onChange={(e) => setCostForm({ ...costForm, costo: e.target.value })} placeholder="0" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">Costo total de la mercadería</Label>
+                  <Input type="number" value={costForm.costo} onChange={(e) => setCostForm({ ...costForm, costo: e.target.value })} placeholder="0 = calcular desde ítems" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Dejalo en 0 para que se calcule automáticamente sumando el costo de cada ítem.</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo de cambio USD (ARS por 1 USD)</Label>
+                  <Input type="number" value={costForm.tc_usd} onChange={(e) => setCostForm({ ...costForm, tc_usd: e.target.value })} placeholder="Ej: 1300" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Se usa para convertir los ítems en USD y compararlos con las cobranzas en ARS.</p>
+                </div>
               </div>
               <Button size="sm" variant="gold" onClick={saveCost} disabled={savingCost}>
                 {savingCost ? "Guardando..." : "Guardar costo"}
